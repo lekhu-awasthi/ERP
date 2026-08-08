@@ -28,8 +28,33 @@ export const routes: Routes = [
       import('./features/auth/reset-password-page/reset-password-page').then((m) => m.ResetPasswordPage),
   },
   {
-    path: 'dashboard',
-    loadComponent: () => import('./features/dashboard/dashboard-page').then((m) => m.DashboardPage),
+    path: 'organizations',
+    loadComponent: () =>
+      import('./features/organizations/organization-list-page/organization-list-page').then(
+        (m) => m.OrganizationListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/new',
+    loadComponent: () =>
+      import('./features/organizations/new-organization-wizard/new-organization-wizard').then(
+        (m) => m.NewOrganizationWizard,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/welcome',
+    loadComponent: () =>
+      import('./features/organizations/welcome-page/welcome-page').then((m) => m.WelcomePage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id',
+    loadComponent: () =>
+      import('./features/organizations/organization-dashboard-page/organization-dashboard-page').then(
+        (m) => m.OrganizationDashboardPage,
+      ),
     canActivate: [authGuard],
   },
 ];
