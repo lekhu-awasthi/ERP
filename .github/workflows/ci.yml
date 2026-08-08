@@ -10,16 +10,20 @@ jobs:
   dotnet:
     name: .NET build & test
     runs-on: ubuntu-latest
+    env:
+      # Throwaway password for a container that only lives for this one CI run —
+      # not a real secret, so no need to route it through GitHub Actions secrets.
+      CI_SQL_SA_PASSWORD: "P@ssw0rd_CI_Only_2026!"
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2022-latest
         env:
           ACCEPT_EULA: "Y"
-          MSSQL_SA_PASSWORD: ${{ secrets.CI_SQL_SA_PASSWORD }}
+          MSSQL_SA_PASSWORD: "P@ssw0rd_CI_Only_2026!"
         ports:
           - 1433:1433
         options: >-
-          --health-cmd="/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P $MSSQL_SA_PASSWORD -Q 'SELECT 1'"
+          --health-cmd="/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P P@ssw0rd_CI_Only_2026! -Q 'SELECT 1'"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
@@ -40,7 +44,7 @@ jobs:
       - name: Test
         run: dotnet test ErpApp.slnx --no-build --configuration Release --logger "trx;LogFileName=test-results.trx"
         env:
-          ConnectionStrings__Default: "Server=localhost,1433;Database=ErpApp;User Id=sa;Password=${{ secrets.CI_SQL_SA_PASSWORD }};TrustServerCertificate=True"
+          ConnectionStrings__Default: "Server=localhost,1433;Database=ErpApp;User Id=sa;Password=${{ env.CI_SQL_SA_PASSWORD }};TrustServerCertificate=True"
 
       - name: Publish test results
         if: always()
