@@ -25,10 +25,19 @@ public sealed class HealthEndpointTests : IAsyncLifetime
         {
             builder.ConfigureAppConfiguration((_, config) =>
             {
+                // Test-only values for options that ValidateOnStart requires (Jwt/Email) --
+                // these never come from developer user-secrets (not present in CI) and this
+                // test never actually issues a JWT or sends an email, so dummy values are fine.
                 config.AddInMemoryCollection(
                 [
                     new KeyValuePair<string, string?>(
                         "ConnectionStrings:Default", _sqlContainer.GetConnectionString()),
+                    new KeyValuePair<string, string?>("Jwt:SigningKey", "integration-test-signing-key-not-for-real-use"),
+                    new KeyValuePair<string, string?>("Email:From", "test@example.com"),
+                    new KeyValuePair<string, string?>("Email:SmtpServer", "localhost"),
+                    new KeyValuePair<string, string?>("Email:Port", "25"),
+                    new KeyValuePair<string, string?>("Email:Username", "test"),
+                    new KeyValuePair<string, string?>("Email:Password", "test"),
                 ]);
             });
         });
