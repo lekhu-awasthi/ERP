@@ -1,9 +1,38 @@
-<section class="page welcome-page">
-  <h1>Welcome to ErpApp 🎉</h1>
-  <p><strong>{{ organizationName }}</strong> has been created.</p>
+<div class="container d-flex align-items-center justify-content-center min-vh-100 py-5">
+  <div class="card shadow-lg border-0 w-100" style="max-width: 520px;">
+    <div class="card-body p-5 text-center">
+      <!-- Success Icon -->
+      <div class="d-inline-flex align-items-center justify-content-center bg-success bg-gradient text-white rounded-circle mb-4 animate-bounce" style="width: 80px; height: 80px;">
+        <i class="bi bi-patch-check-fill fs-1"></i>
+      </div>
 
-  <div class="wizard-actions">
-    <a routerLink="/organizations/new">Add Another Organization</a>
-    <a [routerLink]="['/organizations', organizationId]">Go to Dashboard</a>
+      <!-- Welcome Title & Details -->
+      <h1 class="fw-bold text-dark mb-2">Welcome to ErpApp! 🎉</h1>
+      <p class="text-muted mb-4 fs-6">
+        Your organization <strong class="text-success">{{ organizationName }}</strong> has been successfully created and configured.
+      </p>
+
+      <div class="bg-light p-3 rounded-3 mb-4 border d-flex align-items-center gap-3 text-start">
+        <div class="bg-success bg-opacity-10 p-2 rounded text-success">
+          <i class="bi bi-building fs-4"></i>
+        </div>
+        <div>
+          <h6 class="fw-bold mb-0 text-dark">{{ organizationName }}</h6>
+          <span class="text-muted small">Organization Ready</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="d-grid gap-2">
+        <a [routerLink]="['/organizations', organizationId]" class="btn btn-success py-2.5 fw-bold d-flex align-items-center justify-content-center gap-2">
+          <span>Go to Dashboard</span>
+          <i class="bi bi-arrow-right"></i>
+        </a>
+        <a routerLink="/organizations/new" class="btn btn-outline-secondary py-2.5 fw-bold d-flex align-items-center justify-content-center gap-2">
+          <i class="bi bi-plus-circle"></i>
+          <span>Add Another Organization</span>
+        </a>
+      </div>
+    </div>
   </div>
-</section>
+</div>
