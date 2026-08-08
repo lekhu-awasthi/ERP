@@ -59,7 +59,10 @@ public sealed class HealthEndpointTests : IAsyncLifetime
         var client = _factory!.CreateClient();
 
         var response = await client.GetAsync("/health");
+        var body = await response.Content.ReadAsStringAsync();
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(
+            response.StatusCode == HttpStatusCode.OK,
+            $"Expected 200 OK, got {(int)response.StatusCode} {response.StatusCode}. Body: {body}");
     }
 }

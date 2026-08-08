@@ -5,6 +5,7 @@ using ErpApp.Application;
 using ErpApp.Infrastructure;
 using ErpApp.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,18 +30,25 @@ builder.Services.AddCors(options =>
             .AllowCredentials());
 });
 
-var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
-    ?? throw new InvalidOperationException("Missing 'Jwt' configuration section.");
-
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+    .AddJwtBearer();
+
+// Configured via IOptions<JwtOptions> (resolved lazily, on first use) rather than reading
+// builder.Configuration directly here -- this line runs before the host is fully built, so a
+// direct read would snapshot configuration too early to see sources added later (test-only
+// config overrides in WebApplicationFactory, notably), causing a null SigningKey there even
+// though the same config resolves fine everywhere else via ValidateOnStart().
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<IOptions<JwtOptions>>((bearerOptions, jwtOptionsAccessor) =>
     {
+        var jwtOptions = jwtOptionsAccessor.Value;
+
         // Without this, the handler remaps "sub"/"email" to long legacy XML-namespace claim
         // types on the way in, so ClaimsPrincipal.FindFirstValue(JwtRegisteredClaimNames.Sub)
         // (used by /me) would silently return null even though the token is valid.
-        options.MapInboundClaims = false;
+        bearerOptions.MapInboundClaims = false;
 
-        options.TokenValidationParameters = new TokenValidationParameters
+        bearerOptions.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidIssuer = jwtOptions.Issuer,
@@ -53,7 +61,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
 
         // The JWT travels in an httpOnly cookie, not an Authorization header (roadmap Phase 1a task 3).
-        options.Events = new JwtBearerEvents
+        bearerOptions.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
             {
