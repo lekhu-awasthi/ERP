@@ -1,77 +1,230 @@
-<section class="page">
-  <header class="page-header">
-    <h1>{{ organization()?.name ?? 'Organization' }}</h1>
-    <div class="header-actions">
-      @if (currentUser(); as user) {
-        <span>{{ user.email }}</span>
-      }
-      <button type="button" (click)="logout()">Log out</button>
+<div class="container py-5" style="max-width: 800px;">
+  <!-- Dashboard Top Header -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-success bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-speedometer2 fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">{{ organization()?.name ?? 'Organization' }}</h1>
+          <p class="text-muted small mb-0">Workspace dashboard & administration panel</p>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        @if (currentUser(); as user) {
+          <div class="text-end d-none d-sm-block">
+            <span class="d-block fw-semibold text-dark small">{{ user.fullName || 'User' }}</span>
+            <span class="text-muted small">{{ user.email }}</span>
+          </div>
+        }
+        <button type="button" class="btn btn-outline-danger btn-sm fw-bold d-flex align-items-center gap-1" (click)="logout()">
+          <i class="bi bi-box-arrow-right"></i> Log out
+        </button>
+      </div>
     </div>
-  </header>
+  </div>
 
+  <!-- Global Alert Error Message -->
   @if (errorMessage()) {
-    <p class="error" role="alert">{{ errorMessage() }}</p>
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
   }
 
+  <!-- Data Display Content -->
   @if (loading()) {
-    <p>Loading…</p>
+    <div class="card border-0 shadow-sm text-center py-5">
+      <div class="card-body">
+        <div class="spinner-border text-success mb-3" role="status"></div>
+        <p class="text-muted mb-0">Loading workspace dashboard...</p>
+      </div>
+    </div>
   } @else if (data(); as result) {
-    <div class="switcher">
-      <label>
-        Switch Organization
-        <select [ngModel]="organizationId()" (ngModelChange)="switchOrganization($event)" [ngModelOptions]="{ standalone: true }">
-          @for (org of result.organizations; track org.organizationId) {
-            <option [value]="org.organizationId">{{ org.name }}</option>
-          }
-        </select>
-      </label>
-      <a routerLink="/organizations/new">+ Add New Organization</a>
-      <a routerLink="/organizations">All Organizations</a>
+    <!-- Quick Workspace Switcher Panel -->
+    <div class="card border-0 shadow-sm mb-4 bg-light-subtle border">
+      <div class="card-body p-3">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+          <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 320px;">
+            <label for="orgSwitcher" class="form-label text-muted small fw-bold mb-0 text-nowrap">
+              <i class="bi bi-arrow-left-right me-1"></i> Switch:
+            </label>
+            <select
+              id="orgSwitcher"
+              [ngModel]="organizationId()"
+              (ngModelChange)="switchOrganization($event)"
+              [ngModelOptions]="{ standalone: true }"
+              class="form-select form-select-sm"
+            >
+              @for (org of result.organizations; track org.organizationId) {
+                <option [value]="org.organizationId">{{ org.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="d-flex gap-2">
+            <a routerLink="/organizations" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-list-task"></i> All Organizations
+            </a>
+            <a routerLink="/organizations/new" class="btn btn-success btn-sm fw-bold">
+              <i class="bi bi-plus-circle"></i> Add New
+            </a>
+          </div>
+        </div>
+      </div>
     </div>
 
     @if (organization(); as org) {
-      <div class="review-block">
-        <dl>
-          <dt>Workspace</dt>
-          <dd>{{ org.workspaceName }}.erpapp</dd>
-          <dt>Industry</dt>
-          <dd>{{ org.industry }}</dd>
-          <dt>Your role</dt>
-          <dd>{{ org.role }}</dd>
-        </dl>
-      </div>
+      <div class="row g-4">
+        <!-- Sidebar Workspace Details Column -->
+        <div class="col-md-5">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white p-4 border-0 pb-0">
+              <h5 class="fw-bold mb-1 text-dark">Workspace Parameters</h5>
+            </div>
+            <div class="card-body p-4">
+              <div class="d-flex flex-column gap-3">
+                <!-- Subdomain Parameter -->
+                <div class="d-flex align-items-center gap-3">
+                  <div class="bg-light text-muted p-2.5 rounded text-center" style="width: 44px; height: 44px;">
+                    <i class="bi bi-globe fs-5"></i>
+                  </div>
+                  <div>
+                    <span class="text-muted small d-block">SUBDOMAIN</span>
+                    <strong class="text-dark">{{ org.workspaceName }}.erpapp</strong>
+                  </div>
+                </div>
 
-      @if (org.role === 'Admin') {
-        <div class="invite-panel">
-          <h2>Invite a User</h2>
-          <form [formGroup]="inviteForm" (ngSubmit)="invite()">
-            <label>
-              Email Address *
-              <input type="email" formControlName="email" />
-            </label>
-            <label>
-              Role *
-              <select formControlName="role">
-                <option value="Admin">Admin</option>
-                <option value="Member">Member</option>
-              </select>
-            </label>
+                <!-- Industry Parameter -->
+                <div class="d-flex align-items-center gap-3">
+                  <div class="bg-light text-muted p-2.5 rounded text-center" style="width: 44px; height: 44px;">
+                    <i class="bi bi-tag fs-5"></i>
+                  </div>
+                  <div>
+                    <span class="text-muted small d-block">INDUSTRY</span>
+                    <strong class="text-dark">{{ org.industry }}</strong>
+                  </div>
+                </div>
 
-            @if (inviteMessage()) {
-              <p class="info">{{ inviteMessage() }}</p>
-            }
-            @if (inviteError()) {
-              <p class="error" role="alert">{{ inviteError() }}</p>
-            }
-
-            <button type="submit" [disabled]="inviting()">
-              {{ inviting() ? 'Sending…' : 'Send Invitation' }}
-            </button>
-          </form>
+                <!-- Role Parameter -->
+                <div class="d-flex align-items-center gap-3">
+                  <div class="bg-light text-muted p-2.5 rounded text-center" style="width: 44px; height: 44px;">
+                    <i class="bi bi-shield-check fs-5"></i>
+                  </div>
+                  <div>
+                    <span class="text-muted small d-block">YOUR WORKSPACE ROLE</span>
+                    <span class="badge bg-success-subtle text-success px-2.5 py-1 rounded-pill fw-bold">
+                      {{ org.role }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      }
+
+        <!-- Main Invite Panel Workspace Column -->
+        <div class="col-md-7">
+          @if (org.role === 'Admin') {
+            <div class="card border-0 shadow-sm h-100">
+              <div class="card-header bg-white p-4 border-0 pb-0">
+                <h5 class="fw-bold mb-1 text-dark">Invite Team Member</h5>
+                <p class="text-muted small mb-0">Collaborate with other members by adding them to this workspace</p>
+              </div>
+              <div class="card-body p-4">
+                <form [formGroup]="inviteForm" (ngSubmit)="invite()" novalidate>
+                  <!-- Email Address -->
+                  <div class="mb-3">
+                    <label for="inviteEmail" class="form-label fw-semibold text-secondary small">Email Address *</label>
+                    <div class="input-group">
+                      <span class="input-group-text bg-white border-end-0 text-muted">
+                        <i class="bi bi-envelope"></i>
+                      </span>
+                      <input
+                        id="inviteEmail"
+                        type="email"
+                        formControlName="email"
+                        class="form-control border-start-0 ps-0"
+                        placeholder="collaborator@example.com"
+                        [class.is-invalid]="inviteForm.get('email')?.touched && inviteForm.get('email')?.invalid"
+                      />
+                      @if (inviteForm.get('email')?.touched && inviteForm.get('email')?.invalid) {
+                        <div class="invalid-feedback">
+                          Please provide a valid email.
+                        </div>
+                      }
+                    </div>
+                  </div>
+
+                  <!-- Role Selector -->
+                  <div class="mb-4">
+                    <label for="inviteRole" class="form-label fw-semibold text-secondary small">Access Role *</label>
+                    <div class="input-group">
+                      <span class="input-group-text bg-white border-end-0 text-muted">
+                        <i class="bi bi-sliders"></i>
+                      </span>
+                      <select id="inviteRole" formControlName="role" class="form-select border-start-0 ps-0">
+                        <option value="Admin">Admin (Full administrative privileges)</option>
+                        <option value="Member">Member (Standard member access)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- Invite Message Signals -->
+                  @if (inviteMessage()) {
+                    <div class="alert alert-success d-flex align-items-center gap-2 small py-2 px-3 mb-4" role="status">
+                      <i class="bi bi-check-circle-fill flex-shrink-0"></i>
+                      <div>{{ inviteMessage() }}</div>
+                    </div>
+                  }
+                  @if (inviteError()) {
+                    <div class="alert alert-danger d-flex align-items-center gap-2 small py-2 px-3 mb-4" role="alert">
+                      <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+                      <div>{{ inviteError() }}</div>
+                    </div>
+                  }
+
+                  <!-- Action Submit Button -->
+                  <button type="submit" class="btn btn-success fw-bold w-100 py-2 d-flex align-items-center justify-content-center gap-2" [disabled]="inviting()">
+                    @if (inviting()) {
+                      <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                      <span>Sending Invitation...</span>
+                    } @else {
+                      <i class="bi bi-person-plus"></i>
+                      <span>Send Invitation</span>
+                    }
+                  </button>
+                </form>
+              </div>
+            </div>
+          } @else {
+            <div class="card border-0 shadow-sm h-100 bg-light text-center py-5">
+              <div class="card-body p-5">
+                <div class="d-inline-flex p-3 rounded-circle bg-white text-muted mb-3 shadow-sm">
+                  <i class="bi bi-shield-lock-fill fs-2"></i>
+                </div>
+                <h5 class="fw-bold text-dark mb-2">Member Workspace View</h5>
+                <p class="text-muted small mx-auto mb-0" style="max-width: 320px;">
+                  Only workspace Administrators can invite, modify members, or adjust workspace billing properties.
+                </p>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
     } @else {
-      <p>You are not a member of this organization, or it doesn't exist.</p>
+      <div class="card border-0 shadow-sm py-5 text-center bg-light border">
+        <div class="card-body">
+          <div class="d-inline-flex p-3 rounded-circle bg-white text-muted mb-3">
+            <i class="bi bi-exclamation-circle-fill fs-2"></i>
+          </div>
+          <h5 class="fw-bold text-dark">Workspace Not Found</h5>
+          <p class="text-muted small mx-auto mb-3" style="max-width: 360px;">
+            You are either not a member of this organization, or it does not exist.
+          </p>
+          <a routerLink="/organizations" class="btn btn-primary btn-sm fw-bold">Return to Organizations</a>
+        </div>
+      </div>
     }
   }
-</section>
+</div>

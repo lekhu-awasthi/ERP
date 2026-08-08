@@ -1,11 +1,22 @@
 import { Component, inject, signal } from '@angular/core';
-import { ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { FormBuilder } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { switchMap } from 'rxjs';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { extractErrorMessage } from '../../../core/auth/api-error';
+
+export const passwordMatchValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+  const password = control.get('password');
+  const confirmPassword = control.get('confirmPassword');
+
+  if (!password || !confirmPassword) {
+    return null;
+  }
+
+  return password.value === confirmPassword.value ? null : { passwordMismatch: true };
+};
 
 @Component({
   selector: 'app-register-page',
@@ -22,7 +33,8 @@ export class RegisterPage {
     email: ['', [Validators.required, Validators.email]],
     phone: ['', [Validators.required]],
     password: ['', [Validators.required, Validators.minLength(8)]],
-  });
+    confirmPassword: ['', [Validators.required]],
+  }, { validators: [passwordMatchValidator] });
 
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
@@ -36,13 +48,11 @@ export class RegisterPage {
     this.submitting.set(true);
     this.errorMessage.set(null);
 
-    const { email } = this.form.getRawValue();
+    const { email, fullName, phone, password } = this.form.getRawValue();
 
-    // Chain straight into requesting the first verification code, so one wasn't sent yet
-    // isn't a state the verify-email page has to handle -- registering always leaves a
-    // code waiting.
+    // Send only registration parameters required by backend api
     this.authService
-      .register(this.form.getRawValue())
+      .register({ fullName, email, phone, password })
       .pipe(switchMap(() => this.authService.requestVerificationCode(email)))
       .subscribe({
         next: () => this.router.navigate(['/verify-email'], { queryParams: { email } }),
