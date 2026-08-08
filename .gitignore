@@ -1,0 +1,33 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+artifacts/
+
+# Angular / Node
+web/node_modules/
+web/dist/
+web/.angular/
+npm-debug.log*
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Secrets — never commit real connection strings/keys.
+# (Local dev secrets live outside the repo via `dotnet user-secrets`, not here —
+# these patterns are just a backstop in case one ever gets created by mistake.)
+*.env
+appsettings.*.local.json
+secrets.json
