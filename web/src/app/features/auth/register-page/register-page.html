@@ -1,35 +1,146 @@
-<section class="auth-page">
-  <h1>Create your account</h1>
+<div class="container d-flex align-items-center justify-content-center min-vh-100 py-5">
+  <div class="card shadow-lg border-0 w-100" style="max-width: 480px;">
+    <div class="card-body p-5">
+      <!-- Logo/Brand placeholder -->
+      <div class="text-center mb-4">
+        <div class="d-inline-flex align-items-center justify-content-center bg-success bg-gradient text-white rounded-circle mb-3" style="width: 60px; height: 60px;">
+          <i class="bi bi-person-plus-fill fs-2"></i>
+        </div>
+        <h2 class="fw-bold mb-1">Create Account</h2>
+        <p class="text-muted small">Sign up to get started with ErpApp</p>
+      </div>
 
-  <form [formGroup]="form" (ngSubmit)="submit()">
-    <label>
-      Full name
-      <input type="text" formControlName="fullName" autocomplete="name" />
-    </label>
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <!-- Full Name Field -->
+        <div class="mb-3">
+          <label for="fullName" class="form-label fw-semibold text-secondary small">Full Name</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0 text-muted">
+              <i class="bi bi-person"></i>
+            </span>
+            <input
+              id="fullName"
+              type="text"
+              formControlName="fullName"
+              autocomplete="name"
+              class="form-control border-start-0 ps-0"
+              placeholder="John Doe"
+              [class.is-invalid]="form.get('fullName')?.touched && form.get('fullName')?.invalid"
+            />
+            @if (form.get('fullName')?.touched && form.get('fullName')?.invalid) {
+              <div class="invalid-feedback">
+                Full name is required.
+              </div>
+            }
+          </div>
+        </div>
 
-    <label>
-      Email
-      <input type="email" formControlName="email" autocomplete="email" />
-    </label>
+        <!-- Email Field -->
+        <div class="mb-3">
+          <label for="email" class="form-label fw-semibold text-secondary small">Email Address</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0 text-muted">
+              <i class="bi bi-envelope"></i>
+            </span>
+            <input
+              id="email"
+              type="email"
+              formControlName="email"
+              autocomplete="email"
+              class="form-control border-start-0 ps-0"
+              placeholder="name@example.com"
+              [class.is-invalid]="form.get('email')?.touched && form.get('email')?.invalid"
+            />
+            @if (form.get('email')?.touched && form.get('email')?.invalid) {
+              <div class="invalid-feedback">
+                @if (form.get('email')?.errors?.['required']) {
+                  Email is required.
+                } @else if (form.get('email')?.errors?.['email']) {
+                  Please enter a valid email address.
+                }
+              </div>
+            }
+          </div>
+        </div>
 
-    <label>
-      Phone
-      <input type="tel" formControlName="phone" autocomplete="tel" />
-    </label>
+        <!-- Phone Field -->
+        <div class="mb-3">
+          <label for="phone" class="form-label fw-semibold text-secondary small">Phone Number</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0 text-muted">
+              <i class="bi bi-telephone"></i>
+            </span>
+            <input
+              id="phone"
+              type="tel"
+              formControlName="phone"
+              autocomplete="tel"
+              class="form-control border-start-0 ps-0"
+              placeholder="+1 (555) 000-0000"
+              [class.is-invalid]="form.get('phone')?.touched && form.get('phone')?.invalid"
+            />
+            @if (form.get('phone')?.touched && form.get('phone')?.invalid) {
+              <div class="invalid-feedback">
+                Phone number is required.
+              </div>
+            }
+          </div>
+        </div>
 
-    <label>
-      Password
-      <input type="password" formControlName="password" autocomplete="new-password" />
-    </label>
+        <!-- Password Field -->
+        <div class="mb-4">
+          <label for="password" class="form-label fw-semibold text-secondary small">Password</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0 text-muted">
+              <i class="bi bi-lock"></i>
+            </span>
+            <input
+              id="password"
+              type="password"
+              formControlName="password"
+              autocomplete="new-password"
+              class="form-control border-start-0 ps-0"
+              placeholder="At least 8 characters"
+              [class.is-invalid]="form.get('password')?.touched && form.get('password')?.invalid"
+            />
+            @if (form.get('password')?.touched && form.get('password')?.invalid) {
+              <div class="invalid-feedback">
+                @if (form.get('password')?.errors?.['required']) {
+                  Password is required.
+                } @else if (form.get('password')?.errors?.['minlength']) {
+                  Password must be at least 8 characters long.
+                }
+              </div>
+            }
+          </div>
+        </div>
 
-    @if (errorMessage()) {
-      <p class="error" role="alert">{{ errorMessage() }}</p>
-    }
+        @if (errorMessage()) {
+          <div class="alert alert-danger d-flex align-items-center gap-2 small py-2 px-3 mb-4 animate-fade-in" role="alert">
+            <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+            <div>{{ errorMessage() }}</div>
+          </div>
+        }
 
-    <button type="submit" [disabled]="submitting()">
-      {{ submitting() ? 'Creating account...' : 'Create account' }}
-    </button>
-  </form>
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-success w-100 py-2.5 fw-bold mb-3 d-flex align-items-center justify-content-center gap-2" [disabled]="submitting()">
+          @if (submitting()) {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <span>Creating account...</span>
+          } @else {
+            <span>Create Account</span>
+            <i class="bi bi-arrow-right"></i>
+          }
+        </button>
+      </form>
 
-  <p>Already have an account? <a routerLink="/login">Log in</a></p>
-</section>
+      <!-- Login Link -->
+      <div class="text-center mt-4">
+        <p class="text-muted small mb-0">
+          Already have an account?
+          <a routerLink="/login" class="fw-bold text-success text-decoration-none">Log in</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>

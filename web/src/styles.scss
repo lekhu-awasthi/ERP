@@ -1,10 +1,15 @@
 /* You can add global styles to this file, and also import other style files */
 
+@use "bootstrap/scss/bootstrap";
+@import "bootstrap-icons/font/bootstrap-icons.css";
+
 body {
   font-family: system-ui, sans-serif;
   margin: 0;
+  background-color: #f8f9fa;
 }
 
+/* Adjust .auth-page default styles to not conflict with our custom bootstrap styles */
 .auth-page {
   max-width: 24rem;
   margin: 3rem auto;
