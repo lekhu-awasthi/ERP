@@ -10,7 +10,8 @@ body {
   margin: 3rem auto;
   padding: 1.5rem;
 
-  form {
+  form,
+  .form-fields {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -40,5 +41,180 @@ body {
 
   .info {
     color: #1b5e20;
+  }
+}
+
+.page {
+  max-width: 48rem;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+  }
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 1.5rem;
+
+  button {
+    background: none;
+    border: none;
+    padding: 0.6rem 0.9rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+    border-bottom: 2px solid transparent;
+
+    &.active {
+      border-bottom-color: #1b5e20;
+      font-weight: 600;
+    }
+  }
+
+  .add-organization {
+    margin-left: auto;
+    font-size: 0.9rem;
+  }
+}
+
+.empty-state {
+  padding: 2rem 0;
+  color: #555;
+}
+
+.org-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 0.25rem;
+    cursor: pointer;
+
+    .role {
+      margin-left: auto;
+      font-size: 0.85rem;
+      color: #555;
+    }
+  }
+}
+
+.wizard-steps {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  color: #555;
+
+  .current {
+    font-weight: 600;
+    color: #1b5e20;
+  }
+}
+
+.feature-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  label {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 0.25rem;
+    cursor: pointer;
+  }
+}
+
+.review-block {
+  margin-bottom: 1.5rem;
+
+  dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.35rem 1rem;
+    margin: 0;
+  }
+
+  dt {
+    color: #555;
+  }
+
+  dd {
+    margin: 0;
+  }
+}
+
+.wizard-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+}
+
+.welcome-page {
+  text-align: center;
+  margin-top: 4rem;
+
+  .wizard-actions {
+    justify-content: center;
+    gap: 1rem;
+  }
+}
+
+.switcher {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+  }
+}
+
+.invite-panel {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #ddd;
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 24rem;
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.9rem;
   }
 }

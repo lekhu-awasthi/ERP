@@ -1,0 +1,187 @@
+<section class="page">
+  <h1>New Organization</h1>
+
+  <nav class="wizard-steps">
+    <span [class.current]="step() === 1">1. Set Up Your Organization</span>
+    <span [class.current]="step() === 2">2. Accounting Features</span>
+    <span [class.current]="step() === 3">3. Review</span>
+  </nav>
+
+  @if (errorMessage()) {
+    <p class="error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  <form [formGroup]="form">
+    @if (step() === 1) {
+      <div class="auth-page">
+        <div class="form-fields">
+          <label>
+            Organization Name *
+            <input type="text" formControlName="name" />
+          </label>
+
+          <label>
+            Industry *
+            <input type="text" formControlName="industry" list="industry-options" />
+            <datalist id="industry-options">
+              @for (industry of industrySuggestions; track industry) {
+                <option [value]="industry"></option>
+              }
+            </datalist>
+          </label>
+
+          <label>
+            Organization Address
+            <input type="text" formControlName="address" />
+          </label>
+
+          <label>
+            Accounting Start Date *
+            <input type="date" formControlName="accountingStartDate" />
+          </label>
+
+          <label>
+            Registered with VAT? *
+            <select formControlName="isVatRegistered">
+              <option [ngValue]="true">Yes</option>
+              <option [ngValue]="false">No</option>
+            </select>
+          </label>
+
+          <label>
+            Workspace Name *
+            <input type="text" formControlName="workspaceName" />
+            @switch (workspaceStatus()) {
+              @case ('checking') {
+                <span class="info">Checking availability…</span>
+              }
+              @case ('available') {
+                <span class="info">Congratulations! This workspace name is available.</span>
+              }
+              @case ('taken') {
+                <span class="error">This workspace name is already taken.</span>
+              }
+            }
+          </label>
+
+          <details>
+            <summary>Add more organization info</summary>
+            <label>
+              Email
+              <input type="email" formControlName="email" />
+            </label>
+            <label>
+              Organization Phone Number
+              <input type="tel" formControlName="phone" />
+            </label>
+            <label>
+              PAN Number
+              <input type="text" formControlName="panNumber" />
+            </label>
+            <label>
+              Website
+              <input type="url" formControlName="website" />
+            </label>
+          </details>
+        </div>
+      </div>
+
+      <div class="wizard-actions">
+        <span></span>
+        <button type="button" (click)="goToStep2()">Next</button>
+      </div>
+    }
+
+    @if (step() === 2) {
+      <p>Opt-in features -- all can be enabled later.</p>
+
+      <div class="feature-cards">
+        <label>
+          <input type="checkbox" formControlName="trackInventory" />
+          <span><strong>Track Inventory</strong> — maintain stock levels for your products.</span>
+        </label>
+        <label>
+          <input type="checkbox" formControlName="multipleLocations" />
+          <span><strong>Multiple Locations</strong> — operate from more than one billing location.</span>
+        </label>
+        <label>
+          <input type="checkbox" formControlName="multipleWarehouses" />
+          <span><strong>Multiple Warehouses</strong> — track stock across separate warehouses.</span>
+        </label>
+        <label>
+          <input type="checkbox" formControlName="multiCurrency" />
+          <span><strong>Multi-Currency</strong> — transact in more than one currency.</span>
+        </label>
+        <label>
+          <input type="checkbox" formControlName="manufacturing" />
+          <span><strong>Enable Manufacturing</strong> — track bill of materials and production.</span>
+        </label>
+        <label>
+          <input type="checkbox" formControlName="posRetail" />
+          <span><strong>Point of Sale (Retail)</strong> — sell from a retail POS location.</span>
+        </label>
+        <label>
+          <input type="checkbox" formControlName="posRestaurant" />
+          <span><strong>Point of Sale (Restaurant)</strong> — sell from a restaurant POS location.</span>
+        </label>
+      </div>
+
+      <div class="wizard-actions">
+        <button type="button" (click)="back()">Back</button>
+        <button type="button" (click)="goToStep3()">Save and Continue</button>
+      </div>
+    }
+
+    @if (step() === 3) {
+      <div class="review-block">
+        <h2>Organization Details</h2>
+        <dl>
+          <dt>Name</dt>
+          <dd>{{ form.controls.name.value }}</dd>
+          <dt>Workspace</dt>
+          <dd>{{ form.controls.workspaceName.value }}</dd>
+          <dt>Industry</dt>
+          <dd>{{ form.controls.industry.value }}</dd>
+          <dt>Address</dt>
+          <dd>{{ form.controls.address.value || '—' }}</dd>
+          <dt>Accounting Start Date</dt>
+          <dd>{{ form.controls.accountingStartDate.value }}</dd>
+          <dt>VAT Registered</dt>
+          <dd>{{ form.controls.isVatRegistered.value ? 'Yes' : 'No' }}</dd>
+        </dl>
+      </div>
+
+      <div class="review-block">
+        <h2>Selected Features</h2>
+        @if (
+          !form.controls.trackInventory.value &&
+          !form.controls.multipleLocations.value &&
+          !form.controls.multipleWarehouses.value &&
+          !form.controls.multiCurrency.value &&
+          !form.controls.manufacturing.value &&
+          !form.controls.posRetail.value &&
+          !form.controls.posRestaurant.value
+        ) {
+          <p>No additional features selected - you can always enable them later.</p>
+        } @else {
+          <ul>
+            @if (form.controls.trackInventory.value) { <li>Track Inventory</li> }
+            @if (form.controls.multipleLocations.value) { <li>Multiple Locations</li> }
+            @if (form.controls.multipleWarehouses.value) { <li>Multiple Warehouses</li> }
+            @if (form.controls.multiCurrency.value) { <li>Multi-Currency</li> }
+            @if (form.controls.manufacturing.value) { <li>Enable Manufacturing</li> }
+            @if (form.controls.posRetail.value) { <li>Point of Sale (Retail)</li> }
+            @if (form.controls.posRestaurant.value) { <li>Point of Sale (Restaurant)</li> }
+          </ul>
+        }
+      </div>
+
+      <div class="wizard-actions">
+        <button type="button" (click)="back()">Back</button>
+        <button type="button" [disabled]="submitting()" (click)="submit()">
+          {{ submitting() ? 'Submitting…' : 'Confirm & Submit' }}
+        </button>
+      </div>
+    }
+  </form>
+</section>

@@ -38,6 +38,7 @@ public static class ExceptionHandling
                 NotFoundException => (StatusCodes.Status404NotFound, exception.Message),
                 AuthenticationFailedException => (StatusCodes.Status401Unauthorized, exception.Message),
                 EmailNotVerifiedException => (StatusCodes.Status403Forbidden, exception.Message),
+                ForbiddenException => (StatusCodes.Status403Forbidden, exception.Message),
                 InvalidVerificationCodeException => (StatusCodes.Status400BadRequest, exception.Message),
                 _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred."),
             };

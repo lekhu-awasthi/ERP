@@ -1,7 +1,10 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using ErpApp.Api.Endpoints;
 using ErpApp.Api.Middleware;
+using ErpApp.Api.Services;
 using ErpApp.Application;
+using ErpApp.Application.Common.Security;
 using ErpApp.Infrastructure;
 using ErpApp.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -13,8 +16,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Enums (MembershipRole, etc.) serialize as readable strings rather than numbers -- the first
+// enums to cross the Api boundary land in this phase's Tenancy DTOs.
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 // Explicit origin allow-list (not AllowAnyOrigin) because AllowCredentials is required for
 // the httpOnly JWT cookie to flow on cross-origin requests from the Angular dev server, and
@@ -101,6 +112,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy" }))
     .WithTags("Health");
 
 app.MapAuthEndpoints();
+app.MapOrganizationEndpoints();
 
 app.Run();
 

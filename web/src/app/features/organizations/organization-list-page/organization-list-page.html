@@ -1,0 +1,85 @@
+<section class="page">
+  <header class="page-header">
+    <h1>Organizations</h1>
+    <div class="header-actions">
+      @if (currentUser(); as user) {
+        <span>{{ user.email }}</span>
+      }
+      <button type="button" (click)="logout()">Log out</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button type="button" [class.active]="activeTab() === 'organizations'" (click)="setTab('organizations')">
+      Your Organizations
+    </button>
+    <button type="button" [class.active]="activeTab() === 'requests'" (click)="setTab('requests')">
+      Requests
+    </button>
+    <button type="button" [class.active]="activeTab() === 'invitations'" (click)="setTab('invitations')">
+      Invitations
+    </button>
+    <a class="add-organization" routerLink="/organizations/new">+ Add New Organization</a>
+  </nav>
+
+  @if (errorMessage()) {
+    <p class="error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  @if (loading()) {
+    <p>Loading…</p>
+  } @else if (data(); as result) {
+    @switch (activeTab()) {
+      @case ('organizations') {
+        @if (result.organizations.length === 0) {
+          <div class="empty-state">
+            <p>Create Your First Organization — Let's create your first organization together.</p>
+            <a routerLink="/organizations/new">Add New Organization</a>
+          </div>
+        } @else {
+          <ul class="org-list">
+            @for (org of result.organizations; track org.organizationId) {
+              <li (click)="openOrganization(org.organizationId)">
+                <strong>{{ org.name }}</strong>
+                <span>{{ org.workspaceName }}.erpapp</span>
+                <span>{{ org.industry }}</span>
+                <span class="role">{{ org.role }}</span>
+              </li>
+            }
+          </ul>
+        }
+      }
+      @case ('requests') {
+        @if (result.requests.length === 0) {
+          <div class="empty-state"><p>No Pending Requests</p></div>
+        } @else {
+          <ul class="org-list">
+            @for (r of result.requests; track r.membershipId) {
+              <li>
+                <strong>{{ r.organizationName }}</strong>
+                <span>Requested</span>
+              </li>
+            }
+          </ul>
+        }
+      }
+      @case ('invitations') {
+        @if (result.invitations.length === 0) {
+          <div class="empty-state"><p>No Pending Invitations!</p></div>
+        } @else {
+          <ul class="org-list">
+            @for (i of result.invitations; track i.membershipId) {
+              <li>
+                <strong>{{ i.organizationName }}</strong>
+                <span class="role">{{ i.role }}</span>
+                <button type="button" [disabled]="acceptingId() === i.membershipId" (click)="acceptInvitation(i.membershipId)">
+                  {{ acceptingId() === i.membershipId ? 'Accepting…' : 'Accept' }}
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      }
+    }
+  }
+</section>

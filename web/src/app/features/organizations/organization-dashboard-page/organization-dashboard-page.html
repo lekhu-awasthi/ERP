@@ -1,0 +1,77 @@
+<section class="page">
+  <header class="page-header">
+    <h1>{{ organization()?.name ?? 'Organization' }}</h1>
+    <div class="header-actions">
+      @if (currentUser(); as user) {
+        <span>{{ user.email }}</span>
+      }
+      <button type="button" (click)="logout()">Log out</button>
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <p class="error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  @if (loading()) {
+    <p>Loading…</p>
+  } @else if (data(); as result) {
+    <div class="switcher">
+      <label>
+        Switch Organization
+        <select [ngModel]="organizationId()" (ngModelChange)="switchOrganization($event)" [ngModelOptions]="{ standalone: true }">
+          @for (org of result.organizations; track org.organizationId) {
+            <option [value]="org.organizationId">{{ org.name }}</option>
+          }
+        </select>
+      </label>
+      <a routerLink="/organizations/new">+ Add New Organization</a>
+      <a routerLink="/organizations">All Organizations</a>
+    </div>
+
+    @if (organization(); as org) {
+      <div class="review-block">
+        <dl>
+          <dt>Workspace</dt>
+          <dd>{{ org.workspaceName }}.erpapp</dd>
+          <dt>Industry</dt>
+          <dd>{{ org.industry }}</dd>
+          <dt>Your role</dt>
+          <dd>{{ org.role }}</dd>
+        </dl>
+      </div>
+
+      @if (org.role === 'Admin') {
+        <div class="invite-panel">
+          <h2>Invite a User</h2>
+          <form [formGroup]="inviteForm" (ngSubmit)="invite()">
+            <label>
+              Email Address *
+              <input type="email" formControlName="email" />
+            </label>
+            <label>
+              Role *
+              <select formControlName="role">
+                <option value="Admin">Admin</option>
+                <option value="Member">Member</option>
+              </select>
+            </label>
+
+            @if (inviteMessage()) {
+              <p class="info">{{ inviteMessage() }}</p>
+            }
+            @if (inviteError()) {
+              <p class="error" role="alert">{{ inviteError() }}</p>
+            }
+
+            <button type="submit" [disabled]="inviting()">
+              {{ inviting() ? 'Sending…' : 'Send Invitation' }}
+            </button>
+          </form>
+        </div>
+      }
+    } @else {
+      <p>You are not a member of this organization, or it doesn't exist.</p>
+    }
+  }
+</section>

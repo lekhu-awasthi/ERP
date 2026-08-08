@@ -1,4 +1,5 @@
 using ErpApp.Domain.Identity;
+using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Common.Persistence;
@@ -13,6 +14,10 @@ public interface IAppDbContext
 {
     DbSet<User> Users { get; }
     DbSet<VerificationCode> VerificationCodes { get; }
+    DbSet<Organization> Organizations { get; }
+    DbSet<TenantSettings> TenantSettings { get; }
+    DbSet<TenantSubscription> TenantSubscriptions { get; }
+    DbSet<OrganizationMembership> OrganizationMemberships { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

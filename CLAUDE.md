@@ -9,6 +9,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - `docs/roadmap.md` — phased build plan, Phase 0 (done) through Phase 8+
 - `docs/phase-0-status.md` — history of Phase 0: what was built, bugs hit and fixed, current status
 - `docs/phase-1a-status.md` — history of Phase 1a: what was built, bugs hit and fixed (read this before touching auth/config wiring — several non-obvious gotchas), current status
+- `docs/phase-1b-status.md` — history of Phase 1b: what was built, scope decisions, bugs hit and fixed, current status
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -50,6 +51,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - JWT bearer's default inbound claim mapping remaps `"sub"`/`"email"` to legacy XML-namespace claim types — set `options.MapInboundClaims = false;` or `ClaimsPrincipal.FindFirstValue(JwtRegisteredClaimNames.Sub)` silently returns null.
 - Cookie `SameSite` must be `None` (not `Lax`), not just `Secure`, for the Angular dev server (`http://localhost:4200`) to receive it from the Api (`https://localhost:7104`) — differing scheme alone makes Chrome treat same-host requests as cross-site.
 - `Response.Cookies.Delete(name, options)` only actually clears a cookie if `options` (`Path`/`Secure`/`SameSite`) matches what was used when the cookie was set — mismatched options are silently ignored by the browser.
+- Validating a new migration by running `dotnet ef database update` against a scratch/Docker database (to sanity-check the generated SQL) does **not** apply it to the actual local dev database the Api's `ConnectionStrings:Default` user-secret points at — always follow up with a plain `dotnet ef database update` (no `--connection` override) before manually click-testing, or every endpoint that touches the new tables 500s with `Invalid object name`.
 
 ## Current status
-**Phase 1a (User & auth, Identity context) is complete** — CI green on PR [#1](https://github.com/lekhu-awasthi/ERP/pull/1) (`feature/phase-1a-identity-auth`), full register → verify → log in → guarded dashboard → logout flow confirmed working by hand with real SMTP email delivery. See `docs/phase-1a-status.md` for the full history (several non-obvious bugs hit and fixed — worth reading before touching `Program.cs`/DI wiring). Next up: **Phase 1b — Organization & membership (Tenancy context)**. See `docs/roadmap.md`'s Phase 1b section for the full numbered task breakdown before starting.
+**Phase 1b (Organization & membership, Tenancy context) is complete** — full login → create Organization via 3-step wizard → land on its dashboard → invite a second user → accept from that user's account flow confirmed working by hand, backed by real SQL Server persistence and real SMTP invite email. See `docs/phase-1b-status.md` for the full history (scope decisions on `AcceptRequestCommand`/email-based invites, bugs hit and fixed). Next up: **Phase 1c — Minimal role/permission stub**. See `docs/roadmap.md`'s Phase 1c section for the full numbered task breakdown before starting.
+
+Phase 1a (User & auth, Identity context) is complete — CI green on PR [#1](https://github.com/lekhu-awasthi/ERP/pull/1) (`feature/phase-1a-identity-auth`). See `docs/phase-1a-status.md` for that history.

@@ -1,0 +1,9 @@
+<section class="page welcome-page">
+  <h1>Welcome to ErpApp 🎉</h1>
+  <p><strong>{{ organizationName }}</strong> has been created.</p>
+
+  <div class="wizard-actions">
+    <a routerLink="/organizations/new">Add Another Organization</a>
+    <a [routerLink]="['/organizations', organizationId]">Go to Dashboard</a>
+  </div>
+</section>

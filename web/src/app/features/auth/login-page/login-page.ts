@@ -36,7 +36,7 @@ export class LoginPage {
     const { email, password } = this.form.getRawValue();
 
     this.authService.login(email, password).subscribe({
-      next: () => this.router.navigate(['/dashboard']),
+      next: () => this.router.navigate(['/organizations']),
       error: (err: unknown) => {
         this.submitting.set(false);
 
