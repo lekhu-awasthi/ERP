@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "gethealthreturns200whenserviceishealthy",
+    "description": "Verify that GET /health returns HTTP 200 with a status indicating the API is healthy when the service and dependencies are operational."
+  },
+  {
+    "id": "TC002",
+    "title": "postapiauthregistercreatesnewuserwithvalidinput",
+    "description": "Test POST /api/auth/register with valid fullName, email, phone, and password creates a new user account with status EmailUnverified and returns 201 with userId and email."
+  },
+  {
+    "id": "TC003",
+    "title": "postapiauthregisterreturns400forinvalidormissingfields",
+    "description": "Test POST /api/auth/register with missing or invalid fields returns HTTP 400 validation error."
+  },
+  {
+    "id": "TC004",
+    "title": "postapiauthregisterreturns409forduplicateemail",
+    "description": "Test POST /api/auth/register with an email that already exists returns HTTP 409 conflict error."
+  },
+  {
+    "id": "TC005",
+    "title": "postapiauthrequestverificationcodeissuescodeforregisteredemail",
+    "description": "Test POST /api/auth/request-verification-code with a registered email returns 200 confirmation message and logs the 6-digit code via the stub email sender."
+  },
+  {
+    "id": "TC006",
+    "title": "postapiauthrequestverificationcodereturns404forunknownemail",
+    "description": "Test POST /api/auth/request-verification-code with an unknown email returns HTTP 404 no account found."
+  },
+  {
+    "id": "TC007",
+    "title": "postapiauthverifyemailactivatesaccountwithvalidcode",
+    "description": "Test POST /api/auth/verify-email with a registered email and valid 6-digit code activates the account (status changes to Active) and returns 200."
+  },
+  {
+    "id": "TC008",
+    "title": "postapiauthverifyemailreturns400forinvalidorexpiredcode",
+    "description": "Test POST /api/auth/verify-email with invalid, expired, or already-used code returns HTTP 400 verification failure."
+  },
+  {
+    "id": "TC009",
+    "title": "postapiauthloginauthenticatesverifieduserandsetscookie",
+    "description": "Test POST /api/auth/login with verified email and correct password returns 200 with user details and sets the erp_auth httpOnly session cookie."
+  },
+  {
+    "id": "TC010",
+    "title": "postapiauthforgotpasswordissuesresetcodeforregisteredemail",
+    "description": "Test POST /api/auth/forgot-password with a registered email returns 200 confirmation message and logs the 6-digit reset code via the stub email sender."
+  }
+]

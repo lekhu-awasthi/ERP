@@ -1,0 +1,7 @@
+<section class="auth-page">
+  <h1>Welcome</h1>
+  @if (currentUser(); as user) {
+    <p>Logged in as <strong>{{ user.email }}</strong>.</p>
+  }
+  <button type="button" (click)="logout()">Log out</button>
+</section>
