@@ -1,4 +1,4 @@
-<div class="container py-5" style="max-width: 720px;">
+<div class="container py-5" style="max-width: 960px;">
   <!-- Wizard Step Tracker Card -->
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4 text-center">
@@ -49,175 +49,198 @@
   }
 
   <form [formGroup]="form">
-    <!-- STEP 1: Basic Information -->
+    <!-- STEP 1: Basic Information as in Stitch/Tigg Form layout -->
     @if (step() === 1) {
       <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white p-4 border-0">
-          <h4 class="fw-bold mb-1 text-dark">Basic Information</h4>
-          <p class="text-muted small mb-0">Fill out your business parameters and workspace name</p>
-        </div>
-        <div class="card-body p-4">
-          <!-- Org Name -->
-          <div class="mb-3">
-            <label for="name" class="form-label fw-semibold text-secondary small">Organization Name *</label>
-            <div class="input-group">
-              <span class="input-group-text bg-white border-end-0 text-muted">
-                <i class="bi bi-building"></i>
-              </span>
-              <input
-                id="name"
-                type="text"
-                formControlName="name"
-                class="form-control border-start-0 ps-0"
-                placeholder="e.g. Acme Corporation"
-              />
+        <div class="card-body p-5">
+          <!-- Header block similar to Stitch -->
+          <div class="d-flex justify-content-between align-items-start border-bottom pb-4 mb-4 flex-wrap gap-3">
+            <div>
+              <h3 class="fw-bold text-dark mb-1">Set Up Your Organization</h3>
+              <p class="text-muted small mb-0">You can now set up your first organization</p>
+            </div>
+            <div class="d-flex align-items-center gap-2 text-primary fw-bold" style="font-size: 1.1rem;">
+              <i class="bi bi-patch-check-fill text-primary"></i>
+              <span>Karobar ERP</span>
             </div>
           </div>
 
-          <!-- Industry -->
-          <div class="mb-3">
-            <label for="industry" class="form-label fw-semibold text-secondary small">Industry *</label>
-            <div class="input-group">
-              <span class="input-group-text bg-white border-end-0 text-muted">
-                <i class="bi bi-briefcase"></i>
-              </span>
-              <input
-                id="industry"
-                type="text"
-                formControlName="industry"
-                list="industry-options"
-                class="form-control border-start-0 ps-0"
-                placeholder="Select or type your industry"
-              />
-              <datalist id="industry-options">
-                @for (industry of industrySuggestions; track industry) {
-                  <option [value]="industry"></option>
-                }
-              </datalist>
-            </div>
-          </div>
-
-          <!-- Address & Start Date -->
           <div class="row">
-            <div class="col-md-6 mb-3">
-              <label for="address" class="form-label fw-semibold text-secondary small">Organization Address</label>
-              <div class="input-group">
-                <span class="input-group-text bg-white border-end-0 text-muted">
-                  <i class="bi bi-geo-alt"></i>
-                </span>
+            <!-- Left inputs panel -->
+            <div class="col-lg-8">
+              <!-- Organization Name -->
+              <div class="mb-3">
+                <label for="name" class="form-label fw-bold text-dark small mb-1">
+                  <span class="text-danger">*</span> Organization Name
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  formControlName="name"
+                  class="form-control"
+                  placeholder="Organization Name"
+                  style="border-radius: 4px;"
+                />
+              </div>
+
+              <!-- Industry select -->
+              <div class="mb-3">
+                <label for="industry" class="form-label fw-bold text-dark small mb-1">
+                  <span class="text-danger">*</span> Industry
+                </label>
+                <select id="industry" formControlName="industry" class="form-select" style="border-radius: 4px;">
+                  <option value="" disabled selected>Select Industry</option>
+                  @for (industry of industrySuggestions; track industry) {
+                    <option [value]="industry">{{ industry }}</option>
+                  }
+                </select>
+              </div>
+
+              <!-- Organization Address -->
+              <div class="mb-3">
+                <label for="address" class="form-label fw-bold text-dark small mb-1">Organization Address</label>
                 <input
                   id="address"
                   type="text"
                   formControlName="address"
-                  class="form-control border-start-0 ps-0"
-                  placeholder="e.g. 123 Main St, Kathmandu"
+                  class="form-control"
+                  placeholder="Organization Address"
+                  style="border-radius: 4px;"
                 />
               </div>
+
+              <!-- Accounting Start Date & VAT Registered Row -->
+              <div class="row mb-3 g-3">
+                <div class="col-md-6">
+                  <label for="accountingStartDate" class="form-label fw-bold text-dark small mb-1">
+                    <span class="text-danger">*</span> Accounting Start Date
+                  </label>
+                  <input
+                    id="accountingStartDate"
+                    type="date"
+                    formControlName="accountingStartDate"
+                    class="form-control"
+                    style="border-radius: 4px;"
+                  />
+                </div>
+                <div class="col-md-6">
+                  <label for="isVatRegistered" class="form-label fw-bold text-dark small mb-1">
+                    <span class="text-danger">*</span> Registered with VAT?
+                  </label>
+                  <select id="isVatRegistered" formControlName="isVatRegistered" class="form-select" style="border-radius: 4px;">
+                    <option [ngValue]="true">Yes</option>
+                    <option [ngValue]="false">No</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Workspace Name -->
+              <div class="mb-4">
+                <label for="workspaceName" class="form-label fw-bold text-dark small mb-1">
+                  <span class="text-danger">*</span> Workspace Name
+                </label>
+                <div class="input-group">
+                  <input
+                    id="workspaceName"
+                    type="text"
+                    formControlName="workspaceName"
+                    class="form-control text-lowercase"
+                    placeholder="yourcompany"
+                    style="border-radius: 4px 0 0 4px;"
+                  />
+                  <span class="input-group-text bg-light text-muted fw-semibold">.tigg.app</span>
+                </div>
+                <p class="text-muted small mt-1 mb-2">This will be your organization's login URL.</p>
+
+                <div class="mt-2">
+                  @switch (workspaceStatus()) {
+                    @case ('checking') {
+                      <div class="text-info small d-flex align-items-center gap-1">
+                        <span class="spinner-border spinner-border-sm" role="status"></span>
+                        <span>Checking availability…</span>
+                      </div>
+                    }
+                    @case ('available') {
+                      <div class="text-success small d-flex align-items-center gap-1">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <span>Congratulations! This workspace name is available.</span>
+                      </div>
+                    }
+                    @case ('taken') {
+                      <div class="text-danger small d-flex align-items-center gap-1">
+                        <i class="bi bi-exclamation-circle-fill"></i>
+                        <span>This workspace name is already taken.</span>
+                      </div>
+                    }
+                  }
+                </div>
+              </div>
+
+              <!-- Accordion summary links for optional info -->
+              <div class="mb-3">
+                <details class="border rounded p-3 bg-light" style="border-radius: 4px;">
+                  <summary class="fw-bold text-primary small style-pointer" style="cursor: pointer;">
+                    Add more organization info
+                  </summary>
+                  <div class="row mt-3 g-3">
+                    <div class="col-md-6">
+                      <label for="email" class="form-label fw-bold text-dark small mb-1">Email</label>
+                      <input id="email" type="email" formControlName="email" class="form-control" placeholder="contact@acme.com" style="border-radius: 4px;" />
+                    </div>
+                    <div class="col-md-6">
+                      <label for="phone" class="form-label fw-bold text-dark small mb-1">Organization Phone Number</label>
+                      <input id="phone" type="tel" formControlName="phone" class="form-control" placeholder="Phone" style="border-radius: 4px;" />
+                    </div>
+                  </div>
+                  <div class="row mt-3 g-3">
+                    <div class="col-md-6">
+                      <label for="panNumber" class="form-label fw-bold text-dark small mb-1">PAN Number</label>
+                      <input id="panNumber" type="text" formControlName="panNumber" class="form-control" placeholder="PAN/VAT ID" style="border-radius: 4px;" />
+                    </div>
+                    <div class="col-md-6">
+                      <label for="website" class="form-label fw-bold text-dark small mb-1">Website</label>
+                      <input id="website" type="url" formControlName="website" class="form-control" placeholder="https://acme.com" style="border-radius: 4px;" />
+                    </div>
+                  </div>
+                </details>
+              </div>
             </div>
-            <div class="col-md-6 mb-3">
-              <label for="accountingStartDate" class="form-label fw-semibold text-secondary small">Accounting Start Date *</label>
-              <div class="input-group">
-                <span class="input-group-text bg-white border-end-0 text-muted">
-                  <i class="bi bi-calendar3"></i>
-                </span>
-                <input
-                  id="accountingStartDate"
-                  type="date"
-                  formControlName="accountingStartDate"
-                  class="form-control border-start-0 ps-0"
-                />
+
+            <!-- Right logo upload block as in Stitch screenshot -->
+            <div class="col-lg-4 text-center d-flex flex-column align-items-center justify-content-start border-start-lg pt-4 pt-lg-0">
+              <span class="fw-bold text-dark small mb-3">Company Logo</span>
+              <div class="border border-dashed rounded-3 p-4 d-flex flex-column align-items-center justify-content-center bg-light w-100" style="max-width: 240px; border-style: dashed !important; border-radius: 4px;">
+                <i class="bi bi-upload fs-1 text-muted mb-2"></i>
+                <a class="text-decoration-none fw-bold small text-primary mb-2 style-pointer" style="cursor: pointer;">Upload logo here</a>
+                <span class="text-muted small d-block">Min 300×300px</span>
+                <span class="text-muted small d-block">Maximum 5MB</span>
+                <span class="text-muted small d-block">JPG, PNG or GIF</span>
               </div>
             </div>
           </div>
 
-          <!-- VAT Registered -->
-          <div class="mb-3">
-            <label for="isVatRegistered" class="form-label fw-semibold text-secondary small">Registered with VAT? *</label>
-            <div class="input-group">
-              <span class="input-group-text bg-white border-end-0 text-muted">
-                <i class="bi bi-percent"></i>
-              </span>
-              <select id="isVatRegistered" formControlName="isVatRegistered" class="form-select border-start-0 ps-0">
-                <option [ngValue]="true">Yes</option>
-                <option [ngValue]="false">No</option>
-              </select>
+          <!-- Referral code block & Terms compliance checkbox -->
+          <div class="mt-4 pt-3 border-top">
+            <div class="mb-3">
+              <a class="text-decoration-none small fw-bold text-primary style-pointer" style="cursor: pointer;">
+                Have a referral code? <i class="bi bi-chevron-down small"></i>
+              </a>
+            </div>
+            <div class="form-check">
+              <input type="checkbox" id="termsCheck" class="form-check-input" checked />
+              <label class="form-check-label small text-muted" for="termsCheck">
+                I agree to Karobar ERP's <a href="#" class="text-decoration-none text-primary fw-semibold">Terms of Service</a> and <a href="#" class="text-decoration-none text-primary fw-semibold">Privacy Policy</a>
+              </label>
             </div>
           </div>
-
-          <!-- Workspace Name -->
-          <div class="mb-4">
-            <label for="workspaceName" class="form-label fw-semibold text-secondary small">Workspace Subdomain *</label>
-            <div class="input-group">
-              <span class="input-group-text bg-white border-end-0 text-muted">
-                <i class="bi bi-globe"></i>
-              </span>
-              <input
-                id="workspaceName"
-                type="text"
-                formControlName="workspaceName"
-                class="form-control border-start-0 ps-0 text-lowercase"
-                placeholder="workspace-slug"
-              />
-              <span class="input-group-text bg-light text-muted">.erpapp</span>
-            </div>
-            <div class="mt-2">
-              @switch (workspaceStatus()) {
-                @case ('checking') {
-                  <div class="text-info small d-flex align-items-center gap-1">
-                    <span class="spinner-border spinner-border-sm" role="status"></span>
-                    <span>Checking availability…</span>
-                  </div>
-                }
-                @case ('available') {
-                  <div class="text-success small d-flex align-items-center gap-1">
-                    <i class="bi bi-check-circle-fill"></i>
-                    <span>Congratulations! This workspace name is available.</span>
-                  </div>
-                }
-                @case ('taken') {
-                  <div class="text-danger small d-flex align-items-center gap-1">
-                    <i class="bi bi-exclamation-circle-fill"></i>
-                    <span>This workspace name is already taken.</span>
-                  </div>
-                }
-              }
-            </div>
-          </div>
-
-          <!-- Accordion/Details for More Information -->
-          <details class="border rounded-3 p-3 bg-light">
-            <summary class="fw-bold text-secondary small mb-0 style-pointer" style="cursor: pointer;">
-              Add optional organization contact details
-            </summary>
-            <div class="row mt-3">
-              <div class="col-md-6 mb-3">
-                <label for="email" class="form-label fw-semibold text-secondary small">Email</label>
-                <input id="email" type="email" formControlName="email" class="form-control" placeholder="contact@acme.com" />
-              </div>
-              <div class="col-md-6 mb-3">
-                <label for="phone" class="form-label fw-semibold text-secondary small">Phone Number</label>
-                <input id="phone" type="tel" formControlName="phone" class="form-control" placeholder="Phone" />
-              </div>
-            </div>
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label for="panNumber" class="form-label fw-semibold text-secondary small">PAN Number</label>
-                <input id="panNumber" type="text" formControlName="panNumber" class="form-control" placeholder="PAN/VAT ID" />
-              </div>
-              <div class="col-md-6 mb-3">
-                <label for="website" class="form-label fw-semibold text-secondary small">Website</label>
-                <input id="website" type="url" formControlName="website" class="form-control" placeholder="https://acme.com" />
-              </div>
-            </div>
-          </details>
         </div>
       </div>
 
       <!-- Actions -->
       <div class="d-flex justify-content-between align-items-center mt-4">
         <span></span>
-        <button type="button" class="btn btn-success fw-bold px-4 py-2" (click)="goToStep2()">
-          <span>Next: Accounting Features</span> <i class="bi bi-arrow-right"></i>
+        <button type="button" class="btn btn-primary fw-bold px-5 py-2.5" (click)="goToStep2()" style="background-color: #002879; border-radius: 4px; border: none;">
+          <span>Next</span>
         </button>
       </div>
     }
@@ -232,7 +255,7 @@
         <div class="card-body p-4">
           <div class="d-flex flex-column gap-3">
             <!-- Track Inventory -->
-            <label class="d-flex p-3 border rounded-3 bg-white cursor-pointer shadow-sm-hover select-card" style="cursor: pointer;">
+            <label class="d-flex p-3 border rounded bg-white cursor-pointer shadow-sm-hover select-card" style="cursor: pointer; border-radius: 4px;">
               <div class="form-check m-0 d-flex align-items-start gap-3">
                 <input type="checkbox" formControlName="trackInventory" class="form-check-input flex-shrink-0 mt-1" />
                 <div>
@@ -243,7 +266,7 @@
             </label>
 
             <!-- Multiple Locations -->
-            <label class="d-flex p-3 border rounded-3 bg-white cursor-pointer shadow-sm-hover select-card" style="cursor: pointer;">
+            <label class="d-flex p-3 border rounded bg-white cursor-pointer shadow-sm-hover select-card" style="cursor: pointer; border-radius: 4px;">
               <div class="form-check m-0 d-flex align-items-start gap-3">
                 <input type="checkbox" formControlName="multipleLocations" class="form-check-input flex-shrink-0 mt-1" />
                 <div>
@@ -254,7 +277,7 @@
             </label>
 
             <!-- Multiple Warehouses -->
-            <label class="d-flex p-3 border rounded-3 bg-white cursor-pointer shadow-sm-hover select-card" style="cursor: pointer;">
+            <label class="d-flex p-3 border rounded bg-white cursor-pointer shadow-sm-hover select-card" style="cursor: pointer; border-radius: 4px;">
               <div class="form-check m-0 d-flex align-items-start gap-3">
                 <input type="checkbox" formControlName="multipleWarehouses" class="form-check-input flex-shrink-0 mt-1" />
                 <div>
@@ -265,7 +288,7 @@
             </label>
 
             <!-- Multi Currency -->
-            <label class="d-flex p-3 border rounded-3 bg-white cursor-pointer shadow-sm-hover select-card" style="cursor: pointer;">
+            <label class="d-flex p-3 border rounded bg-white cursor-pointer shadow-sm-hover select-card" style="cursor: pointer; border-radius: 4px;">
               <div class="form-check m-0 d-flex align-items-start gap-3">
                 <input type="checkbox" formControlName="multiCurrency" class="form-check-input flex-shrink-0 mt-1" />
                 <div>
@@ -276,7 +299,7 @@
             </label>
 
             <!-- Manufacturing -->
-            <label class="d-flex p-3 border rounded-3 bg-white cursor-pointer shadow-sm-hover select-card" style="cursor: pointer;">
+            <label class="d-flex p-3 border rounded bg-white cursor-pointer shadow-sm-hover select-card" style="cursor: pointer; border-radius: 4px;">
               <div class="form-check m-0 d-flex align-items-start gap-3">
                 <input type="checkbox" formControlName="manufacturing" class="form-check-input flex-shrink-0 mt-1" />
                 <div>
@@ -287,7 +310,7 @@
             </label>
 
             <!-- POS Retail -->
-            <label class="d-flex p-3 border rounded-3 bg-white cursor-pointer shadow-sm-hover select-card" style="cursor: pointer;">
+            <label class="d-flex p-3 border rounded bg-white cursor-pointer shadow-sm-hover select-card" style="cursor: pointer; border-radius: 4px;">
               <div class="form-check m-0 d-flex align-items-start gap-3">
                 <input type="checkbox" formControlName="posRetail" class="form-check-input flex-shrink-0 mt-1" />
                 <div>
@@ -298,7 +321,7 @@
             </label>
 
             <!-- POS Restaurant -->
-            <label class="d-flex p-3 border rounded-3 bg-white cursor-pointer shadow-sm-hover select-card" style="cursor: pointer;">
+            <label class="d-flex p-3 border rounded bg-white cursor-pointer shadow-sm-hover select-card" style="cursor: pointer; border-radius: 4px;">
               <div class="form-check m-0 d-flex align-items-start gap-3">
                 <input type="checkbox" formControlName="posRestaurant" class="form-check-input flex-shrink-0 mt-1" />
                 <div>
@@ -313,10 +336,10 @@
 
       <!-- Actions -->
       <div class="d-flex justify-content-between align-items-center mt-4">
-        <button type="button" class="btn btn-outline-secondary fw-bold px-4 py-2" (click)="back()">
+        <button type="button" class="btn btn-outline-secondary fw-bold px-4 py-2" (click)="back()" style="border-radius: 4px;">
           <i class="bi bi-arrow-left"></i> Back
         </button>
-        <button type="button" class="btn btn-success fw-bold px-4 py-2" (click)="goToStep3()">
+        <button type="button" class="btn text-white fw-bold px-4 py-2" (click)="goToStep3()" style="background-color: #002879; border-radius: 4px;">
           <span>Save and Continue</span> <i class="bi bi-arrow-right"></i>
         </button>
       </div>
@@ -324,7 +347,7 @@
 
     <!-- STEP 3: Review and Launch -->
     @if (step() === 3) {
-      <div class="card border-0 shadow-sm mb-4">
+      <div class="card border-0 shadow-sm mb-4" style="border-radius: 4px;">
         <div class="card-header bg-white p-4 border-0">
           <h4 class="fw-bold mb-1 text-dark">Review Organization Parameters</h4>
           <p class="text-muted small mb-0">Double-check the settings before launching your workspace.</p>
@@ -338,7 +361,7 @@
             </div>
             <div class="col-sm-6 mb-3">
               <span class="text-muted small d-block">WORKSPACE</span>
-              <span class="fw-bold text-success">{{ form.controls.workspaceName.value }}.erpapp</span>
+              <span class="fw-bold text-success">{{ form.controls.workspaceName.value }}.tigg.app</span>
             </div>
             <div class="col-sm-6 mb-3">
               <span class="text-muted small d-block">INDUSTRY</span>
@@ -399,10 +422,10 @@
 
       <!-- Actions -->
       <div class="d-flex justify-content-between align-items-center mt-4">
-        <button type="button" class="btn btn-outline-secondary fw-bold px-4 py-2" (click)="back()">
+        <button type="button" class="btn btn-outline-secondary fw-bold px-4 py-2" (click)="back()" style="border-radius: 4px;">
           <i class="bi bi-arrow-left"></i> Back
         </button>
-        <button type="button" class="btn btn-success fw-bold px-5 py-2 d-flex align-items-center gap-2" [disabled]="submitting()" (click)="submit()">
+        <button type="button" class="btn text-white fw-bold px-5 py-2.5 d-flex align-items-center gap-2" [disabled]="submitting()" (click)="submit()" style="background-color: #002879; border-radius: 4px;">
           @if (submitting()) {
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
             <span>Launching...</span>

@@ -88,7 +88,7 @@
         </div>
 
         <!-- Password Field -->
-        <div class="mb-4">
+        <div class="mb-3">
           <label for="password" class="form-label fw-semibold text-secondary small" style="font-family: 'Inter', sans-serif;">PASSWORD</label>
           <div class="input-group">
             <span class="input-group-text bg-white border-end-0 text-muted" style="border-radius: 4px 0 0 4px;">
@@ -111,6 +111,35 @@
                 } @else if (form.get('password')?.errors?.['minlength']) {
                   Password must be at least 8 characters long.
                 }
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Confirm Password Field -->
+        <div class="mb-4">
+          <label for="confirmPassword" class="form-label fw-semibold text-secondary small" style="font-family: 'Inter', sans-serif;">CONFIRM PASSWORD</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0 text-muted" style="border-radius: 4px 0 0 4px;">
+              <i class="bi bi-lock-fill"></i>
+            </span>
+            <input
+              id="confirmPassword"
+              type="password"
+              formControlName="confirmPassword"
+              autocomplete="new-password"
+              class="form-control border-start-0 ps-0"
+              style="border-radius: 0 4px 4px 0;"
+              placeholder="••••••••"
+              [class.is-invalid]="(form.get('confirmPassword')?.touched && form.get('confirmPassword')?.invalid) || (form.touched && form.errors?.['passwordMismatch'])"
+            />
+            @if (form.get('confirmPassword')?.touched && form.get('confirmPassword')?.invalid) {
+              <div class="invalid-feedback">
+                Confirm password is required.
+              </div>
+            } @else if (form.touched && form.errors?.['passwordMismatch']) {
+              <div class="invalid-feedback d-block">
+                Passwords do not match.
               </div>
             }
           </div>
