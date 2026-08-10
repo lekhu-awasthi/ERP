@@ -13,20 +13,10 @@ public sealed class InviteUserCommandHandler(IAppDbContext db, IEmailSender emai
 {
     public async Task<InviteUserResult> Handle(InviteUserCommand request, CancellationToken cancellationToken)
     {
+        // The "is this user an org admin" check is now AuthorizationBehavior's job
+        // (PermissionKeys.OrganizationInviteUser), run before this handler ever executes.
         var organization = await db.Organizations.SingleOrDefaultAsync(o => o.Id == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Organization not found.");
-
-        var isAdmin = await db.OrganizationMemberships.AnyAsync(
-            m => m.OrganizationId == request.OrganizationId
-                 && m.UserId == currentUser.UserId
-                 && m.Status == MembershipStatus.Accepted
-                 && m.Role == MembershipRole.Admin,
-            cancellationToken);
-
-        if (!isAdmin)
-        {
-            throw new ForbiddenException("Only an organization admin can invite users.");
-        }
 
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 

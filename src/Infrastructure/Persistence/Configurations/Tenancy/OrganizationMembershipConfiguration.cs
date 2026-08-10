@@ -15,7 +15,7 @@ public sealed class OrganizationMembershipConfiguration : IEntityTypeConfigurati
 
         builder.Property(m => m.OrganizationId).IsRequired();
         builder.Property(m => m.InvitedEmail).HasMaxLength(256);
-        builder.Property(m => m.Role).HasConversion<string>().HasMaxLength(30).IsRequired();
+        builder.Property(m => m.RoleId).IsRequired();
         builder.Property(m => m.Status).HasConversion<string>().HasMaxLength(30).IsRequired();
         builder.Property(m => m.CreatedAt).IsRequired();
 
@@ -34,6 +34,13 @@ public sealed class OrganizationMembershipConfiguration : IEntityTypeConfigurati
         builder.HasOne<User>()
             .WithMany()
             .HasForeignKey(m => m.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Restrict, not cascade: Role rows are the shared system-level Admin/Member catalog
+        // (see Role's doc comment), never deleted alongside a membership.
+        builder.HasOne<Role>()
+            .WithMany()
+            .HasForeignKey(m => m.RoleId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

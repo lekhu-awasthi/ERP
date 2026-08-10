@@ -10,13 +10,14 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - `docs/phase-0-status.md` — history of Phase 0: what was built, bugs hit and fixed, current status
 - `docs/phase-1a-status.md` — history of Phase 1a: what was built, bugs hit and fixed (read this before touching auth/config wiring — several non-obvious gotchas), current status
 - `docs/phase-1b-status.md` — history of Phase 1b: what was built, scope decisions, bugs hit and fixed, current status
+- `docs/phase-1c-status.md` — history of Phase 1c: what was built, scope decisions (Role/RolePermission shape, permission marker interfaces), bugs hit and fixed, current status
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
 - Frontend: Angular 21 (LTS), in `web/`.
 - Solution file is `ErpApp.slnx` (the new .NET 10 format, not `.sln`).
 - Dependency rule: `Api → Application → Domain`; `Infrastructure → Application/Domain`. Nothing depends on `Infrastructure` or `Api` except `Api/Program.cs` (the composition root).
-- Every command/query goes through the MediatR pipeline: `LoggingBehavior` then `ValidationBehavior` (see `src/Application/Common/Behaviors/`).
+- Every command/query goes through the MediatR pipeline: `LoggingBehavior` then `ValidationBehavior` then `AuthorizationBehavior` (see `src/Application/Common/Behaviors/`). A command/query is only permission-gated if it implements `IRequirePermission` (`Application.Common.Security`) — most queries and Phase 0/1a/1b commands don't yet.
 - Multi-tenancy: single database, shared schema, `OrganizationId` discriminator + EF Core global query filter (not yet implemented — lands in Phase 1).
 - Every transactional aggregate (Invoice, PurchaseBill, JournalVoucher, etc.) follows Draft → Approve lifecycle; document numbers are assigned **at Approve, not at Create** (confirmed live in the reference product — see `docs/erp-module-scan.md`'s Document Numbering section).
 
@@ -52,8 +53,11 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Cookie `SameSite` must be `None` (not `Lax`), not just `Secure`, for the Angular dev server (`http://localhost:4200`) to receive it from the Api (`https://localhost:7104`) — differing scheme alone makes Chrome treat same-host requests as cross-site.
 - `Response.Cookies.Delete(name, options)` only actually clears a cookie if `options` (`Path`/`Secure`/`SameSite`) matches what was used when the cookie was set — mismatched options are silently ignored by the browser.
 - Validating a new migration by running `dotnet ef database update` against a scratch/Docker database (to sanity-check the generated SQL) does **not** apply it to the actual local dev database the Api's `ConnectionStrings:Default` user-secret points at — always follow up with a plain `dotnet ef database update` (no `--connection` override) before manually click-testing, or every endpoint that touches the new tables 500s with `Invalid object name`.
+- `dotnet ef migrations add` orders operations by model diff, not by data safety — a migration that both drops a column and adds its replacement can scaffold the `DropColumn` *before* the `AddColumn`, silently losing the data needed to backfill the new one. Always read a scaffolded migration before applying it when a column's being replaced/retyped; reorder by hand (create/seed anything new first, backfill via raw SQL while the old column still exists, drop it last) — see `docs/phase-1c-status.md`'s bug #1 for a worked example (`OrganizationMembership.Role` string → `RoleId` FK).
 
 ## Current status
-**Phase 1b (Organization & membership, Tenancy context) is complete** — full login → create Organization via 3-step wizard → land on its dashboard → invite a second user → accept from that user's account flow confirmed working by hand, backed by real SQL Server persistence and real SMTP invite email. See `docs/phase-1b-status.md` for the full history (scope decisions on `AcceptRequestCommand`/email-based invites, bugs hit and fixed). Next up: **Phase 1c — Minimal role/permission stub**. See `docs/roadmap.md`'s Phase 1c section for the full numbered task breakdown before starting.
+**Phase 1c (Minimal role/permission stub, Identity/Tenancy context) is complete** — `Role`/`RolePermission` tables (two system-level roles, Admin/Member) and a real `AuthorizationBehavior` MediatR pipeline behavior replace the ad hoc admin checks Phase 1b inlined in `InviteUserCommandHandler`/`AcceptRequestCommandHandler`. Confirmed by hand: a fresh Admin can still create an Organization and invite a Member; a Member calling the invite endpoint directly gets a real HTTP 403. See `docs/phase-1c-status.md` for the full history (scope decisions on system-level vs. per-org roles, the `MembershipRole`-as-selector design, bugs hit and fixed). Next up: **Phase 2 — Configuration foundation**. See `docs/roadmap.md`'s Phase 2 section for the full task breakdown before starting.
+
+Phase 1b (Organization & membership, Tenancy context) is complete — full login → create Organization via 3-step wizard → land on its dashboard → invite a second user → accept from that user's account flow confirmed working by hand, backed by real SQL Server persistence and real SMTP invite email. See `docs/phase-1b-status.md` for that history.
 
 Phase 1a (User & auth, Identity context) is complete — CI green on PR [#1](https://github.com/lekhu-awasthi/ERP/pull/1) (`feature/phase-1a-identity-auth`). See `docs/phase-1a-status.md` for that history.

@@ -54,24 +54,9 @@ public class InviteUserCommandHandlerTests
         Assert.Equal(existingUser.Id, membership.UserId);
     }
 
-    [Fact]
-    public async Task Handle_throws_forbidden_when_inviter_is_not_an_admin_of_the_organization()
-    {
-        var db = TestAppDbContext.Create();
-        var adminId = Guid.NewGuid();
-        var organization = Organization.Create(
-            "Acme Traders", "Retail", null, new DateOnly(2026, 1, 1), true,
-            "acme-traders", null, null, null, null, adminId);
-        db.Organizations.Add(organization);
-        db.OrganizationMemberships.Add(OrganizationMembership.CreateAccepted(organization.Id, adminId, MembershipRole.Admin));
-        await db.SaveChangesAsync();
-
-        var strangerId = Guid.NewGuid();
-        var handler = new InviteUserCommandHandler(db, new FakeEmailSender(), new FakeCurrentUserService(strangerId));
-
-        await Assert.ThrowsAsync<ForbiddenException>(() => handler.Handle(
-            new InviteUserCommand(organization.Id, "someone@example.com", MembershipRole.Member), CancellationToken.None));
-    }
+    // Handle_throws_forbidden_when_inviter_is_not_an_admin_of_the_organization moved to
+    // AuthorizationBehaviorTests (Phase 1c) -- that check is AuthorizationBehavior's job now,
+    // not this handler's; see InviteUserCommandHandler's updated doc comment.
 
     [Fact]
     public async Task Handle_throws_conflict_when_email_already_invited()
