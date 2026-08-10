@@ -16,8 +16,9 @@ public sealed class MyOrganizationsQueryHandler(IAppDbContext db, ICurrentUserSe
         var organizations = await (
             from m in db.OrganizationMemberships
             join o in db.Organizations on m.OrganizationId equals o.Id
+            join r in db.Roles on m.RoleId equals r.Id
             where m.UserId == currentUser.UserId && m.Status == MembershipStatus.Accepted
-            select new OrganizationSummaryDto(o.Id, o.Name, o.WorkspaceName, o.Industry, m.Role)
+            select new OrganizationSummaryDto(o.Id, o.Name, o.WorkspaceName, o.Industry, r.Name)
         ).ToListAsync(cancellationToken);
 
         var requests = await (
@@ -30,9 +31,10 @@ public sealed class MyOrganizationsQueryHandler(IAppDbContext db, ICurrentUserSe
         var invitations = await (
             from m in db.OrganizationMemberships
             join o in db.Organizations on m.OrganizationId equals o.Id
+            join r in db.Roles on m.RoleId equals r.Id
             where m.Status == MembershipStatus.Invited
                   && (m.UserId == currentUser.UserId || (m.UserId == null && m.InvitedEmail == user.Email))
-            select new PendingInvitationDto(m.Id, o.Id, o.Name, m.Role, m.CreatedAt)
+            select new PendingInvitationDto(m.Id, o.Id, o.Name, r.Name, m.CreatedAt)
         ).ToListAsync(cancellationToken);
 
         return new MyOrganizationsResult(organizations, requests, invitations);

@@ -31,6 +31,10 @@ public class MyOrganizationsQueryHandlerTests
         // Invited by email only -- no UserId linked yet, matched via the current user's email.
         db.OrganizationMemberships.Add(OrganizationMembership.Invite(
             invitedOrg.Id, userId: null, currentUser.Email, MembershipRole.Member, Guid.NewGuid()));
+        // The query joins db.Roles for the display role name -- TestAppDbContext doesn't apply
+        // EF configurations/HasData (see its doc comment), so the well-known rows need seeding here.
+        db.Roles.Add(Role.Create(Role.AdminId, "Admin"));
+        db.Roles.Add(Role.Create(Role.MemberId, "Member"));
         await db.SaveChangesAsync();
 
         var handler = new MyOrganizationsQueryHandler(db, new FakeCurrentUserService(currentUserId));
@@ -44,5 +48,8 @@ public class MyOrganizationsQueryHandlerTests
 
         Assert.Single(result.Invitations);
         Assert.Equal(invitedOrg.Id, result.Invitations[0].OrganizationId);
+
+        Assert.Equal("Admin", result.Organizations[0].Role);
+        Assert.Equal("Member", result.Invitations[0].Role);
     }
 }

@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Security;
 using MediatR;
 
 namespace ErpApp.Application.Tenancy.Commands.CreateOrganization;
@@ -6,6 +7,11 @@ namespace ErpApp.Application.Tenancy.Commands.CreateOrganization;
 /// Backs the entire 3-step New Organization wizard as one command (roadmap Phase 1b task 7,
 /// architecture-spec.md §4.1) -- the wizard is client-side pagination over this single input,
 /// not three separate commands per step.
+///
+/// Implements IRequirePermission but not IOrganizationScoped/ITargetsMembership -- creating an
+/// Organization is, by definition, the one action that predates any membership (and thus any
+/// role) in it, so PermissionKeys.OrganizationCreate is a global permission AuthorizationBehavior
+/// grants to any authenticated user (see IOrganizationScoped's remarks).
 /// </summary>
 public sealed record CreateOrganizationCommand(
     // Step 1 -- Set Up Your Organization
@@ -26,6 +32,9 @@ public sealed record CreateOrganizationCommand(
     bool MultiCurrency,
     bool Manufacturing,
     bool PosRetail,
-    bool PosRestaurant) : IRequest<CreateOrganizationResult>;
+    bool PosRestaurant) : IRequest<CreateOrganizationResult>, IRequirePermission
+{
+    public string PermissionKey => PermissionKeys.OrganizationCreate;
+}
 
 public sealed record CreateOrganizationResult(Guid OrganizationId, string Name, string WorkspaceName);

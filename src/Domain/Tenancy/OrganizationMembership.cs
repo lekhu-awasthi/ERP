@@ -10,6 +10,13 @@ namespace ErpApp.Domain.Tenancy;
 /// necessarily an existing account (confirmed live: Tigg's UserInvitation is email-based) --
 /// it's resolved and filled in at accept time via <see cref="AcceptAsUser"/> if the invited
 /// person didn't have an account yet when invited.
+///
+/// <see cref="RoleId"/> (Phase 1c) replaces the earlier hardcoded <see cref="MembershipRole"/>
+/// enum as the persisted column -- it's a real FK into <see cref="Role"/> now. Every factory
+/// method here still takes a <see cref="MembershipRole"/> parameter, though: that enum survives
+/// as the API/UI-facing role *selector* (what the invite dropdown offers), resolved to a
+/// well-known <see cref="Role"/>.Id via <see cref="Role.ResolveId"/> -- callers never need to
+/// know or pass a raw RoleId.
 /// </summary>
 public sealed class OrganizationMembership
 {
@@ -17,7 +24,7 @@ public sealed class OrganizationMembership
     public Guid OrganizationId { get; private set; }
     public Guid? UserId { get; private set; }
     public string? InvitedEmail { get; private set; }
-    public MembershipRole Role { get; private set; }
+    public Guid RoleId { get; private set; }
     public MembershipStatus Status { get; private set; }
     public Guid? InvitedByUserId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
@@ -37,7 +44,7 @@ public sealed class OrganizationMembership
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
             UserId = userId,
-            Role = role,
+            RoleId = Role.ResolveId(role),
             Status = MembershipStatus.Accepted,
             CreatedAt = now,
             AcceptedAt = now,
@@ -57,7 +64,7 @@ public sealed class OrganizationMembership
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
             UserId = userId,
-            Role = role,
+            RoleId = Role.ResolveId(role),
             Status = MembershipStatus.Requested,
             CreatedAt = DateTimeOffset.UtcNow,
         };
@@ -72,7 +79,7 @@ public sealed class OrganizationMembership
             OrganizationId = organizationId,
             UserId = userId,
             InvitedEmail = invitedEmail,
-            Role = role,
+            RoleId = Role.ResolveId(role),
             Status = MembershipStatus.Invited,
             InvitedByUserId = invitedByUserId,
             CreatedAt = DateTimeOffset.UtcNow,

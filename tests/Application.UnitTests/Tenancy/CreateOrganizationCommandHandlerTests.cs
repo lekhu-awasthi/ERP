@@ -49,7 +49,7 @@ public class CreateOrganizationCommandHandlerTests
 
         var membership = await db.OrganizationMemberships.SingleAsync(m => m.OrganizationId == organization.Id);
         Assert.Equal(creatorId, membership.UserId);
-        Assert.Equal(MembershipRole.Admin, membership.Role);
+        Assert.Equal(Role.AdminId, membership.RoleId);
         Assert.Equal(MembershipStatus.Accepted, membership.Status);
     }
 
