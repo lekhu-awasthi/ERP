@@ -1,4 +1,6 @@
+using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Configuration;
+using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Identity;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +31,12 @@ public interface IAppDbContext
     DbSet<DocumentNumberingRule> DocumentNumberingRules { get; }
     DbSet<CustomFieldDefinition> CustomFieldDefinitions { get; }
     DbSet<CustomFieldValue> CustomFieldValues { get; }
+    DbSet<ContactGroup> ContactGroups { get; }
+    DbSet<Contact> Contacts { get; }
+    DbSet<ProductCategory> ProductCategories { get; }
+    DbSet<UnitOfMeasurement> UnitsOfMeasurement { get; }
+    DbSet<Product> Products { get; }
+    DbSet<ProductSecondaryUnit> ProductSecondaryUnits { get; }
 
     /// <summary>
     /// Generic accessor mirroring DbContext's own Set&lt;TEntity&gt;() -- lets the generic

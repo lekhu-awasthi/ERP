@@ -1,6 +1,8 @@
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
+using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Identity;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
@@ -42,6 +44,18 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
 
     public DbSet<CustomFieldValue> CustomFieldValues => Set<CustomFieldValue>();
 
+    public DbSet<ContactGroup> ContactGroups => Set<ContactGroup>();
+
+    public DbSet<Contact> Contacts => Set<Contact>();
+
+    public DbSet<ProductCategory> ProductCategories => Set<ProductCategory>();
+
+    public DbSet<UnitOfMeasurement> UnitsOfMeasurement => Set<UnitOfMeasurement>();
+
+    public DbSet<Product> Products => Set<Product>();
+
+    public DbSet<ProductSecondaryUnit> ProductSecondaryUnits => Set<ProductSecondaryUnit>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -65,6 +79,17 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
                 v => v.Length == 0
                     ? new List<DocumentType>()
                     : v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(Enum.Parse<DocumentType>).ToList());
+
+        // Product.SecondaryUnits is an encapsulated (private-backing-field) collection -- the
+        // real ProductConfiguration's HasMany/SetPropertyAccessMode(Field) call isn't applied
+        // here (no ApplyConfigurationsFromAssembly, by design), so it's restated.
+        modelBuilder.Entity<Product>()
+            .HasMany(p => p.SecondaryUnits)
+            .WithOne()
+            .HasForeignKey("ProductId");
+        modelBuilder.Entity<Product>()
+            .Metadata.FindNavigation(nameof(Product.SecondaryUnits))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 
     public static IAppDbContext Create() => new TestAppDbContext(

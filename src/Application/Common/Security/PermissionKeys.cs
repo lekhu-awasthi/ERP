@@ -40,4 +40,23 @@ public static class PermissionKeys
 
     public const string CustomFieldDefinitionView = "Configuration.CustomFieldDefinition.View";
     public const string CustomFieldDefinitionManage = "Configuration.CustomFieldDefinition.Manage";
+
+    // Phase 3 (Contacts & Catalog). ContactGroup/ProductCategory/UnitOfMeasurement are
+    // taxonomy/control-plane, same shape as Phase 2's lookups -- Member gets View only, Manage
+    // denied. Contact/Product are working data Members create/edit daily -- Member gets
+    // View+Manage (see phase-3-status.md's scope decisions).
+    public const string ContactGroupView = "Contacts.ContactGroup.View";
+    public const string ContactGroupManage = "Contacts.ContactGroup.Manage";
+
+    public const string ContactView = "Contacts.Contact.View";
+    public const string ContactManage = "Contacts.Contact.Manage";
+
+    public const string ProductCategoryView = "Catalog.ProductCategory.View";
+    public const string ProductCategoryManage = "Catalog.ProductCategory.Manage";
+
+    public const string UnitOfMeasurementView = "Catalog.UnitOfMeasurement.View";
+    public const string UnitOfMeasurementManage = "Catalog.UnitOfMeasurement.Manage";
+
+    public const string ProductView = "Catalog.Product.View";
+    public const string ProductManage = "Catalog.Product.Manage";
 }

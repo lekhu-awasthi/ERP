@@ -1,5 +1,7 @@
+using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
+using ErpApp.Domain.Contacts;
 
 namespace ErpApp.Application.Common.Security;
 
@@ -20,6 +22,9 @@ public static class LookupPermissionKeys
             var t when t == typeof(CustomStatus) => PermissionKeys.CustomStatusView,
             var t when t == typeof(ReportingTagCategory) => PermissionKeys.ReportingTagCategoryView,
             var t when t == typeof(ReportingTagOption) => PermissionKeys.ReportingTagOptionView,
+            var t when t == typeof(ContactGroup) => PermissionKeys.ContactGroupView,
+            var t when t == typeof(ProductCategory) => PermissionKeys.ProductCategoryView,
+            var t when t == typeof(UnitOfMeasurement) => PermissionKeys.UnitOfMeasurementView,
             _ => throw new NotSupportedException($"No View permission key registered for lookup type {typeof(TLookup).Name}."),
         };
 
@@ -31,6 +36,9 @@ public static class LookupPermissionKeys
             var t when t == typeof(CustomStatus) => PermissionKeys.CustomStatusManage,
             var t when t == typeof(ReportingTagCategory) => PermissionKeys.ReportingTagCategoryManage,
             var t when t == typeof(ReportingTagOption) => PermissionKeys.ReportingTagOptionManage,
+            var t when t == typeof(ContactGroup) => PermissionKeys.ContactGroupManage,
+            var t when t == typeof(ProductCategory) => PermissionKeys.ProductCategoryManage,
+            var t when t == typeof(UnitOfMeasurement) => PermissionKeys.UnitOfMeasurementManage,
             _ => throw new NotSupportedException($"No Manage permission key registered for lookup type {typeof(TLookup).Name}."),
         };
 }
