@@ -1,3 +1,4 @@
+using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -40,6 +41,14 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
             .WithMany()
             .HasForeignKey(x => x.PrimaryUnitId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // Phase 4 backfill (deferred from Phase 3 until Accounting.Account existed) -- see
+        // Product's doc comment. Restrict, same FK delete behavior used everywhere else in this
+        // codebase for a reference to another aggregate.
+        builder.HasOne<Account>().WithMany().HasForeignKey(x => x.SalesAccountId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Account>().WithMany().HasForeignKey(x => x.SalesReturnAccountId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Account>().WithMany().HasForeignKey(x => x.PurchaseAccountId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Account>().WithMany().HasForeignKey(x => x.PurchaseReturnAccountId).OnDelete(DeleteBehavior.Restrict);
 
         // Encapsulated child collection (private backing field) -- first of its kind in this
         // codebase. Cascade here specifically: deleting a Product should delete its own

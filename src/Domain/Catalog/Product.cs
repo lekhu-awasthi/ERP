@@ -7,10 +7,16 @@ namespace ErpApp.Domain.Catalog;
 /// Code is assigned at Create via IDocumentNumberGenerator(DocumentType.Product), same pattern as
 /// Contact.Code (see that type's doc comment).
 ///
-/// Deliberately excludes SalesAccountId/PurchaseAccountId/SalesReturnAccountId/
-/// PurchaseReturnAccountId (Account doesn't exist until Phase 4) and PrintProfileId
-/// (PrintingTemplate isn't built at all) -- see phase-3-status.md's scope decisions. Tax is
-/// modeled as the fixed VatRate enum, not a FK, per VatRate's doc comment.
+/// Deliberately excludes PrintProfileId (PrintingTemplate isn't built at all) -- see
+/// phase-3-status.md's scope decisions. Tax is modeled as the fixed VatRate enum, not a FK, per
+/// VatRate's doc comment.
+///
+/// SalesAccountId/SalesReturnAccountId/PurchaseAccountId/PurchaseReturnAccountId (Phase 3
+/// deferred these until Accounting.Account existed) are added in Phase 4 as a clean additive
+/// migration, via SetAccounts -- deliberately not wired to UpdateProductCommand/Angular yet
+/// (no command sets them this phase), since nothing reads them until Sales/Purchase's posting
+/// rules (Phase 5+) need a Product's default GL accounts. "Build the seam, not the feature",
+/// same judgment call as JournalVoucherStatus.Void.
 /// </summary>
 public sealed class Product
 {
@@ -33,6 +39,10 @@ public sealed class Product
     public bool TrackInventory { get; private set; }
     public bool IsActive { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
+    public Guid? SalesAccountId { get; private set; }
+    public Guid? SalesReturnAccountId { get; private set; }
+    public Guid? PurchaseAccountId { get; private set; }
+    public Guid? PurchaseReturnAccountId { get; private set; }
 
     public IReadOnlyList<ProductSecondaryUnit> SecondaryUnits => _secondaryUnits;
 
@@ -101,6 +111,15 @@ public sealed class Product
         ReOrderLevel = reOrderLevel;
         TrackInventory = trackInventory;
         IsActive = isActive;
+    }
+
+    public void SetAccounts(
+        Guid? salesAccountId, Guid? salesReturnAccountId, Guid? purchaseAccountId, Guid? purchaseReturnAccountId)
+    {
+        SalesAccountId = salesAccountId;
+        SalesReturnAccountId = salesReturnAccountId;
+        PurchaseAccountId = purchaseAccountId;
+        PurchaseReturnAccountId = purchaseReturnAccountId;
     }
 
     public ProductSecondaryUnit AddSecondaryUnit(

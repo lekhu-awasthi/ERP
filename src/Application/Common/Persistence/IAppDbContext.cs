@@ -1,3 +1,4 @@
+using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
@@ -37,6 +38,14 @@ public interface IAppDbContext
     DbSet<UnitOfMeasurement> UnitsOfMeasurement { get; }
     DbSet<Product> Products { get; }
     DbSet<ProductSecondaryUnit> ProductSecondaryUnits { get; }
+    DbSet<AccountGroup> AccountGroups { get; }
+    DbSet<Account> Accounts { get; }
+    DbSet<JournalVoucher> JournalVouchers { get; }
+    DbSet<JournalVoucherLine> JournalVoucherLines { get; }
+    DbSet<GlJournalEntry> GlJournalEntries { get; }
+    DbSet<GlLine> GlLines { get; }
+    DbSet<CashTransfer> CashTransfers { get; }
+    DbSet<CashTransferLine> CashTransferLines { get; }
 
     /// <summary>
     /// Generic accessor mirroring DbContext's own Set&lt;TEntity&gt;() -- lets the generic

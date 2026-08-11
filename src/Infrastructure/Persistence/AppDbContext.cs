@@ -1,5 +1,6 @@
 using System.Reflection;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
@@ -33,6 +34,14 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<UnitOfMeasurement> UnitsOfMeasurement => Set<UnitOfMeasurement>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductSecondaryUnit> ProductSecondaryUnits => Set<ProductSecondaryUnit>();
+    public DbSet<AccountGroup> AccountGroups => Set<AccountGroup>();
+    public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<JournalVoucher> JournalVouchers => Set<JournalVoucher>();
+    public DbSet<JournalVoucherLine> JournalVoucherLines => Set<JournalVoucherLine>();
+    public DbSet<GlJournalEntry> GlJournalEntries => Set<GlJournalEntry>();
+    public DbSet<GlLine> GlLines => Set<GlLine>();
+    public DbSet<CashTransfer> CashTransfers => Set<CashTransfer>();
+    public DbSet<CashTransferLine> CashTransferLines => Set<CashTransferLine>();
 
     // IAppDbContext.Set<TEntity>() -- satisfied implicitly by DbContext's own public
     // Set<TEntity>() (identical signature), needed by the generic
