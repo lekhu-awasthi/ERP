@@ -1,52 +1,52 @@
 [
   {
     "id": "TC001",
-    "title": "gethealthreturns200whenserviceishealthy",
-    "description": "Verify that GET /health returns HTTP 200 with a status indicating the API is healthy when the service and dependencies are operational."
+    "title": "get_health_returns_service_status",
+    "description": "Verify that the GET /health endpoint returns a 200 status with a status string indicating the service is running and does not require authentication."
   },
   {
     "id": "TC002",
-    "title": "postapiauthregistercreatesnewuserwithvalidinput",
-    "description": "Test POST /api/auth/register with valid fullName, email, phone, and password creates a new user account with status EmailUnverified and returns 201 with userId and email."
+    "title": "get_api_organizations_workspace_name_availability_checks_name_availability",
+    "description": "Test GET /api/organizations/workspace-name-availability with a valid workspaceName query parameter returns 200 with isAvailable boolean indicating if the workspace name is available for the authenticated user."
   },
   {
     "id": "TC003",
-    "title": "postapiauthregisterreturns400forinvalidormissingfields",
-    "description": "Test POST /api/auth/register with missing or invalid fields returns HTTP 400 validation error."
+    "title": "post_api_organizations_creates_new_organization",
+    "description": "Test POST /api/organizations with valid organization profile and feature selections creates a new organization and returns 201 with organizationId, name, and workspaceName for an authenticated user."
   },
   {
     "id": "TC004",
-    "title": "postapiauthregisterreturns409forduplicateemail",
-    "description": "Test POST /api/auth/register with an email that already exists returns HTTP 409 conflict error."
+    "title": "post_api_organizations_organizationid_invitations_invites_user_with_permission",
+    "description": "Verify POST /api/organizations/{organizationId}/invitations with email and role by an authorized admin user returns 200 with membershipId, email, and role; and returns 403 if the caller lacks InviteUser permission."
   },
   {
     "id": "TC005",
-    "title": "postapiauthrequestverificationcodeissuescodeforregisteredemail",
-    "description": "Test POST /api/auth/request-verification-code with a registered email returns 200 confirmation message and logs the 6-digit code via the stub email sender."
+    "title": "post_api_organizations_memberships_membershipid_accept_invitation_accepts_invitation",
+    "description": "Verify POST /api/organizations/memberships/{membershipId}/accept-invitation allows the invited user to accept the invitation and returns 200 with confirmation message."
   },
   {
     "id": "TC006",
-    "title": "postapiauthrequestverificationcodereturns404forunknownemail",
-    "description": "Test POST /api/auth/request-verification-code with an unknown email returns HTTP 404 no account found."
+    "title": "post_api_organizations_memberships_membershipid_accept_request_accepts_join_request_with_permission",
+    "description": "Verify POST /api/organizations/memberships/{membershipId}/accept-request by an admin with AcceptRequest permission returns 200 with confirmation message; returns 403 if caller lacks permission."
   },
   {
     "id": "TC007",
-    "title": "postapiauthverifyemailactivatesaccountwithvalidcode",
-    "description": "Test POST /api/auth/verify-email with a registered email and valid 6-digit code activates the account (status changes to Active) and returns 200."
+    "title": "get_api_organizations_organizationid_configuration_credit_terms_lists_credit_terms_with_permission",
+    "description": "Test GET /api/organizations/{organizationId}/configuration/credit-terms returns 200 with a list of credit terms for a user with View permission; returns 403 if lacking permission."
   },
   {
     "id": "TC008",
-    "title": "postapiauthverifyemailreturns400forinvalidorexpiredcode",
-    "description": "Test POST /api/auth/verify-email with invalid, expired, or already-used code returns HTTP 400 verification failure."
+    "title": "post_api_organizations_organizationid_configuration_credit_terms_creates_credit_term_and_handles_duplicates",
+    "description": "Verify POST /api/organizations/{organizationId}/configuration/credit-terms creates a new credit term with name and dueDays returning 201; returns 409 if duplicate name exists; returns 403 if lacking Manage permission."
   },
   {
     "id": "TC009",
-    "title": "postapiauthloginauthenticatesverifieduserandsetscookie",
-    "description": "Test POST /api/auth/login with verified email and correct password returns 200 with user details and sets the erp_auth httpOnly session cookie."
+    "title": "put_api_organizations_organizationid_configuration_credit_terms_id_updates_credit_term_and_handles_conflicts",
+    "description": "Verify PUT /api/organizations/{organizationId}/configuration/credit-terms/{id} updates name, dueDays, and isActive returning 200; returns 404 if not found; returns 409 if duplicate name conflict."
   },
   {
     "id": "TC010",
-    "title": "postapiauthforgotpasswordissuesresetcodeforregisteredemail",
-    "description": "Test POST /api/auth/forgot-password with a registered email returns 200 confirmation message and logs the 6-digit reset code via the stub email sender."
+    "title": "delete_api_organizations_organizationid_configuration_credit_terms_id_deletes_credit_term",
+    "description": "Verify DELETE /api/organizations/{organizationId}/configuration/credit-terms/{id} deletes the credit term returning 204; returns 404 if not found."
   }
 ]

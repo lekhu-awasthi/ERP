@@ -1,50 +1,34 @@
 import requests
+import urllib3
 
-BASE_URL = "http://localhost:5155"
-REGISTER_ENDPOINT = "/api/auth/register"
-HEADERS = {"Content-Type": "application/json"}
-TIMEOUT = 30
+# Disable warnings about insecure requests
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+def test_post_api_auth_register_returns_400_for_invalid_or_missing_fields():
+    base_url = "http://localhost:5155"
+    url = f"{base_url}/api/auth/register"
+    headers = {"Content-Type": "application/json"}
 
-def test_postapiauthregisterreturns400forinvalidormissingfields():
-    url = BASE_URL + REGISTER_ENDPOINT
-
-    # List of invalid test payloads with missing or invalid fields
-    invalid_payloads = [
-        # Missing fullName
-        {"email": "user@example.com", "phone": "1234567890", "password": "validPass1"},
-        # Missing email
-        {"fullName": "Test User", "phone": "1234567890", "password": "validPass1"},
-        # Missing phone
-        {"fullName": "Test User", "email": "user@example.com", "password": "validPass1"},
-        # Missing password
-        {"fullName": "Test User", "email": "user@example.com", "phone": "1234567890"},
-        # Invalid email (not an email format)
-        {"fullName": "Test User", "email": "invalid-email", "phone": "1234567890", "password": "validPass1"},
-        # Email too long (257 chars)
-        {"fullName": "Test User", "email": "a" * 257 + "@example.com", "phone": "1234567890", "password": "validPass1"},
-        # Phone too long (21 chars)
-        {"fullName": "Test User", "email": "user@example.com", "phone": "1" * 21, "password": "validPass1"},
-        # Password too short (7 chars)
-        {"fullName": "Test User", "email": "user@example.com", "phone": "1234567890", "password": "short1"},
-        # Password too long (101 chars)
-        {
-            "fullName": "Test User",
-            "email": "user@example.com",
-            "phone": "1234567890",
-            "password": "p" * 101,
-        },
-        # All fields empty strings
-        {"fullName": "", "email": "", "phone": "", "password": ""},
-        # All fields null (not allowed by JSON schema but testing empty)
-        {"fullName": None, "email": None, "phone": None, "password": None}
+    test_payloads = [
+        {},  # completely empty body
+        {"fullName": "Test User"},  # missing email, phone, password
+        {"email": "invalid-email", "fullName": "Test User", "phone": "1234567890", "password": "password123"},  # invalid email
+        {"fullName": "Test User", "email": "test@example.com", "phone": "123456789012345678901234567890", "password": "password123"},  # phone too long (>20 chars)
+        {"fullName": "Test User", "email": "test@example.com", "phone": "1234567890", "password": "short"},  # password too short (<8 chars)
+        {"fullName": "", "email": "test@example.com", "phone": "1234567890", "password": "password123"},  # empty fullName
+        {"fullName": "Test User", "email": "", "phone": "1234567890", "password": "password123"},  # empty email
+        {"fullName": "Test User", "email": "test@example.com", "phone": "", "password": "password123"},  # empty phone
+        {"fullName": "Test User", "email": "test@example.com", "phone": "1234567890", "password": ""},  # empty password
+        {"fullName": "Test User", "email": "a"*257 + "@example.com", "phone": "1234567890", "password": "password123"}  # email too long (>256 chars)
     ]
 
-    for payload in invalid_payloads:
-        response = requests.post(url, json=payload, headers=HEADERS, timeout=TIMEOUT)
-        assert response.status_code == 400, (
-            f"Expected 400 for payload {payload}, got {response.status_code}: {response.text}"
-        )
+    for payload in test_payloads:
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=30, verify=False)
+        except Exception as e:
+            assert False, f"Request failed with exception: {e}"
+        else:
+            # Assert HTTP 400 Bad Request for all invalid/missing field cases
+            assert response.status_code == 400, f"Expected status 400 but got {response.status_code} for payload: {payload}"
 
-
-test_postapiauthregisterreturns400forinvalidormissingfields()
+test_post_api_auth_register_returns_400_for_invalid_or_missing_fields()
