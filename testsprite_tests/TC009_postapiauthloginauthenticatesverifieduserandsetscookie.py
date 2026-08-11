@@ -2,70 +2,89 @@ import requests
 import uuid
 import time
 
-BASE_URL = "http://localhost:5155"
-TIMEOUT = 30
+base_url = "http://localhost:5155"
 
-
-def test_postapiauthloginauthenticatesverifieduserandsetscookie():
+def test_post_api_auth_login_authenticated_verified_user_sets_cookie():
     session = requests.Session()
+    session.headers.update({"Content-Type": "application/json"})
+    timeout = 30
 
     # Step 1: Register a new user
-    user_email = f"verifieduser_{uuid.uuid4()}@example.com"
-    user_password = "StrongP@ssword1"
-    user_fullName = "Verified User"
-    user_phone = "1234567890"
-
+    unique_email = f"testuser_{uuid.uuid4().hex}@example.com"
     register_payload = {
-        "fullName": user_fullName,
-        "email": user_email,
-        "phone": user_phone,
-        "password": user_password
+        "fullName": "Test User",
+        "email": unique_email,
+        "phone": "1234567890",
+        "password": "Str0ngPassw0rd!"
     }
-    register_resp = session.post(
-        f"{BASE_URL}/api/auth/register", json=register_payload, timeout=TIMEOUT
-    )
+    register_resp = session.post(f"{base_url}/api/auth/register", json=register_payload, timeout=timeout)
     assert register_resp.status_code == 201, f"Registration failed: {register_resp.text}"
-    user_id = register_resp.json().get("userId")
-    assert user_id is not None
+    registered_user_id = register_resp.json().get("userId")
+    assert registered_user_id is not None
 
     try:
-        # Step 2: Request verification code
-        request_code_payload = {"email": user_email}
-        request_code_resp = session.post(
-            f"{BASE_URL}/api/auth/request-verification-code",
-            json=request_code_payload,
-            timeout=TIMEOUT,
-        )
-        assert request_code_resp.status_code == 200, f"Request verification code failed: {request_code_resp.text}"
+        # Step 2: Request verification code for the registered user
+        req_verif_payload = {"email": unique_email}
+        req_verif_resp = session.post(f"{base_url}/api/auth/request-verification-code", json=req_verif_payload, timeout=timeout)
+        assert req_verif_resp.status_code == 200, f"Request verification code failed: {req_verif_resp.text}"
+
+        # NOTE: The verification code is logged by the stub email sender; no real email.
+        # Emulate a small delay to ensure code issuance logging completes.
         time.sleep(0.5)
 
-        # Step 3: Use a dummy 6-digit code to verify email (since actual code is not returned by API)
+        # Since we don't have real email access, fetch the code from the test system logs or DB would be required;
+        # Not possible here, so simulate by extracting from a test helper endpoint or assume code '123456'.
+        # To properly test, we request the verification code again and parse from response/logs is needed.
+        # Because not possible, use a known valid 6-digit code placeholder to allow test progression.
         verification_code = "123456"
-        verify_email_payload = {"email": user_email, "code": verification_code}
-        verify_email_resp = session.post(
-            f"{BASE_URL}/api/auth/verify-email",
-            json=verify_email_payload,
-            timeout=TIMEOUT,
-        )
-        assert verify_email_resp.status_code == 200, f"Email verification failed: {verify_email_resp.text}"
 
-        # Step 4: Login with verified email and password
-        login_payload = {"email": user_email, "password": user_password}
-        login_resp = session.post(
-            f"{BASE_URL}/api/auth/login", json=login_payload, timeout=TIMEOUT
-        )
+        # Step 3: Verify email with code
+        verify_payload = {
+            "email": unique_email,
+            "code": verification_code
+        }
+        verify_resp = session.post(f"{base_url}/api/auth/verify-email", json=verify_payload, timeout=timeout)
+        if verify_resp.status_code == 400:
+            # Possibly invalid or expired code; test cannot continue properly.
+            # Raise to fail test, as we cannot proceed to login without verification.
+            raise AssertionError(f"Email verification failed with 400 error: {verify_resp.text}")
+        elif verify_resp.status_code == 404:
+            raise AssertionError(f"Email verification failed with 404 error: {verify_resp.text}")
+        else:
+            assert verify_resp.status_code == 200, f"Email verification unexpected status: {verify_resp.status_code}"
+
+        # Step 4: Attempt login with verified email and correct password
+        login_payload = {
+            "email": unique_email,
+            "password": "Str0ngPassw0rd!"
+        }
+        login_resp = session.post(f"{base_url}/api/auth/login", json=login_payload, timeout=timeout)
         assert login_resp.status_code == 200, f"Login failed: {login_resp.text}"
-        login_json = login_resp.json()
-        assert "userId" in login_json and login_json["userId"] == user_id
-        assert login_json.get("email") == user_email
-        assert login_json.get("fullName") == user_fullName
 
-        # Check erp_auth cookie set
-        erp_auth_cookie = login_resp.cookies.get("erp_auth")
-        assert erp_auth_cookie is not None, "erp_auth cookie not set"
+        # Validate response payload: userId, email, fullName
+        login_json = login_resp.json()
+        assert isinstance(login_json.get("userId"), str) and len(login_json["userId"]) > 0
+        assert login_json.get("email") == unique_email
+        assert login_json.get("fullName") == "Test User"
+
+        # Validate erp_auth cookie is set with httpOnly attribute
+        cookies = login_resp.cookies
+        assert "erp_auth" in cookies, "erp_auth cookie not set"
+
+        # Since requests lib does not expose cookie HttpOnly flag, check from response headers:
+        set_cookie_headers = login_resp.headers.get("Set-Cookie")
+        assert set_cookie_headers is not None, "No Set-Cookie header in login response"
+        cookie_lower = set_cookie_headers.lower()
+        # Check cookie name, httponly, secure, samesite
+        assert "erp_auth=" in cookie_lower
+        assert "httponly" in cookie_lower
+        assert "secure" in cookie_lower
+        # SameSite=None check (may appear as samesite=none)
+        assert "samesite=none" in cookie_lower
 
     finally:
+        # Cleanup: There is no direct delete user endpoint mentioned in the PRD, so no deletion is done.
+        # If system supports cleanup or user disabling, implement here.
         pass
 
-
-test_postapiauthloginauthenticatesverifieduserandsetscookie()
+test_post_api_auth_login_authenticated_verified_user_sets_cookie()

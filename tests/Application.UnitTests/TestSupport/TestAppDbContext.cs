@@ -1,4 +1,6 @@
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Common;
+using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Identity;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +26,22 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
 
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
 
+    public DbSet<CreditTerm> CreditTerms => Set<CreditTerm>();
+
+    public DbSet<PaymentMode> PaymentModes => Set<PaymentMode>();
+
+    public DbSet<CustomStatus> CustomStatuses => Set<CustomStatus>();
+
+    public DbSet<ReportingTagCategory> ReportingTagCategories => Set<ReportingTagCategory>();
+
+    public DbSet<ReportingTagOption> ReportingTagOptions => Set<ReportingTagOption>();
+
+    public DbSet<DocumentNumberingRule> DocumentNumberingRules => Set<DocumentNumberingRule>();
+
+    public DbSet<CustomFieldDefinition> CustomFieldDefinitions => Set<CustomFieldDefinition>();
+
+    public DbSet<CustomFieldValue> CustomFieldValues => Set<CustomFieldValue>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -33,6 +51,20 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         // store-generation, so it's excluded from this test-only model entirely.
         modelBuilder.Entity<User>().Ignore(u => u.RowVersion);
         modelBuilder.Entity<Organization>().Ignore(o => o.RowVersion);
+        modelBuilder.Entity<DocumentNumberingRule>().Ignore(r => r.RowVersion);
+
+        // ApplicableDocumentTypes needs the same delimited-string conversion as the real
+        // CustomFieldDefinitionConfiguration (Infrastructure) -- IEntityTypeConfiguration classes
+        // aren't applied here (this context has no ApplyConfigurationsFromAssembly call, by
+        // design: it's a minimal InMemory model for handler tests, not a schema mirror), so
+        // anything beyond conventions needs restating.
+        modelBuilder.Entity<CustomFieldDefinition>()
+            .Property(d => d.ApplicableDocumentTypes)
+            .HasConversion(
+                v => string.Join(',', v),
+                v => v.Length == 0
+                    ? new List<DocumentType>()
+                    : v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(Enum.Parse<DocumentType>).ToList());
     }
 
     public static IAppDbContext Create() => new TestAppDbContext(
