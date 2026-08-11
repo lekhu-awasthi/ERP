@@ -10,7 +10,7 @@ import { OrganizationsService } from '../../../core/organizations/organizations.
 type WizardStep = 1 | 2 | 3;
 type WorkspaceStatus = 'idle' | 'checking' | 'available' | 'taken';
 
-/** ~30 common Nepali SME sectors, not Tigg's full ~70-entry catalog -- free text, this just seeds suggestions. */
+/** ~30 common Nepali SME sectors -- free text, this just seeds suggestions. */
 const INDUSTRY_SUGGESTIONS = [
   'Agriculture', 'Automobile', 'Banking & Finance', 'Construction', 'Consulting',
   'Education', 'Electronics', 'Event Management', 'Fashion & Apparel', 'Food & Beverage',
