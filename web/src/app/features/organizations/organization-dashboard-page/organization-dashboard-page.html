@@ -63,6 +63,9 @@
             </select>
           </div>
           <div class="d-flex gap-2">
+            <a [routerLink]="['/organizations', organizationId(), 'configuration']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-gear"></i> Configurations
+            </a>
             <a routerLink="/organizations" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-list-task"></i> All Organizations
             </a>

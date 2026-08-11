@@ -1,53 +1,50 @@
 import requests
-import uuid
-
-BASE_URL = "http://localhost:5155"
-TIMEOUT = 30
-
 
 def test_postapiauthverifyemailreturns400forinvalidorexpiredcode():
-    # First, register a new user to get a valid email in the system
-    register_url = f"{BASE_URL}/api/auth/register"
-    verify_url = f"{BASE_URL}/api/auth/verify-email"
+    base_url = "http://localhost:5155"
+    register_url = f"{base_url}/api/auth/register"
+    request_code_url = f"{base_url}/api/auth/request-verification-code"
+    verify_email_url = f"{base_url}/api/auth/verify-email"
 
-    # Unique email to avoid conflicts
-    unique_email = f"testuser_{uuid.uuid4().hex}@example.com"
+    test_email = "testuser_invalid_code@example.com"
+    test_password = "TestPass123!"
+    test_full_name = "Test User InvalidCode"
+    test_phone = "1234567890"
+
+    # Register new user to ensure the email exists for verification attempts
     register_payload = {
-        "fullName": "Test User",
-        "email": unique_email,
-        "phone": "1234567890",
-        "password": "StrongPassw0rd!"
+        "fullName": test_full_name,
+        "email": test_email,
+        "phone": test_phone,
+        "password": test_password
     }
 
-    user_id = None
+    # Create the user then attempt invalid verification
     try:
-        # Register the user (should succeed)
-        register_response = requests.post(register_url, json=register_payload, timeout=TIMEOUT)
-        assert register_response.status_code == 201, f"Registration failed with status {register_response.status_code}"
-        user_id = register_response.json().get("userId")
-        assert user_id is not None, "userId not returned on registration"
-        assert register_response.json().get("email") == unique_email
+        reg_resp = requests.post(register_url, json=register_payload, timeout=30)
+        assert reg_resp.status_code == 201, f"Expected 201 on registration, got {reg_resp.status_code}"
+        user_info = reg_resp.json()
+        assert user_info.get("email") == test_email
 
-        # Attempt to verify email with invalid, expired, or already-used code
-        # Use an obviously invalid code: "000000"
-        invalid_codes = ["000000", "12345", "abcdef", "999999"]  # Including some invalid formats
+        # Request a verification code for the user (important prerequisite)
+        req_code_resp = requests.post(request_code_url, json={"email": test_email}, timeout=30)
+        assert req_code_resp.status_code == 200
+        # The code is stubbed/logged but we won't use it.
 
-        for invalid_code in invalid_codes:
-            payload = {
-                "email": unique_email,
-                "code": invalid_code if len(invalid_code) == 6 else "000000"  # code must be exactly 6 chars
+        # Attempt to verify email with an invalid code (wrong format)
+        invalid_codes = ["000000", "123", "abcdef", "999999"]  # including a correct length code that is presumably invalid/expired
+
+        for code in invalid_codes:
+            verify_payload = {
+                "email": test_email,
+                "code": code
             }
-            # If invalid_code is not exactly 6, still send 6 chars to test validation logic
-            if len(invalid_code) != 6:
-                payload["code"] = "000000"
+            verify_resp = requests.post(verify_email_url, json=verify_payload, timeout=30)
+            assert verify_resp.status_code == 400, \
+                f"Expected 400 for invalid/expired/already-used code '{code}', got {verify_resp.status_code}"
 
-            response = requests.post(verify_url, json=payload, timeout=TIMEOUT)
-            # Expect HTTP 400 for invalid, expired or already-used code
-            assert response.status_code == 400, \
-                f"Expected 400 for code '{invalid_code}', got {response.status_code}. Response: {response.text}"
     finally:
-        # Cleanup: No delete endpoint info provided - assumed no deletion possible or needed
+        # No delete endpoint available for users specified in PRD, so no cleanup possible here
         pass
-
 
 test_postapiauthverifyemailreturns400forinvalidorexpiredcode()

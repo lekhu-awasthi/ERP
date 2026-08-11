@@ -1,0 +1,113 @@
+<div class="container py-5" style="max-width: 800px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-calendar-check fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Credit Terms</h1>
+          <p class="text-muted small mb-0">Named payment due-day terms for Sales &amp; Purchase documents</p>
+        </div>
+      </div>
+      <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'configuration']">
+        <i class="bi bi-arrow-left"></i> Configurations
+      </a>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <h6 class="fw-bold text-dark mb-3">{{ editingId() ? 'Edit Credit Term' : 'New Credit Term' }}</h6>
+      <form [formGroup]="form" (ngSubmit)="save()" class="row g-3 align-items-end">
+        <div class="col-12 col-sm-5">
+          <label class="form-label small fw-semibold">Name</label>
+          <input type="text" class="form-control" formControlName="name" placeholder="e.g. Net 30" />
+        </div>
+        <div class="col-8 col-sm-3">
+          <label class="form-label small fw-semibold">Due Days</label>
+          <input type="number" class="form-control" formControlName="dueDays" min="0" />
+        </div>
+        @if (editingId()) {
+          <div class="col-4 col-sm-2 form-check ps-4">
+            <input type="checkbox" class="form-check-input" id="isActive" formControlName="isActive" />
+            <label class="form-check-label small" for="isActive">Active</label>
+          </div>
+        }
+        <div class="col-12 col-sm-2 d-flex gap-2">
+          <button type="submit" class="btn btn-primary fw-bold flex-fill" [disabled]="saving()">
+            @if (saving()) {
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            } @else {
+              {{ editingId() ? 'Update' : 'Add' }}
+            }
+          </button>
+          @if (editingId()) {
+            <button type="button" class="btn btn-outline-secondary" (click)="startCreate()">Cancel</button>
+          }
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading credit terms...</p>
+        </div>
+      } @else if (items().length === 0) {
+        <div class="text-center py-5">
+          <div class="bg-light d-inline-flex p-4 rounded-circle mb-3 text-muted">
+            <i class="bi bi-calendar-x fs-1"></i>
+          </div>
+          <h5 class="fw-bold text-dark">No Credit Terms Yet</h5>
+          <p class="text-muted small mb-0">Add one using the form above.</p>
+        </div>
+      } @else {
+        <div class="list-group list-group-flush">
+          @for (item of items(); track item.id) {
+            <div class="list-group-item border rounded-3 mb-3 p-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
+              <div class="d-flex align-items-center gap-3">
+                <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-circle">
+                  <i class="bi bi-calendar-check fs-5"></i>
+                </div>
+                <div>
+                  <h6 class="fw-bold mb-1 text-dark">{{ item.name }}</h6>
+                  <span class="text-muted small">{{ item.dueDays }} days</span>
+                  @if (!item.isActive) {
+                    <span class="badge bg-secondary-subtle text-secondary ms-2">Inactive</span>
+                  }
+                </div>
+              </div>
+              <div class="d-flex gap-2">
+                @if (confirmingDeleteId() === item.id) {
+                  <span class="small text-danger fw-semibold align-self-center me-1">Delete this credit term?</span>
+                  <button type="button" class="btn btn-danger btn-sm" (click)="confirmDelete(item)">
+                    <i class="bi bi-check2"></i> Confirm
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelDelete()">Cancel</button>
+                } @else {
+                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="startEdit(item)">
+                    <i class="bi bi-pencil"></i> Edit
+                  </button>
+                  <button type="button" class="btn btn-outline-danger btn-sm" (click)="requestDelete(item)">
+                    <i class="bi bi-trash"></i> Delete
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</div>

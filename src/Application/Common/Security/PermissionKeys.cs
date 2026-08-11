@@ -16,4 +16,28 @@ public static class PermissionKeys
     public const string OrganizationInviteUser = "Tenancy.Organization.InviteUser";
 
     public const string OrganizationAcceptRequest = "Tenancy.Organization.AcceptRequest";
+
+    // Phase 2 (Configuration foundation) -- one View/Manage pair per lookup type rather than one
+    // shared key, so a later Role Reference editor can toggle e.g. "Member can edit CreditTerm"
+    // independently of "Member can edit PaymentMode" (see phase-2-status.md's scope decisions).
+    // .Manage covers Create/Update/Delete as a single grant -- these are simple tenant-wide named
+    // lists, not warranting the Create/Edit/Delete/Approve split §3.7 reserves for transactional
+    // documents.
+    public const string CreditTermView = "Configuration.CreditTerm.View";
+    public const string CreditTermManage = "Configuration.CreditTerm.Manage";
+
+    public const string PaymentModeView = "Configuration.PaymentMode.View";
+    public const string PaymentModeManage = "Configuration.PaymentMode.Manage";
+
+    public const string CustomStatusView = "Configuration.CustomStatus.View";
+    public const string CustomStatusManage = "Configuration.CustomStatus.Manage";
+
+    public const string ReportingTagCategoryView = "Configuration.ReportingTagCategory.View";
+    public const string ReportingTagCategoryManage = "Configuration.ReportingTagCategory.Manage";
+
+    public const string ReportingTagOptionView = "Configuration.ReportingTagOption.View";
+    public const string ReportingTagOptionManage = "Configuration.ReportingTagOption.Manage";
+
+    public const string CustomFieldDefinitionView = "Configuration.CustomFieldDefinition.View";
+    public const string CustomFieldDefinitionManage = "Configuration.CustomFieldDefinition.Manage";
 }

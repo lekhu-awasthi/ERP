@@ -1,3 +1,4 @@
+using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Identity;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,22 @@ public interface IAppDbContext
     DbSet<OrganizationMembership> OrganizationMemberships { get; }
     DbSet<Role> Roles { get; }
     DbSet<RolePermission> RolePermissions { get; }
+    DbSet<CreditTerm> CreditTerms { get; }
+    DbSet<PaymentMode> PaymentModes { get; }
+    DbSet<CustomStatus> CustomStatuses { get; }
+    DbSet<ReportingTagCategory> ReportingTagCategories { get; }
+    DbSet<ReportingTagOption> ReportingTagOptions { get; }
+    DbSet<DocumentNumberingRule> DocumentNumberingRules { get; }
+    DbSet<CustomFieldDefinition> CustomFieldDefinitions { get; }
+    DbSet<CustomFieldValue> CustomFieldValues { get; }
+
+    /// <summary>
+    /// Generic accessor mirroring DbContext's own Set&lt;TEntity&gt;() -- lets the generic
+    /// ListLookupsQuery&lt;TLookup&gt;/DeleteLookupCommand&lt;TLookup&gt; handlers
+    /// (Application.Configuration) reach the right table without the interface needing a named
+    /// property per lookup type consumed generically.
+    /// </summary>
+    DbSet<TEntity> Set<TEntity>() where TEntity : class;
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Email;
+using ErpApp.Application.Common.Numbering;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Infrastructure.Email;
@@ -53,6 +54,7 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, PasswordHasherAdapter>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
+        services.AddScoped<IDocumentNumberGenerator, DocumentNumberGenerator>();
 
         return services;
     }
