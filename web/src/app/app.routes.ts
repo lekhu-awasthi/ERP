@@ -57,4 +57,26 @@ export const routes: Routes = [
       ),
     canActivate: [authGuard],
   },
+  {
+    path: 'organizations/:id/configuration',
+    loadComponent: () =>
+      import('./features/configuration/configuration-shell/configuration-shell').then((m) => m.ConfigurationShell),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/configuration/credit-terms',
+    loadComponent: () =>
+      import('./features/configuration/credit-term-list-page/credit-term-list-page').then(
+        (m) => m.CreditTermListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/configuration/payment-modes',
+    loadComponent: () =>
+      import('./features/configuration/payment-mode-list-page/payment-mode-list-page').then(
+        (m) => m.PaymentModeListPage,
+      ),
+    canActivate: [authGuard],
+  },
 ];

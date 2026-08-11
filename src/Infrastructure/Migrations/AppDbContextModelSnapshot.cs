@@ -22,6 +22,291 @@ namespace ErpApp.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("ErpApp.Domain.Configuration.CreditTerm", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("DueDays")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("CreditTerms", "configuration");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Configuration.CustomFieldDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ApplicableDocumentTypes")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("CustomFieldDefinitions", "configuration");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Configuration.CustomFieldValue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<Guid>("FieldDefinitionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ValueType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FieldDefinitionId");
+
+                    b.HasIndex("DocumentType", "DocumentId");
+
+                    b.ToTable("CustomFieldValues", "configuration");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Configuration.CustomStatus", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "DocumentType", "Name")
+                        .IsUnique();
+
+                    b.ToTable("CustomStatuses", "configuration");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Configuration.DocumentNumberingRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<bool>("IncludeFiscalYearInCode")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("LocationWiseNumbering")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("NextNumber")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Prefix")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("ResetEveryFiscalYear")
+                        .HasColumnType("bit");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "DocumentType")
+                        .IsUnique();
+
+                    b.ToTable("DocumentNumberingRules", "configuration");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Configuration.PaymentMode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("PaymentModes", "configuration");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Configuration.ReportingTagCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("ReportingTagCategories", "configuration");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Configuration.ReportingTagOption", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("OrganizationId", "CategoryId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("ReportingTagOptions", "configuration");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Identity.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -306,6 +591,174 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = false,
                             PermissionKey = "Tenancy.Organization.AcceptRequest",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000005"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.CreditTerm.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000006"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.CreditTerm.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000007"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.CreditTerm.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000008"),
+                            IsGranted = false,
+                            PermissionKey = "Configuration.CreditTerm.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000009"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.PaymentMode.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000000a"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.PaymentMode.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000000b"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.PaymentMode.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000000c"),
+                            IsGranted = false,
+                            PermissionKey = "Configuration.PaymentMode.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000000d"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.CustomStatus.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000000e"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.CustomStatus.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000000f"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.CustomStatus.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000010"),
+                            IsGranted = false,
+                            PermissionKey = "Configuration.CustomStatus.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000011"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.ReportingTagCategory.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000012"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.ReportingTagCategory.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000013"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.ReportingTagCategory.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000014"),
+                            IsGranted = false,
+                            PermissionKey = "Configuration.ReportingTagCategory.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000015"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.ReportingTagOption.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000016"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.ReportingTagOption.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000017"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.ReportingTagOption.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000018"),
+                            IsGranted = false,
+                            PermissionKey = "Configuration.ReportingTagOption.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000019"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.CustomFieldDefinition.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000001a"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.CustomFieldDefinition.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000001b"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.CustomFieldDefinition.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000001c"),
+                            IsGranted = false,
+                            PermissionKey = "Configuration.CustomFieldDefinition.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 
@@ -318,8 +771,38 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<string>("InventoryTrackingMode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasDefaultValue("AccountingMovement");
+
+                    b.Property<string>("NegativeCashBalanceAction")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasDefaultValue("Reject");
+
+                    b.Property<string>("NegativeStockBalanceAction")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasDefaultValue("Warn");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ProductPriceBasis")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasDefaultValue("ExclusiveOfVat");
+
+                    b.Property<string>("SuggestSellingPriceMode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasDefaultValue("RecentSellingPrice");
 
                     b.HasKey("Id");
 
@@ -379,6 +862,24 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("TenantSubscriptions", "tenancy");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Configuration.CustomFieldValue", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Configuration.CustomFieldDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("FieldDefinitionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Configuration.ReportingTagOption", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Configuration.ReportingTagCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Identity.VerificationCode", b =>
