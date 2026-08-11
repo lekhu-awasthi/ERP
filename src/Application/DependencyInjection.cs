@@ -1,6 +1,8 @@
 using System.Reflection;
+using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
+using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
@@ -51,6 +53,17 @@ public static class DependencyInjection
         RegisterLookupHandlers<ContactGroup>(services);
         RegisterLookupHandlers<ProductCategory>(services);
         RegisterLookupHandlers<UnitOfMeasurement>(services);
+
+        // Phase 4 (Accounting core) -- AccountGroup is the same "pure {id, name, parent}" tree
+        // shape (plus an immutable RootType that doesn't conflict with ITenantLookupEntity, same
+        // precedent as ContactGroup/ProductCategory) so it reuses the generic pair too.
+        RegisterLookupHandlers<AccountGroup>(services);
+
+        // IGlPostingRule<T> (architecture-spec.md §3.4) -- pure TDocument->GL-lines mappers, one
+        // per document type that posts to GL. Registered so ApproveXCommandHandler and
+        // PreviewGlPostingQueryHandler share the exact same instance type (no duplicated math).
+        services.AddTransient<IGlPostingRule<JournalVoucher>, JournalVoucherPostingRule>();
+        services.AddTransient<IGlPostingRule<CashTransfer>, CashTransferPostingRule>();
 
         return services;
     }

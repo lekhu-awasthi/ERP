@@ -127,4 +127,50 @@ export const routes: Routes = [
       import('./features/catalog/product-detail-page/product-detail-page').then((m) => m.ProductDetailPage),
     canActivate: [authGuard],
   },
+  {
+    path: 'organizations/:id/accounting/account-groups',
+    loadComponent: () =>
+      import('./features/accounting/account-group-list-page/account-group-list-page').then(
+        (m) => m.AccountGroupListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/accounting/accounts',
+    loadComponent: () =>
+      import('./features/accounting/account-list-page/account-list-page').then((m) => m.AccountListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/accounting/journal-vouchers',
+    loadComponent: () =>
+      import('./features/accounting/journal-voucher-list-page/journal-voucher-list-page').then(
+        (m) => m.JournalVoucherListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/accounting/journal-vouchers/:journalVoucherId',
+    loadComponent: () =>
+      import('./features/accounting/journal-voucher-detail-page/journal-voucher-detail-page').then(
+        (m) => m.JournalVoucherDetailPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/accounting/cash-transfers',
+    loadComponent: () =>
+      import('./features/accounting/cash-transfer-list-page/cash-transfer-list-page').then(
+        (m) => m.CashTransferListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/accounting/cash-transfers/:cashTransferId',
+    loadComponent: () =>
+      import('./features/accounting/cash-transfer-detail-page/cash-transfer-detail-page').then(
+        (m) => m.CashTransferDetailPage,
+      ),
+    canActivate: [authGuard],
+  },
 ];

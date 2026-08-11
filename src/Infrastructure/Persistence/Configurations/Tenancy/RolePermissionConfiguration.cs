@@ -85,6 +85,41 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid MemberProductViewId = Guid.Parse("00000000-0000-0000-0002-00000000002f");
     private static readonly Guid MemberProductManageId = Guid.Parse("00000000-0000-0000-0002-000000000030");
 
+    // Phase 4 (Accounting core) -- AccountGroup/Account are simple master data (Chart of
+    // Accounts), same Member-View-only/Admin-write split as Phase 2/3's taxonomy lookups.
+    // JournalVoucher/CashTransfer are the first real ApprovableTransaction document types: Admin
+    // is granted all four actions; Member is granted View+Create+Edit but Approve is explicitly
+    // denied (IsGranted=false) -- the concrete maker-checker cut architecture-spec.md §3.2 calls
+    // for, now that a real Draft->Approve document type exists (see phase-4-status.md's scope
+    // decisions).
+    private static readonly Guid AdminAccountGroupViewId = Guid.Parse("00000000-0000-0000-0002-000000000031");
+    private static readonly Guid AdminAccountGroupManageId = Guid.Parse("00000000-0000-0000-0002-000000000032");
+    private static readonly Guid MemberAccountGroupViewId = Guid.Parse("00000000-0000-0000-0002-000000000033");
+    private static readonly Guid MemberAccountGroupManageId = Guid.Parse("00000000-0000-0000-0002-000000000034");
+
+    private static readonly Guid AdminAccountViewId = Guid.Parse("00000000-0000-0000-0002-000000000035");
+    private static readonly Guid AdminAccountManageId = Guid.Parse("00000000-0000-0000-0002-000000000036");
+    private static readonly Guid MemberAccountViewId = Guid.Parse("00000000-0000-0000-0002-000000000037");
+    private static readonly Guid MemberAccountManageId = Guid.Parse("00000000-0000-0000-0002-000000000038");
+
+    private static readonly Guid AdminJournalVoucherViewId = Guid.Parse("00000000-0000-0000-0002-000000000039");
+    private static readonly Guid AdminJournalVoucherCreateId = Guid.Parse("00000000-0000-0000-0002-00000000003a");
+    private static readonly Guid AdminJournalVoucherEditId = Guid.Parse("00000000-0000-0000-0002-00000000003b");
+    private static readonly Guid AdminJournalVoucherApproveId = Guid.Parse("00000000-0000-0000-0002-00000000003c");
+    private static readonly Guid MemberJournalVoucherViewId = Guid.Parse("00000000-0000-0000-0002-00000000003d");
+    private static readonly Guid MemberJournalVoucherCreateId = Guid.Parse("00000000-0000-0000-0002-00000000003e");
+    private static readonly Guid MemberJournalVoucherEditId = Guid.Parse("00000000-0000-0000-0002-00000000003f");
+    private static readonly Guid MemberJournalVoucherApproveId = Guid.Parse("00000000-0000-0000-0002-000000000040");
+
+    private static readonly Guid AdminCashTransferViewId = Guid.Parse("00000000-0000-0000-0002-000000000041");
+    private static readonly Guid AdminCashTransferCreateId = Guid.Parse("00000000-0000-0000-0002-000000000042");
+    private static readonly Guid AdminCashTransferEditId = Guid.Parse("00000000-0000-0000-0002-000000000043");
+    private static readonly Guid AdminCashTransferApproveId = Guid.Parse("00000000-0000-0000-0002-000000000044");
+    private static readonly Guid MemberCashTransferViewId = Guid.Parse("00000000-0000-0000-0002-000000000045");
+    private static readonly Guid MemberCashTransferCreateId = Guid.Parse("00000000-0000-0000-0002-000000000046");
+    private static readonly Guid MemberCashTransferEditId = Guid.Parse("00000000-0000-0000-0002-000000000047");
+    private static readonly Guid MemberCashTransferApproveId = Guid.Parse("00000000-0000-0000-0002-000000000048");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -160,6 +195,34 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminProductViewId, Role.AdminId, PermissionKeys.ProductView, true),
             RolePermission.Create(AdminProductManageId, Role.AdminId, PermissionKeys.ProductManage, true),
             RolePermission.Create(MemberProductViewId, Role.MemberId, PermissionKeys.ProductView, true),
-            RolePermission.Create(MemberProductManageId, Role.MemberId, PermissionKeys.ProductManage, true));
+            RolePermission.Create(MemberProductManageId, Role.MemberId, PermissionKeys.ProductManage, true),
+
+            RolePermission.Create(AdminAccountGroupViewId, Role.AdminId, PermissionKeys.AccountGroupView, true),
+            RolePermission.Create(AdminAccountGroupManageId, Role.AdminId, PermissionKeys.AccountGroupManage, true),
+            RolePermission.Create(MemberAccountGroupViewId, Role.MemberId, PermissionKeys.AccountGroupView, true),
+            RolePermission.Create(MemberAccountGroupManageId, Role.MemberId, PermissionKeys.AccountGroupManage, false),
+
+            RolePermission.Create(AdminAccountViewId, Role.AdminId, PermissionKeys.AccountView, true),
+            RolePermission.Create(AdminAccountManageId, Role.AdminId, PermissionKeys.AccountManage, true),
+            RolePermission.Create(MemberAccountViewId, Role.MemberId, PermissionKeys.AccountView, true),
+            RolePermission.Create(MemberAccountManageId, Role.MemberId, PermissionKeys.AccountManage, false),
+
+            RolePermission.Create(AdminJournalVoucherViewId, Role.AdminId, PermissionKeys.JournalVoucherView, true),
+            RolePermission.Create(AdminJournalVoucherCreateId, Role.AdminId, PermissionKeys.JournalVoucherCreate, true),
+            RolePermission.Create(AdminJournalVoucherEditId, Role.AdminId, PermissionKeys.JournalVoucherEdit, true),
+            RolePermission.Create(AdminJournalVoucherApproveId, Role.AdminId, PermissionKeys.JournalVoucherApprove, true),
+            RolePermission.Create(MemberJournalVoucherViewId, Role.MemberId, PermissionKeys.JournalVoucherView, true),
+            RolePermission.Create(MemberJournalVoucherCreateId, Role.MemberId, PermissionKeys.JournalVoucherCreate, true),
+            RolePermission.Create(MemberJournalVoucherEditId, Role.MemberId, PermissionKeys.JournalVoucherEdit, true),
+            RolePermission.Create(MemberJournalVoucherApproveId, Role.MemberId, PermissionKeys.JournalVoucherApprove, false),
+
+            RolePermission.Create(AdminCashTransferViewId, Role.AdminId, PermissionKeys.CashTransferView, true),
+            RolePermission.Create(AdminCashTransferCreateId, Role.AdminId, PermissionKeys.CashTransferCreate, true),
+            RolePermission.Create(AdminCashTransferEditId, Role.AdminId, PermissionKeys.CashTransferEdit, true),
+            RolePermission.Create(AdminCashTransferApproveId, Role.AdminId, PermissionKeys.CashTransferApprove, true),
+            RolePermission.Create(MemberCashTransferViewId, Role.MemberId, PermissionKeys.CashTransferView, true),
+            RolePermission.Create(MemberCashTransferCreateId, Role.MemberId, PermissionKeys.CashTransferCreate, true),
+            RolePermission.Create(MemberCashTransferEditId, Role.MemberId, PermissionKeys.CashTransferEdit, true),
+            RolePermission.Create(MemberCashTransferApproveId, Role.MemberId, PermissionKeys.CashTransferApprove, false));
     }
 }

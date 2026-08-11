@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
@@ -56,6 +57,22 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
 
     public DbSet<ProductSecondaryUnit> ProductSecondaryUnits => Set<ProductSecondaryUnit>();
 
+    public DbSet<AccountGroup> AccountGroups => Set<AccountGroup>();
+
+    public DbSet<Account> Accounts => Set<Account>();
+
+    public DbSet<JournalVoucher> JournalVouchers => Set<JournalVoucher>();
+
+    public DbSet<JournalVoucherLine> JournalVoucherLines => Set<JournalVoucherLine>();
+
+    public DbSet<GlJournalEntry> GlJournalEntries => Set<GlJournalEntry>();
+
+    public DbSet<GlLine> GlLines => Set<GlLine>();
+
+    public DbSet<CashTransfer> CashTransfers => Set<CashTransfer>();
+
+    public DbSet<CashTransferLine> CashTransferLines => Set<CashTransferLine>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -66,6 +83,8 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<User>().Ignore(u => u.RowVersion);
         modelBuilder.Entity<Organization>().Ignore(o => o.RowVersion);
         modelBuilder.Entity<DocumentNumberingRule>().Ignore(r => r.RowVersion);
+        modelBuilder.Entity<JournalVoucher>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<CashTransfer>().Ignore(x => x.RowVersion);
 
         // ApplicableDocumentTypes needs the same delimited-string conversion as the real
         // CustomFieldDefinitionConfiguration (Infrastructure) -- IEntityTypeConfiguration classes
@@ -90,10 +109,42 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<Product>()
             .Metadata.FindNavigation(nameof(Product.SecondaryUnits))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        // JournalVoucher.Lines/CashTransfer.Lines/GlJournalEntry.Lines are the same kind of
+        // encapsulated (private-backing-field) collection as Product.SecondaryUnits above -- the
+        // real Infrastructure configs' HasMany/SetPropertyAccessMode(Field) calls aren't applied
+        // here (no ApplyConfigurationsFromAssembly, by design), so they're restated too.
+        modelBuilder.Entity<JournalVoucher>().HasMany(x => x.Lines).WithOne().HasForeignKey("JournalVoucherId")
+            .IsRequired().OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<JournalVoucher>()
+            .Metadata.FindNavigation(nameof(JournalVoucher.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        modelBuilder.Entity<CashTransfer>().HasMany(x => x.Lines).WithOne().HasForeignKey("CashTransferId");
+        modelBuilder.Entity<CashTransfer>()
+            .Metadata.FindNavigation(nameof(CashTransfer.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        modelBuilder.Entity<GlJournalEntry>().HasMany(x => x.Lines).WithOne().HasForeignKey("GlJournalEntryId");
+        modelBuilder.Entity<GlJournalEntry>()
+            .Metadata.FindNavigation(nameof(GlJournalEntry.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 
-    public static IAppDbContext Create() => new TestAppDbContext(
+    public static IAppDbContext Create() => Create(Guid.NewGuid().ToString());
+
+    /// <summary>
+    /// Opens a fresh TestAppDbContext instance against a named InMemory database -- pass the same
+    /// name across calls to simulate the real Api's one-DbContext-per-request pattern (a second
+    /// handler call reads a clean, freshly materialized snapshot rather than reusing the first
+    /// call's already-tracked entity instances). Needed for any test that mutates then re-reads an
+    /// encapsulated child collection (e.g. JournalVoucher.Lines) across two handler calls -- the
+    /// InMemory provider's orphan-deletion tracking on a Clear+re-Add needs the collection loaded
+    /// fresh via Include, not merged into entities already tracked from an earlier call in the
+    /// same DbContext instance.
+    /// </summary>
+    public static IAppDbContext Create(string databaseName) => new TestAppDbContext(
         new DbContextOptionsBuilder<TestAppDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .UseInMemoryDatabase(databaseName)
             .Options);
 }

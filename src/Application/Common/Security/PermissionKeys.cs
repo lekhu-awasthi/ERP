@@ -59,4 +59,26 @@ public static class PermissionKeys
 
     public const string ProductView = "Catalog.Product.View";
     public const string ProductManage = "Catalog.Product.Manage";
+
+    // Phase 4 (Accounting core). AccountGroup/Account are simple master data (Chart of Accounts),
+    // same View/Manage pair as Phase 2/3's taxonomy lookups. JournalVoucher/CashTransfer are the
+    // first real ApprovableTransaction document types -- architecture-spec.md §3.2/§3.7's finer
+    // {Module}.{DocumentType}.{View,Create,Edit,Approve} split starts here rather than being
+    // retrofitted once Sales/Purchase (Phase 5+) also need Approve as a distinct permission (see
+    // phase-4-status.md's scope decisions).
+    public const string AccountGroupView = "Accounting.AccountGroup.View";
+    public const string AccountGroupManage = "Accounting.AccountGroup.Manage";
+
+    public const string AccountView = "Accounting.Account.View";
+    public const string AccountManage = "Accounting.Account.Manage";
+
+    public const string JournalVoucherView = "Accounting.JournalVoucher.View";
+    public const string JournalVoucherCreate = "Accounting.JournalVoucher.Create";
+    public const string JournalVoucherEdit = "Accounting.JournalVoucher.Edit";
+    public const string JournalVoucherApprove = "Accounting.JournalVoucher.Approve";
+
+    public const string CashTransferView = "Accounting.CashTransfer.View";
+    public const string CashTransferCreate = "Accounting.CashTransfer.Create";
+    public const string CashTransferEdit = "Accounting.CashTransfer.Edit";
+    public const string CashTransferApprove = "Accounting.CashTransfer.Approve";
 }
