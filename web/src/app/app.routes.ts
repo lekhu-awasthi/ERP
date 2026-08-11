@@ -79,4 +79,52 @@ export const routes: Routes = [
       ),
     canActivate: [authGuard],
   },
+  {
+    path: 'organizations/:id/contacts',
+    loadComponent: () =>
+      import('./features/contacts/contact-list-page/contact-list-page').then((m) => m.ContactListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/contacts/groups',
+    loadComponent: () =>
+      import('./features/contacts/contact-group-list-page/contact-group-list-page').then(
+        (m) => m.ContactGroupListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/contacts/:contactId',
+    loadComponent: () =>
+      import('./features/contacts/contact-detail-page/contact-detail-page').then((m) => m.ContactDetailPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/products',
+    loadComponent: () =>
+      import('./features/catalog/product-list-page/product-list-page').then((m) => m.ProductListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/products/categories',
+    loadComponent: () =>
+      import('./features/catalog/product-category-list-page/product-category-list-page').then(
+        (m) => m.ProductCategoryListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/products/units',
+    loadComponent: () =>
+      import('./features/catalog/unit-of-measurement-list-page/unit-of-measurement-list-page').then(
+        (m) => m.UnitOfMeasurementListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/products/:productId',
+    loadComponent: () =>
+      import('./features/catalog/product-detail-page/product-detail-page').then((m) => m.ProductDetailPage),
+    canActivate: [authGuard],
+  },
 ];

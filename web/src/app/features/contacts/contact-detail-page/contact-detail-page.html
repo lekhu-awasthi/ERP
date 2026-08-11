@@ -1,0 +1,174 @@
+<div class="container py-5" style="max-width: 1000px;">
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'contacts']">
+      <i class="bi bi-arrow-left"></i> Contacts
+    </a>
+    <h1 class="h4 fw-bold mb-0 text-dark">{{ isNew() ? 'New Contact' : (contact()?.name ?? 'Contact') }}</h1>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary mb-3" role="status"></div>
+      <p class="text-muted mb-0">Loading contact...</p>
+    </div>
+  } @else {
+    <div class="row g-4">
+      <!-- Left mini-profile panel + vertical tab list -->
+      <div class="col-12 col-md-4">
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-body p-4 text-center">
+            <div class="bg-primary bg-opacity-10 text-primary d-inline-flex p-3 rounded-circle mb-3">
+              <i class="bi bi-person fs-2"></i>
+            </div>
+            @if (isNew()) {
+              <h6 class="fw-bold text-dark mb-1">New Contact</h6>
+              <p class="text-muted small mb-0">Fill in the form to create one</p>
+            } @else if (contact(); as c) {
+              <h6 class="fw-bold text-dark mb-1">{{ c.name }}</h6>
+              <p class="text-muted small mb-2">{{ c.code }}</p>
+              <span class="badge bg-primary-subtle text-primary me-1">{{ c.type }}</span>
+              @if (c.isActive) {
+                <span class="badge bg-success-subtle text-success">Active</span>
+              } @else {
+                <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
+              }
+            }
+          </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+          <div class="list-group list-group-flush">
+            <button type="button" class="list-group-item list-group-item-action active fw-semibold">
+              <i class="bi bi-info-circle me-2"></i> Overview
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right content pane -->
+      <div class="col-12 col-md-8">
+        <div class="card border-0 shadow-sm">
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="fw-bold text-dark mb-0">Overview</h6>
+              @if (!isNew() && !editing()) {
+                <div class="dropdown">
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    (click)="optionsOpen.set(!optionsOpen())"
+                  >
+                    Options <i class="bi bi-three-dots-vertical"></i>
+                  </button>
+                  @if (optionsOpen()) {
+                    <div class="dropdown-menu show" style="position: absolute; right: 0;">
+                      <button type="button" class="dropdown-item" (click)="startEdit()">
+                        <i class="bi bi-pencil me-2"></i> Edit
+                      </button>
+                      @if (contact()?.isActive) {
+                        <button type="button" class="dropdown-item text-danger" (click)="deactivate()">
+                          <i class="bi bi-slash-circle me-2"></i> Deactivate
+                        </button>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+
+            @if (editing()) {
+              <form [formGroup]="form" (ngSubmit)="save()">
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label small fw-semibold">Type</label>
+                    <div class="btn-group w-100" role="group">
+                      @for (type of types; track type) {
+                        <input
+                          type="radio"
+                          class="btn-check"
+                          [id]="'type-' + type"
+                          [value]="type"
+                          formControlName="type"
+                          [attr.disabled]="isNew() ? null : true"
+                        />
+                        <label class="btn btn-outline-primary" [for]="'type-' + type">{{ type }}</label>
+                      }
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-6">
+                    <label class="form-label small fw-semibold">Name</label>
+                    <input type="text" class="form-control" formControlName="name" />
+                  </div>
+                  <div class="col-12 col-sm-6">
+                    <label class="form-label small fw-semibold">Group</label>
+                    <select class="form-select" formControlName="groupId">
+                      <option value="">None</option>
+                      @for (row of groupRows(); track row.item.id) {
+                        <option [value]="row.item.id">{{ '— '.repeat(row.depth) }}{{ row.item.name }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="col-12 col-sm-6">
+                    <label class="form-label small fw-semibold">Address</label>
+                    <input type="text" class="form-control" formControlName="address" />
+                  </div>
+                  <div class="col-12 col-sm-6">
+                    <label class="form-label small fw-semibold">PAN</label>
+                    <input type="text" class="form-control" formControlName="pan" />
+                  </div>
+                  <div class="col-12 col-sm-6">
+                    <label class="form-label small fw-semibold">Phone</label>
+                    <input type="text" class="form-control" formControlName="phone" />
+                  </div>
+                  <div class="col-12 col-sm-6">
+                    <label class="form-label small fw-semibold">Email</label>
+                    <input type="email" class="form-control" formControlName="email" />
+                  </div>
+                  <div class="col-12 col-sm-6">
+                    <label class="form-label small fw-semibold">Opening Balance</label>
+                    <input type="number" class="form-control" formControlName="openingBalance" min="0" />
+                  </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-4">
+                  <button type="submit" class="btn btn-primary fw-bold" [disabled]="saving()">
+                    @if (saving()) {
+                      <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    } @else {
+                      {{ isNew() ? 'Create Contact' : 'Save Changes' }}
+                    }
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary" (click)="cancelEdit()">Cancel</button>
+                </div>
+              </form>
+            } @else if (contact(); as c) {
+              <dl class="row mb-0">
+                <dt class="col-4 text-muted small">Type</dt>
+                <dd class="col-8">{{ c.type }}</dd>
+                <dt class="col-4 text-muted small">Group</dt>
+                <dd class="col-8">{{ groupName(c.groupId) }}</dd>
+                <dt class="col-4 text-muted small">Address</dt>
+                <dd class="col-8">{{ c.address || '—' }}</dd>
+                <dt class="col-4 text-muted small">PAN</dt>
+                <dd class="col-8">{{ c.pan || '—' }}</dd>
+                <dt class="col-4 text-muted small">Phone</dt>
+                <dd class="col-8">{{ c.phone || '—' }}</dd>
+                <dt class="col-4 text-muted small">Email</dt>
+                <dd class="col-8">{{ c.email || '—' }}</dd>
+                <dt class="col-4 text-muted small">Opening Balance</dt>
+                <dd class="col-8">{{ c.openingBalance }}</dd>
+              </dl>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

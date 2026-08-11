@@ -56,6 +56,35 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid MemberCustomFieldDefinitionViewId = Guid.Parse("00000000-0000-0000-0002-00000000001b");
     private static readonly Guid MemberCustomFieldDefinitionManageId = Guid.Parse("00000000-0000-0000-0002-00000000001c");
 
+    // Phase 3 (Contacts & Catalog) -- ContactGroup/ProductCategory/UnitOfMeasurement are
+    // taxonomy/control-plane (same Member-View-only/Admin-write split as Phase 2's lookups
+    // above). Contact/Product are working data Members create/edit daily, so Member gets
+    // View+Manage there instead -- see phase-3-status.md's scope decisions.
+    private static readonly Guid AdminContactGroupViewId = Guid.Parse("00000000-0000-0000-0002-00000000001d");
+    private static readonly Guid AdminContactGroupManageId = Guid.Parse("00000000-0000-0000-0002-00000000001e");
+    private static readonly Guid MemberContactGroupViewId = Guid.Parse("00000000-0000-0000-0002-00000000001f");
+    private static readonly Guid MemberContactGroupManageId = Guid.Parse("00000000-0000-0000-0002-000000000020");
+
+    private static readonly Guid AdminContactViewId = Guid.Parse("00000000-0000-0000-0002-000000000021");
+    private static readonly Guid AdminContactManageId = Guid.Parse("00000000-0000-0000-0002-000000000022");
+    private static readonly Guid MemberContactViewId = Guid.Parse("00000000-0000-0000-0002-000000000023");
+    private static readonly Guid MemberContactManageId = Guid.Parse("00000000-0000-0000-0002-000000000024");
+
+    private static readonly Guid AdminProductCategoryViewId = Guid.Parse("00000000-0000-0000-0002-000000000025");
+    private static readonly Guid AdminProductCategoryManageId = Guid.Parse("00000000-0000-0000-0002-000000000026");
+    private static readonly Guid MemberProductCategoryViewId = Guid.Parse("00000000-0000-0000-0002-000000000027");
+    private static readonly Guid MemberProductCategoryManageId = Guid.Parse("00000000-0000-0000-0002-000000000028");
+
+    private static readonly Guid AdminUnitOfMeasurementViewId = Guid.Parse("00000000-0000-0000-0002-000000000029");
+    private static readonly Guid AdminUnitOfMeasurementManageId = Guid.Parse("00000000-0000-0000-0002-00000000002a");
+    private static readonly Guid MemberUnitOfMeasurementViewId = Guid.Parse("00000000-0000-0000-0002-00000000002b");
+    private static readonly Guid MemberUnitOfMeasurementManageId = Guid.Parse("00000000-0000-0000-0002-00000000002c");
+
+    private static readonly Guid AdminProductViewId = Guid.Parse("00000000-0000-0000-0002-00000000002d");
+    private static readonly Guid AdminProductManageId = Guid.Parse("00000000-0000-0000-0002-00000000002e");
+    private static readonly Guid MemberProductViewId = Guid.Parse("00000000-0000-0000-0002-00000000002f");
+    private static readonly Guid MemberProductManageId = Guid.Parse("00000000-0000-0000-0002-000000000030");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -106,6 +135,31 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminCustomFieldDefinitionViewId, Role.AdminId, PermissionKeys.CustomFieldDefinitionView, true),
             RolePermission.Create(AdminCustomFieldDefinitionManageId, Role.AdminId, PermissionKeys.CustomFieldDefinitionManage, true),
             RolePermission.Create(MemberCustomFieldDefinitionViewId, Role.MemberId, PermissionKeys.CustomFieldDefinitionView, true),
-            RolePermission.Create(MemberCustomFieldDefinitionManageId, Role.MemberId, PermissionKeys.CustomFieldDefinitionManage, false));
+            RolePermission.Create(MemberCustomFieldDefinitionManageId, Role.MemberId, PermissionKeys.CustomFieldDefinitionManage, false),
+
+            RolePermission.Create(AdminContactGroupViewId, Role.AdminId, PermissionKeys.ContactGroupView, true),
+            RolePermission.Create(AdminContactGroupManageId, Role.AdminId, PermissionKeys.ContactGroupManage, true),
+            RolePermission.Create(MemberContactGroupViewId, Role.MemberId, PermissionKeys.ContactGroupView, true),
+            RolePermission.Create(MemberContactGroupManageId, Role.MemberId, PermissionKeys.ContactGroupManage, false),
+
+            RolePermission.Create(AdminContactViewId, Role.AdminId, PermissionKeys.ContactView, true),
+            RolePermission.Create(AdminContactManageId, Role.AdminId, PermissionKeys.ContactManage, true),
+            RolePermission.Create(MemberContactViewId, Role.MemberId, PermissionKeys.ContactView, true),
+            RolePermission.Create(MemberContactManageId, Role.MemberId, PermissionKeys.ContactManage, true),
+
+            RolePermission.Create(AdminProductCategoryViewId, Role.AdminId, PermissionKeys.ProductCategoryView, true),
+            RolePermission.Create(AdminProductCategoryManageId, Role.AdminId, PermissionKeys.ProductCategoryManage, true),
+            RolePermission.Create(MemberProductCategoryViewId, Role.MemberId, PermissionKeys.ProductCategoryView, true),
+            RolePermission.Create(MemberProductCategoryManageId, Role.MemberId, PermissionKeys.ProductCategoryManage, false),
+
+            RolePermission.Create(AdminUnitOfMeasurementViewId, Role.AdminId, PermissionKeys.UnitOfMeasurementView, true),
+            RolePermission.Create(AdminUnitOfMeasurementManageId, Role.AdminId, PermissionKeys.UnitOfMeasurementManage, true),
+            RolePermission.Create(MemberUnitOfMeasurementViewId, Role.MemberId, PermissionKeys.UnitOfMeasurementView, true),
+            RolePermission.Create(MemberUnitOfMeasurementManageId, Role.MemberId, PermissionKeys.UnitOfMeasurementManage, false),
+
+            RolePermission.Create(AdminProductViewId, Role.AdminId, PermissionKeys.ProductView, true),
+            RolePermission.Create(AdminProductManageId, Role.AdminId, PermissionKeys.ProductManage, true),
+            RolePermission.Create(MemberProductViewId, Role.MemberId, PermissionKeys.ProductView, true),
+            RolePermission.Create(MemberProductManageId, Role.MemberId, PermissionKeys.ProductManage, true));
     }
 }

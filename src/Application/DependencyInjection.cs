@@ -1,7 +1,9 @@
 using System.Reflection;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
+using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Configuration;
+using ErpApp.Domain.Contacts;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,6 +43,14 @@ public static class DependencyInjection
         RegisterLookupHandlers<CustomStatus>(services);
         RegisterLookupHandlers<ReportingTagCategory>(services);
         RegisterLookupHandlers<ReportingTagOption>(services);
+
+        // Phase 3 (Contacts & Catalog) -- ContactGroup/ProductCategory/UnitOfMeasurement are the
+        // same "pure {id, name, parent?}" lookup shape as Phase 2's, so they reuse the generic
+        // ListLookupsQuery<TLookup>/DeleteLookupCommand<TLookup> pair instead of hand-rolling
+        // duplicates.
+        RegisterLookupHandlers<ContactGroup>(services);
+        RegisterLookupHandlers<ProductCategory>(services);
+        RegisterLookupHandlers<UnitOfMeasurement>(services);
 
         return services;
     }
