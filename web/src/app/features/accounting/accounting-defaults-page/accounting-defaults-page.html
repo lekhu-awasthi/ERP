@@ -1,0 +1,90 @@
+<div class="container py-5" style="max-width: 700px;">
+  <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+    <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'accounting', 'accounts']">
+      <i class="bi bi-arrow-left"></i> Accounting
+    </a>
+    <h1 class="h4 fw-bold mb-0 text-dark">Accounting Defaults</h1>
+  </div>
+
+  <p class="text-muted small mb-4">
+    Fallback GL accounts used when a Product doesn't carry its own Sales Account -- Invoice and
+    Payment approval read these. Required before an Invoice or Payment can be approved.
+  </p>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+  @if (successMessage()) {
+    <div class="alert alert-success d-flex align-items-center gap-2 mb-4" role="status">
+      <i class="bi bi-check-circle-fill"></i>
+      <div>{{ successMessage() }}</div>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary mb-3" role="status"></div>
+      <p class="text-muted mb-0">Loading accounting defaults...</p>
+    </div>
+  } @else {
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Default Sales Account</label>
+          <select
+            class="form-select"
+            [value]="defaultSalesAccountId()"
+            (change)="defaultSalesAccountId.set($any($event.target).value)"
+          >
+            <option value="">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">Used for a Product with no Sales Account of its own.</p>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Default Accounts Receivable</label>
+          <select
+            class="form-select"
+            [value]="defaultAccountsReceivableId()"
+            (change)="defaultAccountsReceivableId.set($any($event.target).value)"
+          >
+            <option value="">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">Debited on Invoice approval, credited on Payment approval.</p>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold">Default VAT Payable Account</label>
+          <select
+            class="form-select"
+            [value]="defaultVatPayableAccountId()"
+            (change)="defaultVatPayableAccountId.set($any($event.target).value)"
+          >
+            <option value="">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">Only needed for invoices/credit notes with VAT-rated lines.</p>
+        </div>
+
+        <button type="button" class="btn btn-primary fw-bold" [disabled]="saving()" (click)="save()">
+          @if (saving()) {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+          } @else {
+            <i class="bi bi-save"></i> Save
+          }
+        </button>
+      </div>
+    </div>
+  }
+</div>

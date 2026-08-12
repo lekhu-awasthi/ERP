@@ -5,6 +5,8 @@ using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Identity;
+using ErpApp.Domain.Payments;
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,6 +24,8 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
 
     public DbSet<TenantSubscription> TenantSubscriptions => Set<TenantSubscription>();
+
+    public DbSet<Warehouse> Warehouses => Set<Warehouse>();
 
     public DbSet<OrganizationMembership> OrganizationMemberships => Set<OrganizationMembership>();
 
@@ -73,6 +77,26 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
 
     public DbSet<CashTransferLine> CashTransferLines => Set<CashTransferLine>();
 
+    public DbSet<Quotation> Quotations => Set<Quotation>();
+
+    public DbSet<QuotationLine> QuotationLines => Set<QuotationLine>();
+
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+
+    public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
+
+    public DbSet<SalesOrder> SalesOrders => Set<SalesOrder>();
+
+    public DbSet<SalesOrderLine> SalesOrderLines => Set<SalesOrderLine>();
+
+    public DbSet<CreditNote> CreditNotes => Set<CreditNote>();
+
+    public DbSet<CreditNoteLine> CreditNoteLines => Set<CreditNoteLine>();
+
+    public DbSet<Payment> Payments => Set<Payment>();
+
+    public DbSet<PaymentAllocation> PaymentAllocations => Set<PaymentAllocation>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -85,6 +109,12 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<DocumentNumberingRule>().Ignore(r => r.RowVersion);
         modelBuilder.Entity<JournalVoucher>().Ignore(x => x.RowVersion);
         modelBuilder.Entity<CashTransfer>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<Quotation>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<Invoice>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<Invoice>().Ignore(x => x.GrandTotal);
+        modelBuilder.Entity<SalesOrder>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<CreditNote>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<Payment>().Ignore(x => x.RowVersion);
 
         // ApplicableDocumentTypes needs the same delimited-string conversion as the real
         // CustomFieldDefinitionConfiguration (Infrastructure) -- IEntityTypeConfiguration classes
@@ -128,6 +158,33 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<GlJournalEntry>().HasMany(x => x.Lines).WithOne().HasForeignKey("GlJournalEntryId");
         modelBuilder.Entity<GlJournalEntry>()
             .Metadata.FindNavigation(nameof(GlJournalEntry.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        // Phase 5 aggregates -- same encapsulated (private-backing-field) child collection
+        // restatement as JournalVoucher/CashTransfer/GlJournalEntry above.
+        modelBuilder.Entity<Quotation>().HasMany(x => x.Lines).WithOne().HasForeignKey("QuotationId");
+        modelBuilder.Entity<Quotation>()
+            .Metadata.FindNavigation(nameof(Quotation.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        modelBuilder.Entity<Invoice>().HasMany(x => x.Lines).WithOne().HasForeignKey("InvoiceId");
+        modelBuilder.Entity<Invoice>()
+            .Metadata.FindNavigation(nameof(Invoice.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        modelBuilder.Entity<SalesOrder>().HasMany(x => x.Lines).WithOne().HasForeignKey("SalesOrderId");
+        modelBuilder.Entity<SalesOrder>()
+            .Metadata.FindNavigation(nameof(SalesOrder.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        modelBuilder.Entity<CreditNote>().HasMany(x => x.Lines).WithOne().HasForeignKey("CreditNoteId");
+        modelBuilder.Entity<CreditNote>()
+            .Metadata.FindNavigation(nameof(CreditNote.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        modelBuilder.Entity<Payment>().HasMany(x => x.Allocations).WithOne().HasForeignKey("PaymentId");
+        modelBuilder.Entity<Payment>()
+            .Metadata.FindNavigation(nameof(Payment.Allocations))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 

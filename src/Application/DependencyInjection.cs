@@ -2,10 +2,14 @@ using System.Reflection;
 using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
+using ErpApp.Application.Payments.Posting;
+using ErpApp.Application.Sales.Posting;
+using ErpApp.Application.Sales.Stock;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
+using ErpApp.Domain.Tenancy;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -59,11 +63,24 @@ public static class DependencyInjection
         // precedent as ContactGroup/ProductCategory) so it reuses the generic pair too.
         RegisterLookupHandlers<AccountGroup>(services);
 
+        // Phase 5 (Sales chain) -- Warehouse is a minimal single-column lookup (see its doc
+        // comment), same generic pair.
+        RegisterLookupHandlers<Warehouse>(services);
+
         // IGlPostingRule<T> (architecture-spec.md §3.4) -- pure TDocument->GL-lines mappers, one
         // per document type that posts to GL. Registered so ApproveXCommandHandler and
         // PreviewGlPostingQueryHandler share the exact same instance type (no duplicated math).
         services.AddTransient<IGlPostingRule<JournalVoucher>, JournalVoucherPostingRule>();
         services.AddTransient<IGlPostingRule<CashTransfer>, CashTransferPostingRule>();
+        // Invoice/Payment's posting rules take a resolved *PostingInput record, not the aggregate
+        // itself -- see InvoicePostingInput's doc comment for why.
+        services.AddTransient<IGlPostingRule<InvoicePostingInput>, InvoicePostingRule>();
+        services.AddTransient<IGlPostingRule<CreditNotePostingInput>, CreditNotePostingRule>();
+        services.AddTransient<IGlPostingRule<PaymentPostingInput>, PaymentPostingRule>();
+
+        // Phase 5's stock-decrement seam (architecture-spec.md §3.5) -- a literal always-Ok stub
+        // until Phase 7's real FIFO ledger exists (see AlwaysOkStockAvailabilityPolicy).
+        services.AddTransient<IStockAvailabilityPolicy, AlwaysOkStockAvailabilityPolicy>();
 
         return services;
     }

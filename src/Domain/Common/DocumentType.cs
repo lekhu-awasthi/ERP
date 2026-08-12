@@ -28,4 +28,8 @@ public enum DocumentType
     Account,
     Contact,
     Product,
+
+    /// <summary>Added Phase 5 (Sales chain) -- Customer Payment's own numbering pool. Supplier
+    /// Payment (Phase 6, Direction=Paid) reuses the same Payment aggregate and this same pool.</summary>
+    Payment,
 }

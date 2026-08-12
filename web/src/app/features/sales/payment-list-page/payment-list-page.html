@@ -1,0 +1,87 @@
+<div class="container py-5" style="max-width: 900px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-cash-coin fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Customer Payments</h1>
+          <p class="text-muted small mb-0">Payments received against customer invoices</p>
+        </div>
+      </div>
+      <a class="btn btn-success btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'payments', 'new']">
+        <i class="bi bi-plus-lg"></i> New Payment
+      </a>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="btn-group mb-4" role="group">
+    @for (status of statuses; track status) {
+      <button
+        type="button"
+        class="btn btn-sm"
+        [class.btn-primary]="statusFilter() === status"
+        [class.btn-outline-primary]="statusFilter() !== status"
+        (click)="selectStatus(status)"
+      >
+        {{ status }}
+      </button>
+    }
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading payments...</p>
+        </div>
+      } @else if (items().length === 0) {
+        <div class="text-center py-5">
+          <div class="bg-light d-inline-flex p-4 rounded-circle mb-3 text-muted">
+            <i class="bi bi-cash fs-1"></i>
+          </div>
+          <h5 class="fw-bold text-dark">No Payments Yet</h5>
+          <p class="text-muted small mb-0">Click "New Payment" to record one.</p>
+        </div>
+      } @else {
+        <div class="list-group list-group-flush">
+          @for (item of items(); track item.id) {
+            <a
+              class="list-group-item list-group-item-action border rounded-3 mb-3 p-3 d-flex justify-content-between align-items-center flex-wrap gap-3"
+              [routerLink]="['/organizations', organizationId, 'payments', item.id]"
+            >
+              <div class="d-flex align-items-center gap-3">
+                <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-circle">
+                  <i class="bi bi-cash-coin fs-5"></i>
+                </div>
+                <div>
+                  <h6 class="fw-bold mb-1 text-dark">{{ item.code }}</h6>
+                  <span class="text-muted small">{{ item.date }} · {{ item.amount.toFixed(2) }}{{ item.reference ? ' · ' + item.reference : '' }}</span>
+                </div>
+              </div>
+              <div class="d-flex align-items-center gap-3">
+                @if (item.status === 'Approved') {
+                  <span class="badge bg-success-subtle text-success">Approved</span>
+                } @else if (item.status === 'Void') {
+                  <span class="badge bg-secondary-subtle text-secondary">Void</span>
+                } @else {
+                  <span class="badge bg-warning-subtle text-warning-emphasis">Draft</span>
+                }
+                <i class="bi bi-chevron-right text-muted"></i>
+              </div>
+            </a>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</div>

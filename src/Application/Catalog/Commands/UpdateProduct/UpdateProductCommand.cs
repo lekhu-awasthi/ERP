@@ -17,7 +17,11 @@ public sealed record UpdateProductCommand(
     VatRate VatRate,
     int ReOrderLevel,
     bool TrackInventory,
-    bool IsActive)
+    bool IsActive,
+    Guid? SalesAccountId = null,
+    Guid? SalesReturnAccountId = null,
+    Guid? PurchaseAccountId = null,
+    Guid? PurchaseReturnAccountId = null)
     : IRequest<UpdateProductResult>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.ProductManage;

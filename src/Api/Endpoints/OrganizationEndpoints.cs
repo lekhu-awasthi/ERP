@@ -1,8 +1,14 @@
+using ErpApp.Application.Configuration.Commands.DeleteLookup;
+using ErpApp.Application.Configuration.Queries.ListLookups;
 using ErpApp.Application.Tenancy.Commands.AcceptInvitation;
 using ErpApp.Application.Tenancy.Commands.AcceptRequest;
 using ErpApp.Application.Tenancy.Commands.CreateOrganization;
+using ErpApp.Application.Tenancy.Commands.CreateWarehouse;
 using ErpApp.Application.Tenancy.Commands.InviteUser;
+using ErpApp.Application.Tenancy.Commands.UpdateAccountingDefaults;
+using ErpApp.Application.Tenancy.Commands.UpdateWarehouse;
 using ErpApp.Application.Tenancy.Queries.CheckWorkspaceNameAvailability;
+using ErpApp.Application.Tenancy.Queries.GetAccountingDefaults;
 using ErpApp.Application.Tenancy.Queries.MyOrganizations;
 using ErpApp.Domain.Tenancy;
 using MediatR;
@@ -72,7 +78,59 @@ public static class OrganizationEndpoints
             await sender.Send(new AcceptRequestCommand(membershipId), ct);
             return Results.Ok();
         });
+
+        group.MapGet("/{organizationId:guid}/warehouses", async (
+            Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new ListLookupsQuery<Warehouse>(organizationId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/{organizationId:guid}/warehouses", async (
+            Guid organizationId, CreateWarehouseRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new CreateWarehouseCommand(organizationId, request.Name), ct);
+            return Results.Created($"/api/organizations/{organizationId}/warehouses/{result.Id}", result);
+        });
+
+        group.MapPut("/{organizationId:guid}/warehouses/{id:guid}", async (
+            Guid organizationId, Guid id, UpdateWarehouseRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new UpdateWarehouseCommand(organizationId, id, request.Name, request.IsActive), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapDelete("/{organizationId:guid}/warehouses/{id:guid}", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteLookupCommand<Warehouse>(organizationId, id), ct);
+            return Results.NoContent();
+        });
+
+        group.MapGet("/{organizationId:guid}/accounting-defaults", async (
+            Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new GetAccountingDefaultsQuery(organizationId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPut("/{organizationId:guid}/accounting-defaults", async (
+            Guid organizationId, UpdateAccountingDefaultsRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdateAccountingDefaultsCommand(
+                    organizationId, request.DefaultSalesAccountId, request.DefaultAccountsReceivableId, request.DefaultVatPayableAccountId),
+                ct);
+            return Results.Ok(result);
+        });
     }
+
+    private sealed record CreateWarehouseRequest(string Name);
+
+    private sealed record UpdateWarehouseRequest(string Name, bool IsActive);
+
+    private sealed record UpdateAccountingDefaultsRequest(
+        Guid? DefaultSalesAccountId, Guid? DefaultAccountsReceivableId, Guid? DefaultVatPayableAccountId);
 
     private sealed record CreateOrganizationRequest(
         string Name,

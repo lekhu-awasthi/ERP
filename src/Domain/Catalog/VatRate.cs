@@ -13,3 +13,11 @@ public enum VatRate
     ZeroVat,
     ThirteenPercentVat,
 }
+
+/// <summary>Phase 5 addition -- the percent QuotationLine/InvoiceLine's VatAmount computation
+/// multiplies against. NoVat (exempt) and ZeroVat (zero-rated) both compute to 0; only the fixed
+/// 13% option contributes VAT.</summary>
+public static class VatRateExtensions
+{
+    public static decimal ToPercent(this VatRate rate) => rate == VatRate.ThirteenPercentVat ? 0.13m : 0m;
+}

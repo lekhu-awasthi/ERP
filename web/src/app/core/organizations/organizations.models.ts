@@ -69,3 +69,37 @@ export interface InviteUserResponse {
   email: string;
   role: MembershipRole;
 }
+
+export interface Warehouse {
+  id: string;
+  organizationId: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateWarehouseRequest {
+  name: string;
+}
+
+export interface CreateWarehouseResult {
+  id: string;
+  name: string;
+}
+
+export interface UpdateWarehouseRequest {
+  name: string;
+  isActive: boolean;
+}
+
+export interface UpdateWarehouseResult {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
+export interface AccountingDefaults {
+  defaultSalesAccountId: string | null;
+  defaultAccountsReceivableId: string | null;
+  defaultVatPayableAccountId: string | null;
+}

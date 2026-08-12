@@ -53,6 +53,19 @@ public sealed class TenantSettings
     public BalanceAction NegativeStockBalanceAction { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
 
+    /// <summary>
+    /// Phase 5 addition -- fallback GL accounts read by InvoicePostingRule/PaymentPostingRule
+    /// when a line's Product doesn't carry its own SalesAccountId (Product.SalesAccountId/etc.,
+    /// Phase 4-backfilled but still commonly unset for a while after onboarding). All three null
+    /// until an Admin sets them via SetAccountingDefaults -- Approve fails with a clear error if a
+    /// posting rule needs one and neither the Product nor this fallback has it, rather than
+    /// guessing. See phase-5-status.md's scope decision for why TenantSettings-level fallback was
+    /// chosen over forcing every Product to carry GL accounts before it can ever be invoiced.
+    /// </summary>
+    public Guid? DefaultSalesAccountId { get; private set; }
+    public Guid? DefaultAccountsReceivableId { get; private set; }
+    public Guid? DefaultVatPayableAccountId { get; private set; }
+
     private TenantSettings()
     {
     }
@@ -84,5 +97,13 @@ public sealed class TenantSettings
         InventoryTrackingMode = inventoryTrackingMode;
         NegativeCashBalanceAction = negativeCashBalanceAction;
         NegativeStockBalanceAction = negativeStockBalanceAction;
+    }
+
+    public void SetAccountingDefaults(
+        Guid? defaultSalesAccountId, Guid? defaultAccountsReceivableId, Guid? defaultVatPayableAccountId)
+    {
+        DefaultSalesAccountId = defaultSalesAccountId;
+        DefaultAccountsReceivableId = defaultAccountsReceivableId;
+        DefaultVatPayableAccountId = defaultVatPayableAccountId;
     }
 }

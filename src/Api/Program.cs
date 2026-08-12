@@ -117,6 +117,8 @@ app.MapConfigurationEndpoints();
 app.MapContactsEndpoints();
 app.MapCatalogEndpoints();
 app.MapAccountingEndpoints();
+app.MapSalesEndpoints();
+app.MapPaymentsEndpoints();
 
 app.Run();
 

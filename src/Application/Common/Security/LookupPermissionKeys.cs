@@ -3,6 +3,7 @@ using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
+using ErpApp.Domain.Tenancy;
 
 namespace ErpApp.Application.Common.Security;
 
@@ -27,6 +28,7 @@ public static class LookupPermissionKeys
             var t when t == typeof(ProductCategory) => PermissionKeys.ProductCategoryView,
             var t when t == typeof(UnitOfMeasurement) => PermissionKeys.UnitOfMeasurementView,
             var t when t == typeof(AccountGroup) => PermissionKeys.AccountGroupView,
+            var t when t == typeof(Warehouse) => PermissionKeys.WarehouseView,
             _ => throw new NotSupportedException($"No View permission key registered for lookup type {typeof(TLookup).Name}."),
         };
 
@@ -42,6 +44,7 @@ public static class LookupPermissionKeys
             var t when t == typeof(ProductCategory) => PermissionKeys.ProductCategoryManage,
             var t when t == typeof(UnitOfMeasurement) => PermissionKeys.UnitOfMeasurementManage,
             var t when t == typeof(AccountGroup) => PermissionKeys.AccountGroupManage,
+            var t when t == typeof(Warehouse) => PermissionKeys.WarehouseManage,
             _ => throw new NotSupportedException($"No Manage permission key registered for lookup type {typeof(TLookup).Name}."),
         };
 }
