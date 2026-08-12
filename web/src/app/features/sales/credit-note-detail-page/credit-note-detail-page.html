@@ -37,7 +37,7 @@
               class="form-select"
               [value]="contactId()"
               (change)="contactId.set($any($event.target).value)"
-              [disabled]="!isDraft()"
+              [disabled]="!isDraft() || isLinkedToSource()"
             >
               <option value="" disabled>Select a customer</option>
               @for (customer of customers(); track customer.id) {
@@ -56,7 +56,7 @@
               class="form-control"
               [value]="reference()"
               (input)="reference.set($any($event.target).value)"
-              [disabled]="!isDraft()"
+              [disabled]="!isDraft() || isLinkedToSource()"
               placeholder="Optional reference note"
             />
           </div>
@@ -68,12 +68,19 @@
       <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h6 class="fw-bold text-dark mb-0">Lines</h6>
-          @if (isDraft()) {
+          @if (isDraft() && !isLinkedToSource()) {
             <button type="button" class="btn btn-outline-primary btn-sm" (click)="addLine()">
               <i class="bi bi-plus-lg"></i> Add Line
             </button>
           }
         </div>
+
+        @if (isDraft() && isLinkedToSource()) {
+          <p class="text-muted small mb-3">
+            Product, Rate, and VAT are locked to what was actually invoiced -- adjust Quantity to return less than a line, or
+            remove a line entirely.
+          </p>
+        }
 
         <div class="table-responsive">
           <table class="table align-middle">
@@ -93,7 +100,7 @@
               @for (line of lines(); track line.key) {
                 <tr>
                   <td>
-                    @if (isDraft()) {
+                    @if (isDraft() && !isLinkedToSource()) {
                       <select class="form-select form-select-sm" (change)="onProductChange(line.key, $event)">
                         <option value="" disabled [selected]="!line.productId">Select a product</option>
                         @for (product of products(); track product.id) {
@@ -119,7 +126,7 @@
                     }
                   </td>
                   <td class="text-end">
-                    @if (isDraft()) {
+                    @if (isDraft() && !isLinkedToSource()) {
                       <input
                         type="number"
                         class="form-control form-control-sm text-end"
@@ -133,7 +140,7 @@
                     }
                   </td>
                   <td>
-                    @if (isDraft()) {
+                    @if (isDraft() && !isLinkedToSource()) {
                       <select class="form-select form-select-sm" (change)="onVatRateChange(line.key, $event)">
                         @for (rate of vatRates; track rate) {
                           <option [value]="rate" [selected]="rate === line.vatRate">{{ rate }}</option>

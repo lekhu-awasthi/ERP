@@ -6,6 +6,7 @@ using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Identity;
 using ErpApp.Domain.Payments;
+using ErpApp.Domain.Purchasing;
 using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
@@ -97,6 +98,24 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
 
     public DbSet<PaymentAllocation> PaymentAllocations => Set<PaymentAllocation>();
 
+    public DbSet<TdsType> TdsTypes => Set<TdsType>();
+
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+
+    public DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
+
+    public DbSet<PurchaseBill> PurchaseBills => Set<PurchaseBill>();
+
+    public DbSet<PurchaseBillLine> PurchaseBillLines => Set<PurchaseBillLine>();
+
+    public DbSet<Expense> Expenses => Set<Expense>();
+
+    public DbSet<ExpenseLine> ExpenseLines => Set<ExpenseLine>();
+
+    public DbSet<DebitNote> DebitNotes => Set<DebitNote>();
+
+    public DbSet<DebitNoteLine> DebitNoteLines => Set<DebitNoteLine>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -115,6 +134,12 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<SalesOrder>().Ignore(x => x.RowVersion);
         modelBuilder.Entity<CreditNote>().Ignore(x => x.RowVersion);
         modelBuilder.Entity<Payment>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<PurchaseOrder>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<PurchaseBill>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<PurchaseBill>().Ignore(x => x.GrandTotal);
+        modelBuilder.Entity<Expense>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<Expense>().Ignore(x => x.GrandTotal);
+        modelBuilder.Entity<DebitNote>().Ignore(x => x.RowVersion);
 
         // ApplicableDocumentTypes needs the same delimited-string conversion as the real
         // CustomFieldDefinitionConfiguration (Infrastructure) -- IEntityTypeConfiguration classes
@@ -185,6 +210,28 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<Payment>().HasMany(x => x.Allocations).WithOne().HasForeignKey("PaymentId");
         modelBuilder.Entity<Payment>()
             .Metadata.FindNavigation(nameof(Payment.Allocations))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        // Phase 6 aggregates -- same encapsulated (private-backing-field) child collection
+        // restatement as every prior phase's aggregates above.
+        modelBuilder.Entity<PurchaseOrder>().HasMany(x => x.Lines).WithOne().HasForeignKey("PurchaseOrderId");
+        modelBuilder.Entity<PurchaseOrder>()
+            .Metadata.FindNavigation(nameof(PurchaseOrder.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        modelBuilder.Entity<PurchaseBill>().HasMany(x => x.Lines).WithOne().HasForeignKey("PurchaseBillId");
+        modelBuilder.Entity<PurchaseBill>()
+            .Metadata.FindNavigation(nameof(PurchaseBill.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        modelBuilder.Entity<Expense>().HasMany(x => x.Lines).WithOne().HasForeignKey("ExpenseId");
+        modelBuilder.Entity<Expense>()
+            .Metadata.FindNavigation(nameof(Expense.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        modelBuilder.Entity<DebitNote>().HasMany(x => x.Lines).WithOne().HasForeignKey("DebitNoteId");
+        modelBuilder.Entity<DebitNote>()
+            .Metadata.FindNavigation(nameof(DebitNote.Lines))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 

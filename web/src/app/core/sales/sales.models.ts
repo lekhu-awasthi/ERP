@@ -1,10 +1,19 @@
 import { VatRate } from '../catalog/catalog.models';
 
-export type QuotationStatus = 'Draft' | 'Approved' | 'Void';
+export type QuotationStatus = 'Draft' | 'Approved' | 'Void' | 'Converted';
 export type InvoiceStatus = 'Draft' | 'Approved' | 'Void';
 export type SalesOrderStatus = 'Draft' | 'Approved' | 'Void';
 export type CreditNoteStatus = 'Draft' | 'Approved' | 'Void';
-export type DocumentType = 'Quotation' | 'SalesOrder' | 'Invoice' | 'CreditNote' | 'Payment';
+export type DocumentType =
+  | 'Quotation'
+  | 'SalesOrder'
+  | 'Invoice'
+  | 'CreditNote'
+  | 'PurchaseOrder'
+  | 'PurchaseBill'
+  | 'Expense'
+  | 'DebitNote'
+  | 'Payment';
 
 export interface QuotationLineInput {
   productId: string;

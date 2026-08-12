@@ -34,3 +34,26 @@ export interface UpdatePaymentModeRequest {
   name: string;
   isActive: boolean;
 }
+
+export interface TdsType {
+  id: string;
+  organizationId: string;
+  code: string;
+  name: string;
+  ratePct: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateTdsTypeRequest {
+  code: string;
+  name: string;
+  ratePct: number;
+}
+
+export interface UpdateTdsTypeRequest {
+  code: string;
+  name: string;
+  ratePct: number;
+  isActive: boolean;
+}

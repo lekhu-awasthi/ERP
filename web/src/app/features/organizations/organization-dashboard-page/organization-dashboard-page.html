@@ -78,6 +78,21 @@
             <a [routerLink]="['/organizations', organizationId(), 'payments']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-cash-coin"></i> Payments
             </a>
+            <a [routerLink]="['/organizations', organizationId(), 'purchasing', 'purchase-orders']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-cart"></i> Purchase Orders
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'purchasing', 'purchase-bills']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-receipt-cutoff"></i> Purchase Bills
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'purchasing', 'expenses']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-wallet2"></i> Expenses
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'purchasing', 'debit-notes']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-arrow-return-left"></i> Debit Notes
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'purchasing', 'supplier-payments']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-cash-stack"></i> Supplier Payments
+            </a>
             <a [routerLink]="['/organizations', organizationId(), 'accounting', 'accounts']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-journal-text"></i> Accounting
             </a>

@@ -56,6 +56,7 @@ export class CreditNoteDetailPage {
   protected readonly date = signal(this.today());
   protected readonly reference = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
+  protected readonly isLinkedToSource = signal(false);
   private referrerType: DocumentType | null = null;
   private referrerId: string | null = null;
 
@@ -92,6 +93,7 @@ export class CreditNoteDetailPage {
       this.errorMessage.set(null);
       this.referrerType = null;
       this.referrerId = null;
+      this.isLinkedToSource.set(false);
 
       if (isNew) {
         this.loading.set(false);
@@ -102,6 +104,7 @@ export class CreditNoteDetailPage {
           this.reference.set(template.reference ?? '');
           this.referrerType = template.referrerType;
           this.referrerId = template.referrerId;
+          this.isLinkedToSource.set(true);
           this.lines.set(
             template.lines.length > 0 ? template.lines.map((l) => ({ key: nextLineKey++, ...l })) : [this.newLine()],
           );
@@ -263,6 +266,7 @@ export class CreditNoteDetailPage {
         this.reference.set(creditNote.reference ?? '');
         this.referrerType = creditNote.referrerType;
         this.referrerId = creditNote.referrerId;
+        this.isLinkedToSource.set(creditNote.referrerId !== null);
         this.lines.set(
           creditNote.lines.length > 0
             ? creditNote.lines.map((l) => ({

@@ -1,0 +1,14 @@
+using ErpApp.Application.Common.Security;
+using ErpApp.Domain.Purchasing;
+using MediatR;
+
+namespace ErpApp.Application.Purchasing.Commands.CreatePurchaseOrder;
+
+public sealed record CreatePurchaseOrderCommand(
+    Guid OrganizationId, Guid ContactId, DateOnly Date, string? Reference, IReadOnlyList<PurchaseOrderLineInput> Lines)
+    : IRequest<CreatePurchaseOrderResult>, IRequirePermission, IOrganizationScoped
+{
+    public string PermissionKey => PermissionKeys.PurchaseOrderCreate;
+}
+
+public sealed record CreatePurchaseOrderResult(Guid Id, string Code, PurchaseOrderStatus Status);

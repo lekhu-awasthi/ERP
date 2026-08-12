@@ -178,6 +178,53 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminAccountingDefaultsManageId = Guid.Parse("00000000-0000-0000-0002-000000000075");
     private static readonly Guid MemberAccountingDefaultsManageId = Guid.Parse("00000000-0000-0000-0002-000000000076");
 
+    // Phase 6 (Purchase chain) -- TdsType is a simple View/Manage lookup pair (Member View-only/
+    // Admin-write, same as CreditTerm/PaymentMode). PurchaseOrder/PurchaseBill/Expense/DebitNote
+    // continue the Phase 4/5 maker-checker split (Member View+Create+Edit, Approve explicitly
+    // denied). Payments.Payment.* permissions above are reused as-is for Supplier Payment too --
+    // no new rows needed (see phase-6-status.md's scope decision on why the permission matrix
+    // wasn't split Sales.Payment/Purchasing.Payment).
+    private static readonly Guid AdminTdsTypeViewId = Guid.Parse("00000000-0000-0000-0002-000000000077");
+    private static readonly Guid AdminTdsTypeManageId = Guid.Parse("00000000-0000-0000-0002-000000000078");
+    private static readonly Guid MemberTdsTypeViewId = Guid.Parse("00000000-0000-0000-0002-000000000079");
+    private static readonly Guid MemberTdsTypeManageId = Guid.Parse("00000000-0000-0000-0002-00000000007a");
+
+    private static readonly Guid AdminPurchaseOrderViewId = Guid.Parse("00000000-0000-0000-0002-00000000007b");
+    private static readonly Guid AdminPurchaseOrderCreateId = Guid.Parse("00000000-0000-0000-0002-00000000007c");
+    private static readonly Guid AdminPurchaseOrderEditId = Guid.Parse("00000000-0000-0000-0002-00000000007d");
+    private static readonly Guid AdminPurchaseOrderApproveId = Guid.Parse("00000000-0000-0000-0002-00000000007e");
+    private static readonly Guid MemberPurchaseOrderViewId = Guid.Parse("00000000-0000-0000-0002-00000000007f");
+    private static readonly Guid MemberPurchaseOrderCreateId = Guid.Parse("00000000-0000-0000-0002-000000000080");
+    private static readonly Guid MemberPurchaseOrderEditId = Guid.Parse("00000000-0000-0000-0002-000000000081");
+    private static readonly Guid MemberPurchaseOrderApproveId = Guid.Parse("00000000-0000-0000-0002-000000000082");
+
+    private static readonly Guid AdminPurchaseBillViewId = Guid.Parse("00000000-0000-0000-0002-000000000083");
+    private static readonly Guid AdminPurchaseBillCreateId = Guid.Parse("00000000-0000-0000-0002-000000000084");
+    private static readonly Guid AdminPurchaseBillEditId = Guid.Parse("00000000-0000-0000-0002-000000000085");
+    private static readonly Guid AdminPurchaseBillApproveId = Guid.Parse("00000000-0000-0000-0002-000000000086");
+    private static readonly Guid MemberPurchaseBillViewId = Guid.Parse("00000000-0000-0000-0002-000000000087");
+    private static readonly Guid MemberPurchaseBillCreateId = Guid.Parse("00000000-0000-0000-0002-000000000088");
+    private static readonly Guid MemberPurchaseBillEditId = Guid.Parse("00000000-0000-0000-0002-000000000089");
+    private static readonly Guid MemberPurchaseBillApproveId = Guid.Parse("00000000-0000-0000-0002-00000000008a");
+
+    private static readonly Guid AdminExpenseViewId = Guid.Parse("00000000-0000-0000-0002-00000000008b");
+    private static readonly Guid AdminExpenseCreateId = Guid.Parse("00000000-0000-0000-0002-00000000008c");
+    private static readonly Guid AdminExpenseEditId = Guid.Parse("00000000-0000-0000-0002-00000000008d");
+    private static readonly Guid AdminExpenseApproveId = Guid.Parse("00000000-0000-0000-0002-00000000008e");
+    private static readonly Guid MemberExpenseViewId = Guid.Parse("00000000-0000-0000-0002-00000000008f");
+    private static readonly Guid MemberExpenseCreateId = Guid.Parse("00000000-0000-0000-0002-000000000090");
+    private static readonly Guid MemberExpenseEditId = Guid.Parse("00000000-0000-0000-0002-000000000091");
+    private static readonly Guid MemberExpenseApproveId = Guid.Parse("00000000-0000-0000-0002-000000000092");
+
+    private static readonly Guid AdminDebitNoteViewId = Guid.Parse("00000000-0000-0000-0002-000000000093");
+    private static readonly Guid AdminDebitNoteCreateId = Guid.Parse("00000000-0000-0000-0002-000000000094");
+    private static readonly Guid AdminDebitNoteEditId = Guid.Parse("00000000-0000-0000-0002-000000000095");
+    private static readonly Guid AdminDebitNoteApproveId = Guid.Parse("00000000-0000-0000-0002-000000000096");
+    private static readonly Guid MemberDebitNoteViewId = Guid.Parse("00000000-0000-0000-0002-000000000097");
+    private static readonly Guid MemberDebitNoteCreateId = Guid.Parse("00000000-0000-0000-0002-000000000098");
+    private static readonly Guid MemberDebitNoteEditId = Guid.Parse("00000000-0000-0000-0002-000000000099");
+    private static readonly Guid MemberDebitNoteApproveId = Guid.Parse("00000000-0000-0000-0002-00000000009a");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -334,6 +381,47 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(MemberPaymentApproveId, Role.MemberId, PermissionKeys.PaymentApprove, false),
 
             RolePermission.Create(AdminAccountingDefaultsManageId, Role.AdminId, PermissionKeys.AccountingDefaultsManage, true),
-            RolePermission.Create(MemberAccountingDefaultsManageId, Role.MemberId, PermissionKeys.AccountingDefaultsManage, false));
+            RolePermission.Create(MemberAccountingDefaultsManageId, Role.MemberId, PermissionKeys.AccountingDefaultsManage, false),
+
+            RolePermission.Create(AdminTdsTypeViewId, Role.AdminId, PermissionKeys.TdsTypeView, true),
+            RolePermission.Create(AdminTdsTypeManageId, Role.AdminId, PermissionKeys.TdsTypeManage, true),
+            RolePermission.Create(MemberTdsTypeViewId, Role.MemberId, PermissionKeys.TdsTypeView, true),
+            RolePermission.Create(MemberTdsTypeManageId, Role.MemberId, PermissionKeys.TdsTypeManage, false),
+
+            RolePermission.Create(AdminPurchaseOrderViewId, Role.AdminId, PermissionKeys.PurchaseOrderView, true),
+            RolePermission.Create(AdminPurchaseOrderCreateId, Role.AdminId, PermissionKeys.PurchaseOrderCreate, true),
+            RolePermission.Create(AdminPurchaseOrderEditId, Role.AdminId, PermissionKeys.PurchaseOrderEdit, true),
+            RolePermission.Create(AdminPurchaseOrderApproveId, Role.AdminId, PermissionKeys.PurchaseOrderApprove, true),
+            RolePermission.Create(MemberPurchaseOrderViewId, Role.MemberId, PermissionKeys.PurchaseOrderView, true),
+            RolePermission.Create(MemberPurchaseOrderCreateId, Role.MemberId, PermissionKeys.PurchaseOrderCreate, true),
+            RolePermission.Create(MemberPurchaseOrderEditId, Role.MemberId, PermissionKeys.PurchaseOrderEdit, true),
+            RolePermission.Create(MemberPurchaseOrderApproveId, Role.MemberId, PermissionKeys.PurchaseOrderApprove, false),
+
+            RolePermission.Create(AdminPurchaseBillViewId, Role.AdminId, PermissionKeys.PurchaseBillView, true),
+            RolePermission.Create(AdminPurchaseBillCreateId, Role.AdminId, PermissionKeys.PurchaseBillCreate, true),
+            RolePermission.Create(AdminPurchaseBillEditId, Role.AdminId, PermissionKeys.PurchaseBillEdit, true),
+            RolePermission.Create(AdminPurchaseBillApproveId, Role.AdminId, PermissionKeys.PurchaseBillApprove, true),
+            RolePermission.Create(MemberPurchaseBillViewId, Role.MemberId, PermissionKeys.PurchaseBillView, true),
+            RolePermission.Create(MemberPurchaseBillCreateId, Role.MemberId, PermissionKeys.PurchaseBillCreate, true),
+            RolePermission.Create(MemberPurchaseBillEditId, Role.MemberId, PermissionKeys.PurchaseBillEdit, true),
+            RolePermission.Create(MemberPurchaseBillApproveId, Role.MemberId, PermissionKeys.PurchaseBillApprove, false),
+
+            RolePermission.Create(AdminExpenseViewId, Role.AdminId, PermissionKeys.ExpenseView, true),
+            RolePermission.Create(AdminExpenseCreateId, Role.AdminId, PermissionKeys.ExpenseCreate, true),
+            RolePermission.Create(AdminExpenseEditId, Role.AdminId, PermissionKeys.ExpenseEdit, true),
+            RolePermission.Create(AdminExpenseApproveId, Role.AdminId, PermissionKeys.ExpenseApprove, true),
+            RolePermission.Create(MemberExpenseViewId, Role.MemberId, PermissionKeys.ExpenseView, true),
+            RolePermission.Create(MemberExpenseCreateId, Role.MemberId, PermissionKeys.ExpenseCreate, true),
+            RolePermission.Create(MemberExpenseEditId, Role.MemberId, PermissionKeys.ExpenseEdit, true),
+            RolePermission.Create(MemberExpenseApproveId, Role.MemberId, PermissionKeys.ExpenseApprove, false),
+
+            RolePermission.Create(AdminDebitNoteViewId, Role.AdminId, PermissionKeys.DebitNoteView, true),
+            RolePermission.Create(AdminDebitNoteCreateId, Role.AdminId, PermissionKeys.DebitNoteCreate, true),
+            RolePermission.Create(AdminDebitNoteEditId, Role.AdminId, PermissionKeys.DebitNoteEdit, true),
+            RolePermission.Create(AdminDebitNoteApproveId, Role.AdminId, PermissionKeys.DebitNoteApprove, true),
+            RolePermission.Create(MemberDebitNoteViewId, Role.MemberId, PermissionKeys.DebitNoteView, true),
+            RolePermission.Create(MemberDebitNoteCreateId, Role.MemberId, PermissionKeys.DebitNoteCreate, true),
+            RolePermission.Create(MemberDebitNoteEditId, Role.MemberId, PermissionKeys.DebitNoteEdit, true),
+            RolePermission.Create(MemberDebitNoteApproveId, Role.MemberId, PermissionKeys.DebitNoteApprove, false));
     }
 }

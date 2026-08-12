@@ -37,6 +37,7 @@ export interface PaymentDetail extends Payment {
 
 export interface PaymentRequest {
   contactId: string;
+  direction: PaymentDirection;
   date: string;
   paymentModeId: string | null;
   accountId: string;

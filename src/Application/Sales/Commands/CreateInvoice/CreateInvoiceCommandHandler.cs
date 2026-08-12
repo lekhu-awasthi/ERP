@@ -1,7 +1,10 @@
+using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Sales;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Sales.Commands.CreateInvoice;
 
@@ -14,6 +17,20 @@ public sealed class CreateInvoiceCommandHandler(IAppDbContext db)
         await SalesValidation.EnsureWarehouseExistsAsync(db, request.OrganizationId, request.WarehouseId, cancellationToken);
         await SalesValidation.EnsureProductsExistAsync(
             db, request.OrganizationId, request.Lines.Select(x => x.ProductId), cancellationToken);
+
+        if (request.ReferrerType == DocumentType.Quotation && request.ReferrerId is { } quotationId)
+        {
+            var quotation = await db.Quotations.SingleOrDefaultAsync(
+                x => x.Id == quotationId && x.OrganizationId == request.OrganizationId, cancellationToken)
+                ?? throw new NotFoundException("Quotation not found.");
+
+            if (quotation.Status != QuotationStatus.Approved)
+            {
+                throw new ConflictException("This quotation has already been converted to an Invoice, or is not Approved.");
+            }
+
+            quotation.MarkConverted();
+        }
 
         var invoice = Invoice.Create(
             request.OrganizationId, request.ContactId, request.WarehouseId, request.Date, request.Reference,

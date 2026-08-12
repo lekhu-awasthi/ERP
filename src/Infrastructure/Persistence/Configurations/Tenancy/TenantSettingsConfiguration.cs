@@ -63,5 +63,23 @@ public sealed class TenantSettingsConfiguration : IEntityTypeConfiguration<Tenan
             .WithMany()
             .HasForeignKey(s => s.DefaultVatPayableAccountId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // Phase 6 additions -- Purchase-side mirror, same nullable-FK/Restrict-delete shape.
+        builder.HasOne<Domain.Accounting.Account>()
+            .WithMany()
+            .HasForeignKey(s => s.DefaultPurchaseAccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Domain.Accounting.Account>()
+            .WithMany()
+            .HasForeignKey(s => s.DefaultAccountsPayableId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Domain.Accounting.Account>()
+            .WithMany()
+            .HasForeignKey(s => s.DefaultVatReceivableAccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Domain.Accounting.Account>()
+            .WithMany()
+            .HasForeignKey(s => s.DefaultTdsPayableAccountId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
