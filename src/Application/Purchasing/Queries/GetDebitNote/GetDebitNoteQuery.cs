@@ -23,6 +23,8 @@ public sealed record DebitNoteDetailDto(
     string Code,
     DateOnly Date,
     string? Reference,
+    Guid? TdsTypeId,
+    decimal TdsAmount,
     DebitNoteStatus Status,
     Guid? ApprovedByUserId,
     DateTimeOffset? ApprovedAt,

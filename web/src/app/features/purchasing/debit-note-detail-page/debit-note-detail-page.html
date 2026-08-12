@@ -48,7 +48,7 @@
             <label class="form-label small fw-semibold">Date</label>
             <input type="date" class="form-control" [value]="date()" (change)="date.set($any($event.target).value)" [disabled]="!isDraft()" />
           </div>
-          <div class="col-12">
+          <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold">Reference</label>
             <input
               type="text"
@@ -59,6 +59,31 @@
               placeholder="Optional reference note"
             />
           </div>
+          <div class="col-12 col-sm-6">
+            <label class="form-label small fw-semibold">TDS Type</label>
+            <select
+              class="form-select"
+              (change)="tdsTypeId.set($any($event.target).value)"
+              [disabled]="!isDraft()"
+            >
+              <option value="" [selected]="!tdsTypeId()">— Not applicable —</option>
+              @for (tdsType of tdsTypes(); track tdsType.id) {
+                <option [value]="tdsType.id" [selected]="tdsType.id === tdsTypeId()">{{ tdsType.code }} — {{ tdsType.name }} ({{ tdsType.ratePct }}%)</option>
+              }
+            </select>
+            <p class="form-text">
+              Reverses the source Purchase Bill's TDS withholding for these lines -- recomputed server-side on Save, so a
+              partial-quantity debit note only reverses its own proportional share.
+            </p>
+          </div>
+          @if (debitNote(); as dn) {
+            @if (dn.tdsTypeId) {
+              <div class="col-12 col-sm-6">
+                <label class="form-label small fw-semibold">TDS Amount</label>
+                <input type="text" class="form-control" [value]="dn.tdsAmount.toFixed(2)" disabled />
+              </div>
+            }
+          }
         </div>
       </div>
     </div>

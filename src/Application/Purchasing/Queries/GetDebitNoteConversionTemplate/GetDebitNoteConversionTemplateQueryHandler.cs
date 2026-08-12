@@ -31,6 +31,7 @@ public sealed class GetDebitNoteConversionTemplateQueryHandler(IAppDbContext db)
             purchaseBill.ContactId,
             DateOnly.FromDateTime(DateTime.UtcNow),
             $"From Purchase Bill {purchaseBill.Code}",
+            purchaseBill.TdsTypeId,
             DocumentType.PurchaseBill,
             purchaseBill.Id,
             lines);

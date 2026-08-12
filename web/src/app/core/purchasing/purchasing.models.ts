@@ -250,6 +250,8 @@ export interface DebitNote {
   code: string;
   date: string;
   reference: string | null;
+  tdsTypeId: string | null;
+  tdsAmount: number;
   status: DebitNoteStatus;
   approvedByUserId: string | null;
   approvedAt: string | null;
@@ -273,6 +275,7 @@ export interface DebitNoteRequest {
   contactId: string;
   date: string;
   reference: string | null;
+  tdsTypeId: string | null;
   lines: DebitNoteLineInput[];
   referrerType?: DocumentType | null;
   referrerId?: string | null;
@@ -301,6 +304,7 @@ export interface DebitNoteConversionTemplate {
   contactId: string;
   date: string;
   reference: string | null;
+  tdsTypeId: string | null;
   referrerType: DocumentType;
   referrerId: string;
   lines: DebitNoteLineInput[];

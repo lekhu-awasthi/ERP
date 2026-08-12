@@ -5,7 +5,7 @@ using MediatR;
 namespace ErpApp.Application.Purchasing.Commands.UpdateDebitNote;
 
 public sealed record UpdateDebitNoteCommand(
-    Guid OrganizationId, Guid Id, Guid ContactId, DateOnly Date, string? Reference,
+    Guid OrganizationId, Guid Id, Guid ContactId, DateOnly Date, string? Reference, Guid? TdsTypeId,
     IReadOnlyList<DebitNoteLineInput> Lines)
     : IRequest<UpdateDebitNoteResult>, IRequirePermission, IOrganizationScoped
 {

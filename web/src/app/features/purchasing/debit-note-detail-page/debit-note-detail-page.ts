@@ -12,6 +12,8 @@ import { CatalogService } from '../../../core/catalog/catalog.service';
 import { Product, VatRate } from '../../../core/catalog/catalog.models';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
+import { ConfigurationService } from '../../../core/configuration/configuration.service';
+import { TdsType } from '../../../core/configuration/configuration.models';
 import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
 
 interface EditableLine {
@@ -26,7 +28,10 @@ let nextLineKey = 1;
 
 /** Mirror of credit-note-detail-page's chrome (see that component's doc comment) -- Supplier
  * picker instead of Customer, Purchase Account labels instead of Sales Account. Approve posts
- * DebitNotePostingRule's exact reverse of PurchaseBillPostingRule's non-TDS legs. */
+ * DebitNotePostingRule's exact reverse of PurchaseBillPostingRule, TDS leg included -- TdsTypeId
+ * is pre-filled from the source PurchaseBill on conversion but user-editable (a partial-quantity
+ * debit note recomputes TdsAmount server-side from its own lines, same as PurchaseBill/Expense),
+ * so a full reversal nets Accounts Payable and TDS Payable back to zero. */
 @Component({
   selector: 'app-debit-note-detail-page',
   imports: [RouterLink, DatePipe],
@@ -39,6 +44,7 @@ export class DebitNoteDetailPage {
   private readonly contactsService = inject(ContactsService);
   private readonly catalogService = inject(CatalogService);
   private readonly accountingService = inject(AccountingService);
+  private readonly configurationService = inject(ConfigurationService);
   private readonly pendingTemplateStore = inject(PendingTemplateStore);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
@@ -51,11 +57,13 @@ export class DebitNoteDetailPage {
   protected readonly suppliers = signal<Contact[]>([]);
   protected readonly products = signal<Product[]>([]);
   protected readonly accounts = signal<Account[]>([]);
+  protected readonly tdsTypes = signal<TdsType[]>([]);
   protected readonly isNew = signal(false);
 
   protected readonly contactId = signal('');
   protected readonly date = signal(this.today());
   protected readonly reference = signal('');
+  protected readonly tdsTypeId = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
   private referrerType: DocumentType | null = null;
   private referrerId: string | null = null;
@@ -84,6 +92,7 @@ export class DebitNoteDetailPage {
     this.contactsService.listContacts(this.organizationId, 'Supplier').subscribe({ next: (c) => this.suppliers.set(c) });
     this.catalogService.listProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
     this.accountingService.listAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
+    this.configurationService.listTdsTypes(this.organizationId).subscribe({ next: (t) => this.tdsTypes.set(t) });
 
     this.route.paramMap.subscribe((params) => {
       this.routeDebitNoteId = params.get('debitNoteId')!;
@@ -101,6 +110,7 @@ export class DebitNoteDetailPage {
           this.contactId.set(template.contactId);
           this.date.set(template.date);
           this.reference.set(template.reference ?? '');
+          this.tdsTypeId.set(template.tdsTypeId ?? '');
           this.referrerType = template.referrerType;
           this.referrerId = template.referrerId;
           this.lines.set(
@@ -110,6 +120,7 @@ export class DebitNoteDetailPage {
           this.contactId.set('');
           this.date.set(this.today());
           this.reference.set('');
+          this.tdsTypeId.set('');
           this.lines.set([this.newLine()]);
         }
       } else {
@@ -126,6 +137,11 @@ export class DebitNoteDetailPage {
   protected accountLabel(accountId: string): string {
     const account = this.accounts().find((a) => a.id === accountId);
     return account ? `${account.code} — ${account.name}` : '—';
+  }
+
+  protected tdsTypeLabel(tdsTypeId: string | null): string {
+    const tdsType = this.tdsTypes().find((t) => t.id === tdsTypeId);
+    return tdsType ? `${tdsType.code} — ${tdsType.name} (${tdsType.ratePct}%)` : '—';
   }
 
   protected onProductChange(key: number, event: Event): void {
@@ -175,6 +191,7 @@ export class DebitNoteDetailPage {
       contactId: this.contactId(),
       date: this.date(),
       reference: this.reference() || null,
+      tdsTypeId: this.tdsTypeId() || null,
       referrerType: this.referrerType,
       referrerId: this.referrerId,
       lines,
@@ -262,6 +279,7 @@ export class DebitNoteDetailPage {
         this.contactId.set(debitNote.contactId);
         this.date.set(debitNote.date);
         this.reference.set(debitNote.reference ?? '');
+        this.tdsTypeId.set(debitNote.tdsTypeId ?? '');
         this.referrerType = debitNote.referrerType;
         this.referrerId = debitNote.referrerId;
         this.lines.set(

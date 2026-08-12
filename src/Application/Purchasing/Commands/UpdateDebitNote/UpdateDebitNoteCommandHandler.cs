@@ -25,9 +25,13 @@ public sealed class UpdateDebitNoteCommandHandler(IAppDbContext db)
         await PurchasingValidation.EnsureProductsExistAsync(
             db, request.OrganizationId, request.Lines.Select(x => x.ProductId), cancellationToken);
 
+        var tdsBaseAmount = request.Lines.Sum(x => x.Quantity * x.Rate);
+        var tdsAmount = await PurchasingValidation.ResolveTdsAmountAsync(
+            db, request.OrganizationId, request.TdsTypeId, tdsBaseAmount, cancellationToken);
+
         var oldLines = debitNote.Lines.ToList();
 
-        debitNote.UpdateHeader(request.ContactId, request.Date, request.Reference);
+        debitNote.UpdateHeader(request.ContactId, request.Date, request.Reference, request.TdsTypeId, tdsAmount);
         debitNote.ClearLines();
         foreach (var line in request.Lines)
         {

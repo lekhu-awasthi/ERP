@@ -6,11 +6,16 @@ namespace ErpApp.Domain.Purchasing;
 /// <summary>
 /// Mirror of Sales.CreditNote -- conversion target of PurchaseBill (architecture-spec.md §3.3/
 /// §4.5), same pattern PurchaseBill established for PurchaseOrder. Approve() posts the exact
-/// reverse of PurchaseBillPostingRule (Debit Accounts Payable, Credit each line's Purchase
-/// Account, Credit VAT Receivable) via DebitNotePostingRule, same resolved-input-record split
-/// PurchaseBillPostingInput uses. No TDS fields -- a reversal of a bill doesn't reverse the TDS
-/// withholding (out of scope this phase, same "don't build what wasn't confirmed" judgment as
-/// CreditNote's own scope).
+/// reverse of PurchaseBillPostingRule (Debit Accounts Payable net of TDS, Debit TDS Payable,
+/// Credit each line's Purchase Account, Credit VAT Receivable) via DebitNotePostingRule.
+///
+/// Carries its own TdsTypeId/TdsAmount (resolved server-side from this DebitNote's own lines,
+/// same PurchasingValidation.ResolveTdsAmountAsync path PurchaseBill/Expense use) -- an earlier
+/// version of this aggregate had no TDS fields at all on the theory that "a reversal doesn't
+/// reverse the TDS withholding", but that left DebitNotePostingRule debiting Accounts Payable for
+/// the *full* grand total while the original PurchaseBill had only credited AP net of TDS: a full
+/// reversal then left Accounts Payable off by the TDS amount and TDS Payable never resolved,
+/// a real ledger imbalance, not a cosmetic gap. See phase-6-status.md's bug #3.
 /// </summary>
 public sealed class DebitNote
 {
@@ -24,6 +29,8 @@ public sealed class DebitNote
     public string Code { get; private set; } = null!;
     public DateOnly Date { get; private set; }
     public string? Reference { get; private set; }
+    public Guid? TdsTypeId { get; private set; }
+    public decimal TdsAmount { get; private set; }
     public DebitNoteStatus Status { get; private set; }
     public Guid? ApprovedByUserId { get; private set; }
     public DateTimeOffset? ApprovedAt { get; private set; }
@@ -39,7 +46,14 @@ public sealed class DebitNote
     }
 
     public static DebitNote Create(
-        Guid organizationId, Guid contactId, DateOnly date, string? reference, DocumentType? referrerType, Guid? referrerId)
+        Guid organizationId,
+        Guid contactId,
+        DateOnly date,
+        string? reference,
+        Guid? tdsTypeId,
+        decimal tdsAmount,
+        DocumentType? referrerType,
+        Guid? referrerId)
     {
         return new DebitNote
         {
@@ -49,6 +63,8 @@ public sealed class DebitNote
             Code = DraftCode,
             Date = date,
             Reference = reference,
+            TdsTypeId = tdsTypeId,
+            TdsAmount = tdsAmount,
             Status = DebitNoteStatus.Draft,
             CreatedAt = DateTimeOffset.UtcNow,
             ReferrerType = referrerType,
@@ -56,12 +72,14 @@ public sealed class DebitNote
         };
     }
 
-    public void UpdateHeader(Guid contactId, DateOnly date, string? reference)
+    public void UpdateHeader(Guid contactId, DateOnly date, string? reference, Guid? tdsTypeId, decimal tdsAmount)
     {
         EnsureDraft();
         ContactId = contactId;
         Date = date;
         Reference = reference;
+        TdsTypeId = tdsTypeId;
+        TdsAmount = tdsAmount;
     }
 
     public void AddLine(Guid productId, decimal quantity, decimal rate, VatRate vatRate)

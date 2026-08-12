@@ -13,8 +13,13 @@ public sealed class CreateDebitNoteCommandHandler(IAppDbContext db)
         await PurchasingValidation.EnsureProductsExistAsync(
             db, request.OrganizationId, request.Lines.Select(x => x.ProductId), cancellationToken);
 
+        var tdsBaseAmount = request.Lines.Sum(x => x.Quantity * x.Rate);
+        var tdsAmount = await PurchasingValidation.ResolveTdsAmountAsync(
+            db, request.OrganizationId, request.TdsTypeId, tdsBaseAmount, cancellationToken);
+
         var debitNote = DebitNote.Create(
-            request.OrganizationId, request.ContactId, request.Date, request.Reference, request.ReferrerType, request.ReferrerId);
+            request.OrganizationId, request.ContactId, request.Date, request.Reference, request.TdsTypeId, tdsAmount,
+            request.ReferrerType, request.ReferrerId);
         foreach (var line in request.Lines)
         {
             debitNote.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate);

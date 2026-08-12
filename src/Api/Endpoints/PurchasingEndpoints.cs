@@ -242,7 +242,7 @@ public static class PurchasingEndpoints
         {
             var result = await sender.Send(
                 new CreateDebitNoteCommand(
-                    organizationId, request.ContactId, request.Date, request.Reference, request.Lines,
+                    organizationId, request.ContactId, request.Date, request.Reference, request.TdsTypeId, request.Lines,
                     request.ReferrerType, request.ReferrerId),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/debit-notes/{result.Id}", result);
@@ -252,7 +252,8 @@ public static class PurchasingEndpoints
             Guid organizationId, Guid id, DebitNoteRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new UpdateDebitNoteCommand(organizationId, id, request.ContactId, request.Date, request.Reference, request.Lines),
+                new UpdateDebitNoteCommand(
+                    organizationId, id, request.ContactId, request.Date, request.Reference, request.TdsTypeId, request.Lines),
                 ct);
             return Results.Ok(result);
         });
@@ -305,6 +306,6 @@ public static class PurchasingEndpoints
     private sealed record PreviewExpenseGlPostingRequest(IReadOnlyList<ExpenseLineInput> Lines, bool TdsApplicable, Guid? TdsTypeId);
 
     private sealed record DebitNoteRequest(
-        Guid ContactId, DateOnly Date, string? Reference, IReadOnlyList<DebitNoteLineInput> Lines,
+        Guid ContactId, DateOnly Date, string? Reference, Guid? TdsTypeId, IReadOnlyList<DebitNoteLineInput> Lines,
         DocumentType? ReferrerType = null, Guid? ReferrerId = null);
 }

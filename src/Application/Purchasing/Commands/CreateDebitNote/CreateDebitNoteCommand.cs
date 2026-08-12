@@ -10,6 +10,7 @@ public sealed record CreateDebitNoteCommand(
     Guid ContactId,
     DateOnly Date,
     string? Reference,
+    Guid? TdsTypeId,
     IReadOnlyList<DebitNoteLineInput> Lines,
     DocumentType? ReferrerType = null,
     Guid? ReferrerId = null)

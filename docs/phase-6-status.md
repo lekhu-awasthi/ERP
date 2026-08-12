@@ -3,11 +3,15 @@
 **Status: COMPLETE.** `PurchaseOrder` → `PurchaseBill` → Supplier `Payment` (Direction=Paid) is live
 end-to-end, plus `Expense` (account-based lines, no Product) and `DebitNote` (full-stack, as the
 PurchaseBill-conversion target), matching the hands-on pass's Purchase-side chain documented in
-`erp-module-scan.md`. `PurchaseBillPostingRule` is the first
-posting rule with a TDS leg; `Payment`'s `PaymentPostingRule`/`PaymentAccountResolver` gained a
-real `Direction` branch (Received vs Paid), reused as-is rather than duplicated into a second
-command/handler set, confirming Phase 5's own "near-zero-new-code" prediction. `GetPurchaseBillConversionTemplateQuery`/`GetDebitNoteConversionTemplateQuery` reuse
-architecture-spec.md §3.3's document-conversion pattern for the third and fourth time.
+`erp-module-scan.md`. `PurchaseBillPostingRule`/`DebitNotePostingRule` are the first posting rules
+with a TDS leg, and `DebitNotePostingRule` is a true mirror of `PurchaseBillPostingRule` (TDS
+included) so a full reversal nets every account, including TDS Payable, back to zero (see bug #3 --
+an earlier TDS-free DebitNote design shipped first and was caught and fixed after direct testing);
+`Payment`'s `PaymentPostingRule`/`PaymentAccountResolver` gained a real `Direction` branch (Received
+vs Paid), reused as-is rather than duplicated into a second command/handler set, confirming Phase
+5's own "near-zero-new-code" prediction. `GetPurchaseBillConversionTemplateQuery`/
+`GetDebitNoteConversionTemplateQuery` reuse architecture-spec.md §3.3's document-conversion pattern
+for the third and fourth time.
 
 Confirmed by hand end-to-end against the real API/DB: a fresh Admin can set up a Chart of Accounts
 (Cash in Hand, VAT Receivable, Accounts Payable, TDS Payable, Purchase Expense), a Warehouse, a TDS
@@ -21,8 +25,9 @@ previewed, balanced); create a Supplier `Payment` against that Supplier, click "
 Accounts Payable / Credit Cash-in-Hand, exact mirror of Customer Payment's posting), Approve (real
 number assigned, allocation recorded); create and approve an `Expense` with TDS applied (GL posts
 directly against its line Account plus AP/TDS Payable, balanced); click "Convert to Debit Note" on
-the PurchaseBill, Approve the `DebitNote` (GL posts the exact reverse of the PurchaseBill's
-non-TDS legs, balanced).
+the PurchaseBill, Approve the `DebitNote` (GL posts the exact reverse of the PurchaseBill, TDS
+included -- a fresh PurchaseBill+DebitNote pair with 4.50 TDS confirmed by hand that the combined
+net effect on Accounts Payable and TDS Payable is exactly zero across both documents).
 
 ## Roadmap Phase 6 exit criteria — final status
 
@@ -47,8 +52,10 @@ non-TDS legs, balanced).
       `ExpensePostingRule` (simpler than `PurchaseBillPostingRule`, no per-line Product→Account
       resolution needed)
 - [x] `DebitNote` aggregate + CRUD/Approve + `GetDebitNoteConversionTemplateQuery` — mirrors
-      `CreditNote` exactly, full Angular UI shipped (not cut, per the brief's explicit instruction
-      since DebitNote is a conversion target)
+      `CreditNote`'s shape plus its own `TdsTypeId`/`TdsAmount` (see scope decision #7), full
+      Angular UI shipped (not cut, per the brief's explicit instruction since DebitNote is a
+      conversion target); confirmed by hand that a full reversal nets Accounts Payable and TDS
+      Payable to exactly zero across the PurchaseBill+DebitNote pair (see bug #3)
 - [x] Permission keys: `Purchasing.PurchaseOrder.{View,Create,Edit,Approve}`,
       `Purchasing.PurchaseBill.{...}`, `Purchasing.Expense.{...}`, `Purchasing.DebitNote.{...}`,
       `Configuration.TdsType.{View,Manage}`, continuing Phase 5's maker-checker seed pattern (Admin
@@ -127,12 +134,21 @@ non-TDS legs, balanced).
    not on the aggregate — that's still a DB read `IGlPostingRule`'s "no I/O" contract forbids
    inline. `ExpenseAccountResolver` is accordingly simpler than `PurchaseBillAccountResolver` (no
    per-line resolution loop) but the split itself is the same reasoning as Invoice's.
-7. **`DebitNote` has no TDS fields at all** — a reversal of a bill doesn't reverse the TDS
-   withholding (the government already received it, or will separately); modeling a TDS reversal
-   was out of scope this phase and not confirmed live in the scan. `DebitNotePostingInput` is
-   `PurchaseBillPostingInput` minus the TDS fields; `DebitNoteAccountResolver` delegates to
-   `PurchaseBillAccountResolver` with `tdsAmount: 0` to reuse the per-line Product→Purchase-Account
-   resolution logic without duplicating it.
+7. **`DebitNote` *does* carry its own `TdsTypeId`/`TdsAmount`, resolved server-side from its own
+   lines** — reversed from an earlier version of this decision that deliberately left DebitNote
+   TDS-free on the theory that "a reversal doesn't reverse the TDS withholding". That theory broke
+   the books: `DebitNotePostingRule` still had to debit Accounts Payable for *something*, and
+   without its own TDS figure it used the full grand total, while the source PurchaseBill had only
+   ever credited AP net of TDS — a full reversal then left AP off by the TDS amount and TDS Payable
+   permanently unresolved (see bug #3 below, caught by hand-testing exactly this scenario). Fixed
+   by making `DebitNotePostingInput` an exact mirror of `PurchaseBillPostingInput` (TDS fields
+   included) and `DebitNoteAccountResolver` delegate to `PurchaseBillAccountResolver` with the
+   DebitNote's *own* `TdsAmount` (not the source bill's) — so a partial-quantity debit note
+   correctly reverses only its proportional share, and a full reversal nets every account,
+   including TDS Payable, back to exactly zero. `GetDebitNoteConversionTemplateQuery` pre-fills
+   `TdsTypeId` from the source PurchaseBill (user-editable, same as every other conversion-template
+   field), and `TdsAmount` is recomputed from the DebitNote's own lines via the same
+   `PurchasingValidation.ResolveTdsAmountAsync` path PurchaseBill/Expense already use.
 8. **`ExpenditureClassification` (Annex 13, Capital/Others) added speculatively per
    architecture-spec.md §4.5's explicit recommendation** — the scan never found this field's real
    UI location (still an open item), so no time was spent hunting for it; the field exists on
@@ -204,6 +220,28 @@ non-TDS legs, balanced).
    exercised `Direction=Received`, so this class of "hardcoded filter matching the only case ever
    tested" bug is easy to miss without a second call site exercising the other branch — a good
    argument for scope decision #9's note that Phase 6's handlers still aren't unit-tested.
+3. **`DebitNotePostingRule` debited Accounts Payable for the full grand total while the source
+   PurchaseBill had only ever credited AP net of TDS, leaving Accounts Payable permanently off by
+   the TDS amount (and TDS Payable permanently unresolved) after a full-reversal debit note.**
+   Not a build/test failure — `dotnet build`/`dotnet test` and the manual E2E pass in the original
+   Phase 6 submission all passed, because nothing in that pass checked the *combined* GL effect of
+   a bill-plus-its-reversal. Caught only when asked directly "what happens to the TDS on a debit
+   note" and re-verified by hand: created a fresh PurchaseBill (300 pre-VAT, 39 VAT, 4.5 TDS at
+   1.5%, so AP credited 334.50 net of TDS), approved it, converted it to a DebitNote for the exact
+   same lines, and approved that — the DebitNote debited AP for the full 339 (not 334.50) and never
+   touched TDS Payable at all, so the combined ledger showed a spurious 4.50 debit balance on AP
+   and a stuck 4.50 credit balance on TDS Payable that a 100%-matching reversal should have
+   cancelled to zero on both. Root cause was the scope decision itself (see scope decision #7's
+   updated text) — "DebitNote doesn't reverse TDS" was a defensible-sounding simplification that
+   didn't survive contact with the actual debit math once written down. **Fixed** by giving
+   DebitNote its own `TdsTypeId`/`TdsAmount` (resolved from its own lines, not copied from the
+   source bill) and making `DebitNotePostingRule` a true mirror of `PurchaseBillPostingRule`
+   including the TDS leg; re-verified the same scenario by hand afterward and confirmed AP and TDS
+   Payable both net to exactly zero. **Worth knowing for Phase 7 and beyond**: when a document type
+   is explicitly modeled as "the reverse of" another one, verify the reversal by computing the
+   *combined* net effect on every account touched by both documents, not just that each document's
+   own entry is internally balanced — a rule can satisfy `sum(Debit)==sum(Credit)` for itself while
+   still leaving a paired account permanently unbalanced across the two related postings.
 
 ## What's next
 

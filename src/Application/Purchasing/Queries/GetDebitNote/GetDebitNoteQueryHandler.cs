@@ -35,6 +35,8 @@ public sealed class GetDebitNoteQueryHandler(IAppDbContext db) : IRequestHandler
             debitNote.Code,
             debitNote.Date,
             debitNote.Reference,
+            debitNote.TdsTypeId,
+            debitNote.TdsAmount,
             debitNote.Status,
             debitNote.ApprovedByUserId,
             debitNote.ApprovedAt,

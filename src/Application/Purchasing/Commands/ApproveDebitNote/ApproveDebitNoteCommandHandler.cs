@@ -37,7 +37,8 @@ public sealed class ApproveDebitNoteCommandHandler(
         }
 
         var postingInput = await DebitNoteAccountResolver.ResolveAsync(
-            db, request.OrganizationId, debitNote.Lines.Select(x => (x.ProductId, x.Amount, x.VatAmount)), cancellationToken);
+            db, request.OrganizationId, debitNote.Lines.Select(x => (x.ProductId, x.Amount, x.VatAmount)),
+            debitNote.TdsAmount, cancellationToken);
 
         var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.DebitNote, cancellationToken);
 
