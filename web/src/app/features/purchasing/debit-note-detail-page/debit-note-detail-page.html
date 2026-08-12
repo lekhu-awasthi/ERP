@@ -36,7 +36,7 @@
             <select
               class="form-select"
               (change)="contactId.set($any($event.target).value)"
-              [disabled]="!isDraft()"
+              [disabled]="!isDraft() || isLinkedToSource()"
             >
               <option value="" disabled [selected]="!contactId()">Select a supplier</option>
               @for (supplier of suppliers(); track supplier.id) {
@@ -55,7 +55,7 @@
               class="form-control"
               [value]="reference()"
               (input)="reference.set($any($event.target).value)"
-              [disabled]="!isDraft()"
+              [disabled]="!isDraft() || isLinkedToSource()"
               placeholder="Optional reference note"
             />
           </div>
@@ -64,7 +64,7 @@
             <select
               class="form-select"
               (change)="tdsTypeId.set($any($event.target).value)"
-              [disabled]="!isDraft()"
+              [disabled]="!isDraft() || isLinkedToSource()"
             >
               <option value="" [selected]="!tdsTypeId()">— Not applicable —</option>
               @for (tdsType of tdsTypes(); track tdsType.id) {
@@ -72,8 +72,13 @@
               }
             </select>
             <p class="form-text">
-              Reverses the source Purchase Bill's TDS withholding for these lines -- recomputed server-side on Save, so a
-              partial-quantity debit note only reverses its own proportional share.
+              @if (isLinkedToSource()) {
+                Locked to the source Purchase Bill's TDS Type -- the withheld amount is recomputed server-side on Save from
+                this debit note's own lines, so a partial-quantity return only reverses its proportional share.
+              } @else {
+                Reverses the source Purchase Bill's TDS withholding for these lines -- recomputed server-side on Save, so a
+                partial-quantity debit note only reverses its own proportional share.
+              }
             </p>
           </div>
           @if (debitNote(); as dn) {
@@ -92,12 +97,19 @@
       <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h6 class="fw-bold text-dark mb-0">Lines</h6>
-          @if (isDraft()) {
+          @if (isDraft() && !isLinkedToSource()) {
             <button type="button" class="btn btn-outline-primary btn-sm" (click)="addLine()">
               <i class="bi bi-plus-lg"></i> Add Line
             </button>
           }
         </div>
+
+        @if (isDraft() && isLinkedToSource()) {
+          <p class="text-muted small mb-3">
+            Product, Rate, and VAT are locked to what was actually billed -- adjust Quantity to return less than a line, or
+            remove a line entirely.
+          </p>
+        }
 
         <div class="table-responsive">
           <table class="table align-middle">
@@ -117,7 +129,7 @@
               @for (line of lines(); track line.key) {
                 <tr>
                   <td>
-                    @if (isDraft()) {
+                    @if (isDraft() && !isLinkedToSource()) {
                       <select class="form-select form-select-sm" (change)="onProductChange(line.key, $event)">
                         <option value="" disabled [selected]="!line.productId">Select a product</option>
                         @for (product of products(); track product.id) {
@@ -143,7 +155,7 @@
                     }
                   </td>
                   <td class="text-end">
-                    @if (isDraft()) {
+                    @if (isDraft() && !isLinkedToSource()) {
                       <input
                         type="number"
                         class="form-control form-control-sm text-end"
@@ -157,7 +169,7 @@
                     }
                   </td>
                   <td>
-                    @if (isDraft()) {
+                    @if (isDraft() && !isLinkedToSource()) {
                       <select class="form-select form-select-sm" (change)="onVatRateChange(line.key, $event)">
                         @for (rate of vatRates; track rate) {
                           <option [value]="rate" [selected]="rate === line.vatRate">{{ rate }}</option>

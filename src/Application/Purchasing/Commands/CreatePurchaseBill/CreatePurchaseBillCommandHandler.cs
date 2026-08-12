@@ -1,6 +1,9 @@
+using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Purchasing;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Purchasing.Commands.CreatePurchaseBill;
 
@@ -13,6 +16,20 @@ public sealed class CreatePurchaseBillCommandHandler(IAppDbContext db)
         await PurchasingValidation.EnsureWarehouseExistsAsync(db, request.OrganizationId, request.WarehouseId, cancellationToken);
         await PurchasingValidation.EnsureProductsExistAsync(
             db, request.OrganizationId, request.Lines.Select(x => x.ProductId), cancellationToken);
+
+        if (request.ReferrerType == DocumentType.PurchaseOrder && request.ReferrerId is { } purchaseOrderId)
+        {
+            var purchaseOrder = await db.PurchaseOrders.SingleOrDefaultAsync(
+                x => x.Id == purchaseOrderId && x.OrganizationId == request.OrganizationId, cancellationToken)
+                ?? throw new NotFoundException("Purchase order not found.");
+
+            if (purchaseOrder.Status != PurchaseOrderStatus.Approved)
+            {
+                throw new ConflictException("This purchase order has already been converted to a Purchase Bill, or is not Approved.");
+            }
+
+            purchaseOrder.MarkConverted();
+        }
 
         // TDS base is the pre-VAT taxable amount, same base every other tax computation in this
         // codebase uses (see phase-6-status.md's scope decisions for why this base was chosen).

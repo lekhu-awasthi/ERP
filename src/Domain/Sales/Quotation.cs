@@ -93,6 +93,16 @@ public sealed class Quotation
         Code = code;
     }
 
+    public void MarkConverted()
+    {
+        if (Status != QuotationStatus.Approved)
+        {
+            throw new InvalidOperationException("Only an Approved quotation can be converted to an Invoice.");
+        }
+
+        Status = QuotationStatus.Converted;
+    }
+
     private void EnsureDraft()
     {
         if (Status != QuotationStatus.Draft)

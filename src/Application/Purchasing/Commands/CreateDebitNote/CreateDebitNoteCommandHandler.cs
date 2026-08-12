@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Purchasing;
 using MediatR;
 
@@ -12,6 +13,12 @@ public sealed class CreateDebitNoteCommandHandler(IAppDbContext db)
         await PurchasingValidation.EnsureSupplierExistsAsync(db, request.OrganizationId, request.ContactId, cancellationToken);
         await PurchasingValidation.EnsureProductsExistAsync(
             db, request.OrganizationId, request.Lines.Select(x => x.ProductId), cancellationToken);
+
+        if (request.ReferrerType == DocumentType.PurchaseBill && request.ReferrerId is { } purchaseBillId)
+        {
+            await PurchasingValidation.EnsureDebitNoteLinesWithinPurchaseBillRemainingAsync(
+                db, request.OrganizationId, purchaseBillId, request.ContactId, request.TdsTypeId, request.Lines, cancellationToken);
+        }
 
         var tdsBaseAmount = request.Lines.Sum(x => x.Quantity * x.Rate);
         var tdsAmount = await PurchasingValidation.ResolveTdsAmountAsync(

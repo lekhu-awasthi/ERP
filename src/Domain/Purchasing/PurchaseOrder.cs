@@ -90,6 +90,16 @@ public sealed class PurchaseOrder
         Code = code;
     }
 
+    public void MarkConverted()
+    {
+        if (Status != PurchaseOrderStatus.Approved)
+        {
+            throw new InvalidOperationException("Only an Approved purchase order can be converted to a Purchase Bill.");
+        }
+
+        Status = PurchaseOrderStatus.Converted;
+    }
+
     private void EnsureDraft()
     {
         if (Status != PurchaseOrderStatus.Draft)

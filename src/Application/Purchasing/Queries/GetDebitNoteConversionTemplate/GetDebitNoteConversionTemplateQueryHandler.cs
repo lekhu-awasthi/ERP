@@ -23,9 +23,18 @@ public sealed class GetDebitNoteConversionTemplateQueryHandler(IAppDbContext db)
             throw new ConflictException("Only an Approved purchase bill can be converted to a Debit Note.");
         }
 
-        var lines = purchaseBill.Lines
-            .Select(x => new DebitNoteLineInput(x.ProductId, x.Quantity, x.Rate, x.VatRate))
+        var remainingByLine = await PurchasingValidation.GetPurchaseBillRemainingByLineAsync(
+            db, request.OrganizationId, purchaseBill, cancellationToken);
+
+        var lines = remainingByLine
+            .Where(kv => kv.Value > 0)
+            .Select(kv => new DebitNoteLineInput(kv.Key.ProductId, kv.Value, kv.Key.Rate, kv.Key.VatRate))
             .ToList();
+
+        if (lines.Count == 0)
+        {
+            throw new ConflictException("This purchase bill has already been fully debited.");
+        }
 
         return new DebitNoteConversionTemplateDto(
             purchaseBill.ContactId,

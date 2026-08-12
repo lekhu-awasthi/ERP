@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Sales;
 using MediatR;
@@ -13,6 +14,12 @@ public sealed class CreateCreditNoteCommandHandler(IAppDbContext db)
         await SalesValidation.EnsureContactExistsAsync(db, request.OrganizationId, request.ContactId, ContactType.Customer, cancellationToken);
         await SalesValidation.EnsureProductsExistAsync(
             db, request.OrganizationId, request.Lines.Select(x => x.ProductId), cancellationToken);
+
+        if (request.ReferrerType == DocumentType.Invoice && request.ReferrerId is { } invoiceId)
+        {
+            await SalesValidation.EnsureCreditNoteLinesWithinInvoiceRemainingAsync(
+                db, request.OrganizationId, invoiceId, request.ContactId, request.Lines, cancellationToken);
+        }
 
         var creditNote = CreditNote.Create(
             request.OrganizationId, request.ContactId, request.Date, request.Reference, request.ReferrerType, request.ReferrerId);

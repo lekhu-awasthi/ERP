@@ -65,6 +65,7 @@ export class DebitNoteDetailPage {
   protected readonly reference = signal('');
   protected readonly tdsTypeId = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
+  protected readonly isLinkedToSource = signal(false);
   private referrerType: DocumentType | null = null;
   private referrerId: string | null = null;
 
@@ -102,6 +103,7 @@ export class DebitNoteDetailPage {
       this.errorMessage.set(null);
       this.referrerType = null;
       this.referrerId = null;
+      this.isLinkedToSource.set(false);
 
       if (isNew) {
         this.loading.set(false);
@@ -113,6 +115,7 @@ export class DebitNoteDetailPage {
           this.tdsTypeId.set(template.tdsTypeId ?? '');
           this.referrerType = template.referrerType;
           this.referrerId = template.referrerId;
+          this.isLinkedToSource.set(true);
           this.lines.set(
             template.lines.length > 0 ? template.lines.map((l) => ({ key: nextLineKey++, ...l })) : [this.newLine()],
           );
@@ -282,6 +285,7 @@ export class DebitNoteDetailPage {
         this.tdsTypeId.set(debitNote.tdsTypeId ?? '');
         this.referrerType = debitNote.referrerType;
         this.referrerId = debitNote.referrerId;
+        this.isLinkedToSource.set(debitNote.referrerId !== null);
         this.lines.set(
           debitNote.lines.length > 0
             ? debitNote.lines.map((l) => ({

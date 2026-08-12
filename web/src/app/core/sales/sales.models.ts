@@ -1,6 +1,6 @@
 import { VatRate } from '../catalog/catalog.models';
 
-export type QuotationStatus = 'Draft' | 'Approved' | 'Void';
+export type QuotationStatus = 'Draft' | 'Approved' | 'Void' | 'Converted';
 export type InvoiceStatus = 'Draft' | 'Approved' | 'Void';
 export type SalesOrderStatus = 'Draft' | 'Approved' | 'Void';
 export type CreditNoteStatus = 'Draft' | 'Approved' | 'Void';

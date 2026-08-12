@@ -5,4 +5,5 @@ public enum QuotationStatus
     Draft,
     Approved,
     Void,
+    Converted,
 }

@@ -1,7 +1,7 @@
 import { VatRate } from '../catalog/catalog.models';
 import { DocumentType } from '../sales/sales.models';
 
-export type PurchaseOrderStatus = 'Draft' | 'Approved' | 'Void';
+export type PurchaseOrderStatus = 'Draft' | 'Approved' | 'Void' | 'Converted';
 export type PurchaseBillStatus = 'Draft' | 'Approved' | 'Void';
 export type ExpenseStatus = 'Draft' | 'Approved' | 'Void';
 export type DebitNoteStatus = 'Draft' | 'Approved' | 'Void';

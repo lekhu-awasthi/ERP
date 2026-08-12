@@ -71,6 +71,8 @@
               <div class="d-flex align-items-center gap-3">
                 @if (item.status === 'Approved') {
                   <span class="badge bg-success-subtle text-success">Approved</span>
+                } @else if (item.status === 'Converted') {
+                  <span class="badge bg-info-subtle text-info-emphasis">Converted</span>
                 } @else if (item.status === 'Void') {
                   <span class="badge bg-secondary-subtle text-secondary">Void</span>
                 } @else {

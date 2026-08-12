@@ -5,4 +5,5 @@ public enum PurchaseOrderStatus
     Draft,
     Approved,
     Void,
+    Converted,
 }
