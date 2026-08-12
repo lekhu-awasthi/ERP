@@ -243,6 +243,48 @@ net effect on Accounts Payable and TDS Payable is exactly zero across both docum
    own entry is internally balanced — a rule can satisfy `sum(Debit)==sum(Credit)` for itself while
    still leaving a paired account permanently unbalanced across the two related postings.
 
+4. **Every conversion document (`ReferrerType`/`ReferrerId` set via the architecture-spec.md §3.3
+   pattern) could be created with no relationship to its source beyond that pointer** — the
+   `ReferrerId` FK was purely informational, not enforced. Found post-completion, flagged directly
+   by hand-testing rather than by an automated check: (a) `Quotation`→`Invoice` and
+   `PurchaseOrder`→`PurchaseBill` could be converted an unlimited number of times, since
+   `QuotationStatus`/`PurchaseOrderStatus` never left `Approved` after a conversion, so the
+   "Only an Approved X can be converted" guard in `GetInvoiceConversionTemplateQueryHandler`/
+   `GetPurchaseBillConversionTemplateQueryHandler` kept passing forever; (b) `CreateCreditNoteCommandHandler`/
+   `CreateDebitNoteCommandHandler` never loaded the source Invoice/PurchaseBill at all, so a Credit
+   Note/Debit Note could freely credit/debit more quantity than was ever actually invoiced/billed,
+   or claim a Rate/VatRate combination that never appeared on any source line, or point at a
+   different Customer/Supplier or TDS Type than the source document actually used. (b) is the more
+   serious one: a differently-Rated or differently-VAT-rated "reversal" silently misstates revenue,
+   and a Debit Note reversing at a different TDS Type than the source PurchaseBill reproduces
+   exactly bug #3's TDS Payable imbalance through a different field — proof that "the reversal's
+   own entry balances" was never sufficient, the *combined* effect against the true source has to
+   be checked, and that lesson applies to every field on the document, not just the GL-relevant
+   money ones. **Fixed** in four parts: (1) added a `Converted` status to `QuotationStatus`/
+   `PurchaseOrderStatus`, set via a new `Quotation.MarkConverted()`/`PurchaseOrder.MarkConverted()`
+   domain method called from `CreateInvoiceCommandHandler`/`CreatePurchaseBillCommandHandler`
+   whenever `ReferrerType` points at one, so a second conversion attempt now 409s and the Angular
+   "Convert to X" button disappears (a `Converted` badge replaces it); (2)
+   `SalesValidation.GetInvoiceRemainingByLineAsync`/`EnsureCreditNoteLinesWithinInvoiceRemainingAsync`
+   (and their `PurchasingValidation` mirrors for PurchaseBill/DebitNote) key remaining quantity by
+   the *exact* `(ProductId, Rate, VatRate)` triple a line was actually sold/billed at — not
+   `ProductId` alone — net of every prior non-Void Credit/Debit Note against the same source, so a
+   line can only be matched against a combination that genuinely existed, capped at what's left
+   un-returned; multiple *partial* Credit/Debit Notes against one source remain intentionally
+   allowed (real accounting practice: return some units now, more later), only the cumulative
+   amount is capped; (3) the same validation methods also reject a mismatched Contact or (for
+   DebitNote) TdsTypeId with a 409; (4) `credit-note-detail-page`/`debit-note-detail-page` disable
+   Product/Rate/VAT/Customer-or-Supplier/Reference/TDS-Type editing (server-side guard duplicated
+   client-side, not replaced by it) whenever the document carries a `ReferrerId`, leaving only
+   Quantity editable and line-removal available — standalone Credit/Debit Notes with no
+   `ReferrerId` are unaffected, they have no source to lock against. **Worth knowing for Phase 7
+   and beyond**: setting `ReferrerType`/`ReferrerId` on a new conversion-target document type is
+   not itself a guard against anything — every new "Convert to X" flow needs its own explicit
+   `EnsureXWithinYRemainingAsync`-style check (quantity/rate/tax cap plus Contact/tax-type match)
+   written by hand in the `CreateXCommandHandler`, the same way this fix had to retrofit it onto
+   four already-shipped handlers; nothing about the `ReferrerId` FK or the conversion-template
+   pattern enforces it automatically.
+
 ## What's next
 
 **Phase 7 — Inventory & stock ledger** (see `roadmap.md`): retrofits Phase 5/6's stubbed stock
