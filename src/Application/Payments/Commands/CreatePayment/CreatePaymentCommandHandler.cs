@@ -12,13 +12,13 @@ public sealed class CreatePaymentCommandHandler(IAppDbContext db)
 {
     public async Task<CreatePaymentResult> Handle(CreatePaymentCommand request, CancellationToken cancellationToken)
     {
-        await PaymentValidation.EnsureContactExistsAsync(db, request.OrganizationId, request.ContactId, cancellationToken);
+        await PaymentValidation.EnsureContactExistsAsync(db, request.OrganizationId, request.ContactId, request.Direction, cancellationToken);
         await AccountingValidation.EnsureAccountsExistAsync(db, request.OrganizationId, [request.AccountId], cancellationToken);
         await PaymentValidation.EnsurePaymentModeExistsAsync(db, request.OrganizationId, request.PaymentModeId, cancellationToken);
         await PaymentValidation.EnsureAllocationTargetsExistAsync(db, request.OrganizationId, request.Allocations, cancellationToken);
 
         var payment = Payment.Create(
-            request.OrganizationId, request.ContactId, PaymentDirection.Received, request.Date, request.PaymentModeId,
+            request.OrganizationId, request.ContactId, request.Direction, request.Date, request.PaymentModeId,
             request.AccountId, request.Amount, request.Reference);
         foreach (var allocation in request.Allocations)
         {

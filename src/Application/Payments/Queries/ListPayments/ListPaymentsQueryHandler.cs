@@ -10,7 +10,7 @@ public sealed class ListPaymentsQueryHandler(IAppDbContext db)
 {
     public async Task<IReadOnlyList<Payment>> Handle(ListPaymentsQuery request, CancellationToken cancellationToken)
     {
-        var query = db.Payments.Where(x => x.OrganizationId == request.OrganizationId && x.Direction == PaymentDirection.Received);
+        var query = db.Payments.Where(x => x.OrganizationId == request.OrganizationId);
 
         if (request.Status is { } status)
         {

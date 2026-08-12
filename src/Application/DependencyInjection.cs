@@ -3,6 +3,7 @@ using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
 using ErpApp.Application.Payments.Posting;
+using ErpApp.Application.Purchasing.Posting;
 using ErpApp.Application.Sales.Posting;
 using ErpApp.Application.Sales.Stock;
 using ErpApp.Domain.Accounting;
@@ -67,6 +68,9 @@ public static class DependencyInjection
         // comment), same generic pair.
         RegisterLookupHandlers<Warehouse>(services);
 
+        // Phase 6 (Purchase chain) -- TdsType is the same "pure {code, name, rate}" lookup shape.
+        RegisterLookupHandlers<TdsType>(services);
+
         // IGlPostingRule<T> (architecture-spec.md §3.4) -- pure TDocument->GL-lines mappers, one
         // per document type that posts to GL. Registered so ApproveXCommandHandler and
         // PreviewGlPostingQueryHandler share the exact same instance type (no duplicated math).
@@ -77,6 +81,10 @@ public static class DependencyInjection
         services.AddTransient<IGlPostingRule<InvoicePostingInput>, InvoicePostingRule>();
         services.AddTransient<IGlPostingRule<CreditNotePostingInput>, CreditNotePostingRule>();
         services.AddTransient<IGlPostingRule<PaymentPostingInput>, PaymentPostingRule>();
+        // Purchase-side resolved-input-record posting rules, same InvoicePostingRule split.
+        services.AddTransient<IGlPostingRule<PurchaseBillPostingInput>, PurchaseBillPostingRule>();
+        services.AddTransient<IGlPostingRule<ExpensePostingInput>, ExpensePostingRule>();
+        services.AddTransient<IGlPostingRule<DebitNotePostingInput>, DebitNotePostingRule>();
 
         // Phase 5's stock-decrement seam (architecture-spec.md §3.5) -- a literal always-Ok stub
         // until Phase 7's real FIFO ledger exists (see AlwaysOkStockAvailabilityPolicy).

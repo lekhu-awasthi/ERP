@@ -4,6 +4,7 @@ using ErpApp.Application.Configuration.Commands.CreateCustomStatus;
 using ErpApp.Application.Configuration.Commands.CreatePaymentMode;
 using ErpApp.Application.Configuration.Commands.CreateReportingTagCategory;
 using ErpApp.Application.Configuration.Commands.CreateReportingTagOption;
+using ErpApp.Application.Configuration.Commands.CreateTdsType;
 using ErpApp.Application.Configuration.Commands.DeleteCustomFieldDefinition;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Commands.UpdateCreditTerm;
@@ -12,6 +13,7 @@ using ErpApp.Application.Configuration.Commands.UpdateCustomStatus;
 using ErpApp.Application.Configuration.Commands.UpdatePaymentMode;
 using ErpApp.Application.Configuration.Commands.UpdateReportingTagCategory;
 using ErpApp.Application.Configuration.Commands.UpdateReportingTagOption;
+using ErpApp.Application.Configuration.Commands.UpdateTdsType;
 using ErpApp.Application.Configuration.Queries.ListCustomFieldDefinitions;
 using ErpApp.Application.Configuration.Queries.ListLookups;
 using ErpApp.Domain.Common;
@@ -34,6 +36,7 @@ public static class ConfigurationEndpoints
         MapReportingTagCategoryEndpoints(group);
         MapReportingTagOptionEndpoints(group);
         MapCustomFieldDefinitionEndpoints(group);
+        MapTdsTypeEndpoints(group);
     }
 
     private static void MapCreditTermEndpoints(RouteGroupBuilder group)
@@ -232,6 +235,38 @@ public static class ConfigurationEndpoints
         });
     }
 
+    private static void MapTdsTypeEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/tds-types", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new ListLookupsQuery<TdsType>(organizationId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/tds-types", async (
+            Guid organizationId, CreateTdsTypeRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new CreateTdsTypeCommand(organizationId, request.Code, request.Name, request.RatePct), ct);
+            return Results.Created($"/api/organizations/{organizationId}/configuration/tds-types/{result.Id}", result);
+        });
+
+        group.MapPut("/tds-types/{id:guid}", async (
+            Guid organizationId, Guid id, UpdateTdsTypeRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdateTdsTypeCommand(organizationId, id, request.Code, request.Name, request.RatePct, request.IsActive), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapDelete("/tds-types/{id:guid}", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteLookupCommand<TdsType>(organizationId, id), ct);
+            return Results.NoContent();
+        });
+    }
+
     private sealed record CreateCreditTermRequest(string Name, int DueDays);
 
     private sealed record UpdateCreditTermRequest(string Name, int DueDays, bool IsActive);
@@ -257,4 +292,8 @@ public static class ConfigurationEndpoints
 
     private sealed record UpdateCustomFieldDefinitionRequest(
         string Name, CustomFieldType Type, IReadOnlyList<DocumentType> ApplicableDocumentTypes, bool IsActive);
+
+    private sealed record CreateTdsTypeRequest(string Code, string Name, decimal RatePct);
+
+    private sealed record UpdateTdsTypeRequest(string Code, string Name, decimal RatePct, bool IsActive);
 }

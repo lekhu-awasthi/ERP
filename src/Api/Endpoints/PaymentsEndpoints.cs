@@ -38,7 +38,7 @@ public static class PaymentsEndpoints
         {
             var result = await sender.Send(
                 new CreatePaymentCommand(
-                    organizationId, request.ContactId, request.Date, request.PaymentModeId, request.AccountId,
+                    organizationId, request.ContactId, request.Direction, request.Date, request.PaymentModeId, request.AccountId,
                     request.Amount, request.Reference, request.Allocations),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/payments/{result.Id}", result);
@@ -63,23 +63,24 @@ public static class PaymentsEndpoints
         });
 
         group.MapGet("/payments/default-allocations", async (
-            Guid organizationId, Guid contactId, decimal amount, ISender sender, CancellationToken ct) =>
+            Guid organizationId, Guid contactId, decimal amount, PaymentDirection direction, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new GetDefaultPaymentAllocationsQuery(organizationId, contactId, amount), ct);
+            var result = await sender.Send(new GetDefaultPaymentAllocationsQuery(organizationId, contactId, amount, direction), ct);
             return Results.Ok(result);
         });
 
         group.MapPost("/payments/preview-gl-posting", async (
             Guid organizationId, PreviewPaymentGlPostingRequest request, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new PreviewPaymentGlPostingQuery(organizationId, request.AccountId, request.Amount), ct);
+            var result = await sender.Send(
+                new PreviewPaymentGlPostingQuery(organizationId, request.AccountId, request.Amount, request.Direction), ct);
             return Results.Ok(result);
         });
     }
 
     private sealed record PaymentRequest(
-        Guid ContactId, DateOnly Date, Guid? PaymentModeId, Guid AccountId, decimal Amount, string? Reference,
-        IReadOnlyList<PaymentAllocationInput> Allocations);
+        Guid ContactId, PaymentDirection Direction, DateOnly Date, Guid? PaymentModeId, Guid AccountId, decimal Amount,
+        string? Reference, IReadOnlyList<PaymentAllocationInput> Allocations);
 
-    private sealed record PreviewPaymentGlPostingRequest(Guid AccountId, decimal Amount);
+    private sealed record PreviewPaymentGlPostingRequest(Guid AccountId, decimal Amount, PaymentDirection Direction);
 }

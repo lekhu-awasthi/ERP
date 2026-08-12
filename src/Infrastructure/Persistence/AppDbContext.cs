@@ -6,6 +6,7 @@ using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Identity;
 using ErpApp.Domain.Payments;
+using ErpApp.Domain.Purchasing;
 using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
@@ -55,6 +56,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<CreditNoteLine> CreditNoteLines => Set<CreditNoteLine>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<PaymentAllocation> PaymentAllocations => Set<PaymentAllocation>();
+    public DbSet<TdsType> TdsTypes => Set<TdsType>();
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
+    public DbSet<PurchaseBill> PurchaseBills => Set<PurchaseBill>();
+    public DbSet<PurchaseBillLine> PurchaseBillLines => Set<PurchaseBillLine>();
+    public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<ExpenseLine> ExpenseLines => Set<ExpenseLine>();
+    public DbSet<DebitNote> DebitNotes => Set<DebitNote>();
+    public DbSet<DebitNoteLine> DebitNoteLines => Set<DebitNoteLine>();
 
     // IAppDbContext.Set<TEntity>() -- satisfied implicitly by DbContext's own public
     // Set<TEntity>() (identical signature), needed by the generic

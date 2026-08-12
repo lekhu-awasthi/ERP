@@ -22,7 +22,7 @@ public sealed class UpdatePaymentCommandHandler(IAppDbContext db)
             throw new ConflictException("Only a Draft payment can be edited.");
         }
 
-        await PaymentValidation.EnsureContactExistsAsync(db, request.OrganizationId, request.ContactId, cancellationToken);
+        await PaymentValidation.EnsureContactExistsAsync(db, request.OrganizationId, request.ContactId, payment.Direction, cancellationToken);
         await AccountingValidation.EnsureAccountsExistAsync(db, request.OrganizationId, [request.AccountId], cancellationToken);
         await PaymentValidation.EnsurePaymentModeExistsAsync(db, request.OrganizationId, request.PaymentModeId, cancellationToken);
         await PaymentValidation.EnsureAllocationTargetsExistAsync(db, request.OrganizationId, request.Allocations, cancellationToken);

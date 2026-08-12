@@ -15,6 +15,12 @@ public sealed class GetAccountingDefaultsQueryHandler(IAppDbContext db)
             ?? throw new NotFoundException("Tenant settings not found.");
 
         return new GetAccountingDefaultsDto(
-            settings.DefaultSalesAccountId, settings.DefaultAccountsReceivableId, settings.DefaultVatPayableAccountId);
+            settings.DefaultSalesAccountId,
+            settings.DefaultAccountsReceivableId,
+            settings.DefaultVatPayableAccountId,
+            settings.DefaultPurchaseAccountId,
+            settings.DefaultAccountsPayableId,
+            settings.DefaultVatReceivableAccountId,
+            settings.DefaultTdsPayableAccountId);
     }
 }

@@ -119,6 +119,7 @@ app.MapCatalogEndpoints();
 app.MapAccountingEndpoints();
 app.MapSalesEndpoints();
 app.MapPaymentsEndpoints();
+app.MapPurchasingEndpoints();
 
 app.Run();
 

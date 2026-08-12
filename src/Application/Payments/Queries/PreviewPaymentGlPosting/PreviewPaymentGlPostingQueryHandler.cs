@@ -11,7 +11,7 @@ public sealed class PreviewPaymentGlPostingQueryHandler(IAppDbContext db, IGlPos
     public async Task<IReadOnlyList<GlLinePreviewDto>> Handle(PreviewPaymentGlPostingQuery request, CancellationToken cancellationToken)
     {
         var postingInput = await PaymentAccountResolver.ResolveAsync(
-            db, request.OrganizationId, request.AccountId, request.Amount, cancellationToken);
+            db, request.OrganizationId, request.AccountId, request.Amount, request.Direction, cancellationToken);
 
         return postingRule.BuildLines(postingInput)
             .Select(x => new GlLinePreviewDto(x.AccountId, x.Debit, x.Credit))

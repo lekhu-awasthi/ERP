@@ -119,7 +119,14 @@ public static class OrganizationEndpoints
         {
             var result = await sender.Send(
                 new UpdateAccountingDefaultsCommand(
-                    organizationId, request.DefaultSalesAccountId, request.DefaultAccountsReceivableId, request.DefaultVatPayableAccountId),
+                    organizationId,
+                    request.DefaultSalesAccountId,
+                    request.DefaultAccountsReceivableId,
+                    request.DefaultVatPayableAccountId,
+                    request.DefaultPurchaseAccountId,
+                    request.DefaultAccountsPayableId,
+                    request.DefaultVatReceivableAccountId,
+                    request.DefaultTdsPayableAccountId),
                 ct);
             return Results.Ok(result);
         });
@@ -130,7 +137,13 @@ public static class OrganizationEndpoints
     private sealed record UpdateWarehouseRequest(string Name, bool IsActive);
 
     private sealed record UpdateAccountingDefaultsRequest(
-        Guid? DefaultSalesAccountId, Guid? DefaultAccountsReceivableId, Guid? DefaultVatPayableAccountId);
+        Guid? DefaultSalesAccountId,
+        Guid? DefaultAccountsReceivableId,
+        Guid? DefaultVatPayableAccountId,
+        Guid? DefaultPurchaseAccountId,
+        Guid? DefaultAccountsPayableId,
+        Guid? DefaultVatReceivableAccountId,
+        Guid? DefaultTdsPayableAccountId);
 
     private sealed record CreateOrganizationRequest(
         string Name,

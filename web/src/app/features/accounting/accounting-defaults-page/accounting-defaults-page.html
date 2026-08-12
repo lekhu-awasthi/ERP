@@ -77,6 +77,71 @@
           <p class="form-text">Only needed for invoices/credit notes with VAT-rated lines.</p>
         </div>
 
+        <hr class="my-4" />
+        <h6 class="fw-bold text-dark mb-3">Purchase-Side Defaults</h6>
+
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Default Purchase Account</label>
+          <select
+            class="form-select"
+            [value]="defaultPurchaseAccountId()"
+            (change)="defaultPurchaseAccountId.set($any($event.target).value)"
+          >
+            <option value="">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">Used for a Product with no Purchase Account of its own.</p>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Default Accounts Payable</label>
+          <select
+            class="form-select"
+            [value]="defaultAccountsPayableId()"
+            (change)="defaultAccountsPayableId.set($any($event.target).value)"
+          >
+            <option value="">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">Credited on Purchase Bill/Expense approval, debited on Supplier Payment approval.</p>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Default VAT Receivable Account</label>
+          <select
+            class="form-select"
+            [value]="defaultVatReceivableAccountId()"
+            (change)="defaultVatReceivableAccountId.set($any($event.target).value)"
+          >
+            <option value="">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">
+            Input-tax-credit account for VAT-rated purchases -- distinct from the Sales-side VAT Payable account above.
+          </p>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold">Default TDS Payable Account</label>
+          <select
+            class="form-select"
+            [value]="defaultTdsPayableAccountId()"
+            (change)="defaultTdsPayableAccountId.set($any($event.target).value)"
+          >
+            <option value="">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">Only needed for purchase bills/expenses with TDS applied.</p>
+        </div>
+
         <button type="button" class="btn btn-primary fw-bold" [disabled]="saving()" (click)="save()">
           @if (saving()) {
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>

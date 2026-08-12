@@ -66,6 +66,18 @@ public sealed class TenantSettings
     public Guid? DefaultAccountsReceivableId { get; private set; }
     public Guid? DefaultVatPayableAccountId { get; private set; }
 
+    /// <summary>
+    /// Phase 6 addition -- the Purchase-side mirror of the three fields above, read by
+    /// PurchaseBillPostingRule/ExpensePostingRule. DefaultVatReceivableAccountId is deliberately a
+    /// separate field from DefaultVatPayableAccountId -- Purchase VAT is an input-tax-credit
+    /// (receivable) account, not the same control account Sales' output VAT posts to, a real
+    /// accounting distinction (see phase-6-status.md's scope decisions).
+    /// </summary>
+    public Guid? DefaultPurchaseAccountId { get; private set; }
+    public Guid? DefaultAccountsPayableId { get; private set; }
+    public Guid? DefaultVatReceivableAccountId { get; private set; }
+    public Guid? DefaultTdsPayableAccountId { get; private set; }
+
     private TenantSettings()
     {
     }
@@ -100,10 +112,20 @@ public sealed class TenantSettings
     }
 
     public void SetAccountingDefaults(
-        Guid? defaultSalesAccountId, Guid? defaultAccountsReceivableId, Guid? defaultVatPayableAccountId)
+        Guid? defaultSalesAccountId,
+        Guid? defaultAccountsReceivableId,
+        Guid? defaultVatPayableAccountId,
+        Guid? defaultPurchaseAccountId,
+        Guid? defaultAccountsPayableId,
+        Guid? defaultVatReceivableAccountId,
+        Guid? defaultTdsPayableAccountId)
     {
         DefaultSalesAccountId = defaultSalesAccountId;
         DefaultAccountsReceivableId = defaultAccountsReceivableId;
         DefaultVatPayableAccountId = defaultVatPayableAccountId;
+        DefaultPurchaseAccountId = defaultPurchaseAccountId;
+        DefaultAccountsPayableId = defaultAccountsPayableId;
+        DefaultVatReceivableAccountId = defaultVatReceivableAccountId;
+        DefaultTdsPayableAccountId = defaultTdsPayableAccountId;
     }
 }

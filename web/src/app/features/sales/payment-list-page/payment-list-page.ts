@@ -39,7 +39,10 @@ export class PaymentListPage {
     const status = this.statusFilter();
     this.paymentsService.listPayments(this.organizationId, status === 'All' ? undefined : status).subscribe({
       next: (items) => {
-        this.items.set(items);
+        // Direction isn't filterable server-side (see phase-6-status.md's scope decision on why
+        // Payments.Payment.* stays a single shared permission/query) -- filtered client-side
+        // instead of adding a Direction query param nothing else needs.
+        this.items.set(items.filter((p) => p.direction === 'Received'));
         this.loading.set(false);
       },
       error: (err: unknown) => {

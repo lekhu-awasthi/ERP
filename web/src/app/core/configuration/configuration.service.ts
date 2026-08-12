@@ -6,10 +6,13 @@ import { environment } from '../../../environments/environment';
 import {
   CreateCreditTermRequest,
   CreatePaymentModeRequest,
+  CreateTdsTypeRequest,
   CreditTerm,
   PaymentMode,
+  TdsType,
   UpdateCreditTermRequest,
   UpdatePaymentModeRequest,
+  UpdateTdsTypeRequest,
 } from './configuration.models';
 
 @Injectable({ providedIn: 'root' })
@@ -58,5 +61,21 @@ export class ConfigurationService {
 
   deletePaymentMode(organizationId: string, id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl(organizationId)}/payment-modes/${id}`, { withCredentials: true });
+  }
+
+  listTdsTypes(organizationId: string): Observable<TdsType[]> {
+    return this.http.get<TdsType[]>(`${this.baseUrl(organizationId)}/tds-types`, { withCredentials: true });
+  }
+
+  createTdsType(organizationId: string, request: CreateTdsTypeRequest): Observable<TdsType> {
+    return this.http.post<TdsType>(`${this.baseUrl(organizationId)}/tds-types`, request, { withCredentials: true });
+  }
+
+  updateTdsType(organizationId: string, id: string, request: UpdateTdsTypeRequest): Observable<TdsType> {
+    return this.http.put<TdsType>(`${this.baseUrl(organizationId)}/tds-types/${id}`, request, { withCredentials: true });
+  }
+
+  deleteTdsType(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/tds-types/${id}`, { withCredentials: true });
   }
 }

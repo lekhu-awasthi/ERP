@@ -159,7 +159,7 @@ export class PaymentDetailPage {
     this.suggesting.set(true);
     this.errorMessage.set(null);
 
-    this.paymentsService.getDefaultAllocations(this.organizationId, this.contactId(), this.amount()).subscribe({
+    this.paymentsService.getDefaultAllocations(this.organizationId, this.contactId(), this.amount(), 'Received').subscribe({
       next: (suggestions) => {
         this.suggesting.set(false);
         this.allocations.set(
@@ -182,7 +182,7 @@ export class PaymentDetailPage {
     this.previewingGl.set(true);
     this.errorMessage.set(null);
 
-    this.paymentsService.previewPaymentGlPosting(this.organizationId, this.accountId(), this.amount()).subscribe({
+    this.paymentsService.previewPaymentGlPosting(this.organizationId, this.accountId(), this.amount(), 'Received').subscribe({
       next: (lines) => {
         this.previewingGl.set(false);
         this.glPreview.set(lines);
@@ -217,6 +217,7 @@ export class PaymentDetailPage {
 
     const request = {
       contactId: this.contactId(),
+      direction: 'Received' as const,
       date: this.date(),
       paymentModeId: this.paymentModeId() || null,
       accountId: this.accountId(),

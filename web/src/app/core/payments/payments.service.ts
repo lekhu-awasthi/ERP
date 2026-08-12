@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { PaymentAllocationInput } from './payments.models';
+import { PaymentAllocationInput, PaymentDirection } from './payments.models';
 import {
   ApprovePaymentResult,
   CreatePaymentResult,
@@ -48,18 +48,28 @@ export class PaymentsService {
     });
   }
 
-  getDefaultAllocations(organizationId: string, contactId: string, amount: number): Observable<PaymentAllocationInput[]> {
-    const params: Record<string, string> = { contactId, amount: amount.toString() };
+  getDefaultAllocations(
+    organizationId: string,
+    contactId: string,
+    amount: number,
+    direction: PaymentDirection,
+  ): Observable<PaymentAllocationInput[]> {
+    const params: Record<string, string> = { contactId, amount: amount.toString(), direction };
     return this.http.get<PaymentAllocationInput[]>(`${this.baseUrl(organizationId)}/payments/default-allocations`, {
       withCredentials: true,
       params,
     });
   }
 
-  previewPaymentGlPosting(organizationId: string, accountId: string, amount: number): Observable<GlLinePreviewDto[]> {
+  previewPaymentGlPosting(
+    organizationId: string,
+    accountId: string,
+    amount: number,
+    direction: PaymentDirection,
+  ): Observable<GlLinePreviewDto[]> {
     return this.http.post<GlLinePreviewDto[]>(
       `${this.baseUrl(organizationId)}/payments/preview-gl-posting`,
-      { accountId, amount },
+      { accountId, amount, direction },
       { withCredentials: true },
     );
   }

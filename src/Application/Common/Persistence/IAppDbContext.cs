@@ -4,6 +4,7 @@ using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Identity;
 using ErpApp.Domain.Payments;
+using ErpApp.Domain.Purchasing;
 using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
@@ -59,6 +60,15 @@ public interface IAppDbContext
     DbSet<CreditNoteLine> CreditNoteLines { get; }
     DbSet<Payment> Payments { get; }
     DbSet<PaymentAllocation> PaymentAllocations { get; }
+    DbSet<TdsType> TdsTypes { get; }
+    DbSet<PurchaseOrder> PurchaseOrders { get; }
+    DbSet<PurchaseOrderLine> PurchaseOrderLines { get; }
+    DbSet<PurchaseBill> PurchaseBills { get; }
+    DbSet<PurchaseBillLine> PurchaseBillLines { get; }
+    DbSet<Expense> Expenses { get; }
+    DbSet<ExpenseLine> ExpenseLines { get; }
+    DbSet<DebitNote> DebitNotes { get; }
+    DbSet<DebitNoteLine> DebitNoteLines { get; }
 
     /// <summary>
     /// Generic accessor mirroring DbContext's own Set&lt;TEntity&gt;() -- lets the generic

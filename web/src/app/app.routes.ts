@@ -80,6 +80,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'organizations/:id/configuration/tds-types',
+    loadComponent: () =>
+      import('./features/configuration/tds-type-list-page/tds-type-list-page').then((m) => m.TdsTypeListPage),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/contacts',
     loadComponent: () =>
       import('./features/contacts/contact-list-page/contact-list-page').then((m) => m.ContactListPage),
@@ -233,6 +239,80 @@ export const routes: Routes = [
     path: 'organizations/:id/payments/:paymentId',
     loadComponent: () =>
       import('./features/sales/payment-detail-page/payment-detail-page').then((m) => m.PaymentDetailPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/purchasing/purchase-orders',
+    loadComponent: () =>
+      import('./features/purchasing/purchase-order-list-page/purchase-order-list-page').then(
+        (m) => m.PurchaseOrderListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/purchasing/purchase-orders/:purchaseOrderId',
+    loadComponent: () =>
+      import('./features/purchasing/purchase-order-detail-page/purchase-order-detail-page').then(
+        (m) => m.PurchaseOrderDetailPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/purchasing/purchase-bills',
+    loadComponent: () =>
+      import('./features/purchasing/purchase-bill-list-page/purchase-bill-list-page').then(
+        (m) => m.PurchaseBillListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/purchasing/purchase-bills/:purchaseBillId',
+    loadComponent: () =>
+      import('./features/purchasing/purchase-bill-detail-page/purchase-bill-detail-page').then(
+        (m) => m.PurchaseBillDetailPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/purchasing/expenses',
+    loadComponent: () =>
+      import('./features/purchasing/expense-list-page/expense-list-page').then((m) => m.ExpenseListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/purchasing/expenses/:expenseId',
+    loadComponent: () =>
+      import('./features/purchasing/expense-detail-page/expense-detail-page').then((m) => m.ExpenseDetailPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/purchasing/debit-notes',
+    loadComponent: () =>
+      import('./features/purchasing/debit-note-list-page/debit-note-list-page').then((m) => m.DebitNoteListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/purchasing/debit-notes/:debitNoteId',
+    loadComponent: () =>
+      import('./features/purchasing/debit-note-detail-page/debit-note-detail-page').then(
+        (m) => m.DebitNoteDetailPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/purchasing/supplier-payments',
+    loadComponent: () =>
+      import('./features/purchasing/supplier-payment-list-page/supplier-payment-list-page').then(
+        (m) => m.SupplierPaymentListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/purchasing/supplier-payments/:supplierPaymentId',
+    loadComponent: () =>
+      import('./features/purchasing/supplier-payment-detail-page/supplier-payment-detail-page').then(
+        (m) => m.SupplierPaymentDetailPage,
+      ),
     canActivate: [authGuard],
   },
 ];

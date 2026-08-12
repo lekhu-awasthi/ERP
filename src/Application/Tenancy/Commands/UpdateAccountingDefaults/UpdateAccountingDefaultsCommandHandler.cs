@@ -17,7 +17,13 @@ public sealed class UpdateAccountingDefaultsCommandHandler(IAppDbContext db)
 
         var accountIds = new[]
             {
-                request.DefaultSalesAccountId, request.DefaultAccountsReceivableId, request.DefaultVatPayableAccountId,
+                request.DefaultSalesAccountId,
+                request.DefaultAccountsReceivableId,
+                request.DefaultVatPayableAccountId,
+                request.DefaultPurchaseAccountId,
+                request.DefaultAccountsPayableId,
+                request.DefaultVatReceivableAccountId,
+                request.DefaultTdsPayableAccountId,
             }
             .Where(x => x is not null)
             .Select(x => x!.Value)
@@ -36,10 +42,22 @@ public sealed class UpdateAccountingDefaultsCommandHandler(IAppDbContext db)
         }
 
         settings.SetAccountingDefaults(
-            request.DefaultSalesAccountId, request.DefaultAccountsReceivableId, request.DefaultVatPayableAccountId);
+            request.DefaultSalesAccountId,
+            request.DefaultAccountsReceivableId,
+            request.DefaultVatPayableAccountId,
+            request.DefaultPurchaseAccountId,
+            request.DefaultAccountsPayableId,
+            request.DefaultVatReceivableAccountId,
+            request.DefaultTdsPayableAccountId);
         await db.SaveChangesAsync(cancellationToken);
 
         return new UpdateAccountingDefaultsResult(
-            settings.DefaultSalesAccountId, settings.DefaultAccountsReceivableId, settings.DefaultVatPayableAccountId);
+            settings.DefaultSalesAccountId,
+            settings.DefaultAccountsReceivableId,
+            settings.DefaultVatPayableAccountId,
+            settings.DefaultPurchaseAccountId,
+            settings.DefaultAccountsPayableId,
+            settings.DefaultVatReceivableAccountId,
+            settings.DefaultTdsPayableAccountId);
     }
 }

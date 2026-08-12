@@ -117,4 +117,32 @@ public static class PermissionKeys
     // DefaultSalesAccountId/etc.) -- not a full Settings editor, just enough to let an Admin set
     // the three accounting-defaults fields this phase needs.
     public const string AccountingDefaultsManage = "Configuration.AccountingDefaults.Manage";
+
+    // Phase 6 (Purchase chain). PurchaseOrder/PurchaseBill/Expense/DebitNote continue the
+    // maker-checker split (View/Create/Edit/Approve). TdsType is a simple View/Manage lookup pair,
+    // same shape as CreditTerm/PaymentMode. Payments.Payment.* (above) stays shared across
+    // Direction=Received/Paid rather than splitting into Sales.Payment/Purchasing.Payment -- see
+    // phase-6-status.md's scope decisions for the reasoning.
+    public const string TdsTypeView = "Configuration.TdsType.View";
+    public const string TdsTypeManage = "Configuration.TdsType.Manage";
+
+    public const string PurchaseOrderView = "Purchasing.PurchaseOrder.View";
+    public const string PurchaseOrderCreate = "Purchasing.PurchaseOrder.Create";
+    public const string PurchaseOrderEdit = "Purchasing.PurchaseOrder.Edit";
+    public const string PurchaseOrderApprove = "Purchasing.PurchaseOrder.Approve";
+
+    public const string PurchaseBillView = "Purchasing.PurchaseBill.View";
+    public const string PurchaseBillCreate = "Purchasing.PurchaseBill.Create";
+    public const string PurchaseBillEdit = "Purchasing.PurchaseBill.Edit";
+    public const string PurchaseBillApprove = "Purchasing.PurchaseBill.Approve";
+
+    public const string ExpenseView = "Purchasing.Expense.View";
+    public const string ExpenseCreate = "Purchasing.Expense.Create";
+    public const string ExpenseEdit = "Purchasing.Expense.Edit";
+    public const string ExpenseApprove = "Purchasing.Expense.Approve";
+
+    public const string DebitNoteView = "Purchasing.DebitNote.View";
+    public const string DebitNoteCreate = "Purchasing.DebitNote.Create";
+    public const string DebitNoteEdit = "Purchasing.DebitNote.Edit";
+    public const string DebitNoteApprove = "Purchasing.DebitNote.Approve";
 }

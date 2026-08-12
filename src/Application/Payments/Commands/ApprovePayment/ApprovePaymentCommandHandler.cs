@@ -35,7 +35,7 @@ public sealed class ApprovePaymentCommandHandler(
         }
 
         var postingInput = await PaymentAccountResolver.ResolveAsync(
-            db, request.OrganizationId, payment.AccountId, payment.Amount, cancellationToken);
+            db, request.OrganizationId, payment.AccountId, payment.Amount, payment.Direction, cancellationToken);
 
         var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.Payment, cancellationToken);
 

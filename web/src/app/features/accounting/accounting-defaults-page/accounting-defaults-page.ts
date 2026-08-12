@@ -9,8 +9,9 @@ import { OrganizationsService } from '../../../core/organizations/organizations.
 /**
  * Minimal seam for Invoice/Payment's default-GL-account fallback (TenantSettings.
  * DefaultSalesAccountId/DefaultAccountsReceivableId/DefaultVatPayableAccountId) -- not a full
- * TenantSettings editor (that stays deferred, per roadmap Phase 2's own note), just the three
- * fields Phase 5's posting rules read. See phase-5-status.md's scope decision.
+ * TenantSettings editor (that stays deferred, per roadmap Phase 2's own note), just the fields
+ * Phase 5/6's posting rules read. See phase-5-status.md's scope decision. Phase 6 extends this
+ * same page with the four Purchase-side mirrors rather than a second settings page.
  */
 @Component({
   selector: 'app-accounting-defaults-page',
@@ -33,6 +34,10 @@ export class AccountingDefaultsPage {
   protected readonly defaultSalesAccountId = signal<string>('');
   protected readonly defaultAccountsReceivableId = signal<string>('');
   protected readonly defaultVatPayableAccountId = signal<string>('');
+  protected readonly defaultPurchaseAccountId = signal<string>('');
+  protected readonly defaultAccountsPayableId = signal<string>('');
+  protected readonly defaultVatReceivableAccountId = signal<string>('');
+  protected readonly defaultTdsPayableAccountId = signal<string>('');
 
   protected readonly sortedAccounts = computed(() => [...this.accounts()].sort((a, b) => a.code.localeCompare(b.code)));
 
@@ -50,6 +55,10 @@ export class AccountingDefaultsPage {
         defaultSalesAccountId: this.defaultSalesAccountId() || null,
         defaultAccountsReceivableId: this.defaultAccountsReceivableId() || null,
         defaultVatPayableAccountId: this.defaultVatPayableAccountId() || null,
+        defaultPurchaseAccountId: this.defaultPurchaseAccountId() || null,
+        defaultAccountsPayableId: this.defaultAccountsPayableId() || null,
+        defaultVatReceivableAccountId: this.defaultVatReceivableAccountId() || null,
+        defaultTdsPayableAccountId: this.defaultTdsPayableAccountId() || null,
       })
       .subscribe({
         next: () => {
@@ -73,6 +82,10 @@ export class AccountingDefaultsPage {
         this.defaultSalesAccountId.set(defaults.defaultSalesAccountId ?? '');
         this.defaultAccountsReceivableId.set(defaults.defaultAccountsReceivableId ?? '');
         this.defaultVatPayableAccountId.set(defaults.defaultVatPayableAccountId ?? '');
+        this.defaultPurchaseAccountId.set(defaults.defaultPurchaseAccountId ?? '');
+        this.defaultAccountsPayableId.set(defaults.defaultAccountsPayableId ?? '');
+        this.defaultVatReceivableAccountId.set(defaults.defaultVatReceivableAccountId ?? '');
+        this.defaultTdsPayableAccountId.set(defaults.defaultTdsPayableAccountId ?? '');
         this.loading.set(false);
       },
       error: (err: unknown) => {
