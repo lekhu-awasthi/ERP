@@ -140,6 +140,52 @@
                       <label class="form-check-label small" for="trackInventory">Track Inventory</label>
                     </div>
                   </div>
+
+                  @if (!isNew()) {
+                    <div class="col-12">
+                      <hr />
+                      <h6 class="fw-bold text-dark small mb-2">GL Accounts</h6>
+                      <p class="text-muted small">
+                        Falls back to Accounting Defaults' Default Sales Account when left unset.
+                      </p>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                      <label class="form-label small fw-semibold">Sales Account</label>
+                      <select class="form-select" formControlName="salesAccountId">
+                        <option value="">— Use default —</option>
+                        @for (account of sortedAccounts(); track account.id) {
+                          <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                      <label class="form-label small fw-semibold">Sales Return Account</label>
+                      <select class="form-select" formControlName="salesReturnAccountId">
+                        <option value="">— Not set —</option>
+                        @for (account of sortedAccounts(); track account.id) {
+                          <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                      <label class="form-label small fw-semibold">Purchase Account</label>
+                      <select class="form-select" formControlName="purchaseAccountId">
+                        <option value="">— Not set —</option>
+                        @for (account of sortedAccounts(); track account.id) {
+                          <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                      <label class="form-label small fw-semibold">Purchase Return Account</label>
+                      <select class="form-select" formControlName="purchaseReturnAccountId">
+                        <option value="">— Not set —</option>
+                        @for (account of sortedAccounts(); track account.id) {
+                          <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+                        }
+                      </select>
+                    </div>
+                  }
                 </div>
 
                 <div class="d-flex gap-2 mt-4">
@@ -175,6 +221,14 @@
                 <dd class="col-8">{{ p.availableForSale ? 'Yes' : 'No' }}</dd>
                 <dt class="col-4 text-muted small">Track Inventory</dt>
                 <dd class="col-8">{{ p.trackInventory ? 'Yes' : 'No' }}</dd>
+                <dt class="col-4 text-muted small">Sales Account</dt>
+                <dd class="col-8">{{ accountLabel(p.salesAccountId) }}</dd>
+                <dt class="col-4 text-muted small">Sales Return Account</dt>
+                <dd class="col-8">{{ accountLabel(p.salesReturnAccountId) }}</dd>
+                <dt class="col-4 text-muted small">Purchase Account</dt>
+                <dd class="col-8">{{ accountLabel(p.purchaseAccountId) }}</dd>
+                <dt class="col-4 text-muted small">Purchase Return Account</dt>
+                <dd class="col-8">{{ accountLabel(p.purchaseReturnAccountId) }}</dd>
               </dl>
             }
           </div>

@@ -126,7 +126,8 @@ public static class CatalogEndpoints
                 new UpdateProductCommand(
                     organizationId, id, request.Name, request.CategoryId, request.PrimaryUnitId, request.HsCode,
                     request.AvailableForSale, request.SellingPrice, request.PurchasePrice, request.VatRate,
-                    request.ReOrderLevel, request.TrackInventory, request.IsActive),
+                    request.ReOrderLevel, request.TrackInventory, request.IsActive,
+                    request.SalesAccountId, request.SalesReturnAccountId, request.PurchaseAccountId, request.PurchaseReturnAccountId),
                 ct);
             return Results.Ok(result);
         });
@@ -156,7 +157,8 @@ public static class CatalogEndpoints
 
     private sealed record UpdateProductRequest(
         string Name, Guid CategoryId, Guid PrimaryUnitId, string? HsCode, bool AvailableForSale,
-        decimal SellingPrice, decimal PurchasePrice, VatRate VatRate, int ReOrderLevel, bool TrackInventory, bool IsActive);
+        decimal SellingPrice, decimal PurchasePrice, VatRate VatRate, int ReOrderLevel, bool TrackInventory, bool IsActive,
+        Guid? SalesAccountId, Guid? SalesReturnAccountId, Guid? PurchaseAccountId, Guid? PurchaseReturnAccountId);
 
     private sealed record AddSecondaryUnitRequest(Guid UnitId, decimal ConversionRate, decimal SellingPrice, decimal PurchasePrice);
 }

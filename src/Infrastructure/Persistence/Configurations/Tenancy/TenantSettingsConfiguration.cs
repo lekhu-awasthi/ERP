@@ -47,5 +47,21 @@ public sealed class TenantSettingsConfiguration : IEntityTypeConfiguration<Tenan
             .WithMany()
             .HasForeignKey(s => s.OrganizationId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Phase 5 additions -- nullable FKs to accounting.Accounts, Restrict delete matching every
+        // other "document references an Account" FK in this codebase (see phase-4-status.md's
+        // scope decision #11).
+        builder.HasOne<Domain.Accounting.Account>()
+            .WithMany()
+            .HasForeignKey(s => s.DefaultSalesAccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Domain.Accounting.Account>()
+            .WithMany()
+            .HasForeignKey(s => s.DefaultAccountsReceivableId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Domain.Accounting.Account>()
+            .WithMany()
+            .HasForeignKey(s => s.DefaultVatPayableAccountId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

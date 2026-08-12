@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using MediatR;
@@ -30,6 +31,15 @@ public sealed class UpdateProductCommandHandler(IAppDbContext db)
             throw new NotFoundException("Primary unit of measurement not found.");
         }
 
+        var accountIds = new[]
+            {
+                request.SalesAccountId, request.SalesReturnAccountId, request.PurchaseAccountId, request.PurchaseReturnAccountId,
+            }
+            .Where(x => x is not null)
+            .Select(x => x!.Value);
+
+        await AccountingValidation.EnsureAccountsExistAsync(db, request.OrganizationId, accountIds, cancellationToken);
+
         product.Update(
             request.Name,
             request.CategoryId,
@@ -42,6 +52,8 @@ public sealed class UpdateProductCommandHandler(IAppDbContext db)
             request.ReOrderLevel,
             request.TrackInventory,
             request.IsActive);
+        product.SetAccounts(
+            request.SalesAccountId, request.SalesReturnAccountId, request.PurchaseAccountId, request.PurchaseReturnAccountId);
         await db.SaveChangesAsync(cancellationToken);
 
         return new UpdateProductResult(product.Id, product.Name);

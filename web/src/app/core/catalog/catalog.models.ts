@@ -95,6 +95,10 @@ export interface Product {
   isActive: boolean;
   createdAt: string;
   secondaryUnits: ProductSecondaryUnit[];
+  salesAccountId: string | null;
+  salesReturnAccountId: string | null;
+  purchaseAccountId: string | null;
+  purchaseReturnAccountId: string | null;
 }
 
 export interface CreateProductRequest {
@@ -130,6 +134,10 @@ export interface UpdateProductRequest {
   reOrderLevel: number;
   trackInventory: boolean;
   isActive: boolean;
+  salesAccountId?: string | null;
+  salesReturnAccountId?: string | null;
+  purchaseAccountId?: string | null;
+  purchaseReturnAccountId?: string | null;
 }
 
 export interface UpdateProductResult {

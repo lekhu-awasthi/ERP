@@ -6,6 +6,8 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { buildTreeRows, TreeRow } from '../../../core/common/tree';
 import { CatalogService } from '../../../core/catalog/catalog.service';
 import { Product, ProductCategory, ProductType, UnitOfMeasurement, VatRate } from '../../../core/catalog/catalog.models';
+import { AccountingService } from '../../../core/accounting/accounting.service';
+import { Account } from '../../../core/accounting/accounting.models';
 
 /** Record-detail-page chrome for Product, mirroring contact-detail-page's shape (left
  * mini-profile + vertical tab list + right content pane). See that component's doc comment for
@@ -20,6 +22,7 @@ export class ProductDetailPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly catalogService = inject(CatalogService);
+  private readonly accountingService = inject(AccountingService);
   private readonly fb = inject(FormBuilder);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
@@ -31,7 +34,10 @@ export class ProductDetailPage {
   protected readonly editing = signal(false);
   protected readonly categories = signal<ProductCategory[]>([]);
   protected readonly units = signal<UnitOfMeasurement[]>([]);
+  protected readonly accounts = signal<Account[]>([]);
   protected readonly isNew = signal(false);
+
+  protected readonly sortedAccounts = computed(() => [...this.accounts()].sort((a, b) => a.code.localeCompare(b.code)));
 
   private routeProductId = '';
 
@@ -62,6 +68,10 @@ export class ProductDetailPage {
     vatRate: ['NoVat' as VatRate, Validators.required],
     reOrderLevel: [0, [Validators.required, Validators.min(0)]],
     trackInventory: [true],
+    salesAccountId: [''],
+    salesReturnAccountId: [''],
+    purchaseAccountId: [''],
+    purchaseReturnAccountId: [''],
   });
 
   protected readonly secondaryUnitForm = this.fb.nonNullable.group({
@@ -77,6 +87,9 @@ export class ProductDetailPage {
     });
     this.catalogService.listUnitsOfMeasurement(this.organizationId).subscribe({
       next: (units) => this.units.set(units),
+    });
+    this.accountingService.listAccounts(this.organizationId).subscribe({
+      next: (accounts) => this.accounts.set(accounts),
     });
 
     this.route.paramMap.subscribe((params) => {
@@ -102,6 +115,10 @@ export class ProductDetailPage {
           vatRate: 'NoVat',
           reOrderLevel: 0,
           trackInventory: true,
+          salesAccountId: '',
+          salesReturnAccountId: '',
+          purchaseAccountId: '',
+          purchaseReturnAccountId: '',
         });
       } else {
         this.load();
@@ -124,6 +141,10 @@ export class ProductDetailPage {
         vatRate: product.vatRate,
         reOrderLevel: product.reOrderLevel,
         trackInventory: product.trackInventory,
+        salesAccountId: product.salesAccountId ?? '',
+        salesReturnAccountId: product.salesReturnAccountId ?? '',
+        purchaseAccountId: product.purchaseAccountId ?? '',
+        purchaseReturnAccountId: product.purchaseReturnAccountId ?? '',
       });
     }
     this.editing.set(true);
@@ -158,6 +179,10 @@ export class ProductDetailPage {
       vatRate,
       reOrderLevel,
       trackInventory,
+      salesAccountId,
+      salesReturnAccountId,
+      purchaseAccountId,
+      purchaseReturnAccountId,
     } = this.form.getRawValue();
     const hsCodeOrNull = hsCode || null;
 
@@ -202,6 +227,10 @@ export class ProductDetailPage {
         reOrderLevel,
         trackInventory,
         isActive: this.product()?.isActive ?? true,
+        salesAccountId: salesAccountId || null,
+        salesReturnAccountId: salesReturnAccountId || null,
+        purchaseAccountId: purchaseAccountId || null,
+        purchaseReturnAccountId: purchaseReturnAccountId || null,
       })
       .subscribe({
         next: () => {
@@ -222,6 +251,14 @@ export class ProductDetailPage {
 
   protected unitName(unitId: string): string {
     return this.units().find((u) => u.id === unitId)?.name ?? '—';
+  }
+
+  protected accountLabel(accountId: string | null): string {
+    if (!accountId) {
+      return '—';
+    }
+    const account = this.accounts().find((a) => a.id === accountId);
+    return account ? `${account.code} — ${account.name}` : '—';
   }
 
   protected startAddSecondaryUnit(): void {

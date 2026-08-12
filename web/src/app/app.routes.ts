@@ -173,4 +173,66 @@ export const routes: Routes = [
       ),
     canActivate: [authGuard],
   },
+  {
+    path: 'organizations/:id/accounting/defaults',
+    loadComponent: () =>
+      import('./features/accounting/accounting-defaults-page/accounting-defaults-page').then(
+        (m) => m.AccountingDefaultsPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/warehouses',
+    loadComponent: () =>
+      import('./features/organizations/warehouse-list-page/warehouse-list-page').then((m) => m.WarehouseListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/sales/quotations',
+    loadComponent: () =>
+      import('./features/sales/quotation-list-page/quotation-list-page').then((m) => m.QuotationListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/sales/quotations/:quotationId',
+    loadComponent: () =>
+      import('./features/sales/quotation-detail-page/quotation-detail-page').then((m) => m.QuotationDetailPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/sales/invoices',
+    loadComponent: () =>
+      import('./features/sales/invoice-list-page/invoice-list-page').then((m) => m.InvoiceListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/sales/invoices/:invoiceId',
+    loadComponent: () =>
+      import('./features/sales/invoice-detail-page/invoice-detail-page').then((m) => m.InvoiceDetailPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/sales/credit-notes',
+    loadComponent: () =>
+      import('./features/sales/credit-note-list-page/credit-note-list-page').then((m) => m.CreditNoteListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/sales/credit-notes/:creditNoteId',
+    loadComponent: () =>
+      import('./features/sales/credit-note-detail-page/credit-note-detail-page').then((m) => m.CreditNoteDetailPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/payments',
+    loadComponent: () =>
+      import('./features/sales/payment-list-page/payment-list-page').then((m) => m.PaymentListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/payments/:paymentId',
+    loadComponent: () =>
+      import('./features/sales/payment-detail-page/payment-detail-page').then((m) => m.PaymentDetailPage),
+    canActivate: [authGuard],
+  },
 ];

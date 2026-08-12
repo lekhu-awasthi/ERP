@@ -81,4 +81,40 @@ public static class PermissionKeys
     public const string CashTransferCreate = "Accounting.CashTransfer.Create";
     public const string CashTransferEdit = "Accounting.CashTransfer.Edit";
     public const string CashTransferApprove = "Accounting.CashTransfer.Approve";
+
+    // Phase 5 (Sales chain). Warehouse is simple master data (View/Manage pair, same as
+    // AccountGroup/Account). Quotation/SalesOrder/Invoice/CreditNote/Payment continue the
+    // Phase 4 maker-checker split -- {Module}.{DocumentType}.{View,Create,Edit,Approve}.
+    public const string WarehouseView = "Tenancy.Warehouse.View";
+    public const string WarehouseManage = "Tenancy.Warehouse.Manage";
+
+    public const string QuotationView = "Sales.Quotation.View";
+    public const string QuotationCreate = "Sales.Quotation.Create";
+    public const string QuotationEdit = "Sales.Quotation.Edit";
+    public const string QuotationApprove = "Sales.Quotation.Approve";
+
+    public const string SalesOrderView = "Sales.SalesOrder.View";
+    public const string SalesOrderCreate = "Sales.SalesOrder.Create";
+    public const string SalesOrderEdit = "Sales.SalesOrder.Edit";
+    public const string SalesOrderApprove = "Sales.SalesOrder.Approve";
+
+    public const string InvoiceView = "Sales.Invoice.View";
+    public const string InvoiceCreate = "Sales.Invoice.Create";
+    public const string InvoiceEdit = "Sales.Invoice.Edit";
+    public const string InvoiceApprove = "Sales.Invoice.Approve";
+
+    public const string CreditNoteView = "Sales.CreditNote.View";
+    public const string CreditNoteCreate = "Sales.CreditNote.Create";
+    public const string CreditNoteEdit = "Sales.CreditNote.Edit";
+    public const string CreditNoteApprove = "Sales.CreditNote.Approve";
+
+    public const string PaymentView = "Payments.Payment.View";
+    public const string PaymentCreate = "Payments.Payment.Create";
+    public const string PaymentEdit = "Payments.Payment.Edit";
+    public const string PaymentApprove = "Payments.Payment.Approve";
+
+    // Minimal seam for Invoice/Payment's default-GL-account fallback (see TenantSettings'
+    // DefaultSalesAccountId/etc.) -- not a full Settings editor, just enough to let an Admin set
+    // the three accounting-defaults fields this phase needs.
+    public const string AccountingDefaultsManage = "Configuration.AccountingDefaults.Manage";
 }

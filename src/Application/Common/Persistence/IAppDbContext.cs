@@ -3,6 +3,8 @@ using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Identity;
+using ErpApp.Domain.Payments;
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,6 +23,7 @@ public interface IAppDbContext
     DbSet<Organization> Organizations { get; }
     DbSet<TenantSettings> TenantSettings { get; }
     DbSet<TenantSubscription> TenantSubscriptions { get; }
+    DbSet<Warehouse> Warehouses { get; }
     DbSet<OrganizationMembership> OrganizationMemberships { get; }
     DbSet<Role> Roles { get; }
     DbSet<RolePermission> RolePermissions { get; }
@@ -46,6 +49,16 @@ public interface IAppDbContext
     DbSet<GlLine> GlLines { get; }
     DbSet<CashTransfer> CashTransfers { get; }
     DbSet<CashTransferLine> CashTransferLines { get; }
+    DbSet<Quotation> Quotations { get; }
+    DbSet<QuotationLine> QuotationLines { get; }
+    DbSet<Invoice> Invoices { get; }
+    DbSet<InvoiceLine> InvoiceLines { get; }
+    DbSet<SalesOrder> SalesOrders { get; }
+    DbSet<SalesOrderLine> SalesOrderLines { get; }
+    DbSet<CreditNote> CreditNotes { get; }
+    DbSet<CreditNoteLine> CreditNoteLines { get; }
+    DbSet<Payment> Payments { get; }
+    DbSet<PaymentAllocation> PaymentAllocations { get; }
 
     /// <summary>
     /// Generic accessor mirroring DbContext's own Set&lt;TEntity&gt;() -- lets the generic
