@@ -1,0 +1,133 @@
+<div class="container py-5" style="max-width: 1000px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-bank fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Balance Sheet</h1>
+          <p class="text-muted small mb-0">Assets, Liabilities & Equity as of a date</p>
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <a [routerLink]="['/organizations', organizationId, 'reports', 'trial-balance']" class="btn btn-outline-secondary btn-sm fw-bold">
+          <i class="bi bi-journal-text"></i> Trial Balance
+        </a>
+        <a [routerLink]="['/organizations', organizationId, 'reports', 'income-statement']" class="btn btn-outline-secondary btn-sm fw-bold">
+          <i class="bi bi-graph-up"></i> Income Statement
+        </a>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <label class="form-label small fw-semibold">As Of Date</label>
+      <input type="date" class="form-control" style="max-width: 220px;" [value]="asOfDate()" (change)="onAsOfDateChange($event)" />
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="card border-0 shadow-sm text-center py-5">
+      <div class="card-body">
+        <div class="spinner-border text-primary mb-3" role="status"></div>
+        <p class="text-muted mb-0">Loading Balance Sheet...</p>
+      </div>
+    </div>
+  } @else if (report(); as bs) {
+    <div class="row g-4">
+      <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white p-4 border-0 pb-0">
+            <h5 class="fw-bold mb-0 text-dark">Assets</h5>
+          </div>
+          <div class="card-body p-4">
+            <table class="table align-middle mb-0">
+              <tbody>
+                @for (group of bs.assetGroups; track group.groupId) {
+                  <tr>
+                    <td>{{ group.groupName }}</td>
+                    <td class="text-end">{{ group.balance.toFixed(2) }}</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr class="fw-bold border-top">
+                  <td>Total Assets</td>
+                  <td class="text-end">{{ bs.totalAssets.toFixed(2) }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white p-4 border-0 pb-0">
+            <h5 class="fw-bold mb-0 text-dark">Liabilities & Equity</h5>
+          </div>
+          <div class="card-body p-4">
+            <h6 class="text-muted small fw-bold text-uppercase mb-2">Liabilities</h6>
+            <table class="table align-middle mb-3">
+              <tbody>
+                @for (group of bs.liabilityGroups; track group.groupId) {
+                  <tr>
+                    <td>{{ group.groupName }}</td>
+                    <td class="text-end">{{ group.balance.toFixed(2) }}</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr class="fw-bold border-top">
+                  <td>Total Liabilities</td>
+                  <td class="text-end">{{ bs.totalLiabilities.toFixed(2) }}</td>
+                </tr>
+              </tfoot>
+            </table>
+
+            <h6 class="text-muted small fw-bold text-uppercase mb-2">Equity</h6>
+            <table class="table align-middle mb-0">
+              <tbody>
+                @for (group of bs.equityGroups; track group.groupId) {
+                  <tr [class.text-muted]="group.groupId === '00000000-0000-0000-0000-000000000000'">
+                    <td>{{ group.groupName }}</td>
+                    <td class="text-end">{{ group.balance.toFixed(2) }}</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr class="fw-bold border-top">
+                  <td>Total Equity</td>
+                  <td class="text-end">{{ bs.totalEquity.toFixed(2) }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mt-4">
+      <div class="card-body p-4 text-end">
+        @if (bs.isBalanced) {
+          <span class="badge bg-success-subtle text-success">
+            Balanced -- Assets {{ bs.totalAssets.toFixed(2) }} = Liabilities + Equity {{ (bs.totalLiabilities + bs.totalEquity).toFixed(2) }}
+          </span>
+        } @else {
+          <span class="badge bg-danger-subtle text-danger">
+            Out of balance -- Assets {{ bs.totalAssets.toFixed(2) }} vs Liabilities + Equity {{ (bs.totalLiabilities + bs.totalEquity).toFixed(2) }}
+          </span>
+        }
+      </div>
+    </div>
+  }
+</div>

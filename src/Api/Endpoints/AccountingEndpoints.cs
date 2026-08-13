@@ -9,13 +9,16 @@ using ErpApp.Application.Accounting.Commands.UpdateAccount;
 using ErpApp.Application.Accounting.Commands.UpdateAccountGroup;
 using ErpApp.Application.Accounting.Commands.UpdateCashTransfer;
 using ErpApp.Application.Accounting.Commands.UpdateJournalVoucher;
+using ErpApp.Application.Accounting.Queries.BalanceSheet;
 using ErpApp.Application.Accounting.Queries.GetAccount;
 using ErpApp.Application.Accounting.Queries.GetCashTransfer;
 using ErpApp.Application.Accounting.Queries.GetJournalVoucher;
+using ErpApp.Application.Accounting.Queries.IncomeStatement;
 using ErpApp.Application.Accounting.Queries.ListAccounts;
 using ErpApp.Application.Accounting.Queries.ListCashTransfers;
 using ErpApp.Application.Accounting.Queries.ListJournalVouchers;
 using ErpApp.Application.Accounting.Queries.PreviewGlPosting;
+using ErpApp.Application.Accounting.Queries.TrialBalance;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
 using ErpApp.Domain.Accounting;
@@ -35,6 +38,7 @@ public static class AccountingEndpoints
         MapAccountEndpoints(group);
         MapJournalVoucherEndpoints(group);
         MapCashTransferEndpoints(group);
+        MapReportEndpoints(group);
     }
 
     private static void MapAccountGroupEndpoints(RouteGroupBuilder group)
@@ -187,6 +191,30 @@ public static class AccountingEndpoints
             Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new ApproveCashTransferCommand(organizationId, id), ct);
+            return Results.Ok(result);
+        });
+    }
+
+    private static void MapReportEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/reports/trial-balance", async (
+            Guid organizationId, DateOnly asOfDate, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new TrialBalanceQuery(organizationId, asOfDate), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/balance-sheet", async (
+            Guid organizationId, DateOnly asOfDate, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new BalanceSheetQuery(organizationId, asOfDate), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/income-statement", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new IncomeStatementQuery(organizationId, fromDate, toDate), ct);
             return Results.Ok(result);
         });
     }

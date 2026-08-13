@@ -214,3 +214,57 @@ export interface ApproveCashTransferResult {
   status: CashTransferStatus;
   approvedAt: string | null;
 }
+
+// --- Reports (Phase 8a) ---
+
+export interface TrialBalanceRowDto {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  debit: number;
+  credit: number;
+}
+
+export interface TrialBalanceDto {
+  asOfDate: string;
+  rows: TrialBalanceRowDto[];
+  totalDebit: number;
+  totalCredit: number;
+  isBalanced: boolean;
+}
+
+export interface AccountGroupBalanceDto {
+  groupId: string;
+  groupName: string;
+  balance: number;
+}
+
+export interface BalanceSheetDto {
+  asOfDate: string;
+  assetGroups: AccountGroupBalanceDto[];
+  liabilityGroups: AccountGroupBalanceDto[];
+  equityGroups: AccountGroupBalanceDto[];
+  netIncome: number;
+  totalAssets: number;
+  totalLiabilities: number;
+  totalEquity: number;
+  isBalanced: boolean;
+}
+
+export interface IncomeStatementRowDto {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  rootType: AccountRootType;
+  amount: number;
+}
+
+export interface IncomeStatementDto {
+  fromDate: string;
+  toDate: string;
+  incomeRows: IncomeStatementRowDto[];
+  expenseRows: IncomeStatementRowDto[];
+  totalIncome: number;
+  totalExpense: number;
+  netIncome: number;
+}

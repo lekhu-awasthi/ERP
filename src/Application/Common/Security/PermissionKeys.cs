@@ -164,4 +164,14 @@ public static class PermissionKeys
     public const string InventoryAdjustmentApprove = "Inventory.InventoryAdjustment.Approve";
 
     public const string InventoryLedgerView = "Inventory.InventoryLedger.View";
+
+    // Phase 8a (Core Financial Reports) -- one View-only key per report, same shape as
+    // InventoryLedgerView above: these are read-only views over GlLine/GlJournalEntry, not
+    // documents with their own Create/Edit/Approve lifecycle, so a single View-only key fits
+    // better than a four-key document shape. Granted to both Admin and Member (see
+    // phase-8a-status.md's scope decision) -- a report over data Member already has View access
+    // to via the documents that post it (JournalVoucher/Invoice/PurchaseBill/etc.).
+    public const string TrialBalanceView = "Reports.TrialBalance.View";
+    public const string BalanceSheetView = "Reports.BalanceSheet.View";
+    public const string IncomeStatementView = "Reports.IncomeStatement.View";
 }
