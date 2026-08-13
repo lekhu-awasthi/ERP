@@ -17,7 +17,8 @@ public sealed class PreviewInvoiceGlPostingQueryHandler(IAppDbContext db, IGlPos
             return (x.ProductId, Amount: amount, VatAmount: amount * x.VatRate.ToPercent());
         });
 
-        var postingInput = await InvoiceAccountResolver.ResolveAsync(db, request.OrganizationId, lines, cancellationToken);
+        var postingInput = await InvoiceAccountResolver.ResolveAsync(
+            db, request.OrganizationId, lines, resolveInventoryAccounts: false, cancellationToken);
 
         return postingRule.BuildLines(postingInput)
             .Select(x => new GlLinePreviewDto(x.AccountId, x.Debit, x.Credit))

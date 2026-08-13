@@ -106,4 +106,7 @@ export interface AccountingDefaults {
   defaultAccountsPayableId: string | null;
   defaultVatReceivableAccountId: string | null;
   defaultTdsPayableAccountId: string | null;
+  defaultInventoryAccountId: string | null;
+  defaultCogsAccountId: string | null;
+  defaultInventoryAdjustmentAccountId: string | null;
 }

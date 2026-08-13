@@ -36,12 +36,11 @@
           <label class="form-label small fw-semibold">Default Sales Account</label>
           <select
             class="form-select"
-            [value]="defaultSalesAccountId()"
             (change)="defaultSalesAccountId.set($any($event.target).value)"
           >
-            <option value="">— Not set —</option>
+            <option value="" [selected]="!defaultSalesAccountId()">— Not set —</option>
             @for (account of sortedAccounts(); track account.id) {
-              <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+              <option [value]="account.id" [selected]="account.id === defaultSalesAccountId()">{{ account.code }} — {{ account.name }}</option>
             }
           </select>
           <p class="form-text">Used for a Product with no Sales Account of its own.</p>
@@ -51,12 +50,11 @@
           <label class="form-label small fw-semibold">Default Accounts Receivable</label>
           <select
             class="form-select"
-            [value]="defaultAccountsReceivableId()"
             (change)="defaultAccountsReceivableId.set($any($event.target).value)"
           >
-            <option value="">— Not set —</option>
+            <option value="" [selected]="!defaultAccountsReceivableId()">— Not set —</option>
             @for (account of sortedAccounts(); track account.id) {
-              <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+              <option [value]="account.id" [selected]="account.id === defaultAccountsReceivableId()">{{ account.code }} — {{ account.name }}</option>
             }
           </select>
           <p class="form-text">Debited on Invoice approval, credited on Payment approval.</p>
@@ -66,12 +64,11 @@
           <label class="form-label small fw-semibold">Default VAT Payable Account</label>
           <select
             class="form-select"
-            [value]="defaultVatPayableAccountId()"
             (change)="defaultVatPayableAccountId.set($any($event.target).value)"
           >
-            <option value="">— Not set —</option>
+            <option value="" [selected]="!defaultVatPayableAccountId()">— Not set —</option>
             @for (account of sortedAccounts(); track account.id) {
-              <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+              <option [value]="account.id" [selected]="account.id === defaultVatPayableAccountId()">{{ account.code }} — {{ account.name }}</option>
             }
           </select>
           <p class="form-text">Only needed for invoices/credit notes with VAT-rated lines.</p>
@@ -84,12 +81,11 @@
           <label class="form-label small fw-semibold">Default Purchase Account</label>
           <select
             class="form-select"
-            [value]="defaultPurchaseAccountId()"
             (change)="defaultPurchaseAccountId.set($any($event.target).value)"
           >
-            <option value="">— Not set —</option>
+            <option value="" [selected]="!defaultPurchaseAccountId()">— Not set —</option>
             @for (account of sortedAccounts(); track account.id) {
-              <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+              <option [value]="account.id" [selected]="account.id === defaultPurchaseAccountId()">{{ account.code }} — {{ account.name }}</option>
             }
           </select>
           <p class="form-text">Used for a Product with no Purchase Account of its own.</p>
@@ -99,12 +95,11 @@
           <label class="form-label small fw-semibold">Default Accounts Payable</label>
           <select
             class="form-select"
-            [value]="defaultAccountsPayableId()"
             (change)="defaultAccountsPayableId.set($any($event.target).value)"
           >
-            <option value="">— Not set —</option>
+            <option value="" [selected]="!defaultAccountsPayableId()">— Not set —</option>
             @for (account of sortedAccounts(); track account.id) {
-              <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+              <option [value]="account.id" [selected]="account.id === defaultAccountsPayableId()">{{ account.code }} — {{ account.name }}</option>
             }
           </select>
           <p class="form-text">Credited on Purchase Bill/Expense approval, debited on Supplier Payment approval.</p>
@@ -114,12 +109,11 @@
           <label class="form-label small fw-semibold">Default VAT Receivable Account</label>
           <select
             class="form-select"
-            [value]="defaultVatReceivableAccountId()"
             (change)="defaultVatReceivableAccountId.set($any($event.target).value)"
           >
-            <option value="">— Not set —</option>
+            <option value="" [selected]="!defaultVatReceivableAccountId()">— Not set —</option>
             @for (account of sortedAccounts(); track account.id) {
-              <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+              <option [value]="account.id" [selected]="account.id === defaultVatReceivableAccountId()">{{ account.code }} — {{ account.name }}</option>
             }
           </select>
           <p class="form-text">
@@ -131,15 +125,59 @@
           <label class="form-label small fw-semibold">Default TDS Payable Account</label>
           <select
             class="form-select"
-            [value]="defaultTdsPayableAccountId()"
             (change)="defaultTdsPayableAccountId.set($any($event.target).value)"
           >
-            <option value="">— Not set —</option>
+            <option value="" [selected]="!defaultTdsPayableAccountId()">— Not set —</option>
             @for (account of sortedAccounts(); track account.id) {
-              <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+              <option [value]="account.id" [selected]="account.id === defaultTdsPayableAccountId()">{{ account.code }} — {{ account.name }}</option>
             }
           </select>
           <p class="form-text">Only needed for purchase bills/expenses with TDS applied.</p>
+        </div>
+
+        <hr class="my-4" />
+        <h6 class="fw-bold text-dark mb-3">Inventory-Side Defaults</h6>
+
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Default Inventory Account</label>
+          <select
+            class="form-select"
+            (change)="defaultInventoryAccountId.set($any($event.target).value)"
+          >
+            <option value="" [selected]="!defaultInventoryAccountId()">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id" [selected]="account.id === defaultInventoryAccountId()">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">The stock asset account -- credited on Invoice/InventoryAdjustment-decrease approval, debited on PurchaseBill/InventoryAdjustment-increase approval.</p>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Default COGS Account</label>
+          <select
+            class="form-select"
+            (change)="defaultCogsAccountId.set($any($event.target).value)"
+          >
+            <option value="" [selected]="!defaultCogsAccountId()">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id" [selected]="account.id === defaultCogsAccountId()">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">Only needed for invoicing Goods products -- debited for the FIFO-computed cost of what's sold.</p>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold">Default Inventory Adjustment Account</label>
+          <select
+            class="form-select"
+            (change)="defaultInventoryAdjustmentAccountId.set($any($event.target).value)"
+          >
+            <option value="" [selected]="!defaultInventoryAdjustmentAccountId()">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id" [selected]="account.id === defaultInventoryAdjustmentAccountId()">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">The variance/contra account Inventory Adjustments post against -- required before approving one.</p>
         </div>
 
         <button type="button" class="btn btn-primary fw-bold" [disabled]="saving()" (click)="save()">

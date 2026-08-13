@@ -3,8 +3,10 @@ using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Numbering;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
+using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Purchasing.Posting;
 using ErpApp.Domain.Accounting;
+using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Purchasing;
 using MediatR;
@@ -16,14 +18,19 @@ namespace ErpApp.Application.Purchasing.Commands.ApprovePurchaseBill;
 /// Approve() increments stock rather than decrements (Invoice's side) -- confirmed live no
 /// Negative Stock Balance dialog on PurchaseBill approval (erp-module-scan.md's hands-on pass item
 /// 10), so there's no availability policy to check here the way ApproveInvoiceCommandHandler
-/// checks IStockAvailabilityPolicy. The actual FIFO-layer increment is still entirely absent
-/// (Invoice's own decrement is equally stubbed) -- both are Phase 7's job.
+/// checks IStockAvailabilityPolicy. Phase 7: for every Goods line (a Service line never touches
+/// stock -- Product.Type gate, same as Invoice's), creates a new FIFO layer at UnitCost=line.Rate
+/// (the price actually paid -- landed-cost/import-duty allocation onto UnitCost is out of scope,
+/// see phase-7-status.md's scope decisions). No GL change from Phase 6 -- the Purchase Account
+/// debit already represents the inventory cost at the pre-VAT Rate; a separate Inventory-asset
+/// leg here would double-count it, so PurchaseBillPostingRule is untouched.
 /// </summary>
 public sealed class ApprovePurchaseBillCommandHandler(
     IAppDbContext db,
     IDocumentNumberGenerator numberGenerator,
     ICurrentUserService currentUser,
-    IGlPostingRule<PurchaseBillPostingInput> postingRule)
+    IGlPostingRule<PurchaseBillPostingInput> postingRule,
+    IStockLedgerService stockLedgerService)
     : IRequestHandler<ApprovePurchaseBillCommand, ApprovePurchaseBillResult>
 {
     public async Task<ApprovePurchaseBillResult> Handle(ApprovePurchaseBillCommand request, CancellationToken cancellationToken)
@@ -50,6 +57,24 @@ public sealed class ApprovePurchaseBillCommandHandler(
         var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.PurchaseBill, cancellationToken);
 
         purchaseBill.Approve(currentUser.UserId, code);
+
+        var productIds = purchaseBill.Lines.Select(x => x.ProductId).Distinct().ToList();
+        var productTypes = await db.Products
+            .Where(x => x.OrganizationId == request.OrganizationId && productIds.Contains(x.Id))
+            .Select(x => new { x.Id, x.Type })
+            .ToDictionaryAsync(x => x.Id, x => x.Type, cancellationToken);
+
+        foreach (var line in purchaseBill.Lines)
+        {
+            if (productTypes.GetValueOrDefault(line.ProductId) != ProductType.Goods)
+            {
+                continue;
+            }
+
+            await stockLedgerService.IncrementAsync(
+                request.OrganizationId, line.ProductId, purchaseBill.WarehouseId, line.Quantity, line.Rate,
+                DocumentType.PurchaseBill, purchaseBill.Id, purchaseBill.Date, cancellationToken);
+        }
 
         var glLines = postingRule.BuildLines(postingInput);
         var glEntry = GlJournalEntry.Post(request.OrganizationId, DocumentType.PurchaseBill, purchaseBill.Id, glLines);

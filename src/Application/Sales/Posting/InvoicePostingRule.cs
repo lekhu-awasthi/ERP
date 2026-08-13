@@ -9,6 +9,12 @@ namespace ErpApp.Application.Sales.Posting;
 /// lines); Credit VAT Payable for the summed VatAmount (omitted entirely if zero -- an all-NoVat/
 /// ZeroVat invoice has no VAT leg). Reuses GlJournalEntry.Post's balanced-invariant check, same
 /// as every other IGlPostingRule.
+///
+/// Phase 7: when CogsAmount is greater than zero (at least one Goods line was actually consumed
+/// from stock), also Debit CogsAccountId / Credit InventoryAccountId for that amount -- a second,
+/// independently-balanced pair appended to the revenue/AR/VAT lines above, so the combined entry
+/// stays balanced by construction (see InvoicePostingInput's doc comment for where CogsAmount
+/// comes from).
 /// </summary>
 public sealed class InvoicePostingRule : IGlPostingRule<InvoicePostingInput>
 {
@@ -27,6 +33,12 @@ public sealed class InvoicePostingRule : IGlPostingRule<InvoicePostingInput>
         if (totalVat > 0)
         {
             lines.Add(new GlLineInput(document.VatPayableAccountId, 0, totalVat));
+        }
+
+        if (document.CogsAmount > 0 && document.CogsAccountId is { } cogsAccountId && document.InventoryAccountId is { } inventoryAccountId)
+        {
+            lines.Add(new GlLineInput(cogsAccountId, document.CogsAmount, 0));
+            lines.Add(new GlLineInput(inventoryAccountId, 0, document.CogsAmount));
         }
 
         return lines;

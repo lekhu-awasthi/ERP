@@ -126,7 +126,10 @@ public static class OrganizationEndpoints
                     request.DefaultPurchaseAccountId,
                     request.DefaultAccountsPayableId,
                     request.DefaultVatReceivableAccountId,
-                    request.DefaultTdsPayableAccountId),
+                    request.DefaultTdsPayableAccountId,
+                    request.DefaultInventoryAccountId,
+                    request.DefaultCogsAccountId,
+                    request.DefaultInventoryAdjustmentAccountId),
                 ct);
             return Results.Ok(result);
         });
@@ -143,7 +146,10 @@ public static class OrganizationEndpoints
         Guid? DefaultPurchaseAccountId,
         Guid? DefaultAccountsPayableId,
         Guid? DefaultVatReceivableAccountId,
-        Guid? DefaultTdsPayableAccountId);
+        Guid? DefaultTdsPayableAccountId,
+        Guid? DefaultInventoryAccountId,
+        Guid? DefaultCogsAccountId,
+        Guid? DefaultInventoryAdjustmentAccountId);
 
     private sealed record CreateOrganizationRequest(
         string Name,

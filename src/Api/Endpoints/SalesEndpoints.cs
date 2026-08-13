@@ -123,9 +123,10 @@ public static class SalesEndpoints
         });
 
         group.MapPost("/invoices/{id:guid}/approve", async (
-            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+            Guid organizationId, Guid id, ApproveInvoiceRequest? request, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ApproveInvoiceCommand(organizationId, id), ct);
+            var result = await sender.Send(
+                new ApproveInvoiceCommand(organizationId, id, request?.OverrideWarning ?? false), ct);
             return Results.Ok(result);
         });
 
@@ -245,6 +246,8 @@ public static class SalesEndpoints
     private sealed record InvoiceRequest(
         Guid ContactId, Guid WarehouseId, DateOnly Date, string? Reference, IReadOnlyList<InvoiceLineInput> Lines,
         DocumentType? ReferrerType = null, Guid? ReferrerId = null);
+
+    private sealed record ApproveInvoiceRequest(bool OverrideWarning = false);
 
     private sealed record PreviewInvoiceGlPostingRequest(IReadOnlyList<InvoiceLineInput> Lines);
 

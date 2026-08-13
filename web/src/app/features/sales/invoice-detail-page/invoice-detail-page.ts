@@ -1,4 +1,5 @@
 import { DatePipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
@@ -225,17 +226,33 @@ export class InvoiceDetailPage {
     }
   }
 
-  protected approve(): void {
+  /** overrideWarning=true is only ever passed by the confirm-dialog resubmit below --
+   * architecture-spec.md §3.5's Warn-and-allow flow, avoiding a second round-trip just to ask
+   * "are you sure". A 422 means the API is showing a StockAvailabilityWarningException (a
+   * confirmable warning, not a hard block) -- distinct from every other status code, which is a
+   * real error the user can't route around by confirming. */
+  protected approve(overrideWarning = false): void {
     this.approving.set(true);
     this.errorMessage.set(null);
 
-    this.salesService.approveInvoice(this.organizationId, this.routeInvoiceId).subscribe({
+    this.salesService.approveInvoice(this.organizationId, this.routeInvoiceId, overrideWarning).subscribe({
       next: () => {
         this.approving.set(false);
         this.load();
       },
       error: (err: unknown) => {
         this.approving.set(false);
+
+        if (err instanceof HttpErrorResponse && err.status === 422) {
+          const message = extractErrorMessage(err) ?? 'This invoice exceeds the available stock.';
+          if (window.confirm(`${message}\n\nApprove anyway?`)) {
+            this.approve(true);
+            return;
+          }
+          this.errorMessage.set(message);
+          return;
+        }
+
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not approve invoice. Please try again.');
       },
     });

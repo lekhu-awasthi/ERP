@@ -145,4 +145,23 @@ public static class PermissionKeys
     public const string DebitNoteCreate = "Purchasing.DebitNote.Create";
     public const string DebitNoteEdit = "Purchasing.DebitNote.Edit";
     public const string DebitNoteApprove = "Purchasing.DebitNote.Approve";
+
+    // Phase 7 (Inventory & stock ledger). WarehouseTransfer/InventoryAdjustment continue the
+    // maker-checker split (View/Create/Edit/Approve) every ApprovableTransaction in this codebase
+    // uses. InventoryLedgerView is a single shared key for both read-only report screens (Stock
+    // Position and Inventory Ledger/kardex) -- they're not documents with their own Create/Edit/
+    // Approve lifecycle, just views over StockLedgerEntry/StockMovement, so a single View-only key
+    // fits better than a document-shaped four-key set (same reasoning as Configuration's simple
+    // lookups getting a View/Manage pair instead of the four-key document shape).
+    public const string WarehouseTransferView = "Inventory.WarehouseTransfer.View";
+    public const string WarehouseTransferCreate = "Inventory.WarehouseTransfer.Create";
+    public const string WarehouseTransferEdit = "Inventory.WarehouseTransfer.Edit";
+    public const string WarehouseTransferApprove = "Inventory.WarehouseTransfer.Approve";
+
+    public const string InventoryAdjustmentView = "Inventory.InventoryAdjustment.View";
+    public const string InventoryAdjustmentCreate = "Inventory.InventoryAdjustment.Create";
+    public const string InventoryAdjustmentEdit = "Inventory.InventoryAdjustment.Edit";
+    public const string InventoryAdjustmentApprove = "Inventory.InventoryAdjustment.Approve";
+
+    public const string InventoryLedgerView = "Inventory.InventoryLedger.View";
 }

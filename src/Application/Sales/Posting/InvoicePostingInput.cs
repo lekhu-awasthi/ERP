@@ -12,8 +12,22 @@ namespace ErpApp.Application.Sales.Posting;
 /// and the Invoice PreviewGlPostingQuery handler, so the resolution logic itself isn't duplicated
 /// either) does that resolution once and hands back this plain record, keeping BuildLines a pure
 /// function of already-resolved data.
+///
+/// CogsAccountId/InventoryAccountId/CogsAmount (Phase 7) carry the COGS leg's already-resolved
+/// accounts and already-computed amount -- ApproveInvoiceCommandHandler resolves the accounts via
+/// InvoiceAccountResolver up front (same fail-fast-before-any-side-effect precedent as AR/VAT),
+/// then re-computes CogsAmount from IStockLedgerService.ConsumeAsync's actual result and threads
+/// it back in with a `with` expression, since the real FIFO cost isn't known until Consume runs.
+/// CogsAmount is 0 (and the two account fields null) for an all-Service invoice or for the
+/// GL-preview-before-approve query, which deliberately never estimates a COGS leg -- see
+/// InvoiceAccountResolver's doc comment and phase-7-status.md's scope decision.
 /// </summary>
 public sealed record InvoicePostingInput(
-    Guid AccountsReceivableAccountId, Guid VatPayableAccountId, IReadOnlyList<InvoicePostingLineInput> Lines);
+    Guid AccountsReceivableAccountId,
+    Guid VatPayableAccountId,
+    IReadOnlyList<InvoicePostingLineInput> Lines,
+    Guid? CogsAccountId = null,
+    Guid? InventoryAccountId = null,
+    decimal CogsAmount = 0);
 
 public sealed record InvoicePostingLineInput(Guid SalesAccountId, decimal Amount, decimal VatAmount);

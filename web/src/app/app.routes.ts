@@ -315,4 +315,48 @@ export const routes: Routes = [
       ),
     canActivate: [authGuard],
   },
+  {
+    path: 'organizations/:id/inventory/warehouse-transfers',
+    loadComponent: () =>
+      import('./features/inventory/warehouse-transfer-list-page/warehouse-transfer-list-page').then(
+        (m) => m.WarehouseTransferListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/inventory/warehouse-transfers/:warehouseTransferId',
+    loadComponent: () =>
+      import('./features/inventory/warehouse-transfer-detail-page/warehouse-transfer-detail-page').then(
+        (m) => m.WarehouseTransferDetailPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/inventory/inventory-adjustments',
+    loadComponent: () =>
+      import('./features/inventory/inventory-adjustment-list-page/inventory-adjustment-list-page').then(
+        (m) => m.InventoryAdjustmentListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/inventory/inventory-adjustments/:inventoryAdjustmentId',
+    loadComponent: () =>
+      import('./features/inventory/inventory-adjustment-detail-page/inventory-adjustment-detail-page').then(
+        (m) => m.InventoryAdjustmentDetailPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/inventory/stock-position',
+    loadComponent: () =>
+      import('./features/inventory/stock-position-page/stock-position-page').then((m) => m.StockPositionPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/inventory/ledger',
+    loadComponent: () =>
+      import('./features/inventory/inventory-ledger-page/inventory-ledger-page').then((m) => m.InventoryLedgerPage),
+    canActivate: [authGuard],
+  },
 ];

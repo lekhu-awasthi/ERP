@@ -5,6 +5,7 @@ using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Identity;
+using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Payments;
 using ErpApp.Domain.Purchasing;
 using ErpApp.Domain.Sales;
@@ -115,6 +116,18 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<DebitNote> DebitNotes => Set<DebitNote>();
 
     public DbSet<DebitNoteLine> DebitNoteLines => Set<DebitNoteLine>();
+
+    public DbSet<StockLedgerEntry> StockLedgerEntries => Set<StockLedgerEntry>();
+
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+
+    public DbSet<WarehouseTransfer> WarehouseTransfers => Set<WarehouseTransfer>();
+
+    public DbSet<WarehouseTransferLine> WarehouseTransferLines => Set<WarehouseTransferLine>();
+
+    public DbSet<InventoryAdjustment> InventoryAdjustments => Set<InventoryAdjustment>();
+
+    public DbSet<InventoryAdjustmentLine> InventoryAdjustmentLines => Set<InventoryAdjustmentLine>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -232,6 +245,20 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<DebitNote>().HasMany(x => x.Lines).WithOne().HasForeignKey("DebitNoteId");
         modelBuilder.Entity<DebitNote>()
             .Metadata.FindNavigation(nameof(DebitNote.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        // Phase 7 aggregates -- same encapsulated (private-backing-field) child collection
+        // restatement as every prior phase's aggregates above.
+        modelBuilder.Entity<WarehouseTransfer>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<WarehouseTransfer>().HasMany(x => x.Lines).WithOne().HasForeignKey("WarehouseTransferId");
+        modelBuilder.Entity<WarehouseTransfer>()
+            .Metadata.FindNavigation(nameof(WarehouseTransfer.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        modelBuilder.Entity<InventoryAdjustment>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<InventoryAdjustment>().HasMany(x => x.Lines).WithOne().HasForeignKey("InventoryAdjustmentId");
+        modelBuilder.Entity<InventoryAdjustment>()
+            .Metadata.FindNavigation(nameof(InventoryAdjustment.Lines))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 

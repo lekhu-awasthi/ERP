@@ -11,4 +11,7 @@ public sealed record GetAccountingDefaultsDto(
     Guid? DefaultPurchaseAccountId,
     Guid? DefaultAccountsPayableId,
     Guid? DefaultVatReceivableAccountId,
-    Guid? DefaultTdsPayableAccountId);
+    Guid? DefaultTdsPayableAccountId,
+    Guid? DefaultInventoryAccountId,
+    Guid? DefaultCogsAccountId,
+    Guid? DefaultInventoryAdjustmentAccountId);

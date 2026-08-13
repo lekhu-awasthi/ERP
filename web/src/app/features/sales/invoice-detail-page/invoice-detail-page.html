@@ -44,13 +44,12 @@
             <label class="form-label small fw-semibold">Customer</label>
             <select
               class="form-select"
-              [value]="contactId()"
               (change)="contactId.set($any($event.target).value)"
               [disabled]="!isDraft()"
             >
-              <option value="" disabled>Select a customer</option>
+              <option value="" disabled [selected]="!contactId()">Select a customer</option>
               @for (customer of customers(); track customer.id) {
-                <option [value]="customer.id">{{ customer.code }} — {{ customer.name }}</option>
+                <option [value]="customer.id" [selected]="customer.id === contactId()">{{ customer.code }} — {{ customer.name }}</option>
               }
             </select>
           </div>
@@ -58,13 +57,12 @@
             <label class="form-label small fw-semibold">Warehouse *</label>
             <select
               class="form-select"
-              [value]="warehouseId()"
               (change)="warehouseId.set($any($event.target).value)"
               [disabled]="!isDraft()"
             >
-              <option value="" disabled>Select a warehouse</option>
+              <option value="" disabled [selected]="!warehouseId()">Select a warehouse</option>
               @for (warehouse of warehouses(); track warehouse.id) {
-                <option [value]="warehouse.id">{{ warehouse.name }}</option>
+                <option [value]="warehouse.id" [selected]="warehouse.id === warehouseId()">{{ warehouse.name }}</option>
               }
             </select>
             @if (warehouses().length === 0) {

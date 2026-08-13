@@ -35,6 +35,7 @@ public static class ExceptionHandling
             var (statusCode, title) = exception switch
             {
                 ConflictException => (StatusCodes.Status409Conflict, exception.Message),
+                StockAvailabilityWarningException => (StatusCodes.Status422UnprocessableEntity, exception.Message),
                 Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException => (
                     StatusCodes.Status409Conflict, "This record was modified by someone else. Please reload and try again."),
                 NotFoundException => (StatusCodes.Status404NotFound, exception.Message),

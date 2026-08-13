@@ -97,10 +97,10 @@ export class SalesService {
     });
   }
 
-  approveInvoice(organizationId: string, id: string): Observable<ApproveInvoiceResult> {
-    return this.http.post<ApproveInvoiceResult>(`${this.baseUrl(organizationId)}/invoices/${id}/approve`, null, {
-      withCredentials: true,
-    });
+  approveInvoice(organizationId: string, id: string, overrideWarning = false): Observable<ApproveInvoiceResult> {
+    return this.http.post<ApproveInvoiceResult>(
+      `${this.baseUrl(organizationId)}/invoices/${id}/approve`, { overrideWarning }, { withCredentials: true },
+    );
   }
 
   previewInvoiceGlPosting(organizationId: string, lines: InvoiceLineInput[]): Observable<GlLinePreviewDto[]> {
