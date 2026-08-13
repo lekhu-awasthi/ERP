@@ -11,14 +11,18 @@ internal static class CreditNoteAccountResolver
         IAppDbContext db,
         Guid organizationId,
         IEnumerable<(Guid ProductId, decimal Amount, decimal VatAmount)> lines,
+        bool resolveInventoryAccounts,
         CancellationToken cancellationToken)
     {
-        // CreditNote never touches stock/COGS this phase (see phase-7-status.md's scope
-        // decision -- a CreditNote against a Goods-line Invoice does not currently reverse the
-        // FIFO consumption), so resolveInventoryAccounts is always false here.
+        // resolveInventoryAccounts (post-Phase-7 fix): ApproveCreditNoteCommandHandler passes true
+        // only when this CreditNote actually reverses stock against a Goods-line source Invoice --
+        // see that handler's doc comment. A standalone CreditNote, or one against an all-Service
+        // Invoice, passes false the same way an all-Service Invoice itself does.
         var invoiceInput = await InvoiceAccountResolver.ResolveAsync(
-            db, organizationId, lines, resolveInventoryAccounts: false, cancellationToken);
+            db, organizationId, lines, resolveInventoryAccounts, cancellationToken);
 
-        return new CreditNotePostingInput(invoiceInput.AccountsReceivableAccountId, invoiceInput.VatPayableAccountId, invoiceInput.Lines);
+        return new CreditNotePostingInput(
+            invoiceInput.AccountsReceivableAccountId, invoiceInput.VatPayableAccountId, invoiceInput.Lines,
+            invoiceInput.CogsAccountId, invoiceInput.InventoryAccountId);
     }
 }

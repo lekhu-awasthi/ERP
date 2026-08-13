@@ -197,6 +197,7 @@ HTTP 409 immediately (no warning step) when `NegativeStockBalanceAction=Reject`.
    in Phase 6. Flagged here explicitly (the user asked about this directly during the build) as a
    known gap for whoever picks up CreditNote/DebitNote stock-reversal next, rather than a silent
    omission.
+   **Closed in the post-Phase-7 follow-up below** — see "Post-Phase-7 follow-up" section.
 8. **Landed-cost/import-duty allocation is out of scope for PurchaseBill's stock-increment
    UnitCost** — `ApprovePurchaseBillCommandHandler` uses `UnitCost=line.Rate` (the price actually
    paid per unit, pre-VAT), not a landed cost that would also allocate freight/duty/`IsImport`
@@ -266,8 +267,10 @@ HTTP 409 immediately (no warning step) when `NegativeStockBalanceAction=Reject`.
    and confirmed both the visual selection and a direct DB query now agree. The other three
    still-broken instances found during the audit (`quotation-detail-page.html`,
    `payment-detail-page.html`, and a per-line select in `journal-voucher-detail-page.html`) were
-   deliberately left unfixed — out of Phase 7's scope, since none of them touch stock — and flagged
-   as a follow-up task instead of silently left for the next person to rediscover.
+   deliberately left unfixed at the time — out of Phase 7's scope, since none of them touch stock —
+   and flagged as a follow-up task instead of silently left for the next person to rediscover.
+   **Fixed in the post-Phase-7 follow-up below** — same `[selected]`-per-option pattern applied to
+   all three.
 3. **Browser-automation tooling note, not an app bug**: this session's `form_input` tool (which
    sets a `<select>`'s DOM value and dispatches an event) and native click/keyboard interaction with
    the OS-level `<select>` dropdown popup both proved unreliable for driving Angular's `(change)`
@@ -282,16 +285,60 @@ HTTP 409 immediately (no warning step) when `NegativeStockBalanceAction=Reject`.
    picks up correctly every time. Noted here in case it helps whoever runs the next phase's manual
    E2E pass in a similarly sandboxed environment.
 
+## Post-Phase-7 follow-up (loose ends closed)
+
+Immediately after the phase shipped, three items flagged in "What's next" below were closed in a
+follow-up pass on the same branch, rather than left for whoever picks up Phase 8:
+
+1. **CreditNote reverses Invoice's FIFO stock consumption.** `InvoiceLine` gained a nullable
+   `CogsUnitCost` column, set once by `ApproveInvoiceCommandHandler` right after
+   `IStockLedgerService.ConsumeAsync` returns each line's real weighted-average cost — not
+   recomputed later, so a return re-enters stock at what it actually left at, not a freshly-guessed
+   FIFO cost that could differ if other documents moved stock in between. `ApproveCreditNoteCommandHandler`
+   now checks whether `ReferrerType == Invoice`; if so, it loads the source Invoice, matches each of
+   the CreditNote's Goods lines against the source's lines by the same exact `(ProductId, Rate,
+   VatRate)` triple `SalesValidation` already caps quantities against (grouped and quantity-weighted,
+   in case more than one source line shares a triple), and calls `IStockLedgerService.IncrementAsync`
+   at the Invoice's own `WarehouseId`. `CreditNotePostingInput`/`CreditNotePostingRule` gained the
+   same `CogsAccountId`/`InventoryAccountId`/`CogsAmount` shape `InvoicePostingInput` already had, but
+   reversed (Debit Inventory / Credit COGS) — a full-reversal CreditNote now nets Inventory and COGS
+   back to zero, not just AR/Sales/VAT. A standalone CreditNote (no `ReferrerId`, or one pointing at
+   something other than an Invoice) skips all of this — there's no source to know a `WarehouseId` or
+   cost from, confirmed by hand not to touch stock at all.
+2. **DebitNote reverses PurchaseBill's FIFO stock increment.** `ApproveDebitNoteCommandHandler` now
+   checks whether `ReferrerType == PurchaseBill`; if so, for each Goods line it calls
+   `IStockLedgerService.ConsumeAsync` at the source PurchaseBill's own `WarehouseId` — a hard
+   `ConflictException` (409), not a warn-and-override flow, if the returned goods aren't actually
+   still on hand (already resold, transferred elsewhere), the same direct-reject precedent
+   `WarehouseTransfer`/`InventoryAdjustment`'s Decrease side already use. No new GL leg was needed —
+   `DebitNotePostingRule`'s existing Credit-Purchase-Account line already is the exact reverse of
+   `PurchaseBillPostingRule`'s Debit, which already represents the inventory cost (Purchase-side has
+   no separate Inventory-asset account, per `ApprovePurchaseBillCommandHandler`'s original doc
+   comment), so adding one would have double-counted it.
+3. **The three remaining `[value]`-vs-`@for` select instances** (`quotation-detail-page.html`'s
+   Customer select, `payment-detail-page.html`'s Customer/Payment-Mode/Deposit-Account selects,
+   `journal-voucher-detail-page.html`'s per-line Account select) were converted to the same
+   `[selected]`-per-option pattern as bug #2 above.
+
+Verified by hand end-to-end against a fresh Admin/org/real DB (not just unit tests): approved a
+PurchaseBill (10 units @ 100), approved an Invoice against it (4 units sold, cost recorded per line),
+approved a CreditNote for 2 of those 4 units referencing the Invoice — confirmed via
+`/inventory/stock-position` that the balance went 10 → 6 → 8 exactly, and via the CreditNote's GL
+lines that Debit Inventory 200 / Credit COGS 200 posted alongside the reversed AR 300 / Sales 300 (2
+units × cost 100 and 2 units × price 150 respectively) — then approved a *standalone* CreditNote (no
+`ReferrerId`) and confirmed the stock balance did not move, then approved a DebitNote for 3 of the 10
+purchased units referencing the PurchaseBill and confirmed the balance went 8 → 5 with only the
+existing 2-line Credit-Purchase/Debit-AP GL pair (no new Inventory leg). New unit tests
+(`CreditNotePostingRuleTests`, 3 cases) cover the posting rule's COGS-leg branch in isolation. One
+new purely-additive migration (`AddInvoiceLineCogsUnitCost`) applied cleanly.
+
 ## What's next
 
 **Phase 8+** (see `roadmap.md`): Workflow (Tasks, Transaction Approval queue — now meaningful across
 7 phases' worth of real Draft-status documents), Reports (Trial Balance/Balance Sheet/Income
-Statement first), CRM, the Role Reference full editor. Worth prioritizing early, given this phase's
-own findings: (a) CreditNote/DebitNote stock reversal (scope decision #7) — a real gap once anyone
-actually returns Goods against an invoiced/billed line; (b) the three remaining `[value]`-vs-`@for`
-select instances flagged as a follow-up task (bug #2) — genuine, currently-shipping display/
-correctness risk on Quotation/Payment/JournalVoucher, just not stock-critical enough to block this
-phase; (c) landed-cost allocation onto PurchaseBill's stock UnitCost (scope decision #8) if precise
-import-cost accounting becomes a real requirement; (d) wiring `PreviewConsumptionCostAsync` into
-Invoice's GL-preview-before-approve flow (scope decision #4) once a `WarehouseId` is threaded through
-that query, for full COGS-leg preview parity with the rest of the posting logic.
+Statement first), CRM, the Role Reference full editor. Two smaller items remain from this phase's own
+findings, not urgent enough to have blocked the follow-up above: (a) landed-cost allocation onto
+PurchaseBill's stock UnitCost (scope decision #8) if precise import-cost accounting becomes a real
+requirement; (b) wiring `PreviewConsumptionCostAsync` into Invoice's GL-preview-before-approve flow
+(scope decision #4) once a `WarehouseId` is threaded through that query, for full COGS-leg preview
+parity with the rest of the posting logic.

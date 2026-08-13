@@ -46,13 +46,12 @@
             <label class="form-label small fw-semibold">Customer</label>
             <select
               class="form-select"
-              [value]="contactId()"
               (change)="contactId.set($any($event.target).value)"
               [disabled]="!isDraft()"
             >
-              <option value="" disabled>Select a customer</option>
+              <option value="" disabled [selected]="!contactId()">Select a customer</option>
               @for (customer of customers(); track customer.id) {
-                <option [value]="customer.id">{{ customer.code }} — {{ customer.name }}</option>
+                <option [value]="customer.id" [selected]="customer.id === contactId()">{{ customer.code }} — {{ customer.name }}</option>
               }
             </select>
           </div>

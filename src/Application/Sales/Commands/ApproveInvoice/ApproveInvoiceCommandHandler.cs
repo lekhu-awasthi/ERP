@@ -87,6 +87,7 @@ public sealed class ApproveInvoiceCommandHandler(
             var averageUnitCost = await stockLedgerService.ConsumeAsync(
                 request.OrganizationId, line.ProductId, invoice.WarehouseId, line.Quantity,
                 DocumentType.Invoice, invoice.Id, invoice.Date, cancellationToken);
+            line.RecordCogsUnitCost(averageUnitCost);
             totalCogs += line.Quantity * averageUnitCost;
         }
 
