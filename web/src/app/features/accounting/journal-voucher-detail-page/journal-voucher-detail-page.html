@@ -84,10 +84,10 @@
                 <tr>
                   <td>
                     @if (isDraft()) {
-                      <select class="form-select form-select-sm" [value]="line.accountId" (change)="onAccountChange(line.key, $event)">
-                        <option value="" disabled>Select an account</option>
+                      <select class="form-select form-select-sm" (change)="onAccountChange(line.key, $event)">
+                        <option value="" disabled [selected]="!line.accountId">Select an account</option>
                         @for (account of sortedAccounts(); track account.id) {
-                          <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+                          <option [value]="account.id" [selected]="account.id === line.accountId">{{ account.code }} — {{ account.name }}</option>
                         }
                       </select>
                     } @else {

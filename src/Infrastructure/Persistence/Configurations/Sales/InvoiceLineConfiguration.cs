@@ -18,6 +18,7 @@ public sealed class InvoiceLineConfiguration : IEntityTypeConfiguration<InvoiceL
         builder.Property(x => x.VatRate).HasConversion<string>().HasMaxLength(30).IsRequired();
         builder.Property(x => x.Amount).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.VatAmount).HasPrecision(18, 4).IsRequired();
+        builder.Property(x => x.CogsUnitCost).HasPrecision(18, 4);
 
         builder.HasOne<Product>().WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
     }

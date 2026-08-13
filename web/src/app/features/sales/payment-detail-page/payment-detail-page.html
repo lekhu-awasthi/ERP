@@ -35,13 +35,12 @@
             <label class="form-label small fw-semibold">Customer</label>
             <select
               class="form-select"
-              [value]="contactId()"
               (change)="contactId.set($any($event.target).value)"
               [disabled]="!isDraft()"
             >
-              <option value="" disabled>Select a customer</option>
+              <option value="" disabled [selected]="!contactId()">Select a customer</option>
               @for (customer of customers(); track customer.id) {
-                <option [value]="customer.id">{{ customer.code }} — {{ customer.name }}</option>
+                <option [value]="customer.id" [selected]="customer.id === contactId()">{{ customer.code }} — {{ customer.name }}</option>
               }
             </select>
           </div>
@@ -53,13 +52,12 @@
             <label class="form-label small fw-semibold">Payment Mode</label>
             <select
               class="form-select"
-              [value]="paymentModeId()"
               (change)="paymentModeId.set($any($event.target).value)"
               [disabled]="!isDraft()"
             >
-              <option value="">— Not set —</option>
+              <option value="" [selected]="!paymentModeId()">— Not set —</option>
               @for (mode of paymentModes(); track mode.id) {
-                <option [value]="mode.id">{{ mode.name }}</option>
+                <option [value]="mode.id" [selected]="mode.id === paymentModeId()">{{ mode.name }}</option>
               }
             </select>
           </div>
@@ -67,13 +65,12 @@
             <label class="form-label small fw-semibold">Deposit To Account *</label>
             <select
               class="form-select"
-              [value]="accountId()"
               (change)="accountId.set($any($event.target).value)"
               [disabled]="!isDraft()"
             >
-              <option value="" disabled>Select an account</option>
+              <option value="" disabled [selected]="!accountId()">Select an account</option>
               @for (account of sortedAccounts(); track account.id) {
-                <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+                <option [value]="account.id" [selected]="account.id === accountId()">{{ account.code }} — {{ account.name }}</option>
               }
             </select>
           </div>
