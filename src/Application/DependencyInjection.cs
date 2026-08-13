@@ -1,5 +1,7 @@
 using System.Reflection;
+using ErpApp.Application.Accounting;
 using ErpApp.Application.Accounting.Posting;
+using ErpApp.Application.Common.Trees;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
 using ErpApp.Application.Inventory.Posting;
@@ -95,6 +97,11 @@ public static class DependencyInjection
         // policy it backs -- replaces Phase 5's AlwaysOkStockAvailabilityPolicy stub.
         services.AddTransient<IStockLedgerService, StockLedgerService>();
         services.AddTransient<IStockAvailabilityPolicy, FifoStockAvailabilityPolicy>();
+
+        // Phase 8a's BalanceSheetQuery needs AccountGroup's full-subtree rollup (architecture-
+        // spec.md §5) -- see AccountGroupTreeQuery's doc comment for why this is an in-memory BFS
+        // rather than a raw SQL recursive CTE.
+        services.AddTransient<ITreeQuery<AccountGroup>, AccountGroupTreeQuery>();
 
         return services;
     }

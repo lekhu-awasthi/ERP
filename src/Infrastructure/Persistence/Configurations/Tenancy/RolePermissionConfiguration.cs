@@ -251,6 +251,15 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminInventoryLedgerViewId = Guid.Parse("00000000-0000-0000-0002-0000000000ab");
     private static readonly Guid MemberInventoryLedgerViewId = Guid.Parse("00000000-0000-0000-0002-0000000000ac");
 
+    // Phase 8a (Core Financial Reports) -- granted to both roles, same reasoning as
+    // InventoryLedgerView above (see phase-8a-status.md's scope decision).
+    private static readonly Guid AdminTrialBalanceViewId = Guid.Parse("00000000-0000-0000-0002-0000000000ad");
+    private static readonly Guid MemberTrialBalanceViewId = Guid.Parse("00000000-0000-0000-0002-0000000000ae");
+    private static readonly Guid AdminBalanceSheetViewId = Guid.Parse("00000000-0000-0000-0002-0000000000af");
+    private static readonly Guid MemberBalanceSheetViewId = Guid.Parse("00000000-0000-0000-0002-0000000000b0");
+    private static readonly Guid AdminIncomeStatementViewId = Guid.Parse("00000000-0000-0000-0002-0000000000b1");
+    private static readonly Guid MemberIncomeStatementViewId = Guid.Parse("00000000-0000-0000-0002-0000000000b2");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -469,6 +478,13 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(MemberInventoryAdjustmentApproveId, Role.MemberId, PermissionKeys.InventoryAdjustmentApprove, false),
 
             RolePermission.Create(AdminInventoryLedgerViewId, Role.AdminId, PermissionKeys.InventoryLedgerView, true),
-            RolePermission.Create(MemberInventoryLedgerViewId, Role.MemberId, PermissionKeys.InventoryLedgerView, true));
+            RolePermission.Create(MemberInventoryLedgerViewId, Role.MemberId, PermissionKeys.InventoryLedgerView, true),
+
+            RolePermission.Create(AdminTrialBalanceViewId, Role.AdminId, PermissionKeys.TrialBalanceView, true),
+            RolePermission.Create(MemberTrialBalanceViewId, Role.MemberId, PermissionKeys.TrialBalanceView, true),
+            RolePermission.Create(AdminBalanceSheetViewId, Role.AdminId, PermissionKeys.BalanceSheetView, true),
+            RolePermission.Create(MemberBalanceSheetViewId, Role.MemberId, PermissionKeys.BalanceSheetView, true),
+            RolePermission.Create(AdminIncomeStatementViewId, Role.AdminId, PermissionKeys.IncomeStatementView, true),
+            RolePermission.Create(MemberIncomeStatementViewId, Role.MemberId, PermissionKeys.IncomeStatementView, true));
     }
 }

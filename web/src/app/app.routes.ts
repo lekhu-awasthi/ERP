@@ -359,4 +359,22 @@ export const routes: Routes = [
       import('./features/inventory/inventory-ledger-page/inventory-ledger-page').then((m) => m.InventoryLedgerPage),
     canActivate: [authGuard],
   },
+  {
+    path: 'organizations/:id/reports/trial-balance',
+    loadComponent: () =>
+      import('./features/reports/trial-balance-page/trial-balance-page').then((m) => m.TrialBalancePage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/balance-sheet',
+    loadComponent: () =>
+      import('./features/reports/balance-sheet-page/balance-sheet-page').then((m) => m.BalanceSheetPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/income-statement',
+    loadComponent: () =>
+      import('./features/reports/income-statement-page/income-statement-page').then((m) => m.IncomeStatementPage),
+    canActivate: [authGuard],
+  },
 ];

@@ -1,0 +1,94 @@
+<div class="container py-5" style="max-width: 900px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-journal-text fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Trial Balance</h1>
+          <p class="text-muted small mb-0">Every active account's net Debit/Credit balance as of a date</p>
+        </div>
+      </div>
+      <a [routerLink]="['/organizations', organizationId, 'reports', 'balance-sheet']" class="btn btn-outline-secondary btn-sm fw-bold">
+        <i class="bi bi-bank"></i> Balance Sheet
+      </a>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <label class="form-label small fw-semibold">As Of Date</label>
+      <input type="date" class="form-control" style="max-width: 220px;" [value]="asOfDate()" (change)="onAsOfDateChange($event)" />
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading Trial Balance...</p>
+        </div>
+      } @else if (report(); as tb) {
+        @if (tb.rows.length === 0) {
+          <div class="text-center py-5">
+            <div class="bg-light d-inline-flex p-4 rounded-circle mb-3 text-muted">
+              <i class="bi bi-journal-text fs-1"></i>
+            </div>
+            <h5 class="fw-bold text-dark">No Accounts Yet</h5>
+            <p class="text-muted small mb-0">Set up a Chart of Accounts to see the Trial Balance here.</p>
+          </div>
+        } @else {
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr class="text-muted small">
+                  <th>Code</th>
+                  <th>Account</th>
+                  <th class="text-end">Debit</th>
+                  <th class="text-end">Credit</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of tb.rows; track row.accountId) {
+                  <tr>
+                    <td>{{ row.accountCode }}</td>
+                    <td>{{ row.accountName }}</td>
+                    <td class="text-end">{{ row.debit ? row.debit.toFixed(2) : '' }}</td>
+                    <td class="text-end">{{ row.credit ? row.credit.toFixed(2) : '' }}</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr class="fw-bold border-top">
+                  <td colspan="2" class="text-end">Total</td>
+                  <td class="text-end">{{ tb.totalDebit.toFixed(2) }}</td>
+                  <td class="text-end">{{ tb.totalCredit.toFixed(2) }}</td>
+                </tr>
+                <tr>
+                  <td colspan="4" class="text-end">
+                    @if (tb.isBalanced) {
+                      <span class="badge bg-success-subtle text-success">Difference: 0.00</span>
+                    } @else {
+                      <span class="badge bg-danger-subtle text-danger">
+                        Difference: {{ (tb.totalDebit - tb.totalCredit).toFixed(2) }}
+                      </span>
+                    }
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        }
+      }
+    </div>
+  </div>
+</div>

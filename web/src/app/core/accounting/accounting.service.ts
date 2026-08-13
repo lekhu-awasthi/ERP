@@ -9,6 +9,7 @@ import {
   AccountRootType,
   ApproveCashTransferResult,
   ApproveJournalVoucherResult,
+  BalanceSheetDto,
   CashTransfer,
   CashTransferDetail,
   CashTransferRequest,
@@ -19,12 +20,14 @@ import {
   CreateAccountResult,
   CreateCashTransferResult,
   CreateJournalVoucherResult,
+  IncomeStatementDto,
   JournalVoucher,
   JournalVoucherDetail,
   JournalVoucherLineInput,
   JournalVoucherRequest,
   JournalVoucherStatus,
   PostedGlLineDto,
+  TrialBalanceDto,
   UpdateAccountGroupRequest,
   UpdateAccountGroupResult,
   UpdateAccountRequest,
@@ -173,5 +176,26 @@ export class AccountingService {
       null,
       { withCredentials: true },
     );
+  }
+
+  getTrialBalance(organizationId: string, asOfDate: string): Observable<TrialBalanceDto> {
+    return this.http.get<TrialBalanceDto>(`${this.baseUrl(organizationId)}/reports/trial-balance`, {
+      withCredentials: true,
+      params: { asOfDate },
+    });
+  }
+
+  getBalanceSheet(organizationId: string, asOfDate: string): Observable<BalanceSheetDto> {
+    return this.http.get<BalanceSheetDto>(`${this.baseUrl(organizationId)}/reports/balance-sheet`, {
+      withCredentials: true,
+      params: { asOfDate },
+    });
+  }
+
+  getIncomeStatement(organizationId: string, fromDate: string, toDate: string): Observable<IncomeStatementDto> {
+    return this.http.get<IncomeStatementDto>(`${this.baseUrl(organizationId)}/reports/income-statement`, {
+      withCredentials: true,
+      params: { fromDate, toDate },
+    });
   }
 }
