@@ -120,6 +120,7 @@ app.MapAccountingEndpoints();
 app.MapSalesEndpoints();
 app.MapPaymentsEndpoints();
 app.MapPurchasingEndpoints();
+app.MapInventoryEndpoints();
 
 app.Run();
 

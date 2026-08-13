@@ -38,6 +38,9 @@ export class AccountingDefaultsPage {
   protected readonly defaultAccountsPayableId = signal<string>('');
   protected readonly defaultVatReceivableAccountId = signal<string>('');
   protected readonly defaultTdsPayableAccountId = signal<string>('');
+  protected readonly defaultInventoryAccountId = signal<string>('');
+  protected readonly defaultCogsAccountId = signal<string>('');
+  protected readonly defaultInventoryAdjustmentAccountId = signal<string>('');
 
   protected readonly sortedAccounts = computed(() => [...this.accounts()].sort((a, b) => a.code.localeCompare(b.code)));
 
@@ -59,6 +62,9 @@ export class AccountingDefaultsPage {
         defaultAccountsPayableId: this.defaultAccountsPayableId() || null,
         defaultVatReceivableAccountId: this.defaultVatReceivableAccountId() || null,
         defaultTdsPayableAccountId: this.defaultTdsPayableAccountId() || null,
+        defaultInventoryAccountId: this.defaultInventoryAccountId() || null,
+        defaultCogsAccountId: this.defaultCogsAccountId() || null,
+        defaultInventoryAdjustmentAccountId: this.defaultInventoryAdjustmentAccountId() || null,
       })
       .subscribe({
         next: () => {
@@ -86,6 +92,9 @@ export class AccountingDefaultsPage {
         this.defaultAccountsPayableId.set(defaults.defaultAccountsPayableId ?? '');
         this.defaultVatReceivableAccountId.set(defaults.defaultVatReceivableAccountId ?? '');
         this.defaultTdsPayableAccountId.set(defaults.defaultTdsPayableAccountId ?? '');
+        this.defaultInventoryAccountId.set(defaults.defaultInventoryAccountId ?? '');
+        this.defaultCogsAccountId.set(defaults.defaultCogsAccountId ?? '');
+        this.defaultInventoryAdjustmentAccountId.set(defaults.defaultInventoryAdjustmentAccountId ?? '');
         this.loading.set(false);
       },
       error: (err: unknown) => {

@@ -11,6 +11,16 @@ namespace ErpApp.Application.Sales.Posting;
 /// back the pure InvoicePostingInput InvoicePostingRule.BuildLines consumes. Throws a friendly
 /// ConflictException (not the Domain-level InvalidOperationException/500) the moment a required
 /// account is missing -- see phase-5-status.md's scope decision on the TenantSettings fallback.
+///
+/// resolveInventoryAccounts (Phase 7) gates whether the Inventory/COGS default accounts are also
+/// resolved and validated: ApproveInvoiceCommandHandler passes true only when the invoice has at
+/// least one Goods line (so an all-Service invoice, or a tenant that hasn't set the new Inventory
+/// defaults yet but only ever invoices Services, never fails on a check it doesn't need). The
+/// GL-preview-before-approve query always passes false -- it deliberately never estimates a COGS
+/// leg, since doing so accurately would need a WarehouseId the preview endpoint doesn't carry (see
+/// phase-7-status.md's scope decision). CogsAmount itself is never set here -- the real FIFO cost
+/// isn't known until ApproveInvoiceCommandHandler calls IStockLedgerService.ConsumeAsync, after
+/// this resolver has already run.
 /// </summary>
 internal static class InvoiceAccountResolver
 {
@@ -18,6 +28,7 @@ internal static class InvoiceAccountResolver
         IAppDbContext db,
         Guid organizationId,
         IEnumerable<(Guid ProductId, decimal Amount, decimal VatAmount)> lines,
+        bool resolveInventoryAccounts,
         CancellationToken cancellationToken)
     {
         var lineList = lines.ToList();
@@ -57,6 +68,19 @@ internal static class InvoiceAccountResolver
                 "Default VAT Payable account is not configured. Set it under Accounting Defaults before approving invoices with VAT.");
         }
 
-        return new InvoicePostingInput(accountsReceivableId, settings.DefaultVatPayableAccountId ?? Guid.Empty, postingLines);
+        Guid? cogsAccountId = null;
+        Guid? inventoryAccountId = null;
+        if (resolveInventoryAccounts)
+        {
+            cogsAccountId = settings.DefaultCogsAccountId
+                ?? throw new ConflictException(
+                    "Default COGS account is not configured. Set it under Accounting Defaults before approving invoices with Goods lines.");
+            inventoryAccountId = settings.DefaultInventoryAccountId
+                ?? throw new ConflictException(
+                    "Default Inventory account is not configured. Set it under Accounting Defaults before approving invoices with Goods lines.");
+        }
+
+        return new InvoicePostingInput(
+            accountsReceivableId, settings.DefaultVatPayableAccountId ?? Guid.Empty, postingLines, cogsAccountId, inventoryAccountId);
     }
 }

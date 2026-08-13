@@ -96,6 +96,15 @@
             <a [routerLink]="['/organizations', organizationId(), 'accounting', 'accounts']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-journal-text"></i> Accounting
             </a>
+            <a [routerLink]="['/organizations', organizationId(), 'inventory', 'warehouse-transfers']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-arrow-left-right"></i> Warehouse Transfers
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'inventory', 'inventory-adjustments']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-sliders"></i> Inventory Adjustments
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'inventory', 'stock-position']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-boxes"></i> Stock Position
+            </a>
             <a [routerLink]="['/organizations', organizationId(), 'warehouses']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-building"></i> Warehouses
             </a>

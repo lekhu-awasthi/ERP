@@ -3,6 +3,7 @@ using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Identity;
+using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Payments;
 using ErpApp.Domain.Purchasing;
 using ErpApp.Domain.Sales;
@@ -69,6 +70,12 @@ public interface IAppDbContext
     DbSet<ExpenseLine> ExpenseLines { get; }
     DbSet<DebitNote> DebitNotes { get; }
     DbSet<DebitNoteLine> DebitNoteLines { get; }
+    DbSet<StockLedgerEntry> StockLedgerEntries { get; }
+    DbSet<StockMovement> StockMovements { get; }
+    DbSet<WarehouseTransfer> WarehouseTransfers { get; }
+    DbSet<WarehouseTransferLine> WarehouseTransferLines { get; }
+    DbSet<InventoryAdjustment> InventoryAdjustments { get; }
+    DbSet<InventoryAdjustmentLine> InventoryAdjustmentLines { get; }
 
     /// <summary>
     /// Generic accessor mirroring DbContext's own Set&lt;TEntity&gt;() -- lets the generic

@@ -21,6 +21,9 @@ public sealed class GetAccountingDefaultsQueryHandler(IAppDbContext db)
             settings.DefaultPurchaseAccountId,
             settings.DefaultAccountsPayableId,
             settings.DefaultVatReceivableAccountId,
-            settings.DefaultTdsPayableAccountId);
+            settings.DefaultTdsPayableAccountId,
+            settings.DefaultInventoryAccountId,
+            settings.DefaultCogsAccountId,
+            settings.DefaultInventoryAdjustmentAccountId);
     }
 }

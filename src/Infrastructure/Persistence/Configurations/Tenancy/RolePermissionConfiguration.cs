@@ -225,6 +225,32 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid MemberDebitNoteEditId = Guid.Parse("00000000-0000-0000-0002-000000000099");
     private static readonly Guid MemberDebitNoteApproveId = Guid.Parse("00000000-0000-0000-0002-00000000009a");
 
+    // Phase 7 (Inventory & stock ledger) -- WarehouseTransfer/InventoryAdjustment continue the
+    // maker-checker split (Member View+Create+Edit, Approve explicitly denied), same as every
+    // ApprovableTransaction since Phase 4. InventoryLedgerView is granted to both roles -- it's a
+    // read-only report over data Member already has visibility into via the documents that create
+    // it (PurchaseBill/Invoice/WarehouseTransfer/InventoryAdjustment).
+    private static readonly Guid AdminWarehouseTransferViewId = Guid.Parse("00000000-0000-0000-0002-00000000009b");
+    private static readonly Guid AdminWarehouseTransferCreateId = Guid.Parse("00000000-0000-0000-0002-00000000009c");
+    private static readonly Guid AdminWarehouseTransferEditId = Guid.Parse("00000000-0000-0000-0002-00000000009d");
+    private static readonly Guid AdminWarehouseTransferApproveId = Guid.Parse("00000000-0000-0000-0002-00000000009e");
+    private static readonly Guid MemberWarehouseTransferViewId = Guid.Parse("00000000-0000-0000-0002-00000000009f");
+    private static readonly Guid MemberWarehouseTransferCreateId = Guid.Parse("00000000-0000-0000-0002-0000000000a0");
+    private static readonly Guid MemberWarehouseTransferEditId = Guid.Parse("00000000-0000-0000-0002-0000000000a1");
+    private static readonly Guid MemberWarehouseTransferApproveId = Guid.Parse("00000000-0000-0000-0002-0000000000a2");
+
+    private static readonly Guid AdminInventoryAdjustmentViewId = Guid.Parse("00000000-0000-0000-0002-0000000000a3");
+    private static readonly Guid AdminInventoryAdjustmentCreateId = Guid.Parse("00000000-0000-0000-0002-0000000000a4");
+    private static readonly Guid AdminInventoryAdjustmentEditId = Guid.Parse("00000000-0000-0000-0002-0000000000a5");
+    private static readonly Guid AdminInventoryAdjustmentApproveId = Guid.Parse("00000000-0000-0000-0002-0000000000a6");
+    private static readonly Guid MemberInventoryAdjustmentViewId = Guid.Parse("00000000-0000-0000-0002-0000000000a7");
+    private static readonly Guid MemberInventoryAdjustmentCreateId = Guid.Parse("00000000-0000-0000-0002-0000000000a8");
+    private static readonly Guid MemberInventoryAdjustmentEditId = Guid.Parse("00000000-0000-0000-0002-0000000000a9");
+    private static readonly Guid MemberInventoryAdjustmentApproveId = Guid.Parse("00000000-0000-0000-0002-0000000000aa");
+
+    private static readonly Guid AdminInventoryLedgerViewId = Guid.Parse("00000000-0000-0000-0002-0000000000ab");
+    private static readonly Guid MemberInventoryLedgerViewId = Guid.Parse("00000000-0000-0000-0002-0000000000ac");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -422,6 +448,27 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(MemberDebitNoteViewId, Role.MemberId, PermissionKeys.DebitNoteView, true),
             RolePermission.Create(MemberDebitNoteCreateId, Role.MemberId, PermissionKeys.DebitNoteCreate, true),
             RolePermission.Create(MemberDebitNoteEditId, Role.MemberId, PermissionKeys.DebitNoteEdit, true),
-            RolePermission.Create(MemberDebitNoteApproveId, Role.MemberId, PermissionKeys.DebitNoteApprove, false));
+            RolePermission.Create(MemberDebitNoteApproveId, Role.MemberId, PermissionKeys.DebitNoteApprove, false),
+
+            RolePermission.Create(AdminWarehouseTransferViewId, Role.AdminId, PermissionKeys.WarehouseTransferView, true),
+            RolePermission.Create(AdminWarehouseTransferCreateId, Role.AdminId, PermissionKeys.WarehouseTransferCreate, true),
+            RolePermission.Create(AdminWarehouseTransferEditId, Role.AdminId, PermissionKeys.WarehouseTransferEdit, true),
+            RolePermission.Create(AdminWarehouseTransferApproveId, Role.AdminId, PermissionKeys.WarehouseTransferApprove, true),
+            RolePermission.Create(MemberWarehouseTransferViewId, Role.MemberId, PermissionKeys.WarehouseTransferView, true),
+            RolePermission.Create(MemberWarehouseTransferCreateId, Role.MemberId, PermissionKeys.WarehouseTransferCreate, true),
+            RolePermission.Create(MemberWarehouseTransferEditId, Role.MemberId, PermissionKeys.WarehouseTransferEdit, true),
+            RolePermission.Create(MemberWarehouseTransferApproveId, Role.MemberId, PermissionKeys.WarehouseTransferApprove, false),
+
+            RolePermission.Create(AdminInventoryAdjustmentViewId, Role.AdminId, PermissionKeys.InventoryAdjustmentView, true),
+            RolePermission.Create(AdminInventoryAdjustmentCreateId, Role.AdminId, PermissionKeys.InventoryAdjustmentCreate, true),
+            RolePermission.Create(AdminInventoryAdjustmentEditId, Role.AdminId, PermissionKeys.InventoryAdjustmentEdit, true),
+            RolePermission.Create(AdminInventoryAdjustmentApproveId, Role.AdminId, PermissionKeys.InventoryAdjustmentApprove, true),
+            RolePermission.Create(MemberInventoryAdjustmentViewId, Role.MemberId, PermissionKeys.InventoryAdjustmentView, true),
+            RolePermission.Create(MemberInventoryAdjustmentCreateId, Role.MemberId, PermissionKeys.InventoryAdjustmentCreate, true),
+            RolePermission.Create(MemberInventoryAdjustmentEditId, Role.MemberId, PermissionKeys.InventoryAdjustmentEdit, true),
+            RolePermission.Create(MemberInventoryAdjustmentApproveId, Role.MemberId, PermissionKeys.InventoryAdjustmentApprove, false),
+
+            RolePermission.Create(AdminInventoryLedgerViewId, Role.AdminId, PermissionKeys.InventoryLedgerView, true),
+            RolePermission.Create(MemberInventoryLedgerViewId, Role.MemberId, PermissionKeys.InventoryLedgerView, true));
     }
 }

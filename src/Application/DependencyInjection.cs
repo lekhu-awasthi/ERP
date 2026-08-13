@@ -2,6 +2,8 @@ using System.Reflection;
 using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
+using ErpApp.Application.Inventory.Posting;
+using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Payments.Posting;
 using ErpApp.Application.Purchasing.Posting;
 using ErpApp.Application.Sales.Posting;
@@ -85,10 +87,14 @@ public static class DependencyInjection
         services.AddTransient<IGlPostingRule<PurchaseBillPostingInput>, PurchaseBillPostingRule>();
         services.AddTransient<IGlPostingRule<ExpensePostingInput>, ExpensePostingRule>();
         services.AddTransient<IGlPostingRule<DebitNotePostingInput>, DebitNotePostingRule>();
+        // InventoryAdjustment is the one Inventory document type that posts GL (WarehouseTransfer
+        // deliberately doesn't -- see that aggregate's doc comment).
+        services.AddTransient<IGlPostingRule<InventoryAdjustmentPostingInput>, InventoryAdjustmentPostingRule>();
 
-        // Phase 5's stock-decrement seam (architecture-spec.md §3.5) -- a literal always-Ok stub
-        // until Phase 7's real FIFO ledger exists (see AlwaysOkStockAvailabilityPolicy).
-        services.AddTransient<IStockAvailabilityPolicy, AlwaysOkStockAvailabilityPolicy>();
+        // Phase 7's real FIFO ledger engine (architecture-spec.md §3.5) and the stock-decrement
+        // policy it backs -- replaces Phase 5's AlwaysOkStockAvailabilityPolicy stub.
+        services.AddTransient<IStockLedgerService, StockLedgerService>();
+        services.AddTransient<IStockAvailabilityPolicy, FifoStockAvailabilityPolicy>();
 
         return services;
     }
