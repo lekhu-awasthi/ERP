@@ -174,4 +174,15 @@ public static class PermissionKeys
     public const string TrialBalanceView = "Reports.TrialBalance.View";
     public const string BalanceSheetView = "Reports.BalanceSheet.View";
     public const string IncomeStatementView = "Reports.IncomeStatement.View";
+
+    // Phase 8b (Sales & Purchase Master Reports) -- Admin-only, unlike Phase 8a's three reports.
+    // Judgment call, explicitly made rather than defaulting to the InventoryLedgerView/Phase-8a
+    // precedent: a Master Report is a flat *unaggregated* fact table -- every Rate a tenant ever
+    // charged or paid, per line, across every Contact -- not a rollup like Trial
+    // Balance/Balance Sheet/Income Statement. A Member with Sales.Invoice.View can already see any
+    // one Invoice's own Rate, but this report surfaces that same margin-adjacent data in bulk,
+    // sliceable across the whole tenant's history in one screen -- a meaningfully different
+    // exposure than "view one document at a time" (see phase-8b-status.md's scope decision).
+    public const string SalesMasterReportView = "Reports.SalesMasterReport.View";
+    public const string PurchaseMasterReportView = "Reports.PurchaseMasterReport.View";
 }

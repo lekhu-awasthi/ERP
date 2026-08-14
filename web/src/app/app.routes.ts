@@ -377,4 +377,20 @@ export const routes: Routes = [
       import('./features/reports/income-statement-page/income-statement-page').then((m) => m.IncomeStatementPage),
     canActivate: [authGuard],
   },
+  {
+    path: 'organizations/:id/reports/sales-master-report',
+    loadComponent: () =>
+      import('./features/reports/sales-master-report-page/sales-master-report-page').then(
+        (m) => m.SalesMasterReportPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/purchase-master-report',
+    loadComponent: () =>
+      import('./features/reports/purchase-master-report-page/purchase-master-report-page').then(
+        (m) => m.PurchaseMasterReportPage,
+      ),
+    canActivate: [authGuard],
+  },
 ];

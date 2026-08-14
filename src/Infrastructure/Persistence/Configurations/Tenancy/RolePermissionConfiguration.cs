@@ -260,6 +260,15 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminIncomeStatementViewId = Guid.Parse("00000000-0000-0000-0002-0000000000b1");
     private static readonly Guid MemberIncomeStatementViewId = Guid.Parse("00000000-0000-0000-0002-0000000000b2");
 
+    // Phase 8b (Sales & Purchase Master Reports) -- Admin-only, unlike Phase 8a's reports above
+    // (see PermissionKeys.SalesMasterReportView's doc comment / phase-8b-status.md's scope
+    // decision). Member gets an explicit IsGranted=false denial row, same convention as every
+    // other Admin-only key in this file.
+    private static readonly Guid AdminSalesMasterReportViewId = Guid.Parse("00000000-0000-0000-0002-0000000000b3");
+    private static readonly Guid MemberSalesMasterReportViewId = Guid.Parse("00000000-0000-0000-0002-0000000000b4");
+    private static readonly Guid AdminPurchaseMasterReportViewId = Guid.Parse("00000000-0000-0000-0002-0000000000b5");
+    private static readonly Guid MemberPurchaseMasterReportViewId = Guid.Parse("00000000-0000-0000-0002-0000000000b6");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -485,6 +494,11 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminBalanceSheetViewId, Role.AdminId, PermissionKeys.BalanceSheetView, true),
             RolePermission.Create(MemberBalanceSheetViewId, Role.MemberId, PermissionKeys.BalanceSheetView, true),
             RolePermission.Create(AdminIncomeStatementViewId, Role.AdminId, PermissionKeys.IncomeStatementView, true),
-            RolePermission.Create(MemberIncomeStatementViewId, Role.MemberId, PermissionKeys.IncomeStatementView, true));
+            RolePermission.Create(MemberIncomeStatementViewId, Role.MemberId, PermissionKeys.IncomeStatementView, true),
+
+            RolePermission.Create(AdminSalesMasterReportViewId, Role.AdminId, PermissionKeys.SalesMasterReportView, true),
+            RolePermission.Create(MemberSalesMasterReportViewId, Role.MemberId, PermissionKeys.SalesMasterReportView, false),
+            RolePermission.Create(AdminPurchaseMasterReportViewId, Role.AdminId, PermissionKeys.PurchaseMasterReportView, true),
+            RolePermission.Create(MemberPurchaseMasterReportViewId, Role.MemberId, PermissionKeys.PurchaseMasterReportView, false));
     }
 }

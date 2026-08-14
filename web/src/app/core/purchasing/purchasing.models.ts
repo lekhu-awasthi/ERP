@@ -309,3 +309,34 @@ export interface DebitNoteConversionTemplate {
   referrerId: string;
   lines: DebitNoteLineInput[];
 }
+
+// --- Purchase Master Report (Phase 8b) ---
+
+export interface PurchaseMasterReportRowDto {
+  contactId: string;
+  contactCode: string;
+  contactName: string;
+  type: DocumentType;
+  contactGroupId: string | null;
+  contactGroupName: string | null;
+  warehouseId: string | null;
+  warehouseName: string | null;
+  entryNo: string;
+  referenceNo: string | null;
+  entryDate: string;
+  productId: string;
+  productCode: string;
+  productName: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+  vatType: VatRate;
+  vatAmount: number;
+  totalAmount: number;
+}
+
+export interface PurchaseMasterReportDto {
+  fromDate: string;
+  toDate: string;
+  rows: PurchaseMasterReportRowDto[];
+}

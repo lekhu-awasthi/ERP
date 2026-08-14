@@ -29,6 +29,7 @@ import {
   PurchaseBillLineInput,
   PurchaseBillRequest,
   PurchaseBillStatus,
+  PurchaseMasterReportDto,
   PurchaseOrder,
   PurchaseOrderDetail,
   PurchaseOrderRequest,
@@ -189,6 +190,25 @@ export class PurchasingService {
   approveDebitNote(organizationId: string, id: string): Observable<ApproveDebitNoteResult> {
     return this.http.post<ApproveDebitNoteResult>(`${this.baseUrl(organizationId)}/debit-notes/${id}/approve`, null, {
       withCredentials: true,
+    });
+  }
+
+  getPurchaseMasterReport(
+    organizationId: string,
+    fromDate: string,
+    toDate: string,
+    contactId: string | null,
+    productId: string | null,
+    warehouseId: string | null,
+  ): Observable<PurchaseMasterReportDto> {
+    const params: Record<string, string> = { fromDate, toDate };
+    if (contactId) params['contactId'] = contactId;
+    if (productId) params['productId'] = productId;
+    if (warehouseId) params['warehouseId'] = warehouseId;
+
+    return this.http.get<PurchaseMasterReportDto>(`${this.baseUrl(organizationId)}/reports/purchase-master-report`, {
+      withCredentials: true,
+      params,
     });
   }
 }
