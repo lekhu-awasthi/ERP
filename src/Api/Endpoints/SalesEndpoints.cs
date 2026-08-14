@@ -22,6 +22,7 @@ using ErpApp.Application.Sales.Queries.ListInvoices;
 using ErpApp.Application.Sales.Queries.ListQuotations;
 using ErpApp.Application.Sales.Queries.ListSalesOrders;
 using ErpApp.Application.Sales.Queries.PreviewInvoiceGlPosting;
+using ErpApp.Application.Sales.Queries.SalesMasterReport;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
 using MediatR;
@@ -40,6 +41,7 @@ public static class SalesEndpoints
         MapInvoiceEndpoints(group);
         MapSalesOrderEndpoints(group);
         MapCreditNoteEndpoints(group);
+        MapReportEndpoints(group);
     }
 
     private static void MapQuotationEndpoints(RouteGroupBuilder group)
@@ -236,6 +238,18 @@ public static class SalesEndpoints
             Guid organizationId, Guid invoiceId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new GetCreditNoteConversionTemplateQuery(organizationId, invoiceId), ct);
+            return Results.Ok(result);
+        });
+    }
+
+    private static void MapReportEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/reports/sales-master-report", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid? productId, Guid? warehouseId,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new SalesMasterReportQuery(organizationId, fromDate, toDate, contactId, productId, warehouseId), ct);
             return Results.Ok(result);
         });
     }

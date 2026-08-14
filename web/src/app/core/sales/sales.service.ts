@@ -28,6 +28,7 @@ import {
   QuotationDetail,
   QuotationRequest,
   QuotationStatus,
+  SalesMasterReportDto,
   SalesOrder,
   SalesOrderDetail,
   SalesOrderRequest,
@@ -169,6 +170,25 @@ export class SalesService {
   approveCreditNote(organizationId: string, id: string): Observable<ApproveCreditNoteResult> {
     return this.http.post<ApproveCreditNoteResult>(`${this.baseUrl(organizationId)}/credit-notes/${id}/approve`, null, {
       withCredentials: true,
+    });
+  }
+
+  getSalesMasterReport(
+    organizationId: string,
+    fromDate: string,
+    toDate: string,
+    contactId: string | null,
+    productId: string | null,
+    warehouseId: string | null,
+  ): Observable<SalesMasterReportDto> {
+    const params: Record<string, string> = { fromDate, toDate };
+    if (contactId) params['contactId'] = contactId;
+    if (productId) params['productId'] = productId;
+    if (warehouseId) params['warehouseId'] = warehouseId;
+
+    return this.http.get<SalesMasterReportDto>(`${this.baseUrl(organizationId)}/reports/sales-master-report`, {
+      withCredentials: true,
+      params,
     });
   }
 }

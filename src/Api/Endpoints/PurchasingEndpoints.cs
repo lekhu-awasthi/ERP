@@ -23,6 +23,7 @@ using ErpApp.Application.Purchasing.Queries.ListPurchaseBills;
 using ErpApp.Application.Purchasing.Queries.ListPurchaseOrders;
 using ErpApp.Application.Purchasing.Queries.PreviewExpenseGlPosting;
 using ErpApp.Application.Purchasing.Queries.PreviewPurchaseBillGlPosting;
+using ErpApp.Application.Purchasing.Queries.PurchaseMasterReport;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Purchasing;
 using MediatR;
@@ -41,6 +42,7 @@ public static class PurchasingEndpoints
         MapPurchaseBillEndpoints(group);
         MapExpenseEndpoints(group);
         MapDebitNoteEndpoints(group);
+        MapReportEndpoints(group);
     }
 
     private static void MapPurchaseOrderEndpoints(RouteGroupBuilder group)
@@ -269,6 +271,18 @@ public static class PurchasingEndpoints
             Guid organizationId, Guid purchaseBillId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new GetDebitNoteConversionTemplateQuery(organizationId, purchaseBillId), ct);
+            return Results.Ok(result);
+        });
+    }
+
+    private static void MapReportEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/reports/purchase-master-report", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid? productId, Guid? warehouseId,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new PurchaseMasterReportQuery(organizationId, fromDate, toDate, contactId, productId, warehouseId), ct);
             return Results.Ok(result);
         });
     }
