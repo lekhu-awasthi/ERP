@@ -1,0 +1,106 @@
+<div class="container py-5" style="max-width: 1400px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-journal-text fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Annex 13 Report</h1>
+          <p class="text-muted small mb-0">Per-Contact Sales/Purchase rollup for Contacts above the reporting threshold</p>
+        </div>
+      </div>
+      <a [routerLink]="['/organizations', organizationId, 'reports', 'tds-report']" class="btn btn-outline-secondary btn-sm fw-bold">
+        <i class="bi bi-file-earmark-minus"></i> TDS Report
+      </a>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3">
+        <div class="col-12 col-sm-4">
+          <label class="form-label small fw-semibold">From Date</label>
+          <input type="date" class="form-control" [value]="fromDate()" (change)="onFromDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-4">
+          <label class="form-label small fw-semibold">To Date</label>
+          <input type="date" class="form-control" [value]="toDate()" (change)="onToDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-4">
+          <label class="form-label small fw-semibold">Threshold Amount</label>
+          <input type="number" min="0" step="1000" class="form-control" [value]="thresholdAmount()" (change)="onThresholdAmountChange($event)" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading Annex 13 Report...</p>
+        </div>
+      } @else if (report(); as r) {
+        @if (r.rows.length === 0) {
+          <div class="text-center py-4">
+            <p class="text-muted small mb-0">No Contact's period activity meets the threshold amount.</p>
+          </div>
+        } @else {
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr class="text-muted small">
+                  <th>Contact</th>
+                  <th>PAN</th>
+                  <th>Type</th>
+                  <th class="text-end">Opening Balance</th>
+                  <th class="text-end">Service Purchase Capital</th>
+                  <th class="text-end">Service Purchase Others</th>
+                  <th class="text-end">Goods Purchase Capital</th>
+                  <th class="text-end">Goods Purchase Others</th>
+                  <th class="text-end">Service Sales</th>
+                  <th class="text-end">Goods Sales</th>
+                  <th class="text-end">Closing Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of r.rows; track row.contactId) {
+                  <tr>
+                    <td>{{ row.contactCode }} — {{ row.contactName }}</td>
+                    <td>{{ row.contactPan || '—' }}</td>
+                    <td>
+                      @if (row.contactType === 'Customer') {
+                        <span class="badge bg-primary-subtle text-primary">Customer</span>
+                      } @else if (row.contactType === 'Supplier') {
+                        <span class="badge bg-info-subtle text-info">Supplier</span>
+                      } @else {
+                        <span class="badge bg-secondary-subtle text-secondary">Lead</span>
+                      }
+                    </td>
+                    <td class="text-end">{{ row.openingBalance.toFixed(2) }}</td>
+                    <td class="text-end">{{ row.servicePurchaseCapital.toFixed(2) }}</td>
+                    <td class="text-end">{{ row.servicePurchaseOthers.toFixed(2) }}</td>
+                    <td class="text-end">{{ row.goodsPurchaseCapital.toFixed(2) }}</td>
+                    <td class="text-end">{{ row.goodsPurchaseOthers.toFixed(2) }}</td>
+                    <td class="text-end">{{ row.serviceSales.toFixed(2) }}</td>
+                    <td class="text-end">{{ row.goodsSales.toFixed(2) }}</td>
+                    <td class="text-end fw-bold">{{ row.closingBalance.toFixed(2) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      }
+    </div>
+  </div>
+</div>

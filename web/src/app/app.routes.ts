@@ -407,4 +407,12 @@ export const routes: Routes = [
       import('./features/reports/tds-report-page/tds-report-page').then((m) => m.TdsReportPage),
     canActivate: [authGuard],
   },
+  {
+    path: 'organizations/:id/reports/annex-thirteen',
+    loadComponent: () =>
+      import('./features/reports/annex-thirteen-report-page/annex-thirteen-report-page').then(
+        (m) => m.AnnexThirteenReportPage,
+      ),
+    canActivate: [authGuard],
+  },
 ];

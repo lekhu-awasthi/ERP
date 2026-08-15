@@ -23,6 +23,7 @@ using ErpApp.Application.Purchasing.Queries.ListPurchaseBills;
 using ErpApp.Application.Purchasing.Queries.ListPurchaseOrders;
 using ErpApp.Application.Purchasing.Queries.PreviewExpenseGlPosting;
 using ErpApp.Application.Purchasing.Queries.PreviewPurchaseBillGlPosting;
+using ErpApp.Application.Purchasing.Queries.AnnexThirteenReport;
 using ErpApp.Application.Purchasing.Queries.PurchaseMasterReport;
 using ErpApp.Application.Purchasing.Queries.TdsReport;
 using ErpApp.Domain.Common;
@@ -291,6 +292,18 @@ public static class PurchasingEndpoints
             Guid organizationId, DateOnly fromDate, DateOnly toDate, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new TdsReportQuery(organizationId, fromDate, toDate), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/annex-thirteen", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, decimal? thresholdAmount,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                thresholdAmount is { } threshold
+                    ? new AnnexThirteenReportQuery(organizationId, fromDate, toDate, threshold)
+                    : new AnnexThirteenReportQuery(organizationId, fromDate, toDate),
+                ct);
             return Results.Ok(result);
         });
     }

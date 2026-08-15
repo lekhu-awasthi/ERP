@@ -1,4 +1,5 @@
 import { VatRate } from '../catalog/catalog.models';
+import { ContactType } from '../contacts/contacts.models';
 import { DocumentType } from '../sales/sales.models';
 
 export type PurchaseOrderStatus = 'Draft' | 'Approved' | 'Void' | 'Converted';
@@ -365,4 +366,30 @@ export interface TdsReportDto {
   rows: TdsReportRowDto[];
   totalGrossAmount: number;
   totalTdsAmount: number;
+}
+
+// --- Annex 13 Report (Phase 8e) ---
+
+export interface AnnexThirteenReportRowDto {
+  contactId: string;
+  contactCode: string;
+  contactPan: string | null;
+  contactName: string;
+  contactType: ContactType;
+  openingBalance: number;
+  servicePurchaseCapital: number;
+  servicePurchaseOthers: number;
+  goodsPurchaseCapital: number;
+  goodsPurchaseOthers: number;
+  serviceSales: number;
+  goodsSales: number;
+  totalActivity: number;
+  closingBalance: number;
+}
+
+export interface AnnexThirteenReportDto {
+  fromDate: string;
+  toDate: string;
+  thresholdAmount: number;
+  rows: AnnexThirteenReportRowDto[];
 }
