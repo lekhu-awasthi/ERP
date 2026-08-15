@@ -204,4 +204,15 @@ public static class PermissionKeys
     // the same direction, so there's no tension to resolve the way Phase 8c's rollup shape argued
     // against Phase 8b's default. See phase-8d-status.md's scope decision.
     public const string TdsReportView = "Reports.TdsReport.View";
+
+    // Phase 8e (Annex 13 Report) -- Admin-only. Weighed explicitly against Phase 8c's VAT Summary
+    // Report rather than defaulting to either Phase 8b/8d's Admin-only precedent or Phase 8a/8c's
+    // Admin+Member one: this report's output IS a per-Contact rollup (six summed bucket numbers,
+    // not one row per transaction) the same shape as VAT Summary's bucketed totals -- but unlike VAT
+    // Summary, which nets activity across every Contact into three anonymous VatRate buckets with no
+    // party ever named, every Annex 13 row is pinned to one specific Contact's identity, including
+    // their PAN. That's the same PAN-exposure factor that made TdsReportView Admin-only, and it isn't
+    // diluted by the rollup shape here -- a rollup that still names the party is a materially
+    // different exposure than one that doesn't. See phase-8e-status.md's scope decision.
+    public const string AnnexThirteenView = "Reports.AnnexThirteen.View";
 }

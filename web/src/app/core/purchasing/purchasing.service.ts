@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import {
+  AnnexThirteenReportDto,
   ApproveDebitNoteResult,
   ApproveExpenseResult,
   ApprovePurchaseBillResult,
@@ -217,6 +218,19 @@ export class PurchasingService {
     return this.http.get<TdsReportDto>(`${this.baseUrl(organizationId)}/reports/tds-report`, {
       withCredentials: true,
       params: { fromDate, toDate },
+    });
+  }
+
+  getAnnexThirteenReport(
+    organizationId: string,
+    fromDate: string,
+    toDate: string,
+    thresholdAmount: number,
+  ): Observable<AnnexThirteenReportDto> {
+    const params: Record<string, string> = { fromDate, toDate, thresholdAmount: thresholdAmount.toString() };
+    return this.http.get<AnnexThirteenReportDto>(`${this.baseUrl(organizationId)}/reports/annex-thirteen`, {
+      withCredentials: true,
+      params,
     });
   }
 }
