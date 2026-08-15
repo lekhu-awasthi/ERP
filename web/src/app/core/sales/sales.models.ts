@@ -317,3 +317,26 @@ export interface SalesMasterReportDto {
   toDate: string;
   rows: SalesMasterReportRowDto[];
 }
+
+// --- Annex 5 Report (Phase 8f) ---
+
+export interface AnnexFiveReportRowDto {
+  contactId: string;
+  contactCode: string;
+  contactName: string;
+  contactPan: string | null;
+  documentType: DocumentType;
+  billNo: string;
+  billDate: string;
+  amount: number;
+  taxableAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  isActive: boolean;
+}
+
+export interface AnnexFiveReportDto {
+  fromDate: string;
+  toDate: string;
+  rows: AnnexFiveReportRowDto[];
+}

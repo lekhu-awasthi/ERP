@@ -287,6 +287,12 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminAnnexThirteenViewId = Guid.Parse("00000000-0000-0000-0002-0000000000bb");
     private static readonly Guid MemberAnnexThirteenViewId = Guid.Parse("00000000-0000-0000-0002-0000000000bc");
 
+    // Phase 8f (Annex 5 Report) -- Admin-only (see PermissionKeys.AnnexFiveView's doc comment /
+    // phase-8f-status.md's scope decision). Member gets an explicit IsGranted=false denial row, same
+    // convention as every other Admin-only key.
+    private static readonly Guid AdminAnnexFiveViewId = Guid.Parse("00000000-0000-0000-0002-0000000000bd");
+    private static readonly Guid MemberAnnexFiveViewId = Guid.Parse("00000000-0000-0000-0002-0000000000be");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -526,6 +532,9 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(MemberTdsReportViewId, Role.MemberId, PermissionKeys.TdsReportView, false),
 
             RolePermission.Create(AdminAnnexThirteenViewId, Role.AdminId, PermissionKeys.AnnexThirteenView, true),
-            RolePermission.Create(MemberAnnexThirteenViewId, Role.MemberId, PermissionKeys.AnnexThirteenView, false));
+            RolePermission.Create(MemberAnnexThirteenViewId, Role.MemberId, PermissionKeys.AnnexThirteenView, false),
+
+            RolePermission.Create(AdminAnnexFiveViewId, Role.AdminId, PermissionKeys.AnnexFiveView, true),
+            RolePermission.Create(MemberAnnexFiveViewId, Role.MemberId, PermissionKeys.AnnexFiveView, false));
     }
 }

@@ -215,4 +215,12 @@ public static class PermissionKeys
     // diluted by the rollup shape here -- a rollup that still names the party is a materially
     // different exposure than one that doesn't. See phase-8e-status.md's scope decision.
     public const string AnnexThirteenView = "Reports.AnnexThirteen.View";
+
+    // Phase 8f (Annex 5 Report) -- Admin-only, same bar as Phase 8b/8d's flat per-transaction
+    // registers, on the same PAN-exposure reasoning as Phase 8d/8e: this is a flat register, one row
+    // per Sales bill (Invoice/CreditNote), not a rollup -- and every row names the Customer including
+    // their PAN. Both factors that independently justified Admin-only elsewhere (flat fact table,
+    // PAN exposure) point the same direction here, so there's no tension to resolve the way Phase
+    // 8c's rollup shape argued against Phase 8b's default. See phase-8f-status.md's scope decision.
+    public const string AnnexFiveView = "Reports.AnnexFive.View";
 }

@@ -415,4 +415,12 @@ export const routes: Routes = [
       ),
     canActivate: [authGuard],
   },
+  {
+    path: 'organizations/:id/reports/annex-five',
+    loadComponent: () =>
+      import('./features/reports/annex-five-report-page/annex-five-report-page').then(
+        (m) => m.AnnexFiveReportPage,
+      ),
+    canActivate: [authGuard],
+  },
 ];
