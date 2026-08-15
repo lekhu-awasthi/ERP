@@ -5,6 +5,8 @@ using ErpApp.Application.Contacts.Commands.CreateContactGroup;
 using ErpApp.Application.Contacts.Commands.DeactivateContact;
 using ErpApp.Application.Contacts.Commands.UpdateContact;
 using ErpApp.Application.Contacts.Commands.UpdateContactGroup;
+using ErpApp.Application.Contacts.Queries.ContactAgeingSummary;
+using ErpApp.Application.Contacts.Queries.ContactStatement;
 using ErpApp.Application.Contacts.Queries.GetContact;
 using ErpApp.Application.Contacts.Queries.ListContacts;
 using ErpApp.Domain.Contacts;
@@ -22,6 +24,7 @@ public static class ContactsEndpoints
 
         MapContactGroupEndpoints(group);
         MapContactEndpoints(group);
+        MapReportEndpoints(group);
     }
 
     private static void MapContactGroupEndpoints(RouteGroupBuilder group)
@@ -99,6 +102,49 @@ public static class ContactsEndpoints
         {
             await sender.Send(new DeactivateContactCommand(organizationId, id), ct);
             return Results.NoContent();
+        });
+    }
+
+    /// <summary>
+    /// Four routes, each hardcoding ContactType server-side (Phase 9 -- Ageing/Statement Reports)
+    /// rather than accepting it as a client-supplied parameter -- keeps a bad/Lead ContactType value
+    /// impossible without a FluentValidation validator, the same "hardcode the discriminator at the
+    /// route" choice CreatePaymentCommand already made for Direction (phase-5/6-status.md). One
+    /// shared handler answers both Customer/Supplier variants of each report -- see
+    /// ContactAgeingSummaryQuery/ContactStatementQuery's own doc comments.
+    /// </summary>
+    private static void MapReportEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/reports/customer-ageing-summary", async (
+            Guid organizationId, DateOnly asOfDate, Guid? contactGroupId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ContactAgeingSummaryQuery(organizationId, ContactType.Customer, asOfDate, contactGroupId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/supplier-ageing-summary", async (
+            Guid organizationId, DateOnly asOfDate, Guid? contactGroupId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ContactAgeingSummaryQuery(organizationId, ContactType.Supplier, asOfDate, contactGroupId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/customer-statement", async (
+            Guid organizationId, Guid contactId, DateOnly fromDate, DateOnly toDate, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ContactStatementQuery(organizationId, ContactType.Customer, contactId, fromDate, toDate), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/supplier-statement", async (
+            Guid organizationId, Guid contactId, DateOnly fromDate, DateOnly toDate, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ContactStatementQuery(organizationId, ContactType.Supplier, contactId, fromDate, toDate), ct);
+            return Results.Ok(result);
         });
     }
 

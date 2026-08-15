@@ -293,6 +293,19 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminAnnexFiveViewId = Guid.Parse("00000000-0000-0000-0002-0000000000bd");
     private static readonly Guid MemberAnnexFiveViewId = Guid.Parse("00000000-0000-0000-0002-0000000000be");
 
+    // Phase 9 (Customer & Supplier Ageing + Statement Reports) -- Admin-only for all four keys, the
+    // strongest PAN/identity-exposure case yet (see PermissionKeys.CustomerAgeingSummaryView's doc
+    // comment / phase-9-status.md's scope decision). Member gets an explicit IsGranted=false denial
+    // row for each, same convention as every other Admin-only key in this file.
+    private static readonly Guid AdminCustomerAgeingSummaryViewId = Guid.Parse("00000000-0000-0000-0002-0000000000bf");
+    private static readonly Guid MemberCustomerAgeingSummaryViewId = Guid.Parse("00000000-0000-0000-0002-0000000000c0");
+    private static readonly Guid AdminSupplierAgeingSummaryViewId = Guid.Parse("00000000-0000-0000-0002-0000000000c1");
+    private static readonly Guid MemberSupplierAgeingSummaryViewId = Guid.Parse("00000000-0000-0000-0002-0000000000c2");
+    private static readonly Guid AdminCustomerStatementViewId = Guid.Parse("00000000-0000-0000-0002-0000000000c3");
+    private static readonly Guid MemberCustomerStatementViewId = Guid.Parse("00000000-0000-0000-0002-0000000000c4");
+    private static readonly Guid AdminSupplierStatementViewId = Guid.Parse("00000000-0000-0000-0002-0000000000c5");
+    private static readonly Guid MemberSupplierStatementViewId = Guid.Parse("00000000-0000-0000-0002-0000000000c6");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -535,6 +548,15 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(MemberAnnexThirteenViewId, Role.MemberId, PermissionKeys.AnnexThirteenView, false),
 
             RolePermission.Create(AdminAnnexFiveViewId, Role.AdminId, PermissionKeys.AnnexFiveView, true),
-            RolePermission.Create(MemberAnnexFiveViewId, Role.MemberId, PermissionKeys.AnnexFiveView, false));
+            RolePermission.Create(MemberAnnexFiveViewId, Role.MemberId, PermissionKeys.AnnexFiveView, false),
+
+            RolePermission.Create(AdminCustomerAgeingSummaryViewId, Role.AdminId, PermissionKeys.CustomerAgeingSummaryView, true),
+            RolePermission.Create(MemberCustomerAgeingSummaryViewId, Role.MemberId, PermissionKeys.CustomerAgeingSummaryView, false),
+            RolePermission.Create(AdminSupplierAgeingSummaryViewId, Role.AdminId, PermissionKeys.SupplierAgeingSummaryView, true),
+            RolePermission.Create(MemberSupplierAgeingSummaryViewId, Role.MemberId, PermissionKeys.SupplierAgeingSummaryView, false),
+            RolePermission.Create(AdminCustomerStatementViewId, Role.AdminId, PermissionKeys.CustomerStatementView, true),
+            RolePermission.Create(MemberCustomerStatementViewId, Role.MemberId, PermissionKeys.CustomerStatementView, false),
+            RolePermission.Create(AdminSupplierStatementViewId, Role.AdminId, PermissionKeys.SupplierStatementView, true),
+            RolePermission.Create(MemberSupplierStatementViewId, Role.MemberId, PermissionKeys.SupplierStatementView, false));
     }
 }

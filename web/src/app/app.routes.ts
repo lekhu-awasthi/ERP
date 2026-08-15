@@ -423,4 +423,36 @@ export const routes: Routes = [
       ),
     canActivate: [authGuard],
   },
+  {
+    path: 'organizations/:id/reports/customer-ageing-summary',
+    loadComponent: () =>
+      import('./features/reports/customer-ageing-summary-page/customer-ageing-summary-page').then(
+        (m) => m.CustomerAgeingSummaryPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/supplier-ageing-summary',
+    loadComponent: () =>
+      import('./features/reports/supplier-ageing-summary-page/supplier-ageing-summary-page').then(
+        (m) => m.SupplierAgeingSummaryPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/customer-statement',
+    loadComponent: () =>
+      import('./features/reports/customer-statement-page/customer-statement-page').then(
+        (m) => m.CustomerStatementPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/supplier-statement',
+    loadComponent: () =>
+      import('./features/reports/supplier-statement-page/supplier-statement-page').then(
+        (m) => m.SupplierStatementPage,
+      ),
+    canActivate: [authGuard],
+  },
 ];
