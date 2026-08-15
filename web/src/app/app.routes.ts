@@ -401,4 +401,10 @@ export const routes: Routes = [
       ),
     canActivate: [authGuard],
   },
+  {
+    path: 'organizations/:id/reports/tds-report',
+    loadComponent: () =>
+      import('./features/reports/tds-report-page/tds-report-page').then((m) => m.TdsReportPage),
+    canActivate: [authGuard],
+  },
 ];
