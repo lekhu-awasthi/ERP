@@ -185,4 +185,13 @@ public static class PermissionKeys
     // exposure than "view one document at a time" (see phase-8b-status.md's scope decision).
     public const string SalesMasterReportView = "Reports.SalesMasterReport.View";
     public const string PurchaseMasterReportView = "Reports.PurchaseMasterReport.View";
+
+    // Phase 8c (VAT Summary Report) -- Admin+Member, back to Phase 8a's precedent rather than
+    // Phase 8b's Admin-only one. Judgment call, explicitly made: unlike the Master Reports, this
+    // query's output is a rollup (six numbers -- three VatRate buckets per side, plus totals), not
+    // a flat unaggregated per-transaction fact table -- no single Rate, Customer, or Supplier is
+    // ever exposed by this report, only netted totals, the same shape distinction that earned
+    // Trial Balance/Balance Sheet/Income Statement their Admin+Member grant in Phase 8a. See
+    // phase-8c-status.md's scope decision.
+    public const string VatSummaryView = "Reports.VatSummary.View";
 }

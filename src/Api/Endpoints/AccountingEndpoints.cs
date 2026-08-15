@@ -19,6 +19,7 @@ using ErpApp.Application.Accounting.Queries.ListCashTransfers;
 using ErpApp.Application.Accounting.Queries.ListJournalVouchers;
 using ErpApp.Application.Accounting.Queries.PreviewGlPosting;
 using ErpApp.Application.Accounting.Queries.TrialBalance;
+using ErpApp.Application.Accounting.Queries.VatSummaryReport;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
 using ErpApp.Domain.Accounting;
@@ -215,6 +216,13 @@ public static class AccountingEndpoints
             Guid organizationId, DateOnly fromDate, DateOnly toDate, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new IncomeStatementQuery(organizationId, fromDate, toDate), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/vat-summary", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new VatSummaryReportQuery(organizationId, fromDate, toDate), ct);
             return Results.Ok(result);
         });
     }

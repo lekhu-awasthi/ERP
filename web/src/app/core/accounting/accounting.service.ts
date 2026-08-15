@@ -21,6 +21,7 @@ import {
   CreateCashTransferResult,
   CreateJournalVoucherResult,
   IncomeStatementDto,
+  VatSummaryReportDto,
   JournalVoucher,
   JournalVoucherDetail,
   JournalVoucherLineInput,
@@ -194,6 +195,13 @@ export class AccountingService {
 
   getIncomeStatement(organizationId: string, fromDate: string, toDate: string): Observable<IncomeStatementDto> {
     return this.http.get<IncomeStatementDto>(`${this.baseUrl(organizationId)}/reports/income-statement`, {
+      withCredentials: true,
+      params: { fromDate, toDate },
+    });
+  }
+
+  getVatSummaryReport(organizationId: string, fromDate: string, toDate: string): Observable<VatSummaryReportDto> {
+    return this.http.get<VatSummaryReportDto>(`${this.baseUrl(organizationId)}/reports/vat-summary`, {
       withCredentials: true,
       params: { fromDate, toDate },
     });
