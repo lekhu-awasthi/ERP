@@ -1,3 +1,5 @@
+import { VatRate } from '../catalog/catalog.models';
+
 export type AccountRootType = 'Asset' | 'Liability' | 'Equity' | 'Income' | 'Expense';
 
 export interface AccountGroup {
@@ -267,4 +269,28 @@ export interface IncomeStatementDto {
   totalIncome: number;
   totalExpense: number;
   netIncome: number;
+}
+
+// --- Reports (Phase 8c) ---
+
+export interface VatSummarySalesBucketDto {
+  vatRate: VatRate;
+  netSalesAmount: number;
+  outputVatAmount: number;
+}
+
+export interface VatSummaryPurchaseBucketDto {
+  vatRate: VatRate;
+  netPurchaseAmount: number;
+  inputVatAmount: number;
+}
+
+export interface VatSummaryReportDto {
+  fromDate: string;
+  toDate: string;
+  salesBuckets: VatSummarySalesBucketDto[];
+  purchaseBuckets: VatSummaryPurchaseBucketDto[];
+  totalOutputVat: number;
+  totalInputVat: number;
+  netVatPayable: number;
 }

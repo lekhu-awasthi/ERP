@@ -269,6 +269,12 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminPurchaseMasterReportViewId = Guid.Parse("00000000-0000-0000-0002-0000000000b5");
     private static readonly Guid MemberPurchaseMasterReportViewId = Guid.Parse("00000000-0000-0000-0002-0000000000b6");
 
+    // Phase 8c (VAT Summary Report) -- granted to both roles, same reasoning as Phase 8a's three
+    // reports (see PermissionKeys.VatSummaryView's doc comment / phase-8c-status.md's scope
+    // decision): this report's output is a rollup, not a flat per-transaction fact table.
+    private static readonly Guid AdminVatSummaryViewId = Guid.Parse("00000000-0000-0000-0002-0000000000b7");
+    private static readonly Guid MemberVatSummaryViewId = Guid.Parse("00000000-0000-0000-0002-0000000000b8");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -499,6 +505,9 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminSalesMasterReportViewId, Role.AdminId, PermissionKeys.SalesMasterReportView, true),
             RolePermission.Create(MemberSalesMasterReportViewId, Role.MemberId, PermissionKeys.SalesMasterReportView, false),
             RolePermission.Create(AdminPurchaseMasterReportViewId, Role.AdminId, PermissionKeys.PurchaseMasterReportView, true),
-            RolePermission.Create(MemberPurchaseMasterReportViewId, Role.MemberId, PermissionKeys.PurchaseMasterReportView, false));
+            RolePermission.Create(MemberPurchaseMasterReportViewId, Role.MemberId, PermissionKeys.PurchaseMasterReportView, false),
+
+            RolePermission.Create(AdminVatSummaryViewId, Role.AdminId, PermissionKeys.VatSummaryView, true),
+            RolePermission.Create(MemberVatSummaryViewId, Role.MemberId, PermissionKeys.VatSummaryView, true));
     }
 }

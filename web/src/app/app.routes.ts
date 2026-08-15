@@ -393,4 +393,12 @@ export const routes: Routes = [
       ),
     canActivate: [authGuard],
   },
+  {
+    path: 'organizations/:id/reports/vat-summary',
+    loadComponent: () =>
+      import('./features/reports/vat-summary-report-page/vat-summary-report-page').then(
+        (m) => m.VatSummaryReportPage,
+      ),
+    canActivate: [authGuard],
+  },
 ];

@@ -1,0 +1,121 @@
+<div class="container py-5" style="max-width: 900px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-receipt fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">VAT Summary Report</h1>
+          <p class="text-muted small mb-0">Output/Input VAT by rate bucket for a filing period</p>
+        </div>
+      </div>
+      <a [routerLink]="['/organizations', organizationId, 'reports', 'sales-master-report']" class="btn btn-outline-secondary btn-sm fw-bold">
+        <i class="bi bi-cart-check"></i> Sales Master Report
+      </a>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3">
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold">From Date</label>
+          <input type="date" class="form-control" [value]="fromDate()" (change)="onFromDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold">To Date</label>
+          <input type="date" class="form-control" [value]="toDate()" (change)="onToDateChange($event)" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="card border-0 shadow-sm text-center py-5">
+      <div class="card-body">
+        <div class="spinner-border text-primary mb-3" role="status"></div>
+        <p class="text-muted mb-0">Loading VAT Summary Report...</p>
+      </div>
+    </div>
+  } @else if (report(); as r) {
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <h6 class="text-muted small fw-bold text-uppercase mb-2">Sales (Output VAT)</h6>
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr class="text-muted small">
+              <th>VAT Rate</th>
+              <th class="text-end">Net Sales Amount</th>
+              <th class="text-end">Output VAT Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (bucket of r.salesBuckets; track bucket.vatRate) {
+              <tr>
+                <td>{{ bucket.vatRate }}</td>
+                <td class="text-end">{{ bucket.netSalesAmount.toFixed(2) }}</td>
+                <td class="text-end">{{ bucket.outputVatAmount.toFixed(2) }}</td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr class="fw-bold border-top">
+              <td>Total Output VAT</td>
+              <td></td>
+              <td class="text-end">{{ r.totalOutputVat.toFixed(2) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <h6 class="text-muted small fw-bold text-uppercase mb-2">Purchases (Input VAT)</h6>
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr class="text-muted small">
+              <th>VAT Rate</th>
+              <th class="text-end">Net Purchase Amount</th>
+              <th class="text-end">Input VAT Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (bucket of r.purchaseBuckets; track bucket.vatRate) {
+              <tr>
+                <td>{{ bucket.vatRate }}</td>
+                <td class="text-end">{{ bucket.netPurchaseAmount.toFixed(2) }}</td>
+                <td class="text-end">{{ bucket.inputVatAmount.toFixed(2) }}</td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr class="fw-bold border-top">
+              <td>Total Input VAT</td>
+              <td></td>
+              <td class="text-end">{{ r.totalInputVat.toFixed(2) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4 text-end">
+        @if (r.netVatPayable >= 0) {
+          <span class="badge bg-warning-subtle text-warning fs-6">Net VAT Payable: {{ r.netVatPayable.toFixed(2) }}</span>
+        } @else {
+          <span class="badge bg-success-subtle text-success fs-6">Net VAT Refundable: {{ (-r.netVatPayable).toFixed(2) }}</span>
+        }
+      </div>
+    </div>
+  }
+</div>
