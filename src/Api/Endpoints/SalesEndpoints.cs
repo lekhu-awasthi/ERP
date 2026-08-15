@@ -22,6 +22,7 @@ using ErpApp.Application.Sales.Queries.ListInvoices;
 using ErpApp.Application.Sales.Queries.ListQuotations;
 using ErpApp.Application.Sales.Queries.ListSalesOrders;
 using ErpApp.Application.Sales.Queries.PreviewInvoiceGlPosting;
+using ErpApp.Application.Sales.Queries.AnnexFiveReport;
 using ErpApp.Application.Sales.Queries.SalesMasterReport;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
@@ -250,6 +251,13 @@ public static class SalesEndpoints
         {
             var result = await sender.Send(
                 new SalesMasterReportQuery(organizationId, fromDate, toDate, contactId, productId, warehouseId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/annex-five", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new AnnexFiveReportQuery(organizationId, fromDate, toDate), ct);
             return Results.Ok(result);
         });
     }

@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import {
+  AnnexFiveReportDto,
   ApproveCreditNoteResult,
   ApproveInvoiceResult,
   ApproveQuotationResult,
@@ -187,6 +188,14 @@ export class SalesService {
     if (warehouseId) params['warehouseId'] = warehouseId;
 
     return this.http.get<SalesMasterReportDto>(`${this.baseUrl(organizationId)}/reports/sales-master-report`, {
+      withCredentials: true,
+      params,
+    });
+  }
+
+  getAnnexFiveReport(organizationId: string, fromDate: string, toDate: string): Observable<AnnexFiveReportDto> {
+    const params: Record<string, string> = { fromDate, toDate };
+    return this.http.get<AnnexFiveReportDto>(`${this.baseUrl(organizationId)}/reports/annex-five`, {
       withCredentials: true,
       params,
     });
