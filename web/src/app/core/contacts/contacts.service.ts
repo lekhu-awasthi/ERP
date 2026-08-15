@@ -5,7 +5,9 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   Contact,
+  ContactAgeingSummaryDto,
   ContactGroup,
+  ContactStatementDto,
   ContactType,
   CreateContactGroupRequest,
   CreateContactGroupResult,
@@ -73,6 +75,66 @@ export class ContactsService {
   deactivateContact(organizationId: string, id: string): Observable<void> {
     return this.http.post<void>(`${this.baseUrl(organizationId)}/contacts/${id}/deactivate`, null, {
       withCredentials: true,
+    });
+  }
+
+  getCustomerAgeingSummary(
+    organizationId: string,
+    asOfDate: string,
+    contactGroupId: string | null,
+  ): Observable<ContactAgeingSummaryDto> {
+    return this.getAgeingSummary(organizationId, 'customer-ageing-summary', asOfDate, contactGroupId);
+  }
+
+  getSupplierAgeingSummary(
+    organizationId: string,
+    asOfDate: string,
+    contactGroupId: string | null,
+  ): Observable<ContactAgeingSummaryDto> {
+    return this.getAgeingSummary(organizationId, 'supplier-ageing-summary', asOfDate, contactGroupId);
+  }
+
+  private getAgeingSummary(
+    organizationId: string,
+    route: 'customer-ageing-summary' | 'supplier-ageing-summary',
+    asOfDate: string,
+    contactGroupId: string | null,
+  ): Observable<ContactAgeingSummaryDto> {
+    const params: Record<string, string> = contactGroupId ? { asOfDate, contactGroupId } : { asOfDate };
+    return this.http.get<ContactAgeingSummaryDto>(`${this.baseUrl(organizationId)}/reports/${route}`, {
+      withCredentials: true,
+      params,
+    });
+  }
+
+  getCustomerStatement(
+    organizationId: string,
+    contactId: string,
+    fromDate: string,
+    toDate: string,
+  ): Observable<ContactStatementDto> {
+    return this.getStatement(organizationId, 'customer-statement', contactId, fromDate, toDate);
+  }
+
+  getSupplierStatement(
+    organizationId: string,
+    contactId: string,
+    fromDate: string,
+    toDate: string,
+  ): Observable<ContactStatementDto> {
+    return this.getStatement(organizationId, 'supplier-statement', contactId, fromDate, toDate);
+  }
+
+  private getStatement(
+    organizationId: string,
+    route: 'customer-statement' | 'supplier-statement',
+    contactId: string,
+    fromDate: string,
+    toDate: string,
+  ): Observable<ContactStatementDto> {
+    return this.http.get<ContactStatementDto>(`${this.baseUrl(organizationId)}/reports/${route}`, {
+      withCredentials: true,
+      params: { contactId, fromDate, toDate },
     });
   }
 }

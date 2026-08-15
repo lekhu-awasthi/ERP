@@ -223,4 +223,18 @@ public static class PermissionKeys
     // PAN exposure) point the same direction here, so there's no tension to resolve the way Phase
     // 8c's rollup shape argued against Phase 8b's default. See phase-8f-status.md's scope decision.
     public const string AnnexFiveView = "Reports.AnnexFive.View";
+
+    // Phase 9 (Customer & Supplier Ageing + Statement Reports) -- Admin-only, the same bar as every
+    // other per-Contact-identity report (Phase 8b/8d/8e/8f), and if anything the strongest case yet:
+    // a Statement is a full per-transaction running-balance ledger for one named Contact (every Rate/
+    // amount ever billed or paid, not a rollup), and an Ageing Summary lists every Contact's PAN-
+    // adjacent identity next to their outstanding balance. Both factors that independently justified
+    // Admin-only elsewhere point the same direction here. Customer and Supplier each keep their own
+    // key (mirroring SalesMasterReportView/PurchaseMasterReportView's precedent) even though one
+    // shared handler answers both -- see ContactAgeingSummaryQuery/ContactStatementQuery's doc
+    // comments -- so an Admin can grant Sales-side visibility independently of Purchase-side.
+    public const string CustomerAgeingSummaryView = "Reports.CustomerAgeingSummary.View";
+    public const string SupplierAgeingSummaryView = "Reports.SupplierAgeingSummary.View";
+    public const string CustomerStatementView = "Reports.CustomerStatement.View";
+    public const string SupplierStatementView = "Reports.SupplierStatement.View";
 }

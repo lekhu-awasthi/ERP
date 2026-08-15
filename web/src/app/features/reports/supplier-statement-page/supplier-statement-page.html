@@ -1,0 +1,108 @@
+<div class="container py-5" style="max-width: 1200px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-journal-text fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Supplier Statement</h1>
+          <p class="text-muted small mb-0">Full running-balance ledger for one Supplier</p>
+        </div>
+      </div>
+      <a [routerLink]="['/organizations', organizationId, 'reports', 'supplier-ageing-summary']" class="btn btn-outline-secondary btn-sm fw-bold">
+        <i class="bi bi-hourglass-split"></i> Supplier Ageing Summary
+      </a>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3">
+        <div class="col-12 col-sm-6 col-lg-5">
+          <label class="form-label small fw-semibold">Supplier</label>
+          <select class="form-select" (change)="onContactChange($event)">
+            <option value="" [selected]="!contactId()">Select a Supplier…</option>
+            @for (supplier of suppliers(); track supplier.id) {
+              <option [value]="supplier.id" [selected]="supplier.id === contactId()">{{ supplier.code }} — {{ supplier.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold">From Date</label>
+          <input type="date" class="form-control" [value]="fromDate()" (change)="onFromDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold">To Date</label>
+          <input type="date" class="form-control" [value]="toDate()" (change)="onToDateChange($event)" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (!contactId()) {
+        <div class="text-center py-4">
+          <p class="text-muted small mb-0">Select a Supplier above to view their statement.</p>
+        </div>
+      } @else if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading Supplier Statement...</p>
+        </div>
+      } @else if (statement(); as s) {
+        <h2 class="h6 fw-bold mb-3">{{ s.contactCode }} — {{ s.contactName }}</h2>
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead>
+              <tr class="text-muted small">
+                <th>Txn Date</th>
+                <th>Txn Type</th>
+                <th>Txn No</th>
+                <th>Reference No</th>
+                <th class="text-end">Debit</th>
+                <th class="text-end">Credit</th>
+                <th class="text-end">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="table-light">
+                <td>{{ s.fromDate }}</td>
+                <td colspan="3" class="fw-semibold">Opening Balance</td>
+                <td class="text-end">{{ s.openingBalanceType === 'CR' ? '—' : s.openingBalance.toFixed(2) }}</td>
+                <td class="text-end">{{ s.openingBalanceType === 'CR' ? s.openingBalance.toFixed(2) : '—' }}</td>
+                <td class="text-end fw-semibold">{{ s.openingBalance.toFixed(2) }} {{ s.openingBalanceType }}</td>
+              </tr>
+              @for (row of s.rows; track row.date + row.code) {
+                <tr>
+                  <td>{{ row.date }}</td>
+                  <td>{{ row.documentType }}</td>
+                  <td>{{ row.code }}</td>
+                  <td>{{ row.reference || '—' }}</td>
+                  <td class="text-end">{{ row.debit > 0 ? row.debit.toFixed(2) : '—' }}</td>
+                  <td class="text-end">{{ row.credit > 0 ? row.credit.toFixed(2) : '—' }}</td>
+                  <td class="text-end">{{ row.balance.toFixed(2) }} {{ row.balanceType }}</td>
+                </tr>
+              }
+              <tr class="table-light fw-bold border-top">
+                <td>{{ s.toDate }}</td>
+                <td colspan="3">Closing Balance</td>
+                <td class="text-end">{{ s.closingBalanceType === 'CR' ? '—' : s.closingBalance.toFixed(2) }}</td>
+                <td class="text-end">{{ s.closingBalanceType === 'CR' ? s.closingBalance.toFixed(2) : '—' }}</td>
+                <td class="text-end">{{ s.closingBalance.toFixed(2) }} {{ s.closingBalanceType }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  </div>
+</div>
