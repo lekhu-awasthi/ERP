@@ -194,4 +194,14 @@ public static class PermissionKeys
     // Trial Balance/Balance Sheet/Income Statement their Admin+Member grant in Phase 8a. See
     // phase-8c-status.md's scope decision.
     public const string VatSummaryView = "Reports.VatSummary.View";
+
+    // Phase 8d (TDS Report) -- Admin-only, same bar as Phase 8b's Master Reports, on top of a
+    // second, independent reason those reports didn't carry: this register's whole purpose is to
+    // list each deductee's identity next to what was withheld from them, which means it's the first
+    // report in this codebase to surface a Contact's PAN -- a real government tax-ID field, not
+    // margin-adjacent business data like Rate. Either factor alone (flat per-contact fact table, or
+    // PAN exposure) would already argue for Admin-only under the Phase 8b precedent; here both point
+    // the same direction, so there's no tension to resolve the way Phase 8c's rollup shape argued
+    // against Phase 8b's default. See phase-8d-status.md's scope decision.
+    public const string TdsReportView = "Reports.TdsReport.View";
 }

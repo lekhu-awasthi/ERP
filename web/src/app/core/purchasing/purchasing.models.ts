@@ -340,3 +340,29 @@ export interface PurchaseMasterReportDto {
   toDate: string;
   rows: PurchaseMasterReportRowDto[];
 }
+
+// --- TDS Report (Phase 8d) ---
+
+export interface TdsReportRowDto {
+  contactId: string;
+  contactCode: string;
+  contactName: string;
+  contactPan: string | null;
+  documentType: DocumentType;
+  entryNo: string;
+  entryDate: string;
+  tdsTypeCode: string;
+  tdsTypeName: string;
+  tdsRatePct: number;
+  grossAmount: number;
+  tdsAmount: number;
+  netPayableAmount: number;
+}
+
+export interface TdsReportDto {
+  fromDate: string;
+  toDate: string;
+  rows: TdsReportRowDto[];
+  totalGrossAmount: number;
+  totalTdsAmount: number;
+}

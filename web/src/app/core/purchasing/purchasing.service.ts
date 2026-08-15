@@ -34,6 +34,7 @@ import {
   PurchaseOrderDetail,
   PurchaseOrderRequest,
   PurchaseOrderStatus,
+  TdsReportDto,
   UpdateDebitNoteResult,
   UpdateExpenseResult,
   UpdatePurchaseBillResult,
@@ -209,6 +210,13 @@ export class PurchasingService {
     return this.http.get<PurchaseMasterReportDto>(`${this.baseUrl(organizationId)}/reports/purchase-master-report`, {
       withCredentials: true,
       params,
+    });
+  }
+
+  getTdsReport(organizationId: string, fromDate: string, toDate: string): Observable<TdsReportDto> {
+    return this.http.get<TdsReportDto>(`${this.baseUrl(organizationId)}/reports/tds-report`, {
+      withCredentials: true,
+      params: { fromDate, toDate },
     });
   }
 }

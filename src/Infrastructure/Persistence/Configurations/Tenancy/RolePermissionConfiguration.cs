@@ -275,6 +275,12 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminVatSummaryViewId = Guid.Parse("00000000-0000-0000-0002-0000000000b7");
     private static readonly Guid MemberVatSummaryViewId = Guid.Parse("00000000-0000-0000-0002-0000000000b8");
 
+    // Phase 8d (TDS Report) -- Admin-only, same convention as Phase 8b's Master Reports (see
+    // PermissionKeys.TdsReportView's doc comment / phase-8d-status.md's scope decision). Member
+    // gets an explicit IsGranted=false denial row, same convention as every other Admin-only key.
+    private static readonly Guid AdminTdsReportViewId = Guid.Parse("00000000-0000-0000-0002-0000000000b9");
+    private static readonly Guid MemberTdsReportViewId = Guid.Parse("00000000-0000-0000-0002-0000000000ba");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -508,6 +514,9 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(MemberPurchaseMasterReportViewId, Role.MemberId, PermissionKeys.PurchaseMasterReportView, false),
 
             RolePermission.Create(AdminVatSummaryViewId, Role.AdminId, PermissionKeys.VatSummaryView, true),
-            RolePermission.Create(MemberVatSummaryViewId, Role.MemberId, PermissionKeys.VatSummaryView, true));
+            RolePermission.Create(MemberVatSummaryViewId, Role.MemberId, PermissionKeys.VatSummaryView, true),
+
+            RolePermission.Create(AdminTdsReportViewId, Role.AdminId, PermissionKeys.TdsReportView, true),
+            RolePermission.Create(MemberTdsReportViewId, Role.MemberId, PermissionKeys.TdsReportView, false));
     }
 }

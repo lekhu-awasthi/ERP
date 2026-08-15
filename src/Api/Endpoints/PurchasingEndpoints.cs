@@ -24,6 +24,7 @@ using ErpApp.Application.Purchasing.Queries.ListPurchaseOrders;
 using ErpApp.Application.Purchasing.Queries.PreviewExpenseGlPosting;
 using ErpApp.Application.Purchasing.Queries.PreviewPurchaseBillGlPosting;
 using ErpApp.Application.Purchasing.Queries.PurchaseMasterReport;
+using ErpApp.Application.Purchasing.Queries.TdsReport;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Purchasing;
 using MediatR;
@@ -283,6 +284,13 @@ public static class PurchasingEndpoints
         {
             var result = await sender.Send(
                 new PurchaseMasterReportQuery(organizationId, fromDate, toDate, contactId, productId, warehouseId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/tds-report", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new TdsReportQuery(organizationId, fromDate, toDate), ct);
             return Results.Ok(result);
         });
     }
