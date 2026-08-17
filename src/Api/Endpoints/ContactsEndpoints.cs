@@ -6,6 +6,7 @@ using ErpApp.Application.Contacts.Commands.DeactivateContact;
 using ErpApp.Application.Contacts.Commands.UpdateContact;
 using ErpApp.Application.Contacts.Commands.UpdateContactGroup;
 using ErpApp.Application.Contacts.Queries.ContactAgeingSummary;
+using ErpApp.Application.Contacts.Queries.ContactOverview;
 using ErpApp.Application.Contacts.Queries.ContactStatement;
 using ErpApp.Application.Contacts.Queries.GetContact;
 using ErpApp.Application.Contacts.Queries.ListContacts;
@@ -102,6 +103,16 @@ public static class ContactsEndpoints
         {
             await sender.Send(new DeactivateContactCommand(organizationId, id), ct);
             return Results.NoContent();
+        });
+
+        // Phase 10 -- gated on Contacts.Contact.View (the same permission this page's plain Overview
+        // form already requires), not a new Reports.*.View key -- see ContactOverviewQuery's own doc
+        // comment for why this diverges from Phase 9's Admin-only Statement/Ageing precedent.
+        group.MapGet("/contacts/{id:guid}/overview", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new ContactOverviewQuery(organizationId, id), ct);
+            return Results.Ok(result);
         });
     }
 

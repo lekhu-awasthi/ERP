@@ -133,3 +133,27 @@ export interface ContactStatementDto {
   closingBalance: number;
   closingBalanceType: BalanceType;
 }
+
+// Phase 10 (Contact Overview). A thin read over the same running-balance engine as
+// ContactStatementDto -- no per-row running Balance (bounded recent-activity feed, not a ledger; see
+// ContactOverviewQuery's own doc comment).
+export interface ContactOverviewTransactionDto {
+  date: string;
+  documentType: StatementDocumentType;
+  code: string;
+  reference: string | null;
+  debit: number;
+  credit: number;
+}
+
+export interface ContactOverviewDto {
+  contactId: string;
+  contactCode: string;
+  contactName: string;
+  contactType: ContactType;
+  openingBalance: number;
+  openingBalanceType: BalanceType;
+  closingBalance: number;
+  closingBalanceType: BalanceType;
+  recentTransactions: ContactOverviewTransactionDto[];
+}
