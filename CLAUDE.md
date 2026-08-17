@@ -26,6 +26,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - `docs/phase-11-status.md` — history of Phase 11: what was built/fixed (`GetDefaultPaymentAllocationsQueryHandler`'s outstanding-amount computation — TDS-netting for PurchaseBill, plus a linked-CreditNote/DebitNote reversal-netting gap the investigation itself surfaced and fixed in the same phase), the explicit in-scope-vs-deferred call on the reversal-netting gap (fixed, not deferred — see its own reasoning), no bugs in the shipped handler/test code itself but three environment/tooling gotchas worth knowing before the next manual-E2E script (SQL Server's `identity` schema needing bracket-quoting, `dotnet run --project` needing the repo root as cwd, and this repo's default `dotnet run --project src/Api` binding only the `http` launch profile — not `https://localhost:7104` — which silently breaks a scripted authenticated session's `Secure` cookie), current status
 - `docs/phase-9-status.md` — history of Phase 9: what was built (`ContactAgeingSummaryQuery`/`ContactStatementQuery` under `Application.Contacts.Queries`, one shared handler per report type discriminated by `ContactType` — the real running-balance engine Phase 8e's Annex 13 deferred to), scope decisions (Application.Contacts placement per architecture-spec.md §4.2's own naming, four Admin-only permission keys as the strongest PAN/identity-exposure case yet, Supplier-side TDS-net-payable, CreditTerm/Description columns omitted for the same no-backing-field reasons as prior phases, standalone-reversal Ageing-vs-Statement divergence, real double-entry Debit/Credit polarity confirmed against the live Supplier Statement screen's own Opening Balance row), bugs hit and fixed (read this before writing a generic `IQueryable<T>` helper that takes a `Func<T, TKey>` selector — EF Core can't translate a captured delegate inside `.Where()`, and before hand-writing a permission-seed migration instead of updating `RolePermissionConfiguration`'s `HasData` first, since a stale-HasData scaffold silently produces an empty migration rather than an error), current status
 - `docs/phase-10-status.md` — history of Phase 10: what was built (`ContactOverviewQuery` under `Application.Contacts.Queries.ContactOverview`, the Contact detail page's Overview-tab financial summary — Opening/Closing Balance with DR/CR, a 10-row Recent Transactions feed, "View Full Statement" — a thin read reusing Phase 9's running-balance engine via a new shared `ContactLedgerReader` extracted from `ContactStatementQueryHandler`, no new commands/aggregates/schema/migrations at all, not even a permission-seed one), scope decisions (reuses Phase 3's `Contacts.Contact.View` permission key rather than minting a new Admin-only `Reports.*.View` one — an explicit re-derivation against Phase 9's Admin-only Statement/Ageing precedent, not a silent default, since Overview is bounded/single-Contact/already-visible rather than an unbounded ledger or a cross-Contact list; Recent Transactions capped at a fixed count of 10, not a date window; takes `ContactId` alone and resolves `Type` itself rather than a route-hardcoded `ContactType`, safe for Lead only because `SalesValidation`/`PurchasingValidation` already forbid any document from ever targeting a Lead; "View Full Statement" passes only a `contactId` query param and lets the Statement pages' own existing first-of-month-to-today default apply, rather than re-encoding that default as URL params), no bugs hit this phase — the one design risk (Closing Balance drifting from Statement's own number) was closed by construction via the shared `ContactLedgerReader` rather than found and fixed after the fact, current status
+- `docs/phase-12-status.md` — history of Phase 12: what was built (`TransactionApprovalQuery` under `Application.Workflow.Queries.TransactionApproval`, the first Workflow-context feature — a read-only queue unioning Draft-status rows across all 13 `ApprovableTransaction` document types via 13 separate concrete per-type `Where` blocks, not one generic `Func<TDocument,...>`-parameterized helper, one permission-seed-only migration), the one real judgment call made explicit (whether the query needs its own blanket `IRequirePermission` gate, decided **yes** — not for exposure control like most `Reports.*.View` keys, but because `AuthorizationBehavior` turned out to be the *only* mechanism in this codebase verifying org membership at all for an `IOrganizationScoped` request, confirmed by grepping all 128 such types), scope decisions (no bulk-approve-from-the-list action this phase, an explicitly deferred stretch goal; `PermissionKeys.TransactionApprovalView` granted Admin+Member since the query's own per-document-type `*.Approve` filtering — not this blanket key — is what actually narrows a Member's visibility; `SalesOrder` rows render with no "Open" link since Phase 5 never shipped that type's Angular UI; `Expense` rows reuse `SupplierInvoiceReference` for the shared `Reference` field since `Expense` is the one type with no plain `Reference` field of its own; `Payment` rows carry a `Direction` field so Angular can route Customer vs Supplier Payment to their two separate existing detail pages), bugs hit and fixed (none in the shipped code — one test-authoring slip caught before the first test run, a `WarehouseTransfer` test helper needing its own Goods-type product rather than reusing a Service one), current status
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -86,6 +87,90 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - The `[value]`-vs-`@for` native-`<select>` race (documented above from Phase 5/6) isn't just a cosmetic "wrong option shown" bug — confirmed in Phase 7 to cause **actually-wrong persisted data**, silently. An Invoice's Warehouse `<select>` (still using the old `[value]="warehouseId()"` pattern, never retrofitted after the gotcha was first documented) visually showed one warehouse throughout an entire create→save→approve session while a direct DB query proved the row's real, persisted `WarehouseId` — and the actual FIFO stock consumption — was against a *different* warehouse the whole time. Never trust a signal-bound `<select>`'s on-screen value as proof of what got saved, on any page, without checking the database; audit every remaining `[value]`-on-`<select>` instance in the codebase for this, not just the ones a current phase happens to touch. See `docs/phase-7-status.md`'s bug #2.
 
 ## Current status
+**Phase 12 (Transaction Approval Queue) is complete** — `TransactionApprovalQuery`
+(`Application.Workflow.Queries.TransactionApproval`) is the first Workflow-context feature
+(architecture-spec.md §4.9), a read-only v1 unifying every Draft-status row across all 13
+`ApprovableTransaction` document types this codebase has (Quotation/SalesOrder/Invoice/CreditNote/
+PurchaseOrder/PurchaseBill/Expense/DebitNote/JournalVoucher/CashTransfer/WarehouseTransfer/
+InventoryAdjustment/Payment — confirmed by grep against `PermissionKeys.cs`'s 13 existing `*.Approve`
+keys, not assumed) into one list, per product-requirements.md FR-10.2, filtered to only the document
+types the current user's Role actually holds the `.Approve` grant for. Each row links into that
+document's own existing detail page where the existing Approve button already works — no
+bulk-approve-from-the-list action this phase, an explicitly deferred stretch goal (roughly doubling
+this phase's surface area for a first cut of a brand-new bounded context was judged out of scope, not
+silently dropped). Implementation is 13 separate concrete `db.Xs.Where(...)` blocks unioned in
+memory, not one generic `Func<TDocument,...>`-parameterized LINQ helper — CLAUDE.md's own known-gotchas
+list (and phase-9-status.md's smaller five-type-union bug #1) already document why a captured delegate
+inside `.Where()` doesn't translate against a real SQL Server provider. No new commands, aggregates,
+or schema tables beyond a permission-seed-only migration (`AddPhase12WorkflowPermissions`). The one
+real judgment call this phase needed — whether the query/endpoint itself needs a new blanket
+`IRequirePermission` gate, or whether per-document-type filtering down to zero visible rows is
+sufficient on its own — was decided **yes, a new key is needed** (`Workflow.TransactionApproval.View`,
+Admin+Member), but for a different reason than every prior `Reports.*.View` key's exposure-control
+framing: grepping all 128 `IOrganizationScoped` types in `Application` confirmed every single one also
+implements `IRequirePermission`, because `AuthorizationBehavior` is the *only* code in this codebase
+that verifies the acting user actually belongs to the requested `OrganizationId` at all — a request
+with `IOrganizationScoped` but no `IRequirePermission` skips that check entirely. Once required for
+that reason, the key's own Admin+Member grant doesn't gate exposure itself — the query's own
+per-document-type granted-permission-key filtering (mirroring `AuthorizationBehavior`'s exact
+`OrganizationMemberships`/`RolePermissions` join, resolved once as a set) is what actually determines
+which rows a Member sees, so a Member holding zero `*.Approve` grants anywhere just gets a `200` with
+an empty list, not a `403` — confirmed directly in this phase's own manual E2E. `SalesOrder` rows
+render with no "Open" link at all (Phase 5's own "SalesOrder shipped backend-only" scope decision,
+never retrofitted, surfaced here rather than caused here); `Expense` rows reuse
+`SupplierInvoiceReference` for the shared `Reference` field since `Expense` is the one document type
+among the 13 with no plain `Reference` field of its own; `Payment` rows carry a nullable `Direction`
+so the Angular page can route Customer Payment (`Received`) and Supplier Payment (`Paid`) to their two
+separate existing detail pages, since both share one backend aggregate but not one frontend route.
+`TransactionApprovalQueryHandlerTests` is this query's first-ever test coverage (4 tests: only-Draft
+rows across multiple types with an Approved row of the same type excluded, a document type excluded
+entirely when the seeded Role lacks that type's own `.Approve` permission even though a Draft row
+exists — the actual behavior this feature exists for, tested directly rather than only via the happy
+path — multi-type union, and organization-scoping), seeded through real Create command handlers across
+5 of the 13 types (Quotation, PurchaseOrder, Invoice, JournalVoucher, WarehouseTransfer) spanning all
+four bounded contexts that own an `ApprovableTransaction`. `dotnet build`/`dotnet test`
+(Domain.UnitTests 67 unchanged, Application.UnitTests 147 — 3 new + 144 pre-existing, Api.IntegrationTests
+4, all green, Docker Desktop running this session) and `ng build`/`ng test` (7 pre-existing specs
+green, no new Angular specs) all pass. Confirmed by hand end-to-end against the real API/DB/browser: a
+fresh Admin seeded a Warehouse/Customer/Supplier/Product and a Draft Invoice plus a Draft PurchaseBill
+(both left unapproved), saw both rows in the real Angular Approval Queue page with working "Open"
+links into their real detail pages; a Member invited through the product's normal flow (Phase 1c's
+hardcoded system role, every `*.Approve` key denied by default) correctly saw an empty queue, not a
+403; and — since Phase 1c's Role stub has no UI to grant a Member one `*.Approve` key without granting
+them all identically, a real, separately-flagged limitation of that earlier phase, not of this one —
+a third custom Role was seeded directly via SQL granting `Invoice.Approve` but explicitly denying
+`PurchaseBill.Approve`, and the same Member, re-assigned to it, saw exactly the Draft Invoice and not
+the Draft PurchaseBill, confirmed both via direct API call and through the real UI in the same browser
+session — the actual proof FR-10.2 exists for. See `docs/phase-12-status.md` for the full history (all
+eight scope decisions in detail, plus the one test-authoring slip caught before the first test run —
+not a codebase defect).
+
+**Phase 11 (Payment Allocation Suggestion: outstanding-amount fix) is complete** —
+`GetDefaultPaymentAllocationsQueryHandler` (`Application.Payments.Queries.GetDefaultPaymentAllocations`),
+the Payment-recording screen's FIFO-oldest-first allocation-suggestion query, now computes "outstanding"
+the same way `ContactAgeingSummaryQueryHandler` already does (phase-9-status.md), fixing the pre-existing
+latent gap phase-9-status.md's scope decision #7 explicitly flagged but left unfixed: the PurchaseBill
+branch used `GrandTotal` directly instead of `GrandTotal - TdsAmount`, letting the screen suggest
+allocating more of a Payment than a TDS-bearing bill's actual net payable. This phase's own investigation
+surfaced a second, related gap no prior phase had flagged — outstanding was never net of an Approved
+CreditNote/DebitNote reversal linked to that specific document, on either the Sales or Purchase side — and
+the brief's explicit in-scope-vs-deferred question was answered **in scope, fixed here**, not deferred: the
+fix is the same class of bug as the TDS gap, and `SuggestAsync<TDocument>`'s existing selector-`Func`
+pattern extended naturally with one more parameter (mirroring `ContactAgeingSummaryQueryHandler`'s own
+`LoadCreditNoteReductionsAsync`/`LoadDebitNoteReductionsAsync`) rather than needing a rewrite. No new
+commands, aggregates, schema tables, or migrations — a pure computation fix to one existing query handler.
+`GetDefaultPaymentAllocationsQueryHandlerTests` is this handler's first-ever unit test coverage (4 tests:
+TDS-netting + FIFO ordering, a prior-Payment-allocation reduction, a linked-DebitNote reversal net of its
+own TDS, and a linked-CreditNote reversal on the Sales side), confirmed by hand against the real API and
+the real Angular Supplier Payment "New" screen — a seeded TDS-bearing PurchaseBill (gross 1000, TDS 100)
+suggested exactly **900** both via direct API call and via the on-screen "Suggest (FIFO)" button, not the
+gross 1000. No Angular changes were needed (`payment-detail-page.ts`/`supplier-payment-detail-page.ts`
+already render whatever the endpoint returns). `dotnet build`/`dotnet test` (Domain.UnitTests 67 unchanged,
+Application.UnitTests 138 — 4 new + 134 pre-existing, Api.IntegrationTests 4, all green, Docker Desktop
+running this session) and a check of `ng build`/`ng test` applicability (none needed) all pass. See
+`docs/phase-11-status.md` for the full history (all scope decisions in detail, plus three
+environment/tooling gotchas hit while scripting this phase's manual E2E — none in the shipped code itself).
+
 **Phase 10 (Contact Overview) is complete** — `ContactOverviewQuery`
 (`Application.Contacts.Queries.ContactOverview`) backs the Contact detail page's Overview tab
 financial summary: Opening Balance, Closing Balance with its DR/CR suffix, a 10-row Recent
@@ -130,32 +215,6 @@ levels. `dotnet build`/`dotnet test` (Domain.UnitTests 67 unchanged; Application
 + 134 pre-existing, all green; Api.IntegrationTests 4, run with Docker Desktop running this session —
 all green) and `ng build`/`ng test` (7 pre-existing specs green, no new Angular specs) all pass. See
 `docs/phase-10-status.md` for the full history (all nine scope decisions in detail).
-
-**Phase 11 (Payment Allocation Suggestion: outstanding-amount fix) is complete** —
-`GetDefaultPaymentAllocationsQueryHandler` (`Application.Payments.Queries.GetDefaultPaymentAllocations`),
-the Payment-recording screen's FIFO-oldest-first allocation-suggestion query, now computes "outstanding"
-the same way `ContactAgeingSummaryQueryHandler` already does (phase-9-status.md), fixing the pre-existing
-latent gap phase-9-status.md's scope decision #7 explicitly flagged but left unfixed: the PurchaseBill
-branch used `GrandTotal` directly instead of `GrandTotal - TdsAmount`, letting the screen suggest
-allocating more of a Payment than a TDS-bearing bill's actual net payable. This phase's own investigation
-surfaced a second, related gap no prior phase had flagged — outstanding was never net of an Approved
-CreditNote/DebitNote reversal linked to that specific document, on either the Sales or Purchase side — and
-the brief's explicit in-scope-vs-deferred question was answered **in scope, fixed here**, not deferred: the
-fix is the same class of bug as the TDS gap, and `SuggestAsync<TDocument>`'s existing selector-`Func`
-pattern extended naturally with one more parameter (mirroring `ContactAgeingSummaryQueryHandler`'s own
-`LoadCreditNoteReductionsAsync`/`LoadDebitNoteReductionsAsync`) rather than needing a rewrite. No new
-commands, aggregates, schema tables, or migrations — a pure computation fix to one existing query handler.
-`GetDefaultPaymentAllocationsQueryHandlerTests` is this handler's first-ever unit test coverage (4 tests:
-TDS-netting + FIFO ordering, a prior-Payment-allocation reduction, a linked-DebitNote reversal net of its
-own TDS, and a linked-CreditNote reversal on the Sales side), confirmed by hand against the real API and
-the real Angular Supplier Payment "New" screen — a seeded TDS-bearing PurchaseBill (gross 1000, TDS 100)
-suggested exactly **900** both via direct API call and via the on-screen "Suggest (FIFO)" button, not the
-gross 1000. No Angular changes were needed (`payment-detail-page.ts`/`supplier-payment-detail-page.ts`
-already render whatever the endpoint returns). `dotnet build`/`dotnet test` (Domain.UnitTests 67 unchanged,
-Application.UnitTests 138 — 4 new + 134 pre-existing, Api.IntegrationTests 4, all green, Docker Desktop
-running this session) and a check of `ng build`/`ng test` applicability (none needed) all pass. See
-`docs/phase-11-status.md` for the full history (all scope decisions in detail, plus three
-environment/tooling gotchas hit while scripting this phase's manual E2E — none in the shipped code itself).
 
 **Phase 9 (Customer & Supplier Ageing + Statement Reports) is complete** — `ContactAgeingSummaryQuery`/
 `ContactStatementQuery` (`Application.Contacts.Queries`) are the real running-balance engine Phase 8e's

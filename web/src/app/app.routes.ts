@@ -455,4 +455,12 @@ export const routes: Routes = [
       ),
     canActivate: [authGuard],
   },
+  {
+    path: 'organizations/:id/workflow/transaction-approval-queue',
+    loadComponent: () =>
+      import('./features/workflow/transaction-approval-queue-page/transaction-approval-queue-page').then(
+        (m) => m.TransactionApprovalQueuePage,
+      ),
+    canActivate: [authGuard],
+  },
 ];

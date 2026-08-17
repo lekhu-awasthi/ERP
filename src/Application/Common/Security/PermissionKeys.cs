@@ -237,4 +237,21 @@ public static class PermissionKeys
     public const string SupplierAgeingSummaryView = "Reports.SupplierAgeingSummary.View";
     public const string CustomerStatementView = "Reports.CustomerStatement.View";
     public const string SupplierStatementView = "Reports.SupplierStatement.View";
+
+    // Phase 12 (Transaction Approval Queue, the first Workflow-context feature) -- a single blanket
+    // key, Admin+Member. Not primarily an exposure-control decision like every Reports.*.View key
+    // above: AuthorizationBehavior is the *only* mechanism in this codebase that checks a request's
+    // OrganizationId against the acting user's OrganizationMemberships (see its own doc comment) --
+    // a query with IOrganizationScoped but no IRequirePermission skips that check entirely, so
+    // without a key here, tenant isolation itself (NFR-2.1) would depend solely on the handler's own
+    // per-document-type Where clauses, which never verify org membership at all. Every other
+    // IOrganizationScoped query/command in this codebase also implements IRequirePermission for
+    // exactly this reason (confirmed by grep -- no exception exists). Admin+Member (not Admin-only
+    // like most Reports.*.View keys) because this key doesn't itself gate exposure -- the query's own
+    // per-document-type granted-permission-key filtering (mirroring this same join) is what
+    // determines which rows a Member actually sees, so a Member with zero *.Approve permissions
+    // anywhere just sees an empty queue, the same "gated to nothing" outcome an Admin-only key would
+    // produce, without blocking a Member who legitimately holds one or more *.Approve grants from
+    // using the screen at all. See phase-12-status.md's scope decision.
+    public const string TransactionApprovalView = "Workflow.TransactionApproval.View";
 }
