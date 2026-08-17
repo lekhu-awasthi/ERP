@@ -306,6 +306,14 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminSupplierStatementViewId = Guid.Parse("00000000-0000-0000-0002-0000000000c5");
     private static readonly Guid MemberSupplierStatementViewId = Guid.Parse("00000000-0000-0000-0002-0000000000c6");
 
+    // Phase 12 (Transaction Approval Queue) -- Admin+Member, unlike most Reports.*.View keys above
+    // (see PermissionKeys.TransactionApprovalView's doc comment / phase-12-status.md's scope
+    // decision): this key exists to satisfy AuthorizationBehavior's org-membership check, not to
+    // gate exposure -- the query's own per-document-type *.Approve filtering already narrows what a
+    // Member sees down to nothing if they hold no Approve grants at all.
+    private static readonly Guid AdminTransactionApprovalViewId = Guid.Parse("00000000-0000-0000-0002-0000000000c7");
+    private static readonly Guid MemberTransactionApprovalViewId = Guid.Parse("00000000-0000-0000-0002-0000000000c8");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -557,6 +565,9 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminCustomerStatementViewId, Role.AdminId, PermissionKeys.CustomerStatementView, true),
             RolePermission.Create(MemberCustomerStatementViewId, Role.MemberId, PermissionKeys.CustomerStatementView, false),
             RolePermission.Create(AdminSupplierStatementViewId, Role.AdminId, PermissionKeys.SupplierStatementView, true),
-            RolePermission.Create(MemberSupplierStatementViewId, Role.MemberId, PermissionKeys.SupplierStatementView, false));
+            RolePermission.Create(MemberSupplierStatementViewId, Role.MemberId, PermissionKeys.SupplierStatementView, false),
+
+            RolePermission.Create(AdminTransactionApprovalViewId, Role.AdminId, PermissionKeys.TransactionApprovalView, true),
+            RolePermission.Create(MemberTransactionApprovalViewId, Role.MemberId, PermissionKeys.TransactionApprovalView, true));
     }
 }
