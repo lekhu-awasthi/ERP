@@ -5,7 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { buildTreeRows, TreeRow } from '../../../core/common/tree';
 import { ContactsService } from '../../../core/contacts/contacts.service';
-import { Contact, ContactGroup, ContactType } from '../../../core/contacts/contacts.models';
+import { Contact, ContactGroup, ContactOverviewDto, ContactType } from '../../../core/contacts/contacts.models';
 
 /** Record-detail-page chrome: left mini-profile panel + vertical tab list + right content pane
  * -- new pattern for this codebase, established here per roadmap Phase 3's Angular deliverable.
@@ -39,7 +39,11 @@ export class ContactDetailPage {
   protected readonly groups = signal<ContactGroup[]>([]);
   protected readonly isNew = signal(false);
 
-  private routeContactId = '';
+  protected readonly overview = signal<ContactOverviewDto | null>(null);
+  protected readonly overviewLoading = signal(false);
+  protected readonly overviewError = signal<string | null>(null);
+
+  protected routeContactId = '';
 
   protected readonly groupRows = computed<TreeRow<ContactGroup>[]>(() =>
     buildTreeRows(
@@ -76,6 +80,8 @@ export class ContactDetailPage {
       this.contact.set(null);
       this.errorMessage.set(null);
       this.optionsOpen.set(false);
+      this.overview.set(null);
+      this.overviewError.set(null);
 
       if (isNew) {
         this.loading.set(false);
@@ -202,6 +208,20 @@ export class ContactDetailPage {
     return this.groups().find((g) => g.id === groupId)?.name ?? '—';
   }
 
+  /** 'reports/customer-statement'/'reports/supplier-statement' -- no Statement report exists for a
+   * Lead (Ageing/Statement are AR/AP-only per Phase 9), so the Overview card's "View Full Statement"
+   * link is only rendered for Customer/Supplier. */
+  protected statementRoute(): 'customer-statement' | 'supplier-statement' | null {
+    switch (this.contact()?.type) {
+      case 'Customer':
+        return 'customer-statement';
+      case 'Supplier':
+        return 'supplier-statement';
+      default:
+        return null;
+    }
+  }
+
   private load(): void {
     this.loading.set(true);
     this.contactsService.getContact(this.organizationId, this.routeContactId).subscribe({
@@ -212,6 +232,22 @@ export class ContactDetailPage {
       error: (err: unknown) => {
         this.loading.set(false);
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load contact.');
+      },
+    });
+    this.loadOverview();
+  }
+
+  private loadOverview(): void {
+    this.overviewLoading.set(true);
+    this.overviewError.set(null);
+    this.contactsService.getContactOverview(this.organizationId, this.routeContactId).subscribe({
+      next: (overview) => {
+        this.overview.set(overview);
+        this.overviewLoading.set(false);
+      },
+      error: (err: unknown) => {
+        this.overviewLoading.set(false);
+        this.overviewError.set(extractErrorMessage(err) ?? 'Could not load the financial overview.');
       },
     });
   }
