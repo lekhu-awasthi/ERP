@@ -31,12 +31,18 @@ export class CustomerStatementPage {
   protected readonly statement = signal<ContactStatementDto | null>(null);
   protected readonly customers = signal<Contact[]>([]);
 
-  protected readonly contactId = signal('');
+  protected readonly contactId = signal(this.route.snapshot.queryParamMap.get('contactId') ?? '');
   protected readonly fromDate = signal(this.firstOfMonth());
   protected readonly toDate = signal(this.today());
 
   constructor() {
     this.contactsService.listContacts(this.organizationId, 'Customer').subscribe({ next: (c) => this.customers.set(c) });
+
+    // Pre-filled from the Contact Overview tab's "View Full Statement" link -- the sensible default
+    // date range is this page's own existing first-of-month-to-today default, not a new convention.
+    if (this.contactId()) {
+      this.load();
+    }
   }
 
   protected onContactChange(event: Event): void {

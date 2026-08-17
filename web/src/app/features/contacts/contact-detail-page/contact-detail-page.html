@@ -168,6 +168,87 @@
             }
           </div>
         </div>
+
+        @if (!isNew() && !editing()) {
+          <div class="card border-0 shadow-sm mt-4">
+            <div class="card-body p-4">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold text-dark mb-0">Account Summary</h6>
+                @if (statementRoute(); as route) {
+                  <a
+                    class="btn btn-outline-primary btn-sm fw-bold"
+                    [routerLink]="['/organizations', organizationId, 'reports', route]"
+                    [queryParams]="{ contactId: routeContactId }"
+                  >
+                    View Full Statement <i class="bi bi-arrow-right"></i>
+                  </a>
+                }
+              </div>
+
+              @if (overviewError()) {
+                <div class="alert alert-danger d-flex align-items-center gap-2 mb-3" role="alert">
+                  <i class="bi bi-exclamation-triangle-fill"></i>
+                  <div>{{ overviewError() }}</div>
+                </div>
+              } @else if (overviewLoading()) {
+                <div class="text-center py-3">
+                  <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                </div>
+              } @else if (overview(); as o) {
+                <div class="row g-3 mb-4">
+                  <div class="col-6 col-sm-4">
+                    <p class="text-muted small mb-1">Opening Balance</p>
+                    <p class="fw-bold mb-0">{{ o.openingBalance.toFixed(2) }} {{ o.openingBalanceType }}</p>
+                  </div>
+                  <div class="col-6 col-sm-4">
+                    <p class="text-muted small mb-1">Closing Balance</p>
+                    <p class="fw-bold mb-0">
+                      {{ o.closingBalance.toFixed(2) }}
+                      <span
+                        class="badge ms-1"
+                        [class.bg-danger-subtle]="o.closingBalanceType === 'DR'"
+                        [class.text-danger]="o.closingBalanceType === 'DR'"
+                        [class.bg-success-subtle]="o.closingBalanceType === 'CR'"
+                        [class.text-success]="o.closingBalanceType === 'CR'"
+                        >{{ o.closingBalanceType }}</span
+                      >
+                    </p>
+                  </div>
+                </div>
+
+                <h6 class="fw-bold text-dark small mb-2">Recent Transactions</h6>
+                @if (o.recentTransactions.length === 0) {
+                  <p class="text-muted small mb-0">No transactions yet.</p>
+                } @else {
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                      <thead>
+                        <tr class="text-muted small">
+                          <th>Date</th>
+                          <th>Type</th>
+                          <th>No</th>
+                          <th class="text-end">Debit</th>
+                          <th class="text-end">Credit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (row of o.recentTransactions; track row.code) {
+                          <tr>
+                            <td>{{ row.date }}</td>
+                            <td>{{ row.documentType }}</td>
+                            <td>{{ row.code }}</td>
+                            <td class="text-end">{{ row.debit > 0 ? row.debit.toFixed(2) : '—' }}</td>
+                            <td class="text-end">{{ row.credit > 0 ? row.credit.toFixed(2) : '—' }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+              }
+            </div>
+          </div>
+        }
       </div>
     </div>
   }

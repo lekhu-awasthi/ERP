@@ -7,6 +7,7 @@ import {
   Contact,
   ContactAgeingSummaryDto,
   ContactGroup,
+  ContactOverviewDto,
   ContactStatementDto,
   ContactType,
   CreateContactGroupRequest,
@@ -74,6 +75,12 @@ export class ContactsService {
 
   deactivateContact(organizationId: string, id: string): Observable<void> {
     return this.http.post<void>(`${this.baseUrl(organizationId)}/contacts/${id}/deactivate`, null, {
+      withCredentials: true,
+    });
+  }
+
+  getContactOverview(organizationId: string, id: string): Observable<ContactOverviewDto> {
+    return this.http.get<ContactOverviewDto>(`${this.baseUrl(organizationId)}/contacts/${id}/overview`, {
       withCredentials: true,
     });
   }
