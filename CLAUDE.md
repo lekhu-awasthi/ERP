@@ -90,6 +90,79 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - The `[value]`-vs-`@for` native-`<select>` race (documented above from Phase 5/6) isn't just a cosmetic "wrong option shown" bug — confirmed in Phase 7 to cause **actually-wrong persisted data**, silently. An Invoice's Warehouse `<select>` (still using the old `[value]="warehouseId()"` pattern, never retrofitted after the gotcha was first documented) visually showed one warehouse throughout an entire create→save→approve session while a direct DB query proved the row's real, persisted `WarehouseId` — and the actual FIFO stock consumption — was against a *different* warehouse the whole time. Never trust a signal-bound `<select>`'s on-screen value as proof of what got saved, on any page, without checking the database; audit every remaining `[value]`-on-`<select>` instance in the codebase for this, not just the ones a current phase happens to touch. See `docs/phase-7-status.md`'s bug #2.
 
 ## Current status
+**Phase 14 (Role Reference) is complete** — `Role` (`Domain.Tenancy`) gains a nullable
+`OrganizationId`, upgrading Phase 1c's two-hardcoded-system-role stub (`Role.AdminId`/
+`Role.MemberId`, shared across every Organization) into a real per-tenant permission-matrix
+editor, the item `docs/roadmap.md`'s Phase 8+ section named directly ("upgrade Phase 1c's
+hardcoded-role stub into the real per-document-type permission-matrix editor, once enough
+document types exist to make the matrix meaningful") — now met, `PermissionKeys.cs` has grown to
+107 constants across every phase since Phase 1c. `OrganizationId` is `null` for the two seeded
+system rows (kept exactly as-is, zero migration risk to existing data) and non-null for a
+tenant's own custom role created via the new `CreateRoleCommand`. The one real judgment call this
+phase needed, made explicit rather than defaulted: nullable-`OrganizationId`-on-the-shared-table
+was chosen over a separate per-org-override table (no new table, no new join, `RolePermission`'s
+existing shape reused unchanged for a custom role's grants), with the direct consequence being
+made deliberate rather than accidental — the two system rows' `RolePermission` grants stay shared
+globally across every tenant, so they are **not editable** through this phase's new UI at all;
+`UpdateRoleCommandHandler`/`DeleteRoleCommandHandler`/`UpdateRolePermissionsCommandHandler` all
+reject (409) any attempt to target a system role, while `GetRolePermissionMatrixQuery` still lets
+an Admin *view* Admin/Member's own grants as reference. The second judgment call — how
+`GetRolePermissionMatrixQuery` discovers the full set of assignable keys — went to a new
+`PermissionKeyCatalog` that reflects over `PermissionKeys.cs`'s own `public const string` fields,
+a deliberate departure from `LookupPermissionKeys.cs`'s established plain-switch precedent:
+weighed explicitly and resolved differently because "enumerate the complete universe of keys that
+exist" is a fundamentally different question than "map one closed type to its own key," and a
+hand-maintained parallel list here would silently drift the next time a phase adds a key (no
+build error, no test failure, just a permission invisibly missing from every future role's
+matrix). HeadOffice/POS Restaurant/POS Retail permission sections from `erp-module-scan.md`'s
+confirmed 6-section Role Reference panel are explicitly out of scope, not silently dropped — no
+`BillingLocation`/multi-location backing implementation exists anywhere in this codebase to scope
+a location-specific matrix against, so building one would invent UI for a feature that doesn't
+exist; this phase ships one flat matrix grouped by each key's own dotted `{Module}.{Entity}.
+{Action}` module prefix instead. `UpdateRolePermissionsCommand`'s `Grants` is the complete desired
+grant state for every catalog key (the matrix page submits its whole checkbox grid each save), and
+the handler diffs that against each row's existing `IsGranted` explicitly rather than a blind
+clear-and-reinsert — the same "don't rely on ORM fixup for a full-collection replace" discipline
+CLAUDE.md's own Phase 4 Clear+re-Add InMemory-provider gotcha established, applied here even
+though `RolePermission` isn't a child collection of an aggregate. `InviteUserCommand` moved from a
+hardcoded `MembershipRole` selector to a real `RoleId` — a genuine behavior change traced against
+every existing `MembershipRole` call site first (`OrganizationMembership.CreateAccepted`/`Request`
+keep their `MembershipRole` parameter unchanged, only `Invite` and `InviteUserCommand` changed) —
+so the invite flow's role dropdown now sources `ListRolesQuery`'s full set (system roles plus this
+org's own custom ones), not just Admin/Member; `organization-dashboard-page`'s role `<select>`
+follows CLAUDE.md's `[selected]`-per-option convention defensively even though it's
+Reactive-Forms-managed, since the options themselves still resolve on their own async signal
+timeline. Two new Admin-only permission keys, `Tenancy.Role.View`/`Tenancy.Role.Manage` — the one
+deliberate exception to this codebase's usual "grant Member whatever routine daily-use working
+data needs" default, since granting either to a Member would be self-defeating (either exposing
+every other Role's exact grants, or letting a Member grant themselves anything). Angular ships two
+new pages (`role-list-page` — system rows read-only plus custom-role CRUD, and a Members section
+with inline Role reassignment, added beyond the brief's named page list as necessary supporting
+infrastructure; `role-permission-matrix-page` — a checkbox grid grouped by module with per-group
+All/None bulk toggles and a single Save, read-only when the target role is a system role) plus the
+updated invite form. `RoleCommandHandlerTests` (16 tests: custom-role CRUD scoped per org,
+delete-blocked-while-referenced, the permission-matrix diff-and-save handler confirming exactly
+the touched rows change and nothing else does, `ListRolesQuery` correctly unioning system + custom
+rows, and `InviteUserCommand`'s new role-not-found path) is this feature's first-ever test
+coverage. `dotnet build`/`dotnet test` (Domain.UnitTests 67 unchanged, Application.UnitTests 172 —
+16 new + 156 pre-existing, Api.IntegrationTests 4, all green, Docker Desktop running this session)
+and `ng build`/`ng test` (7 pre-existing specs green, no new Angular specs) all pass. No codebase
+defects hit this phase — confirmed by hand end-to-end against the real API/DB/browser: a fresh
+Admin created an Organization, a custom "Sales Rep" role granted exactly `Sales.Quotation.*` +
+`Sales.Invoice.View`, and invited a second user under it; that user could create a Quotation
+(`201`) and list Invoices (`200`), but hit a real `403` naming `Purchasing.PurchaseBill.Approve`
+approving a PurchaseBill and a real `403` naming `Sales.Invoice.Edit` editing an Invoice — both
+denials fired from `AuthorizationBehavior` before either handler ran, proven by both requests
+targeting a nonexistent document id and still getting `403`, not `404` — the actual proof this
+phase exists for, closing the exact gap Phase 12's own manual E2E flagged. Then, through the real
+Angular UI: the Sales Rep role's checkbox grid showed exactly those five keys checked and nothing
+else; toggling `Sales.Quotation.Edit` off and `Sales.Invoice.Create` on and clicking Save round-
+tripped correctly both in the database (`sqlcmd` against `[tenancy].[RolePermissions]`) and via a
+live re-run of the same two curl calls (Quotation edit now 403'd, Invoice create now passed the
+permission gate and reached the handler). See `docs/phase-14-status.md` for the full history (all
+seven scope decisions in detail, plus two environment/tooling snags hit during manual E2E scripting
+— not codebase defects).
+
 **Phase 15 (Deals) is complete** — `Deal`/`DealAssignee` (`Domain.Crm`) is the CRM module's first
 feature (architecture-spec.md §4.2 / product-requirements.md FR-4.7), scoped to Deals only this
 phase per the roadmap's Phase 8+ "CRM: Deals, SMS" bullet — SMS is deferred to its own Phase 16

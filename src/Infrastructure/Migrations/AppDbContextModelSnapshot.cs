@@ -2545,7 +2545,14 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid?>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "Name")
+                        .IsUnique()
+                        .HasFilter("[OrganizationId] IS NOT NULL");
 
                     b.HasIndex("OrganizationId", "Name")
                         .IsUnique()
