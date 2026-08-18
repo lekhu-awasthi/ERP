@@ -6,6 +6,7 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { buildTreeRows, TreeRow } from '../../../core/common/tree';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact, ContactGroup, ContactOverviewDto, ContactType } from '../../../core/contacts/contacts.models';
+import { TaskList } from '../../workflow/task-list/task-list';
 
 /** Record-detail-page chrome: left mini-profile panel + vertical tab list + right content pane
  * -- new pattern for this codebase, established here per roadmap Phase 3's Angular deliverable.
@@ -16,10 +17,14 @@ import { Contact, ContactGroup, ContactOverviewDto, ContactType } from '../../..
  * Subscribes to route.paramMap (not route.snapshot) -- Angular's default route reuse strategy
  * keeps this same component instance alive when navigating contacts/new -> contacts/:contactId
  * (both match this route's path), so a snapshot captured once in the constructor would go stale
- * right after Create redirects to the new record's own URL. */
+ * right after Create redirects to the new record's own URL.
+ *
+ * activeTab (Phase 13) is the first real tab-switching signal this page has ever had -- until now
+ * the vertical tab list was a single hardcoded always-active "Overview" button with no click
+ * handler at all. */
 @Component({
   selector: 'app-contact-detail-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, TaskList],
   templateUrl: './contact-detail-page.html',
 })
 export class ContactDetailPage {
@@ -38,6 +43,7 @@ export class ContactDetailPage {
   protected readonly optionsOpen = signal(false);
   protected readonly groups = signal<ContactGroup[]>([]);
   protected readonly isNew = signal(false);
+  protected readonly activeTab = signal<'Overview' | 'Tasks'>('Overview');
 
   protected readonly overview = signal<ContactOverviewDto | null>(null);
   protected readonly overviewLoading = signal(false);
@@ -82,6 +88,7 @@ export class ContactDetailPage {
       this.optionsOpen.set(false);
       this.overview.set(null);
       this.overviewError.set(null);
+      this.activeTab.set('Overview');
 
       if (isNew) {
         this.loading.set(false);
@@ -99,6 +106,10 @@ export class ContactDetailPage {
         this.load();
       }
     });
+  }
+
+  protected switchTab(tab: 'Overview' | 'Tasks'): void {
+    this.activeTab.set(tab);
   }
 
   protected startEdit(): void {

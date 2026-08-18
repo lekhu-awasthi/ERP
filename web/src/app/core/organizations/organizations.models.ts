@@ -98,6 +98,14 @@ export interface UpdateWarehouseResult {
   isActive: boolean;
 }
 
+// Phase 13 -- powers the Task feature's Assigned-To picker.
+export interface OrganizationMember {
+  userId: string;
+  fullName: string;
+  email: string;
+  roleName: string;
+}
+
 export interface AccountingDefaults {
   defaultSalesAccountId: string | null;
   defaultAccountsReceivableId: string | null;

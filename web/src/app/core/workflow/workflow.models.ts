@@ -36,3 +36,71 @@ export interface TransactionApprovalRowDto {
 export interface TransactionApprovalQueueDto {
   rows: TransactionApprovalRowDto[];
 }
+
+// Phase 13 (Tasks, the second Workflow-context feature).
+
+export type TaskParentType = 'Contact' | 'Organization';
+
+export type TaskPriority = 'Normal' | 'Urgent';
+
+export type TaskStatus = 'Pending' | 'Started' | 'Done';
+
+export interface TaskRow {
+  id: string;
+  title: string;
+  description: string | null;
+  dueDate: string | null;
+  createdAt: string;
+  taskTypeId: string;
+  taskTypeName: string;
+  taskTypeColor: string;
+  priority: TaskPriority;
+  status: TaskStatus;
+  isPrivate: boolean;
+  createdByUserId: string;
+  createdByName: string;
+  assignedToUserId: string | null;
+  assignedToName: string | null;
+}
+
+// Named TaskListDto (not TaskList) to avoid colliding with the TaskList Angular *component*
+// (features/workflow/task-list) -- both would otherwise be plausible names imported into the same
+// file.
+export interface TaskListDto {
+  rows: TaskRow[];
+}
+
+export interface CreateTaskRequest {
+  parentType: TaskParentType;
+  parentId: string;
+  title: string;
+  description: string | null;
+  assignedToUserId: string | null;
+  dueDate: string | null;
+  taskTypeId: string;
+  priority: TaskPriority;
+  isPrivate: boolean;
+}
+
+export interface CreateTaskResult {
+  id: string;
+  parentType: TaskParentType;
+  parentId: string;
+  title: string;
+  status: TaskStatus;
+  createdAt: string;
+}
+
+export interface UpdateTaskRequest {
+  title: string;
+  description: string | null;
+  assignedToUserId: string | null;
+  dueDate: string | null;
+  taskTypeId: string;
+  priority: TaskPriority;
+  isPrivate: boolean;
+}
+
+export interface UpdateTaskStatusRequest {
+  newStatus: TaskStatus;
+}

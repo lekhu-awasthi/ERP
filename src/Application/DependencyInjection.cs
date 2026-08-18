@@ -75,6 +75,9 @@ public static class DependencyInjection
         // Phase 6 (Purchase chain) -- TdsType is the same "pure {code, name, rate}" lookup shape.
         RegisterLookupHandlers<TdsType>(services);
 
+        // Phase 13 (Tasks) -- TaskType is the same "pure {name, color}" lookup shape.
+        RegisterLookupHandlers<TaskType>(services);
+
         // IGlPostingRule<T> (architecture-spec.md §3.4) -- pure TDocument->GL-lines mappers, one
         // per document type that posts to GL. Registered so ApproveXCommandHandler and
         // PreviewGlPostingQueryHandler share the exact same instance type (no duplicated math).

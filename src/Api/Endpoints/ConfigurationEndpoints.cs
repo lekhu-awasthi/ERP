@@ -4,6 +4,7 @@ using ErpApp.Application.Configuration.Commands.CreateCustomStatus;
 using ErpApp.Application.Configuration.Commands.CreatePaymentMode;
 using ErpApp.Application.Configuration.Commands.CreateReportingTagCategory;
 using ErpApp.Application.Configuration.Commands.CreateReportingTagOption;
+using ErpApp.Application.Configuration.Commands.CreateTaskType;
 using ErpApp.Application.Configuration.Commands.CreateTdsType;
 using ErpApp.Application.Configuration.Commands.DeleteCustomFieldDefinition;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
@@ -13,6 +14,7 @@ using ErpApp.Application.Configuration.Commands.UpdateCustomStatus;
 using ErpApp.Application.Configuration.Commands.UpdatePaymentMode;
 using ErpApp.Application.Configuration.Commands.UpdateReportingTagCategory;
 using ErpApp.Application.Configuration.Commands.UpdateReportingTagOption;
+using ErpApp.Application.Configuration.Commands.UpdateTaskType;
 using ErpApp.Application.Configuration.Commands.UpdateTdsType;
 using ErpApp.Application.Configuration.Queries.ListCustomFieldDefinitions;
 using ErpApp.Application.Configuration.Queries.ListLookups;
@@ -37,6 +39,7 @@ public static class ConfigurationEndpoints
         MapReportingTagOptionEndpoints(group);
         MapCustomFieldDefinitionEndpoints(group);
         MapTdsTypeEndpoints(group);
+        MapTaskTypeEndpoints(group);
     }
 
     private static void MapCreditTermEndpoints(RouteGroupBuilder group)
@@ -267,6 +270,37 @@ public static class ConfigurationEndpoints
         });
     }
 
+    private static void MapTaskTypeEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/task-types", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new ListLookupsQuery<TaskType>(organizationId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/task-types", async (
+            Guid organizationId, CreateTaskTypeRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new CreateTaskTypeCommand(organizationId, request.Name, request.Color), ct);
+            return Results.Created($"/api/organizations/{organizationId}/configuration/task-types/{result.Id}", result);
+        });
+
+        group.MapPut("/task-types/{id:guid}", async (
+            Guid organizationId, Guid id, UpdateTaskTypeRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdateTaskTypeCommand(organizationId, id, request.Name, request.Color, request.IsActive), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapDelete("/task-types/{id:guid}", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteLookupCommand<TaskType>(organizationId, id), ct);
+            return Results.NoContent();
+        });
+    }
+
     private sealed record CreateCreditTermRequest(string Name, int DueDays);
 
     private sealed record UpdateCreditTermRequest(string Name, int DueDays, bool IsActive);
@@ -296,4 +330,8 @@ public static class ConfigurationEndpoints
     private sealed record CreateTdsTypeRequest(string Code, string Name, decimal RatePct);
 
     private sealed record UpdateTdsTypeRequest(string Code, string Name, decimal RatePct, bool IsActive);
+
+    private sealed record CreateTaskTypeRequest(string Name, string Color);
+
+    private sealed record UpdateTaskTypeRequest(string Name, string Color, bool IsActive);
 }

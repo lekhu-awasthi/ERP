@@ -45,15 +45,39 @@
 
         <div class="card border-0 shadow-sm">
           <div class="list-group list-group-flush">
-            <button type="button" class="list-group-item list-group-item-action active fw-semibold">
+            <button
+              type="button"
+              class="list-group-item list-group-item-action fw-semibold"
+              [class.active]="activeTab() === 'Overview'"
+              (click)="switchTab('Overview')"
+            >
               <i class="bi bi-info-circle me-2"></i> Overview
             </button>
+            @if (!isNew()) {
+              <button
+                type="button"
+                class="list-group-item list-group-item-action fw-semibold"
+                [class.active]="activeTab() === 'Tasks'"
+                (click)="switchTab('Tasks')"
+              >
+                <i class="bi bi-check2-square me-2"></i> Tasks
+              </button>
+            }
           </div>
         </div>
       </div>
 
       <!-- Right content pane -->
       <div class="col-12 col-md-8">
+        @if (activeTab() === 'Tasks' && !isNew()) {
+          <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+              <h6 class="fw-bold text-dark mb-3">Tasks</h6>
+              <app-task-list [organizationId]="organizationId" [parentType]="'Contact'" [parentId]="routeContactId" />
+            </div>
+          </div>
+        }
+        @if (activeTab() === 'Overview') {
         <div class="card border-0 shadow-sm">
           <div class="card-body p-4">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -248,6 +272,7 @@
               }
             </div>
           </div>
+        }
         }
       </div>
     </div>

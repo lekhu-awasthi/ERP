@@ -3,7 +3,15 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { TransactionApprovalQueueDto } from './workflow.models';
+import {
+  CreateTaskRequest,
+  CreateTaskResult,
+  TaskListDto,
+  TaskParentType,
+  TaskStatus,
+  TransactionApprovalQueueDto,
+  UpdateTaskRequest,
+} from './workflow.models';
 
 @Injectable({ providedIn: 'root' })
 export class WorkflowService {
@@ -17,5 +25,35 @@ export class WorkflowService {
     return this.http.get<TransactionApprovalQueueDto>(`${this.baseUrl(organizationId)}/workflow/transaction-approval-queue`, {
       withCredentials: true,
     });
+  }
+
+  listTasks(
+    organizationId: string,
+    parentType: TaskParentType,
+    parentId: string,
+    status: TaskStatus | null,
+  ): Observable<TaskListDto> {
+    const params: Record<string, string> = status
+      ? { parentType, parentId, status }
+      : { parentType, parentId };
+    return this.http.get<TaskListDto>(`${this.baseUrl(organizationId)}/tasks`, { withCredentials: true, params });
+  }
+
+  createTask(organizationId: string, request: CreateTaskRequest): Observable<CreateTaskResult> {
+    return this.http.post<CreateTaskResult>(`${this.baseUrl(organizationId)}/tasks`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updateTask(organizationId: string, id: string, request: UpdateTaskRequest): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl(organizationId)}/tasks/${id}`, request, { withCredentials: true });
+  }
+
+  updateTaskStatus(organizationId: string, id: string, newStatus: TaskStatus): Observable<void> {
+    return this.http.put<void>(
+      `${this.baseUrl(organizationId)}/tasks/${id}/status`,
+      { newStatus },
+      { withCredentials: true },
+    );
   }
 }

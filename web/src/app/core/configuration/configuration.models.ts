@@ -57,3 +57,24 @@ export interface UpdateTdsTypeRequest {
   ratePct: number;
   isActive: boolean;
 }
+
+// Phase 13 -- Workflow (config) > Task Types (erp-module-scan.md line 315).
+export interface TaskType {
+  id: string;
+  organizationId: string;
+  name: string;
+  color: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateTaskTypeRequest {
+  name: string;
+  color: string;
+}
+
+export interface UpdateTaskTypeRequest {
+  name: string;
+  color: string;
+  isActive: boolean;
+}

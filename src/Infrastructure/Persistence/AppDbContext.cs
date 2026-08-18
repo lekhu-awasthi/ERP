@@ -10,6 +10,7 @@ using ErpApp.Domain.Payments;
 using ErpApp.Domain.Purchasing;
 using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
+using ErpApp.Domain.Workflow;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Infrastructure.Persistence;
@@ -72,6 +73,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<WarehouseTransferLine> WarehouseTransferLines => Set<WarehouseTransferLine>();
     public DbSet<InventoryAdjustment> InventoryAdjustments => Set<InventoryAdjustment>();
     public DbSet<InventoryAdjustmentLine> InventoryAdjustmentLines => Set<InventoryAdjustmentLine>();
+    public DbSet<TaskType> TaskTypes => Set<TaskType>();
+    public DbSet<WorkTask> Tasks => Set<WorkTask>();
 
     // IAppDbContext.Set<TEntity>() -- satisfied implicitly by DbContext's own public
     // Set<TEntity>() (identical signature), needed by the generic

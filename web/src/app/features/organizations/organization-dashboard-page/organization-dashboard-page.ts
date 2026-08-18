@@ -6,6 +6,7 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AuthService } from '../../../core/auth/auth.service';
 import { MembershipRole, MyOrganizations } from '../../../core/organizations/organizations.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
+import { TaskList } from '../../workflow/task-list/task-list';
 
 /**
  * The Organization dashboard shell (roadmap Phase 1b task 11) -- replaces Phase 1a's generic
@@ -14,7 +15,7 @@ import { OrganizationsService } from '../../../core/organizations/organizations.
  */
 @Component({
   selector: 'app-organization-dashboard-page',
-  imports: [ReactiveFormsModule, FormsModule, RouterLink],
+  imports: [ReactiveFormsModule, FormsModule, RouterLink, TaskList],
   templateUrl: './organization-dashboard-page.html',
 })
 export class OrganizationDashboardPage {

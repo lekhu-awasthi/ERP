@@ -6,12 +6,15 @@ import { environment } from '../../../environments/environment';
 import {
   CreateCreditTermRequest,
   CreatePaymentModeRequest,
+  CreateTaskTypeRequest,
   CreateTdsTypeRequest,
   CreditTerm,
   PaymentMode,
+  TaskType,
   TdsType,
   UpdateCreditTermRequest,
   UpdatePaymentModeRequest,
+  UpdateTaskTypeRequest,
   UpdateTdsTypeRequest,
 } from './configuration.models';
 
@@ -77,5 +80,23 @@ export class ConfigurationService {
 
   deleteTdsType(organizationId: string, id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl(organizationId)}/tds-types/${id}`, { withCredentials: true });
+  }
+
+  listTaskTypes(organizationId: string): Observable<TaskType[]> {
+    return this.http.get<TaskType[]>(`${this.baseUrl(organizationId)}/task-types`, { withCredentials: true });
+  }
+
+  createTaskType(organizationId: string, request: CreateTaskTypeRequest): Observable<TaskType> {
+    return this.http.post<TaskType>(`${this.baseUrl(organizationId)}/task-types`, request, { withCredentials: true });
+  }
+
+  updateTaskType(organizationId: string, id: string, request: UpdateTaskTypeRequest): Observable<TaskType> {
+    return this.http.put<TaskType>(`${this.baseUrl(organizationId)}/task-types/${id}`, request, {
+      withCredentials: true,
+    });
+  }
+
+  deleteTaskType(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/task-types/${id}`, { withCredentials: true });
   }
 }

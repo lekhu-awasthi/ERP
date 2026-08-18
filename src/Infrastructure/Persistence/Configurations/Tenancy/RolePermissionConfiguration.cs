@@ -314,6 +314,20 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminTransactionApprovalViewId = Guid.Parse("00000000-0000-0000-0002-0000000000c7");
     private static readonly Guid MemberTransactionApprovalViewId = Guid.Parse("00000000-0000-0000-0002-0000000000c8");
 
+    // Phase 13 (Tasks, the second Workflow-context feature) -- TaskView/TaskManage both granted to
+    // Member (see PermissionKeys.TaskView's doc comment: routine daily-use working data, the same
+    // Member-View+Manage precedent Contact/Product set, not a maker-checker document). TaskTypeView/
+    // TaskTypeManage follow every other Configuration lookup's Member-View-only/Admin-write split.
+    private static readonly Guid AdminTaskViewId = Guid.Parse("00000000-0000-0000-0002-0000000000c9");
+    private static readonly Guid AdminTaskManageId = Guid.Parse("00000000-0000-0000-0002-0000000000ca");
+    private static readonly Guid MemberTaskViewId = Guid.Parse("00000000-0000-0000-0002-0000000000cb");
+    private static readonly Guid MemberTaskManageId = Guid.Parse("00000000-0000-0000-0002-0000000000cc");
+
+    private static readonly Guid AdminTaskTypeViewId = Guid.Parse("00000000-0000-0000-0002-0000000000cd");
+    private static readonly Guid AdminTaskTypeManageId = Guid.Parse("00000000-0000-0000-0002-0000000000ce");
+    private static readonly Guid MemberTaskTypeViewId = Guid.Parse("00000000-0000-0000-0002-0000000000cf");
+    private static readonly Guid MemberTaskTypeManageId = Guid.Parse("00000000-0000-0000-0002-0000000000d0");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -568,6 +582,16 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(MemberSupplierStatementViewId, Role.MemberId, PermissionKeys.SupplierStatementView, false),
 
             RolePermission.Create(AdminTransactionApprovalViewId, Role.AdminId, PermissionKeys.TransactionApprovalView, true),
-            RolePermission.Create(MemberTransactionApprovalViewId, Role.MemberId, PermissionKeys.TransactionApprovalView, true));
+            RolePermission.Create(MemberTransactionApprovalViewId, Role.MemberId, PermissionKeys.TransactionApprovalView, true),
+
+            RolePermission.Create(AdminTaskViewId, Role.AdminId, PermissionKeys.TaskView, true),
+            RolePermission.Create(AdminTaskManageId, Role.AdminId, PermissionKeys.TaskManage, true),
+            RolePermission.Create(MemberTaskViewId, Role.MemberId, PermissionKeys.TaskView, true),
+            RolePermission.Create(MemberTaskManageId, Role.MemberId, PermissionKeys.TaskManage, true),
+
+            RolePermission.Create(AdminTaskTypeViewId, Role.AdminId, PermissionKeys.TaskTypeView, true),
+            RolePermission.Create(AdminTaskTypeManageId, Role.AdminId, PermissionKeys.TaskTypeManage, true),
+            RolePermission.Create(MemberTaskTypeViewId, Role.MemberId, PermissionKeys.TaskTypeView, true),
+            RolePermission.Create(MemberTaskTypeManageId, Role.MemberId, PermissionKeys.TaskTypeManage, false));
     }
 }
