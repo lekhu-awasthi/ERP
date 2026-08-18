@@ -28,6 +28,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - `docs/phase-10-status.md` — history of Phase 10: what was built (`ContactOverviewQuery` under `Application.Contacts.Queries.ContactOverview`, the Contact detail page's Overview-tab financial summary — Opening/Closing Balance with DR/CR, a 10-row Recent Transactions feed, "View Full Statement" — a thin read reusing Phase 9's running-balance engine via a new shared `ContactLedgerReader` extracted from `ContactStatementQueryHandler`, no new commands/aggregates/schema/migrations at all, not even a permission-seed one), scope decisions (reuses Phase 3's `Contacts.Contact.View` permission key rather than minting a new Admin-only `Reports.*.View` one — an explicit re-derivation against Phase 9's Admin-only Statement/Ageing precedent, not a silent default, since Overview is bounded/single-Contact/already-visible rather than an unbounded ledger or a cross-Contact list; Recent Transactions capped at a fixed count of 10, not a date window; takes `ContactId` alone and resolves `Type` itself rather than a route-hardcoded `ContactType`, safe for Lead only because `SalesValidation`/`PurchasingValidation` already forbid any document from ever targeting a Lead; "View Full Statement" passes only a `contactId` query param and lets the Statement pages' own existing first-of-month-to-today default apply, rather than re-encoding that default as URL params), no bugs hit this phase — the one design risk (Closing Balance drifting from Statement's own number) was closed by construction via the shared `ContactLedgerReader` rather than found and fixed after the fact, current status
 - `docs/phase-12-status.md` — history of Phase 12: what was built (`TransactionApprovalQuery` under `Application.Workflow.Queries.TransactionApproval`, the first Workflow-context feature — a read-only queue unioning Draft-status rows across all 13 `ApprovableTransaction` document types via 13 separate concrete per-type `Where` blocks, not one generic `Func<TDocument,...>`-parameterized helper, one permission-seed-only migration), the one real judgment call made explicit (whether the query needs its own blanket `IRequirePermission` gate, decided **yes** — not for exposure control like most `Reports.*.View` keys, but because `AuthorizationBehavior` turned out to be the *only* mechanism in this codebase verifying org membership at all for an `IOrganizationScoped` request, confirmed by grepping all 128 such types), scope decisions (no bulk-approve-from-the-list action this phase, an explicitly deferred stretch goal; `PermissionKeys.TransactionApprovalView` granted Admin+Member since the query's own per-document-type `*.Approve` filtering — not this blanket key — is what actually narrows a Member's visibility; `SalesOrder` rows render with no "Open" link since Phase 5 never shipped that type's Angular UI; `Expense` rows reuse `SupplierInvoiceReference` for the shared `Reference` field since `Expense` is the one type with no plain `Reference` field of its own; `Payment` rows carry a `Direction` field so Angular can route Customer vs Supplier Payment to their two separate existing detail pages), bugs hit and fixed (none in the shipped code — one test-authoring slip caught before the first test run, a `WarehouseTransfer` test helper needing its own Goods-type product rather than reusing a Service one), current status
 - `docs/phase-13-status.md` — history of Phase 13: what was built (`WorkTask` under `Domain.Workflow`, the second Workflow-context feature and the first real aggregate — not a pure read — in that bounded context, plus `TaskType` under `Domain.Configuration` reusing the generic Configuration lookup pair), the one real judgment call made explicit (`TaskType` modeled as a real tenant-editable lookup entity rather than a hardcoded enum, weighed directly against competing evidence in `erp-module-scan.md` — the Tasks list's own data model names Type as a fixed enum, but a separate "Workflow (config) > Task Types" screen shows it as its own tenant-configurable list, resolved in favor of the lookup entity per this codebase's "confirmed management screen → generic lookup entity" precedent), scope decisions (no Draft/Approve lifecycle at all — `Update()` guarded by `Status != Done` instead of `EnsureDraft()`; a small dedicated `TaskParentType` enum holding only the two confirmed-live values `Contact`/`Organization`, deliberately not `DocumentType` and not a broader speculative set; `IsPrivate` really enforced at query time via a concrete non-generic LINQ `Where`, not stored-but-inert; `WorkTask.TransitionStatus` only allows a strictly-forward move — Pending→Started, Pending→Done, Started→Done — with backward/no-op transitions rejected via a 409, an explicit decision against the confirmed live UI's forward-only per-row complete checkmark; `Workflow.TaskView`/`TaskManage` both granted to Member unlike every maker-checker document type's Approve-denied default; a small `ListOrganizationMembersQuery` added as necessary supporting infrastructure for the Assigned-To picker, gated on `TaskView` rather than a new standalone key; no dedicated `TaskType` Angular admin screen built, mirroring this codebase's own precedent of several Configuration lookups having working APIs but no screen), bugs hit and fixed (read this before naming any future Domain type after a common BCL word — naming the aggregate the bare "Task" collides with `System.Threading.Tasks.Task`/`TaskStatus`, implicitly in scope in every async C# handler file in this codebase via `ImplicitUsings`, caught by `dotnet build` and fixed by naming the aggregate `WorkTask` and its status enum `WorkTaskStatus` while every other layer — permission keys, table/DbSet name, routes, DTOs, Angular — keeps plain "Task" naming; also a `Write`-without-`Read`-first mistake that briefly clobbered Phase 12's existing `core/workflow/workflow.models.ts`/`workflow.service.ts` content, caught immediately by `ng build` and recovered via `git show`), current status
+- `docs/phase-14-status.md` — history of Phase 14: what was built (`Role.OrganizationId` nullable — `null` for the two shared system rows kept exactly as-is, non-null for a tenant's own custom role — upgrading Phase 1c's hardcoded Admin/Member stub into a real per-org permission-matrix editor: `CreateRoleCommand`/`UpdateRoleCommand`/`DeleteRoleCommand`/`ListRolesQuery`/`GetRolePermissionMatrixQuery`/`UpdateRolePermissionsCommand`/`UpdateMembershipRoleCommand`, plus a new `PermissionKeyCatalog` reflecting over `PermissionKeys.cs`'s 107 constants), the two real judgment calls made explicit (nullable-`OrganizationId`-on-shared-table chosen over a separate per-org-override table, with the two system rows' shared-across-every-tenant `RolePermission` rows made deliberately non-editable through the new UI as the direct consequence; `PermissionKeyCatalog` built via reflection rather than a hand-maintained parallel list, explicitly weighed against `LookupPermissionKeys.cs`'s own plain-switch precedent and resolved differently because "enumerate the complete universe of keys" is a fundamentally different question than "map one closed type to its key"), scope decisions (HeadOffice/POS Restaurant/POS Retail permission sections explicitly out of scope — no `BillingLocation` backing implementation exists anywhere in this codebase to scope them against; `UpdateRolePermissionsCommand`'s `Grants` is a full-desired-state diff-and-save, not a client-computed delta, following this codebase's existing Clear+re-Add InMemory-provider-mistracking discipline even though `RolePermission` isn't a child collection here; `InviteUserCommand` moved from a hardcoded `MembershipRole` selector to a real `RoleId` — a genuine behavior change, traced against every `MembershipRole` call site first rather than assumed additive; `Tenancy.Role.View`/`RoleManage` are Admin-only, the one deliberate exception to this codebase's "grant Member routine daily-use data" default since Member access here would be self-defeating), bugs hit and fixed (none in the shipped code — two environment/tooling snags during manual E2E: registering a user does not itself create a `VerificationCode` row, `POST /api/auth/request-verification-code` must be called explicitly first; and a `nohup ... &`-backgrounded `dotnet run` process exiting immediately once its wrapping shell command returned, fixed by using the Bash tool's own `run_in_background: true` instead), current status
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -88,6 +89,79 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - The `[value]`-vs-`@for` native-`<select>` race (documented above from Phase 5/6) isn't just a cosmetic "wrong option shown" bug — confirmed in Phase 7 to cause **actually-wrong persisted data**, silently. An Invoice's Warehouse `<select>` (still using the old `[value]="warehouseId()"` pattern, never retrofitted after the gotcha was first documented) visually showed one warehouse throughout an entire create→save→approve session while a direct DB query proved the row's real, persisted `WarehouseId` — and the actual FIFO stock consumption — was against a *different* warehouse the whole time. Never trust a signal-bound `<select>`'s on-screen value as proof of what got saved, on any page, without checking the database; audit every remaining `[value]`-on-`<select>` instance in the codebase for this, not just the ones a current phase happens to touch. See `docs/phase-7-status.md`'s bug #2.
 
 ## Current status
+**Phase 14 (Role Reference) is complete** — `Role` (`Domain.Tenancy`) gains a nullable
+`OrganizationId`, upgrading Phase 1c's two-hardcoded-system-role stub (`Role.AdminId`/
+`Role.MemberId`, shared across every Organization) into a real per-tenant permission-matrix
+editor, the item `docs/roadmap.md`'s Phase 8+ section named directly ("upgrade Phase 1c's
+hardcoded-role stub into the real per-document-type permission-matrix editor, once enough
+document types exist to make the matrix meaningful") — now met, `PermissionKeys.cs` has grown to
+107 constants across every phase since Phase 1c. `OrganizationId` is `null` for the two seeded
+system rows (kept exactly as-is, zero migration risk to existing data) and non-null for a
+tenant's own custom role created via the new `CreateRoleCommand`. The one real judgment call this
+phase needed, made explicit rather than defaulted: nullable-`OrganizationId`-on-the-shared-table
+was chosen over a separate per-org-override table (no new table, no new join, `RolePermission`'s
+existing shape reused unchanged for a custom role's grants), with the direct consequence being
+made deliberate rather than accidental — the two system rows' `RolePermission` grants stay shared
+globally across every tenant, so they are **not editable** through this phase's new UI at all;
+`UpdateRoleCommandHandler`/`DeleteRoleCommandHandler`/`UpdateRolePermissionsCommandHandler` all
+reject (409) any attempt to target a system role, while `GetRolePermissionMatrixQuery` still lets
+an Admin *view* Admin/Member's own grants as reference. The second judgment call — how
+`GetRolePermissionMatrixQuery` discovers the full set of assignable keys — went to a new
+`PermissionKeyCatalog` that reflects over `PermissionKeys.cs`'s own `public const string` fields,
+a deliberate departure from `LookupPermissionKeys.cs`'s established plain-switch precedent:
+weighed explicitly and resolved differently because "enumerate the complete universe of keys that
+exist" is a fundamentally different question than "map one closed type to its own key," and a
+hand-maintained parallel list here would silently drift the next time a phase adds a key (no
+build error, no test failure, just a permission invisibly missing from every future role's
+matrix). HeadOffice/POS Restaurant/POS Retail permission sections from `erp-module-scan.md`'s
+confirmed 6-section Role Reference panel are explicitly out of scope, not silently dropped — no
+`BillingLocation`/multi-location backing implementation exists anywhere in this codebase to scope
+a location-specific matrix against, so building one would invent UI for a feature that doesn't
+exist; this phase ships one flat matrix grouped by each key's own dotted `{Module}.{Entity}.
+{Action}` module prefix instead. `UpdateRolePermissionsCommand`'s `Grants` is the complete desired
+grant state for every catalog key (the matrix page submits its whole checkbox grid each save), and
+the handler diffs that against each row's existing `IsGranted` explicitly rather than a blind
+clear-and-reinsert — the same "don't rely on ORM fixup for a full-collection replace" discipline
+CLAUDE.md's own Phase 4 Clear+re-Add InMemory-provider gotcha established, applied here even
+though `RolePermission` isn't a child collection of an aggregate. `InviteUserCommand` moved from a
+hardcoded `MembershipRole` selector to a real `RoleId` — a genuine behavior change traced against
+every existing `MembershipRole` call site first (`OrganizationMembership.CreateAccepted`/`Request`
+keep their `MembershipRole` parameter unchanged, only `Invite` and `InviteUserCommand` changed) —
+so the invite flow's role dropdown now sources `ListRolesQuery`'s full set (system roles plus this
+org's own custom ones), not just Admin/Member; `organization-dashboard-page`'s role `<select>`
+follows CLAUDE.md's `[selected]`-per-option convention defensively even though it's
+Reactive-Forms-managed, since the options themselves still resolve on their own async signal
+timeline. Two new Admin-only permission keys, `Tenancy.Role.View`/`Tenancy.Role.Manage` — the one
+deliberate exception to this codebase's usual "grant Member whatever routine daily-use working
+data needs" default, since granting either to a Member would be self-defeating (either exposing
+every other Role's exact grants, or letting a Member grant themselves anything). Angular ships two
+new pages (`role-list-page` — system rows read-only plus custom-role CRUD, and a Members section
+with inline Role reassignment, added beyond the brief's named page list as necessary supporting
+infrastructure; `role-permission-matrix-page` — a checkbox grid grouped by module with per-group
+All/None bulk toggles and a single Save, read-only when the target role is a system role) plus the
+updated invite form. `RoleCommandHandlerTests` (16 tests: custom-role CRUD scoped per org,
+delete-blocked-while-referenced, the permission-matrix diff-and-save handler confirming exactly
+the touched rows change and nothing else does, `ListRolesQuery` correctly unioning system + custom
+rows, and `InviteUserCommand`'s new role-not-found path) is this feature's first-ever test
+coverage. `dotnet build`/`dotnet test` (Domain.UnitTests 67 unchanged, Application.UnitTests 172 —
+16 new + 156 pre-existing, Api.IntegrationTests 4, all green, Docker Desktop running this session)
+and `ng build`/`ng test` (7 pre-existing specs green, no new Angular specs) all pass. No codebase
+defects hit this phase — confirmed by hand end-to-end against the real API/DB/browser: a fresh
+Admin created an Organization, a custom "Sales Rep" role granted exactly `Sales.Quotation.*` +
+`Sales.Invoice.View`, and invited a second user under it; that user could create a Quotation
+(`201`) and list Invoices (`200`), but hit a real `403` naming `Purchasing.PurchaseBill.Approve`
+approving a PurchaseBill and a real `403` naming `Sales.Invoice.Edit` editing an Invoice — both
+denials fired from `AuthorizationBehavior` before either handler ran, proven by both requests
+targeting a nonexistent document id and still getting `403`, not `404` — the actual proof this
+phase exists for, closing the exact gap Phase 12's own manual E2E flagged. Then, through the real
+Angular UI: the Sales Rep role's checkbox grid showed exactly those five keys checked and nothing
+else; toggling `Sales.Quotation.Edit` off and `Sales.Invoice.Create` on and clicking Save round-
+tripped correctly both in the database (`sqlcmd` against `[tenancy].[RolePermissions]`) and via a
+live re-run of the same two curl calls (Quotation edit now 403'd, Invoice create now passed the
+permission gate and reached the handler). See `docs/phase-14-status.md` for the full history (all
+seven scope decisions in detail, plus two environment/tooling snags hit during manual E2E scripting
+— not codebase defects).
+
 **Phase 13 (Tasks) is complete** — `WorkTask` (`Domain.Workflow`) is the second Workflow-context
 feature (architecture-spec.md §4.9) and the first *real aggregate* in that bounded context (Phase
 12's `TransactionApprovalQuery` was a pure read with no schema of its own), a general-purpose

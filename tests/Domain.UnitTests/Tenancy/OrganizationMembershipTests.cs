@@ -21,7 +21,7 @@ public class OrganizationMembershipTests
     public void Invite_starts_invited_with_null_user_when_no_account_exists_yet()
     {
         var membership = OrganizationMembership.Invite(
-            Guid.NewGuid(), userId: null, "invitee@example.com", MembershipRole.Member, Guid.NewGuid());
+            Guid.NewGuid(), userId: null, "invitee@example.com", Role.MemberId, Guid.NewGuid());
 
         Assert.Equal(MembershipStatus.Invited, membership.Status);
         Assert.Null(membership.UserId);
@@ -32,7 +32,7 @@ public class OrganizationMembershipTests
     public void AcceptAsUser_resolves_user_id_and_transitions_to_accepted()
     {
         var membership = OrganizationMembership.Invite(
-            Guid.NewGuid(), userId: null, "invitee@example.com", MembershipRole.Member, Guid.NewGuid());
+            Guid.NewGuid(), userId: null, "invitee@example.com", Role.MemberId, Guid.NewGuid());
         var acceptingUserId = Guid.NewGuid();
 
         membership.AcceptAsUser(acceptingUserId);
@@ -68,7 +68,7 @@ public class OrganizationMembershipTests
     public void Accept_is_a_no_op_for_a_status_other_than_requested()
     {
         var membership = OrganizationMembership.Invite(
-            Guid.NewGuid(), userId: null, "invitee@example.com", MembershipRole.Member, Guid.NewGuid());
+            Guid.NewGuid(), userId: null, "invitee@example.com", Role.MemberId, Guid.NewGuid());
 
         membership.Accept();
 

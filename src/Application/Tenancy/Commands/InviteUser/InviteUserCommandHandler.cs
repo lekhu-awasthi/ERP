@@ -18,6 +18,13 @@ public sealed class InviteUserCommandHandler(IAppDbContext db, IEmailSender emai
         var organization = await db.Organizations.SingleOrDefaultAsync(o => o.Id == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Organization not found.");
 
+        // A system role (OrganizationId null) or this Organization's own custom role -- not some
+        // other tenant's custom role.
+        var role = await db.Roles.SingleOrDefaultAsync(
+            r => r.Id == request.RoleId && (r.OrganizationId == null || r.OrganizationId == request.OrganizationId),
+            cancellationToken)
+            ?? throw new NotFoundException("Role not found.");
+
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
         var invitedUser = await db.Users.SingleOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken);
@@ -33,7 +40,7 @@ public sealed class InviteUserCommandHandler(IAppDbContext db, IEmailSender emai
         }
 
         var membership = OrganizationMembership.Invite(
-            request.OrganizationId, invitedUser?.Id, normalizedEmail, request.Role, currentUser.UserId);
+            request.OrganizationId, invitedUser?.Id, normalizedEmail, role.Id, currentUser.UserId);
 
         db.OrganizationMemberships.Add(membership);
         await db.SaveChangesAsync(cancellationToken);
@@ -41,10 +48,10 @@ public sealed class InviteUserCommandHandler(IAppDbContext db, IEmailSender emai
         await emailSender.SendAsync(
             normalizedEmail,
             $"You've been invited to join {organization.Name} on ErpApp",
-            $"You've been invited to join {organization.Name} as {request.Role}. " +
+            $"You've been invited to join {organization.Name} as {role.Name}. " +
             "Log in to ErpApp and check your Invitations tab to accept.",
             cancellationToken);
 
-        return new InviteUserResult(membership.Id, normalizedEmail, request.Role);
+        return new InviteUserResult(membership.Id, normalizedEmail, role.Id, role.Name);
     }
 }

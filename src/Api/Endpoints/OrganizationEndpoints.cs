@@ -3,13 +3,20 @@ using ErpApp.Application.Configuration.Queries.ListLookups;
 using ErpApp.Application.Tenancy.Commands.AcceptInvitation;
 using ErpApp.Application.Tenancy.Commands.AcceptRequest;
 using ErpApp.Application.Tenancy.Commands.CreateOrganization;
+using ErpApp.Application.Tenancy.Commands.CreateRole;
 using ErpApp.Application.Tenancy.Commands.CreateWarehouse;
+using ErpApp.Application.Tenancy.Commands.DeleteRole;
 using ErpApp.Application.Tenancy.Commands.InviteUser;
 using ErpApp.Application.Tenancy.Commands.UpdateAccountingDefaults;
+using ErpApp.Application.Tenancy.Commands.UpdateMembershipRole;
+using ErpApp.Application.Tenancy.Commands.UpdateRole;
+using ErpApp.Application.Tenancy.Commands.UpdateRolePermissions;
 using ErpApp.Application.Tenancy.Commands.UpdateWarehouse;
 using ErpApp.Application.Tenancy.Queries.CheckWorkspaceNameAvailability;
 using ErpApp.Application.Tenancy.Queries.GetAccountingDefaults;
+using ErpApp.Application.Tenancy.Queries.GetRolePermissionMatrix;
 using ErpApp.Application.Tenancy.Queries.ListOrganizationMembers;
+using ErpApp.Application.Tenancy.Queries.ListRoles;
 using ErpApp.Application.Tenancy.Queries.MyOrganizations;
 using ErpApp.Domain.Tenancy;
 using MediatR;
@@ -62,7 +69,7 @@ public static class OrganizationEndpoints
         group.MapPost("/{organizationId:guid}/invitations", async (
             Guid organizationId, InviteUserRequest request, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new InviteUserCommand(organizationId, request.Email, request.Role), ct);
+            var result = await sender.Send(new InviteUserCommand(organizationId, request.Email, request.RoleId), ct);
             return Results.Ok(result);
         });
 
@@ -77,6 +84,57 @@ public static class OrganizationEndpoints
             Guid membershipId, ISender sender, CancellationToken ct) =>
         {
             await sender.Send(new AcceptRequestCommand(membershipId), ct);
+            return Results.Ok();
+        });
+
+        // Phase 14 (Role Reference) -- reassigns an existing Accepted member's Role from the Users
+        // tab; a member's Role was previously fixed at invite time with no way to change it after.
+        group.MapPut("/{organizationId:guid}/memberships/{membershipId:guid}/role", async (
+            Guid organizationId, Guid membershipId, UpdateMembershipRoleRequest request, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new UpdateMembershipRoleCommand(organizationId, membershipId, request.RoleId), ct);
+            return Results.Ok();
+        });
+
+        group.MapGet("/{organizationId:guid}/roles", async (
+            Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new ListRolesQuery(organizationId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/{organizationId:guid}/roles", async (
+            Guid organizationId, CreateRoleRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new CreateRoleCommand(organizationId, request.Name, request.Description), ct);
+            return Results.Created($"/api/organizations/{organizationId}/roles/{result.Id}", result);
+        });
+
+        group.MapPut("/{organizationId:guid}/roles/{id:guid}", async (
+            Guid organizationId, Guid id, UpdateRoleRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new UpdateRoleCommand(organizationId, id, request.Name, request.Description), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapDelete("/{organizationId:guid}/roles/{id:guid}", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteRoleCommand(organizationId, id), ct);
+            return Results.NoContent();
+        });
+
+        group.MapGet("/{organizationId:guid}/roles/{id:guid}/permissions", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new GetRolePermissionMatrixQuery(organizationId, id), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPut("/{organizationId:guid}/roles/{id:guid}/permissions", async (
+            Guid organizationId, Guid id, UpdateRolePermissionsRequest request, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new UpdateRolePermissionsCommand(organizationId, id, request.Grants), ct);
             return Results.Ok();
         });
 
@@ -181,5 +239,13 @@ public static class OrganizationEndpoints
         bool PosRetail,
         bool PosRestaurant);
 
-    private sealed record InviteUserRequest(string Email, MembershipRole Role);
+    private sealed record InviteUserRequest(string Email, Guid RoleId);
+
+    private sealed record UpdateMembershipRoleRequest(Guid RoleId);
+
+    private sealed record CreateRoleRequest(string Name, string? Description);
+
+    private sealed record UpdateRoleRequest(string Name, string? Description);
+
+    private sealed record UpdateRolePermissionsRequest(IReadOnlyDictionary<string, bool> Grants);
 }

@@ -25,4 +25,12 @@ public sealed class RolePermission
     /// </summary>
     public static RolePermission Create(Guid id, Guid roleId, string permissionKey, bool isGranted) =>
         new() { Id = id, RoleId = roleId, PermissionKey = permissionKey, IsGranted = isGranted };
+
+    /// <summary>
+    /// Flips this row's grant, used by UpdateRolePermissionsCommandHandler's diff-and-save (Phase
+    /// 14) -- an existing row's IsGranted is updated in place rather than the row being deleted
+    /// and a fresh one re-added, matching this codebase's existing "an explicit IsGranted=false
+    /// row rather than the row simply being absent" seed convention.
+    /// </summary>
+    public void SetGranted(bool isGranted) => IsGranted = isGranted;
 }
