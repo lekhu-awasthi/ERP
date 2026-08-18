@@ -1,4 +1,10 @@
-export type MembershipRole = 'Admin' | 'Member';
+// Phase 14 (Role Reference) replaced the hardcoded Admin/Member MembershipRole selector
+// everywhere a role is assigned (invite, membership reassignment) with a real RoleId picked from
+// ListRolesQuery -- the two role-display fields below (OrganizationSummary.role,
+// PendingInvitation.role) already carried the Role entity's own Name as a plain string (see
+// MyOrganizationsQuery's DTO doc comment), so they need no change here; only the two
+// *assignment*-side shapes (InviteUserRequest, UpdateMembershipRoleRequest) move from an enum
+// union to a RoleId.
 
 export interface CreateOrganizationRequest {
   name: string;
@@ -35,7 +41,7 @@ export interface OrganizationSummary {
   name: string;
   workspaceName: string;
   industry: string;
-  role: MembershipRole;
+  role: string;
 }
 
 export interface PendingRequest {
@@ -49,7 +55,7 @@ export interface PendingInvitation {
   membershipId: string;
   organizationId: string;
   organizationName: string;
-  role: MembershipRole;
+  role: string;
   invitedAt: string;
 }
 
@@ -61,13 +67,14 @@ export interface MyOrganizations {
 
 export interface InviteUserRequest {
   email: string;
-  role: MembershipRole;
+  roleId: string;
 }
 
 export interface InviteUserResponse {
   membershipId: string;
   email: string;
-  role: MembershipRole;
+  roleId: string;
+  roleName: string;
 }
 
 export interface Warehouse {
@@ -98,11 +105,14 @@ export interface UpdateWarehouseResult {
   isActive: boolean;
 }
 
-// Phase 13 -- powers the Task feature's Assigned-To picker.
+// Phase 13 -- powers the Task feature's Assigned-To picker. membershipId/roleId (Phase 14) also
+// let the Role Reference page's Members section reassign a member's Role.
 export interface OrganizationMember {
+  membershipId: string;
   userId: string;
   fullName: string;
   email: string;
+  roleId: string;
   roleName: string;
 }
 
@@ -117,4 +127,59 @@ export interface AccountingDefaults {
   defaultInventoryAccountId: string | null;
   defaultCogsAccountId: string | null;
   defaultInventoryAdjustmentAccountId: string | null;
+}
+
+// Phase 14 (Role Reference).
+export interface Role {
+  id: string;
+  name: string;
+  description: string | null;
+  isSystemRole: boolean;
+}
+
+export interface CreateRoleRequest {
+  name: string;
+  description: string | null;
+}
+
+export interface CreateRoleResult {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
+export interface UpdateRoleRequest {
+  name: string;
+  description: string | null;
+}
+
+export interface UpdateRoleResult {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
+export interface PermissionMatrixEntry {
+  permissionKey: string;
+  isGranted: boolean;
+}
+
+export interface PermissionMatrixGroup {
+  module: string;
+  permissions: PermissionMatrixEntry[];
+}
+
+export interface RolePermissionMatrix {
+  roleId: string;
+  roleName: string;
+  isSystemRole: boolean;
+  groups: PermissionMatrixGroup[];
+}
+
+export interface UpdateRolePermissionsRequest {
+  grants: Record<string, boolean>;
+}
+
+export interface UpdateMembershipRoleRequest {
+  roleId: string;
 }

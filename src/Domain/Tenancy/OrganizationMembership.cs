@@ -70,8 +70,14 @@ public sealed class OrganizationMembership
         };
     }
 
+    /// <summary>
+    /// <paramref name="roleId"/> is a raw RoleId, not a MembershipRole selector -- Phase 14 (Role
+    /// Reference) lets an inviter pick any of the Organization's roles (the two shared system
+    /// rows plus its own custom ones via ListRolesQuery), not just Admin/Member, so
+    /// InviteUserCommandHandler resolves and validates the RoleId itself before calling this.
+    /// </summary>
     public static OrganizationMembership Invite(
-        Guid organizationId, Guid? userId, string invitedEmail, MembershipRole role, Guid invitedByUserId)
+        Guid organizationId, Guid? userId, string invitedEmail, Guid roleId, Guid invitedByUserId)
     {
         return new OrganizationMembership
         {
@@ -79,7 +85,7 @@ public sealed class OrganizationMembership
             OrganizationId = organizationId,
             UserId = userId,
             InvitedEmail = invitedEmail,
-            RoleId = Role.ResolveId(role),
+            RoleId = roleId,
             Status = MembershipStatus.Invited,
             InvitedByUserId = invitedByUserId,
             CreatedAt = DateTimeOffset.UtcNow,
@@ -109,5 +115,11 @@ public sealed class OrganizationMembership
 
         Status = MembershipStatus.Accepted;
         AcceptedAt = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>An org admin reassigning an existing Accepted member's Role (Phase 14, Users tab).</summary>
+    public void ReassignRole(Guid roleId)
+    {
+        RoleId = roleId;
     }
 }

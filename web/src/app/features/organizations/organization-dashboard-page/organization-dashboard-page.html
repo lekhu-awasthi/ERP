@@ -150,6 +150,9 @@
             <a [routerLink]="['/organizations', organizationId(), 'warehouses']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-building"></i> Warehouses
             </a>
+            <a [routerLink]="['/organizations', organizationId(), 'roles']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-shield-lock"></i> Role Reference
+            </a>
             <a [routerLink]="['/organizations', organizationId(), 'configuration']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-gear"></i> Configurations
             </a>
@@ -253,11 +256,18 @@
                       <span class="input-group-text bg-white border-end-0 text-muted">
                         <i class="bi bi-sliders"></i>
                       </span>
-                      <select id="inviteRole" formControlName="role" class="form-select border-start-0 ps-0">
-                        <option value="Admin">Admin (Full administrative privileges)</option>
-                        <option value="Member">Member (Standard member access)</option>
+                      <select id="inviteRole" formControlName="roleId" class="form-select border-start-0 ps-0">
+                        @for (r of roles(); track r.id) {
+                          <option [value]="r.id" [selected]="r.id === inviteForm.get('roleId')?.value">
+                            {{ r.name }}{{ r.isSystemRole ? '' : ' (Custom)' }}
+                          </option>
+                        }
                       </select>
                     </div>
+                    <p class="form-text small mb-0">
+                      Manage the full permission set for each role from
+                      <a [routerLink]="['/organizations', organizationId(), 'roles']">Role Reference</a>.
+                    </p>
                   </div>
 
                   <!-- Invite Message Signals -->

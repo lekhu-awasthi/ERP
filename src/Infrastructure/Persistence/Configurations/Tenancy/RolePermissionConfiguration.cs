@@ -328,6 +328,14 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid MemberTaskTypeViewId = Guid.Parse("00000000-0000-0000-0002-0000000000cf");
     private static readonly Guid MemberTaskTypeManageId = Guid.Parse("00000000-0000-0000-0002-0000000000d0");
 
+    // Phase 14 (Role Reference) -- Admin-only for both keys (see PermissionKeys.RoleView's doc
+    // comment). Member gets an explicit IsGranted=false denial row, same convention as every other
+    // Admin-only key in this file.
+    private static readonly Guid AdminRoleViewId = Guid.Parse("00000000-0000-0000-0002-0000000000d1");
+    private static readonly Guid AdminRoleManageId = Guid.Parse("00000000-0000-0000-0002-0000000000d2");
+    private static readonly Guid MemberRoleViewId = Guid.Parse("00000000-0000-0000-0002-0000000000d3");
+    private static readonly Guid MemberRoleManageId = Guid.Parse("00000000-0000-0000-0002-0000000000d4");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -592,6 +600,11 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminTaskTypeViewId, Role.AdminId, PermissionKeys.TaskTypeView, true),
             RolePermission.Create(AdminTaskTypeManageId, Role.AdminId, PermissionKeys.TaskTypeManage, true),
             RolePermission.Create(MemberTaskTypeViewId, Role.MemberId, PermissionKeys.TaskTypeView, true),
-            RolePermission.Create(MemberTaskTypeManageId, Role.MemberId, PermissionKeys.TaskTypeManage, false));
+            RolePermission.Create(MemberTaskTypeManageId, Role.MemberId, PermissionKeys.TaskTypeManage, false),
+
+            RolePermission.Create(AdminRoleViewId, Role.AdminId, PermissionKeys.RoleView, true),
+            RolePermission.Create(AdminRoleManageId, Role.AdminId, PermissionKeys.RoleManage, true),
+            RolePermission.Create(MemberRoleViewId, Role.MemberId, PermissionKeys.RoleView, false),
+            RolePermission.Create(MemberRoleManageId, Role.MemberId, PermissionKeys.RoleManage, false));
     }
 }

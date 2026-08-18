@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AuthService } from '../../../core/auth/auth.service';
-import { MembershipRole, MyOrganizations } from '../../../core/organizations/organizations.models';
+import { MyOrganizations, Role } from '../../../core/organizations/organizations.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { TaskList } from '../../workflow/task-list/task-list';
 
@@ -12,6 +12,13 @@ import { TaskList } from '../../workflow/task-list/task-list';
  * The Organization dashboard shell (roadmap Phase 1b task 11) -- replaces Phase 1a's generic
  * placeholder dashboard-page with an org-scoped one, including a company switcher (fine with
  * only one Organization to switch between for now) and the invite-user flow (task 12).
+ *
+ * Phase 14 (Role Reference): the invite form's role dropdown now sources ListRolesQuery (the two
+ * shared system roles plus this Organization's own custom ones) instead of a hardcoded
+ * Admin/Member union -- see InviteUserCommand's own doc comment for the backend side of this
+ * change. Loading the role list can itself 403 for a Member without RoleView (see
+ * ListRolesQuery's doc comment on that known, accepted interaction) -- handled the same way any
+ * other load failure on this page is, via errorMessage.
  */
 @Component({
   selector: 'app-organization-dashboard-page',
@@ -30,6 +37,7 @@ export class OrganizationDashboardPage {
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly data = signal<MyOrganizations | null>(null);
   protected readonly organizationId = signal(this.route.snapshot.paramMap.get('id')!);
+  protected readonly roles = signal<Role[]>([]);
 
   protected readonly organization = computed(() =>
     this.data()?.organizations.find((o) => o.organizationId === this.organizationId()) ?? null,
@@ -37,7 +45,7 @@ export class OrganizationDashboardPage {
 
   protected readonly inviteForm = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
-    role: ['Member' as MembershipRole, [Validators.required]],
+    roleId: ['', [Validators.required]],
   });
   protected readonly inviting = signal(false);
   protected readonly inviteMessage = signal<string | null>(null);
@@ -48,6 +56,7 @@ export class OrganizationDashboardPage {
       this.organizationId.set(params.get('id')!);
       this.inviteMessage.set(null);
       this.inviteError.set(null);
+      this.loadRoles();
     });
     this.load();
   }
@@ -66,13 +75,13 @@ export class OrganizationDashboardPage {
     this.inviteMessage.set(null);
     this.inviteError.set(null);
 
-    const { email, role } = this.inviteForm.getRawValue();
+    const { email, roleId } = this.inviteForm.getRawValue();
 
-    this.organizationsService.inviteUser(this.organizationId(), { email, role }).subscribe({
+    this.organizationsService.inviteUser(this.organizationId(), { email, roleId }).subscribe({
       next: (result) => {
         this.inviting.set(false);
         this.inviteMessage.set(`Invitation sent to ${result.email}.`);
-        this.inviteForm.reset({ email: '', role: 'Member' });
+        this.inviteForm.reset({ email: '', roleId: this.defaultInviteRoleId() });
       },
       error: (err: unknown) => {
         this.inviting.set(false);
@@ -97,5 +106,24 @@ export class OrganizationDashboardPage {
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load organization.');
       },
     });
+  }
+
+  private loadRoles(): void {
+    this.organizationsService.listRoles(this.organizationId()).subscribe({
+      next: (roles) => {
+        this.roles.set(roles);
+        this.inviteForm.patchValue({ roleId: this.defaultInviteRoleId() });
+      },
+      error: () => {
+        // Non-fatal here -- a Member without RoleView simply sees an empty role dropdown and
+        // can't invite anyway (they also lack OrganizationInviteUser); the invite panel itself is
+        // already hidden from non-Admins by org.role === 'Admin' in the template.
+        this.roles.set([]);
+      },
+    });
+  }
+
+  private defaultInviteRoleId(): string {
+    return this.roles().find((r) => r.name === 'Member')?.id ?? this.roles()[0]?.id ?? '';
   }
 }

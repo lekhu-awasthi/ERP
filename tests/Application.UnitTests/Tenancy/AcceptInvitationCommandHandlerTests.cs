@@ -19,7 +19,7 @@ public class AcceptInvitationCommandHandlerTests
             "acme-traders", null, null, null, null, Guid.NewGuid());
         db.Organizations.Add(organization);
         var membership = OrganizationMembership.Invite(
-            organization.Id, invitee.Id, invitee.Email, MembershipRole.Member, Guid.NewGuid());
+            organization.Id, invitee.Id, invitee.Email, Role.MemberId, Guid.NewGuid());
         db.OrganizationMemberships.Add(membership);
         await db.SaveChangesAsync();
 
@@ -40,7 +40,7 @@ public class AcceptInvitationCommandHandlerTests
             "acme-traders", null, null, null, null, Guid.NewGuid());
         db.Organizations.Add(organization);
         var membership = OrganizationMembership.Invite(
-            organization.Id, userId: null, invitee.Email, MembershipRole.Member, Guid.NewGuid());
+            organization.Id, userId: null, invitee.Email, Role.MemberId, Guid.NewGuid());
         db.OrganizationMemberships.Add(membership);
         await db.SaveChangesAsync();
 
@@ -63,7 +63,7 @@ public class AcceptInvitationCommandHandlerTests
             "acme-traders", null, null, null, null, Guid.NewGuid());
         db.Organizations.Add(organization);
         var membership = OrganizationMembership.Invite(
-            organization.Id, userId: null, invitee.Email, MembershipRole.Member, Guid.NewGuid());
+            organization.Id, userId: null, invitee.Email, Role.MemberId, Guid.NewGuid());
         db.OrganizationMemberships.Add(membership);
         await db.SaveChangesAsync();
 

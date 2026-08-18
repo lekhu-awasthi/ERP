@@ -267,4 +267,14 @@ public static class PermissionKeys
 
     public const string TaskTypeView = "Configuration.TaskType.View";
     public const string TaskTypeManage = "Configuration.TaskType.Manage";
+
+    // Phase 14 (Role Reference) -- Admin-only for both keys, the one deliberate exception to this
+    // codebase's usual "grant Member whatever routine daily-use working data needs" default:
+    // granting a Member the ability to view/edit the permission matrix would let a Member either
+    // see every other Role's exact grants (a privilege-escalation reconnaissance surface) or, with
+    // Manage, grant themselves (or any custom role they belong to) anything at all -- the one place
+    // in the whole permission system where Member access would be self-defeating. See
+    // phase-14-status.md's scope decision.
+    public const string RoleView = "Tenancy.Role.View";
+    public const string RoleManage = "Tenancy.Role.Manage";
 }

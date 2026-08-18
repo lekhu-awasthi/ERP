@@ -32,8 +32,8 @@ public class AuthorizationBehaviorTests
         await db.SaveChangesAsync();
 
         var behavior = new AuthorizationBehavior<InviteUserCommand, InviteUserResult>(db, new FakeCurrentUserService(adminId));
-        var command = new InviteUserCommand(organization.Id, "new.hire@example.com", MembershipRole.Member);
-        var expected = new InviteUserResult(Guid.NewGuid(), "new.hire@example.com", MembershipRole.Member);
+        var command = new InviteUserCommand(organization.Id, "new.hire@example.com", Role.MemberId);
+        var expected = new InviteUserResult(Guid.NewGuid(), "new.hire@example.com", Role.MemberId, "Member");
 
         var result = await behavior.Handle(command, () => Task.FromResult(expected), CancellationToken.None);
 
@@ -55,7 +55,7 @@ public class AuthorizationBehaviorTests
         await db.SaveChangesAsync();
 
         var behavior = new AuthorizationBehavior<InviteUserCommand, InviteUserResult>(db, new FakeCurrentUserService(memberId));
-        var command = new InviteUserCommand(organization.Id, "new.hire@example.com", MembershipRole.Member);
+        var command = new InviteUserCommand(organization.Id, "new.hire@example.com", Role.MemberId);
 
         await Assert.ThrowsAsync<ForbiddenException>(() => behavior.Handle(
             command, () => throw new InvalidOperationException("next() should not have been called."), CancellationToken.None));
@@ -72,7 +72,7 @@ public class AuthorizationBehaviorTests
         await db.SaveChangesAsync();
 
         var behavior = new AuthorizationBehavior<InviteUserCommand, InviteUserResult>(db, new FakeCurrentUserService(Guid.NewGuid()));
-        var command = new InviteUserCommand(organization.Id, "new.hire@example.com", MembershipRole.Member);
+        var command = new InviteUserCommand(organization.Id, "new.hire@example.com", Role.MemberId);
 
         await Assert.ThrowsAsync<ForbiddenException>(() => behavior.Handle(
             command, () => throw new InvalidOperationException("next() should not have been called."), CancellationToken.None));

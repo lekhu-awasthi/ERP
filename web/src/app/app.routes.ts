@@ -463,4 +463,17 @@ export const routes: Routes = [
       ),
     canActivate: [authGuard],
   },
+  {
+    path: 'organizations/:id/roles',
+    loadComponent: () => import('./features/tenancy/role-list-page/role-list-page').then((m) => m.RoleListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/roles/:roleId/permissions',
+    loadComponent: () =>
+      import('./features/tenancy/role-permission-matrix-page/role-permission-matrix-page').then(
+        (m) => m.RolePermissionMatrixPage,
+      ),
+    canActivate: [authGuard],
+  },
 ];

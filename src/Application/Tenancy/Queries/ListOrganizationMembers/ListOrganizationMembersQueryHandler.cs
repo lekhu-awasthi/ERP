@@ -17,7 +17,7 @@ public sealed class ListOrganizationMembersQueryHandler(IAppDbContext db)
             join r in db.Roles on m.RoleId equals r.Id
             where m.OrganizationId == request.OrganizationId && m.Status == MembershipStatus.Accepted
             orderby u.FullName
-            select new OrganizationMemberDto(u.Id, u.FullName, u.Email, r.Name)
+            select new OrganizationMemberDto(m.Id, u.Id, u.FullName, u.Email, r.Id, r.Name)
         ).ToListAsync(cancellationToken);
     }
 }

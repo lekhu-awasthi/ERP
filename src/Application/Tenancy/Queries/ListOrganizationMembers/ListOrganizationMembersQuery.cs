@@ -16,4 +16,8 @@ public sealed record ListOrganizationMembersQuery(Guid OrganizationId)
     public string PermissionKey => PermissionKeys.TaskView;
 }
 
-public sealed record OrganizationMemberDto(Guid UserId, string FullName, string Email, string RoleName);
+/// <summary>
+/// MembershipId (Phase 14) lets the Role Reference page's Members section reassign a member's
+/// Role via UpdateMembershipRoleCommand, which targets a membership row, not a bare UserId.
+/// </summary>
+public sealed record OrganizationMemberDto(Guid MembershipId, Guid UserId, string FullName, string Email, Guid RoleId, string RoleName);

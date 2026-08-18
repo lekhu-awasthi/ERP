@@ -30,7 +30,7 @@ public class MyOrganizationsQueryHandlerTests
         db.OrganizationMemberships.Add(OrganizationMembership.Request(requestedOrg.Id, currentUserId, MembershipRole.Member));
         // Invited by email only -- no UserId linked yet, matched via the current user's email.
         db.OrganizationMemberships.Add(OrganizationMembership.Invite(
-            invitedOrg.Id, userId: null, currentUser.Email, MembershipRole.Member, Guid.NewGuid()));
+            invitedOrg.Id, userId: null, currentUser.Email, Role.MemberId, Guid.NewGuid()));
         // The query joins db.Roles for the display role name -- TestAppDbContext doesn't apply
         // EF configurations/HasData (see its doc comment), so the well-known rows need seeding here.
         db.Roles.Add(Role.Create(Role.AdminId, "Admin"));

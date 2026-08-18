@@ -7,12 +7,20 @@ import {
   AccountingDefaults,
   CreateOrganizationRequest,
   CreateOrganizationResponse,
+  CreateRoleRequest,
+  CreateRoleResult,
   CreateWarehouseRequest,
   CreateWarehouseResult,
   InviteUserRequest,
   InviteUserResponse,
   MyOrganizations,
   OrganizationMember,
+  Role,
+  RolePermissionMatrix,
+  UpdateMembershipRoleRequest,
+  UpdateRolePermissionsRequest,
+  UpdateRoleRequest,
+  UpdateRoleResult,
   UpdateWarehouseRequest,
   UpdateWarehouseResult,
   Warehouse,
@@ -94,6 +102,44 @@ export class OrganizationsService {
 
   updateAccountingDefaults(organizationId: string, request: AccountingDefaults): Observable<AccountingDefaults> {
     return this.http.put<AccountingDefaults>(`${this.baseUrl}/${organizationId}/accounting-defaults`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updateMembershipRole(organizationId: string, membershipId: string, request: UpdateMembershipRoleRequest): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/${organizationId}/memberships/${membershipId}/role`, request, {
+      withCredentials: true,
+    });
+  }
+
+  listRoles(organizationId: string): Observable<Role[]> {
+    return this.http.get<Role[]>(`${this.baseUrl}/${organizationId}/roles`, { withCredentials: true });
+  }
+
+  createRole(organizationId: string, request: CreateRoleRequest): Observable<CreateRoleResult> {
+    return this.http.post<CreateRoleResult>(`${this.baseUrl}/${organizationId}/roles`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updateRole(organizationId: string, id: string, request: UpdateRoleRequest): Observable<UpdateRoleResult> {
+    return this.http.put<UpdateRoleResult>(`${this.baseUrl}/${organizationId}/roles/${id}`, request, {
+      withCredentials: true,
+    });
+  }
+
+  deleteRole(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${organizationId}/roles/${id}`, { withCredentials: true });
+  }
+
+  getRolePermissionMatrix(organizationId: string, id: string): Observable<RolePermissionMatrix> {
+    return this.http.get<RolePermissionMatrix>(`${this.baseUrl}/${organizationId}/roles/${id}/permissions`, {
+      withCredentials: true,
+    });
+  }
+
+  updateRolePermissions(organizationId: string, id: string, request: UpdateRolePermissionsRequest): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/${organizationId}/roles/${id}/permissions`, request, {
       withCredentials: true,
     });
   }

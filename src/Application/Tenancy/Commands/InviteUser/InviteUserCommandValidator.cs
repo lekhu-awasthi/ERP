@@ -8,6 +8,6 @@ public sealed class InviteUserCommandValidator : AbstractValidator<InviteUserCom
     {
         RuleFor(x => x.OrganizationId).NotEmpty();
         RuleFor(x => x.Email).NotEmpty().EmailAddress().MaximumLength(256);
-        RuleFor(x => x.Role).IsInEnum();
+        RuleFor(x => x.RoleId).NotEmpty();
     }
 }
