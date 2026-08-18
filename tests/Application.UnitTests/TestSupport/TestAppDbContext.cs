@@ -4,6 +4,7 @@ using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
+using ErpApp.Domain.Crm;
 using ErpApp.Domain.Identity;
 using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Payments;
@@ -133,6 +134,14 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<TaskType> TaskTypes => Set<TaskType>();
 
     public DbSet<WorkTask> Tasks => Set<WorkTask>();
+
+    public DbSet<LeadSource> LeadSources => Set<LeadSource>();
+
+    public DbSet<DealStage> DealStages => Set<DealStage>();
+
+    public DbSet<Deal> Deals => Set<Deal>();
+
+    public DbSet<DealAssignee> DealAssignees => Set<DealAssignee>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -264,6 +273,13 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<InventoryAdjustment>().HasMany(x => x.Lines).WithOne().HasForeignKey("InventoryAdjustmentId");
         modelBuilder.Entity<InventoryAdjustment>()
             .Metadata.FindNavigation(nameof(InventoryAdjustment.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        // Phase 15 (Deals) -- Deal.Assignees is the same kind of encapsulated (private-backing-
+        // field) child collection as every prior phase's aggregates above.
+        modelBuilder.Entity<Deal>().HasMany(x => x.Assignees).WithOne().HasForeignKey(x => x.DealId);
+        modelBuilder.Entity<Deal>()
+            .Metadata.FindNavigation(nameof(Deal.Assignees))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 

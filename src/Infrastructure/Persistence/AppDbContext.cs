@@ -4,6 +4,7 @@ using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
+using ErpApp.Domain.Crm;
 using ErpApp.Domain.Identity;
 using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Payments;
@@ -75,6 +76,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<InventoryAdjustmentLine> InventoryAdjustmentLines => Set<InventoryAdjustmentLine>();
     public DbSet<TaskType> TaskTypes => Set<TaskType>();
     public DbSet<WorkTask> Tasks => Set<WorkTask>();
+    public DbSet<LeadSource> LeadSources => Set<LeadSource>();
+    public DbSet<DealStage> DealStages => Set<DealStage>();
+    public DbSet<Deal> Deals => Set<Deal>();
+    public DbSet<DealAssignee> DealAssignees => Set<DealAssignee>();
 
     // IAppDbContext.Set<TEntity>() -- satisfied implicitly by DbContext's own public
     // Set<TEntity>() (identical signature), needed by the generic

@@ -6,6 +6,7 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AuthService } from '../../../core/auth/auth.service';
 import { MyOrganizations, Role } from '../../../core/organizations/organizations.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
+import { DealList } from '../../crm/deal-list/deal-list';
 import { TaskList } from '../../workflow/task-list/task-list';
 
 /**
@@ -22,7 +23,7 @@ import { TaskList } from '../../workflow/task-list/task-list';
  */
 @Component({
   selector: 'app-organization-dashboard-page',
-  imports: [ReactiveFormsModule, FormsModule, RouterLink, TaskList],
+  imports: [ReactiveFormsModule, FormsModule, RouterLink, TaskList, DealList],
   templateUrl: './organization-dashboard-page.html',
 })
 export class OrganizationDashboardPage {

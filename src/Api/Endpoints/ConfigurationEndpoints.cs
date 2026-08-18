@@ -1,6 +1,8 @@
 using ErpApp.Application.Configuration.Commands.CreateCreditTerm;
 using ErpApp.Application.Configuration.Commands.CreateCustomFieldDefinition;
 using ErpApp.Application.Configuration.Commands.CreateCustomStatus;
+using ErpApp.Application.Configuration.Commands.CreateDealStage;
+using ErpApp.Application.Configuration.Commands.CreateLeadSource;
 using ErpApp.Application.Configuration.Commands.CreatePaymentMode;
 using ErpApp.Application.Configuration.Commands.CreateReportingTagCategory;
 using ErpApp.Application.Configuration.Commands.CreateReportingTagOption;
@@ -11,6 +13,8 @@ using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Commands.UpdateCreditTerm;
 using ErpApp.Application.Configuration.Commands.UpdateCustomFieldDefinition;
 using ErpApp.Application.Configuration.Commands.UpdateCustomStatus;
+using ErpApp.Application.Configuration.Commands.UpdateDealStage;
+using ErpApp.Application.Configuration.Commands.UpdateLeadSource;
 using ErpApp.Application.Configuration.Commands.UpdatePaymentMode;
 using ErpApp.Application.Configuration.Commands.UpdateReportingTagCategory;
 using ErpApp.Application.Configuration.Commands.UpdateReportingTagOption;
@@ -40,6 +44,8 @@ public static class ConfigurationEndpoints
         MapCustomFieldDefinitionEndpoints(group);
         MapTdsTypeEndpoints(group);
         MapTaskTypeEndpoints(group);
+        MapLeadSourceEndpoints(group);
+        MapDealStageEndpoints(group);
     }
 
     private static void MapCreditTermEndpoints(RouteGroupBuilder group)
@@ -301,6 +307,70 @@ public static class ConfigurationEndpoints
         });
     }
 
+    private static void MapLeadSourceEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/lead-sources", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new ListLookupsQuery<LeadSource>(organizationId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/lead-sources", async (
+            Guid organizationId, CreateLeadSourceRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new CreateLeadSourceCommand(organizationId, request.Name), ct);
+            return Results.Created($"/api/organizations/{organizationId}/configuration/lead-sources/{result.Id}", result);
+        });
+
+        group.MapPut("/lead-sources/{id:guid}", async (
+            Guid organizationId, Guid id, UpdateLeadSourceRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdateLeadSourceCommand(organizationId, id, request.Name, request.IsActive), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapDelete("/lead-sources/{id:guid}", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteLookupCommand<LeadSource>(organizationId, id), ct);
+            return Results.NoContent();
+        });
+    }
+
+    private static void MapDealStageEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/deal-stages", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new ListLookupsQuery<DealStage>(organizationId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/deal-stages", async (
+            Guid organizationId, CreateDealStageRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new CreateDealStageCommand(organizationId, request.Name, request.SortOrder, request.Color), ct);
+            return Results.Created($"/api/organizations/{organizationId}/configuration/deal-stages/{result.Id}", result);
+        });
+
+        group.MapPut("/deal-stages/{id:guid}", async (
+            Guid organizationId, Guid id, UpdateDealStageRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdateDealStageCommand(organizationId, id, request.Name, request.SortOrder, request.Color, request.IsActive),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapDelete("/deal-stages/{id:guid}", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteLookupCommand<DealStage>(organizationId, id), ct);
+            return Results.NoContent();
+        });
+    }
+
     private sealed record CreateCreditTermRequest(string Name, int DueDays);
 
     private sealed record UpdateCreditTermRequest(string Name, int DueDays, bool IsActive);
@@ -334,4 +404,12 @@ public static class ConfigurationEndpoints
     private sealed record CreateTaskTypeRequest(string Name, string Color);
 
     private sealed record UpdateTaskTypeRequest(string Name, string Color, bool IsActive);
+
+    private sealed record CreateLeadSourceRequest(string Name);
+
+    private sealed record UpdateLeadSourceRequest(string Name, bool IsActive);
+
+    private sealed record CreateDealStageRequest(string Name, int SortOrder, string? Color);
+
+    private sealed record UpdateDealStageRequest(string Name, int SortOrder, string? Color, bool IsActive);
 }

@@ -14,6 +14,7 @@ using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
+using ErpApp.Domain.Crm;
 using ErpApp.Domain.Tenancy;
 using FluentValidation;
 using MediatR;
@@ -77,6 +78,11 @@ public static class DependencyInjection
 
         // Phase 13 (Tasks) -- TaskType is the same "pure {name, color}" lookup shape.
         RegisterLookupHandlers<TaskType>(services);
+
+        // Phase 15 (Deals) -- LeadSource/DealStage are the same "pure {id, name[, extra]}" lookup
+        // shape.
+        RegisterLookupHandlers<LeadSource>(services);
+        RegisterLookupHandlers<DealStage>(services);
 
         // IGlPostingRule<T> (architecture-spec.md §3.4) -- pure TDocument->GL-lines mappers, one
         // per document type that posts to GL. Registered so ApproveXCommandHandler and
