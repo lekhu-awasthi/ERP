@@ -27,6 +27,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - `docs/phase-9-status.md` — history of Phase 9: what was built (`ContactAgeingSummaryQuery`/`ContactStatementQuery` under `Application.Contacts.Queries`, one shared handler per report type discriminated by `ContactType` — the real running-balance engine Phase 8e's Annex 13 deferred to), scope decisions (Application.Contacts placement per architecture-spec.md §4.2's own naming, four Admin-only permission keys as the strongest PAN/identity-exposure case yet, Supplier-side TDS-net-payable, CreditTerm/Description columns omitted for the same no-backing-field reasons as prior phases, standalone-reversal Ageing-vs-Statement divergence, real double-entry Debit/Credit polarity confirmed against the live Supplier Statement screen's own Opening Balance row), bugs hit and fixed (read this before writing a generic `IQueryable<T>` helper that takes a `Func<T, TKey>` selector — EF Core can't translate a captured delegate inside `.Where()`, and before hand-writing a permission-seed migration instead of updating `RolePermissionConfiguration`'s `HasData` first, since a stale-HasData scaffold silently produces an empty migration rather than an error), current status
 - `docs/phase-10-status.md` — history of Phase 10: what was built (`ContactOverviewQuery` under `Application.Contacts.Queries.ContactOverview`, the Contact detail page's Overview-tab financial summary — Opening/Closing Balance with DR/CR, a 10-row Recent Transactions feed, "View Full Statement" — a thin read reusing Phase 9's running-balance engine via a new shared `ContactLedgerReader` extracted from `ContactStatementQueryHandler`, no new commands/aggregates/schema/migrations at all, not even a permission-seed one), scope decisions (reuses Phase 3's `Contacts.Contact.View` permission key rather than minting a new Admin-only `Reports.*.View` one — an explicit re-derivation against Phase 9's Admin-only Statement/Ageing precedent, not a silent default, since Overview is bounded/single-Contact/already-visible rather than an unbounded ledger or a cross-Contact list; Recent Transactions capped at a fixed count of 10, not a date window; takes `ContactId` alone and resolves `Type` itself rather than a route-hardcoded `ContactType`, safe for Lead only because `SalesValidation`/`PurchasingValidation` already forbid any document from ever targeting a Lead; "View Full Statement" passes only a `contactId` query param and lets the Statement pages' own existing first-of-month-to-today default apply, rather than re-encoding that default as URL params), no bugs hit this phase — the one design risk (Closing Balance drifting from Statement's own number) was closed by construction via the shared `ContactLedgerReader` rather than found and fixed after the fact, current status
 - `docs/phase-12-status.md` — history of Phase 12: what was built (`TransactionApprovalQuery` under `Application.Workflow.Queries.TransactionApproval`, the first Workflow-context feature — a read-only queue unioning Draft-status rows across all 13 `ApprovableTransaction` document types via 13 separate concrete per-type `Where` blocks, not one generic `Func<TDocument,...>`-parameterized helper, one permission-seed-only migration), the one real judgment call made explicit (whether the query needs its own blanket `IRequirePermission` gate, decided **yes** — not for exposure control like most `Reports.*.View` keys, but because `AuthorizationBehavior` turned out to be the *only* mechanism in this codebase verifying org membership at all for an `IOrganizationScoped` request, confirmed by grepping all 128 such types), scope decisions (no bulk-approve-from-the-list action this phase, an explicitly deferred stretch goal; `PermissionKeys.TransactionApprovalView` granted Admin+Member since the query's own per-document-type `*.Approve` filtering — not this blanket key — is what actually narrows a Member's visibility; `SalesOrder` rows render with no "Open" link since Phase 5 never shipped that type's Angular UI; `Expense` rows reuse `SupplierInvoiceReference` for the shared `Reference` field since `Expense` is the one type with no plain `Reference` field of its own; `Payment` rows carry a `Direction` field so Angular can route Customer vs Supplier Payment to their two separate existing detail pages), bugs hit and fixed (none in the shipped code — one test-authoring slip caught before the first test run, a `WarehouseTransfer` test helper needing its own Goods-type product rather than reusing a Service one), current status
+- `docs/phase-13-status.md` — history of Phase 13: what was built (`WorkTask` under `Domain.Workflow`, the second Workflow-context feature and the first real aggregate — not a pure read — in that bounded context, plus `TaskType` under `Domain.Configuration` reusing the generic Configuration lookup pair), the one real judgment call made explicit (`TaskType` modeled as a real tenant-editable lookup entity rather than a hardcoded enum, weighed directly against competing evidence in `erp-module-scan.md` — the Tasks list's own data model names Type as a fixed enum, but a separate "Workflow (config) > Task Types" screen shows it as its own tenant-configurable list, resolved in favor of the lookup entity per this codebase's "confirmed management screen → generic lookup entity" precedent), scope decisions (no Draft/Approve lifecycle at all — `Update()` guarded by `Status != Done` instead of `EnsureDraft()`; a small dedicated `TaskParentType` enum holding only the two confirmed-live values `Contact`/`Organization`, deliberately not `DocumentType` and not a broader speculative set; `IsPrivate` really enforced at query time via a concrete non-generic LINQ `Where`, not stored-but-inert; `WorkTask.TransitionStatus` only allows a strictly-forward move — Pending→Started, Pending→Done, Started→Done — with backward/no-op transitions rejected via a 409, an explicit decision against the confirmed live UI's forward-only per-row complete checkmark; `Workflow.TaskView`/`TaskManage` both granted to Member unlike every maker-checker document type's Approve-denied default; a small `ListOrganizationMembersQuery` added as necessary supporting infrastructure for the Assigned-To picker, gated on `TaskView` rather than a new standalone key; no dedicated `TaskType` Angular admin screen built, mirroring this codebase's own precedent of several Configuration lookups having working APIs but no screen), bugs hit and fixed (read this before naming any future Domain type after a common BCL word — naming the aggregate the bare "Task" collides with `System.Threading.Tasks.Task`/`TaskStatus`, implicitly in scope in every async C# handler file in this codebase via `ImplicitUsings`, caught by `dotnet build` and fixed by naming the aggregate `WorkTask` and its status enum `WorkTaskStatus` while every other layer — permission keys, table/DbSet name, routes, DTOs, Angular — keeps plain "Task" naming; also a `Write`-without-`Read`-first mistake that briefly clobbered Phase 12's existing `core/workflow/workflow.models.ts`/`workflow.service.ts` content, caught immediately by `ng build` and recovered via `git show`), current status
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -87,6 +88,90 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - The `[value]`-vs-`@for` native-`<select>` race (documented above from Phase 5/6) isn't just a cosmetic "wrong option shown" bug — confirmed in Phase 7 to cause **actually-wrong persisted data**, silently. An Invoice's Warehouse `<select>` (still using the old `[value]="warehouseId()"` pattern, never retrofitted after the gotcha was first documented) visually showed one warehouse throughout an entire create→save→approve session while a direct DB query proved the row's real, persisted `WarehouseId` — and the actual FIFO stock consumption — was against a *different* warehouse the whole time. Never trust a signal-bound `<select>`'s on-screen value as proof of what got saved, on any page, without checking the database; audit every remaining `[value]`-on-`<select>` instance in the codebase for this, not just the ones a current phase happens to touch. See `docs/phase-7-status.md`'s bug #2.
 
 ## Current status
+**Phase 13 (Tasks) is complete** — `WorkTask` (`Domain.Workflow`) is the second Workflow-context
+feature (architecture-spec.md §4.9) and the first *real aggregate* in that bounded context (Phase
+12's `TransactionApprovalQuery` was a pure read with no schema of its own), a general-purpose
+polymorphic task manager per product-requirements.md FR-10.1 ("attachable to Contacts, the
+Organization itself, and (architecturally) any other entity, with its own Pending/Started/Done
+lifecycle independent of the entity it's attached to"), confirmed by `erp-module-scan.md` line
+106-107's live field list and "3 status tabs" UI shape. Named `WorkTask`, not the bare "Task" the
+product itself calls it — `System.Threading.Tasks.Task`/`TaskStatus` are implicitly in scope in every
+async C# handler file in this codebase, so a Domain type literally named `Task` (or `TaskStatus`)
+collides with the BCL the moment a handler needs both; every other layer (permission keys
+`Workflow.TaskView`/`TaskManage`, the `Tasks` table/DbSet, the `/tasks` routes, every DTO, every
+Angular symbol) still uses plain "Task" throughout — only the C# aggregate and its status enum
+(`WorkTaskStatus`) needed the rename, caught by `dotnet build` before any test ran. `TaskType` is
+modeled as a real tenant-editable lookup entity (`Domain.Configuration`, reusing the generic
+`ListLookupsQuery<T>`/`DeleteLookupCommand<T>` pair) rather than a hardcoded enum — the phase's one
+real judgment call, weighed directly against competing evidence in `erp-module-scan.md` (the Tasks
+list's own data model names Type as a fixed 4-value enum, but a separate "Workflow (config) > Task
+Types" screen elsewhere in the scan shows it as its own tenant-configurable `{id, name, color}` list)
+and resolved in favor of the lookup entity, matching this codebase's established "confirmed
+management screen → generic lookup entity" precedent; `Priority`/`Status` stayed plain enums
+(`TaskPriority`, `WorkTaskStatus`) since neither has that kind of competing screen evidence. No
+Draft/Approve lifecycle at all — no `Code`, no `IDocumentNumberGenerator`/`DocumentNumberingRule`
+involvement, no `RowVersion`/GL machinery — `Update()` is instead guarded by `Status != Done`
+(mirroring the `EnsureDraft()` guard-method *shape* every `ApprovableTransaction` uses, just keyed
+off a different terminal state). Polymorphic parent shape is `(ParentType, ParentId)` — a generic
+Guid pair, not per-parent-type nullable FKs — with a small dedicated `TaskParentType` enum holding
+only the two confirmed-live values (`Contact`, `Organization`), deliberately not `DocumentType`
+(whose 18 entries are either real `ApprovableTransaction` types or numbering-pool-only stubs, a
+different semantic, and which has no `Organization` entry at all) and deliberately not a broader
+speculative set either scan doc's own hedged "presumably others"/"and likely others" language might
+suggest. `IsPrivate` is really enforced, not stored-but-inert — `ListTasksQueryHandler` excludes a
+private row from anyone who is neither its creator nor its assignee, directly in a concrete (non-
+generic) LINQ `Where` clause, confirmed by both a unit test and a real curl-driven manual E2E run.
+`WorkTask.TransitionStatus` only allows a strictly-forward move (`Pending`→`Started`,
+`Pending`→`Done`, `Started`→`Done`, comparing `WorkTaskStatus`'s own declared ordinal order) —
+backward and no-op transitions are rejected with a 409, an explicit decision (not a default) since
+the confirmed live UI only ever shows a forward-moving per-row complete checkmark, never a way to
+reopen a Done task or revert a Started one; `UpdateTaskStatusCommand` is one command covering every
+legal transition, not separate `StartTask`/`CompleteTask` commands. `Workflow.TaskView`/
+`Workflow.TaskManage` is a View/Manage pair (not the four-key maker-checker shape every
+`ApprovableTransaction` uses, since there's no Approve concept), both granted to Member — Task is
+routine daily-use working data any Member should be able to create/complete, the same precedent
+Contact/Product set in Phase 3, explicitly weighed against and decided differently from Phase 2's
+Member-View-only taxonomy-lookup default; `TaskType` itself keeps that ordinary
+Member-View-only/Admin-write Configuration-lookup split instead. A small `ListOrganizationMembersQuery`
+(`Application.Tenancy.Queries.ListOrganizationMembers`) was added beyond the brief's named surface —
+necessary supporting infrastructure for the Assigned-To picker (no existing query in this codebase
+lists an Organization's *other members*, only single memberships or *other Organizations*), gated on
+`PermissionKeys.TaskView` rather than a new standalone key. Angular ships two integration points
+sharing one component (`features/workflow/task-list`), not two separate implementations or a new
+page — the same "don't duplicate, extract a shared reader" discipline Phase 10's `ContactLedgerReader`
+established, applied here: the Contact detail page's first-ever real tab-switching mechanism (until
+now a single hardcoded always-active "Overview" button with no click handler at all) plus a new Tasks
+tab, and a new Tasks section on the Organization dashboard page. No dedicated `TaskType` admin screen
+was built (its Create/Update/Delete/List all work via curl-confirmed API calls) — mirrors this
+codebase's own established precedent (`configuration-shell.ts`'s own doc comment already notes
+several lookup types with working APIs but no screen) and matches the brief's explicitly tight
+Angular scope. `TaskCommandHandlerTests` is this feature's first-ever test coverage (12 tests:
+parent/assignee/task-type existence validation, the forward-only status state machine including the
+Pending-straight-to-Done skip and the Done-blocks-further-edits guard, `IsPrivate` visibility for
+creator/assignee/outsider, the `Status?` filter, and parent-scope isolation both between a Contact and
+the Organization and across two different Organizations). `dotnet build`/`dotnet test`
+(Domain.UnitTests 67 unchanged, Application.UnitTests 156 — 12 new + 144 pre-existing, Api.IntegrationTests
+4, all green, Docker Desktop running this session) and `ng build`/`ng test` (7 pre-existing specs
+green, no new Angular specs) all pass. Confirmed by hand end-to-end against the real API/DB/browser
+per this session's own memory note (curl + cookie jar for seeding, browser clicks reserved for this
+phase's own new UI): a fresh Admin registered/verified (verification code read directly from
+`[identity].VerificationCodes` via `sqlcmd`, bracket-quoting the `identity` schema per this file's own
+gotcha — no console-log email stub exists, real SMTP is configured)/logged in/created an Organization,
+a Contact, and a TaskType; created a Task on the Contact and one on the Organization and confirmed
+`GET /tasks` scoped to each parent returned exactly its own row; drove the Contact's task through
+Pending→Started (200)→attempted Started→Pending (409, confirmed rejected)→Started→Done (200), with the
+`Status?` filter correctly narrowing at each step; invited two more Members, and confirmed a private
+Task assigned to one of them was visible to its creator and assignee but invisible to the third
+Member's identical query; then drove the real Angular UI — the Organization dashboard's new Tasks card
+correctly moved a task from the Pending tab to the Started tab after clicking "Start" (button
+correctly disappearing once Started), the Contact detail page's new Overview/Tasks tab-switching
+worked, the private task's lock icon and assignee name rendered correctly, and a new task created
+through the inline form (with its Task Type/Priority/Assigned To dropdowns all populated from the
+real API) appeared in the Pending list immediately. See `docs/phase-13-status.md` for the full history
+(all seven scope decisions in detail, plus two bugs hit and fixed — the `Task`/`TaskStatus` BCL-name
+collision, and a `Write`-without-`Read`-first mistake that briefly clobbered Phase 12's existing
+`core/workflow/` files, caught by `ng build` and recovered via `git show`).
+
 **Phase 12 (Transaction Approval Queue) is complete** — `TransactionApprovalQuery`
 (`Application.Workflow.Queries.TransactionApproval`) is the first Workflow-context feature
 (architecture-spec.md §4.9), a read-only v1 unifying every Draft-status row across all 13

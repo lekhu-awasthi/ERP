@@ -9,6 +9,7 @@ using ErpApp.Application.Tenancy.Commands.UpdateAccountingDefaults;
 using ErpApp.Application.Tenancy.Commands.UpdateWarehouse;
 using ErpApp.Application.Tenancy.Queries.CheckWorkspaceNameAvailability;
 using ErpApp.Application.Tenancy.Queries.GetAccountingDefaults;
+using ErpApp.Application.Tenancy.Queries.ListOrganizationMembers;
 using ErpApp.Application.Tenancy.Queries.MyOrganizations;
 using ErpApp.Domain.Tenancy;
 using MediatR;
@@ -105,6 +106,16 @@ public static class OrganizationEndpoints
         {
             await sender.Send(new DeleteLookupCommand<Warehouse>(organizationId, id), ct);
             return Results.NoContent();
+        });
+
+        // Phase 13 -- powers the Task feature's Assigned-To picker (see
+        // ListOrganizationMembersQuery's own doc comment for why it's gated on TaskView rather
+        // than a standalone "view members" key nothing else needs yet).
+        group.MapGet("/{organizationId:guid}/members", async (
+            Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new ListOrganizationMembersQuery(organizationId), ct);
+            return Results.Ok(result);
         });
 
         group.MapGet("/{organizationId:guid}/accounting-defaults", async (

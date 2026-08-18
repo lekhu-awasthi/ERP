@@ -30,6 +30,7 @@ public static class LookupPermissionKeys
             var t when t == typeof(AccountGroup) => PermissionKeys.AccountGroupView,
             var t when t == typeof(Warehouse) => PermissionKeys.WarehouseView,
             var t when t == typeof(TdsType) => PermissionKeys.TdsTypeView,
+            var t when t == typeof(TaskType) => PermissionKeys.TaskTypeView,
             _ => throw new NotSupportedException($"No View permission key registered for lookup type {typeof(TLookup).Name}."),
         };
 
@@ -47,6 +48,7 @@ public static class LookupPermissionKeys
             var t when t == typeof(AccountGroup) => PermissionKeys.AccountGroupManage,
             var t when t == typeof(Warehouse) => PermissionKeys.WarehouseManage,
             var t when t == typeof(TdsType) => PermissionKeys.TdsTypeManage,
+            var t when t == typeof(TaskType) => PermissionKeys.TaskTypeManage,
             _ => throw new NotSupportedException($"No Manage permission key registered for lookup type {typeof(TLookup).Name}."),
         };
 }

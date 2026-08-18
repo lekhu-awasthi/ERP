@@ -10,6 +10,7 @@ using ErpApp.Domain.Payments;
 using ErpApp.Domain.Purchasing;
 using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
+using ErpApp.Domain.Workflow;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.UnitTests.TestSupport;
@@ -128,6 +129,10 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<InventoryAdjustment> InventoryAdjustments => Set<InventoryAdjustment>();
 
     public DbSet<InventoryAdjustmentLine> InventoryAdjustmentLines => Set<InventoryAdjustmentLine>();
+
+    public DbSet<TaskType> TaskTypes => Set<TaskType>();
+
+    public DbSet<WorkTask> Tasks => Set<WorkTask>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

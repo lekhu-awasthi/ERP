@@ -12,6 +12,7 @@ import {
   InviteUserRequest,
   InviteUserResponse,
   MyOrganizations,
+  OrganizationMember,
   UpdateWarehouseRequest,
   UpdateWarehouseResult,
   Warehouse,
@@ -79,6 +80,10 @@ export class OrganizationsService {
 
   deleteWarehouse(organizationId: string, id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${organizationId}/warehouses/${id}`, { withCredentials: true });
+  }
+
+  listMembers(organizationId: string): Observable<OrganizationMember[]> {
+    return this.http.get<OrganizationMember[]>(`${this.baseUrl}/${organizationId}/members`, { withCredentials: true });
   }
 
   getAccountingDefaults(organizationId: string): Observable<AccountingDefaults> {

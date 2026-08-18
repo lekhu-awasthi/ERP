@@ -254,4 +254,17 @@ public static class PermissionKeys
     // produce, without blocking a Member who legitimately holds one or more *.Approve grants from
     // using the screen at all. See phase-12-status.md's scope decision.
     public const string TransactionApprovalView = "Workflow.TransactionApproval.View";
+
+    // Phase 13 (Tasks, the second Workflow-context feature) -- a single View/Manage pair, not the
+    // four-key {View,Create,Edit,Approve} maker-checker shape every ApprovableTransaction uses:
+    // WorkTask has no Approve concept at all. Both granted to Member (not View-only) -- Task is
+    // routine daily-use working data any Member should be able to create/complete, the same
+    // Member-View+Manage precedent Contact/Product set in Phase 3, not a financial document needing
+    // maker-checker separation. TaskTypeView/TaskTypeManage mirror every other Configuration
+    // lookup's Member-View-only/Admin-write split (CreditTerm/PaymentMode/TdsType).
+    public const string TaskView = "Workflow.Task.View";
+    public const string TaskManage = "Workflow.Task.Manage";
+
+    public const string TaskTypeView = "Configuration.TaskType.View";
+    public const string TaskTypeManage = "Configuration.TaskType.Manage";
 }

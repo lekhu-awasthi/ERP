@@ -1,4 +1,9 @@
+using ErpApp.Application.Workflow.Commands.CreateTask;
+using ErpApp.Application.Workflow.Commands.UpdateTask;
+using ErpApp.Application.Workflow.Commands.UpdateTaskStatus;
+using ErpApp.Application.Workflow.Queries.ListTasks;
 using ErpApp.Application.Workflow.Queries.TransactionApproval;
+using ErpApp.Domain.Workflow;
 using MediatR;
 
 namespace ErpApp.Api.Endpoints;
@@ -17,5 +22,69 @@ public static class WorkflowEndpoints
             var result = await sender.Send(new TransactionApprovalQuery(organizationId), ct);
             return Results.Ok(result);
         });
+
+        MapTaskEndpoints(group);
     }
+
+    private static void MapTaskEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/tasks", async (
+            Guid organizationId, TaskParentType parentType, Guid parentId, WorkTaskStatus? status,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new ListTasksQuery(organizationId, parentType, parentId, status), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/tasks", async (
+            Guid organizationId, CreateTaskRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new CreateTaskCommand(
+                    organizationId, request.ParentType, request.ParentId, request.Title, request.Description,
+                    request.AssignedToUserId, request.DueDate, request.TaskTypeId, request.Priority, request.IsPrivate),
+                ct);
+            return Results.Created($"/api/organizations/{organizationId}/tasks/{result.Id}", result);
+        });
+
+        group.MapPut("/tasks/{id:guid}", async (
+            Guid organizationId, Guid id, UpdateTaskRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdateTaskCommand(
+                    organizationId, id, request.Title, request.Description, request.AssignedToUserId, request.DueDate,
+                    request.TaskTypeId, request.Priority, request.IsPrivate),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPut("/tasks/{id:guid}/status", async (
+            Guid organizationId, Guid id, UpdateTaskStatusRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new UpdateTaskStatusCommand(organizationId, id, request.NewStatus), ct);
+            return Results.Ok(result);
+        });
+    }
+
+    private sealed record CreateTaskRequest(
+        TaskParentType ParentType,
+        Guid ParentId,
+        string Title,
+        string? Description,
+        Guid? AssignedToUserId,
+        DateOnly? DueDate,
+        Guid TaskTypeId,
+        TaskPriority Priority,
+        bool IsPrivate);
+
+    private sealed record UpdateTaskRequest(
+        string Title,
+        string? Description,
+        Guid? AssignedToUserId,
+        DateOnly? DueDate,
+        Guid TaskTypeId,
+        TaskPriority Priority,
+        bool IsPrivate);
+
+    private sealed record UpdateTaskStatusRequest(WorkTaskStatus NewStatus);
 }

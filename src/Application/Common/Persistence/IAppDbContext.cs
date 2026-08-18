@@ -8,6 +8,7 @@ using ErpApp.Domain.Payments;
 using ErpApp.Domain.Purchasing;
 using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
+using ErpApp.Domain.Workflow;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Common.Persistence;
@@ -76,6 +77,8 @@ public interface IAppDbContext
     DbSet<WarehouseTransferLine> WarehouseTransferLines { get; }
     DbSet<InventoryAdjustment> InventoryAdjustments { get; }
     DbSet<InventoryAdjustmentLine> InventoryAdjustmentLines { get; }
+    DbSet<TaskType> TaskTypes { get; }
+    DbSet<WorkTask> Tasks { get; }
 
     /// <summary>
     /// Generic accessor mirroring DbContext's own Set&lt;TEntity&gt;() -- lets the generic
