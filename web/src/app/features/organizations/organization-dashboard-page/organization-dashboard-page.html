@@ -319,6 +319,13 @@
           <app-task-list [organizationId]="organizationId()" [parentType]="'Organization'" [parentId]="organizationId()" />
         </div>
       </div>
+
+      <div class="card border-0 shadow-sm mt-4">
+        <div class="card-body p-4">
+          <h5 class="fw-bold mb-3 text-dark">Deals</h5>
+          <app-deal-list [organizationId]="organizationId()" />
+        </div>
+      </div>
     } @else {
       <div class="card border-0 shadow-sm py-5 text-center bg-light border">
         <div class="card-body">

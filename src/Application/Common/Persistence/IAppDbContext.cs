@@ -2,6 +2,7 @@ using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
+using ErpApp.Domain.Crm;
 using ErpApp.Domain.Identity;
 using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Payments;
@@ -79,6 +80,10 @@ public interface IAppDbContext
     DbSet<InventoryAdjustmentLine> InventoryAdjustmentLines { get; }
     DbSet<TaskType> TaskTypes { get; }
     DbSet<WorkTask> Tasks { get; }
+    DbSet<LeadSource> LeadSources { get; }
+    DbSet<DealStage> DealStages { get; }
+    DbSet<Deal> Deals { get; }
+    DbSet<DealAssignee> DealAssignees { get; }
 
     /// <summary>
     /// Generic accessor mirroring DbContext's own Set&lt;TEntity&gt;() -- lets the generic

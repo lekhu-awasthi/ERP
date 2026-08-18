@@ -6,6 +6,7 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { buildTreeRows, TreeRow } from '../../../core/common/tree';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact, ContactGroup, ContactOverviewDto, ContactType } from '../../../core/contacts/contacts.models';
+import { DealList } from '../../crm/deal-list/deal-list';
 import { TaskList } from '../../workflow/task-list/task-list';
 
 /** Record-detail-page chrome: left mini-profile panel + vertical tab list + right content pane
@@ -21,10 +22,12 @@ import { TaskList } from '../../workflow/task-list/task-list';
  *
  * activeTab (Phase 13) is the first real tab-switching signal this page has ever had -- until now
  * the vertical tab list was a single hardcoded always-active "Overview" button with no click
- * handler at all. */
+ * handler at all. Phase 15 adds a Deals tab alongside Tasks -- hidden for a Supplier Contact (a
+ * Deal is a pre-sale/sales-pipeline concept, see CrmValidation.EnsureContactCanHaveDealAsync's own
+ * doc comment for why Supplier is rejected server-side too). */
 @Component({
   selector: 'app-contact-detail-page',
-  imports: [ReactiveFormsModule, RouterLink, TaskList],
+  imports: [ReactiveFormsModule, RouterLink, TaskList, DealList],
   templateUrl: './contact-detail-page.html',
 })
 export class ContactDetailPage {
@@ -43,7 +46,7 @@ export class ContactDetailPage {
   protected readonly optionsOpen = signal(false);
   protected readonly groups = signal<ContactGroup[]>([]);
   protected readonly isNew = signal(false);
-  protected readonly activeTab = signal<'Overview' | 'Tasks'>('Overview');
+  protected readonly activeTab = signal<'Overview' | 'Tasks' | 'Deals'>('Overview');
 
   protected readonly overview = signal<ContactOverviewDto | null>(null);
   protected readonly overviewLoading = signal(false);
@@ -108,7 +111,7 @@ export class ContactDetailPage {
     });
   }
 
-  protected switchTab(tab: 'Overview' | 'Tasks'): void {
+  protected switchTab(tab: 'Overview' | 'Tasks' | 'Deals'): void {
     this.activeTab.set(tab);
   }
 

@@ -29,6 +29,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - `docs/phase-12-status.md` — history of Phase 12: what was built (`TransactionApprovalQuery` under `Application.Workflow.Queries.TransactionApproval`, the first Workflow-context feature — a read-only queue unioning Draft-status rows across all 13 `ApprovableTransaction` document types via 13 separate concrete per-type `Where` blocks, not one generic `Func<TDocument,...>`-parameterized helper, one permission-seed-only migration), the one real judgment call made explicit (whether the query needs its own blanket `IRequirePermission` gate, decided **yes** — not for exposure control like most `Reports.*.View` keys, but because `AuthorizationBehavior` turned out to be the *only* mechanism in this codebase verifying org membership at all for an `IOrganizationScoped` request, confirmed by grepping all 128 such types), scope decisions (no bulk-approve-from-the-list action this phase, an explicitly deferred stretch goal; `PermissionKeys.TransactionApprovalView` granted Admin+Member since the query's own per-document-type `*.Approve` filtering — not this blanket key — is what actually narrows a Member's visibility; `SalesOrder` rows render with no "Open" link since Phase 5 never shipped that type's Angular UI; `Expense` rows reuse `SupplierInvoiceReference` for the shared `Reference` field since `Expense` is the one type with no plain `Reference` field of its own; `Payment` rows carry a `Direction` field so Angular can route Customer vs Supplier Payment to their two separate existing detail pages), bugs hit and fixed (none in the shipped code — one test-authoring slip caught before the first test run, a `WarehouseTransfer` test helper needing its own Goods-type product rather than reusing a Service one), current status
 - `docs/phase-13-status.md` — history of Phase 13: what was built (`WorkTask` under `Domain.Workflow`, the second Workflow-context feature and the first real aggregate — not a pure read — in that bounded context, plus `TaskType` under `Domain.Configuration` reusing the generic Configuration lookup pair), the one real judgment call made explicit (`TaskType` modeled as a real tenant-editable lookup entity rather than a hardcoded enum, weighed directly against competing evidence in `erp-module-scan.md` — the Tasks list's own data model names Type as a fixed enum, but a separate "Workflow (config) > Task Types" screen shows it as its own tenant-configurable list, resolved in favor of the lookup entity per this codebase's "confirmed management screen → generic lookup entity" precedent), scope decisions (no Draft/Approve lifecycle at all — `Update()` guarded by `Status != Done` instead of `EnsureDraft()`; a small dedicated `TaskParentType` enum holding only the two confirmed-live values `Contact`/`Organization`, deliberately not `DocumentType` and not a broader speculative set; `IsPrivate` really enforced at query time via a concrete non-generic LINQ `Where`, not stored-but-inert; `WorkTask.TransitionStatus` only allows a strictly-forward move — Pending→Started, Pending→Done, Started→Done — with backward/no-op transitions rejected via a 409, an explicit decision against the confirmed live UI's forward-only per-row complete checkmark; `Workflow.TaskView`/`TaskManage` both granted to Member unlike every maker-checker document type's Approve-denied default; a small `ListOrganizationMembersQuery` added as necessary supporting infrastructure for the Assigned-To picker, gated on `TaskView` rather than a new standalone key; no dedicated `TaskType` Angular admin screen built, mirroring this codebase's own precedent of several Configuration lookups having working APIs but no screen), bugs hit and fixed (read this before naming any future Domain type after a common BCL word — naming the aggregate the bare "Task" collides with `System.Threading.Tasks.Task`/`TaskStatus`, implicitly in scope in every async C# handler file in this codebase via `ImplicitUsings`, caught by `dotnet build` and fixed by naming the aggregate `WorkTask` and its status enum `WorkTaskStatus` while every other layer — permission keys, table/DbSet name, routes, DTOs, Angular — keeps plain "Task" naming; also a `Write`-without-`Read`-first mistake that briefly clobbered Phase 12's existing `core/workflow/workflow.models.ts`/`workflow.service.ts` content, caught immediately by `ng build` and recovered via `git show`), current status
 - `docs/phase-14-status.md` — history of Phase 14: what was built (`Role.OrganizationId` nullable — `null` for the two shared system rows kept exactly as-is, non-null for a tenant's own custom role — upgrading Phase 1c's hardcoded Admin/Member stub into a real per-org permission-matrix editor: `CreateRoleCommand`/`UpdateRoleCommand`/`DeleteRoleCommand`/`ListRolesQuery`/`GetRolePermissionMatrixQuery`/`UpdateRolePermissionsCommand`/`UpdateMembershipRoleCommand`, plus a new `PermissionKeyCatalog` reflecting over `PermissionKeys.cs`'s 107 constants), the two real judgment calls made explicit (nullable-`OrganizationId`-on-shared-table chosen over a separate per-org-override table, with the two system rows' shared-across-every-tenant `RolePermission` rows made deliberately non-editable through the new UI as the direct consequence; `PermissionKeyCatalog` built via reflection rather than a hand-maintained parallel list, explicitly weighed against `LookupPermissionKeys.cs`'s own plain-switch precedent and resolved differently because "enumerate the complete universe of keys" is a fundamentally different question than "map one closed type to its key"), scope decisions (HeadOffice/POS Restaurant/POS Retail permission sections explicitly out of scope — no `BillingLocation` backing implementation exists anywhere in this codebase to scope them against; `UpdateRolePermissionsCommand`'s `Grants` is a full-desired-state diff-and-save, not a client-computed delta, following this codebase's existing Clear+re-Add InMemory-provider-mistracking discipline even though `RolePermission` isn't a child collection here; `InviteUserCommand` moved from a hardcoded `MembershipRole` selector to a real `RoleId` — a genuine behavior change, traced against every `MembershipRole` call site first rather than assumed additive; `Tenancy.Role.View`/`RoleManage` are Admin-only, the one deliberate exception to this codebase's "grant Member routine daily-use data" default since Member access here would be self-defeating), bugs hit and fixed (none in the shipped code — two environment/tooling snags during manual E2E: registering a user does not itself create a `VerificationCode` row, `POST /api/auth/request-verification-code` must be called explicitly first; and a `nohup ... &`-backgrounded `dotnet run` process exiting immediately once its wrapping shell command returned, fixed by using the Bash tool's own `run_in_background: true` instead), current status
+- `docs/phase-15-status.md` — history of Phase 15: what was built (`Deal`/`DealAssignee` (`Domain.Crm`), the CRM module's first feature — `CreateDealCommand`/`UpdateDealCommand`/`MoveDealToStageCommand`/`MarkDealWonCommand`/`MarkDealLostCommand`/`ListDealsQuery`, plus `LeadSource`/`DealStage` as new Configuration lookups reusing the generic `ListLookupsQuery<T>`/`DeleteLookupCommand<T>` pair), scope decisions (`LeadSource`/`DealStage` as real lookup entities per the confirmed-live-screen precedent `TaskType` established; `Deal.Assignees` as a genuine multi-valued encapsulated child collection — the first many-to-many assignee list in this codebase, diffed explicitly on Update rather than Clear+re-Add; `IsPrivate` visibility extended to "any assignee" via `Assignees.Any(...)`; Won/Lost both terminal, made explicit against the confirmed live UI's lack of a reopen action, with `DealStage.SortOrder` confirmed display-ordering-only rather than an enforced sequence; Contact-Type restriction — Customer/Lead allowed, Supplier rejected with a 409, distinguishing "doesn't exist" (404) from "exists but wrong kind" (409)), one compile-time-only bug caught by `dotnet build` before any test ran (a `Guid?`-vs-`Guid` mismatch in the new plural assignee-membership check, `OrganizationMembership.UserId` being nullable), current status
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -89,6 +90,75 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - The `[value]`-vs-`@for` native-`<select>` race (documented above from Phase 5/6) isn't just a cosmetic "wrong option shown" bug — confirmed in Phase 7 to cause **actually-wrong persisted data**, silently. An Invoice's Warehouse `<select>` (still using the old `[value]="warehouseId()"` pattern, never retrofitted after the gotcha was first documented) visually showed one warehouse throughout an entire create→save→approve session while a direct DB query proved the row's real, persisted `WarehouseId` — and the actual FIFO stock consumption — was against a *different* warehouse the whole time. Never trust a signal-bound `<select>`'s on-screen value as proof of what got saved, on any page, without checking the database; audit every remaining `[value]`-on-`<select>` instance in the codebase for this, not just the ones a current phase happens to touch. See `docs/phase-7-status.md`'s bug #2.
 
 ## Current status
+**Phase 15 (Deals) is complete** — `Deal`/`DealAssignee` (`Domain.Crm`) is the CRM module's first
+feature (architecture-spec.md §4.2 / product-requirements.md FR-4.7), scoped to Deals only this
+phase per the roadmap's Phase 8+ "CRM: Deals, SMS" bullet — SMS is deferred to its own Phase 16
+(needs its own gateway/credit-ledger/template infrastructure, the same reasoning that split the
+Reports module into 8a–8f rather than one giant phase). `erp-module-scan.md`'s CRM section confirms
+the live shape: a pipeline tracker with 3 status tabs (Pending/Won/Lost), list columns Closing
+Date/Created At/Details/Stage (inline dropdown)/Contact/Expected Revenue/Assigned To
+(multi-avatar), and a New Deal form with no Stage field at all (Deal Contact\*, Title\*, Assign To,
+Lead Source, Description, Expected Revenue, Expected Closing Date, "Make this deal private").
+`LeadSource`/`DealStage` are new Configuration lookups (`{id, name}`/`{id, name, sortOrder,
+color?}`), reusing the generic `ListLookupsQuery<T>`/`DeleteLookupCommand<T>` pair the same
+"confirmed dedicated management screen → generic lookup entity" precedent Phase 13's `TaskType`
+established. The command/query surface is exactly what architecture-spec.md §4.2 names —
+`CreateDealCommand`/`UpdateDealCommand`/`MoveDealToStageCommand` (renamed from the brief's own
+`UpdateDealStageCommand` specifically to avoid colliding with the `DealStage` lookup's own Update
+command)/`MarkDealWonCommand`/`MarkDealLostCommand`/`ListDealsQuery` — no Draft/Approve lifecycle
+at all, mirroring `WorkTask`. Five scope decisions, each made explicit rather than defaulted: (1)
+`LeadSource`/`DealStage` as real lookup entities, no competing evidence either way; (2)
+`Deal.Assignees` as a genuine multi-valued encapsulated child collection — the first true
+many-to-many assignee list in this codebase (`WorkTask.AssignedToUserId` is a single scalar),
+modeled with internal `AddAssignee`/`RemoveAssignee` and diffed explicitly against the desired set
+on `UpdateDealCommand` rather than a blind Clear+re-Add, per CLAUDE.md's own InMemory-provider-
+mistracking discipline; (3) `IsPrivate` visibility extended from Phase 13's single-assignee check
+to `Assignees.Any(a => a.UserId == userId)`, confirmed as a real `EXISTS`-translated LINQ query
+against the actual child table, not the generic-`Func`-in-`.Where()` gotcha; (4) Won and Lost both
+terminal — `Deal.MarkWon`/`MarkLost`/`Update`/`MoveToStage` all guarded by a shared `EnsureOpen()`,
+since the confirmed live UI never shows a reopen/revert action on a closed deal, with
+`DealStage.SortOrder` confirmed display-ordering-only (a plain inline dropdown, not a forward-only
+per-row checkmark) rather than an enforced state-machine sequence; (5) Contact-Type restriction —
+Customer and Lead allowed, Supplier rejected with a genuine 409 (`ConflictException`) distinct from
+a 404 for a Contact that doesn't exist at all, the same "doesn't exist" vs. "exists but violates a
+business rule" split `SalesValidation`/`PurchasingValidation` draw elsewhere, made explicit here
+since `SalesValidation.EnsureContactExistsAsync` itself collapses both cases into one 404 by
+design. New permission keys `Crm.Deal.View`/`Crm.Deal.Manage` (both granted to Member — routine
+daily-use working data per product-requirements.md's Sales Staff persona, the same precedent
+Contact/Product/Task set) and `Crm.LeadSource.*`/`Crm.DealStage.*` (ordinary Member-View-only/
+Admin-write Configuration-lookup pairs). Angular ships one shared `deal-list` component
+(`features/crm/deal-list`) mounted on both the Contact detail page's new Deals tab (hidden for a
+Supplier Contact, `contactId` bound so the create form's Contact field is implied) and the
+Organization dashboard's new Deals card (`contactId` unbound, so the create form shows a Contact
+picker filtered client-side to Customer/Lead) — the same "don't duplicate, extract a shared reader"
+discipline Phase 13's `TaskList` established. Assignee selection is a checkbox list, not a native
+`<select multiple>`, sidestepping the `[value]`-vs-`@for` select race outright; every other
+`<select>` this phase touches (Lead Source, the Contact picker, the per-row inline Stage dropdown)
+follows CLAUDE.md's `[selected]`-per-option convention, with the per-row Stage dropdown using a
+plain `(change)` handler reading `event.target.value` rather than any Angular value-binding at all.
+`DealCommandHandlerTests` (9 tests: Supplier rejection, Customer/Lead acceptance, the terminal
+Won/Lost guard blocking further `Update`/`MoveToStage` calls, multi-assignee `IsPrivate`
+visibility, the `Status?` filter, and org-scope isolation) is this feature's first-ever test
+coverage. `dotnet build`/`dotnet test` (Domain.UnitTests 67 unchanged, Application.UnitTests 181 —
+9 new + 172 pre-existing, all green) and `ng build`/`ng test` (7 pre-existing specs green, no new
+Angular specs) all pass. One compile-time-only bug, caught by `dotnet build` before any test ran,
+not a codebase defect: `OrganizationMembership.UserId` is `Guid?` (nullable, an invite is addressed
+to an email before it resolves to a user), so the new plural assignee-membership check's first
+draft (`distinctIds.Contains(x.UserId)` against a `List<Guid>`) failed to compile; fixed with an
+explicit null-guard. Confirmed by hand end-to-end against the real API/DB/browser: a fresh Admin
+created an Organization, a LeadSource, two DealStages, a Customer and a Supplier Contact; `POST
+/deals` against the Supplier returned a real `409`, while the same call against the Customer with
+`isPrivate=true` and two assignees succeeded once both were invited/registered/accepted; `GET
+/deals?status=Pending` correctly returned the deal to the creator and both assignees while a third
+invited-and-accepted Member with no relationship to it got an empty list — the actual proof this
+phase's multi-assignee `IsPrivate` scope decision exists for; the deal was moved through two stages,
+marked Won (`closingDate` populated), and a further `Update`/`MoveToStage` call against it both
+correctly 409'd; then, through the real Angular UI, the Organization dashboard's Deals card showed
+the Won deal with the right Stage/Expected Revenue/Closing Date/both assignee names, the Customer
+Contact's new Deals tab rendered the same shared component correctly scoped to that Contact, and the
+Supplier Contact's detail page correctly showed no Deals tab at all. See `docs/phase-15-status.md`
+for the full history (all five scope decisions in detail, plus the one compile-time bug).
+
 **Phase 14 (Role Reference) is complete** — `Role` (`Domain.Tenancy`) gains a nullable
 `OrganizationId`, upgrading Phase 1c's two-hardcoded-system-role stub (`Role.AdminId`/
 `Role.MemberId`, shared across every Organization) into a real per-tenant permission-matrix

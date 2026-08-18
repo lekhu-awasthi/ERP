@@ -78,3 +78,44 @@ export interface UpdateTaskTypeRequest {
   color: string;
   isActive: boolean;
 }
+
+// Phase 15 -- CRM (config) > Lead Source / Deal Stage (erp-module-scan.md line 311-312).
+export interface LeadSource {
+  id: string;
+  organizationId: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateLeadSourceRequest {
+  name: string;
+}
+
+export interface UpdateLeadSourceRequest {
+  name: string;
+  isActive: boolean;
+}
+
+export interface DealStage {
+  id: string;
+  organizationId: string;
+  name: string;
+  sortOrder: number;
+  color: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateDealStageRequest {
+  name: string;
+  sortOrder: number;
+  color: string | null;
+}
+
+export interface UpdateDealStageRequest {
+  name: string;
+  sortOrder: number;
+  color: string | null;
+  isActive: boolean;
+}

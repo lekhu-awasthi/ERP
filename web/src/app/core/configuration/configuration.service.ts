@@ -5,14 +5,20 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   CreateCreditTermRequest,
+  CreateDealStageRequest,
+  CreateLeadSourceRequest,
   CreatePaymentModeRequest,
   CreateTaskTypeRequest,
   CreateTdsTypeRequest,
   CreditTerm,
+  DealStage,
+  LeadSource,
   PaymentMode,
   TaskType,
   TdsType,
   UpdateCreditTermRequest,
+  UpdateDealStageRequest,
+  UpdateLeadSourceRequest,
   UpdatePaymentModeRequest,
   UpdateTaskTypeRequest,
   UpdateTdsTypeRequest,
@@ -98,5 +104,41 @@ export class ConfigurationService {
 
   deleteTaskType(organizationId: string, id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl(organizationId)}/task-types/${id}`, { withCredentials: true });
+  }
+
+  listLeadSources(organizationId: string): Observable<LeadSource[]> {
+    return this.http.get<LeadSource[]>(`${this.baseUrl(organizationId)}/lead-sources`, { withCredentials: true });
+  }
+
+  createLeadSource(organizationId: string, request: CreateLeadSourceRequest): Observable<LeadSource> {
+    return this.http.post<LeadSource>(`${this.baseUrl(organizationId)}/lead-sources`, request, { withCredentials: true });
+  }
+
+  updateLeadSource(organizationId: string, id: string, request: UpdateLeadSourceRequest): Observable<LeadSource> {
+    return this.http.put<LeadSource>(`${this.baseUrl(organizationId)}/lead-sources/${id}`, request, {
+      withCredentials: true,
+    });
+  }
+
+  deleteLeadSource(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/lead-sources/${id}`, { withCredentials: true });
+  }
+
+  listDealStages(organizationId: string): Observable<DealStage[]> {
+    return this.http.get<DealStage[]>(`${this.baseUrl(organizationId)}/deal-stages`, { withCredentials: true });
+  }
+
+  createDealStage(organizationId: string, request: CreateDealStageRequest): Observable<DealStage> {
+    return this.http.post<DealStage>(`${this.baseUrl(organizationId)}/deal-stages`, request, { withCredentials: true });
+  }
+
+  updateDealStage(organizationId: string, id: string, request: UpdateDealStageRequest): Observable<DealStage> {
+    return this.http.put<DealStage>(`${this.baseUrl(organizationId)}/deal-stages/${id}`, request, {
+      withCredentials: true,
+    });
+  }
+
+  deleteDealStage(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/deal-stages/${id}`, { withCredentials: true });
   }
 }

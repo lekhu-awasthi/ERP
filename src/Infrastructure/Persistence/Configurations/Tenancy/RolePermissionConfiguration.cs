@@ -336,6 +336,25 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid MemberRoleViewId = Guid.Parse("00000000-0000-0000-0002-0000000000d3");
     private static readonly Guid MemberRoleManageId = Guid.Parse("00000000-0000-0000-0002-0000000000d4");
 
+    // Phase 15 (Deals, the CRM module's first feature) -- Crm.Deal.* both granted to Member (see
+    // PermissionKeys.DealView's doc comment: routine daily-use working data, the same Member-View+
+    // Manage precedent Contact/Product/Task set). Crm.LeadSource.*/Crm.DealStage.* follow every
+    // other Configuration lookup's Member-View-only/Admin-write split.
+    private static readonly Guid AdminDealViewId = Guid.Parse("00000000-0000-0000-0002-0000000000d5");
+    private static readonly Guid AdminDealManageId = Guid.Parse("00000000-0000-0000-0002-0000000000d6");
+    private static readonly Guid MemberDealViewId = Guid.Parse("00000000-0000-0000-0002-0000000000d7");
+    private static readonly Guid MemberDealManageId = Guid.Parse("00000000-0000-0000-0002-0000000000d8");
+
+    private static readonly Guid AdminLeadSourceViewId = Guid.Parse("00000000-0000-0000-0002-0000000000d9");
+    private static readonly Guid AdminLeadSourceManageId = Guid.Parse("00000000-0000-0000-0002-0000000000da");
+    private static readonly Guid MemberLeadSourceViewId = Guid.Parse("00000000-0000-0000-0002-0000000000db");
+    private static readonly Guid MemberLeadSourceManageId = Guid.Parse("00000000-0000-0000-0002-0000000000dc");
+
+    private static readonly Guid AdminDealStageViewId = Guid.Parse("00000000-0000-0000-0002-0000000000dd");
+    private static readonly Guid AdminDealStageManageId = Guid.Parse("00000000-0000-0000-0002-0000000000de");
+    private static readonly Guid MemberDealStageViewId = Guid.Parse("00000000-0000-0000-0002-0000000000df");
+    private static readonly Guid MemberDealStageManageId = Guid.Parse("00000000-0000-0000-0002-0000000000e0");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -605,6 +624,21 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminRoleViewId, Role.AdminId, PermissionKeys.RoleView, true),
             RolePermission.Create(AdminRoleManageId, Role.AdminId, PermissionKeys.RoleManage, true),
             RolePermission.Create(MemberRoleViewId, Role.MemberId, PermissionKeys.RoleView, false),
-            RolePermission.Create(MemberRoleManageId, Role.MemberId, PermissionKeys.RoleManage, false));
+            RolePermission.Create(MemberRoleManageId, Role.MemberId, PermissionKeys.RoleManage, false),
+
+            RolePermission.Create(AdminDealViewId, Role.AdminId, PermissionKeys.DealView, true),
+            RolePermission.Create(AdminDealManageId, Role.AdminId, PermissionKeys.DealManage, true),
+            RolePermission.Create(MemberDealViewId, Role.MemberId, PermissionKeys.DealView, true),
+            RolePermission.Create(MemberDealManageId, Role.MemberId, PermissionKeys.DealManage, true),
+
+            RolePermission.Create(AdminLeadSourceViewId, Role.AdminId, PermissionKeys.LeadSourceView, true),
+            RolePermission.Create(AdminLeadSourceManageId, Role.AdminId, PermissionKeys.LeadSourceManage, true),
+            RolePermission.Create(MemberLeadSourceViewId, Role.MemberId, PermissionKeys.LeadSourceView, true),
+            RolePermission.Create(MemberLeadSourceManageId, Role.MemberId, PermissionKeys.LeadSourceManage, false),
+
+            RolePermission.Create(AdminDealStageViewId, Role.AdminId, PermissionKeys.DealStageView, true),
+            RolePermission.Create(AdminDealStageManageId, Role.AdminId, PermissionKeys.DealStageManage, true),
+            RolePermission.Create(MemberDealStageViewId, Role.MemberId, PermissionKeys.DealStageView, true),
+            RolePermission.Create(MemberDealStageManageId, Role.MemberId, PermissionKeys.DealStageManage, false));
     }
 }

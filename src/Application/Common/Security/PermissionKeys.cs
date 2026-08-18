@@ -277,4 +277,20 @@ public static class PermissionKeys
     // phase-14-status.md's scope decision.
     public const string RoleView = "Tenancy.Role.View";
     public const string RoleManage = "Tenancy.Role.Manage";
+
+    // Phase 15 (Deals, the CRM module's first feature) -- Crm.Deal.* is a View/Manage pair, not
+    // the four-key {View,Create,Edit,Approve} maker-checker shape: Deal has no Approve concept,
+    // same as WorkTask in Phase 13. Both granted to Member -- product-requirements.md's Sales
+    // Staff persona explicitly "manages Deals/Contacts" as routine daily-use data, the same
+    // Member-View+Manage precedent Contact/Product/Task set. Crm.LeadSource.*/Crm.DealStage.* are
+    // ordinary Configuration-lookup pairs (Member View-only, Admin write), same shape as
+    // TdsType/TaskType.
+    public const string DealView = "Crm.Deal.View";
+    public const string DealManage = "Crm.Deal.Manage";
+
+    public const string LeadSourceView = "Crm.LeadSource.View";
+    public const string LeadSourceManage = "Crm.LeadSource.Manage";
+
+    public const string DealStageView = "Crm.DealStage.View";
+    public const string DealStageManage = "Crm.DealStage.Manage";
 }
