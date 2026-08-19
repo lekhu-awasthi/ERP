@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Workflow.Commands.CreateTask;
 using ErpApp.Application.Workflow.Commands.UpdateTask;
 using ErpApp.Application.Workflow.Commands.UpdateTaskStatus;
@@ -29,10 +30,13 @@ public static class WorkflowEndpoints
     private static void MapTaskEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/tasks", async (
-            Guid organizationId, TaskParentType parentType, Guid parentId, WorkTaskStatus? status,
+            Guid organizationId, TaskParentType parentType, Guid parentId, WorkTaskStatus? status, int? page, int? pageSize,
             ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListTasksQuery(organizationId, parentType, parentId, status), ct);
+            var result = await sender.Send(
+                new ListTasksQuery(
+                    organizationId, parentType, parentId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
             return Results.Ok(result);
         });
 

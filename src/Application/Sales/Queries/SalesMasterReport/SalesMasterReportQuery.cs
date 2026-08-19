@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
@@ -32,7 +33,10 @@ public sealed record SalesMasterReportQuery(
     DateOnly ToDate,
     Guid? ContactId,
     Guid? ProductId,
-    Guid? WarehouseId)
+    Guid? WarehouseId,
+    int Page = 1,
+    int PageSize = PagingDefaults.DefaultPageSize,
+    bool ExportAll = false)
     : IRequest<SalesMasterReportDto>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.SalesMasterReportView;
@@ -69,5 +73,17 @@ public sealed record SalesMasterReportRowDto(
     decimal VatAmount,
     decimal TotalAmount);
 
+/// <summary>
+/// TotalAmount is the grand total across every filtered row, not just the current page -- computed
+/// server-side from the full row set before pagination slices Rows, so the Angular footer total
+/// stays correct no matter which page is displayed (see phase-16c-status.md: the pre-existing
+/// Angular pages summed rows() client-side, which silently breaks under pagination).
+/// </summary>
 public sealed record SalesMasterReportDto(
-    DateOnly FromDate, DateOnly ToDate, IReadOnlyList<SalesMasterReportRowDto> Rows);
+    DateOnly FromDate,
+    DateOnly ToDate,
+    IReadOnlyList<SalesMasterReportRowDto> Rows,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    decimal TotalAmount);

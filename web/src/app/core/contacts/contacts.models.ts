@@ -103,6 +103,13 @@ export interface ContactAgeingSummaryDto {
   asOfDate: string;
   contactType: ContactType;
   rows: ContactAgeingSummaryRowDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalDays1To30: number;
+  totalDays31To60: number;
+  totalDays61To90: number;
+  totalDays91Plus: number;
 }
 
 export type StatementDocumentType = 'Invoice' | 'CreditNote' | 'PurchaseBill' | 'DebitNote' | 'Expense' | 'Payment';
@@ -132,6 +139,9 @@ export interface ContactStatementDto {
   rows: ContactStatementRowDto[];
   closingBalance: number;
   closingBalanceType: BalanceType;
+  page: number;
+  pageSize: number;
+  totalCount: number;
 }
 
 // Phase 10 (Contact Overview). A thin read over the same running-balance engine as

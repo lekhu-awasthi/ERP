@@ -68,6 +68,9 @@ export interface TaskRow {
 // file.
 export interface TaskListDto {
   rows: TaskRow[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
 }
 
 export interface CreateTaskRequest {

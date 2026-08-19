@@ -92,10 +92,10 @@ export class SupplierPaymentDetailPage {
   });
 
   constructor() {
-    this.contactsService.listContacts(this.organizationId, 'Supplier').subscribe({ next: (c) => this.suppliers.set(c) });
-    this.accountingService.listAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
+    this.contactsService.listAllContacts(this.organizationId, 'Supplier').subscribe({ next: (c) => this.suppliers.set(c) });
+    this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
     this.configurationService.listPaymentModes(this.organizationId).subscribe({ next: (m) => this.paymentModes.set(m) });
-    this.purchasingService.listPurchaseBills(this.organizationId, 'Approved').subscribe({ next: (b) => this.approvedPurchaseBills.set(b) });
+    this.purchasingService.listAllPurchaseBills(this.organizationId, 'Approved').subscribe({ next: (b) => this.approvedPurchaseBills.set(b) });
 
     this.route.paramMap.subscribe((params) => {
       this.routePaymentId = params.get('supplierPaymentId')!;

@@ -4,13 +4,15 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { InventoryService } from '../../../core/inventory/inventory.service';
 import { InventoryAdjustment, InventoryAdjustmentStatus } from '../../../core/inventory/inventory.models';
+import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
+import { PaginationControl } from '../../../shared/pagination/pagination-control';
 
 type StatusFilter = InventoryAdjustmentStatus | 'All';
 
 /** List-page chrome for InventoryAdjustment, same pattern as purchase-order-list-page. */
 @Component({
   selector: 'app-inventory-adjustment-list-page',
-  imports: [RouterLink],
+  imports: [RouterLink, PaginationControl],
   templateUrl: './inventory-adjustment-list-page.html',
 })
 export class InventoryAdjustmentListPage {
@@ -24,6 +26,10 @@ export class InventoryAdjustmentListPage {
   protected readonly items = signal<InventoryAdjustment[]>([]);
   protected readonly statusFilter = signal<StatusFilter>('All');
 
+  protected readonly page = signal(1);
+  protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
+  protected readonly totalCount = signal(0);
+
   protected readonly statuses: StatusFilter[] = ['All', 'Draft', 'Approved'];
 
   constructor() {
@@ -32,21 +38,36 @@ export class InventoryAdjustmentListPage {
 
   protected selectStatus(status: StatusFilter): void {
     this.statusFilter.set(status);
+    this.page.set(1);
+    this.load();
+  }
+
+  protected onPageChange(page: number): void {
+    this.page.set(page);
+    this.load();
+  }
+
+  protected onPageSizeChange(pageSize: number): void {
+    this.pageSize.set(pageSize);
+    this.page.set(1);
     this.load();
   }
 
   private load(): void {
     this.loading.set(true);
     const status = this.statusFilter();
-    this.inventoryService.listInventoryAdjustments(this.organizationId, status === 'All' ? undefined : status).subscribe({
-      next: (items) => {
-        this.items.set(items);
-        this.loading.set(false);
-      },
-      error: (err: unknown) => {
-        this.loading.set(false);
-        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load inventory adjustments.');
-      },
-    });
+    this.inventoryService
+      .listInventoryAdjustments(this.organizationId, status === 'All' ? undefined : status, this.page(), this.pageSize())
+      .subscribe({
+        next: (result) => {
+          this.items.set(result.items);
+          this.totalCount.set(result.totalCount);
+          this.loading.set(false);
+        },
+        error: (err: unknown) => {
+          this.loading.set(false);
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load inventory adjustments.');
+        },
+      });
   }
 }

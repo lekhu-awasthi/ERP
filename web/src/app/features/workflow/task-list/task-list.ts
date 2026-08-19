@@ -9,6 +9,8 @@ import { OrganizationMember } from '../../../core/organizations/organizations.mo
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { TaskParentType, TaskRow, TaskStatus } from '../../../core/workflow/workflow.models';
 import { WorkflowService } from '../../../core/workflow/workflow.service';
+import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
+import { PaginationControl } from '../../../shared/pagination/pagination-control';
 
 /**
  * Shared Task list component (roadmap Phase 13) -- reused, not duplicated, across its two
@@ -20,7 +22,7 @@ import { WorkflowService } from '../../../core/workflow/workflow.service';
  */
 @Component({
   selector: 'app-task-list',
-  imports: [ReactiveFormsModule, LowerCasePipe],
+  imports: [ReactiveFormsModule, LowerCasePipe, PaginationControl],
   templateUrl: './task-list.html',
 })
 export class TaskList implements OnInit {
@@ -39,6 +41,10 @@ export class TaskList implements OnInit {
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly rows = signal<TaskRow[]>([]);
+
+  protected readonly page = signal(1);
+  protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
+  protected readonly totalCount = signal(0);
 
   protected readonly taskTypes = signal<TaskType[]>([]);
   protected readonly members = signal<OrganizationMember[]>([]);
@@ -70,6 +76,18 @@ export class TaskList implements OnInit {
 
   protected switchTab(status: TaskStatus): void {
     this.activeStatus.set(status);
+    this.page.set(1);
+    this.load();
+  }
+
+  protected onPageChange(page: number): void {
+    this.page.set(page);
+    this.load();
+  }
+
+  protected onPageSizeChange(pageSize: number): void {
+    this.pageSize.set(pageSize);
+    this.page.set(1);
     this.load();
   }
 
@@ -146,10 +164,12 @@ export class TaskList implements OnInit {
     this.loading.set(true);
     this.errorMessage.set(null);
     this.workflowService
-      .listTasks(this.organizationId(), this.parentType(), this.parentId(), this.activeStatus())
+      .listTasks(
+        this.organizationId(), this.parentType(), this.parentId(), this.activeStatus(), this.page(), this.pageSize())
       .subscribe({
         next: (result) => {
           this.rows.set(result.rows);
+          this.totalCount.set(result.totalCount);
           this.loading.set(false);
         },
         error: (err: unknown) => {

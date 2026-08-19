@@ -1,8 +1,9 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
 import {
   AccountingDefaults,
   CreateOrganizationRequest,
@@ -71,8 +72,16 @@ export class OrganizationsService {
     );
   }
 
+  /** Bounded master-data / picker lists (Phase 16c) -- no visible pager, just request everything
+   * in one page and unwrap, keeping every caller's Observable<T[]> contract intact. */
+  private listAll<T>(url: string): Observable<T[]> {
+    return this.http
+      .get<PagedResult<T>>(url, { withCredentials: true, params: { page: '1', pageSize: String(MAX_PAGE_SIZE) } })
+      .pipe(map((result) => result.items));
+  }
+
   listWarehouses(organizationId: string): Observable<Warehouse[]> {
-    return this.http.get<Warehouse[]>(`${this.baseUrl}/${organizationId}/warehouses`, { withCredentials: true });
+    return this.listAll<Warehouse>(`${this.baseUrl}/${organizationId}/warehouses`);
   }
 
   createWarehouse(organizationId: string, request: CreateWarehouseRequest): Observable<CreateWarehouseResult> {
@@ -92,7 +101,7 @@ export class OrganizationsService {
   }
 
   listMembers(organizationId: string): Observable<OrganizationMember[]> {
-    return this.http.get<OrganizationMember[]>(`${this.baseUrl}/${organizationId}/members`, { withCredentials: true });
+    return this.listAll<OrganizationMember>(`${this.baseUrl}/${organizationId}/members`);
   }
 
   getAccountingDefaults(organizationId: string): Observable<AccountingDefaults> {
@@ -123,8 +132,16 @@ export class OrganizationsService {
     });
   }
 
-  listRoles(organizationId: string): Observable<Role[]> {
-    return this.http.get<Role[]>(`${this.baseUrl}/${organizationId}/roles`, { withCredentials: true });
+  listRoles(organizationId: string, page = 1, pageSize = MAX_PAGE_SIZE): Observable<PagedResult<Role>> {
+    return this.http.get<PagedResult<Role>>(`${this.baseUrl}/${organizationId}/roles`, {
+      withCredentials: true,
+      params: { page: String(page), pageSize: String(pageSize) },
+    });
+  }
+
+  /** Picker use (e.g. the invite-user role dropdown) -- everything in one page, no pager. */
+  listAllRoles(organizationId: string): Observable<Role[]> {
+    return this.listRoles(organizationId, 1, MAX_PAGE_SIZE).pipe(map((result) => result.items));
   }
 
   createRole(organizationId: string, request: CreateRoleRequest): Observable<CreateRoleResult> {

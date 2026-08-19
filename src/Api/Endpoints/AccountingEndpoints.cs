@@ -22,6 +22,8 @@ using ErpApp.Application.Accounting.Queries.ListJournalVouchers;
 using ErpApp.Application.Accounting.Queries.PreviewGlPosting;
 using ErpApp.Application.Accounting.Queries.TrialBalance;
 using ErpApp.Application.Accounting.Queries.VatSummaryReport;
+using ErpApp.Api.Reports;
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
 using ErpApp.Domain.Accounting;
@@ -46,9 +48,10 @@ public static class AccountingEndpoints
 
     private static void MapAccountGroupEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/account-groups", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+        group.MapGet("/account-groups", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListLookupsQuery<AccountGroup>(organizationId), ct);
+            var result = await sender.Send(
+                new ListLookupsQuery<AccountGroup>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -79,9 +82,10 @@ public static class AccountingEndpoints
     private static void MapAccountEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/accounts", async (
-            Guid organizationId, AccountRootType? rootType, ISender sender, CancellationToken ct) =>
+            Guid organizationId, AccountRootType? rootType, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListAccountsQuery(organizationId, rootType), ct);
+            var result = await sender.Send(
+                new ListAccountsQuery(organizationId, rootType, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -111,9 +115,10 @@ public static class AccountingEndpoints
     private static void MapJournalVoucherEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/journal-vouchers", async (
-            Guid organizationId, JournalVoucherStatus? status, ISender sender, CancellationToken ct) =>
+            Guid organizationId, JournalVoucherStatus? status, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListJournalVouchersQuery(organizationId, status), ct);
+            var result = await sender.Send(
+                new ListJournalVouchersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -166,9 +171,10 @@ public static class AccountingEndpoints
     private static void MapCashTransferEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/cash-transfers", async (
-            Guid organizationId, CashTransferStatus? status, ISender sender, CancellationToken ct) =>
+            Guid organizationId, CashTransferStatus? status, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListCashTransfersQuery(organizationId, status), ct);
+            var result = await sender.Send(
+                new ListCashTransfersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -240,6 +246,16 @@ public static class AccountingEndpoints
         {
             var result = await sender.Send(new VatSummaryReportQuery(organizationId, fromDate, toDate), ct);
             return Results.Ok(result);
+        });
+
+        // No "current view" vs "full dataset" distinction -- VatSummaryReportQuery always returns
+        // every bucket (fixed 2x3 cardinality, never paginated, see VatSummaryReportQuery's own
+        // doc comment), so both export variants would be identical; one export route is enough.
+        group.MapGet("/reports/vat-summary/export", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new VatSummaryReportQuery(organizationId, fromDate, toDate), ct);
+            return ReportSpreadsheetExporter.ExportVatSummaryReport(result);
         });
     }
 

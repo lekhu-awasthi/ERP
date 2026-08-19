@@ -32,10 +32,13 @@ export class WorkflowService {
     parentType: TaskParentType,
     parentId: string,
     status: TaskStatus | null,
+    page = 1,
+    pageSize = 50,
   ): Observable<TaskListDto> {
-    const params: Record<string, string> = status
-      ? { parentType, parentId, status }
-      : { parentType, parentId };
+    const params: Record<string, string> = { parentType, parentId, page: String(page), pageSize: String(pageSize) };
+    if (status) {
+      params['status'] = status;
+    }
     return this.http.get<TaskListDto>(`${this.baseUrl(organizationId)}/tasks`, { withCredentials: true, params });
   }
 

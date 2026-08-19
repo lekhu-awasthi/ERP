@@ -29,6 +29,8 @@ public sealed class ListDealsQueryHandler(IAppDbContext db, ICurrentUserService 
             query = query.Where(x => x.Status == status);
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var rows = await query
             .Select(x => new
             {
@@ -48,6 +50,8 @@ public sealed class ListDealsQueryHandler(IAppDbContext db, ICurrentUserService 
                 AssigneeUserIds = x.Assignees.Select(a => a.UserId).ToList(),
             })
             .OrderByDescending(x => x.CreatedAt)
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
             .ToListAsync(cancellationToken);
 
         var contactIds = rows.Select(x => x.ContactId).Distinct().ToList();
@@ -101,6 +105,6 @@ public sealed class ListDealsQueryHandler(IAppDbContext db, ICurrentUserService 
                 .ToList())
         ).ToList();
 
-        return new DealListDto(dtoRows);
+        return new DealListDto(dtoRows, request.Page, request.PageSize, totalCount);
     }
 }

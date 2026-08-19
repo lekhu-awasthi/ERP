@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
@@ -16,7 +17,10 @@ public sealed record PurchaseMasterReportQuery(
     DateOnly ToDate,
     Guid? ContactId,
     Guid? ProductId,
-    Guid? WarehouseId)
+    Guid? WarehouseId,
+    int Page = 1,
+    int PageSize = PagingDefaults.DefaultPageSize,
+    bool ExportAll = false)
     : IRequest<PurchaseMasterReportDto>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.PurchaseMasterReportView;
@@ -53,5 +57,13 @@ public sealed record PurchaseMasterReportRowDto(
     decimal VatAmount,
     decimal TotalAmount);
 
+/// <summary>TotalAmount is the grand total across every filtered row, not just the current page --
+/// see SalesMasterReportDto's doc comment.</summary>
 public sealed record PurchaseMasterReportDto(
-    DateOnly FromDate, DateOnly ToDate, IReadOnlyList<PurchaseMasterReportRowDto> Rows);
+    DateOnly FromDate,
+    DateOnly ToDate,
+    IReadOnlyList<PurchaseMasterReportRowDto> Rows,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    decimal TotalAmount);

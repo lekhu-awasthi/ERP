@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Purchasing;
@@ -96,7 +97,12 @@ public sealed class TdsReportQueryHandler(IAppDbContext db) : IRequestHandler<Td
         }
 
         var orderedRows = rows.OrderBy(x => x.EntryDate).ThenBy(x => x.EntryNo).ToList();
+        var paged = request.ExportAll
+            ? orderedRows.ToUnpagedResult()
+            : orderedRows.ToPagedResult(request.Page, request.PageSize);
 
-        return new TdsReportDto(request.FromDate, request.ToDate, orderedRows);
+        return new TdsReportDto(
+            request.FromDate, request.ToDate, paged.Items, paged.Page, paged.PageSize, paged.TotalCount,
+            orderedRows.Sum(r => r.GrossAmount), orderedRows.Sum(r => r.TdsAmount));
     }
 }

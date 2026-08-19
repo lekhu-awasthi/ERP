@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { VatSummaryReportDto } from '../../../core/accounting/accounting.models';
+import { triggerBlobDownload } from '../../../shared/download-file';
 
 /**
  * Read-only report screen -- roadmap Phase 8c's VatSummaryReportQuery, a standard Nepal
@@ -29,6 +30,8 @@ export class VatSummaryReportPage {
   protected readonly fromDate = signal(this.firstOfMonth());
   protected readonly toDate = signal(this.today());
 
+  protected readonly exporting = signal(false);
+
   constructor() {
     this.load();
   }
@@ -41,6 +44,20 @@ export class VatSummaryReportPage {
   protected onToDateChange(event: Event): void {
     this.toDate.set((event.target as HTMLInputElement).value);
     this.load();
+  }
+
+  protected exportReport(): void {
+    this.exporting.set(true);
+    this.accountingService.exportVatSummaryReport(this.organizationId, this.fromDate(), this.toDate()).subscribe({
+      next: (blob) => {
+        this.exporting.set(false);
+        triggerBlobDownload(blob, `VatSummaryReport_${this.fromDate()}_${this.toDate()}.xlsx`);
+      },
+      error: (err: unknown) => {
+        this.exporting.set(false);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not export the VAT Summary Report.');
+      },
+    });
   }
 
   private load(): void {

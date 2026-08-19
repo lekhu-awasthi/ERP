@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
@@ -166,7 +167,12 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db)
         }
 
         var orderedRows = rows.OrderBy(x => x.EntryDate).ThenBy(x => x.EntryNo).ToList();
+        var paged = request.ExportAll
+            ? orderedRows.ToUnpagedResult()
+            : orderedRows.ToPagedResult(request.Page, request.PageSize);
+        var totalAmount = orderedRows.Sum(x => x.TotalAmount);
 
-        return new SalesMasterReportDto(request.FromDate, request.ToDate, orderedRows);
+        return new SalesMasterReportDto(
+            request.FromDate, request.ToDate, paged.Items, paged.Page, paged.PageSize, paged.TotalCount, totalAmount);
     }
 }

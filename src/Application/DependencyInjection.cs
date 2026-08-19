@@ -122,7 +122,12 @@ public static class DependencyInjection
         where TLookup : class, Domain.Common.ITenantLookupEntity
     {
         services.AddTransient<
-            IRequestHandler<ListLookupsQuery<TLookup>, IReadOnlyList<TLookup>>, ListLookupsQueryHandler<TLookup>>();
+            IRequestHandler<ListLookupsQuery<TLookup>, Common.Pagination.PagedResult<TLookup>>,
+            ListLookupsQueryHandler<TLookup>>();
+        // Same open-generic DI limitation as the handler above -- ValidationBehavior resolves
+        // IEnumerable<IValidator<TRequest>>, which AddValidatorsFromAssembly can't populate for a
+        // closed-over-TLookup validator either.
+        services.AddTransient<IValidator<ListLookupsQuery<TLookup>>, ListLookupsQueryValidator<TLookup>>();
 
         // Registered against the 2-arg IRequestHandler<,Unit> form (not IRequestHandler<TRequest>)
         // -- MediatR's Send(IRequest) pipeline resolves the former from the container; the

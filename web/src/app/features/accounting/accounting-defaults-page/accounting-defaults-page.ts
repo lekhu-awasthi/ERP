@@ -81,7 +81,7 @@ export class AccountingDefaultsPage {
   private load(): void {
     this.loading.set(true);
 
-    this.accountingService.listAccounts(this.organizationId).subscribe({ next: (accounts) => this.accounts.set(accounts) });
+    this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (accounts) => this.accounts.set(accounts) });
 
     this.organizationsService.getAccountingDefaults(this.organizationId).subscribe({
       next: (defaults) => {

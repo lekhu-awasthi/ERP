@@ -4,12 +4,14 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { SalesService } from '../../../core/sales/sales.service';
 import { CreditNote, CreditNoteStatus } from '../../../core/sales/sales.models';
+import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
+import { PaginationControl } from '../../../shared/pagination/pagination-control';
 
 type StatusFilter = CreditNoteStatus | 'All';
 
 @Component({
   selector: 'app-credit-note-list-page',
-  imports: [RouterLink],
+  imports: [RouterLink, PaginationControl],
   templateUrl: './credit-note-list-page.html',
 })
 export class CreditNoteListPage {
@@ -23,6 +25,10 @@ export class CreditNoteListPage {
   protected readonly items = signal<CreditNote[]>([]);
   protected readonly statusFilter = signal<StatusFilter>('All');
 
+  protected readonly page = signal(1);
+  protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
+  protected readonly totalCount = signal(0);
+
   protected readonly statuses: StatusFilter[] = ['All', 'Draft', 'Approved'];
 
   constructor() {
@@ -31,21 +37,36 @@ export class CreditNoteListPage {
 
   protected selectStatus(status: StatusFilter): void {
     this.statusFilter.set(status);
+    this.page.set(1);
+    this.load();
+  }
+
+  protected onPageChange(page: number): void {
+    this.page.set(page);
+    this.load();
+  }
+
+  protected onPageSizeChange(pageSize: number): void {
+    this.pageSize.set(pageSize);
+    this.page.set(1);
     this.load();
   }
 
   private load(): void {
     this.loading.set(true);
     const status = this.statusFilter();
-    this.salesService.listCreditNotes(this.organizationId, status === 'All' ? undefined : status).subscribe({
-      next: (items) => {
-        this.items.set(items);
-        this.loading.set(false);
-      },
-      error: (err: unknown) => {
-        this.loading.set(false);
-        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load credit notes.');
-      },
-    });
+    this.salesService
+      .listCreditNotes(this.organizationId, status === 'All' ? undefined : status, this.page(), this.pageSize())
+      .subscribe({
+        next: (result) => {
+          this.items.set(result.items);
+          this.totalCount.set(result.totalCount);
+          this.loading.set(false);
+        },
+        error: (err: unknown) => {
+          this.loading.set(false);
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load credit notes.');
+        },
+      });
   }
 }

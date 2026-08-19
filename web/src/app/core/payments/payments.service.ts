@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { PagedResult } from '../common/paged-result';
 import { PaymentAllocationInput, PaymentDirection } from './payments.models';
 import {
   ApprovePaymentResult,
@@ -24,9 +25,17 @@ export class PaymentsService {
     return `${environment.apiBaseUrl}/api/organizations/${organizationId}`;
   }
 
-  listPayments(organizationId: string, status?: PaymentStatus): Observable<Payment[]> {
-    const params: Record<string, string> = status ? { status } : {};
-    return this.http.get<Payment[]>(`${this.baseUrl(organizationId)}/payments`, { withCredentials: true, params });
+  listPayments(
+    organizationId: string,
+    status?: PaymentStatus,
+    direction?: PaymentDirection,
+    page = 1,
+    pageSize = 50,
+  ): Observable<PagedResult<Payment>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (status) params['status'] = status;
+    if (direction) params['direction'] = direction;
+    return this.http.get<PagedResult<Payment>>(`${this.baseUrl(organizationId)}/payments`, { withCredentials: true, params });
   }
 
   getPayment(organizationId: string, id: string): Observable<PaymentDetail> {

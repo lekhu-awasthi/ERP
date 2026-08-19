@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
@@ -33,7 +34,13 @@ namespace ErpApp.Application.Purchasing.Queries.AnnexThirteenReport;
 /// allocations, an approximation in the same spirit as Phase 8a's PostedAt-not-business-Date one.
 /// </summary>
 public sealed record AnnexThirteenReportQuery(
-    Guid OrganizationId, DateOnly FromDate, DateOnly ToDate, decimal ThresholdAmount = 100000m)
+    Guid OrganizationId,
+    DateOnly FromDate,
+    DateOnly ToDate,
+    decimal ThresholdAmount = 100000m,
+    int Page = 1,
+    int PageSize = PagingDefaults.DefaultPageSize,
+    bool ExportAll = false)
     : IRequest<AnnexThirteenReportDto>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.AnnexThirteenView;
@@ -66,4 +73,10 @@ public sealed record AnnexThirteenReportRowDto(
 }
 
 public sealed record AnnexThirteenReportDto(
-    DateOnly FromDate, DateOnly ToDate, decimal ThresholdAmount, IReadOnlyList<AnnexThirteenReportRowDto> Rows);
+    DateOnly FromDate,
+    DateOnly ToDate,
+    decimal ThresholdAmount,
+    IReadOnlyList<AnnexThirteenReportRowDto> Rows,
+    int Page,
+    int PageSize,
+    int TotalCount);

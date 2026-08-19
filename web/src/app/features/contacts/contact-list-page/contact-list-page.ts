@@ -4,6 +4,8 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact, ContactType } from '../../../core/contacts/contacts.models';
+import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
+import { PaginationControl } from '../../../shared/pagination/pagination-control';
 
 type ContactTypeFilter = ContactType | 'All';
 
@@ -12,7 +14,7 @@ type ContactTypeFilter = ContactType | 'All';
  * phase-3-status.md). */
 @Component({
   selector: 'app-contact-list-page',
-  imports: [RouterLink],
+  imports: [RouterLink, PaginationControl],
   templateUrl: './contact-list-page.html',
 })
 export class ContactListPage {
@@ -26,6 +28,10 @@ export class ContactListPage {
   protected readonly items = signal<Contact[]>([]);
   protected readonly typeFilter = signal<ContactTypeFilter>('All');
 
+  protected readonly page = signal(1);
+  protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
+  protected readonly totalCount = signal(0);
+
   protected readonly types: ContactTypeFilter[] = ['All', 'Customer', 'Supplier', 'Lead'];
 
   constructor() {
@@ -34,21 +40,36 @@ export class ContactListPage {
 
   protected selectType(type: ContactTypeFilter): void {
     this.typeFilter.set(type);
+    this.page.set(1);
+    this.load();
+  }
+
+  protected onPageChange(page: number): void {
+    this.page.set(page);
+    this.load();
+  }
+
+  protected onPageSizeChange(pageSize: number): void {
+    this.pageSize.set(pageSize);
+    this.page.set(1);
     this.load();
   }
 
   private load(): void {
     this.loading.set(true);
     const type = this.typeFilter();
-    this.contactsService.listContacts(this.organizationId, type === 'All' ? undefined : type).subscribe({
-      next: (items) => {
-        this.items.set(items);
-        this.loading.set(false);
-      },
-      error: (err: unknown) => {
-        this.loading.set(false);
-        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load contacts.');
-      },
-    });
+    this.contactsService
+      .listContacts(this.organizationId, type === 'All' ? undefined : type, this.page(), this.pageSize())
+      .subscribe({
+        next: (result) => {
+          this.items.set(result.items);
+          this.totalCount.set(result.totalCount);
+          this.loading.set(false);
+        },
+        error: (err: unknown) => {
+          this.loading.set(false);
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load contacts.');
+        },
+      });
   }
 }

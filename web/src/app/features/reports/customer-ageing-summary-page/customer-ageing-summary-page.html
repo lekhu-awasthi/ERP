@@ -10,9 +10,17 @@
           <p class="text-muted small mb-0">Outstanding Invoice balances bucketed by age, as of a single date</p>
         </div>
       </div>
-      <a [routerLink]="['/organizations', organizationId, 'reports', 'customer-statement']" class="btn btn-outline-secondary btn-sm fw-bold">
-        <i class="bi bi-journal-text"></i> Customer Statement
-      </a>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportCurrentView()">
+          <i class="bi bi-download"></i> Export Current View
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
+          <i class="bi bi-download"></i> Export Full Dataset
+        </button>
+        <a [routerLink]="['/organizations', organizationId, 'reports', 'customer-statement']" class="btn btn-outline-secondary btn-sm fw-bold">
+          <i class="bi bi-journal-text"></i> Customer Statement
+        </a>
+      </div>
     </div>
   </div>
 
@@ -50,49 +58,58 @@
           <div class="spinner-border text-primary mb-3" role="status"></div>
           <p class="text-muted mb-0">Loading Customer Ageing Summary...</p>
         </div>
-      } @else if (rows().length === 0) {
-        <div class="text-center py-4">
-          <p class="text-muted small mb-0">No Customer has any outstanding balance as of this date.</p>
-        </div>
-      } @else {
-        <div class="table-responsive">
-          <table class="table align-middle mb-0">
-            <thead>
-              <tr class="text-muted small">
-                <th>Account Name</th>
-                <th>Contact Group</th>
-                <th class="text-end">1 - 30 Days</th>
-                <th class="text-end">31 - 60 Days</th>
-                <th class="text-end">61 - 90 Days</th>
-                <th class="text-end">91+ Days</th>
-                <th class="text-end">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (row of rows(); track row.contactId) {
-                <tr>
-                  <td>{{ row.contactCode }} — {{ row.contactName }}</td>
-                  <td>{{ row.contactGroupName || '—' }}</td>
-                  <td class="text-end">{{ row.days1To30.toFixed(2) }}</td>
-                  <td class="text-end">{{ row.days31To60.toFixed(2) }}</td>
-                  <td class="text-end">{{ row.days61To90.toFixed(2) }}</td>
-                  <td class="text-end">{{ row.days91Plus.toFixed(2) }}</td>
-                  <td class="text-end fw-bold">{{ row.total.toFixed(2) }}</td>
+      } @else if (report(); as r) {
+        @if (r.rows.length === 0) {
+          <div class="text-center py-4">
+            <p class="text-muted small mb-0">No Customer has any outstanding balance as of this date.</p>
+          </div>
+        } @else {
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr class="text-muted small">
+                  <th>Account Name</th>
+                  <th>Contact Group</th>
+                  <th class="text-end">1 - 30 Days</th>
+                  <th class="text-end">31 - 60 Days</th>
+                  <th class="text-end">61 - 90 Days</th>
+                  <th class="text-end">91+ Days</th>
+                  <th class="text-end">Total</th>
                 </tr>
-              }
-            </tbody>
-            <tfoot>
-              <tr class="fw-bold border-top">
-                <td colspan="2">Total</td>
-                <td class="text-end">{{ totals().days1To30.toFixed(2) }}</td>
-                <td class="text-end">{{ totals().days31To60.toFixed(2) }}</td>
-                <td class="text-end">{{ totals().days61To90.toFixed(2) }}</td>
-                <td class="text-end">{{ totals().days91Plus.toFixed(2) }}</td>
-                <td class="text-end">{{ totals().total.toFixed(2) }}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                @for (row of r.rows; track row.contactId) {
+                  <tr>
+                    <td>{{ row.contactCode }} — {{ row.contactName }}</td>
+                    <td>{{ row.contactGroupName || '—' }}</td>
+                    <td class="text-end">{{ row.days1To30.toFixed(2) }}</td>
+                    <td class="text-end">{{ row.days31To60.toFixed(2) }}</td>
+                    <td class="text-end">{{ row.days61To90.toFixed(2) }}</td>
+                    <td class="text-end">{{ row.days91Plus.toFixed(2) }}</td>
+                    <td class="text-end fw-bold">{{ row.total.toFixed(2) }}</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr class="fw-bold border-top">
+                  <td colspan="2">Total</td>
+                  <td class="text-end">{{ r.totalDays1To30.toFixed(2) }}</td>
+                  <td class="text-end">{{ r.totalDays31To60.toFixed(2) }}</td>
+                  <td class="text-end">{{ r.totalDays61To90.toFixed(2) }}</td>
+                  <td class="text-end">{{ r.totalDays91Plus.toFixed(2) }}</td>
+                  <td class="text-end">{{ (r.totalDays1To30 + r.totalDays31To60 + r.totalDays61To90 + r.totalDays91Plus).toFixed(2) }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <app-pagination-control
+            [page]="page()"
+            [pageSize]="pageSize()"
+            [totalCount]="r.totalCount"
+            (pageChange)="onPageChange($event)"
+            (pageSizeChange)="onPageSizeChange($event)"
+          />
+        }
       }
     </div>
   </div>

@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using MediatR;
@@ -24,7 +25,13 @@ namespace ErpApp.Application.Purchasing.Queries.TdsReport;
 /// Filters on each document's own business Date field, not GlJournalEntry.PostedAt -- same
 /// document-register reasoning as Phase 8b/8c (see phase-8c-status.md's scope decision #1).
 /// </summary>
-public sealed record TdsReportQuery(Guid OrganizationId, DateOnly FromDate, DateOnly ToDate)
+public sealed record TdsReportQuery(
+    Guid OrganizationId,
+    DateOnly FromDate,
+    DateOnly ToDate,
+    int Page = 1,
+    int PageSize = PagingDefaults.DefaultPageSize,
+    bool ExportAll = false)
     : IRequest<TdsReportDto>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.TdsReportView;
@@ -52,8 +59,16 @@ public sealed record TdsReportRowDto(
     public decimal NetPayableAmount => GrossAmount - TdsAmount;
 }
 
-public sealed record TdsReportDto(DateOnly FromDate, DateOnly ToDate, IReadOnlyList<TdsReportRowDto> Rows)
-{
-    public decimal TotalGrossAmount => Rows.Sum(r => r.GrossAmount);
-    public decimal TotalTdsAmount => Rows.Sum(r => r.TdsAmount);
-}
+/// <summary>TotalGrossAmount/TotalTdsAmount are grand totals across every filtered row, not just the
+/// current page -- computed server-side from the full row set before pagination slices Rows (see
+/// SalesMasterReportDto's doc comment for why this can no longer be a Rows.Sum(...) computed
+/// property once Rows itself is a single page).</summary>
+public sealed record TdsReportDto(
+    DateOnly FromDate,
+    DateOnly ToDate,
+    IReadOnlyList<TdsReportRowDto> Rows,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    decimal TotalGrossAmount,
+    decimal TotalTdsAmount);

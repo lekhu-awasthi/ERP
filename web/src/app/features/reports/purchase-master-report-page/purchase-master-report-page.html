@@ -10,9 +10,17 @@
           <p class="text-muted small mb-0">Every Purchase Bill/Debit Note line for the selected period</p>
         </div>
       </div>
-      <a [routerLink]="['/organizations', organizationId, 'reports', 'sales-master-report']" class="btn btn-outline-secondary btn-sm fw-bold">
-        <i class="bi bi-cart-check"></i> Sales Master Report
-      </a>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportCurrentView()">
+          <i class="bi bi-download"></i> Export Current View
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
+          <i class="bi bi-download"></i> Export Full Dataset
+        </button>
+        <a [routerLink]="['/organizations', organizationId, 'reports', 'sales-master-report']" class="btn btn-outline-secondary btn-sm fw-bold">
+          <i class="bi bi-cart-check"></i> Sales Master Report
+        </a>
+      </div>
     </div>
   </div>
 
@@ -137,6 +145,13 @@
             </tfoot>
           </table>
         </div>
+        <app-pagination-control
+          [page]="page()"
+          [pageSize]="pageSize()"
+          [totalCount]="totalCount()"
+          (pageChange)="onPageChange($event)"
+          (pageSizeChange)="onPageSizeChange($event)"
+        />
       }
     </div>
   </div>

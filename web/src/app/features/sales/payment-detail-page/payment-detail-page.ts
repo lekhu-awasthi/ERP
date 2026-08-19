@@ -13,6 +13,7 @@ import { ConfigurationService } from '../../../core/configuration/configuration.
 import { PaymentMode } from '../../../core/configuration/configuration.models';
 import { SalesService } from '../../../core/sales/sales.service';
 import { Invoice } from '../../../core/sales/sales.models';
+import { MAX_PAGE_SIZE } from '../../../core/common/paged-result';
 
 interface EditableAllocation {
   key: number;
@@ -91,10 +92,12 @@ export class PaymentDetailPage {
   });
 
   constructor() {
-    this.contactsService.listContacts(this.organizationId, 'Customer').subscribe({ next: (c) => this.customers.set(c) });
-    this.accountingService.listAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
+    this.contactsService.listAllContacts(this.organizationId, 'Customer').subscribe({ next: (c) => this.customers.set(c) });
+    this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
     this.configurationService.listPaymentModes(this.organizationId).subscribe({ next: (m) => this.paymentModes.set(m) });
-    this.salesService.listInvoices(this.organizationId, 'Approved').subscribe({ next: (i) => this.approvedInvoices.set(i) });
+    this.salesService
+      .listInvoices(this.organizationId, 'Approved', 1, MAX_PAGE_SIZE)
+      .subscribe({ next: (result) => this.approvedInvoices.set(result.items) });
 
     this.route.paramMap.subscribe((params) => {
       this.routePaymentId = params.get('paymentId')!;

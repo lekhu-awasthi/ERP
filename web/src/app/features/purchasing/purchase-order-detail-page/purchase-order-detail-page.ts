@@ -94,8 +94,8 @@ export class PurchaseOrderDetailPage {
   });
 
   constructor() {
-    this.contactsService.listContacts(this.organizationId, 'Supplier').subscribe({ next: (c) => this.suppliers.set(c) });
-    this.catalogService.listProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
+    this.contactsService.listAllContacts(this.organizationId, 'Supplier').subscribe({ next: (c) => this.suppliers.set(c) });
+    this.catalogService.listAllProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
 
     this.route.paramMap.subscribe((params) => {
       this.routePurchaseOrderId = params.get('purchaseOrderId')!;

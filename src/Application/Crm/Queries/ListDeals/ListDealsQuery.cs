@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Crm;
 using MediatR;
@@ -17,7 +18,12 @@ namespace ErpApp.Application.Crm.Queries.ListDeals;
 /// not by this key, the same "blanket key for org-membership, real gating happens in the handler"
 /// split ListTasksQuery established in Phase 13.
 /// </summary>
-public sealed record ListDealsQuery(Guid OrganizationId, Guid? ContactId, DealStatus? Status)
+public sealed record ListDealsQuery(
+    Guid OrganizationId,
+    Guid? ContactId,
+    DealStatus? Status,
+    int Page = 1,
+    int PageSize = PagingDefaults.DefaultPageSize)
     : IRequest<DealListDto>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.DealView;
@@ -46,4 +52,4 @@ public sealed record DealRowDto(
     DateTimeOffset CreatedAt,
     IReadOnlyList<DealAssigneeDto> Assignees);
 
-public sealed record DealListDto(IReadOnlyList<DealRowDto> Rows);
+public sealed record DealListDto(IReadOnlyList<DealRowDto> Rows, int Page, int PageSize, int TotalCount);

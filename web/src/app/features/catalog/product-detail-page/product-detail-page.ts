@@ -88,7 +88,7 @@ export class ProductDetailPage {
     this.catalogService.listUnitsOfMeasurement(this.organizationId).subscribe({
       next: (units) => this.units.set(units),
     });
-    this.accountingService.listAccounts(this.organizationId).subscribe({
+    this.accountingService.listAllAccounts(this.organizationId).subscribe({
       next: (accounts) => this.accounts.set(accounts),
     });
 

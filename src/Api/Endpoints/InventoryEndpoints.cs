@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Inventory;
 using ErpApp.Application.Inventory.Commands.ApproveInventoryAdjustment;
 using ErpApp.Application.Inventory.Commands.ApproveWarehouseTransfer;
@@ -34,9 +35,10 @@ public static class InventoryEndpoints
     private static void MapWarehouseTransferEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/warehouse-transfers", async (
-            Guid organizationId, WarehouseTransferStatus? status, ISender sender, CancellationToken ct) =>
+            Guid organizationId, WarehouseTransferStatus? status, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListWarehouseTransfersQuery(organizationId, status), ct);
+            var result = await sender.Send(
+                new ListWarehouseTransfersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -85,9 +87,11 @@ public static class InventoryEndpoints
     private static void MapInventoryAdjustmentEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/inventory-adjustments", async (
-            Guid organizationId, InventoryAdjustmentStatus? status, ISender sender, CancellationToken ct) =>
+            Guid organizationId, InventoryAdjustmentStatus? status, int? page, int? pageSize,
+            ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListInventoryAdjustmentsQuery(organizationId, status), ct);
+            var result = await sender.Send(
+                new ListInventoryAdjustmentsQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
             return Results.Ok(result);
         });
 

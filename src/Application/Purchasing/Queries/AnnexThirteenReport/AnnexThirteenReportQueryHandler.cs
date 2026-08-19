@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
@@ -199,7 +200,10 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
             .Where(row => row.TotalActivity >= request.ThresholdAmount)
             .OrderBy(row => row.ContactCode)
             .ToList();
+        var paged = request.ExportAll ? rows.ToUnpagedResult() : rows.ToPagedResult(request.Page, request.PageSize);
 
-        return new AnnexThirteenReportDto(request.FromDate, request.ToDate, request.ThresholdAmount, rows);
+        return new AnnexThirteenReportDto(
+            request.FromDate, request.ToDate, request.ThresholdAmount, paged.Items,
+            paged.Page, paged.PageSize, paged.TotalCount);
     }
 }

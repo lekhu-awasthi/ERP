@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
@@ -5,8 +6,11 @@ using MediatR;
 
 namespace ErpApp.Application.Configuration.Queries.ListCustomFieldDefinitions;
 
-public sealed record ListCustomFieldDefinitionsQuery(Guid OrganizationId)
-    : IRequest<IReadOnlyList<CustomFieldDefinitionDto>>, IRequirePermission, IOrganizationScoped
+public sealed record ListCustomFieldDefinitionsQuery(
+    Guid OrganizationId,
+    int Page = 1,
+    int PageSize = PagingDefaults.MaxPageSize)
+    : IRequest<PagedResult<CustomFieldDefinitionDto>>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.CustomFieldDefinitionView;
 }

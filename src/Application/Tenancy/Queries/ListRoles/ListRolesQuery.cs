@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using MediatR;
 
@@ -12,7 +13,8 @@ namespace ErpApp.Application.Tenancy.Queries.ListRoles;
 /// phase solves, the same kind of phase-scoped edge this codebase has tolerated before (e.g. Phase
 /// 12's flagged-but-not-fixed Phase 1c Role-UI gap).
 /// </summary>
-public sealed record ListRolesQuery(Guid OrganizationId) : IRequest<IReadOnlyList<RoleDto>>, IRequirePermission, IOrganizationScoped
+public sealed record ListRolesQuery(Guid OrganizationId, int Page = 1, int PageSize = PagingDefaults.MaxPageSize)
+    : IRequest<PagedResult<RoleDto>>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.RoleView;
 }

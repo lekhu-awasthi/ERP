@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
 using ErpApp.Application.Tenancy.Commands.AcceptInvitation;
@@ -99,9 +100,10 @@ public static class OrganizationEndpoints
         });
 
         group.MapGet("/{organizationId:guid}/roles", async (
-            Guid organizationId, ISender sender, CancellationToken ct) =>
+            Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListRolesQuery(organizationId), ct);
+            var result = await sender.Send(
+                new ListRolesQuery(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -141,9 +143,10 @@ public static class OrganizationEndpoints
         });
 
         group.MapGet("/{organizationId:guid}/warehouses", async (
-            Guid organizationId, ISender sender, CancellationToken ct) =>
+            Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListLookupsQuery<Warehouse>(organizationId), ct);
+            var result = await sender.Send(
+                new ListLookupsQuery<Warehouse>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -172,9 +175,10 @@ public static class OrganizationEndpoints
         // ListOrganizationMembersQuery's own doc comment for why it's gated on TaskView rather
         // than a standalone "view members" key nothing else needs yet).
         group.MapGet("/{organizationId:guid}/members", async (
-            Guid organizationId, ISender sender, CancellationToken ct) =>
+            Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListOrganizationMembersQuery(organizationId), ct);
+            var result = await sender.Send(
+                new ListOrganizationMembersQuery(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
             return Results.Ok(result);
         });
 

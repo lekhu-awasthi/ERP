@@ -7,6 +7,7 @@ using ErpApp.Application.Payments.Queries.GetDefaultPaymentAllocations;
 using ErpApp.Application.Payments.Queries.GetPayment;
 using ErpApp.Application.Payments.Queries.ListPayments;
 using ErpApp.Application.Payments.Queries.PreviewPaymentGlPosting;
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Domain.Payments;
 using MediatR;
 
@@ -21,9 +22,13 @@ public static class PaymentsEndpoints
             .RequireAuthorization();
 
         group.MapGet("/payments", async (
-            Guid organizationId, PaymentStatus? status, ISender sender, CancellationToken ct) =>
+            Guid organizationId, PaymentStatus? status, PaymentDirection? direction, int? page, int? pageSize,
+            ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListPaymentsQuery(organizationId, status), ct);
+            var result = await sender.Send(
+                new ListPaymentsQuery(
+                    organizationId, status, direction, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
             return Results.Ok(result);
         });
 

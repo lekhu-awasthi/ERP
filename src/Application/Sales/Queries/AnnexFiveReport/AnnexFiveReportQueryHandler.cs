@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
@@ -74,7 +75,11 @@ public sealed class AnnexFiveReportQueryHandler(IAppDbContext db) : IRequestHand
         }
 
         var orderedRows = rows.OrderBy(x => x.BillDate).ThenBy(x => x.BillNo).ToList();
+        var paged = request.ExportAll
+            ? orderedRows.ToUnpagedResult()
+            : orderedRows.ToPagedResult(request.Page, request.PageSize);
 
-        return new AnnexFiveReportDto(request.FromDate, request.ToDate, orderedRows);
+        return new AnnexFiveReportDto(
+            request.FromDate, request.ToDate, paged.Items, paged.Page, paged.PageSize, paged.TotalCount);
     }
 }

@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { PagedResult } from '../common/paged-result';
 import {
   AnnexFiveReportDto,
   ApproveCreditNoteResult,
@@ -51,9 +52,18 @@ export class SalesService {
     return `${environment.apiBaseUrl}/api/organizations/${organizationId}`;
   }
 
-  listQuotations(organizationId: string, status?: QuotationStatus): Observable<Quotation[]> {
-    const params: Record<string, string> = status ? { status } : {};
-    return this.http.get<Quotation[]>(`${this.baseUrl(organizationId)}/quotations`, { withCredentials: true, params });
+  listQuotations(
+    organizationId: string,
+    status?: QuotationStatus,
+    page = 1,
+    pageSize = 50,
+  ): Observable<PagedResult<Quotation>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (status) params['status'] = status;
+    return this.http.get<PagedResult<Quotation>>(`${this.baseUrl(organizationId)}/quotations`, {
+      withCredentials: true,
+      params,
+    });
   }
 
   getQuotation(organizationId: string, id: string): Observable<QuotationDetail> {
@@ -89,9 +99,15 @@ export class SalesService {
     );
   }
 
-  listInvoices(organizationId: string, status?: InvoiceStatus): Observable<Invoice[]> {
-    const params: Record<string, string> = status ? { status } : {};
-    return this.http.get<Invoice[]>(`${this.baseUrl(organizationId)}/invoices`, { withCredentials: true, params });
+  listInvoices(
+    organizationId: string,
+    status?: InvoiceStatus,
+    page = 1,
+    pageSize = 50,
+  ): Observable<PagedResult<Invoice>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (status) params['status'] = status;
+    return this.http.get<PagedResult<Invoice>>(`${this.baseUrl(organizationId)}/invoices`, { withCredentials: true, params });
   }
 
   getInvoice(organizationId: string, id: string): Observable<InvoiceDetail> {
@@ -135,9 +151,18 @@ export class SalesService {
     );
   }
 
-  listSalesOrders(organizationId: string, status?: SalesOrderStatus): Observable<SalesOrder[]> {
-    const params: Record<string, string> = status ? { status } : {};
-    return this.http.get<SalesOrder[]>(`${this.baseUrl(organizationId)}/sales-orders`, { withCredentials: true, params });
+  listSalesOrders(
+    organizationId: string,
+    status?: SalesOrderStatus,
+    page = 1,
+    pageSize = 50,
+  ): Observable<PagedResult<SalesOrder>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (status) params['status'] = status;
+    return this.http.get<PagedResult<SalesOrder>>(`${this.baseUrl(organizationId)}/sales-orders`, {
+      withCredentials: true,
+      params,
+    });
   }
 
   getSalesOrder(organizationId: string, id: string): Observable<SalesOrderDetail> {
@@ -162,9 +187,18 @@ export class SalesService {
     });
   }
 
-  listCreditNotes(organizationId: string, status?: CreditNoteStatus): Observable<CreditNote[]> {
-    const params: Record<string, string> = status ? { status } : {};
-    return this.http.get<CreditNote[]>(`${this.baseUrl(organizationId)}/credit-notes`, { withCredentials: true, params });
+  listCreditNotes(
+    organizationId: string,
+    status?: CreditNoteStatus,
+    page = 1,
+    pageSize = 50,
+  ): Observable<PagedResult<CreditNote>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (status) params['status'] = status;
+    return this.http.get<PagedResult<CreditNote>>(`${this.baseUrl(organizationId)}/credit-notes`, {
+      withCredentials: true,
+      params,
+    });
   }
 
   getCreditNote(organizationId: string, id: string): Observable<CreditNoteDetail> {
@@ -202,8 +236,10 @@ export class SalesService {
     contactId: string | null,
     productId: string | null,
     warehouseId: string | null,
+    page = 1,
+    pageSize = 50,
   ): Observable<SalesMasterReportDto> {
-    const params: Record<string, string> = { fromDate, toDate };
+    const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
     if (contactId) params['contactId'] = contactId;
     if (productId) params['productId'] = productId;
     if (warehouseId) params['warehouseId'] = warehouseId;
@@ -214,11 +250,48 @@ export class SalesService {
     });
   }
 
-  getAnnexFiveReport(organizationId: string, fromDate: string, toDate: string): Observable<AnnexFiveReportDto> {
-    const params: Record<string, string> = { fromDate, toDate };
+  exportSalesMasterReport(
+    organizationId: string,
+    fromDate: string,
+    toDate: string,
+    contactId: string | null,
+    productId: string | null,
+    warehouseId: string | null,
+    full: boolean,
+    page: number,
+    pageSize: number,
+  ): Observable<Blob> {
+    const params: Record<string, string> = {
+      fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
+    };
+    if (contactId) params['contactId'] = contactId;
+    if (productId) params['productId'] = productId;
+    if (warehouseId) params['warehouseId'] = warehouseId;
+
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/sales-master-report/export`, {
+      withCredentials: true,
+      params,
+      responseType: 'blob',
+    });
+  }
+
+  getAnnexFiveReport(
+    organizationId: string, fromDate: string, toDate: string, page = 1, pageSize = 50,
+  ): Observable<AnnexFiveReportDto> {
+    const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
     return this.http.get<AnnexFiveReportDto>(`${this.baseUrl(organizationId)}/reports/annex-five`, {
       withCredentials: true,
       params,
+    });
+  }
+
+  exportAnnexFiveReport(
+    organizationId: string, fromDate: string, toDate: string, full: boolean, page: number, pageSize: number,
+  ): Observable<Blob> {
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/annex-five/export`, {
+      withCredentials: true,
+      params: { fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize) },
+      responseType: 'blob',
     });
   }
 }

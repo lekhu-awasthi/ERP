@@ -26,6 +26,8 @@ public sealed class ListTasksQueryHandler(IAppDbContext db, ICurrentUserService 
             query = query.Where(x => x.Status == status);
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var rows = await query
             .Select(x => new
             {
@@ -34,6 +36,8 @@ public sealed class ListTasksQueryHandler(IAppDbContext db, ICurrentUserService 
             })
             .OrderBy(x => x.DueDate)
             .ThenByDescending(x => x.CreatedAt)
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
             .ToListAsync(cancellationToken);
 
         var taskTypeIds = rows.Select(x => x.TaskTypeId).Distinct().ToList();
@@ -69,6 +73,6 @@ public sealed class ListTasksQueryHandler(IAppDbContext db, ICurrentUserService 
             x.AssignedToUserId is { } assigneeId ? userNames.GetValueOrDefault(assigneeId, "—") : null))
             .ToList();
 
-        return new TaskListDto(dtoRows);
+        return new TaskListDto(dtoRows, request.Page, request.PageSize, totalCount);
     }
 }

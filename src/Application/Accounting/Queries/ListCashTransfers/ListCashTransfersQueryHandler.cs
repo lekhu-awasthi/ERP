@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Accounting;
 using MediatR;
@@ -6,9 +7,9 @@ using Microsoft.EntityFrameworkCore;
 namespace ErpApp.Application.Accounting.Queries.ListCashTransfers;
 
 public sealed class ListCashTransfersQueryHandler(IAppDbContext db)
-    : IRequestHandler<ListCashTransfersQuery, IReadOnlyList<CashTransfer>>
+    : IRequestHandler<ListCashTransfersQuery, PagedResult<CashTransfer>>
 {
-    public async Task<IReadOnlyList<CashTransfer>> Handle(ListCashTransfersQuery request, CancellationToken cancellationToken)
+    public async Task<PagedResult<CashTransfer>> Handle(ListCashTransfersQuery request, CancellationToken cancellationToken)
     {
         var query = db.CashTransfers.Where(x => x.OrganizationId == request.OrganizationId);
 
@@ -17,6 +18,6 @@ public sealed class ListCashTransfersQueryHandler(IAppDbContext db)
             query = query.Where(x => x.Status == status);
         }
 
-        return await query.OrderByDescending(x => x.CreatedAt).ToListAsync(cancellationToken);
+        return await query.OrderByDescending(x => x.CreatedAt).ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
     }
 }

@@ -20,8 +20,14 @@ export class CrmService {
     return `${environment.apiBaseUrl}/api/organizations/${organizationId}`;
   }
 
-  listDeals(organizationId: string, contactId: string | null, status: DealStatus | null): Observable<DealListDto> {
-    const params: Record<string, string> = {};
+  listDeals(
+    organizationId: string,
+    contactId: string | null,
+    status: DealStatus | null,
+    page = 1,
+    pageSize = 50,
+  ): Observable<DealListDto> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
     if (contactId) {
       params['contactId'] = contactId;
     }

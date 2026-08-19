@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
 import {
   Contact,
   ContactAgeingSummaryDto,
@@ -28,8 +29,19 @@ export class ContactsService {
     return `${environment.apiBaseUrl}/api/organizations/${organizationId}`;
   }
 
+  /** Bounded master-data / picker lists (Phase 16c) -- no visible pager, just request everything
+   * in one page and unwrap, keeping every caller's Observable<T[]> contract intact. */
+  private listAll<T>(url: string, extraParams: Record<string, string> = {}): Observable<T[]> {
+    return this.http
+      .get<PagedResult<T>>(url, {
+        withCredentials: true,
+        params: { ...extraParams, page: '1', pageSize: String(MAX_PAGE_SIZE) },
+      })
+      .pipe(map((result) => result.items));
+  }
+
   listContactGroups(organizationId: string): Observable<ContactGroup[]> {
-    return this.http.get<ContactGroup[]>(`${this.baseUrl(organizationId)}/contact-groups`, { withCredentials: true });
+    return this.listAll<ContactGroup>(`${this.baseUrl(organizationId)}/contact-groups`);
   }
 
   createContactGroup(organizationId: string, request: CreateContactGroupRequest): Observable<CreateContactGroupResult> {
@@ -52,9 +64,15 @@ export class ContactsService {
     return this.http.delete<void>(`${this.baseUrl(organizationId)}/contact-groups/${id}`, { withCredentials: true });
   }
 
-  listContacts(organizationId: string, type?: ContactType): Observable<Contact[]> {
-    const params: Record<string, string> = type ? { type } : {};
-    return this.http.get<Contact[]>(`${this.baseUrl(organizationId)}/contacts`, { withCredentials: true, params });
+  listContacts(organizationId: string, type?: ContactType, page = 1, pageSize = 50): Observable<PagedResult<Contact>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (type) params['type'] = type;
+    return this.http.get<PagedResult<Contact>>(`${this.baseUrl(organizationId)}/contacts`, { withCredentials: true, params });
+  }
+
+  /** Picker use (e.g. a document's Customer/Supplier dropdown) -- everything in one page, no pager. */
+  listAllContacts(organizationId: string, type?: ContactType): Observable<Contact[]> {
+    return this.listContacts(organizationId, type, 1, MAX_PAGE_SIZE).pipe(map((result) => result.items));
   }
 
   getContact(organizationId: string, id: string): Observable<Contact> {
@@ -89,16 +107,32 @@ export class ContactsService {
     organizationId: string,
     asOfDate: string,
     contactGroupId: string | null,
+    page = 1,
+    pageSize = 50,
   ): Observable<ContactAgeingSummaryDto> {
-    return this.getAgeingSummary(organizationId, 'customer-ageing-summary', asOfDate, contactGroupId);
+    return this.getAgeingSummary(organizationId, 'customer-ageing-summary', asOfDate, contactGroupId, page, pageSize);
   }
 
   getSupplierAgeingSummary(
     organizationId: string,
     asOfDate: string,
     contactGroupId: string | null,
+    page = 1,
+    pageSize = 50,
   ): Observable<ContactAgeingSummaryDto> {
-    return this.getAgeingSummary(organizationId, 'supplier-ageing-summary', asOfDate, contactGroupId);
+    return this.getAgeingSummary(organizationId, 'supplier-ageing-summary', asOfDate, contactGroupId, page, pageSize);
+  }
+
+  exportCustomerAgeingSummary(
+    organizationId: string, asOfDate: string, contactGroupId: string | null, full: boolean, page: number, pageSize: number,
+  ): Observable<Blob> {
+    return this.exportAgeingSummary(organizationId, 'customer-ageing-summary', asOfDate, contactGroupId, full, page, pageSize);
+  }
+
+  exportSupplierAgeingSummary(
+    organizationId: string, asOfDate: string, contactGroupId: string | null, full: boolean, page: number, pageSize: number,
+  ): Observable<Blob> {
+    return this.exportAgeingSummary(organizationId, 'supplier-ageing-summary', asOfDate, contactGroupId, full, page, pageSize);
   }
 
   private getAgeingSummary(
@@ -106,11 +140,34 @@ export class ContactsService {
     route: 'customer-ageing-summary' | 'supplier-ageing-summary',
     asOfDate: string,
     contactGroupId: string | null,
+    page: number,
+    pageSize: number,
   ): Observable<ContactAgeingSummaryDto> {
-    const params: Record<string, string> = contactGroupId ? { asOfDate, contactGroupId } : { asOfDate };
+    const params: Record<string, string> = { asOfDate, page: String(page), pageSize: String(pageSize) };
+    if (contactGroupId) params['contactGroupId'] = contactGroupId;
     return this.http.get<ContactAgeingSummaryDto>(`${this.baseUrl(organizationId)}/reports/${route}`, {
       withCredentials: true,
       params,
+    });
+  }
+
+  private exportAgeingSummary(
+    organizationId: string,
+    route: 'customer-ageing-summary' | 'supplier-ageing-summary',
+    asOfDate: string,
+    contactGroupId: string | null,
+    full: boolean,
+    page: number,
+    pageSize: number,
+  ): Observable<Blob> {
+    const params: Record<string, string> = {
+      asOfDate, full: String(full), page: String(page), pageSize: String(pageSize),
+    };
+    if (contactGroupId) params['contactGroupId'] = contactGroupId;
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/${route}/export`, {
+      withCredentials: true,
+      params,
+      responseType: 'blob',
     });
   }
 
@@ -119,8 +176,10 @@ export class ContactsService {
     contactId: string,
     fromDate: string,
     toDate: string,
+    page = 1,
+    pageSize = 50,
   ): Observable<ContactStatementDto> {
-    return this.getStatement(organizationId, 'customer-statement', contactId, fromDate, toDate);
+    return this.getStatement(organizationId, 'customer-statement', contactId, fromDate, toDate, page, pageSize);
   }
 
   getSupplierStatement(
@@ -128,8 +187,22 @@ export class ContactsService {
     contactId: string,
     fromDate: string,
     toDate: string,
+    page = 1,
+    pageSize = 50,
   ): Observable<ContactStatementDto> {
-    return this.getStatement(organizationId, 'supplier-statement', contactId, fromDate, toDate);
+    return this.getStatement(organizationId, 'supplier-statement', contactId, fromDate, toDate, page, pageSize);
+  }
+
+  exportCustomerStatement(
+    organizationId: string, contactId: string, fromDate: string, toDate: string, full: boolean, page: number, pageSize: number,
+  ): Observable<Blob> {
+    return this.exportStatement(organizationId, 'customer-statement', contactId, fromDate, toDate, full, page, pageSize);
+  }
+
+  exportSupplierStatement(
+    organizationId: string, contactId: string, fromDate: string, toDate: string, full: boolean, page: number, pageSize: number,
+  ): Observable<Blob> {
+    return this.exportStatement(organizationId, 'supplier-statement', contactId, fromDate, toDate, full, page, pageSize);
   }
 
   private getStatement(
@@ -138,10 +211,29 @@ export class ContactsService {
     contactId: string,
     fromDate: string,
     toDate: string,
+    page: number,
+    pageSize: number,
   ): Observable<ContactStatementDto> {
     return this.http.get<ContactStatementDto>(`${this.baseUrl(organizationId)}/reports/${route}`, {
       withCredentials: true,
-      params: { contactId, fromDate, toDate },
+      params: { contactId, fromDate, toDate, page: String(page), pageSize: String(pageSize) },
+    });
+  }
+
+  private exportStatement(
+    organizationId: string,
+    route: 'customer-statement' | 'supplier-statement',
+    contactId: string,
+    fromDate: string,
+    toDate: string,
+    full: boolean,
+    page: number,
+    pageSize: number,
+  ): Observable<Blob> {
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/${route}/export`, {
+      withCredentials: true,
+      params: { contactId, fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize) },
+      responseType: 'blob',
     });
   }
 }

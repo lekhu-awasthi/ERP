@@ -354,6 +354,10 @@ export interface SalesMasterReportDto {
   fromDate: string;
   toDate: string;
   rows: SalesMasterReportRowDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalAmount: number;
 }
 
 // --- Annex 5 Report (Phase 8f) ---
@@ -377,4 +381,7 @@ export interface AnnexFiveReportDto {
   fromDate: string;
   toDate: string;
   rows: AnnexFiveReportRowDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
 }

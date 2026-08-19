@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Workflow;
 using MediatR;
@@ -15,7 +16,13 @@ namespace ErpApp.Application.Workflow.Queries.ListTasks;
 /// key, the same "blanket key for org-membership, real gating happens in the handler" split Phase
 /// 12's TransactionApprovalQuery established.
 /// </summary>
-public sealed record ListTasksQuery(Guid OrganizationId, TaskParentType ParentType, Guid ParentId, WorkTaskStatus? Status)
+public sealed record ListTasksQuery(
+    Guid OrganizationId,
+    TaskParentType ParentType,
+    Guid ParentId,
+    WorkTaskStatus? Status,
+    int Page = 1,
+    int PageSize = PagingDefaults.DefaultPageSize)
     : IRequest<TaskListDto>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.TaskView;
@@ -38,4 +45,4 @@ public sealed record TaskRowDto(
     Guid? AssignedToUserId,
     string? AssignedToName);
 
-public sealed record TaskListDto(IReadOnlyList<TaskRowDto> Rows);
+public sealed record TaskListDto(IReadOnlyList<TaskRowDto> Rows, int Page, int PageSize, int TotalCount);

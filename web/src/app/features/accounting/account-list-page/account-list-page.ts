@@ -5,6 +5,8 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account, AccountGroup } from '../../../core/accounting/accounting.models';
+import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
+import { PaginationControl } from '../../../shared/pagination/pagination-control';
 
 /** List-page chrome for Account -- same "inline form above a flat list" shape as
  * account-group-list-page/product-category-list-page (Account is closer in weight to a simple
@@ -12,7 +14,7 @@ import { Account, AccountGroup } from '../../../core/accounting/accounting.model
  * Draft/Approve lifecycle of its own). */
 @Component({
   selector: 'app-account-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, PaginationControl],
   templateUrl: './account-list-page.html',
 })
 export class AccountListPage {
@@ -29,6 +31,10 @@ export class AccountListPage {
   protected readonly groups = signal<AccountGroup[]>([]);
   protected readonly editingId = signal<string | null>(null);
 
+  protected readonly page = signal(1);
+  protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
+  protected readonly totalCount = signal(0);
+
   protected readonly sortedItems = computed(() => [...this.items()].sort((a, b) => a.code.localeCompare(b.code)));
 
   protected readonly form = this.fb.nonNullable.group({
@@ -41,6 +47,17 @@ export class AccountListPage {
     this.accountingService.listAccountGroups(this.organizationId).subscribe({
       next: (groups) => this.groups.set(groups),
     });
+    this.load();
+  }
+
+  protected onPageChange(page: number): void {
+    this.page.set(page);
+    this.load();
+  }
+
+  protected onPageSizeChange(pageSize: number): void {
+    this.pageSize.set(pageSize);
+    this.page.set(1);
     this.load();
   }
 
@@ -95,9 +112,10 @@ export class AccountListPage {
 
   private load(): void {
     this.loading.set(true);
-    this.accountingService.listAccounts(this.organizationId).subscribe({
-      next: (items) => {
-        this.items.set(items);
+    this.accountingService.listAccounts(this.organizationId, undefined, this.page(), this.pageSize()).subscribe({
+      next: (result) => {
+        this.items.set(result.items);
+        this.totalCount.set(result.totalCount);
         this.loading.set(false);
       },
       error: (err: unknown) => {

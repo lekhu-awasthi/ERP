@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
 import {
   Account,
   AccountGroup,
@@ -47,8 +48,19 @@ export class AccountingService {
     return `${environment.apiBaseUrl}/api/organizations/${organizationId}`;
   }
 
+  /** Bounded master-data / picker lists (Phase 16c) -- no visible pager, just request everything
+   * in one page and unwrap, keeping every caller's Observable<T[]> contract intact. */
+  private listAll<T>(url: string, extraParams: Record<string, string> = {}): Observable<T[]> {
+    return this.http
+      .get<PagedResult<T>>(url, {
+        withCredentials: true,
+        params: { ...extraParams, page: '1', pageSize: String(MAX_PAGE_SIZE) },
+      })
+      .pipe(map((result) => result.items));
+  }
+
   listAccountGroups(organizationId: string): Observable<AccountGroup[]> {
-    return this.http.get<AccountGroup[]>(`${this.baseUrl(organizationId)}/account-groups`, { withCredentials: true });
+    return this.listAll<AccountGroup>(`${this.baseUrl(organizationId)}/account-groups`);
   }
 
   createAccountGroup(organizationId: string, request: CreateAccountGroupRequest): Observable<CreateAccountGroupResult> {
@@ -71,9 +83,15 @@ export class AccountingService {
     return this.http.delete<void>(`${this.baseUrl(organizationId)}/account-groups/${id}`, { withCredentials: true });
   }
 
-  listAccounts(organizationId: string, rootType?: AccountRootType): Observable<Account[]> {
-    const params: Record<string, string> = rootType ? { rootType } : {};
-    return this.http.get<Account[]>(`${this.baseUrl(organizationId)}/accounts`, { withCredentials: true, params });
+  listAccounts(organizationId: string, rootType?: AccountRootType, page = 1, pageSize = 50): Observable<PagedResult<Account>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (rootType) params['rootType'] = rootType;
+    return this.http.get<PagedResult<Account>>(`${this.baseUrl(organizationId)}/accounts`, { withCredentials: true, params });
+  }
+
+  /** Picker use (e.g. a GL Account dropdown) -- everything in one page, no pager. */
+  listAllAccounts(organizationId: string, rootType?: AccountRootType): Observable<Account[]> {
+    return this.listAccounts(organizationId, rootType, 1, MAX_PAGE_SIZE).pipe(map((result) => result.items));
   }
 
   getAccount(organizationId: string, id: string): Observable<Account> {
@@ -92,9 +110,12 @@ export class AccountingService {
     });
   }
 
-  listJournalVouchers(organizationId: string, status?: JournalVoucherStatus): Observable<JournalVoucher[]> {
-    const params: Record<string, string> = status ? { status } : {};
-    return this.http.get<JournalVoucher[]>(`${this.baseUrl(organizationId)}/journal-vouchers`, {
+  listJournalVouchers(
+    organizationId: string, status?: JournalVoucherStatus, page = 1, pageSize = 50,
+  ): Observable<PagedResult<JournalVoucher>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (status) params['status'] = status;
+    return this.http.get<PagedResult<JournalVoucher>>(`${this.baseUrl(organizationId)}/journal-vouchers`, {
       withCredentials: true,
       params,
     });
@@ -151,9 +172,12 @@ export class AccountingService {
     );
   }
 
-  listCashTransfers(organizationId: string, status?: CashTransferStatus): Observable<CashTransfer[]> {
-    const params: Record<string, string> = status ? { status } : {};
-    return this.http.get<CashTransfer[]>(`${this.baseUrl(organizationId)}/cash-transfers`, {
+  listCashTransfers(
+    organizationId: string, status?: CashTransferStatus, page = 1, pageSize = 50,
+  ): Observable<PagedResult<CashTransfer>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (status) params['status'] = status;
+    return this.http.get<PagedResult<CashTransfer>>(`${this.baseUrl(organizationId)}/cash-transfers`, {
       withCredentials: true,
       params,
     });
@@ -222,6 +246,16 @@ export class AccountingService {
     return this.http.get<VatSummaryReportDto>(`${this.baseUrl(organizationId)}/reports/vat-summary`, {
       withCredentials: true,
       params: { fromDate, toDate },
+    });
+  }
+
+  /** No "current view" vs "full dataset" distinction -- VAT Summary is always the complete fixed
+   * 2x3-bucket result (see the endpoint's own comment), so there's only one export variant. */
+  exportVatSummaryReport(organizationId: string, fromDate: string, toDate: string): Observable<Blob> {
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/vat-summary/export`, {
+      withCredentials: true,
+      params: { fromDate, toDate },
+      responseType: 'blob',
     });
   }
 }
