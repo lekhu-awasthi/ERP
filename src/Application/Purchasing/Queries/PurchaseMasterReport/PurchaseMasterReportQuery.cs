@@ -7,8 +7,8 @@ namespace ErpApp.Application.Purchasing.Queries.PurchaseMasterReport;
 
 /// <summary>
 /// Mirror of Sales.Queries.SalesMasterReport.SalesMasterReportQuery over PurchaseBill/DebitNote
-/// lines instead of Invoice/CreditNote -- same date-range/Approved-only/discount-omission/
-/// WarehouseId-resolution reasoning, see that type's doc comment and phase-8b-status.md.
+/// lines instead of Invoice/CreditNote -- same date-range/Approved-only/WarehouseId-resolution/
+/// ItemDiscount-TransactionDiscount-NetSales reasoning, see that type's doc comment.
 /// </summary>
 public sealed record PurchaseMasterReportQuery(
     Guid OrganizationId,
@@ -46,6 +46,9 @@ public sealed record PurchaseMasterReportRowDto(
     decimal Quantity,
     decimal Rate,
     decimal Amount,
+    decimal ItemDiscount,
+    decimal TransactionDiscount,
+    decimal NetSales,
     VatRate VatType,
     decimal VatAmount,
     decimal TotalAmount);

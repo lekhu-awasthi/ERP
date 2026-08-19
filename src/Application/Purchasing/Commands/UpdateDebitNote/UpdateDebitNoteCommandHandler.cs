@@ -25,17 +25,18 @@ public sealed class UpdateDebitNoteCommandHandler(IAppDbContext db)
         await PurchasingValidation.EnsureProductsExistAsync(
             db, request.OrganizationId, request.Lines.Select(x => x.ProductId), cancellationToken);
 
-        var tdsBaseAmount = request.Lines.Sum(x => x.Quantity * x.Rate);
+        var tdsBaseAmount = request.Lines.Sum(
+            x => x.Quantity * x.Rate * (1 - x.DiscountPct / 100m) * (1 - request.DiscountPct / 100m));
         var tdsAmount = await PurchasingValidation.ResolveTdsAmountAsync(
             db, request.OrganizationId, request.TdsTypeId, tdsBaseAmount, cancellationToken);
 
         var oldLines = debitNote.Lines.ToList();
 
-        debitNote.UpdateHeader(request.ContactId, request.Date, request.Reference, request.TdsTypeId, tdsAmount);
+        debitNote.UpdateHeader(request.ContactId, request.Date, request.Reference, request.TdsTypeId, tdsAmount, request.DiscountPct);
         debitNote.ClearLines();
         foreach (var line in request.Lines)
         {
-            debitNote.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate);
+            debitNote.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);
         }
 
         db.DebitNoteLines.RemoveRange(oldLines);

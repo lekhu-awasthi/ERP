@@ -72,6 +72,40 @@ public class SalesMasterReportQueryHandlerTests
         Assert.DoesNotContain(result.Rows, r => r.EntryNo == invoiceOutOfRange.Code);
     }
 
+    /// <summary>Phase 16b: ItemDiscount/TransactionDiscount/NetSales are reconstructed from the
+    /// line's own Quantity/Rate/DiscountPct plus the stored (already fully-netted) Amount -- not
+    /// separately stored fields. Qty 10 * Rate 100 = 1,000 gross, 10% line discount -> ItemDiscount
+    /// 100, NetAfterLineDiscount 900 (the "Amount" column, matching the live per-line Amount cell
+    /// which a header discount never touches), 5% header discount -> TransactionDiscount 45,
+    /// NetSales 855, VAT 13% of 855 = 111.15.</summary>
+    [Fact]
+    public async Task Handle_computes_item_discount_transaction_discount_and_net_sales_columns()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        var created = await new CreateInvoiceCommandHandler(db).Handle(
+            new CreateInvoiceCommand(
+                seed.OrganizationId, seed.CustomerId, seed.WarehouseId, new DateOnly(2026, 1, 10), null,
+                [new InvoiceLineInput(seed.ProductId, 10m, 100m, VatRate.ThirteenPercentVat, DiscountPct: 10)],
+                DiscountPct: 5),
+            CancellationToken.None);
+        await ApproveInvoiceAsync(db, seed, created.Id);
+
+        var handler = new SalesMasterReportQueryHandler(db);
+        var result = await handler.Handle(
+            new SalesMasterReportQuery(seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), null, null, null),
+            CancellationToken.None);
+
+        var row = Assert.Single(result.Rows);
+        Assert.Equal(900m, row.Amount);
+        Assert.Equal(100m, row.ItemDiscount);
+        Assert.Equal(45m, row.TransactionDiscount);
+        Assert.Equal(855m, row.NetSales);
+        Assert.Equal(111.15m, row.VatAmount);
+        Assert.Equal(966.15m, row.TotalAmount);
+    }
+
     [Fact]
     public async Task Handle_filters_by_contact_and_product()
     {

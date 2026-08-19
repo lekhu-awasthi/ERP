@@ -13,7 +13,8 @@ public sealed class PreviewInvoiceGlPostingQueryHandler(IAppDbContext db, IGlPos
     {
         var lines = request.Lines.Select(x =>
         {
-            var amount = x.Quantity * x.Rate;
+            var netAfterLineDiscount = x.Quantity * x.Rate * (1 - x.DiscountPct / 100m);
+            var amount = netAfterLineDiscount * (1 - request.DiscountPct / 100m);
             return (x.ProductId, Amount: amount, VatAmount: amount * x.VatRate.ToPercent());
         });
 

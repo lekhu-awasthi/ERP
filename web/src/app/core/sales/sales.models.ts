@@ -20,6 +20,7 @@ export interface QuotationLineInput {
   quantity: number;
   rate: number;
   vatRate: VatRate;
+  discountPct: number;
 }
 
 export interface Quotation {
@@ -34,6 +35,7 @@ export interface Quotation {
   approvedByUserId: string | null;
   approvedAt: string | null;
   createdAt: string;
+  discountPct: number;
 }
 
 export interface QuotationLineDto extends QuotationLineInput {
@@ -52,6 +54,7 @@ export interface QuotationRequest {
   expiryDate: string | null;
   reference: string | null;
   lines: QuotationLineInput[];
+  discountPct: number;
 }
 
 export interface CreateQuotationResult {
@@ -85,6 +88,7 @@ export interface InvoiceLineInput {
   quantity: number;
   rate: number;
   vatRate: VatRate;
+  discountPct: number;
 }
 
 export interface Invoice {
@@ -101,6 +105,7 @@ export interface Invoice {
   createdAt: string;
   referrerType: DocumentType | null;
   referrerId: string | null;
+  discountPct: number;
 }
 
 export interface InvoiceLineDto extends InvoiceLineInput {
@@ -130,6 +135,7 @@ export interface InvoiceRequest {
   lines: InvoiceLineInput[];
   referrerType?: DocumentType | null;
   referrerId?: string | null;
+  discountPct: number;
 }
 
 export interface CreateInvoiceResult {
@@ -170,6 +176,7 @@ export interface InvoiceConversionTemplate {
   reference: string | null;
   referrerType: DocumentType;
   referrerId: string;
+  discountPct: number;
   lines: InvoiceLineInput[];
 }
 
@@ -178,6 +185,7 @@ export interface SalesOrderLineInput {
   quantity: number;
   rate: number;
   vatRate: VatRate;
+  discountPct: number;
 }
 
 export interface SalesOrder {
@@ -192,6 +200,7 @@ export interface SalesOrder {
   approvedByUserId: string | null;
   approvedAt: string | null;
   createdAt: string;
+  discountPct: number;
 }
 
 export interface SalesOrderLineDto extends SalesOrderLineInput {
@@ -210,6 +219,7 @@ export interface SalesOrderRequest {
   deliveryDate: string | null;
   reference: string | null;
   lines: SalesOrderLineInput[];
+  discountPct: number;
 }
 
 export interface CreateSalesOrderResult {
@@ -236,6 +246,7 @@ export interface CreditNoteLineInput {
   quantity: number;
   rate: number;
   vatRate: VatRate;
+  discountPct: number;
 }
 
 export interface CreditNote {
@@ -251,6 +262,7 @@ export interface CreditNote {
   createdAt: string;
   referrerType: DocumentType | null;
   referrerId: string | null;
+  discountPct: number;
 }
 
 export interface CreditNoteLineDto extends CreditNoteLineInput {
@@ -271,6 +283,7 @@ export interface CreditNoteRequest {
   lines: CreditNoteLineInput[];
   referrerType?: DocumentType | null;
   referrerId?: string | null;
+  discountPct: number;
 }
 
 export interface CreateCreditNoteResult {
@@ -305,6 +318,7 @@ export interface CreditNoteConversionTemplate {
   reference: string | null;
   referrerType: DocumentType;
   referrerId: string;
+  discountPct: number;
   lines: CreditNoteLineInput[];
 }
 
@@ -328,6 +342,9 @@ export interface SalesMasterReportRowDto {
   quantity: number;
   rate: number;
   amount: number;
+  itemDiscount: number;
+  transactionDiscount: number;
+  netSales: number;
   vatType: VatRate;
   vatAmount: number;
   totalAmount: number;

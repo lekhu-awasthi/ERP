@@ -69,7 +69,9 @@ public static class SalesEndpoints
             Guid organizationId, QuotationRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new CreateQuotationCommand(organizationId, request.ContactId, request.Date, request.ExpiryDate, request.Reference, request.Lines),
+                new CreateQuotationCommand(
+                    organizationId, request.ContactId, request.Date, request.ExpiryDate, request.Reference, request.Lines,
+                    request.DiscountPct),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/quotations/{result.Id}", result);
         });
@@ -79,7 +81,8 @@ public static class SalesEndpoints
         {
             var result = await sender.Send(
                 new UpdateQuotationCommand(
-                    organizationId, id, request.ContactId, request.Date, request.ExpiryDate, request.Reference, request.Lines),
+                    organizationId, id, request.ContactId, request.Date, request.ExpiryDate, request.Reference, request.Lines,
+                    request.DiscountPct),
                 ct);
             return Results.Ok(result);
         });
@@ -121,7 +124,7 @@ public static class SalesEndpoints
             var result = await sender.Send(
                 new CreateInvoiceCommand(
                     organizationId, request.ContactId, request.WarehouseId, request.Date, request.Reference, request.Lines,
-                    request.ReferrerType, request.ReferrerId),
+                    request.ReferrerType, request.ReferrerId, request.DiscountPct),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/invoices/{result.Id}", result);
         });
@@ -131,7 +134,8 @@ public static class SalesEndpoints
         {
             var result = await sender.Send(
                 new UpdateInvoiceCommand(
-                    organizationId, id, request.ContactId, request.WarehouseId, request.Date, request.Reference, request.Lines),
+                    organizationId, id, request.ContactId, request.WarehouseId, request.Date, request.Reference, request.Lines,
+                    request.DiscountPct),
                 ct);
             return Results.Ok(result);
         });
@@ -154,7 +158,7 @@ public static class SalesEndpoints
         group.MapPost("/invoices/preview-gl-posting", async (
             Guid organizationId, PreviewInvoiceGlPostingRequest request, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new PreviewInvoiceGlPostingQuery(organizationId, request.Lines), ct);
+            var result = await sender.Send(new PreviewInvoiceGlPostingQuery(organizationId, request.Lines, request.DiscountPct), ct);
             return Results.Ok(result);
         });
 
@@ -187,7 +191,8 @@ public static class SalesEndpoints
         {
             var result = await sender.Send(
                 new CreateSalesOrderCommand(
-                    organizationId, request.ContactId, request.Date, request.DeliveryDate, request.Reference, request.Lines),
+                    organizationId, request.ContactId, request.Date, request.DeliveryDate, request.Reference, request.Lines,
+                    request.DiscountPct),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/sales-orders/{result.Id}", result);
         });
@@ -197,7 +202,8 @@ public static class SalesEndpoints
         {
             var result = await sender.Send(
                 new UpdateSalesOrderCommand(
-                    organizationId, id, request.ContactId, request.Date, request.DeliveryDate, request.Reference, request.Lines),
+                    organizationId, id, request.ContactId, request.Date, request.DeliveryDate, request.Reference, request.Lines,
+                    request.DiscountPct),
                 ct);
             return Results.Ok(result);
         });
@@ -239,7 +245,7 @@ public static class SalesEndpoints
             var result = await sender.Send(
                 new CreateCreditNoteCommand(
                     organizationId, request.ContactId, request.Date, request.Reference, request.Lines,
-                    request.ReferrerType, request.ReferrerId),
+                    request.ReferrerType, request.ReferrerId, request.DiscountPct),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/credit-notes/{result.Id}", result);
         });
@@ -248,7 +254,8 @@ public static class SalesEndpoints
             Guid organizationId, Guid id, CreditNoteRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new UpdateCreditNoteCommand(organizationId, id, request.ContactId, request.Date, request.Reference, request.Lines),
+                new UpdateCreditNoteCommand(
+                    organizationId, id, request.ContactId, request.Date, request.Reference, request.Lines, request.DiscountPct),
                 ct);
             return Results.Ok(result);
         });
@@ -295,20 +302,22 @@ public static class SalesEndpoints
     }
 
     private sealed record QuotationRequest(
-        Guid ContactId, DateOnly Date, DateOnly? ExpiryDate, string? Reference, IReadOnlyList<QuotationLineInput> Lines);
+        Guid ContactId, DateOnly Date, DateOnly? ExpiryDate, string? Reference, IReadOnlyList<QuotationLineInput> Lines,
+        decimal DiscountPct = 0);
 
     private sealed record InvoiceRequest(
         Guid ContactId, Guid WarehouseId, DateOnly Date, string? Reference, IReadOnlyList<InvoiceLineInput> Lines,
-        DocumentType? ReferrerType = null, Guid? ReferrerId = null);
+        DocumentType? ReferrerType = null, Guid? ReferrerId = null, decimal DiscountPct = 0);
 
     private sealed record ApproveInvoiceRequest(bool OverrideWarning = false);
 
-    private sealed record PreviewInvoiceGlPostingRequest(IReadOnlyList<InvoiceLineInput> Lines);
+    private sealed record PreviewInvoiceGlPostingRequest(IReadOnlyList<InvoiceLineInput> Lines, decimal DiscountPct = 0);
 
     private sealed record SalesOrderRequest(
-        Guid ContactId, DateOnly Date, DateOnly? DeliveryDate, string? Reference, IReadOnlyList<SalesOrderLineInput> Lines);
+        Guid ContactId, DateOnly Date, DateOnly? DeliveryDate, string? Reference, IReadOnlyList<SalesOrderLineInput> Lines,
+        decimal DiscountPct = 0);
 
     private sealed record CreditNoteRequest(
         Guid ContactId, DateOnly Date, string? Reference, IReadOnlyList<CreditNoteLineInput> Lines,
-        DocumentType? ReferrerType = null, Guid? ReferrerId = null);
+        DocumentType? ReferrerType = null, Guid? ReferrerId = null, decimal DiscountPct = 0);
 }

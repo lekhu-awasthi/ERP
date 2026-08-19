@@ -5,7 +5,8 @@ using MediatR;
 namespace ErpApp.Application.Sales.Commands.UpdateCreditNote;
 
 public sealed record UpdateCreditNoteCommand(
-    Guid OrganizationId, Guid Id, Guid ContactId, DateOnly Date, string? Reference, IReadOnlyList<CreditNoteLineInput> Lines)
+    Guid OrganizationId, Guid Id, Guid ContactId, DateOnly Date, string? Reference, IReadOnlyList<CreditNoteLineInput> Lines,
+    decimal DiscountPct = 0)
     : IRequest<UpdateCreditNoteResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.CreditNoteEdit;

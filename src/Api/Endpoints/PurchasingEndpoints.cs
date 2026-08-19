@@ -71,7 +71,9 @@ public static class PurchasingEndpoints
             Guid organizationId, PurchaseOrderRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new CreatePurchaseOrderCommand(organizationId, request.ContactId, request.Date, request.Reference, request.Lines), ct);
+                new CreatePurchaseOrderCommand(
+                    organizationId, request.ContactId, request.Date, request.Reference, request.Lines, request.DiscountPct),
+                ct);
             return Results.Created($"/api/organizations/{organizationId}/purchase-orders/{result.Id}", result);
         });
 
@@ -79,7 +81,9 @@ public static class PurchasingEndpoints
             Guid organizationId, Guid id, PurchaseOrderRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new UpdatePurchaseOrderCommand(organizationId, id, request.ContactId, request.Date, request.Reference, request.Lines), ct);
+                new UpdatePurchaseOrderCommand(
+                    organizationId, id, request.ContactId, request.Date, request.Reference, request.Lines, request.DiscountPct),
+                ct);
             return Results.Ok(result);
         });
 
@@ -132,7 +136,8 @@ public static class PurchasingEndpoints
                     request.TdsTypeId,
                     request.Lines,
                     request.ReferrerType,
-                    request.ReferrerId),
+                    request.ReferrerId,
+                    request.DiscountPct),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/purchase-bills/{result.Id}", result);
         });
@@ -154,7 +159,8 @@ public static class PurchasingEndpoints
                     request.ImportDate,
                     request.ImportDocumentNo,
                     request.TdsTypeId,
-                    request.Lines),
+                    request.Lines,
+                    request.DiscountPct),
                 ct);
             return Results.Ok(result);
         });
@@ -177,7 +183,7 @@ public static class PurchasingEndpoints
             Guid organizationId, PreviewPurchaseBillGlPostingRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new PreviewPurchaseBillGlPostingQuery(organizationId, request.Lines, request.TdsTypeId), ct);
+                new PreviewPurchaseBillGlPostingQuery(organizationId, request.Lines, request.TdsTypeId, request.DiscountPct), ct);
             return Results.Ok(result);
         });
 
@@ -272,7 +278,7 @@ public static class PurchasingEndpoints
             var result = await sender.Send(
                 new CreateDebitNoteCommand(
                     organizationId, request.ContactId, request.Date, request.Reference, request.TdsTypeId, request.Lines,
-                    request.ReferrerType, request.ReferrerId),
+                    request.ReferrerType, request.ReferrerId, request.DiscountPct),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/debit-notes/{result.Id}", result);
         });
@@ -282,7 +288,8 @@ public static class PurchasingEndpoints
         {
             var result = await sender.Send(
                 new UpdateDebitNoteCommand(
-                    organizationId, id, request.ContactId, request.Date, request.Reference, request.TdsTypeId, request.Lines),
+                    organizationId, id, request.ContactId, request.Date, request.Reference, request.TdsTypeId, request.Lines,
+                    request.DiscountPct),
                 ct);
             return Results.Ok(result);
         });
@@ -341,7 +348,7 @@ public static class PurchasingEndpoints
     }
 
     private sealed record PurchaseOrderRequest(
-        Guid ContactId, DateOnly Date, string? Reference, IReadOnlyList<PurchaseOrderLineInput> Lines);
+        Guid ContactId, DateOnly Date, string? Reference, IReadOnlyList<PurchaseOrderLineInput> Lines, decimal DiscountPct = 0);
 
     private sealed record PurchaseBillRequest(
         Guid ContactId,
@@ -356,9 +363,11 @@ public static class PurchasingEndpoints
         Guid? TdsTypeId,
         IReadOnlyList<PurchaseBillLineInput> Lines,
         DocumentType? ReferrerType = null,
-        Guid? ReferrerId = null);
+        Guid? ReferrerId = null,
+        decimal DiscountPct = 0);
 
-    private sealed record PreviewPurchaseBillGlPostingRequest(IReadOnlyList<PurchaseBillLineInput> Lines, Guid? TdsTypeId);
+    private sealed record PreviewPurchaseBillGlPostingRequest(
+        IReadOnlyList<PurchaseBillLineInput> Lines, Guid? TdsTypeId, decimal DiscountPct = 0);
 
     private sealed record ExpenseRequest(
         Guid ContactId,
@@ -374,5 +383,5 @@ public static class PurchasingEndpoints
 
     private sealed record DebitNoteRequest(
         Guid ContactId, DateOnly Date, string? Reference, Guid? TdsTypeId, IReadOnlyList<DebitNoteLineInput> Lines,
-        DocumentType? ReferrerType = null, Guid? ReferrerId = null);
+        DocumentType? ReferrerType = null, Guid? ReferrerId = null, decimal DiscountPct = 0);
 }

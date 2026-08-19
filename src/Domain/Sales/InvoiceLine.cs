@@ -14,6 +14,7 @@ public sealed class InvoiceLine
     public decimal Quantity { get; private set; }
     public decimal Rate { get; private set; }
     public VatRate VatRate { get; private set; }
+    public decimal DiscountPct { get; private set; }
     public decimal Amount { get; private set; }
     public decimal VatAmount { get; private set; }
 
@@ -28,9 +29,21 @@ public sealed class InvoiceLine
     {
     }
 
-    internal static InvoiceLine Create(Guid invoiceId, Guid productId, decimal quantity, decimal rate, VatRate vatRate)
+    /// <summary>Amount/VatAmount are the fully-netted figures (line DiscountPct, then the parent
+    /// Invoice's own header DiscountPct, both applied before VAT -- confirmed live against the
+    /// reference product's Totals panel: Sub Total -> Discount% -> Taxable Total -> VAT). Every
+    /// downstream reader (GL posting, Sales Master/VAT Summary/Annex reports) treats Amount/VatAmount
+    /// as opaque already-discounted values, so folding both discounts in here means none of those
+    /// readers need to change. DiscountPct itself (the line's own, pre-header-discount rate) is kept
+    /// so the conversion-cap match key and the Master Report's separate Item Discount/Transaction
+    /// Discount columns can be reconstructed from Quantity/Rate/DiscountPct + the header's DiscountPct.</summary>
+    internal static InvoiceLine Create(
+        Guid invoiceId, Guid productId, decimal quantity, decimal rate, VatRate vatRate,
+        decimal discountPct, decimal headerDiscountPct)
     {
-        var amount = quantity * rate;
+        var grossAmount = quantity * rate;
+        var netAfterLineDiscount = grossAmount * (1 - discountPct / 100m);
+        var amount = netAfterLineDiscount * (1 - headerDiscountPct / 100m);
 
         return new InvoiceLine
         {
@@ -40,6 +53,7 @@ public sealed class InvoiceLine
             Quantity = quantity,
             Rate = rate,
             VatRate = vatRate,
+            DiscountPct = discountPct,
             Amount = amount,
             VatAmount = amount * vatRate.ToPercent(),
         };

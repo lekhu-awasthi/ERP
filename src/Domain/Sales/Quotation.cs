@@ -29,6 +29,7 @@ public sealed class Quotation
     public DateTimeOffset? VoidedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
+    public decimal DiscountPct { get; private set; }
 
     public IReadOnlyList<QuotationLine> Lines => _lines;
 
@@ -37,8 +38,10 @@ public sealed class Quotation
     }
 
     public static Quotation Create(
-        Guid organizationId, Guid contactId, DateOnly date, DateOnly? expiryDate, string? reference)
+        Guid organizationId, Guid contactId, DateOnly date, DateOnly? expiryDate, string? reference, decimal discountPct = 0)
     {
+        EnsureValidDiscountPct(discountPct);
+
         return new Quotation
         {
             Id = Guid.NewGuid(),
@@ -50,19 +53,22 @@ public sealed class Quotation
             Reference = reference,
             Status = QuotationStatus.Draft,
             CreatedAt = DateTimeOffset.UtcNow,
+            DiscountPct = discountPct,
         };
     }
 
-    public void UpdateHeader(Guid contactId, DateOnly date, DateOnly? expiryDate, string? reference)
+    public void UpdateHeader(Guid contactId, DateOnly date, DateOnly? expiryDate, string? reference, decimal discountPct)
     {
         EnsureDraft();
+        EnsureValidDiscountPct(discountPct);
         ContactId = contactId;
         Date = date;
         ExpiryDate = expiryDate;
         Reference = reference;
+        DiscountPct = discountPct;
     }
 
-    public void AddLine(Guid productId, decimal quantity, decimal rate, VatRate vatRate)
+    public void AddLine(Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct)
     {
         EnsureDraft();
 
@@ -71,7 +77,17 @@ public sealed class Quotation
             throw new InvalidOperationException("A quotation line needs a positive Quantity and a non-negative Rate.");
         }
 
-        _lines.Add(QuotationLine.Create(Id, productId, quantity, rate, vatRate));
+        EnsureValidDiscountPct(discountPct);
+
+        _lines.Add(QuotationLine.Create(Id, productId, quantity, rate, vatRate, discountPct, DiscountPct));
+    }
+
+    private static void EnsureValidDiscountPct(decimal discountPct)
+    {
+        if (discountPct < 0 || discountPct > 100)
+        {
+            throw new InvalidOperationException("Discount% must be between 0 and 100.");
+        }
     }
 
     public void ClearLines()

@@ -22,4 +22,5 @@ public sealed record PurchaseBillConversionTemplateDto(
     string? Reference,
     DocumentType ReferrerType,
     Guid ReferrerId,
+    decimal DiscountPct,
     IReadOnlyList<PurchaseBillLineInput> Lines);

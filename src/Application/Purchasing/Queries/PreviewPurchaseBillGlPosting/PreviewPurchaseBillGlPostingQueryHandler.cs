@@ -15,11 +15,13 @@ public sealed class PreviewPurchaseBillGlPostingQueryHandler(
     {
         var lines = request.Lines.Select(x =>
         {
-            var amount = x.Quantity * x.Rate;
+            var netAfterLineDiscount = x.Quantity * x.Rate * (1 - x.DiscountPct / 100m);
+            var amount = netAfterLineDiscount * (1 - request.DiscountPct / 100m);
             return (x.ProductId, Amount: amount, VatAmount: amount * x.VatRate.ToPercent());
         }).ToList();
 
-        var tdsBaseAmount = request.Lines.Sum(x => x.Quantity * x.Rate);
+        var tdsBaseAmount = request.Lines.Sum(
+            x => x.Quantity * x.Rate * (1 - x.DiscountPct / 100m) * (1 - request.DiscountPct / 100m));
         var tdsAmount = await PurchasingValidation.ResolveTdsAmountAsync(
             db, request.OrganizationId, request.TdsTypeId, tdsBaseAmount, cancellationToken);
 

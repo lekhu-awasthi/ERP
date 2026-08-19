@@ -22,6 +22,7 @@ interface EditableLine {
   quantity: number;
   rate: number;
   vatRate: VatRate;
+  discountPct: number;
 }
 
 let nextLineKey = 1;
@@ -65,6 +66,7 @@ export class InvoiceDetailPage {
   protected readonly date = signal(this.today());
   protected readonly reference = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
+  protected readonly discountPct = signal(0);
   private referrerType: DocumentType | null = null;
   private referrerId: string | null = null;
 
@@ -72,11 +74,32 @@ export class InvoiceDetailPage {
 
   private routeInvoiceId = '';
 
-  protected readonly lineTotal = computed(() => this.round(this.lines().reduce((sum, l) => sum + l.quantity * l.rate, 0)));
-  protected readonly vatTotal = computed(() =>
-    this.round(this.lines().reduce((sum, l) => sum + l.quantity * l.rate * this.vatPercent(l.vatRate), 0)),
+  /** Confirmed live Totals panel order: Sub Total (net of each line's own Discount%) -> header
+   * Discount% -> Non-Taxable/Taxable split -> VAT -> Grand Total. Every line's net-of-both-discounts
+   * share is what VAT is computed on -- see InvoiceLine.Create's doc comment for the same formula
+   * applied server-side. */
+  protected readonly subTotal = computed(() =>
+    this.round(this.lines().reduce((sum, l) => sum + this.netAfterLineDiscount(l), 0)),
   );
-  protected readonly grandTotal = computed(() => this.round(this.lineTotal() + this.vatTotal()));
+  protected readonly discountAmount = computed(() => this.round((this.subTotal() * this.discountPct()) / 100));
+  protected readonly nonTaxableTotal = computed(() =>
+    this.round(
+      this.lines()
+        .filter((l) => this.vatPercent(l.vatRate) === 0)
+        .reduce((sum, l) => sum + this.netAfterBothDiscounts(l), 0),
+    ),
+  );
+  protected readonly taxableTotal = computed(() =>
+    this.round(
+      this.lines()
+        .filter((l) => this.vatPercent(l.vatRate) > 0)
+        .reduce((sum, l) => sum + this.netAfterBothDiscounts(l), 0),
+    ),
+  );
+  protected readonly vatTotal = computed(() =>
+    this.round(this.lines().reduce((sum, l) => sum + this.netAfterBothDiscounts(l) * this.vatPercent(l.vatRate), 0)),
+  );
+  protected readonly grandTotal = computed(() => this.round(this.taxableTotal() + this.nonTaxableTotal() + this.vatTotal()));
 
   protected readonly isDraft = computed(() => {
     const invoice = this.invoice();
@@ -112,6 +135,7 @@ export class InvoiceDetailPage {
           this.reference.set(template.reference ?? '');
           this.referrerType = template.referrerType;
           this.referrerId = template.referrerId;
+          this.discountPct.set(template.discountPct);
           this.lines.set(
             template.lines.length > 0
               ? template.lines.map((l) => ({ key: nextLineKey++, ...l }))
@@ -121,6 +145,7 @@ export class InvoiceDetailPage {
           this.contactId.set('');
           this.date.set(this.today());
           this.reference.set('');
+          this.discountPct.set(0);
           this.lines.set([this.newLine()]);
         }
         this.warehouseId.set('');
@@ -166,6 +191,16 @@ export class InvoiceDetailPage {
     this.updateLine(key, { vatRate });
   }
 
+  protected onDiscountPctChange(key: number, event: Event): void {
+    const discountPct = (event.target as HTMLInputElement).valueAsNumber;
+    this.updateLine(key, { discountPct: Number.isFinite(discountPct) ? discountPct : 0 });
+  }
+
+  protected onHeaderDiscountPctChange(event: Event): void {
+    const discountPct = (event.target as HTMLInputElement).valueAsNumber;
+    this.discountPct.set(Number.isFinite(discountPct) ? discountPct : 0);
+  }
+
   protected addLine(): void {
     this.lines.update((lines) => [...lines, this.newLine()]);
   }
@@ -200,6 +235,7 @@ export class InvoiceDetailPage {
       referrerType: this.referrerType,
       referrerId: this.referrerId,
       lines,
+      discountPct: this.discountPct(),
     };
 
     if (this.isNew()) {
@@ -300,10 +336,18 @@ export class InvoiceDetailPage {
     return vatRate === 'ThirteenPercentVat' ? 0.13 : 0;
   }
 
+  private netAfterLineDiscount(line: EditableLine): number {
+    return line.quantity * line.rate * (1 - line.discountPct / 100);
+  }
+
+  private netAfterBothDiscounts(line: EditableLine): number {
+    return this.netAfterLineDiscount(line) * (1 - this.discountPct() / 100);
+  }
+
   private toLineInputs(): InvoiceLineInput[] | null {
     const lines = this.lines()
       .filter((l) => l.productId && l.quantity > 0)
-      .map((l) => ({ productId: l.productId, quantity: l.quantity, rate: l.rate, vatRate: l.vatRate }));
+      .map((l) => ({ productId: l.productId, quantity: l.quantity, rate: l.rate, vatRate: l.vatRate, discountPct: l.discountPct }));
 
     if (lines.length === 0) {
       this.errorMessage.set('Add at least one line with a Product and a Quantity.');
@@ -318,7 +362,7 @@ export class InvoiceDetailPage {
   }
 
   private newLine(): EditableLine {
-    return { key: nextLineKey++, productId: '', quantity: 1, rate: 0, vatRate: 'NoVat' };
+    return { key: nextLineKey++, productId: '', quantity: 1, rate: 0, vatRate: 'NoVat', discountPct: 0 };
   }
 
   private today(): string {
@@ -340,6 +384,7 @@ export class InvoiceDetailPage {
         this.reference.set(invoice.reference ?? '');
         this.referrerType = invoice.referrerType;
         this.referrerId = invoice.referrerId;
+        this.discountPct.set(invoice.discountPct);
         this.lines.set(
           invoice.lines.length > 0
             ? invoice.lines.map((l) => ({
@@ -348,6 +393,7 @@ export class InvoiceDetailPage {
                 quantity: l.quantity,
                 rate: l.rate,
                 vatRate: l.vatRate,
+                discountPct: l.discountPct,
               }))
             : [this.newLine()],
         );

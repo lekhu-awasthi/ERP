@@ -115,8 +115,8 @@
 
         @if (isDraft() && isLinkedToSource()) {
           <p class="text-muted small mb-3">
-            Product, Rate, and VAT are locked to what was actually billed -- adjust Quantity to return less than a line, or
-            remove a line entirely.
+            Product, Rate, Discount%, and VAT are locked to what was actually billed -- adjust Quantity to return less than a
+            line, or remove a line entirely.
           </p>
         }
 
@@ -127,6 +127,7 @@
                 <th style="min-width: 240px;">Product</th>
                 <th style="width: 110px;" class="text-end">Qty</th>
                 <th style="width: 130px;" class="text-end">Rate</th>
+                <th style="width: 110px;" class="text-end">Discount %</th>
                 <th style="width: 150px;">VAT</th>
                 <th style="width: 120px;" class="text-end">Amount</th>
                 @if (isDraft()) {
@@ -177,6 +178,21 @@
                       {{ line.rate.toFixed(2) }}
                     }
                   </td>
+                  <td class="text-end">
+                    @if (isDraft() && !isLinkedToSource()) {
+                      <input
+                        type="number"
+                        class="form-control form-control-sm text-end"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        [value]="line.discountPct || ''"
+                        (input)="onDiscountPctChange(line.key, $event)"
+                      />
+                    } @else {
+                      {{ line.discountPct.toFixed(2) }}
+                    }
+                  </td>
                   <td>
                     @if (isDraft() && !isLinkedToSource()) {
                       <select class="form-select form-select-sm" (change)="onVatRateChange(line.key, $event)">
@@ -188,7 +204,7 @@
                       {{ line.vatRate }}
                     }
                   </td>
-                  <td class="text-end">{{ (line.quantity * line.rate).toFixed(2) }}</td>
+                  <td class="text-end">{{ (line.quantity * line.rate * (1 - line.discountPct / 100)).toFixed(2) }}</td>
                   @if (isDraft()) {
                     <td>
                       <button type="button" class="btn btn-outline-danger btn-sm" (click)="removeLine(line.key)">
@@ -201,23 +217,61 @@
             </tbody>
             <tfoot>
               <tr>
-                <td colspan="3"></td>
-                <td class="text-end fw-semibold">Line Total</td>
-                <td class="text-end fw-bold">{{ lineTotal().toFixed(2) }}</td>
+                <td colspan="4"></td>
+                <td class="text-end fw-semibold">Sub Total</td>
+                <td class="text-end fw-bold">{{ subTotal().toFixed(2) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }
               </tr>
               <tr>
-                <td colspan="3"></td>
-                <td class="text-end fw-semibold">VAT Total</td>
+                <td colspan="4"></td>
+                <td class="text-end fw-semibold">
+                  Discount %
+                  @if (isDraft() && !isLinkedToSource()) {
+                    <input
+                      type="number"
+                      class="form-control form-control-sm text-end d-inline-block ms-2"
+                      style="width: 80px;"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      [value]="discountPct() || ''"
+                      (input)="onHeaderDiscountPctChange($event)"
+                    />
+                  }
+                </td>
+                <td class="text-end fw-bold">({{ discountAmount().toFixed(2) }})</td>
+                @if (isDraft()) {
+                  <td></td>
+                }
+              </tr>
+              <tr>
+                <td colspan="4"></td>
+                <td class="text-end fw-semibold">Non-Taxable Total</td>
+                <td class="text-end fw-bold">{{ nonTaxableTotal().toFixed(2) }}</td>
+                @if (isDraft()) {
+                  <td></td>
+                }
+              </tr>
+              <tr>
+                <td colspan="4"></td>
+                <td class="text-end fw-semibold">Taxable Total</td>
+                <td class="text-end fw-bold">{{ taxableTotal().toFixed(2) }}</td>
+                @if (isDraft()) {
+                  <td></td>
+                }
+              </tr>
+              <tr>
+                <td colspan="4"></td>
+                <td class="text-end fw-semibold">VAT</td>
                 <td class="text-end fw-bold">{{ vatTotal().toFixed(2) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }
               </tr>
               <tr>
-                <td colspan="3"></td>
+                <td colspan="4"></td>
                 <td class="text-end fw-bold">Grand Total</td>
                 <td class="text-end fw-bold text-primary">{{ grandTotal().toFixed(2) }}</td>
                 @if (isDraft()) {

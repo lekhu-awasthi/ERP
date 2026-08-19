@@ -17,19 +17,21 @@ public sealed class CreateDebitNoteCommandHandler(IAppDbContext db)
         if (request.ReferrerType == DocumentType.PurchaseBill && request.ReferrerId is { } purchaseBillId)
         {
             await PurchasingValidation.EnsureDebitNoteLinesWithinPurchaseBillRemainingAsync(
-                db, request.OrganizationId, purchaseBillId, request.ContactId, request.TdsTypeId, request.Lines, cancellationToken);
+                db, request.OrganizationId, purchaseBillId, request.ContactId, request.TdsTypeId, request.DiscountPct, request.Lines,
+                cancellationToken);
         }
 
-        var tdsBaseAmount = request.Lines.Sum(x => x.Quantity * x.Rate);
+        var tdsBaseAmount = request.Lines.Sum(
+            x => x.Quantity * x.Rate * (1 - x.DiscountPct / 100m) * (1 - request.DiscountPct / 100m));
         var tdsAmount = await PurchasingValidation.ResolveTdsAmountAsync(
             db, request.OrganizationId, request.TdsTypeId, tdsBaseAmount, cancellationToken);
 
         var debitNote = DebitNote.Create(
             request.OrganizationId, request.ContactId, request.Date, request.Reference, request.TdsTypeId, tdsAmount,
-            request.ReferrerType, request.ReferrerId);
+            request.ReferrerType, request.ReferrerId, request.DiscountPct);
         foreach (var line in request.Lines)
         {
-            debitNote.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate);
+            debitNote.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);
         }
 
         db.DebitNotes.Add(debitNote);

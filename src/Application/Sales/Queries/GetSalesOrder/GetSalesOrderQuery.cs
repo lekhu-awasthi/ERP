@@ -11,7 +11,8 @@ public sealed record GetSalesOrderQuery(Guid OrganizationId, Guid Id)
     public string PermissionKey => PermissionKeys.SalesOrderView;
 }
 
-public sealed record SalesOrderLineDto(Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal Amount, decimal VatAmount);
+public sealed record SalesOrderLineDto(
+    Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal Amount, decimal VatAmount);
 
 public sealed record SalesOrderDetailDto(
     Guid Id,
@@ -25,4 +26,5 @@ public sealed record SalesOrderDetailDto(
     Guid? ApprovedByUserId,
     DateTimeOffset? ApprovedAt,
     DateTimeOffset CreatedAt,
+    decimal DiscountPct,
     IReadOnlyList<SalesOrderLineDto> Lines);

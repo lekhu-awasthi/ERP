@@ -36,7 +36,7 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db)
         }
 
         var invoiceLines = await invoiceLinesQuery
-            .Select(x => new { x.InvoiceId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.Amount, x.VatAmount })
+            .Select(x => new { x.InvoiceId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         var creditNoteQuery = db.CreditNotes.Where(x =>
@@ -59,7 +59,7 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db)
         }
 
         var creditNoteLines = await creditNoteLinesQuery
-            .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.Amount, x.VatAmount })
+            .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         // CreditNote carries no WarehouseId of its own -- resolve it from the source Invoice when
@@ -116,13 +116,19 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db)
             var contact = contacts[invoice.ContactId];
             var product = products[line.ProductId];
 
+            var grossAmount = line.Quantity * line.Rate;
+            var itemDiscount = grossAmount * line.DiscountPct / 100m;
+            var netAfterLineDiscount = grossAmount - itemDiscount;
+            var transactionDiscount = netAfterLineDiscount - line.Amount;
+
             rows.Add(new SalesMasterReportRowDto(
                 contact.Id, contact.Code, contact.Name, DocumentType.Invoice,
                 contact.GroupId, contact.GroupId is { } groupId ? groupNames.GetValueOrDefault(groupId) : null,
                 invoice.WarehouseId, warehouseNames.GetValueOrDefault(invoice.WarehouseId),
                 invoice.Code, invoice.Reference, invoice.Date,
                 product.Id, product.Code, product.Name,
-                line.Quantity, line.Rate, line.Amount, line.VatRate, line.VatAmount, line.Amount + line.VatAmount));
+                line.Quantity, line.Rate, netAfterLineDiscount, itemDiscount, transactionDiscount, line.Amount,
+                line.VatRate, line.VatAmount, line.Amount + line.VatAmount));
         }
 
         foreach (var line in creditNoteLines)
@@ -144,13 +150,19 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db)
             var contact = contacts[creditNote.ContactId];
             var product = products[line.ProductId];
 
+            var grossAmount = line.Quantity * line.Rate;
+            var itemDiscount = grossAmount * line.DiscountPct / 100m;
+            var netAfterLineDiscount = grossAmount - itemDiscount;
+            var transactionDiscount = netAfterLineDiscount - line.Amount;
+
             rows.Add(new SalesMasterReportRowDto(
                 contact.Id, contact.Code, contact.Name, DocumentType.CreditNote,
                 contact.GroupId, contact.GroupId is { } groupId ? groupNames.GetValueOrDefault(groupId) : null,
                 resolvedWarehouseId, resolvedWarehouseId is { } wId ? warehouseNames.GetValueOrDefault(wId) : null,
                 creditNote.Code, creditNote.Reference, creditNote.Date,
                 product.Id, product.Code, product.Name,
-                line.Quantity, line.Rate, line.Amount, line.VatRate, line.VatAmount, line.Amount + line.VatAmount));
+                line.Quantity, line.Rate, netAfterLineDiscount, itemDiscount, transactionDiscount, line.Amount,
+                line.VatRate, line.VatAmount, line.Amount + line.VatAmount));
         }
 
         var orderedRows = rows.OrderBy(x => x.EntryDate).ThenBy(x => x.EntryNo).ToList();

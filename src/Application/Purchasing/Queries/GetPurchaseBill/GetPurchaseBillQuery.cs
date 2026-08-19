@@ -13,7 +13,7 @@ public sealed record GetPurchaseBillQuery(Guid OrganizationId, Guid Id)
 }
 
 public sealed record PurchaseBillLineDto(
-    Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal Amount, decimal VatAmount,
+    Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal Amount, decimal VatAmount,
     ExpenditureClassification ExpenditureClassification);
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
@@ -39,6 +39,7 @@ public sealed record PurchaseBillDetailDto(
     DateTimeOffset CreatedAt,
     DocumentType? ReferrerType,
     Guid? ReferrerId,
+    decimal DiscountPct,
     decimal GrandTotal,
     IReadOnlyList<PurchaseBillLineDto> Lines,
     IReadOnlyList<PostedGlLineDto>? GlLines);

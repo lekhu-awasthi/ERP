@@ -28,6 +28,7 @@ export interface PurchaseOrderLineInput {
   quantity: number;
   rate: number;
   vatRate: VatRate;
+  discountPct: number;
 }
 
 export interface PurchaseOrder {
@@ -41,6 +42,7 @@ export interface PurchaseOrder {
   approvedByUserId: string | null;
   approvedAt: string | null;
   createdAt: string;
+  discountPct: number;
 }
 
 export interface PurchaseOrderLineDto extends PurchaseOrderLineInput {
@@ -58,6 +60,7 @@ export interface PurchaseOrderRequest {
   date: string;
   reference: string | null;
   lines: PurchaseOrderLineInput[];
+  discountPct: number;
 }
 
 export interface CreatePurchaseOrderResult {
@@ -94,6 +97,7 @@ export interface PurchaseBillLineInput {
   rate: number;
   vatRate: VatRate;
   expenditureClassification: ExpenditureClassification;
+  discountPct: number;
 }
 
 export interface PurchaseBill {
@@ -117,6 +121,7 @@ export interface PurchaseBill {
   createdAt: string;
   referrerType: DocumentType | null;
   referrerId: string | null;
+  discountPct: number;
 }
 
 export interface PurchaseBillLineDto extends PurchaseBillLineInput {
@@ -145,6 +150,7 @@ export interface PurchaseBillRequest {
   lines: PurchaseBillLineInput[];
   referrerType?: DocumentType | null;
   referrerId?: string | null;
+  discountPct: number;
 }
 
 export interface CreatePurchaseBillResult {
@@ -179,6 +185,7 @@ export interface PurchaseBillConversionTemplate {
   reference: string | null;
   referrerType: DocumentType;
   referrerId: string;
+  discountPct: number;
   lines: PurchaseBillLineInput[];
 }
 
@@ -263,6 +270,7 @@ export interface DebitNoteLineInput {
   quantity: number;
   rate: number;
   vatRate: VatRate;
+  discountPct: number;
 }
 
 export interface DebitNote {
@@ -280,6 +288,7 @@ export interface DebitNote {
   createdAt: string;
   referrerType: DocumentType | null;
   referrerId: string | null;
+  discountPct: number;
 }
 
 export interface DebitNoteLineDto extends DebitNoteLineInput {
@@ -301,6 +310,7 @@ export interface DebitNoteRequest {
   lines: DebitNoteLineInput[];
   referrerType?: DocumentType | null;
   referrerId?: string | null;
+  discountPct: number;
 }
 
 export interface CreateDebitNoteResult {
@@ -336,6 +346,7 @@ export interface DebitNoteConversionTemplate {
   tdsTypeId: string | null;
   referrerType: DocumentType;
   referrerId: string;
+  discountPct: number;
   lines: DebitNoteLineInput[];
 }
 
@@ -359,6 +370,9 @@ export interface PurchaseMasterReportRowDto {
   quantity: number;
   rate: number;
   amount: number;
+  itemDiscount: number;
+  transactionDiscount: number;
+  netSales: number;
   vatType: VatRate;
   vatAmount: number;
   totalAmount: number;

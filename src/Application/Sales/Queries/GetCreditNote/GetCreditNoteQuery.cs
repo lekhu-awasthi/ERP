@@ -12,7 +12,8 @@ public sealed record GetCreditNoteQuery(Guid OrganizationId, Guid Id)
     public string PermissionKey => PermissionKeys.CreditNoteView;
 }
 
-public sealed record CreditNoteLineDto(Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal Amount, decimal VatAmount);
+public sealed record CreditNoteLineDto(
+    Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal Amount, decimal VatAmount);
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
 
@@ -29,5 +30,6 @@ public sealed record CreditNoteDetailDto(
     DateTimeOffset CreatedAt,
     DocumentType? ReferrerType,
     Guid? ReferrerId,
+    decimal DiscountPct,
     IReadOnlyList<CreditNoteLineDto> Lines,
     IReadOnlyList<PostedGlLineDto>? GlLines);

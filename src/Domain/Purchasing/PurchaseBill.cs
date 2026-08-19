@@ -48,6 +48,7 @@ public sealed class PurchaseBill
     public byte[] RowVersion { get; private set; } = null!;
     public DocumentType? ReferrerType { get; private set; }
     public Guid? ReferrerId { get; private set; }
+    public decimal DiscountPct { get; private set; }
 
     public IReadOnlyList<PurchaseBillLine> Lines => _lines;
 
@@ -71,8 +72,11 @@ public sealed class PurchaseBill
         Guid? tdsTypeId,
         decimal tdsAmount,
         DocumentType? referrerType,
-        Guid? referrerId)
+        Guid? referrerId,
+        decimal discountPct = 0)
     {
+        EnsureValidDiscountPct(discountPct);
+
         return new PurchaseBill
         {
             Id = Guid.NewGuid(),
@@ -93,6 +97,7 @@ public sealed class PurchaseBill
             CreatedAt = DateTimeOffset.UtcNow,
             ReferrerType = referrerType,
             ReferrerId = referrerId,
+            DiscountPct = discountPct,
         };
     }
 
@@ -107,9 +112,11 @@ public sealed class PurchaseBill
         DateOnly? importDate,
         string? importDocumentNo,
         Guid? tdsTypeId,
-        decimal tdsAmount)
+        decimal tdsAmount,
+        decimal discountPct)
     {
         EnsureDraft();
+        EnsureValidDiscountPct(discountPct);
         ContactId = contactId;
         WarehouseId = warehouseId;
         Date = date;
@@ -121,10 +128,12 @@ public sealed class PurchaseBill
         ImportDocumentNo = isImport ? importDocumentNo : null;
         TdsTypeId = tdsTypeId;
         TdsAmount = tdsAmount;
+        DiscountPct = discountPct;
     }
 
     public void AddLine(
-        Guid productId, decimal quantity, decimal rate, VatRate vatRate, ExpenditureClassification expenditureClassification)
+        Guid productId, decimal quantity, decimal rate, VatRate vatRate, ExpenditureClassification expenditureClassification,
+        decimal discountPct)
     {
         EnsureDraft();
 
@@ -133,7 +142,17 @@ public sealed class PurchaseBill
             throw new InvalidOperationException("A purchase bill line needs a positive Quantity and a non-negative Rate.");
         }
 
-        _lines.Add(PurchaseBillLine.Create(Id, productId, quantity, rate, vatRate, expenditureClassification));
+        EnsureValidDiscountPct(discountPct);
+
+        _lines.Add(PurchaseBillLine.Create(Id, productId, quantity, rate, vatRate, expenditureClassification, discountPct, DiscountPct));
+    }
+
+    private static void EnsureValidDiscountPct(decimal discountPct)
+    {
+        if (discountPct < 0 || discountPct > 100)
+        {
+            throw new InvalidOperationException("Discount% must be between 0 and 100.");
+        }
     }
 
     public void ClearLines()

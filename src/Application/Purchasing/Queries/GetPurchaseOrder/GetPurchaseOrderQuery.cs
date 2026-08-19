@@ -11,7 +11,8 @@ public sealed record GetPurchaseOrderQuery(Guid OrganizationId, Guid Id)
     public string PermissionKey => PermissionKeys.PurchaseOrderView;
 }
 
-public sealed record PurchaseOrderLineDto(Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal Amount, decimal VatAmount);
+public sealed record PurchaseOrderLineDto(
+    Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal Amount, decimal VatAmount);
 
 public sealed record PurchaseOrderDetailDto(
     Guid Id,
@@ -24,4 +25,5 @@ public sealed record PurchaseOrderDetailDto(
     Guid? ApprovedByUserId,
     DateTimeOffset? ApprovedAt,
     DateTimeOffset CreatedAt,
+    decimal DiscountPct,
     IReadOnlyList<PurchaseOrderLineDto> Lines);

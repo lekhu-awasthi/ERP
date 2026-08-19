@@ -13,7 +13,8 @@ public sealed record CreateInvoiceCommand(
     string? Reference,
     IReadOnlyList<InvoiceLineInput> Lines,
     DocumentType? ReferrerType = null,
-    Guid? ReferrerId = null)
+    Guid? ReferrerId = null,
+    decimal DiscountPct = 0)
     : IRequest<CreateInvoiceResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.InvoiceCreate;

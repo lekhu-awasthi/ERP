@@ -42,8 +42,10 @@ public sealed class GetInvoiceQueryHandler(IAppDbContext db) : IRequestHandler<G
             invoice.CreatedAt,
             invoice.ReferrerType,
             invoice.ReferrerId,
+            invoice.DiscountPct,
             invoice.GrandTotal,
-            invoice.Lines.Select(x => new InvoiceLineDto(x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.Amount, x.VatAmount)).ToList(),
+            invoice.Lines.Select(x => new InvoiceLineDto(
+                x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount)).ToList(),
             glLines);
     }
 }

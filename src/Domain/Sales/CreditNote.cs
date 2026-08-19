@@ -31,6 +31,7 @@ public sealed class CreditNote
     public byte[] RowVersion { get; private set; } = null!;
     public DocumentType? ReferrerType { get; private set; }
     public Guid? ReferrerId { get; private set; }
+    public decimal DiscountPct { get; private set; }
 
     public IReadOnlyList<CreditNoteLine> Lines => _lines;
 
@@ -39,8 +40,11 @@ public sealed class CreditNote
     }
 
     public static CreditNote Create(
-        Guid organizationId, Guid contactId, DateOnly date, string? reference, DocumentType? referrerType, Guid? referrerId)
+        Guid organizationId, Guid contactId, DateOnly date, string? reference, DocumentType? referrerType, Guid? referrerId,
+        decimal discountPct = 0)
     {
+        EnsureValidDiscountPct(discountPct);
+
         return new CreditNote
         {
             Id = Guid.NewGuid(),
@@ -53,18 +57,21 @@ public sealed class CreditNote
             CreatedAt = DateTimeOffset.UtcNow,
             ReferrerType = referrerType,
             ReferrerId = referrerId,
+            DiscountPct = discountPct,
         };
     }
 
-    public void UpdateHeader(Guid contactId, DateOnly date, string? reference)
+    public void UpdateHeader(Guid contactId, DateOnly date, string? reference, decimal discountPct)
     {
         EnsureDraft();
+        EnsureValidDiscountPct(discountPct);
         ContactId = contactId;
         Date = date;
         Reference = reference;
+        DiscountPct = discountPct;
     }
 
-    public void AddLine(Guid productId, decimal quantity, decimal rate, VatRate vatRate)
+    public void AddLine(Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct)
     {
         EnsureDraft();
 
@@ -73,7 +80,17 @@ public sealed class CreditNote
             throw new InvalidOperationException("A credit note line needs a positive Quantity and a non-negative Rate.");
         }
 
-        _lines.Add(CreditNoteLine.Create(Id, productId, quantity, rate, vatRate));
+        EnsureValidDiscountPct(discountPct);
+
+        _lines.Add(CreditNoteLine.Create(Id, productId, quantity, rate, vatRate, discountPct, DiscountPct));
+    }
+
+    private static void EnsureValidDiscountPct(decimal discountPct)
+    {
+        if (discountPct < 0 || discountPct > 100)
+        {
+            throw new InvalidOperationException("Discount% must be between 0 and 100.");
+        }
     }
 
     public void ClearLines()

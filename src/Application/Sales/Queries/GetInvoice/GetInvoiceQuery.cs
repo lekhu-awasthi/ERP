@@ -12,7 +12,8 @@ public sealed record GetInvoiceQuery(Guid OrganizationId, Guid Id)
     public string PermissionKey => PermissionKeys.InvoiceView;
 }
 
-public sealed record InvoiceLineDto(Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal Amount, decimal VatAmount);
+public sealed record InvoiceLineDto(
+    Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal Amount, decimal VatAmount);
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
 
@@ -30,6 +31,7 @@ public sealed record InvoiceDetailDto(
     DateTimeOffset CreatedAt,
     DocumentType? ReferrerType,
     Guid? ReferrerId,
+    decimal DiscountPct,
     decimal GrandTotal,
     IReadOnlyList<InvoiceLineDto> Lines,
     IReadOnlyList<PostedGlLineDto>? GlLines);

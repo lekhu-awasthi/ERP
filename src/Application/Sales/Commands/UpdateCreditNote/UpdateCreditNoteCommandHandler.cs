@@ -28,11 +28,11 @@ public sealed class UpdateCreditNoteCommandHandler(IAppDbContext db)
 
         var oldLines = creditNote.Lines.ToList();
 
-        creditNote.UpdateHeader(request.ContactId, request.Date, request.Reference);
+        creditNote.UpdateHeader(request.ContactId, request.Date, request.Reference, request.DiscountPct);
         creditNote.ClearLines();
         foreach (var line in request.Lines)
         {
-            creditNote.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate);
+            creditNote.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);
         }
 
         db.CreditNoteLines.RemoveRange(oldLines);

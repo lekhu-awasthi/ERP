@@ -14,10 +14,11 @@ public sealed class CreateSalesOrderCommandHandler(IAppDbContext db)
         await SalesValidation.EnsureProductsExistAsync(
             db, request.OrganizationId, request.Lines.Select(x => x.ProductId), cancellationToken);
 
-        var salesOrder = SalesOrder.Create(request.OrganizationId, request.ContactId, request.Date, request.DeliveryDate, request.Reference);
+        var salesOrder = SalesOrder.Create(
+            request.OrganizationId, request.ContactId, request.Date, request.DeliveryDate, request.Reference, request.DiscountPct);
         foreach (var line in request.Lines)
         {
-            salesOrder.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate);
+            salesOrder.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);
         }
 
         db.SalesOrders.Add(salesOrder);

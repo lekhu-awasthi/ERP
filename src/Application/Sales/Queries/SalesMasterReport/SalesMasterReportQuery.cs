@@ -17,10 +17,14 @@ namespace ErpApp.Application.Sales.Queries.SalesMasterReport;
 /// happened", matching Trial Balance/Balance Sheet's "only posted activity" spirit even though
 /// this report doesn't touch the GL at all.
 ///
-/// ItemDiscount/TransactionDiscount/NetSales columns from the reference product's confirmed live
-/// shape are deliberately omitted -- InvoiceLine/CreditNoteLine carry no discount fields anywhere
-/// in this codebase, and inventing them here would silently imply discount support that doesn't
-/// exist. See phase-8b-status.md's scope decision.
+/// ItemDiscount/TransactionDiscount/NetSales (Phase 16b) reconstruct the reference product's
+/// confirmed live shape from the stored raw fields: Amount here is Quantity*Rate net of the
+/// line's own DiscountPct only (matching the live per-line Amount column, which a header-level
+/// discount never touches), ItemDiscount is Quantity*Rate*DiscountPct/100, TransactionDiscount is
+/// this line's proportional share of the document's header DiscountPct, and NetSales is
+/// InvoiceLine/CreditNoteLine.Amount as stored -- already fully netted (line then header
+/// discount, VAT computed on top of that) per InvoiceLine.Create's doc comment, so no
+/// recomputation is needed for that column.
 /// </summary>
 public sealed record SalesMasterReportQuery(
     Guid OrganizationId,
@@ -58,6 +62,9 @@ public sealed record SalesMasterReportRowDto(
     decimal Quantity,
     decimal Rate,
     decimal Amount,
+    decimal ItemDiscount,
+    decimal TransactionDiscount,
+    decimal NetSales,
     VatRate VatType,
     decimal VatAmount,
     decimal TotalAmount);

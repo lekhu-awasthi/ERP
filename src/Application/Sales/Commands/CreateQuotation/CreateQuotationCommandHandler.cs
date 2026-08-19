@@ -14,10 +14,11 @@ public sealed class CreateQuotationCommandHandler(IAppDbContext db)
         await SalesValidation.EnsureProductsExistAsync(
             db, request.OrganizationId, request.Lines.Select(x => x.ProductId), cancellationToken);
 
-        var quotation = Quotation.Create(request.OrganizationId, request.ContactId, request.Date, request.ExpiryDate, request.Reference);
+        var quotation = Quotation.Create(
+            request.OrganizationId, request.ContactId, request.Date, request.ExpiryDate, request.Reference, request.DiscountPct);
         foreach (var line in request.Lines)
         {
-            quotation.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate);
+            quotation.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);
         }
 
         db.Quotations.Add(quotation);

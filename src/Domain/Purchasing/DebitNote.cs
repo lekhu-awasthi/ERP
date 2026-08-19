@@ -40,6 +40,7 @@ public sealed class DebitNote
     public byte[] RowVersion { get; private set; } = null!;
     public DocumentType? ReferrerType { get; private set; }
     public Guid? ReferrerId { get; private set; }
+    public decimal DiscountPct { get; private set; }
 
     public IReadOnlyList<DebitNoteLine> Lines => _lines;
 
@@ -55,8 +56,11 @@ public sealed class DebitNote
         Guid? tdsTypeId,
         decimal tdsAmount,
         DocumentType? referrerType,
-        Guid? referrerId)
+        Guid? referrerId,
+        decimal discountPct = 0)
     {
+        EnsureValidDiscountPct(discountPct);
+
         return new DebitNote
         {
             Id = Guid.NewGuid(),
@@ -71,20 +75,24 @@ public sealed class DebitNote
             CreatedAt = DateTimeOffset.UtcNow,
             ReferrerType = referrerType,
             ReferrerId = referrerId,
+            DiscountPct = discountPct,
         };
     }
 
-    public void UpdateHeader(Guid contactId, DateOnly date, string? reference, Guid? tdsTypeId, decimal tdsAmount)
+    public void UpdateHeader(
+        Guid contactId, DateOnly date, string? reference, Guid? tdsTypeId, decimal tdsAmount, decimal discountPct)
     {
         EnsureDraft();
+        EnsureValidDiscountPct(discountPct);
         ContactId = contactId;
         Date = date;
         Reference = reference;
         TdsTypeId = tdsTypeId;
         TdsAmount = tdsAmount;
+        DiscountPct = discountPct;
     }
 
-    public void AddLine(Guid productId, decimal quantity, decimal rate, VatRate vatRate)
+    public void AddLine(Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct)
     {
         EnsureDraft();
 
@@ -93,7 +101,17 @@ public sealed class DebitNote
             throw new InvalidOperationException("A debit note line needs a positive Quantity and a non-negative Rate.");
         }
 
-        _lines.Add(DebitNoteLine.Create(Id, productId, quantity, rate, vatRate));
+        EnsureValidDiscountPct(discountPct);
+
+        _lines.Add(DebitNoteLine.Create(Id, productId, quantity, rate, vatRate, discountPct, DiscountPct));
+    }
+
+    private static void EnsureValidDiscountPct(decimal discountPct)
+    {
+        if (discountPct < 0 || discountPct > 100)
+        {
+            throw new InvalidOperationException("Discount% must be between 0 and 100.");
+        }
     }
 
     public void ClearLines()

@@ -13,5 +13,5 @@ public sealed record GetCreditNoteConversionTemplateQuery(Guid OrganizationId, G
 }
 
 public sealed record CreditNoteConversionTemplateDto(
-    Guid ContactId, DateOnly Date, string? Reference, DocumentType ReferrerType, Guid ReferrerId,
+    Guid ContactId, DateOnly Date, string? Reference, DocumentType ReferrerType, Guid ReferrerId, decimal DiscountPct,
     IReadOnlyList<CreditNoteLineInput> Lines);

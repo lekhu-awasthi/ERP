@@ -17,6 +17,7 @@ public sealed class UpdatePurchaseBillCommandValidator : AbstractValidator<Updat
         RuleFor(x => x.ImportDate).NotNull().When(x => x.IsImport);
         RuleFor(x => x.ImportDocumentNo).NotEmpty().MaximumLength(100).When(x => x.IsImport);
 
+        RuleFor(x => x.DiscountPct).InclusiveBetween(0, 100);
         RuleFor(x => x.Lines).NotNull();
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
@@ -25,6 +26,7 @@ public sealed class UpdatePurchaseBillCommandValidator : AbstractValidator<Updat
             line.RuleFor(x => x.Rate).GreaterThanOrEqualTo(0);
             line.RuleFor(x => x.VatRate).IsInEnum();
             line.RuleFor(x => x.ExpenditureClassification).IsInEnum();
+            line.RuleFor(x => x.DiscountPct).InclusiveBetween(0, 100);
         });
     }
 }

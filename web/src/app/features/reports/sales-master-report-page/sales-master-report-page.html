@@ -92,6 +92,9 @@
                 <th class="text-end">Quantity</th>
                 <th class="text-end">Rate</th>
                 <th class="text-end">Amount</th>
+                <th class="text-end">Item Discount</th>
+                <th class="text-end">Transaction Discount</th>
+                <th class="text-end">Net Sales</th>
                 <th>VAT Type</th>
                 <th class="text-end">VAT Amount</th>
                 <th class="text-end">Total Amount</th>
@@ -117,6 +120,9 @@
                   <td class="text-end">{{ row.quantity.toFixed(2) }}</td>
                   <td class="text-end">{{ row.rate.toFixed(2) }}</td>
                   <td class="text-end">{{ row.amount.toFixed(2) }}</td>
+                  <td class="text-end">{{ row.itemDiscount.toFixed(2) }}</td>
+                  <td class="text-end">{{ row.transactionDiscount.toFixed(2) }}</td>
+                  <td class="text-end">{{ row.netSales.toFixed(2) }}</td>
                   <td>{{ row.vatType }}</td>
                   <td class="text-end">{{ row.vatAmount.toFixed(2) }}</td>
                   <td class="text-end fw-bold">{{ row.totalAmount.toFixed(2) }}</td>
@@ -125,7 +131,7 @@
             </tbody>
             <tfoot>
               <tr class="fw-bold border-top">
-                <td colspan="13">Total</td>
+                <td colspan="16">Total</td>
                 <td class="text-end">{{ totalAmount().toFixed(2) }}</td>
               </tr>
             </tfoot>

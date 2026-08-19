@@ -13,10 +13,11 @@ public sealed class CreatePurchaseOrderCommandHandler(IAppDbContext db)
         await PurchasingValidation.EnsureProductsExistAsync(
             db, request.OrganizationId, request.Lines.Select(x => x.ProductId), cancellationToken);
 
-        var purchaseOrder = PurchaseOrder.Create(request.OrganizationId, request.ContactId, request.Date, request.Reference);
+        var purchaseOrder = PurchaseOrder.Create(
+            request.OrganizationId, request.ContactId, request.Date, request.Reference, request.DiscountPct);
         foreach (var line in request.Lines)
         {
-            purchaseOrder.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate);
+            purchaseOrder.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);
         }
 
         db.PurchaseOrders.Add(purchaseOrder);

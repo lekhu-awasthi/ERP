@@ -5,7 +5,8 @@ using MediatR;
 namespace ErpApp.Application.Purchasing.Commands.CreatePurchaseOrder;
 
 public sealed record CreatePurchaseOrderCommand(
-    Guid OrganizationId, Guid ContactId, DateOnly Date, string? Reference, IReadOnlyList<PurchaseOrderLineInput> Lines)
+    Guid OrganizationId, Guid ContactId, DateOnly Date, string? Reference, IReadOnlyList<PurchaseOrderLineInput> Lines,
+    decimal DiscountPct = 0)
     : IRequest<CreatePurchaseOrderResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.PurchaseOrderCreate;

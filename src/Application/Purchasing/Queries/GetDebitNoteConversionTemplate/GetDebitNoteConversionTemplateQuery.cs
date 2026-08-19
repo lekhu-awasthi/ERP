@@ -14,4 +14,4 @@ public sealed record GetDebitNoteConversionTemplateQuery(Guid OrganizationId, Gu
 
 public sealed record DebitNoteConversionTemplateDto(
     Guid ContactId, DateOnly Date, string? Reference, Guid? TdsTypeId, DocumentType ReferrerType, Guid ReferrerId,
-    IReadOnlyList<DebitNoteLineInput> Lines);
+    decimal DiscountPct, IReadOnlyList<DebitNoteLineInput> Lines);

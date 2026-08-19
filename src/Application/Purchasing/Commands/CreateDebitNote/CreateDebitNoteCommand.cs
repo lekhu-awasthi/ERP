@@ -13,7 +13,8 @@ public sealed record CreateDebitNoteCommand(
     Guid? TdsTypeId,
     IReadOnlyList<DebitNoteLineInput> Lines,
     DocumentType? ReferrerType = null,
-    Guid? ReferrerId = null)
+    Guid? ReferrerId = null,
+    decimal DiscountPct = 0)
     : IRequest<CreateDebitNoteResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.DebitNoteCreate;

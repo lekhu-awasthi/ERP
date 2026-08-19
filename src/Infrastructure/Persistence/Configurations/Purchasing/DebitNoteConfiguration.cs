@@ -24,6 +24,7 @@ public sealed class DebitNoteConfiguration : IEntityTypeConfiguration<DebitNote>
         builder.Property(x => x.RowVersion).IsRowVersion();
         builder.Property(x => x.ReferrerType).HasConversion<string>().HasMaxLength(30);
         builder.Property(x => x.ReferrerId);
+        builder.Property(x => x.DiscountPct).HasPrecision(18, 4).IsRequired();
 
         builder.HasOne<Contact>().WithMany().HasForeignKey(x => x.ContactId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<TdsType>().WithMany().HasForeignKey(x => x.TdsTypeId).OnDelete(DeleteBehavior.Restrict);

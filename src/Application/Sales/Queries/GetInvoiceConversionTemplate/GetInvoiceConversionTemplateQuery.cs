@@ -23,4 +23,5 @@ public sealed record InvoiceConversionTemplateDto(
     string? Reference,
     DocumentType ReferrerType,
     Guid ReferrerId,
+    decimal DiscountPct,
     IReadOnlyList<InvoiceLineInput> Lines);

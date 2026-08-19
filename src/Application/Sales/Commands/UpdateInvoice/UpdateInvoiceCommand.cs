@@ -6,7 +6,7 @@ namespace ErpApp.Application.Sales.Commands.UpdateInvoice;
 
 public sealed record UpdateInvoiceCommand(
     Guid OrganizationId, Guid Id, Guid ContactId, Guid WarehouseId, DateOnly Date, string? Reference,
-    IReadOnlyList<InvoiceLineInput> Lines)
+    IReadOnlyList<InvoiceLineInput> Lines, decimal DiscountPct = 0)
     : IRequest<UpdateInvoiceResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.InvoiceEdit;

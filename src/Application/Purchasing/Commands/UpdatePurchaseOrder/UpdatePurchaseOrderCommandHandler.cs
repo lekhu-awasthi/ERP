@@ -27,11 +27,11 @@ public sealed class UpdatePurchaseOrderCommandHandler(IAppDbContext db)
 
         var oldLines = purchaseOrder.Lines.ToList();
 
-        purchaseOrder.UpdateHeader(request.ContactId, request.Date, request.Reference);
+        purchaseOrder.UpdateHeader(request.ContactId, request.Date, request.Reference, request.DiscountPct);
         purchaseOrder.ClearLines();
         foreach (var line in request.Lines)
         {
-            purchaseOrder.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate);
+            purchaseOrder.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);
         }
 
         db.PurchaseOrderLines.RemoveRange(oldLines);
