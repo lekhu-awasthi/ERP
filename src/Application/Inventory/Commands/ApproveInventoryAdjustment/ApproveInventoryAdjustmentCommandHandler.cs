@@ -81,6 +81,7 @@ public sealed class ApproveInventoryAdjustmentCommandHandler(
                 var averageUnitCost = await stockLedgerService.ConsumeAsync(
                     request.OrganizationId, line.ProductId, inventoryAdjustment.WarehouseId, line.Quantity,
                     DocumentType.InventoryAdjustment, inventoryAdjustment.Id, inventoryAdjustment.Date, cancellationToken);
+                line.RecordConsumedUnitCost(averageUnitCost);
                 decreaseAmount += line.Quantity * averageUnitCost;
             }
         }

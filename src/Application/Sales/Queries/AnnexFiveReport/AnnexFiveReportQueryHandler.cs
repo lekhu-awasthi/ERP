@@ -11,8 +11,13 @@ public sealed class AnnexFiveReportQueryHandler(IAppDbContext db) : IRequestHand
 {
     public async Task<AnnexFiveReportDto> Handle(AnnexFiveReportQuery request, CancellationToken cancellationToken)
     {
+        // Phase 16a: Approved-only used to be the entire filter, which meant IsActive below could
+        // never actually be false -- a Void row never even reached this query. Now both statuses
+        // are pulled so a voided Invoice/CreditNote still appears on the register with
+        // IsActive=false, matching this report's own "flat bill audit log" shape (phase-8f-status.md).
         var invoices = await db.Invoices
-            .Where(x => x.OrganizationId == request.OrganizationId && x.Status == InvoiceStatus.Approved
+            .Where(x => x.OrganizationId == request.OrganizationId
+                && (x.Status == InvoiceStatus.Approved || x.Status == InvoiceStatus.Void)
                 && x.Date >= request.FromDate && x.Date <= request.ToDate)
             .Select(x => new { x.Id, x.ContactId, x.Code, x.Date, x.Status })
             .ToListAsync(cancellationToken);
@@ -22,7 +27,8 @@ public sealed class AnnexFiveReportQueryHandler(IAppDbContext db) : IRequestHand
             .ToListAsync(cancellationToken);
 
         var creditNotes = await db.CreditNotes
-            .Where(x => x.OrganizationId == request.OrganizationId && x.Status == CreditNoteStatus.Approved
+            .Where(x => x.OrganizationId == request.OrganizationId
+                && (x.Status == CreditNoteStatus.Approved || x.Status == CreditNoteStatus.Void)
                 && x.Date >= request.FromDate && x.Date <= request.ToDate)
             .Select(x => new { x.Id, x.ContactId, x.Code, x.Date, x.Status })
             .ToListAsync(cancellationToken);

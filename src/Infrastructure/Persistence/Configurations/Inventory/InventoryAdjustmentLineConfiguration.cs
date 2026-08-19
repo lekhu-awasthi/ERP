@@ -16,6 +16,7 @@ public sealed class InventoryAdjustmentLineConfiguration : IEntityTypeConfigurat
         builder.Property(x => x.Direction).HasConversion<string>().HasMaxLength(10).IsRequired();
         builder.Property(x => x.Quantity).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.UnitCost).HasPrecision(18, 4).IsRequired();
+        builder.Property(x => x.ConsumedUnitCost).HasPrecision(18, 4);
 
         builder.HasOne<Product>().WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
     }

@@ -12,6 +12,15 @@
       } @else {
         <span class="badge bg-warning-subtle text-warning-emphasis">Draft</span>
       }
+      @if (p.status === 'Approved') {
+        <button type="button" class="btn btn-outline-danger btn-sm fw-bold ms-auto" [disabled]="voiding()" (click)="voidPayment()">
+          @if (voiding()) {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+          } @else {
+            <i class="bi bi-x-circle"></i> Void
+          }
+        </button>
+      }
     }
   </div>
 

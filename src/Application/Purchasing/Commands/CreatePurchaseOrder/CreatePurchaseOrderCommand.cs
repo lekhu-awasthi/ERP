@@ -6,7 +6,7 @@ namespace ErpApp.Application.Purchasing.Commands.CreatePurchaseOrder;
 
 public sealed record CreatePurchaseOrderCommand(
     Guid OrganizationId, Guid ContactId, DateOnly Date, string? Reference, IReadOnlyList<PurchaseOrderLineInput> Lines)
-    : IRequest<CreatePurchaseOrderResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<CreatePurchaseOrderResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.PurchaseOrderCreate;
 }

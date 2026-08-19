@@ -40,6 +40,7 @@ export class PurchaseOrderDetailPage {
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
+  protected readonly voiding = signal(false);
   protected readonly converting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly purchaseOrder = signal<PurchaseOrderDetail | null>(null);
@@ -182,6 +183,26 @@ export class PurchaseOrderDetailPage {
         },
       });
     }
+  }
+
+  protected voidPurchaseOrder(): void {
+    if (!window.confirm('Void this purchase order? This cannot be undone.')) {
+      return;
+    }
+
+    this.voiding.set(true);
+    this.errorMessage.set(null);
+
+    this.purchasingService.voidPurchaseOrder(this.organizationId, this.routePurchaseOrderId).subscribe({
+      next: () => {
+        this.voiding.set(false);
+        this.load();
+      },
+      error: (err: unknown) => {
+        this.voiding.set(false);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not void purchase order. Please try again.');
+      },
+    });
   }
 
   protected approve(): void {

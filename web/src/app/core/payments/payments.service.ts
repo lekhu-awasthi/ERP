@@ -13,6 +13,7 @@ import {
   PaymentRequest,
   PaymentStatus,
   UpdatePaymentResult,
+  VoidPaymentResult,
 } from './payments.models';
 
 @Injectable({ providedIn: 'root' })
@@ -44,6 +45,12 @@ export class PaymentsService {
 
   approvePayment(organizationId: string, id: string): Observable<ApprovePaymentResult> {
     return this.http.post<ApprovePaymentResult>(`${this.baseUrl(organizationId)}/payments/${id}/approve`, null, {
+      withCredentials: true,
+    });
+  }
+
+  voidPayment(organizationId: string, id: string): Observable<VoidPaymentResult> {
+    return this.http.post<VoidPaymentResult>(`${this.baseUrl(organizationId)}/payments/${id}/void`, null, {
       withCredentials: true,
     });
   }

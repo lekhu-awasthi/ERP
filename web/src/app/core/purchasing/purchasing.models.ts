@@ -79,6 +79,13 @@ export interface ApprovePurchaseOrderResult {
   approvedAt: string | null;
 }
 
+export interface VoidPurchaseOrderResult {
+  id: string;
+  code: string;
+  status: PurchaseOrderStatus;
+  voidedAt: string | null;
+}
+
 // --- Purchase Bill ---
 
 export interface PurchaseBillLineInput {
@@ -159,6 +166,13 @@ export interface ApprovePurchaseBillResult {
   approvedAt: string | null;
 }
 
+export interface VoidPurchaseBillResult {
+  id: string;
+  code: string;
+  status: PurchaseBillStatus;
+  voidedAt: string | null;
+}
+
 export interface PurchaseBillConversionTemplate {
   contactId: string;
   date: string;
@@ -235,6 +249,13 @@ export interface ApproveExpenseResult {
   approvedAt: string | null;
 }
 
+export interface VoidExpenseResult {
+  id: string;
+  code: string;
+  status: ExpenseStatus;
+  voidedAt: string | null;
+}
+
 // --- Debit Note ---
 
 export interface DebitNoteLineInput {
@@ -299,6 +320,13 @@ export interface ApproveDebitNoteResult {
   code: string;
   status: DebitNoteStatus;
   approvedAt: string | null;
+}
+
+export interface VoidDebitNoteResult {
+  id: string;
+  code: string;
+  status: DebitNoteStatus;
+  voidedAt: string | null;
 }
 
 export interface DebitNoteConversionTemplate {

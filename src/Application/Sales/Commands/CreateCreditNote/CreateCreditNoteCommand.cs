@@ -13,7 +13,7 @@ public sealed record CreateCreditNoteCommand(
     IReadOnlyList<CreditNoteLineInput> Lines,
     DocumentType? ReferrerType = null,
     Guid? ReferrerId = null)
-    : IRequest<CreateCreditNoteResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<CreateCreditNoteResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.CreditNoteCreate;
 }

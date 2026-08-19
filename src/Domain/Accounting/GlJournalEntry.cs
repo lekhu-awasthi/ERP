@@ -58,4 +58,29 @@ public sealed class GlJournalEntry
 
         return entry;
     }
+
+    /// <summary>
+    /// Void lifecycle (roadmap Phase 16a): posts a second, mirror-image entry against the same
+    /// SourceDocumentType/SourceDocumentId -- every Debit/Credit swapped, line for line -- rather
+    /// than mutating or deleting <paramref name="original"/>. GlJournalEntry stays append-only
+    /// (no UPDATE/DELETE path exists anywhere in this codebase for a posted entry), and mirroring
+    /// the original's own already-posted lines exactly (not recomputing from a posting rule) is
+    /// foolproof against the Phase 6 bug #3 failure mode -- there is no way for a swap-every-line
+    /// mirror to leave any *individual* account it touched unbalanced, unlike a hand-written
+    /// reverse posting rule that has to remember every leg (TDS Payable, a separate Inventory
+    /// account, etc.) the original touched. Every existing report (Trial Balance/Balance Sheet/
+    /// Income Statement) sums GlLines by account with no per-document uniqueness assumption, so a
+    /// second entry for the same source document nets to zero by construction, with no report code
+    /// changed for this to work. GlJournalEntryConfiguration's own index on
+    /// (SourceDocumentType, SourceDocumentId) is non-unique, so a second entry for the same
+    /// document id is a schema no-op, not a migration.
+    /// </summary>
+    public static GlJournalEntry PostReversalOf(GlJournalEntry original)
+    {
+        var mirroredLines = original.Lines
+            .Select(x => new GlLineInput(x.AccountId, x.Credit, x.Debit))
+            .ToList();
+
+        return Post(original.OrganizationId, original.SourceDocumentType, original.SourceDocumentId, mirroredLines);
+    }
 }

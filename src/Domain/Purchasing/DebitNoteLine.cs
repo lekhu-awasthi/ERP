@@ -15,6 +15,14 @@ public sealed class DebitNoteLine
     public decimal Amount { get; private set; }
     public decimal VatAmount { get; private set; }
 
+    /// <summary>Null until ApproveDebitNoteCommandHandler actually consumes FIFO stock for this
+    /// line reversing a source PurchaseBill (a Service line, or a standalone DebitNote, never gets
+    /// one). Set once, from IStockLedgerService.ConsumeAsync's actual weighted-average result --
+    /// mirrors InvoiceLine.CogsUnitCost's precedent -- so voiding this DebitNote can put stock back
+    /// at the exact cost it left at, instead of guessing from whatever FIFO layers happen to exist
+    /// at Void time.</summary>
+    public decimal? ConsumedUnitCost { get; private set; }
+
     private DebitNoteLine()
     {
     }
@@ -35,4 +43,10 @@ public sealed class DebitNoteLine
             VatAmount = amount * vatRate.ToPercent(),
         };
     }
+
+    /// <summary>Called once, from ApproveDebitNoteCommandHandler right after
+    /// IStockLedgerService.ConsumeAsync returns this line's actual weighted-average cost. Public
+    /// (not internal) for the same Domain/Application assembly-boundary reason InvoiceLine.
+    /// RecordCogsUnitCost is public -- see CLAUDE.md's known-gotchas list.</summary>
+    public void RecordConsumedUnitCost(decimal unitCost) => ConsumedUnitCost = unitCost;
 }

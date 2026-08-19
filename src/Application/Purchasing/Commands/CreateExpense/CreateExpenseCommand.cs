@@ -14,7 +14,7 @@ public sealed record CreateExpenseCommand(
     bool TdsApplicable,
     Guid? TdsTypeId,
     IReadOnlyList<ExpenseLineInput> Lines)
-    : IRequest<CreateExpenseResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<CreateExpenseResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.ExpenseCreate;
 }

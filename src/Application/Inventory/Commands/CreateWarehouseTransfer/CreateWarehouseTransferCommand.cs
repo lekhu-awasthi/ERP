@@ -11,7 +11,7 @@ public sealed record CreateWarehouseTransferCommand(
     DateOnly Date,
     string? Reference,
     IReadOnlyList<WarehouseTransferLineInput> Lines)
-    : IRequest<CreateWarehouseTransferResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<CreateWarehouseTransferResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.WarehouseTransferCreate;
 }

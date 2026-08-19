@@ -42,6 +42,9 @@ public static class DependencyInjection
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Common.Behaviors.LoggingBehavior<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Common.Behaviors.ValidationBehavior<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Common.Behaviors.AuthorizationBehavior<,>));
+        // Lock date (roadmap Phase 16a, NFR-3.4) runs last -- after permission is confirmed, before
+        // the handler itself -- see LockDateBehavior's own doc comment.
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Common.Behaviors.LockDateBehavior<,>));
 
         // ListLookupsQuery<TLookup>/DeleteLookupCommand<TLookup> (Configuration foundation,
         // architecture-spec.md §4.10) are generic in only one of IRequestHandler<,>'s two type

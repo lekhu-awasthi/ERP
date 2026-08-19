@@ -9,6 +9,8 @@ using ErpApp.Application.Accounting.Commands.UpdateAccount;
 using ErpApp.Application.Accounting.Commands.UpdateAccountGroup;
 using ErpApp.Application.Accounting.Commands.UpdateCashTransfer;
 using ErpApp.Application.Accounting.Commands.UpdateJournalVoucher;
+using ErpApp.Application.Accounting.Commands.VoidCashTransfer;
+using ErpApp.Application.Accounting.Commands.VoidJournalVoucher;
 using ErpApp.Application.Accounting.Queries.BalanceSheet;
 using ErpApp.Application.Accounting.Queries.GetAccount;
 using ErpApp.Application.Accounting.Queries.GetCashTransfer;
@@ -145,6 +147,13 @@ public static class AccountingEndpoints
             return Results.Ok(result);
         });
 
+        group.MapPost("/journal-vouchers/{id:guid}/void", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new VoidJournalVoucherCommand(organizationId, id), ct);
+            return Results.Ok(result);
+        });
+
         group.MapPost("/journal-vouchers/preview-gl-posting", async (
             Guid organizationId, PreviewGlPostingRequest request, ISender sender, CancellationToken ct) =>
         {
@@ -192,6 +201,13 @@ public static class AccountingEndpoints
             Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new ApproveCashTransferCommand(organizationId, id), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/cash-transfers/{id:guid}/void", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new VoidCashTransferCommand(organizationId, id), ct);
             return Results.Ok(result);
         });
     }

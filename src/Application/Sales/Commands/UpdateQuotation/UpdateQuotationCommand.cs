@@ -7,7 +7,7 @@ namespace ErpApp.Application.Sales.Commands.UpdateQuotation;
 public sealed record UpdateQuotationCommand(
     Guid OrganizationId, Guid Id, Guid ContactId, DateOnly Date, DateOnly? ExpiryDate, string? Reference,
     IReadOnlyList<QuotationLineInput> Lines)
-    : IRequest<UpdateQuotationResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<UpdateQuotationResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.QuotationEdit;
 }

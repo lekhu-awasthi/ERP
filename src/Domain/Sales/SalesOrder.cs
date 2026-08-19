@@ -25,6 +25,8 @@ public sealed class SalesOrder
     public SalesOrderStatus Status { get; private set; }
     public Guid? ApprovedByUserId { get; private set; }
     public DateTimeOffset? ApprovedAt { get; private set; }
+    public Guid? VoidedByUserId { get; private set; }
+    public DateTimeOffset? VoidedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
 
@@ -93,11 +95,27 @@ public sealed class SalesOrder
         Code = code;
     }
 
+    public void Void(Guid voidedByUserId)
+    {
+        EnsureApproved();
+        Status = SalesOrderStatus.Void;
+        VoidedByUserId = voidedByUserId;
+        VoidedAt = DateTimeOffset.UtcNow;
+    }
+
     private void EnsureDraft()
     {
         if (Status != SalesOrderStatus.Draft)
         {
             throw new InvalidOperationException("This sales order is no longer in Draft status.");
+        }
+    }
+
+    private void EnsureApproved()
+    {
+        if (Status != SalesOrderStatus.Approved)
+        {
+            throw new InvalidOperationException("Only an Approved sales order can be voided.");
         }
     }
 }

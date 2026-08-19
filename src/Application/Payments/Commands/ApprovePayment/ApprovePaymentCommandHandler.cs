@@ -7,6 +7,8 @@ using ErpApp.Application.Payments.Posting;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Payments;
+using ErpApp.Domain.Purchasing;
+using ErpApp.Domain.Sales;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -32,6 +34,39 @@ public sealed class ApprovePaymentCommandHandler(
         if (payment.Allocations.Count == 0 || payment.Allocations.Sum(x => x.Amount) != payment.Amount)
         {
             throw new ConflictException("A payment's allocations must add up to exactly its Amount to be approved.");
+        }
+
+        // Phase 16a: EnsureAllocationTargetsExistAsync only ran at Create/Update time -- a target
+        // Invoice/PurchaseBill that was Approved when this Payment was drafted can be voided
+        // afterward, and nothing re-checked that before this fix. Re-validate right before
+        // actually posting against it, not just when the allocation was first typed in.
+        var invoiceIds = payment.Allocations.Where(x => x.TargetDocumentType == DocumentType.Invoice)
+            .Select(x => x.TargetDocumentId).Distinct().ToList();
+        if (invoiceIds.Count > 0)
+        {
+            var approvedCount = await db.Invoices.CountAsync(
+                x => invoiceIds.Contains(x.Id) && x.OrganizationId == request.OrganizationId && x.Status == InvoiceStatus.Approved,
+                cancellationToken);
+            if (approvedCount != invoiceIds.Count)
+            {
+                throw new ConflictException(
+                    "One or more allocation target invoices are no longer Approved (voided since this payment was drafted).");
+            }
+        }
+
+        var purchaseBillIds = payment.Allocations.Where(x => x.TargetDocumentType == DocumentType.PurchaseBill)
+            .Select(x => x.TargetDocumentId).Distinct().ToList();
+        if (purchaseBillIds.Count > 0)
+        {
+            var approvedCount = await db.PurchaseBills.CountAsync(
+                x => purchaseBillIds.Contains(x.Id) && x.OrganizationId == request.OrganizationId
+                    && x.Status == PurchaseBillStatus.Approved,
+                cancellationToken);
+            if (approvedCount != purchaseBillIds.Count)
+            {
+                throw new ConflictException(
+                    "One or more allocation target purchase bills are no longer Approved (voided since this payment was drafted).");
+            }
         }
 
         var postingInput = await PaymentAccountResolver.ResolveAsync(

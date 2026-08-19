@@ -29,6 +29,8 @@ public sealed class InventoryAdjustment
     public InventoryAdjustmentStatus Status { get; private set; }
     public Guid? ApprovedByUserId { get; private set; }
     public DateTimeOffset? ApprovedAt { get; private set; }
+    public Guid? VoidedByUserId { get; private set; }
+    public DateTimeOffset? VoidedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
 
@@ -99,11 +101,27 @@ public sealed class InventoryAdjustment
         Code = code;
     }
 
+    public void Void(Guid voidedByUserId)
+    {
+        EnsureApproved();
+        Status = InventoryAdjustmentStatus.Void;
+        VoidedByUserId = voidedByUserId;
+        VoidedAt = DateTimeOffset.UtcNow;
+    }
+
     private void EnsureDraft()
     {
         if (Status != InventoryAdjustmentStatus.Draft)
         {
             throw new InvalidOperationException("This inventory adjustment is no longer in Draft status.");
+        }
+    }
+
+    private void EnsureApproved()
+    {
+        if (Status != InventoryAdjustmentStatus.Approved)
+        {
+            throw new InvalidOperationException("Only an Approved inventory adjustment can be voided.");
         }
     }
 }

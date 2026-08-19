@@ -11,6 +11,10 @@ using ErpApp.Application.Purchasing.Commands.UpdateDebitNote;
 using ErpApp.Application.Purchasing.Commands.UpdateExpense;
 using ErpApp.Application.Purchasing.Commands.UpdatePurchaseBill;
 using ErpApp.Application.Purchasing.Commands.UpdatePurchaseOrder;
+using ErpApp.Application.Purchasing.Commands.VoidDebitNote;
+using ErpApp.Application.Purchasing.Commands.VoidExpense;
+using ErpApp.Application.Purchasing.Commands.VoidPurchaseBill;
+using ErpApp.Application.Purchasing.Commands.VoidPurchaseOrder;
 using ErpApp.Application.Purchasing.Queries.GetDebitNote;
 using ErpApp.Application.Purchasing.Queries.GetDebitNoteConversionTemplate;
 using ErpApp.Application.Purchasing.Queries.GetExpense;
@@ -85,6 +89,13 @@ public static class PurchasingEndpoints
             var result = await sender.Send(new ApprovePurchaseOrderCommand(organizationId, id), ct);
             return Results.Ok(result);
         });
+
+        group.MapPost("/purchase-orders/{id:guid}/void", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new VoidPurchaseOrderCommand(organizationId, id), ct);
+            return Results.Ok(result);
+        });
     }
 
     private static void MapPurchaseBillEndpoints(RouteGroupBuilder group)
@@ -155,6 +166,13 @@ public static class PurchasingEndpoints
             return Results.Ok(result);
         });
 
+        group.MapPost("/purchase-bills/{id:guid}/void", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new VoidPurchaseBillCommand(organizationId, id), ct);
+            return Results.Ok(result);
+        });
+
         group.MapPost("/purchase-bills/preview-gl-posting", async (
             Guid organizationId, PreviewPurchaseBillGlPostingRequest request, ISender sender, CancellationToken ct) =>
         {
@@ -216,6 +234,13 @@ public static class PurchasingEndpoints
             return Results.Ok(result);
         });
 
+        group.MapPost("/expenses/{id:guid}/void", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new VoidExpenseCommand(organizationId, id), ct);
+            return Results.Ok(result);
+        });
+
         group.MapPost("/expenses/preview-gl-posting", async (
             Guid organizationId, PreviewExpenseGlPostingRequest request, ISender sender, CancellationToken ct) =>
         {
@@ -266,6 +291,13 @@ public static class PurchasingEndpoints
             Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new ApproveDebitNoteCommand(organizationId, id), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/debit-notes/{id:guid}/void", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new VoidDebitNoteCommand(organizationId, id), ct);
             return Results.Ok(result);
         });
 

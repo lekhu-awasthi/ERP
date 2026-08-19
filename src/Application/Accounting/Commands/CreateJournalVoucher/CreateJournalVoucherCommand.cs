@@ -6,7 +6,7 @@ namespace ErpApp.Application.Accounting.Commands.CreateJournalVoucher;
 
 public sealed record CreateJournalVoucherCommand(
     Guid OrganizationId, DateOnly Date, string? Reference, IReadOnlyList<JournalVoucherLineInput> Lines)
-    : IRequest<CreateJournalVoucherResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<CreateJournalVoucherResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.JournalVoucherCreate;
 }

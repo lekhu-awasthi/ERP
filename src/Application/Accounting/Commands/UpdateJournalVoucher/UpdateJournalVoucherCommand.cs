@@ -6,7 +6,7 @@ namespace ErpApp.Application.Accounting.Commands.UpdateJournalVoucher;
 
 public sealed record UpdateJournalVoucherCommand(
     Guid OrganizationId, Guid Id, DateOnly Date, string? Reference, IReadOnlyList<JournalVoucherLineInput> Lines)
-    : IRequest<UpdateJournalVoucherResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<UpdateJournalVoucherResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.JournalVoucherEdit;
 }

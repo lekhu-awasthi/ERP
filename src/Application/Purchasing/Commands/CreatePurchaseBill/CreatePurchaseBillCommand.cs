@@ -20,7 +20,7 @@ public sealed record CreatePurchaseBillCommand(
     IReadOnlyList<PurchaseBillLineInput> Lines,
     DocumentType? ReferrerType = null,
     Guid? ReferrerId = null)
-    : IRequest<CreatePurchaseBillResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<CreatePurchaseBillResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.PurchaseBillCreate;
 }

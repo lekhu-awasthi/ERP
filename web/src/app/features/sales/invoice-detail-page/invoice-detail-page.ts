@@ -51,6 +51,7 @@ export class InvoiceDetailPage {
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
   protected readonly converting = signal(false);
+  protected readonly voiding = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly invoice = signal<InvoiceDetail | null>(null);
   protected readonly customers = signal<Contact[]>([]);
@@ -271,6 +272,26 @@ export class InvoiceDetailPage {
       error: (err: unknown) => {
         this.converting.set(false);
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not convert invoice to credit note.');
+      },
+    });
+  }
+
+  protected voidInvoice(): void {
+    if (!window.confirm('Void this invoice? This reverses its GL posting and restores consumed stock, and cannot be undone.')) {
+      return;
+    }
+
+    this.voiding.set(true);
+    this.errorMessage.set(null);
+
+    this.salesService.voidInvoice(this.organizationId, this.routeInvoiceId).subscribe({
+      next: () => {
+        this.voiding.set(false);
+        this.load();
+      },
+      error: (err: unknown) => {
+        this.voiding.set(false);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not void invoice. Please try again.');
       },
     });
   }

@@ -15,7 +15,7 @@ public sealed record UpdateExpenseCommand(
     bool TdsApplicable,
     Guid? TdsTypeId,
     IReadOnlyList<ExpenseLineInput> Lines)
-    : IRequest<UpdateExpenseResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<UpdateExpenseResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.ExpenseEdit;
 }

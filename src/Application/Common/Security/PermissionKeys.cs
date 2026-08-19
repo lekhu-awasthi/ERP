@@ -293,4 +293,30 @@ public static class PermissionKeys
 
     public const string DealStageView = "Crm.DealStage.View";
     public const string DealStageManage = "Crm.DealStage.Manage";
+
+    // Phase 16a (Void lifecycle + lock-date enforcement) -- one *.Void key per ApprovableTransaction
+    // type, added alongside each type's existing {View,Create,Edit,Approve} set rather than folded
+    // into Approve: voiding an already-Approved document reverses posted GL/consumed-or-created
+    // stock and is at least as consequential as approving it in the first place, so it gets its own
+    // maker-checker grant. Admin-granted/Member-denied by default for every one of these 13 keys
+    // (RolePermissionConfiguration.HasData), the same default every *.Approve key already uses.
+    public const string QuotationVoid = "Sales.Quotation.Void";
+    public const string SalesOrderVoid = "Sales.SalesOrder.Void";
+    public const string InvoiceVoid = "Sales.Invoice.Void";
+    public const string CreditNoteVoid = "Sales.CreditNote.Void";
+    public const string PaymentVoid = "Payments.Payment.Void";
+    public const string PurchaseOrderVoid = "Purchasing.PurchaseOrder.Void";
+    public const string PurchaseBillVoid = "Purchasing.PurchaseBill.Void";
+    public const string ExpenseVoid = "Purchasing.Expense.Void";
+    public const string DebitNoteVoid = "Purchasing.DebitNote.Void";
+    public const string JournalVoucherVoid = "Accounting.JournalVoucher.Void";
+    public const string CashTransferVoid = "Accounting.CashTransfer.Void";
+    public const string WarehouseTransferVoid = "Inventory.WarehouseTransfer.Void";
+    public const string InventoryAdjustmentVoid = "Inventory.InventoryAdjustment.Void";
+
+    // Lock date (NFR-3.4) -- Admin-only, same "one deliberate exception to Member-gets-routine-
+    // working-data" bar Phase 14's Tenancy.Role.* keys set: letting a Member move or clear the
+    // lock date would let them reopen exactly the backdated-write window this feature exists to
+    // close.
+    public const string OrganizationLockDateManage = "Tenancy.Organization.LockDateManage";
 }

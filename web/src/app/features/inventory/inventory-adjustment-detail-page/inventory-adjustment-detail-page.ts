@@ -49,6 +49,7 @@ export class InventoryAdjustmentDetailPage {
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
+  protected readonly voiding = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly inventoryAdjustment = signal<InventoryAdjustmentDetail | null>(null);
   protected readonly products = signal<Product[]>([]);
@@ -184,6 +185,26 @@ export class InventoryAdjustmentDetailPage {
         },
       });
     }
+  }
+
+  protected voidInventoryAdjustment(): void {
+    if (!window.confirm('Void this inventory adjustment? This reverses its GL posting and stock effect, and cannot be undone; it will be rejected if any increased stock has already left the warehouse.')) {
+      return;
+    }
+
+    this.voiding.set(true);
+    this.errorMessage.set(null);
+
+    this.inventoryService.voidInventoryAdjustment(this.organizationId, this.routeInventoryAdjustmentId).subscribe({
+      next: () => {
+        this.voiding.set(false);
+        this.load();
+      },
+      error: (err: unknown) => {
+        this.voiding.set(false);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not void inventory adjustment. Please try again.');
+      },
+    });
   }
 
   protected approve(): void {

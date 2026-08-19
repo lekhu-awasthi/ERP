@@ -33,6 +33,8 @@ public sealed class Payment
     public PaymentStatus Status { get; private set; }
     public Guid? ApprovedByUserId { get; private set; }
     public DateTimeOffset? ApprovedAt { get; private set; }
+    public Guid? VoidedByUserId { get; private set; }
+    public DateTimeOffset? VoidedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
 
@@ -124,11 +126,32 @@ public sealed class Payment
         Code = code;
     }
 
+    /// <summary>Voiding releases every allocation implicitly -- every outstanding-amount
+    /// computation in this codebase (GetDefaultPaymentAllocationsQuery, ContactAgeingSummary/
+    /// StatementQuery) already filters its "already allocated" join to
+    /// Payment.Status==Approved, so a Void payment's Allocations rows stop counting the instant
+    /// this flips, with no separate release step needed (roadmap Phase 16a).</summary>
+    public void Void(Guid voidedByUserId)
+    {
+        EnsureApproved();
+        Status = PaymentStatus.Void;
+        VoidedByUserId = voidedByUserId;
+        VoidedAt = DateTimeOffset.UtcNow;
+    }
+
     private void EnsureDraft()
     {
         if (Status != PaymentStatus.Draft)
         {
             throw new InvalidOperationException("This payment is no longer in Draft status.");
+        }
+    }
+
+    private void EnsureApproved()
+    {
+        if (Status != PaymentStatus.Approved)
+        {
+            throw new InvalidOperationException("Only an Approved payment can be voided.");
         }
     }
 }

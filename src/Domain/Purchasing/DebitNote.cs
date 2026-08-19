@@ -34,6 +34,8 @@ public sealed class DebitNote
     public DebitNoteStatus Status { get; private set; }
     public Guid? ApprovedByUserId { get; private set; }
     public DateTimeOffset? ApprovedAt { get; private set; }
+    public Guid? VoidedByUserId { get; private set; }
+    public DateTimeOffset? VoidedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
     public DocumentType? ReferrerType { get; private set; }
@@ -115,11 +117,27 @@ public sealed class DebitNote
         Code = code;
     }
 
+    public void Void(Guid voidedByUserId)
+    {
+        EnsureApproved();
+        Status = DebitNoteStatus.Void;
+        VoidedByUserId = voidedByUserId;
+        VoidedAt = DateTimeOffset.UtcNow;
+    }
+
     private void EnsureDraft()
     {
         if (Status != DebitNoteStatus.Draft)
         {
             throw new InvalidOperationException("This debit note is no longer in Draft status.");
+        }
+    }
+
+    private void EnsureApproved()
+    {
+        if (Status != DebitNoteStatus.Approved)
+        {
+            throw new InvalidOperationException("Only an Approved debit note can be voided.");
         }
     }
 }

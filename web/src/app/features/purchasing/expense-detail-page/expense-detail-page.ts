@@ -48,6 +48,7 @@ export class ExpenseDetailPage {
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
+  protected readonly voiding = signal(false);
   protected readonly previewingGl = signal(false);
   protected readonly glPreview = signal<{ accountId: string; debit: number; credit: number }[] | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
@@ -220,6 +221,26 @@ export class ExpenseDetailPage {
         },
       });
     }
+  }
+
+  protected voidExpense(): void {
+    if (!window.confirm('Void this expense? This reverses its GL posting and cannot be undone.')) {
+      return;
+    }
+
+    this.voiding.set(true);
+    this.errorMessage.set(null);
+
+    this.purchasingService.voidExpense(this.organizationId, this.routeExpenseId).subscribe({
+      next: () => {
+        this.voiding.set(false);
+        this.load();
+      },
+      error: (err: unknown) => {
+        this.voiding.set(false);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not void expense. Please try again.');
+      },
+    });
   }
 
   protected approve(): void {

@@ -63,4 +63,25 @@ public interface IStockLedgerService
     /// </summary>
     Task<decimal> PreviewConsumptionCostAsync(
         Guid organizationId, Guid productId, Guid warehouseId, decimal quantity, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Void lifecycle (roadmap Phase 16a): undoes every layer <see cref="IncrementAsync"/> created
+    /// for (sourceDocumentType, sourceDocumentId) -- a voided PurchaseBill's own layers, a voided
+    /// WarehouseTransfer's destination-side layer, a voided InventoryAdjustment Increase line's
+    /// layer, or a voided CreditNote's restock layer. Throws
+    /// <see cref="Common.Exceptions.ConflictException"/> (409, not a partial unwind) if ANY of
+    /// those layers has already been partly or fully consumed by a *later* document (QuantityRemaining
+    /// less than QuantityIn) -- the roadmap's explicit requirement that a partly-consumed layer's
+    /// source document must be rejected, not silently unwound underneath whatever consumed it.
+    /// QuantityIn is left untouched (kardex history stays reconstructable, same as Consume's own
+    /// invariant); only QuantityRemaining drops to zero, with a StockMovement Out row recorded for
+    /// audit. A no-op (no layers found) is not an error -- a voided document whose lines were all
+    /// Service products, or a standalone reversal that never touched stock, has nothing to undo.
+    /// </summary>
+    Task ReverseIncrementAsync(
+        Guid organizationId,
+        DocumentType sourceDocumentType,
+        Guid sourceDocumentId,
+        DateOnly transactionDate,
+        CancellationToken cancellationToken);
 }

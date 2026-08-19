@@ -45,6 +45,7 @@ export class QuotationDetailPage {
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
+  protected readonly voiding = signal(false);
   protected readonly converting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly quotation = signal<QuotationDetail | null>(null);
@@ -204,6 +205,26 @@ export class QuotationDetailPage {
       error: (err: unknown) => {
         this.approving.set(false);
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not approve quotation. Please try again.');
+      },
+    });
+  }
+
+  protected voidQuotation(): void {
+    if (!window.confirm('Void this quotation? This cannot be undone.')) {
+      return;
+    }
+
+    this.voiding.set(true);
+    this.errorMessage.set(null);
+
+    this.salesService.voidQuotation(this.organizationId, this.routeQuotationId).subscribe({
+      next: () => {
+        this.voiding.set(false);
+        this.load();
+      },
+      error: (err: unknown) => {
+        this.voiding.set(false);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not void quotation. Please try again.');
       },
     });
   }

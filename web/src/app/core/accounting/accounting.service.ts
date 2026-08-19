@@ -9,6 +9,8 @@ import {
   AccountRootType,
   ApproveCashTransferResult,
   ApproveJournalVoucherResult,
+  VoidCashTransferResult,
+  VoidJournalVoucherResult,
   BalanceSheetDto,
   CashTransfer,
   CashTransferDetail,
@@ -128,6 +130,14 @@ export class AccountingService {
     );
   }
 
+  voidJournalVoucher(organizationId: string, id: string): Observable<VoidJournalVoucherResult> {
+    return this.http.post<VoidJournalVoucherResult>(
+      `${this.baseUrl(organizationId)}/journal-vouchers/${id}/void`,
+      null,
+      { withCredentials: true },
+    );
+  }
+
   previewGlPosting(
     organizationId: string,
     date: string,
@@ -174,6 +184,14 @@ export class AccountingService {
   approveCashTransfer(organizationId: string, id: string): Observable<ApproveCashTransferResult> {
     return this.http.post<ApproveCashTransferResult>(
       `${this.baseUrl(organizationId)}/cash-transfers/${id}/approve`,
+      null,
+      { withCredentials: true },
+    );
+  }
+
+  voidCashTransfer(organizationId: string, id: string): Observable<VoidCashTransferResult> {
+    return this.http.post<VoidCashTransferResult>(
+      `${this.baseUrl(organizationId)}/cash-transfers/${id}/void`,
       null,
       { withCredentials: true },
     );

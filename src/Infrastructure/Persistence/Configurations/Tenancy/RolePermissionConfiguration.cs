@@ -355,6 +355,41 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid MemberDealStageViewId = Guid.Parse("00000000-0000-0000-0002-0000000000df");
     private static readonly Guid MemberDealStageManageId = Guid.Parse("00000000-0000-0000-0002-0000000000e0");
 
+    // Phase 16a (Void lifecycle + lock-date enforcement) -- every *.Void key is Admin-granted/
+    // Member-denied, the same maker-checker default every *.Approve key above already uses (see
+    // PermissionKeys.QuotationVoid's doc comment). Tenancy.Organization.LockDateManage is
+    // Admin-only for both View and Manage (one key covers both, same single-key shape
+    // AccountingDefaultsManage already uses for its own get+update pair).
+    private static readonly Guid AdminQuotationVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000e1");
+    private static readonly Guid MemberQuotationVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000e2");
+    private static readonly Guid AdminSalesOrderVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000e3");
+    private static readonly Guid MemberSalesOrderVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000e4");
+    private static readonly Guid AdminInvoiceVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000e5");
+    private static readonly Guid MemberInvoiceVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000e6");
+    private static readonly Guid AdminCreditNoteVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000e7");
+    private static readonly Guid MemberCreditNoteVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000e8");
+    private static readonly Guid AdminPaymentVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000e9");
+    private static readonly Guid MemberPaymentVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000ea");
+    private static readonly Guid AdminPurchaseOrderVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000eb");
+    private static readonly Guid MemberPurchaseOrderVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000ec");
+    private static readonly Guid AdminPurchaseBillVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000ed");
+    private static readonly Guid MemberPurchaseBillVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000ee");
+    private static readonly Guid AdminExpenseVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000ef");
+    private static readonly Guid MemberExpenseVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000f0");
+    private static readonly Guid AdminDebitNoteVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000f1");
+    private static readonly Guid MemberDebitNoteVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000f2");
+    private static readonly Guid AdminJournalVoucherVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000f3");
+    private static readonly Guid MemberJournalVoucherVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000f4");
+    private static readonly Guid AdminCashTransferVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000f5");
+    private static readonly Guid MemberCashTransferVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000f6");
+    private static readonly Guid AdminWarehouseTransferVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000f7");
+    private static readonly Guid MemberWarehouseTransferVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000f8");
+    private static readonly Guid AdminInventoryAdjustmentVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000f9");
+    private static readonly Guid MemberInventoryAdjustmentVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000fa");
+
+    private static readonly Guid AdminOrganizationLockDateManageId = Guid.Parse("00000000-0000-0000-0002-0000000000fb");
+    private static readonly Guid MemberOrganizationLockDateManageId = Guid.Parse("00000000-0000-0000-0002-0000000000fc");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -639,6 +674,38 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminDealStageViewId, Role.AdminId, PermissionKeys.DealStageView, true),
             RolePermission.Create(AdminDealStageManageId, Role.AdminId, PermissionKeys.DealStageManage, true),
             RolePermission.Create(MemberDealStageViewId, Role.MemberId, PermissionKeys.DealStageView, true),
-            RolePermission.Create(MemberDealStageManageId, Role.MemberId, PermissionKeys.DealStageManage, false));
+            RolePermission.Create(MemberDealStageManageId, Role.MemberId, PermissionKeys.DealStageManage, false),
+
+            RolePermission.Create(AdminQuotationVoidId, Role.AdminId, PermissionKeys.QuotationVoid, true),
+            RolePermission.Create(MemberQuotationVoidId, Role.MemberId, PermissionKeys.QuotationVoid, false),
+            RolePermission.Create(AdminSalesOrderVoidId, Role.AdminId, PermissionKeys.SalesOrderVoid, true),
+            RolePermission.Create(MemberSalesOrderVoidId, Role.MemberId, PermissionKeys.SalesOrderVoid, false),
+            RolePermission.Create(AdminInvoiceVoidId, Role.AdminId, PermissionKeys.InvoiceVoid, true),
+            RolePermission.Create(MemberInvoiceVoidId, Role.MemberId, PermissionKeys.InvoiceVoid, false),
+            RolePermission.Create(AdminCreditNoteVoidId, Role.AdminId, PermissionKeys.CreditNoteVoid, true),
+            RolePermission.Create(MemberCreditNoteVoidId, Role.MemberId, PermissionKeys.CreditNoteVoid, false),
+            RolePermission.Create(AdminPaymentVoidId, Role.AdminId, PermissionKeys.PaymentVoid, true),
+            RolePermission.Create(MemberPaymentVoidId, Role.MemberId, PermissionKeys.PaymentVoid, false),
+            RolePermission.Create(AdminPurchaseOrderVoidId, Role.AdminId, PermissionKeys.PurchaseOrderVoid, true),
+            RolePermission.Create(MemberPurchaseOrderVoidId, Role.MemberId, PermissionKeys.PurchaseOrderVoid, false),
+            RolePermission.Create(AdminPurchaseBillVoidId, Role.AdminId, PermissionKeys.PurchaseBillVoid, true),
+            RolePermission.Create(MemberPurchaseBillVoidId, Role.MemberId, PermissionKeys.PurchaseBillVoid, false),
+            RolePermission.Create(AdminExpenseVoidId, Role.AdminId, PermissionKeys.ExpenseVoid, true),
+            RolePermission.Create(MemberExpenseVoidId, Role.MemberId, PermissionKeys.ExpenseVoid, false),
+            RolePermission.Create(AdminDebitNoteVoidId, Role.AdminId, PermissionKeys.DebitNoteVoid, true),
+            RolePermission.Create(MemberDebitNoteVoidId, Role.MemberId, PermissionKeys.DebitNoteVoid, false),
+            RolePermission.Create(AdminJournalVoucherVoidId, Role.AdminId, PermissionKeys.JournalVoucherVoid, true),
+            RolePermission.Create(MemberJournalVoucherVoidId, Role.MemberId, PermissionKeys.JournalVoucherVoid, false),
+            RolePermission.Create(AdminCashTransferVoidId, Role.AdminId, PermissionKeys.CashTransferVoid, true),
+            RolePermission.Create(MemberCashTransferVoidId, Role.MemberId, PermissionKeys.CashTransferVoid, false),
+            RolePermission.Create(AdminWarehouseTransferVoidId, Role.AdminId, PermissionKeys.WarehouseTransferVoid, true),
+            RolePermission.Create(MemberWarehouseTransferVoidId, Role.MemberId, PermissionKeys.WarehouseTransferVoid, false),
+            RolePermission.Create(AdminInventoryAdjustmentVoidId, Role.AdminId, PermissionKeys.InventoryAdjustmentVoid, true),
+            RolePermission.Create(MemberInventoryAdjustmentVoidId, Role.MemberId, PermissionKeys.InventoryAdjustmentVoid, false),
+
+            RolePermission.Create(
+                AdminOrganizationLockDateManageId, Role.AdminId, PermissionKeys.OrganizationLockDateManage, true),
+            RolePermission.Create(
+                MemberOrganizationLockDateManageId, Role.MemberId, PermissionKeys.OrganizationLockDateManage, false));
     }
 }

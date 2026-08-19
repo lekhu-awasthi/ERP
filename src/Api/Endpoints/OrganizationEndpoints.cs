@@ -7,6 +7,7 @@ using ErpApp.Application.Tenancy.Commands.CreateRole;
 using ErpApp.Application.Tenancy.Commands.CreateWarehouse;
 using ErpApp.Application.Tenancy.Commands.DeleteRole;
 using ErpApp.Application.Tenancy.Commands.InviteUser;
+using ErpApp.Application.Tenancy.Commands.SetOrganizationLockDate;
 using ErpApp.Application.Tenancy.Commands.UpdateAccountingDefaults;
 using ErpApp.Application.Tenancy.Commands.UpdateMembershipRole;
 using ErpApp.Application.Tenancy.Commands.UpdateRole;
@@ -14,6 +15,7 @@ using ErpApp.Application.Tenancy.Commands.UpdateRolePermissions;
 using ErpApp.Application.Tenancy.Commands.UpdateWarehouse;
 using ErpApp.Application.Tenancy.Queries.CheckWorkspaceNameAvailability;
 using ErpApp.Application.Tenancy.Queries.GetAccountingDefaults;
+using ErpApp.Application.Tenancy.Queries.GetOrganizationLockDate;
 using ErpApp.Application.Tenancy.Queries.GetRolePermissionMatrix;
 using ErpApp.Application.Tenancy.Queries.ListOrganizationMembers;
 using ErpApp.Application.Tenancy.Queries.ListRoles;
@@ -202,6 +204,22 @@ public static class OrganizationEndpoints
                 ct);
             return Results.Ok(result);
         });
+
+        // Phase 16a (lock-date enforcement) -- Admin-only view/set/clear of the LockDate seam
+        // schema'd since Phase 1b.
+        group.MapGet("/{organizationId:guid}/lock-date", async (
+            Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new GetOrganizationLockDateQuery(organizationId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPut("/{organizationId:guid}/lock-date", async (
+            Guid organizationId, SetOrganizationLockDateRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new SetOrganizationLockDateCommand(organizationId, request.LockDate), ct);
+            return Results.Ok(result);
+        });
     }
 
     private sealed record CreateWarehouseRequest(string Name);
@@ -248,4 +266,6 @@ public static class OrganizationEndpoints
     private sealed record UpdateRoleRequest(string Name, string? Description);
 
     private sealed record UpdateRolePermissionsRequest(IReadOnlyDictionary<string, bool> Grants);
+
+    private sealed record SetOrganizationLockDateRequest(DateOnly? LockDate);
 }

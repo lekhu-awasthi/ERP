@@ -10,7 +10,7 @@ public sealed record CreateInventoryAdjustmentCommand(
     DateOnly Date,
     string? Reference,
     IReadOnlyList<InventoryAdjustmentLineInput> Lines)
-    : IRequest<CreateInventoryAdjustmentResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<CreateInventoryAdjustmentResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.InventoryAdjustmentCreate;
 }

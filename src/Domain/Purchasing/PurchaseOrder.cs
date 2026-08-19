@@ -25,6 +25,8 @@ public sealed class PurchaseOrder
     public PurchaseOrderStatus Status { get; private set; }
     public Guid? ApprovedByUserId { get; private set; }
     public DateTimeOffset? ApprovedAt { get; private set; }
+    public Guid? VoidedByUserId { get; private set; }
+    public DateTimeOffset? VoidedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
 
@@ -100,11 +102,29 @@ public sealed class PurchaseOrder
         Status = PurchaseOrderStatus.Converted;
     }
 
+    /// <summary>Mirror of Quotation.Void -- a Converted purchase order (live dependent: the
+    /// PurchaseBill created from it) is rejected by EnsureApproved's plain status check.</summary>
+    public void Void(Guid voidedByUserId)
+    {
+        EnsureApproved();
+        Status = PurchaseOrderStatus.Void;
+        VoidedByUserId = voidedByUserId;
+        VoidedAt = DateTimeOffset.UtcNow;
+    }
+
     private void EnsureDraft()
     {
         if (Status != PurchaseOrderStatus.Draft)
         {
             throw new InvalidOperationException("This purchase order is no longer in Draft status.");
+        }
+    }
+
+    private void EnsureApproved()
+    {
+        if (Status != PurchaseOrderStatus.Approved)
+        {
+            throw new InvalidOperationException("Only an Approved purchase order can be voided.");
         }
     }
 }
