@@ -43,6 +43,10 @@ public static class ExceptionHandling
                 EmailNotVerifiedException => (StatusCodes.Status403Forbidden, exception.Message),
                 ForbiddenException => (StatusCodes.Status403Forbidden, exception.Message),
                 InvalidVerificationCodeException => (StatusCodes.Status400BadRequest, exception.Message),
+                System.Text.Json.JsonException => (
+                    StatusCodes.Status400BadRequest, "The request body is malformed or contains a value of the wrong type."),
+                Microsoft.AspNetCore.Http.BadHttpRequestException badHttpRequestException => (
+                    StatusCodes.Status400BadRequest, badHttpRequestException.Message),
                 _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred."),
             };
 
