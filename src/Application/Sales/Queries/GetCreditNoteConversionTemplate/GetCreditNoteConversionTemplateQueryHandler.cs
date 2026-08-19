@@ -28,7 +28,7 @@ public sealed class GetCreditNoteConversionTemplateQueryHandler(IAppDbContext db
 
         var lines = remainingByLine
             .Where(kv => kv.Value > 0)
-            .Select(kv => new CreditNoteLineInput(kv.Key.ProductId, kv.Value, kv.Key.Rate, kv.Key.VatRate))
+            .Select(kv => new CreditNoteLineInput(kv.Key.ProductId, kv.Value, kv.Key.Rate, kv.Key.VatRate, kv.Key.DiscountPct))
             .ToList();
 
         if (lines.Count == 0)
@@ -42,6 +42,7 @@ public sealed class GetCreditNoteConversionTemplateQueryHandler(IAppDbContext db
             $"From Invoice {invoice.Code}",
             DocumentType.Invoice,
             invoice.Id,
+            invoice.DiscountPct,
             lines);
     }
 }

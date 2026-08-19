@@ -28,11 +28,11 @@ public sealed class UpdateSalesOrderCommandHandler(IAppDbContext db)
 
         var oldLines = salesOrder.Lines.ToList();
 
-        salesOrder.UpdateHeader(request.ContactId, request.Date, request.DeliveryDate, request.Reference);
+        salesOrder.UpdateHeader(request.ContactId, request.Date, request.DeliveryDate, request.Reference, request.DiscountPct);
         salesOrder.ClearLines();
         foreach (var line in request.Lines)
         {
-            salesOrder.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate);
+            salesOrder.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);
         }
 
         db.SalesOrderLines.RemoveRange(oldLines);

@@ -51,44 +51,55 @@ internal static class SalesValidation
     }
 
     /// <summary>Remaining-to-credit quantity on an Invoice, net of every existing non-Void
-    /// CreditNote already referencing it, keyed by the exact (ProductId, Rate, VatRate) triple a
-    /// line was actually sold at -- not ProductId alone. A Credit Note can only reduce a
-    /// quantity that was genuinely invoiced at that same Rate and VatRate; it can't invent a
-    /// cheaper/pricier or differently-taxed line for a product that really was on the invoice
-    /// (that would misstate both revenue and the VAT liability the reversal is supposed to
-    /// exactly undo -- see docs/phase-6-status.md's DebitNote/TDS reversal-imbalance bug for why
-    /// "the reversal's own entry balances" isn't enough proof of correctness).</summary>
-    public static async Task<Dictionary<(Guid ProductId, decimal Rate, VatRate VatRate), decimal>> GetInvoiceRemainingByLineAsync(
-        IAppDbContext db, Guid organizationId, Invoice invoice, CancellationToken cancellationToken)
+    /// CreditNote already referencing it, keyed by the exact (ProductId, Rate, VatRate,
+    /// DiscountPct) quadruple a line was actually sold at -- not ProductId alone. A Credit Note
+    /// can only reduce a quantity that was genuinely invoiced at that same Rate, VatRate, and
+    /// line-level discount; it can't invent a cheaper/pricier, differently-taxed, or
+    /// differently-discounted line for a product that really was on the invoice (that would
+    /// misstate both revenue and the VAT liability the reversal is supposed to exactly undo --
+    /// see docs/phase-6-status.md's DebitNote/TDS reversal-imbalance bug for why "the reversal's
+    /// own entry balances" isn't enough proof of correctness). The header-level DiscountPct isn't
+    /// part of this per-line key -- it's a single document-wide value already implicitly constant
+    /// across every line of the one source Invoice being credited against; it's checked separately
+    /// in EnsureCreditNoteLinesWithinInvoiceRemainingAsync below.</summary>
+    public static async Task<Dictionary<(Guid ProductId, decimal Rate, VatRate VatRate, decimal DiscountPct), decimal>>
+        GetInvoiceRemainingByLineAsync(IAppDbContext db, Guid organizationId, Invoice invoice, CancellationToken cancellationToken)
     {
         var creditedLines = await db.CreditNotes
             .Where(x => x.OrganizationId == organizationId
                 && x.ReferrerType == DocumentType.Invoice && x.ReferrerId == invoice.Id
                 && x.Status != CreditNoteStatus.Void)
             .SelectMany(x => x.Lines)
-            .Select(x => new { x.ProductId, x.Rate, x.VatRate, x.Quantity })
+            .Select(x => new { x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.Quantity })
             .ToListAsync(cancellationToken);
 
         var creditedByLine = creditedLines
-            .GroupBy(x => (x.ProductId, x.Rate, x.VatRate))
+            .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct))
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
 
         return invoice.Lines
-            .GroupBy(x => (x.ProductId, x.Rate, x.VatRate))
+            .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct))
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity) - creditedByLine.GetValueOrDefault(g.Key));
     }
 
     /// <summary>Guards CreateCreditNoteCommandHandler against returning more than what's actually
-    /// remaining on the source Invoice, crediting a product/rate/VAT combination that was never
-    /// actually invoiced, or crediting a different Customer than the one who was actually
+    /// remaining on the source Invoice, crediting a product/rate/VAT/discount combination that was
+    /// never actually invoiced, applying a different transaction-level discount than the source
+    /// Invoice actually carried, or crediting a different Customer than the one who was actually
     /// invoiced -- see docs/phase-5-status.md/phase-6-status.md's write-up of this gap for why it
     /// wasn't caught earlier (standalone Credit Notes with no ReferrerId are intentionally left
-    /// unchecked; there's no source to cap against).</summary>
+    /// unchecked; there's no source to cap against). The header DiscountPct check is a document-wide
+    /// equality, not a per-line one: since InvoiceLine.Amount/VatAmount already fold the header
+    /// discount in, a CreditNote applying a different header DiscountPct than the source Invoice
+    /// would credit an Amount that doesn't match what was actually invoiced even if every per-line
+    /// (ProductId, Rate, VatRate, DiscountPct) key matches -- the same "reversal must reproduce the
+    /// exact original, not just balance its own entry" reasoning as the per-line check.</summary>
     public static async Task EnsureCreditNoteLinesWithinInvoiceRemainingAsync(
         IAppDbContext db,
         Guid organizationId,
         Guid invoiceId,
         Guid contactId,
+        decimal discountPct,
         IReadOnlyList<CreditNoteLineInput> requestedLines,
         CancellationToken cancellationToken)
     {
@@ -102,10 +113,16 @@ internal static class SalesValidation
             throw new ConflictException("A credit note converted from an Invoice must keep the same Customer.");
         }
 
+        if (invoice.DiscountPct != discountPct)
+        {
+            throw new ConflictException(
+                "A credit note converted from an Invoice must keep the same transaction-level Discount% as the source invoice.");
+        }
+
         var remainingByLine = await GetInvoiceRemainingByLineAsync(db, organizationId, invoice, cancellationToken);
 
         var requestedByLine = requestedLines
-            .GroupBy(x => (x.ProductId, x.Rate, x.VatRate))
+            .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct))
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
 
         foreach (var (key, requestedQuantity) in requestedByLine)
@@ -113,7 +130,7 @@ internal static class SalesValidation
             if (!remainingByLine.TryGetValue(key, out var remaining))
             {
                 throw new ConflictException(
-                    "This credit note contains a product/rate/VAT combination that doesn't match any line on the source invoice.");
+                    "This credit note contains a product/rate/VAT/discount combination that doesn't match any line on the source invoice.");
             }
 
             if (requestedQuantity > remaining)

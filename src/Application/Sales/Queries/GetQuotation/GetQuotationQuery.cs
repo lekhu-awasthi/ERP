@@ -11,7 +11,8 @@ public sealed record GetQuotationQuery(Guid OrganizationId, Guid Id)
     public string PermissionKey => PermissionKeys.QuotationView;
 }
 
-public sealed record QuotationLineDto(Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal Amount, decimal VatAmount);
+public sealed record QuotationLineDto(
+    Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal Amount, decimal VatAmount);
 
 public sealed record QuotationDetailDto(
     Guid Id,
@@ -25,4 +26,5 @@ public sealed record QuotationDetailDto(
     Guid? ApprovedByUserId,
     DateTimeOffset? ApprovedAt,
     DateTimeOffset CreatedAt,
+    decimal DiscountPct,
     IReadOnlyList<QuotationLineDto> Lines);

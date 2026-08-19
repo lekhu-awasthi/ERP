@@ -26,7 +26,8 @@ public sealed class UpdatePurchaseBillCommandHandler(IAppDbContext db)
         await PurchasingValidation.EnsureProductsExistAsync(
             db, request.OrganizationId, request.Lines.Select(x => x.ProductId), cancellationToken);
 
-        var tdsBaseAmount = request.Lines.Sum(x => x.Quantity * x.Rate);
+        var tdsBaseAmount = request.Lines.Sum(
+            x => x.Quantity * x.Rate * (1 - x.DiscountPct / 100m) * (1 - request.DiscountPct / 100m));
         var tdsAmount = await PurchasingValidation.ResolveTdsAmountAsync(
             db, request.OrganizationId, request.TdsTypeId, tdsBaseAmount, cancellationToken);
 
@@ -43,12 +44,14 @@ public sealed class UpdatePurchaseBillCommandHandler(IAppDbContext db)
             request.ImportDate,
             request.ImportDocumentNo,
             request.TdsTypeId,
-            tdsAmount);
+            tdsAmount,
+            request.DiscountPct);
 
         purchaseBill.ClearLines();
         foreach (var line in request.Lines)
         {
-            purchaseBill.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.ExpenditureClassification);
+            purchaseBill.AddLine(
+                line.ProductId, line.Quantity, line.Rate, line.VatRate, line.ExpenditureClassification, line.DiscountPct);
         }
 
         db.PurchaseBillLines.RemoveRange(oldLines);

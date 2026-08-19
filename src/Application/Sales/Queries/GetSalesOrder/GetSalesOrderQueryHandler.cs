@@ -26,6 +26,8 @@ public sealed class GetSalesOrderQueryHandler(IAppDbContext db) : IRequestHandle
             salesOrder.ApprovedByUserId,
             salesOrder.ApprovedAt,
             salesOrder.CreatedAt,
-            salesOrder.Lines.Select(x => new SalesOrderLineDto(x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.Amount, x.VatAmount)).ToList());
+            salesOrder.DiscountPct,
+            salesOrder.Lines.Select(x => new SalesOrderLineDto(
+                x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount)).ToList());
     }
 }

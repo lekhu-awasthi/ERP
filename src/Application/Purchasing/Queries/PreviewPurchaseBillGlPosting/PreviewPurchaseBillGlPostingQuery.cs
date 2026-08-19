@@ -7,7 +7,7 @@ namespace ErpApp.Application.Purchasing.Queries.PreviewPurchaseBillGlPosting;
 /// the computed GL lines before the user clicks Approve, reusing PurchaseBillAccountResolver +
 /// PurchaseBillPostingRule exactly as ApprovePurchaseBillCommandHandler does.</summary>
 public sealed record PreviewPurchaseBillGlPostingQuery(
-    Guid OrganizationId, IReadOnlyList<PurchaseBillLineInput> Lines, Guid? TdsTypeId)
+    Guid OrganizationId, IReadOnlyList<PurchaseBillLineInput> Lines, Guid? TdsTypeId, decimal DiscountPct = 0)
     : IRequest<IReadOnlyList<GlLinePreviewDto>>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.PurchaseBillView;

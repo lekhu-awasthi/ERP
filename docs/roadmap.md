@@ -46,14 +46,16 @@ dependents are voided first; `LockDateBehavior` enforces `Organization.LockDate`
 create/edit/approve/void via `ILockDateSensitive`/`ILockDateSensitiveDocument`; a new Admin-only
 Lock Date settings page. 13 new `*.Void` keys + `Tenancy.Organization.LockDateManage`.
 
-### 16b. Discounts retrofit
-FR-5.1 requires per-line discount; no discount field exists anywhere (`phase-8b-status.md` scope decision #3). Confirm the live Tigg discount model first (item-level %, transaction-level, and which GL account discount posts to) before writing code.
-1. Line-level discount on Quotation/SalesOrder/Invoice/CreditNote/PurchaseOrder/PurchaseBill/DebitNote lines; transaction-level discount on the document; totals math (discount before VAT — confirm live).
-2. GL posting rules updated (discount account via TenantSettings default, same fallback pattern as Phase 5); verify the reversal documents' *net* effect again (Phase 6 bug #3).
-3. Conversion-cap enforcement: decide whether the `(ProductId, Rate, VatRate)` match triple must grow a discount component — record the call.
-4. Master Reports gain the `ItemDiscount`/`TransactionDiscount`/`NetSales` columns 8b deliberately omitted; VAT Summary/Annex math re-verified by hand.
-
-*Exit criteria: an Invoice with line + transaction discounts approves with balanced, hand-verified GL; its CreditNote reversal nets every touched account to zero; Master Report columns match hand arithmetic; all pre-existing report tests still green.*
+### 16b. Discounts retrofit — **COMPLETE**, see `phase-16b-status.md`
+Line-level + header-level `DiscountPct` on all 7 Product-line document types (Quotation/SalesOrder/
+Invoice/CreditNote/PurchaseOrder/PurchaseBill/DebitNote). Confirmed live against the reference
+product: discount reduces the taxable base before VAT, and nets straight into Sales Revenue/
+Purchase Expense with **no separate Discount account** — `Line.Amount`/`VatAmount` are stored fully
+netted (line discount, then header discount), so every GL posting rule and VAT/Annex report needed
+zero code changes. Conversion-cap key grew a 4th component (line `DiscountPct`) plus a new
+document-level header-`DiscountPct` equality check. PurchaseBill/DebitNote's TDS base switched from
+pre-discount `Quantity*Rate` to the discounted `Amount`. Sales/Purchase Master Report gained
+`ItemDiscount`/`TransactionDiscount`/`NetSales`.
 
 ### 16c. Pagination + report export
 NFR-5.1 (every list unpaginated today) and FR-9.8 (no export anywhere).

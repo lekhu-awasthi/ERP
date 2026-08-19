@@ -6,7 +6,7 @@ namespace ErpApp.Application.Purchasing.Commands.UpdateDebitNote;
 
 public sealed record UpdateDebitNoteCommand(
     Guid OrganizationId, Guid Id, Guid ContactId, DateOnly Date, string? Reference, Guid? TdsTypeId,
-    IReadOnlyList<DebitNoteLineInput> Lines)
+    IReadOnlyList<DebitNoteLineInput> Lines, decimal DiscountPct = 0)
     : IRequest<UpdateDebitNoteResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.DebitNoteEdit;

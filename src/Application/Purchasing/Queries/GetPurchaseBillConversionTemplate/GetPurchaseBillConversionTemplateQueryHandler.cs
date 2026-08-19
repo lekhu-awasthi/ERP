@@ -24,7 +24,8 @@ public sealed class GetPurchaseBillConversionTemplateQueryHandler(IAppDbContext 
         }
 
         var lines = purchaseOrder.Lines
-            .Select(x => new PurchaseBillLineInput(x.ProductId, x.Quantity, x.Rate, x.VatRate, ExpenditureClassification.Others))
+            .Select(x => new PurchaseBillLineInput(
+                x.ProductId, x.Quantity, x.Rate, x.VatRate, ExpenditureClassification.Others, x.DiscountPct))
             .ToList();
 
         return new PurchaseBillConversionTemplateDto(
@@ -33,6 +34,7 @@ public sealed class GetPurchaseBillConversionTemplateQueryHandler(IAppDbContext 
             $"From Purchase Order {purchaseOrder.Code}",
             DocumentType.PurchaseOrder,
             purchaseOrder.Id,
+            purchaseOrder.DiscountPct,
             lines);
     }
 }

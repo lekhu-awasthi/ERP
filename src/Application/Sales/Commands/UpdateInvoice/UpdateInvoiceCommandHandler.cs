@@ -29,11 +29,11 @@ public sealed class UpdateInvoiceCommandHandler(IAppDbContext db)
 
         var oldLines = invoice.Lines.ToList();
 
-        invoice.UpdateHeader(request.ContactId, request.WarehouseId, request.Date, request.Reference);
+        invoice.UpdateHeader(request.ContactId, request.WarehouseId, request.Date, request.Reference, request.DiscountPct);
         invoice.ClearLines();
         foreach (var line in request.Lines)
         {
-            invoice.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate);
+            invoice.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);
         }
 
         db.InvoiceLines.RemoveRange(oldLines);

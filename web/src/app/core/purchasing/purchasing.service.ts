@@ -131,10 +131,11 @@ export class PurchasingService {
     organizationId: string,
     lines: PurchaseBillLineInput[],
     tdsTypeId: string | null,
+    discountPct: number,
   ): Observable<GlLinePreviewDto[]> {
     return this.http.post<GlLinePreviewDto[]>(
       `${this.baseUrl(organizationId)}/purchase-bills/preview-gl-posting`,
-      { lines, tdsTypeId },
+      { lines, tdsTypeId, discountPct },
       { withCredentials: true },
     );
   }

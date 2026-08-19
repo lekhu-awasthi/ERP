@@ -22,6 +22,7 @@ public sealed class CreditNoteConfiguration : IEntityTypeConfiguration<CreditNot
         builder.Property(x => x.RowVersion).IsRowVersion();
         builder.Property(x => x.ReferrerType).HasConversion<string>().HasMaxLength(30);
         builder.Property(x => x.ReferrerId);
+        builder.Property(x => x.DiscountPct).HasPrecision(18, 4).IsRequired();
 
         builder.HasOne<Contact>().WithMany().HasForeignKey(x => x.ContactId).OnDelete(DeleteBehavior.Restrict);
 

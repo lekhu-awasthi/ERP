@@ -30,11 +30,11 @@ public sealed class UpdateQuotationCommandHandler(IAppDbContext db)
 
         var oldLines = quotation.Lines.ToList();
 
-        quotation.UpdateHeader(request.ContactId, request.Date, request.ExpiryDate, request.Reference);
+        quotation.UpdateHeader(request.ContactId, request.Date, request.ExpiryDate, request.Reference, request.DiscountPct);
         quotation.ClearLines();
         foreach (var line in request.Lines)
         {
-            quotation.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate);
+            quotation.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);
         }
 
         db.QuotationLines.RemoveRange(oldLines);

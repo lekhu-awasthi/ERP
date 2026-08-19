@@ -32,6 +32,7 @@ public sealed class PurchaseBillConfiguration : IEntityTypeConfiguration<Purchas
         // CreatePurchaseBillCommand.
         builder.Property(x => x.ReferrerType).HasConversion<string>().HasMaxLength(30);
         builder.Property(x => x.ReferrerId);
+        builder.Property(x => x.DiscountPct).HasPrecision(18, 4).IsRequired();
 
         builder.Ignore(x => x.GrandTotal);
 

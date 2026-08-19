@@ -12,7 +12,8 @@ public sealed record GetDebitNoteQuery(Guid OrganizationId, Guid Id)
     public string PermissionKey => PermissionKeys.DebitNoteView;
 }
 
-public sealed record DebitNoteLineDto(Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal Amount, decimal VatAmount);
+public sealed record DebitNoteLineDto(
+    Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal Amount, decimal VatAmount);
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
 
@@ -31,5 +32,6 @@ public sealed record DebitNoteDetailDto(
     DateTimeOffset CreatedAt,
     DocumentType? ReferrerType,
     Guid? ReferrerId,
+    decimal DiscountPct,
     IReadOnlyList<DebitNoteLineDto> Lines,
     IReadOnlyList<PostedGlLineDto>? GlLines);

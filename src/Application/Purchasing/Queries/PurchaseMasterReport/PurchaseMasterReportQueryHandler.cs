@@ -36,7 +36,7 @@ public sealed class PurchaseMasterReportQueryHandler(IAppDbContext db)
         }
 
         var purchaseBillLines = await purchaseBillLinesQuery
-            .Select(x => new { x.PurchaseBillId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.Amount, x.VatAmount })
+            .Select(x => new { x.PurchaseBillId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         var debitNoteQuery = db.DebitNotes.Where(x =>
@@ -59,7 +59,7 @@ public sealed class PurchaseMasterReportQueryHandler(IAppDbContext db)
         }
 
         var debitNoteLines = await debitNoteLinesQuery
-            .Select(x => new { x.DebitNoteId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.Amount, x.VatAmount })
+            .Select(x => new { x.DebitNoteId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         // DebitNote carries no WarehouseId of its own -- resolve it from the source PurchaseBill
@@ -116,13 +116,19 @@ public sealed class PurchaseMasterReportQueryHandler(IAppDbContext db)
             var contact = contacts[purchaseBill.ContactId];
             var product = products[line.ProductId];
 
+            var grossAmount = line.Quantity * line.Rate;
+            var itemDiscount = grossAmount * line.DiscountPct / 100m;
+            var netAfterLineDiscount = grossAmount - itemDiscount;
+            var transactionDiscount = netAfterLineDiscount - line.Amount;
+
             rows.Add(new PurchaseMasterReportRowDto(
                 contact.Id, contact.Code, contact.Name, DocumentType.PurchaseBill,
                 contact.GroupId, contact.GroupId is { } groupId ? groupNames.GetValueOrDefault(groupId) : null,
                 purchaseBill.WarehouseId, warehouseNames.GetValueOrDefault(purchaseBill.WarehouseId),
                 purchaseBill.Code, purchaseBill.Reference, purchaseBill.Date,
                 product.Id, product.Code, product.Name,
-                line.Quantity, line.Rate, line.Amount, line.VatRate, line.VatAmount, line.Amount + line.VatAmount));
+                line.Quantity, line.Rate, netAfterLineDiscount, itemDiscount, transactionDiscount, line.Amount,
+                line.VatRate, line.VatAmount, line.Amount + line.VatAmount));
         }
 
         foreach (var line in debitNoteLines)
@@ -144,13 +150,19 @@ public sealed class PurchaseMasterReportQueryHandler(IAppDbContext db)
             var contact = contacts[debitNote.ContactId];
             var product = products[line.ProductId];
 
+            var grossAmount = line.Quantity * line.Rate;
+            var itemDiscount = grossAmount * line.DiscountPct / 100m;
+            var netAfterLineDiscount = grossAmount - itemDiscount;
+            var transactionDiscount = netAfterLineDiscount - line.Amount;
+
             rows.Add(new PurchaseMasterReportRowDto(
                 contact.Id, contact.Code, contact.Name, DocumentType.DebitNote,
                 contact.GroupId, contact.GroupId is { } groupId ? groupNames.GetValueOrDefault(groupId) : null,
                 resolvedWarehouseId, resolvedWarehouseId is { } wId ? warehouseNames.GetValueOrDefault(wId) : null,
                 debitNote.Code, debitNote.Reference, debitNote.Date,
                 product.Id, product.Code, product.Name,
-                line.Quantity, line.Rate, line.Amount, line.VatRate, line.VatAmount, line.Amount + line.VatAmount));
+                line.Quantity, line.Rate, netAfterLineDiscount, itemDiscount, transactionDiscount, line.Amount,
+                line.VatRate, line.VatAmount, line.Amount + line.VatAmount));
         }
 
         var orderedRows = rows.OrderBy(x => x.EntryDate).ThenBy(x => x.EntryNo).ToList();

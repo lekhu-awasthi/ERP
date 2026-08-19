@@ -18,14 +18,15 @@ public sealed class CreateCreditNoteCommandHandler(IAppDbContext db)
         if (request.ReferrerType == DocumentType.Invoice && request.ReferrerId is { } invoiceId)
         {
             await SalesValidation.EnsureCreditNoteLinesWithinInvoiceRemainingAsync(
-                db, request.OrganizationId, invoiceId, request.ContactId, request.Lines, cancellationToken);
+                db, request.OrganizationId, invoiceId, request.ContactId, request.DiscountPct, request.Lines, cancellationToken);
         }
 
         var creditNote = CreditNote.Create(
-            request.OrganizationId, request.ContactId, request.Date, request.Reference, request.ReferrerType, request.ReferrerId);
+            request.OrganizationId, request.ContactId, request.Date, request.Reference, request.ReferrerType, request.ReferrerId,
+            request.DiscountPct);
         foreach (var line in request.Lines)
         {
-            creditNote.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate);
+            creditNote.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);
         }
 
         db.CreditNotes.Add(creditNote);

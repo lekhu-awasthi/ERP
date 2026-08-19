@@ -16,6 +16,7 @@ public sealed class DebitNoteLineConfiguration : IEntityTypeConfiguration<DebitN
         builder.Property(x => x.Quantity).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.Rate).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.VatRate).HasConversion<string>().HasMaxLength(30).IsRequired();
+        builder.Property(x => x.DiscountPct).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.Amount).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.VatAmount).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.ConsumedUnitCost).HasPrecision(18, 4);

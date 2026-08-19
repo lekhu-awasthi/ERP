@@ -20,6 +20,7 @@ public sealed class PurchaseOrderConfiguration : IEntityTypeConfiguration<Purcha
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.RowVersion).IsRowVersion();
+        builder.Property(x => x.DiscountPct).HasPrecision(18, 4).IsRequired();
 
         builder.HasOne<Contact>().WithMany().HasForeignKey(x => x.ContactId).OnDelete(DeleteBehavior.Restrict);
 

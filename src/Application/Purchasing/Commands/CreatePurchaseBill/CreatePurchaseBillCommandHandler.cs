@@ -31,9 +31,12 @@ public sealed class CreatePurchaseBillCommandHandler(IAppDbContext db)
             purchaseOrder.MarkConverted();
         }
 
-        // TDS base is the pre-VAT taxable amount, same base every other tax computation in this
-        // codebase uses (see phase-6-status.md's scope decisions for why this base was chosen).
-        var tdsBaseAmount = request.Lines.Sum(x => x.Quantity * x.Rate);
+        // TDS base is the pre-VAT taxable amount net of both line and header discount (matching
+        // VAT's own base -- discount reduces the taxable base before either tax is computed), same
+        // base every other tax computation in this codebase uses (see phase-6-status.md's scope
+        // decisions for why this base was chosen).
+        var tdsBaseAmount = request.Lines.Sum(
+            x => x.Quantity * x.Rate * (1 - x.DiscountPct / 100m) * (1 - request.DiscountPct / 100m));
         var tdsAmount = await PurchasingValidation.ResolveTdsAmountAsync(
             db, request.OrganizationId, request.TdsTypeId, tdsBaseAmount, cancellationToken);
 
@@ -51,11 +54,13 @@ public sealed class CreatePurchaseBillCommandHandler(IAppDbContext db)
             request.TdsTypeId,
             tdsAmount,
             request.ReferrerType,
-            request.ReferrerId);
+            request.ReferrerId,
+            request.DiscountPct);
 
         foreach (var line in request.Lines)
         {
-            purchaseBill.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.ExpenditureClassification);
+            purchaseBill.AddLine(
+                line.ProductId, line.Quantity, line.Rate, line.VatRate, line.ExpenditureClassification, line.DiscountPct);
         }
 
         db.PurchaseBills.Add(purchaseBill);

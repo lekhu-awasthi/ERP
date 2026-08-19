@@ -24,7 +24,7 @@ public sealed class GetInvoiceConversionTemplateQueryHandler(IAppDbContext db)
         }
 
         var lines = quotation.Lines
-            .Select(x => new InvoiceLineInput(x.ProductId, x.Quantity, x.Rate, x.VatRate))
+            .Select(x => new InvoiceLineInput(x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct))
             .ToList();
 
         return new InvoiceConversionTemplateDto(
@@ -33,6 +33,7 @@ public sealed class GetInvoiceConversionTemplateQueryHandler(IAppDbContext db)
             $"From Quotation {quotation.Code}",
             DocumentType.Quotation,
             quotation.Id,
+            quotation.DiscountPct,
             lines);
     }
 }

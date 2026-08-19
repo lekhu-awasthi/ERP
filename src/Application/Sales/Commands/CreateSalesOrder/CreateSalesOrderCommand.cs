@@ -6,7 +6,7 @@ namespace ErpApp.Application.Sales.Commands.CreateSalesOrder;
 
 public sealed record CreateSalesOrderCommand(
     Guid OrganizationId, Guid ContactId, DateOnly Date, DateOnly? DeliveryDate, string? Reference,
-    IReadOnlyList<SalesOrderLineInput> Lines)
+    IReadOnlyList<SalesOrderLineInput> Lines, decimal DiscountPct = 0)
     : IRequest<CreateSalesOrderResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.SalesOrderCreate;

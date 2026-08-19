@@ -28,7 +28,7 @@ public sealed class GetDebitNoteConversionTemplateQueryHandler(IAppDbContext db)
 
         var lines = remainingByLine
             .Where(kv => kv.Value > 0)
-            .Select(kv => new DebitNoteLineInput(kv.Key.ProductId, kv.Value, kv.Key.Rate, kv.Key.VatRate))
+            .Select(kv => new DebitNoteLineInput(kv.Key.ProductId, kv.Value, kv.Key.Rate, kv.Key.VatRate, kv.Key.DiscountPct))
             .ToList();
 
         if (lines.Count == 0)
@@ -43,6 +43,7 @@ public sealed class GetDebitNoteConversionTemplateQueryHandler(IAppDbContext db)
             purchaseBill.TdsTypeId,
             DocumentType.PurchaseBill,
             purchaseBill.Id,
+            purchaseBill.DiscountPct,
             lines);
     }
 }

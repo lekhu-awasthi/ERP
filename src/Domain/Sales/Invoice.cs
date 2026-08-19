@@ -43,6 +43,7 @@ public sealed class Invoice
     public byte[] RowVersion { get; private set; } = null!;
     public DocumentType? ReferrerType { get; private set; }
     public Guid? ReferrerId { get; private set; }
+    public decimal DiscountPct { get; private set; }
 
     public IReadOnlyList<InvoiceLine> Lines => _lines;
 
@@ -59,8 +60,11 @@ public sealed class Invoice
         DateOnly date,
         string? reference,
         DocumentType? referrerType,
-        Guid? referrerId)
+        Guid? referrerId,
+        decimal discountPct = 0)
     {
+        EnsureValidDiscountPct(discountPct);
+
         return new Invoice
         {
             Id = Guid.NewGuid(),
@@ -74,19 +78,22 @@ public sealed class Invoice
             CreatedAt = DateTimeOffset.UtcNow,
             ReferrerType = referrerType,
             ReferrerId = referrerId,
+            DiscountPct = discountPct,
         };
     }
 
-    public void UpdateHeader(Guid contactId, Guid warehouseId, DateOnly date, string? reference)
+    public void UpdateHeader(Guid contactId, Guid warehouseId, DateOnly date, string? reference, decimal discountPct)
     {
         EnsureDraft();
+        EnsureValidDiscountPct(discountPct);
         ContactId = contactId;
         WarehouseId = warehouseId;
         Date = date;
         Reference = reference;
+        DiscountPct = discountPct;
     }
 
-    public void AddLine(Guid productId, decimal quantity, decimal rate, VatRate vatRate)
+    public void AddLine(Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct)
     {
         EnsureDraft();
 
@@ -95,7 +102,17 @@ public sealed class Invoice
             throw new InvalidOperationException("An invoice line needs a positive Quantity and a non-negative Rate.");
         }
 
-        _lines.Add(InvoiceLine.Create(Id, productId, quantity, rate, vatRate));
+        EnsureValidDiscountPct(discountPct);
+
+        _lines.Add(InvoiceLine.Create(Id, productId, quantity, rate, vatRate, discountPct, DiscountPct));
+    }
+
+    private static void EnsureValidDiscountPct(decimal discountPct)
+    {
+        if (discountPct < 0 || discountPct > 100)
+        {
+            throw new InvalidOperationException("Discount% must be between 0 and 100.");
+        }
     }
 
     public void ClearLines()

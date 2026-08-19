@@ -49,9 +49,10 @@ public sealed class GetPurchaseBillQueryHandler(IAppDbContext db) : IRequestHand
             purchaseBill.CreatedAt,
             purchaseBill.ReferrerType,
             purchaseBill.ReferrerId,
+            purchaseBill.DiscountPct,
             purchaseBill.GrandTotal,
             purchaseBill.Lines.Select(x => new PurchaseBillLineDto(
-                x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.Amount, x.VatAmount, x.ExpenditureClassification)).ToList(),
+                x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount, x.ExpenditureClassification)).ToList(),
             glLines);
     }
 }
