@@ -7,7 +7,7 @@ namespace ErpApp.Application.Purchasing.Commands.UpdatePurchaseOrder;
 public sealed record UpdatePurchaseOrderCommand(
     Guid OrganizationId, Guid Id, Guid ContactId, DateOnly Date, string? Reference,
     IReadOnlyList<PurchaseOrderLineInput> Lines)
-    : IRequest<UpdatePurchaseOrderResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<UpdatePurchaseOrderResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.PurchaseOrderEdit;
 }

@@ -8,6 +8,9 @@ import {
   ApproveCreditNoteResult,
   ApproveInvoiceResult,
   ApproveQuotationResult,
+  VoidCreditNoteResult,
+  VoidInvoiceResult,
+  VoidQuotationResult,
   ApproveSalesOrderResult,
   CreateCreditNoteResult,
   CreateInvoiceResult,
@@ -67,6 +70,12 @@ export class SalesService {
     });
   }
 
+  voidQuotation(organizationId: string, id: string): Observable<VoidQuotationResult> {
+    return this.http.post<VoidQuotationResult>(`${this.baseUrl(organizationId)}/quotations/${id}/void`, null, {
+      withCredentials: true,
+    });
+  }
+
   approveQuotation(organizationId: string, id: string): Observable<ApproveQuotationResult> {
     return this.http.post<ApproveQuotationResult>(`${this.baseUrl(organizationId)}/quotations/${id}/approve`, null, {
       withCredentials: true,
@@ -103,6 +112,12 @@ export class SalesService {
     return this.http.post<ApproveInvoiceResult>(
       `${this.baseUrl(organizationId)}/invoices/${id}/approve`, { overrideWarning }, { withCredentials: true },
     );
+  }
+
+  voidInvoice(organizationId: string, id: string): Observable<VoidInvoiceResult> {
+    return this.http.post<VoidInvoiceResult>(`${this.baseUrl(organizationId)}/invoices/${id}/void`, null, {
+      withCredentials: true,
+    });
   }
 
   previewInvoiceGlPosting(organizationId: string, lines: InvoiceLineInput[]): Observable<GlLinePreviewDto[]> {
@@ -170,6 +185,12 @@ export class SalesService {
 
   approveCreditNote(organizationId: string, id: string): Observable<ApproveCreditNoteResult> {
     return this.http.post<ApproveCreditNoteResult>(`${this.baseUrl(organizationId)}/credit-notes/${id}/approve`, null, {
+      withCredentials: true,
+    });
+  }
+
+  voidCreditNote(organizationId: string, id: string): Observable<VoidCreditNoteResult> {
+    return this.http.post<VoidCreditNoteResult>(`${this.baseUrl(organizationId)}/credit-notes/${id}/void`, null, {
       withCredentials: true,
     });
   }

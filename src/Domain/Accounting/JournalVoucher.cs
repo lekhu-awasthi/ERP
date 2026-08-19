@@ -28,6 +28,8 @@ public sealed class JournalVoucher
     public JournalVoucherStatus Status { get; private set; }
     public Guid? ApprovedByUserId { get; private set; }
     public DateTimeOffset? ApprovedAt { get; private set; }
+    public Guid? VoidedByUserId { get; private set; }
+    public DateTimeOffset? VoidedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
 
@@ -100,11 +102,29 @@ public sealed class JournalVoucher
         Code = code;
     }
 
+    /// <summary>Terminal -- no edit, re-approve, or un-void afterward (roadmap Phase 16a). The
+    /// document keeps its assigned Code; numbers are never recycled.</summary>
+    public void Void(Guid voidedByUserId)
+    {
+        EnsureApproved();
+        Status = JournalVoucherStatus.Void;
+        VoidedByUserId = voidedByUserId;
+        VoidedAt = DateTimeOffset.UtcNow;
+    }
+
     private void EnsureDraft()
     {
         if (Status != JournalVoucherStatus.Draft)
         {
             throw new InvalidOperationException("This journal voucher is no longer in Draft status.");
+        }
+    }
+
+    private void EnsureApproved()
+    {
+        if (Status != JournalVoucherStatus.Approved)
+        {
+            throw new InvalidOperationException("Only an Approved journal voucher can be voided.");
         }
     }
 }

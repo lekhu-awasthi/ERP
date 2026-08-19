@@ -6,7 +6,7 @@ namespace ErpApp.Application.Accounting.Commands.CreateCashTransfer;
 
 public sealed record CreateCashTransferCommand(
     Guid OrganizationId, DateOnly Date, string? Reference, Guid FromAccountId, IReadOnlyList<CashTransferLineInput> Lines)
-    : IRequest<CreateCashTransferResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<CreateCashTransferResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.CashTransferCreate;
 }

@@ -25,6 +25,8 @@ public sealed class CreditNote
     public CreditNoteStatus Status { get; private set; }
     public Guid? ApprovedByUserId { get; private set; }
     public DateTimeOffset? ApprovedAt { get; private set; }
+    public Guid? VoidedByUserId { get; private set; }
+    public DateTimeOffset? VoidedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
     public DocumentType? ReferrerType { get; private set; }
@@ -95,11 +97,27 @@ public sealed class CreditNote
         Code = code;
     }
 
+    public void Void(Guid voidedByUserId)
+    {
+        EnsureApproved();
+        Status = CreditNoteStatus.Void;
+        VoidedByUserId = voidedByUserId;
+        VoidedAt = DateTimeOffset.UtcNow;
+    }
+
     private void EnsureDraft()
     {
         if (Status != CreditNoteStatus.Draft)
         {
             throw new InvalidOperationException("This credit note is no longer in Draft status.");
+        }
+    }
+
+    private void EnsureApproved()
+    {
+        if (Status != CreditNoteStatus.Approved)
+        {
+            throw new InvalidOperationException("Only an Approved credit note can be voided.");
         }
     }
 }

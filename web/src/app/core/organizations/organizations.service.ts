@@ -14,6 +14,7 @@ import {
   InviteUserRequest,
   InviteUserResponse,
   MyOrganizations,
+  OrganizationLockDate,
   OrganizationMember,
   Role,
   RolePermissionMatrix,
@@ -102,6 +103,16 @@ export class OrganizationsService {
 
   updateAccountingDefaults(organizationId: string, request: AccountingDefaults): Observable<AccountingDefaults> {
     return this.http.put<AccountingDefaults>(`${this.baseUrl}/${organizationId}/accounting-defaults`, request, {
+      withCredentials: true,
+    });
+  }
+
+  getLockDate(organizationId: string): Observable<OrganizationLockDate> {
+    return this.http.get<OrganizationLockDate>(`${this.baseUrl}/${organizationId}/lock-date`, { withCredentials: true });
+  }
+
+  setLockDate(organizationId: string, lockDate: string | null): Observable<OrganizationLockDate> {
+    return this.http.put<OrganizationLockDate>(`${this.baseUrl}/${organizationId}/lock-date`, { lockDate }, {
       withCredentials: true,
     });
   }

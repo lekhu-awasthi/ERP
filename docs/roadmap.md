@@ -29,33 +29,22 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 12 | Transaction Approval queue across all 13 ApprovableTransaction types (Workflow context) | `phase-12-status.md` |
 | 13 | Tasks (`WorkTask`, polymorphic Contact/Organization parent, TaskType lookup) | `phase-13-status.md` |
 | 14 | Role Reference full editor: per-org custom roles, permission-matrix UI, invite-by-RoleId | `phase-14-status.md` |
-
----
-
-## Phase 15 — CRM: Deals **(IN PROGRESS — branch `feature/phase-15-deals`)**
-**Goal:** the sales-pipeline feature (FR-4.7): each Deal linked to a Contact, with a configurable Stage, expected revenue, expected closing date, one or more assignees, and a Pending/Won/Lost lifecycle. Confirmed shape: `erp-module-scan.md` CRM §1 (Deals) and Configurations §4 (CRM config: Deal Stages / Lead Sources).
-
-1. `DealStage` + `LeadSource` Configuration lookups reusing the generic lookup pair (started on branch).
-2. `Deal` aggregate (`Domain.Crm`, new `crm` schema): ContactId, Title, ExpectedRevenue, ExpectedClosingDate, StageId, LeadSourceId, `DealStatus` (Pending/Won/Lost), `DealAssignee` child collection (started on branch). No Draft/Approve lifecycle — like `WorkTask`, status transitions replace it; no document number.
-3. Commands/queries: Create/Update/Delete, a status-transition command (decide explicitly whether Won/Lost are terminal and whether reopening is allowed — record the call in the status doc), `ListDealsQuery` filterable by stage/status/assignee.
-4. Permission keys `Crm.Deal.View`/`Crm.Deal.Manage`, Member-granted (routine daily-use working data — Phase 13's Task precedent), stage/source lookups on the ordinary Member-View/Admin-write Configuration split.
-5. Angular: Deals list grouped by stage (or status tabs — confirm against the live screen), deal create/edit form (`[selected]`-per-option on every signal-fed select), a Deals tab on the Contact detail page.
-
-*Exit criteria: an Admin creates Deal Stages + Lead Sources, creates a Deal on a Contact with two assignees, edits it, moves it through stages, marks it Won; an illegal transition 409s; a Member with `Crm.Deal.*` denied gets a real 403 naming the key; deal visible from the Contact's Deals tab. All builds/tests green; `phase-15-status.md` written.*
+| 15 | CRM: Deals (`Deal`/`DealAssignee`, `LeadSource`/`DealStage` lookups) | `phase-15-status.md` |
+| 16a | Void lifecycle (all 13 ApprovableTransaction types) + Organization.LockDate enforcement | `phase-16a-status.md` |
 
 ---
 
 ## Phase 16 — Platform hardening (a–d)
 **Goal:** close the QA-critical gaps every existing screen shares, *before* adding more surface area. Each sub-phase is independently shippable.
 
-### 16a. Void lifecycle + lock-date enforcement
-The two integrity guarantees the PRD promises that don't exist yet: no command can produce a `Void` status (flagged in `phase-8f-status.md`), and `Organization.LockDate` (schema'd in Phase 1b) is enforced nowhere.
-1. `VoidXCommand` per ApprovableTransaction type (or a shared pattern — decide against the Phase 12 "13 concrete blocks, not one generic" precedent): Approved → Void, reversing the GL posting **and** any FIFO stock effect. Trace the *net* effect on every account/stock layer the original touched (the Phase 6 bug-#3 lesson) — a voided Invoice must restore consumed FIFO layers at original cost, a voided PurchaseBill must be blocked (409) if its layers are already partly consumed.
-2. Guards: block voiding a document that has non-Void allocations, conversions, or reversals against it; existing `Status != Void` filters in reports/conversion-caps become live behavior — re-run those test suites.
-3. `Tenancy.*.Void` permission keys per type (the maker-checker matrix already anticipated in FR-3.2), Admin-granted, Member-denied by default.
-4. Lock date: enforcement in one shared place (a pipeline behavior or shared validator, not per-handler copy-paste) rejecting any create/edit/approve/void whose business `Date` ≤ `LockDate` (NFR-3.4); Organization settings UI to view/set the lock date, Admin-only.
-
-*Exit criteria: void an approved Invoice → GL nets to zero, stock restored, it disappears from VAT Summary/Master Reports, a Payment allocation against it is rejected; voiding a partly-consumed PurchaseBill 409s; any backdated write at-or-before the lock date 400/409s with a clear message, proven on at least 3 document types; Member void attempt 403s.*
+### 16a. Void lifecycle + lock-date enforcement — **COMPLETE**, see `phase-16a-status.md`
+All 13 `ApprovableTransaction` types have a real `VoidXCommand`; GL reverses via a mirror-image
+`GlJournalEntry.PostReversalOf` entry, stock reverses via `IStockLedgerService.ReverseIncrementAsync`
+(reject-if-partly-consumed) plus restock-at-original-cost (`ConsumedUnitCost` fields); dependent-
+document guards block Invoice/PurchaseBill voiding until their CreditNote/DebitNote/Payment
+dependents are voided first; `LockDateBehavior` enforces `Organization.LockDate` across every
+create/edit/approve/void via `ILockDateSensitive`/`ILockDateSensitiveDocument`; a new Admin-only
+Lock Date settings page. 13 new `*.Void` keys + `Tenancy.Organization.LockDateManage`.
 
 ### 16b. Discounts retrofit
 FR-5.1 requires per-line discount; no discount field exists anywhere (`phase-8b-status.md` scope decision #3). Confirm the live Tigg discount model first (item-level %, transaction-level, and which GL account discount posts to) before writing code.

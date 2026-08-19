@@ -5,6 +5,8 @@ using ErpApp.Application.Inventory.Commands.CreateInventoryAdjustment;
 using ErpApp.Application.Inventory.Commands.CreateWarehouseTransfer;
 using ErpApp.Application.Inventory.Commands.UpdateInventoryAdjustment;
 using ErpApp.Application.Inventory.Commands.UpdateWarehouseTransfer;
+using ErpApp.Application.Inventory.Commands.VoidInventoryAdjustment;
+using ErpApp.Application.Inventory.Commands.VoidWarehouseTransfer;
 using ErpApp.Application.Inventory.Queries.GetInventoryAdjustment;
 using ErpApp.Application.Inventory.Queries.GetWarehouseTransfer;
 using ErpApp.Application.Inventory.Queries.InventoryLedger;
@@ -71,6 +73,13 @@ public static class InventoryEndpoints
             var result = await sender.Send(new ApproveWarehouseTransferCommand(organizationId, id), ct);
             return Results.Ok(result);
         });
+
+        group.MapPost("/warehouse-transfers/{id:guid}/void", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new VoidWarehouseTransferCommand(organizationId, id), ct);
+            return Results.Ok(result);
+        });
     }
 
     private static void MapInventoryAdjustmentEndpoints(RouteGroupBuilder group)
@@ -112,6 +121,13 @@ public static class InventoryEndpoints
             Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new ApproveInventoryAdjustmentCommand(organizationId, id), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/inventory-adjustments/{id:guid}/void", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new VoidInventoryAdjustmentCommand(organizationId, id), ct);
             return Results.Ok(result);
         });
     }

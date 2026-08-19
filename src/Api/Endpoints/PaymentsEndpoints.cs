@@ -2,6 +2,7 @@ using ErpApp.Application.Payments;
 using ErpApp.Application.Payments.Commands.ApprovePayment;
 using ErpApp.Application.Payments.Commands.CreatePayment;
 using ErpApp.Application.Payments.Commands.UpdatePayment;
+using ErpApp.Application.Payments.Commands.VoidPayment;
 using ErpApp.Application.Payments.Queries.GetDefaultPaymentAllocations;
 using ErpApp.Application.Payments.Queries.GetPayment;
 using ErpApp.Application.Payments.Queries.ListPayments;
@@ -59,6 +60,13 @@ public static class PaymentsEndpoints
             Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new ApprovePaymentCommand(organizationId, id), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/payments/{id:guid}/void", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new VoidPaymentCommand(organizationId, id), ct);
             return Results.Ok(result);
         });
 

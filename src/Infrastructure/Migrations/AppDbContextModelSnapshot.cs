@@ -150,6 +150,12 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<DateTimeOffset?>("VoidedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("FromAccountId");
@@ -278,6 +284,12 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTimeOffset?>("VoidedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
@@ -1237,6 +1249,12 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<DateTimeOffset?>("VoidedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("WarehouseId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1252,6 +1270,10 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("ConsumedUnitCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
 
                     b.Property<string>("Direction")
                         .IsRequired()
@@ -1433,6 +1455,12 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid>("ToWarehouseId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTimeOffset?>("VoidedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("FromWarehouseId");
@@ -1525,6 +1553,12 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTimeOffset?>("VoidedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
@@ -1625,6 +1659,12 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid?>("TdsTypeId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTimeOffset?>("VoidedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ContactId");
@@ -1641,6 +1681,10 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("ConsumedUnitCost")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
@@ -1735,6 +1779,12 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("bit");
 
                     b.Property<Guid?>("TdsTypeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("VoidedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("VoidedByUserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
@@ -1856,6 +1906,12 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid?>("TdsTypeId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTimeOffset?>("VoidedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("WarehouseId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1961,6 +2017,12 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<DateTimeOffset?>("VoidedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ContactId");
@@ -2061,6 +2123,12 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<DateTimeOffset?>("VoidedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ContactId");
@@ -2160,6 +2228,12 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTimeOffset?>("VoidedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("WarehouseId")
                         .HasColumnType("uniqueidentifier");
@@ -2266,6 +2340,12 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<DateTimeOffset?>("VoidedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ContactId");
@@ -2361,6 +2441,12 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTimeOffset?>("VoidedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
@@ -2545,14 +2631,7 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid?>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("OrganizationId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("OrganizationId", "Name")
-                        .IsUnique()
-                        .HasFilter("[OrganizationId] IS NOT NULL");
 
                     b.HasIndex("OrganizationId", "Name")
                         .IsUnique()
@@ -4166,6 +4245,202 @@ namespace ErpApp.Infrastructure.Migrations
                             Id = new Guid("00000000-0000-0000-0002-0000000000e0"),
                             IsGranted = false,
                             PermissionKey = "Crm.DealStage.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000e1"),
+                            IsGranted = true,
+                            PermissionKey = "Sales.Quotation.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000e2"),
+                            IsGranted = false,
+                            PermissionKey = "Sales.Quotation.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000e3"),
+                            IsGranted = true,
+                            PermissionKey = "Sales.SalesOrder.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000e4"),
+                            IsGranted = false,
+                            PermissionKey = "Sales.SalesOrder.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000e5"),
+                            IsGranted = true,
+                            PermissionKey = "Sales.Invoice.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000e6"),
+                            IsGranted = false,
+                            PermissionKey = "Sales.Invoice.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000e7"),
+                            IsGranted = true,
+                            PermissionKey = "Sales.CreditNote.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000e8"),
+                            IsGranted = false,
+                            PermissionKey = "Sales.CreditNote.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000e9"),
+                            IsGranted = true,
+                            PermissionKey = "Payments.Payment.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000ea"),
+                            IsGranted = false,
+                            PermissionKey = "Payments.Payment.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000eb"),
+                            IsGranted = true,
+                            PermissionKey = "Purchasing.PurchaseOrder.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000ec"),
+                            IsGranted = false,
+                            PermissionKey = "Purchasing.PurchaseOrder.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000ed"),
+                            IsGranted = true,
+                            PermissionKey = "Purchasing.PurchaseBill.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000ee"),
+                            IsGranted = false,
+                            PermissionKey = "Purchasing.PurchaseBill.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000ef"),
+                            IsGranted = true,
+                            PermissionKey = "Purchasing.Expense.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000f0"),
+                            IsGranted = false,
+                            PermissionKey = "Purchasing.Expense.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000f1"),
+                            IsGranted = true,
+                            PermissionKey = "Purchasing.DebitNote.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000f2"),
+                            IsGranted = false,
+                            PermissionKey = "Purchasing.DebitNote.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000f3"),
+                            IsGranted = true,
+                            PermissionKey = "Accounting.JournalVoucher.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000f4"),
+                            IsGranted = false,
+                            PermissionKey = "Accounting.JournalVoucher.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000f5"),
+                            IsGranted = true,
+                            PermissionKey = "Accounting.CashTransfer.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000f6"),
+                            IsGranted = false,
+                            PermissionKey = "Accounting.CashTransfer.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000f7"),
+                            IsGranted = true,
+                            PermissionKey = "Inventory.WarehouseTransfer.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000f8"),
+                            IsGranted = false,
+                            PermissionKey = "Inventory.WarehouseTransfer.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000f9"),
+                            IsGranted = true,
+                            PermissionKey = "Inventory.InventoryAdjustment.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000fa"),
+                            IsGranted = false,
+                            PermissionKey = "Inventory.InventoryAdjustment.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000fb"),
+                            IsGranted = true,
+                            PermissionKey = "Tenancy.Organization.LockDateManage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000fc"),
+                            IsGranted = false,
+                            PermissionKey = "Tenancy.Organization.LockDateManage",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });

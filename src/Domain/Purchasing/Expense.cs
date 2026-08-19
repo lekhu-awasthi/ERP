@@ -27,6 +27,8 @@ public sealed class Expense
     public ExpenseStatus Status { get; private set; }
     public Guid? ApprovedByUserId { get; private set; }
     public DateTimeOffset? ApprovedAt { get; private set; }
+    public Guid? VoidedByUserId { get; private set; }
+    public DateTimeOffset? VoidedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
 
@@ -121,11 +123,27 @@ public sealed class Expense
         Code = code;
     }
 
+    public void Void(Guid voidedByUserId)
+    {
+        EnsureApproved();
+        Status = ExpenseStatus.Void;
+        VoidedByUserId = voidedByUserId;
+        VoidedAt = DateTimeOffset.UtcNow;
+    }
+
     private void EnsureDraft()
     {
         if (Status != ExpenseStatus.Draft)
         {
             throw new InvalidOperationException("This expense is no longer in Draft status.");
+        }
+    }
+
+    private void EnsureApproved()
+    {
+        if (Status != ExpenseStatus.Approved)
+        {
+            throw new InvalidOperationException("Only an Approved expense can be voided.");
         }
     }
 }

@@ -129,6 +129,12 @@ export interface AccountingDefaults {
   defaultInventoryAdjustmentAccountId: string | null;
 }
 
+// Phase 16a (lock-date enforcement) -- lockDate is an ISO date string (yyyy-MM-dd) or null (unset).
+export interface OrganizationLockDate {
+  organizationId: string;
+  lockDate: string | null;
+}
+
 // Phase 14 (Role Reference).
 export interface Role {
   id: string;

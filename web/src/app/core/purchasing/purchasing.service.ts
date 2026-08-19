@@ -40,6 +40,10 @@ import {
   UpdateExpenseResult,
   UpdatePurchaseBillResult,
   UpdatePurchaseOrderResult,
+  VoidDebitNoteResult,
+  VoidExpenseResult,
+  VoidPurchaseBillResult,
+  VoidPurchaseOrderResult,
 } from './purchasing.models';
 
 @Injectable({ providedIn: 'root' })
@@ -77,6 +81,12 @@ export class PurchasingService {
     });
   }
 
+  voidPurchaseOrder(organizationId: string, id: string): Observable<VoidPurchaseOrderResult> {
+    return this.http.post<VoidPurchaseOrderResult>(`${this.baseUrl(organizationId)}/purchase-orders/${id}/void`, null, {
+      withCredentials: true,
+    });
+  }
+
   getPurchaseBillConversionTemplate(organizationId: string, purchaseOrderId: string): Observable<PurchaseBillConversionTemplate> {
     return this.http.get<PurchaseBillConversionTemplate>(
       `${this.baseUrl(organizationId)}/purchase-orders/${purchaseOrderId}/purchase-bill-conversion-template`,
@@ -107,6 +117,12 @@ export class PurchasingService {
 
   approvePurchaseBill(organizationId: string, id: string): Observable<ApprovePurchaseBillResult> {
     return this.http.post<ApprovePurchaseBillResult>(`${this.baseUrl(organizationId)}/purchase-bills/${id}/approve`, null, {
+      withCredentials: true,
+    });
+  }
+
+  voidPurchaseBill(organizationId: string, id: string): Observable<VoidPurchaseBillResult> {
+    return this.http.post<VoidPurchaseBillResult>(`${this.baseUrl(organizationId)}/purchase-bills/${id}/void`, null, {
       withCredentials: true,
     });
   }
@@ -155,6 +171,12 @@ export class PurchasingService {
     });
   }
 
+  voidExpense(organizationId: string, id: string): Observable<VoidExpenseResult> {
+    return this.http.post<VoidExpenseResult>(`${this.baseUrl(organizationId)}/expenses/${id}/void`, null, {
+      withCredentials: true,
+    });
+  }
+
   previewExpenseGlPosting(
     organizationId: string,
     lines: ExpenseLineInput[],
@@ -191,6 +213,12 @@ export class PurchasingService {
 
   approveDebitNote(organizationId: string, id: string): Observable<ApproveDebitNoteResult> {
     return this.http.post<ApproveDebitNoteResult>(`${this.baseUrl(organizationId)}/debit-notes/${id}/approve`, null, {
+      withCredentials: true,
+    });
+  }
+
+  voidDebitNote(organizationId: string, id: string): Observable<VoidDebitNoteResult> {
+    return this.http.post<VoidDebitNoteResult>(`${this.baseUrl(organizationId)}/debit-notes/${id}/void`, null, {
       withCredentials: true,
     });
   }

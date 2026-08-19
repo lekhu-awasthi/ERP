@@ -25,6 +25,8 @@ public sealed class Quotation
     public QuotationStatus Status { get; private set; }
     public Guid? ApprovedByUserId { get; private set; }
     public DateTimeOffset? ApprovedAt { get; private set; }
+    public Guid? VoidedByUserId { get; private set; }
+    public DateTimeOffset? VoidedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
 
@@ -103,11 +105,31 @@ public sealed class Quotation
         Status = QuotationStatus.Converted;
     }
 
+    /// <summary>Only an Approved-not-yet-Converted quotation can be voided -- a Converted
+    /// quotation has a live dependent (the Invoice created from it), so EnsureApproved's plain
+    /// Status!=Approved check already rejects it (409) without a separate dependent-lookup: the
+    /// Invoice itself, not this Quotation, is what would need voiding first (roadmap Phase 16a).</summary>
+    public void Void(Guid voidedByUserId)
+    {
+        EnsureApproved();
+        Status = QuotationStatus.Void;
+        VoidedByUserId = voidedByUserId;
+        VoidedAt = DateTimeOffset.UtcNow;
+    }
+
     private void EnsureDraft()
     {
         if (Status != QuotationStatus.Draft)
         {
             throw new InvalidOperationException("This quotation is no longer in Draft status.");
+        }
+    }
+
+    private void EnsureApproved()
+    {
+        if (Status != QuotationStatus.Approved)
+        {
+            throw new InvalidOperationException("Only an Approved quotation can be voided.");
         }
     }
 }

@@ -11,7 +11,7 @@ public sealed record UpdateInventoryAdjustmentCommand(
     DateOnly Date,
     string? Reference,
     IReadOnlyList<InventoryAdjustmentLineInput> Lines)
-    : IRequest<UpdateInventoryAdjustmentResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<UpdateInventoryAdjustmentResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.InventoryAdjustmentEdit;
 }

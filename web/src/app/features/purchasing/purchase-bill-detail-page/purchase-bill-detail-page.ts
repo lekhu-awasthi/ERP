@@ -55,6 +55,7 @@ export class PurchaseBillDetailPage {
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
+  protected readonly voiding = signal(false);
   protected readonly converting = signal(false);
   protected readonly previewingGl = signal(false);
   protected readonly glPreview = signal<{ accountId: string; debit: number; credit: number }[] | null>(null);
@@ -287,6 +288,26 @@ export class PurchaseBillDetailPage {
         },
       });
     }
+  }
+
+  protected voidPurchaseBill(): void {
+    if (!window.confirm('Void this purchase bill? This reverses its GL posting and cannot be undone; it will be rejected if any of its stock has already been sold or moved.')) {
+      return;
+    }
+
+    this.voiding.set(true);
+    this.errorMessage.set(null);
+
+    this.purchasingService.voidPurchaseBill(this.organizationId, this.routePurchaseBillId).subscribe({
+      next: () => {
+        this.voiding.set(false);
+        this.load();
+      },
+      error: (err: unknown) => {
+        this.voiding.set(false);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not void purchase bill. Please try again.');
+      },
+    });
   }
 
   protected approve(): void {

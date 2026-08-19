@@ -14,7 +14,7 @@ public sealed record CreateDebitNoteCommand(
     IReadOnlyList<DebitNoteLineInput> Lines,
     DocumentType? ReferrerType = null,
     Guid? ReferrerId = null)
-    : IRequest<CreateDebitNoteResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<CreateDebitNoteResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.DebitNoteCreate;
 }

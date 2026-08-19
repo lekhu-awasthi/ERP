@@ -136,6 +136,39 @@ public sealed class StockLedgerService(IAppDbContext db) : IStockLedgerService
         return totalConsidered == 0 ? 0m : totalCost / totalConsidered;
     }
 
+    public async Task ReverseIncrementAsync(
+        Guid organizationId,
+        DocumentType sourceDocumentType,
+        Guid sourceDocumentId,
+        DateOnly transactionDate,
+        CancellationToken cancellationToken)
+    {
+        var layers = await db.StockLedgerEntries
+            .Where(x => x.OrganizationId == organizationId
+                && x.SourceDocumentType == sourceDocumentType && x.SourceDocumentId == sourceDocumentId)
+            .ToListAsync(cancellationToken);
+
+        if (layers.Count == 0)
+        {
+            return;
+        }
+
+        if (layers.Any(x => x.QuantityRemaining != x.QuantityIn))
+        {
+            throw new ConflictException(
+                "Cannot void this document -- some of the stock it added has already been consumed by a later document.");
+        }
+
+        foreach (var layer in layers)
+        {
+            db.StockMovements.Add(StockMovement.Create(
+                organizationId, layer.ProductId, layer.WarehouseId, StockMovementDirection.Out, layer.QuantityRemaining,
+                layer.UnitCost, sourceDocumentType, sourceDocumentId, transactionDate));
+
+            layer.Consume(layer.QuantityRemaining);
+        }
+    }
+
     private async Task<List<StockLedgerEntry>> LoadLayersOldestFirstAsync(
         Guid organizationId, Guid productId, Guid warehouseId, CancellationToken cancellationToken)
     {

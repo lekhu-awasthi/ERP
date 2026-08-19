@@ -188,6 +188,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'organizations/:id/lock-date',
+    loadComponent: () =>
+      import('./features/organizations/lock-date-page/lock-date-page').then((m) => m.LockDatePage),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/warehouses',
     loadComponent: () =>
       import('./features/organizations/warehouse-list-page/warehouse-list-page').then((m) => m.WarehouseListPage),

@@ -80,9 +80,10 @@ public sealed class ApproveDebitNoteCommandHandler(
                 {
                     foreach (var line in goodsLines)
                     {
-                        await stockLedgerService.ConsumeAsync(
+                        var averageUnitCost = await stockLedgerService.ConsumeAsync(
                             request.OrganizationId, line.ProductId, purchaseBill.WarehouseId, line.Quantity,
                             DocumentType.DebitNote, debitNote.Id, debitNote.Date, cancellationToken);
+                        line.RecordConsumedUnitCost(averageUnitCost);
                     }
                 }
             }

@@ -68,6 +68,13 @@ export interface ApproveWarehouseTransferResult {
   approvedAt: string | null;
 }
 
+export interface VoidWarehouseTransferResult {
+  id: string;
+  code: string;
+  status: WarehouseTransferStatus;
+  voidedAt: string | null;
+}
+
 // --- Inventory Adjustment ---
 
 export interface InventoryAdjustmentLineInput {
@@ -123,6 +130,13 @@ export interface ApproveInventoryAdjustmentResult {
   code: string;
   status: InventoryAdjustmentStatus;
   approvedAt: string | null;
+}
+
+export interface VoidInventoryAdjustmentResult {
+  id: string;
+  code: string;
+  status: InventoryAdjustmentStatus;
+  voidedAt: string | null;
 }
 
 // --- Reports ---

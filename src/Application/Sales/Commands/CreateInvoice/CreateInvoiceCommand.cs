@@ -14,7 +14,7 @@ public sealed record CreateInvoiceCommand(
     IReadOnlyList<InvoiceLineInput> Lines,
     DocumentType? ReferrerType = null,
     Guid? ReferrerId = null)
-    : IRequest<CreateInvoiceResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<CreateInvoiceResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.InvoiceCreate;
 }

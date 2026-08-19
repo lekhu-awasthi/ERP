@@ -12,7 +12,7 @@ public sealed record UpdateWarehouseTransferCommand(
     DateOnly Date,
     string? Reference,
     IReadOnlyList<WarehouseTransferLineInput> Lines)
-    : IRequest<UpdateWarehouseTransferResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<UpdateWarehouseTransferResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.WarehouseTransferEdit;
 }

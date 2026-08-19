@@ -259,4 +259,64 @@ public class StockLedgerServiceTests
 
         Assert.Equal(0m, estimate);
     }
+
+    /// <summary>Void lifecycle (roadmap Phase 16a) -- an untouched layer created by a document
+    /// being voided is fully zeroed out (QuantityIn is left alone, same invariant Consume already
+    /// keeps, so kardex history stays reconstructable).</summary>
+    [Fact]
+    public async Task ReverseIncrementAsync_on_a_fully_intact_layer_zeroes_it()
+    {
+        var db = TestAppDbContext.Create();
+        var service = new StockLedgerService(db);
+
+        await service.IncrementAsync(
+            OrganizationId, ProductId, WarehouseId, 10m, 5m, DocumentType.PurchaseBill, SourceDocumentId,
+            new DateOnly(2026, 1, 1), CancellationToken.None);
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        await service.ReverseIncrementAsync(
+            OrganizationId, DocumentType.PurchaseBill, SourceDocumentId, new DateOnly(2026, 1, 10), CancellationToken.None);
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        var layer = await db.StockLedgerEntries.SingleAsync();
+        Assert.Equal(0m, layer.QuantityRemaining);
+        Assert.Equal(10m, layer.QuantityIn);
+    }
+
+    /// <summary>The roadmap's explicit "a partly-consumed PurchaseBill must be REJECTED, not
+    /// partially unwound" requirement -- confirmed the guard checks every layer for this document
+    /// before mutating any of them.</summary>
+    [Fact]
+    public async Task ReverseIncrementAsync_throws_and_does_not_mutate_when_layer_is_partly_consumed()
+    {
+        var db = TestAppDbContext.Create();
+        var service = new StockLedgerService(db);
+
+        await service.IncrementAsync(
+            OrganizationId, ProductId, WarehouseId, 10m, 5m, DocumentType.PurchaseBill, SourceDocumentId,
+            new DateOnly(2026, 1, 1), CancellationToken.None);
+        await db.SaveChangesAsync(CancellationToken.None);
+        await service.ConsumeAsync(
+            OrganizationId, ProductId, WarehouseId, 4m, DocumentType.Invoice, Guid.NewGuid(), new DateOnly(2026, 1, 5),
+            CancellationToken.None);
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        await Assert.ThrowsAsync<ConflictException>(() => service.ReverseIncrementAsync(
+            OrganizationId, DocumentType.PurchaseBill, SourceDocumentId, new DateOnly(2026, 1, 10), CancellationToken.None));
+
+        var layer = await db.StockLedgerEntries.SingleAsync();
+        Assert.Equal(6m, layer.QuantityRemaining);
+    }
+
+    [Fact]
+    public async Task ReverseIncrementAsync_with_no_matching_layers_is_a_noop()
+    {
+        var db = TestAppDbContext.Create();
+        var service = new StockLedgerService(db);
+
+        await service.ReverseIncrementAsync(
+            OrganizationId, DocumentType.PurchaseBill, Guid.NewGuid(), new DateOnly(2026, 1, 10), CancellationToken.None);
+
+        Assert.Empty(db.StockLedgerEntries);
+    }
 }

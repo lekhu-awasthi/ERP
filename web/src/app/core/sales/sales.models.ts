@@ -73,6 +73,13 @@ export interface ApproveQuotationResult {
   approvedAt: string | null;
 }
 
+export interface VoidQuotationResult {
+  id: string;
+  code: string;
+  status: QuotationStatus;
+  voidedAt: string | null;
+}
+
 export interface InvoiceLineInput {
   productId: string;
   quantity: number;
@@ -142,6 +149,13 @@ export interface ApproveInvoiceResult {
   code: string;
   status: InvoiceStatus;
   approvedAt: string | null;
+}
+
+export interface VoidInvoiceResult {
+  id: string;
+  code: string;
+  status: InvoiceStatus;
+  voidedAt: string | null;
 }
 
 export interface GlLinePreviewDto {
@@ -276,6 +290,13 @@ export interface ApproveCreditNoteResult {
   code: string;
   status: CreditNoteStatus;
   approvedAt: string | null;
+}
+
+export interface VoidCreditNoteResult {
+  id: string;
+  code: string;
+  status: CreditNoteStatus;
+  voidedAt: string | null;
 }
 
 export interface CreditNoteConversionTemplate {

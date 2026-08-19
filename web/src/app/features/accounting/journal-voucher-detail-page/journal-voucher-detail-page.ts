@@ -45,6 +45,7 @@ export class JournalVoucherDetailPage {
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
+  protected readonly voiding = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly journalVoucher = signal<JournalVoucherDetail | null>(null);
   protected readonly accounts = signal<Account[]>([]);
@@ -152,6 +153,26 @@ export class JournalVoucherDetailPage {
       error: (err: unknown) => {
         this.saving.set(false);
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save journal voucher. Please try again.');
+      },
+    });
+  }
+
+  protected voidJournalVoucher(): void {
+    if (!window.confirm('Void this journal voucher? This reverses its GL posting and cannot be undone.')) {
+      return;
+    }
+
+    this.voiding.set(true);
+    this.errorMessage.set(null);
+
+    this.accountingService.voidJournalVoucher(this.organizationId, this.routeJournalVoucherId).subscribe({
+      next: () => {
+        this.voiding.set(false);
+        this.load();
+      },
+      error: (err: unknown) => {
+        this.voiding.set(false);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not void journal voucher. Please try again.');
       },
     });
   }

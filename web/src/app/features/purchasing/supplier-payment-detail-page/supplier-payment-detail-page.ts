@@ -46,6 +46,7 @@ export class SupplierPaymentDetailPage {
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
+  protected readonly voiding = signal(false);
   protected readonly suggesting = signal(false);
   protected readonly previewingGl = signal(false);
   protected readonly glPreview = signal<GlLinePreviewDto[] | null>(null);
@@ -250,6 +251,26 @@ export class SupplierPaymentDetailPage {
         },
       });
     }
+  }
+
+  protected voidPayment(): void {
+    if (!window.confirm('Void this payment? This releases its allocations and reverses its GL posting, and cannot be undone.')) {
+      return;
+    }
+
+    this.voiding.set(true);
+    this.errorMessage.set(null);
+
+    this.paymentsService.voidPayment(this.organizationId, this.routePaymentId).subscribe({
+      next: () => {
+        this.voiding.set(false);
+        this.load();
+      },
+      error: (err: unknown) => {
+        this.voiding.set(false);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not void payment. Please try again.');
+      },
+    });
   }
 
   protected approve(): void {

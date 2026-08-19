@@ -150,6 +150,13 @@ export interface ApproveJournalVoucherResult {
   approvedAt: string | null;
 }
 
+export interface VoidJournalVoucherResult {
+  id: string;
+  code: string;
+  status: JournalVoucherStatus;
+  voidedAt: string | null;
+}
+
 export type CashTransferStatus = 'Draft' | 'Approved' | 'Void';
 
 export interface CashTransferLineInput {
@@ -215,6 +222,13 @@ export interface ApproveCashTransferResult {
   code: string;
   status: CashTransferStatus;
   approvedAt: string | null;
+}
+
+export interface VoidCashTransferResult {
+  id: string;
+  code: string;
+  status: CashTransferStatus;
+  voidedAt: string | null;
 }
 
 // --- Reports (Phase 8a) ---

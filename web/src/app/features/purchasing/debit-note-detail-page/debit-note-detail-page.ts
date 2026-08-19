@@ -52,6 +52,7 @@ export class DebitNoteDetailPage {
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
+  protected readonly voiding = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly debitNote = signal<DebitNoteDetail | null>(null);
   protected readonly suppliers = signal<Contact[]>([]);
@@ -223,6 +224,26 @@ export class DebitNoteDetailPage {
         },
       });
     }
+  }
+
+  protected voidDebitNote(): void {
+    if (!window.confirm('Void this debit note? This reverses its GL posting and restocks any consumed FIFO layer, and cannot be undone.')) {
+      return;
+    }
+
+    this.voiding.set(true);
+    this.errorMessage.set(null);
+
+    this.purchasingService.voidDebitNote(this.organizationId, this.routeDebitNoteId).subscribe({
+      next: () => {
+        this.voiding.set(false);
+        this.load();
+      },
+      error: (err: unknown) => {
+        this.voiding.set(false);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not void debit note. Please try again.');
+      },
+    });
   }
 
   protected approve(): void {

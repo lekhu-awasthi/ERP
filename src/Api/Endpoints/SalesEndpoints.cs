@@ -11,6 +11,10 @@ using ErpApp.Application.Sales.Commands.UpdateCreditNote;
 using ErpApp.Application.Sales.Commands.UpdateInvoice;
 using ErpApp.Application.Sales.Commands.UpdateQuotation;
 using ErpApp.Application.Sales.Commands.UpdateSalesOrder;
+using ErpApp.Application.Sales.Commands.VoidCreditNote;
+using ErpApp.Application.Sales.Commands.VoidInvoice;
+using ErpApp.Application.Sales.Commands.VoidQuotation;
+using ErpApp.Application.Sales.Commands.VoidSalesOrder;
 using ErpApp.Application.Sales.Queries.GetCreditNote;
 using ErpApp.Application.Sales.Queries.GetCreditNoteConversionTemplate;
 using ErpApp.Application.Sales.Queries.GetInvoice;
@@ -86,6 +90,13 @@ public static class SalesEndpoints
             var result = await sender.Send(new ApproveQuotationCommand(organizationId, id), ct);
             return Results.Ok(result);
         });
+
+        group.MapPost("/quotations/{id:guid}/void", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new VoidQuotationCommand(organizationId, id), ct);
+            return Results.Ok(result);
+        });
     }
 
     private static void MapInvoiceEndpoints(RouteGroupBuilder group)
@@ -130,6 +141,13 @@ public static class SalesEndpoints
         {
             var result = await sender.Send(
                 new ApproveInvoiceCommand(organizationId, id, request?.OverrideWarning ?? false), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/invoices/{id:guid}/void", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new VoidInvoiceCommand(organizationId, id), ct);
             return Results.Ok(result);
         });
 
@@ -190,6 +208,13 @@ public static class SalesEndpoints
             var result = await sender.Send(new ApproveSalesOrderCommand(organizationId, id), ct);
             return Results.Ok(result);
         });
+
+        group.MapPost("/sales-orders/{id:guid}/void", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new VoidSalesOrderCommand(organizationId, id), ct);
+            return Results.Ok(result);
+        });
     }
 
     private static void MapCreditNoteEndpoints(RouteGroupBuilder group)
@@ -232,6 +257,13 @@ public static class SalesEndpoints
             Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new ApproveCreditNoteCommand(organizationId, id), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/credit-notes/{id:guid}/void", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new VoidCreditNoteCommand(organizationId, id), ct);
             return Results.Ok(result);
         });
 

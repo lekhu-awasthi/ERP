@@ -18,7 +18,7 @@ public sealed record UpdatePurchaseBillCommand(
     string? ImportDocumentNo,
     Guid? TdsTypeId,
     IReadOnlyList<PurchaseBillLineInput> Lines)
-    : IRequest<UpdatePurchaseBillResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<UpdatePurchaseBillResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.PurchaseBillEdit;
 }

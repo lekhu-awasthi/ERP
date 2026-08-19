@@ -6,6 +6,8 @@ import { environment } from '../../../environments/environment';
 import {
   ApproveInventoryAdjustmentResult,
   ApproveWarehouseTransferResult,
+  VoidInventoryAdjustmentResult,
+  VoidWarehouseTransferResult,
   CreateInventoryAdjustmentResult,
   CreateWarehouseTransferResult,
   InventoryAdjustment,
@@ -64,6 +66,12 @@ export class InventoryService {
     );
   }
 
+  voidWarehouseTransfer(organizationId: string, id: string): Observable<VoidWarehouseTransferResult> {
+    return this.http.post<VoidWarehouseTransferResult>(
+      `${this.baseUrl(organizationId)}/warehouse-transfers/${id}/void`, null, { withCredentials: true },
+    );
+  }
+
   listInventoryAdjustments(organizationId: string, status?: InventoryAdjustmentStatus): Observable<InventoryAdjustment[]> {
     const params: Record<string, string> = status ? { status } : {};
     return this.http.get<InventoryAdjustment[]>(`${this.baseUrl(organizationId)}/inventory-adjustments`, {
@@ -97,6 +105,12 @@ export class InventoryService {
   approveInventoryAdjustment(organizationId: string, id: string): Observable<ApproveInventoryAdjustmentResult> {
     return this.http.post<ApproveInventoryAdjustmentResult>(
       `${this.baseUrl(organizationId)}/inventory-adjustments/${id}/approve`, null, { withCredentials: true },
+    );
+  }
+
+  voidInventoryAdjustment(organizationId: string, id: string): Observable<VoidInventoryAdjustmentResult> {
+    return this.http.post<VoidInventoryAdjustmentResult>(
+      `${this.baseUrl(organizationId)}/inventory-adjustments/${id}/void`, null, { withCredentials: true },
     );
   }
 

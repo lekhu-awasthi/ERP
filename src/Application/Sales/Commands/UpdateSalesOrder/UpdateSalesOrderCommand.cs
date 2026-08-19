@@ -7,7 +7,7 @@ namespace ErpApp.Application.Sales.Commands.UpdateSalesOrder;
 public sealed record UpdateSalesOrderCommand(
     Guid OrganizationId, Guid Id, Guid ContactId, DateOnly Date, DateOnly? DeliveryDate, string? Reference,
     IReadOnlyList<SalesOrderLineInput> Lines)
-    : IRequest<UpdateSalesOrderResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<UpdateSalesOrderResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.SalesOrderEdit;
 }

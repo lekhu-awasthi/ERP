@@ -15,7 +15,7 @@ namespace ErpApp.Application.Payments.Commands.CreatePayment;
 public sealed record CreatePaymentCommand(
     Guid OrganizationId, Guid ContactId, PaymentDirection Direction, DateOnly Date, Guid? PaymentModeId, Guid AccountId,
     decimal Amount, string? Reference, IReadOnlyList<PaymentAllocationInput> Allocations)
-    : IRequest<CreatePaymentResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<CreatePaymentResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
 {
     public string PermissionKey => PermissionKeys.PaymentCreate;
 }

@@ -17,6 +17,13 @@ public sealed class InventoryAdjustmentLine
     public decimal Quantity { get; private set; }
     public decimal UnitCost { get; private set; }
 
+    /// <summary>Null until ApproveInventoryAdjustmentCommandHandler actually consumes FIFO stock
+    /// for a Direction=Decrease line (an Increase line never gets one -- its cost is the
+    /// user-entered UnitCost above). Set once, from IStockLedgerService.ConsumeAsync's actual
+    /// weighted-average result -- mirrors InvoiceLine.CogsUnitCost's precedent -- so voiding this
+    /// adjustment can put stock back at the exact cost it left at.</summary>
+    public decimal? ConsumedUnitCost { get; private set; }
+
     private InventoryAdjustmentLine()
     {
     }
@@ -34,4 +41,10 @@ public sealed class InventoryAdjustmentLine
             UnitCost = direction == InventoryAdjustmentDirection.Increase ? unitCost : 0,
         };
     }
+
+    /// <summary>Called once, from ApproveInventoryAdjustmentCommandHandler right after
+    /// IStockLedgerService.ConsumeAsync returns this Decrease line's actual weighted-average cost.
+    /// Public (not internal) for the same Domain/Application assembly-boundary reason InvoiceLine.
+    /// RecordCogsUnitCost is public.</summary>
+    public void RecordConsumedUnitCost(decimal unitCost) => ConsumedUnitCost = unitCost;
 }

@@ -45,6 +45,7 @@ export class CreditNoteDetailPage {
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
+  protected readonly voiding = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly creditNote = signal<CreditNoteDetail | null>(null);
   protected readonly customers = signal<Contact[]>([]);
@@ -219,6 +220,26 @@ export class CreditNoteDetailPage {
       error: (err: unknown) => {
         this.approving.set(false);
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not approve credit note. Please try again.');
+      },
+    });
+  }
+
+  protected voidCreditNote(): void {
+    if (!window.confirm('Void this credit note? This reverses its GL posting and any restocked FIFO layer, and cannot be undone.')) {
+      return;
+    }
+
+    this.voiding.set(true);
+    this.errorMessage.set(null);
+
+    this.salesService.voidCreditNote(this.organizationId, this.routeCreditNoteId).subscribe({
+      next: () => {
+        this.voiding.set(false);
+        this.load();
+      },
+      error: (err: unknown) => {
+        this.voiding.set(false);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not void credit note. Please try again.');
       },
     });
   }

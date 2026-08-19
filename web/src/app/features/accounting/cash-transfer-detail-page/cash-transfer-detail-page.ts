@@ -35,6 +35,7 @@ export class CashTransferDetailPage {
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
+  protected readonly voiding = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly cashTransfer = signal<CashTransferDetail | null>(null);
   protected readonly accounts = signal<Account[]>([]);
@@ -144,6 +145,26 @@ export class CashTransferDetailPage {
       error: (err: unknown) => {
         this.saving.set(false);
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save cash transfer. Please try again.');
+      },
+    });
+  }
+
+  protected voidCashTransfer(): void {
+    if (!window.confirm('Void this cash transfer? This reverses its GL posting and cannot be undone.')) {
+      return;
+    }
+
+    this.voiding.set(true);
+    this.errorMessage.set(null);
+
+    this.accountingService.voidCashTransfer(this.organizationId, this.routeCashTransferId).subscribe({
+      next: () => {
+        this.voiding.set(false);
+        this.load();
+      },
+      error: (err: unknown) => {
+        this.voiding.set(false);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not void cash transfer. Please try again.');
       },
     });
   }

@@ -21,6 +21,13 @@
           <i class="bi bi-arrow-return-left"></i> Convert to Debit Note
         }
       </button>
+      <button type="button" class="btn btn-outline-danger btn-sm fw-bold" [disabled]="voiding()" (click)="voidPurchaseBill()">
+        @if (voiding()) {
+          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        } @else {
+          <i class="bi bi-x-circle"></i> Void
+        }
+      </button>
     }
   </div>
 

@@ -37,6 +37,8 @@ public sealed class Invoice
     public InvoiceStatus Status { get; private set; }
     public Guid? ApprovedByUserId { get; private set; }
     public DateTimeOffset? ApprovedAt { get; private set; }
+    public Guid? VoidedByUserId { get; private set; }
+    public DateTimeOffset? VoidedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
     public DocumentType? ReferrerType { get; private set; }
@@ -117,11 +119,27 @@ public sealed class Invoice
         Code = code;
     }
 
+    public void Void(Guid voidedByUserId)
+    {
+        EnsureApproved();
+        Status = InvoiceStatus.Void;
+        VoidedByUserId = voidedByUserId;
+        VoidedAt = DateTimeOffset.UtcNow;
+    }
+
     private void EnsureDraft()
     {
         if (Status != InvoiceStatus.Draft)
         {
             throw new InvalidOperationException("This invoice is no longer in Draft status.");
+        }
+    }
+
+    private void EnsureApproved()
+    {
+        if (Status != InvoiceStatus.Approved)
+        {
+            throw new InvalidOperationException("Only an Approved invoice can be voided.");
         }
     }
 }

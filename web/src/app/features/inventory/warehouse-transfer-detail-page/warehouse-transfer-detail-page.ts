@@ -38,6 +38,7 @@ export class WarehouseTransferDetailPage {
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
+  protected readonly voiding = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly warehouseTransfer = signal<WarehouseTransferDetail | null>(null);
   protected readonly products = signal<Product[]>([]);
@@ -168,6 +169,26 @@ export class WarehouseTransferDetailPage {
         },
       });
     }
+  }
+
+  protected voidWarehouseTransfer(): void {
+    if (!window.confirm('Void this warehouse transfer? This restocks the source warehouse and cannot be undone; it will be rejected if the moved stock has already left the destination warehouse.')) {
+      return;
+    }
+
+    this.voiding.set(true);
+    this.errorMessage.set(null);
+
+    this.inventoryService.voidWarehouseTransfer(this.organizationId, this.routeWarehouseTransferId).subscribe({
+      next: () => {
+        this.voiding.set(false);
+        this.load();
+      },
+      error: (err: unknown) => {
+        this.voiding.set(false);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not void warehouse transfer. Please try again.');
+      },
+    });
   }
 
   protected approve(): void {

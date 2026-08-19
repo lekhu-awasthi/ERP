@@ -31,6 +31,8 @@ public sealed class WarehouseTransfer
     public WarehouseTransferStatus Status { get; private set; }
     public Guid? ApprovedByUserId { get; private set; }
     public DateTimeOffset? ApprovedAt { get; private set; }
+    public Guid? VoidedByUserId { get; private set; }
+    public DateTimeOffset? VoidedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
 
@@ -110,11 +112,27 @@ public sealed class WarehouseTransfer
         Code = code;
     }
 
+    public void Void(Guid voidedByUserId)
+    {
+        EnsureApproved();
+        Status = WarehouseTransferStatus.Void;
+        VoidedByUserId = voidedByUserId;
+        VoidedAt = DateTimeOffset.UtcNow;
+    }
+
     private void EnsureDraft()
     {
         if (Status != WarehouseTransferStatus.Draft)
         {
             throw new InvalidOperationException("This warehouse transfer is no longer in Draft status.");
+        }
+    }
+
+    private void EnsureApproved()
+    {
+        if (Status != WarehouseTransferStatus.Approved)
+        {
+            throw new InvalidOperationException("Only an Approved warehouse transfer can be voided.");
         }
     }
 }

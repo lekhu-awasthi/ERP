@@ -65,6 +65,13 @@ export interface ApprovePaymentResult {
   approvedAt: string | null;
 }
 
+export interface VoidPaymentResult {
+  id: string;
+  code: string;
+  status: PaymentStatus;
+  voidedAt: string | null;
+}
+
 export interface GlLinePreviewDto {
   accountId: string;
   debit: number;
