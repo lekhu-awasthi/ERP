@@ -20,6 +20,7 @@ using ErpApp.Application.Configuration.Commands.UpdateReportingTagCategory;
 using ErpApp.Application.Configuration.Commands.UpdateReportingTagOption;
 using ErpApp.Application.Configuration.Commands.UpdateTaskType;
 using ErpApp.Application.Configuration.Commands.UpdateTdsType;
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Configuration.Queries.ListCustomFieldDefinitions;
 using ErpApp.Application.Configuration.Queries.ListLookups;
 using ErpApp.Domain.Common;
@@ -50,9 +51,10 @@ public static class ConfigurationEndpoints
 
     private static void MapCreditTermEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/credit-terms", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+        group.MapGet("/credit-terms", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListLookupsQuery<CreditTerm>(organizationId), ct);
+            var result = await sender.Send(
+                new ListLookupsQuery<CreditTerm>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -82,9 +84,10 @@ public static class ConfigurationEndpoints
 
     private static void MapPaymentModeEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/payment-modes", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+        group.MapGet("/payment-modes", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListLookupsQuery<PaymentMode>(organizationId), ct);
+            var result = await sender.Send(
+                new ListLookupsQuery<PaymentMode>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -113,9 +116,10 @@ public static class ConfigurationEndpoints
 
     private static void MapCustomStatusEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/custom-statuses", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+        group.MapGet("/custom-statuses", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListLookupsQuery<CustomStatus>(organizationId), ct);
+            var result = await sender.Send(
+                new ListLookupsQuery<CustomStatus>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -145,9 +149,11 @@ public static class ConfigurationEndpoints
 
     private static void MapReportingTagCategoryEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/reporting-tag-categories", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+        group.MapGet(
+            "/reporting-tag-categories", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListLookupsQuery<ReportingTagCategory>(organizationId), ct);
+            var result = await sender.Send(
+                new ListLookupsQuery<ReportingTagCategory>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -177,9 +183,11 @@ public static class ConfigurationEndpoints
 
     private static void MapReportingTagOptionEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/reporting-tag-options", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+        group.MapGet(
+            "/reporting-tag-options", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListLookupsQuery<ReportingTagOption>(organizationId), ct);
+            var result = await sender.Send(
+                new ListLookupsQuery<ReportingTagOption>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -210,9 +218,11 @@ public static class ConfigurationEndpoints
 
     private static void MapCustomFieldDefinitionEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/custom-field-definitions", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+        group.MapGet(
+            "/custom-field-definitions", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListCustomFieldDefinitionsQuery(organizationId), ct);
+            var result = await sender.Send(
+                new ListCustomFieldDefinitionsQuery(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -246,9 +256,10 @@ public static class ConfigurationEndpoints
 
     private static void MapTdsTypeEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/tds-types", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+        group.MapGet("/tds-types", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListLookupsQuery<TdsType>(organizationId), ct);
+            var result = await sender.Send(
+                new ListLookupsQuery<TdsType>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -278,9 +289,10 @@ public static class ConfigurationEndpoints
 
     private static void MapTaskTypeEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/task-types", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+        group.MapGet("/task-types", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListLookupsQuery<TaskType>(organizationId), ct);
+            var result = await sender.Send(
+                new ListLookupsQuery<TaskType>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -309,9 +321,10 @@ public static class ConfigurationEndpoints
 
     private static void MapLeadSourceEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/lead-sources", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+        group.MapGet("/lead-sources", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListLookupsQuery<LeadSource>(organizationId), ct);
+            var result = await sender.Send(
+                new ListLookupsQuery<LeadSource>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -340,9 +353,10 @@ public static class ConfigurationEndpoints
 
     private static void MapDealStageEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/deal-stages", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+        group.MapGet("/deal-stages", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListLookupsQuery<DealStage>(organizationId), ct);
+            var result = await sender.Send(
+                new ListLookupsQuery<DealStage>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
             return Results.Ok(result);
         });
 

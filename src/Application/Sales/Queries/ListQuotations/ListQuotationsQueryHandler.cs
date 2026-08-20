@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Sales;
 using MediatR;
@@ -6,9 +7,9 @@ using Microsoft.EntityFrameworkCore;
 namespace ErpApp.Application.Sales.Queries.ListQuotations;
 
 public sealed class ListQuotationsQueryHandler(IAppDbContext db)
-    : IRequestHandler<ListQuotationsQuery, IReadOnlyList<Quotation>>
+    : IRequestHandler<ListQuotationsQuery, PagedResult<Quotation>>
 {
-    public async Task<IReadOnlyList<Quotation>> Handle(ListQuotationsQuery request, CancellationToken cancellationToken)
+    public async Task<PagedResult<Quotation>> Handle(ListQuotationsQuery request, CancellationToken cancellationToken)
     {
         var query = db.Quotations.Where(x => x.OrganizationId == request.OrganizationId);
 
@@ -17,6 +18,7 @@ public sealed class ListQuotationsQueryHandler(IAppDbContext db)
             query = query.Where(x => x.Status == status);
         }
 
-        return await query.OrderByDescending(x => x.CreatedAt).ToListAsync(cancellationToken);
+        return await query.OrderByDescending(x => x.CreatedAt)
+            .ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
     }
 }

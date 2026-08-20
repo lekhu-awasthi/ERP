@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Contacts;
 using MediatR;
@@ -28,7 +29,13 @@ namespace ErpApp.Application.Contacts.Queries.ContactAgeingSummary;
 /// from each bill's own Date, not a Date+CreditTerm.DueDays due date -- see phase-9-status.md.
 /// </summary>
 public sealed record ContactAgeingSummaryQuery(
-    Guid OrganizationId, ContactType ContactType, DateOnly AsOfDate, Guid? ContactGroupId = null)
+    Guid OrganizationId,
+    ContactType ContactType,
+    DateOnly AsOfDate,
+    Guid? ContactGroupId = null,
+    int Page = 1,
+    int PageSize = PagingDefaults.DefaultPageSize,
+    bool ExportAll = false)
     : IRequest<ContactAgeingSummaryDto>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey =>
@@ -48,5 +55,17 @@ public sealed record ContactAgeingSummaryRowDto(
     public decimal Total => Days1To30 + Days31To60 + Days61To90 + Days91Plus;
 }
 
+/// <summary>Total* fields are bucket grand totals across every filtered row, not just the current
+/// page -- see SalesMasterReportDto's doc comment for why the pre-existing client-side
+/// rows().reduce(...) footer total breaks once Rows is a single page.</summary>
 public sealed record ContactAgeingSummaryDto(
-    DateOnly AsOfDate, ContactType ContactType, IReadOnlyList<ContactAgeingSummaryRowDto> Rows);
+    DateOnly AsOfDate,
+    ContactType ContactType,
+    IReadOnlyList<ContactAgeingSummaryRowDto> Rows,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    decimal TotalDays1To30,
+    decimal TotalDays31To60,
+    decimal TotalDays61To90,
+    decimal TotalDays91Plus);

@@ -1,6 +1,12 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Domain.Sales;
 using MediatR;
 
 namespace ErpApp.Application.Sales.Queries.ListInvoices;
 
-public sealed record ListInvoicesQuery(Guid OrganizationId, InvoiceStatus? Status) : IRequest<IReadOnlyList<Invoice>>;
+public sealed record ListInvoicesQuery(
+    Guid OrganizationId,
+    InvoiceStatus? Status,
+    int Page = 1,
+    int PageSize = PagingDefaults.DefaultPageSize)
+    : IRequest<PagedResult<Invoice>>;

@@ -111,9 +111,9 @@ export class DebitNoteDetailPage {
   });
 
   constructor() {
-    this.contactsService.listContacts(this.organizationId, 'Supplier').subscribe({ next: (c) => this.suppliers.set(c) });
-    this.catalogService.listProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
-    this.accountingService.listAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
+    this.contactsService.listAllContacts(this.organizationId, 'Supplier').subscribe({ next: (c) => this.suppliers.set(c) });
+    this.catalogService.listAllProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
+    this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
     this.configurationService.listTdsTypes(this.organizationId).subscribe({ next: (t) => this.tdsTypes.set(t) });
 
     this.route.paramMap.subscribe((params) => {

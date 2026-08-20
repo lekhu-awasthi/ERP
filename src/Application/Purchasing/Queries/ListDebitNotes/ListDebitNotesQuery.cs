@@ -1,6 +1,12 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Domain.Purchasing;
 using MediatR;
 
 namespace ErpApp.Application.Purchasing.Queries.ListDebitNotes;
 
-public sealed record ListDebitNotesQuery(Guid OrganizationId, DebitNoteStatus? Status) : IRequest<IReadOnlyList<DebitNote>>;
+public sealed record ListDebitNotesQuery(
+    Guid OrganizationId,
+    DebitNoteStatus? Status,
+    int Page = 1,
+    int PageSize = PagingDefaults.DefaultPageSize)
+    : IRequest<PagedResult<DebitNote>>;

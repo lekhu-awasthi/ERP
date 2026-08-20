@@ -382,6 +382,10 @@ export interface PurchaseMasterReportDto {
   fromDate: string;
   toDate: string;
   rows: PurchaseMasterReportRowDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalAmount: number;
 }
 
 // --- TDS Report (Phase 8d) ---
@@ -406,6 +410,9 @@ export interface TdsReportDto {
   fromDate: string;
   toDate: string;
   rows: TdsReportRowDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
   totalGrossAmount: number;
   totalTdsAmount: number;
 }
@@ -434,4 +441,7 @@ export interface AnnexThirteenReportDto {
   toDate: string;
   thresholdAmount: number;
   rows: AnnexThirteenReportRowDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
 }

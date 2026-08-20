@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
 import {
   CreateCreditTermRequest,
   CreateDealStageRequest,
@@ -32,8 +33,16 @@ export class ConfigurationService {
     return `${environment.apiBaseUrl}/api/organizations/${organizationId}/configuration`;
   }
 
+  /** Lookup screens (Phase 16c) are bounded master data -- no visible pager, just request
+   * everything in one page and unwrap, keeping every caller's Observable<T[]> contract intact. */
+  private listAll<T>(url: string): Observable<T[]> {
+    return this.http
+      .get<PagedResult<T>>(url, { withCredentials: true, params: { page: '1', pageSize: String(MAX_PAGE_SIZE) } })
+      .pipe(map((result) => result.items));
+  }
+
   listCreditTerms(organizationId: string): Observable<CreditTerm[]> {
-    return this.http.get<CreditTerm[]>(`${this.baseUrl(organizationId)}/credit-terms`, { withCredentials: true });
+    return this.listAll<CreditTerm>(`${this.baseUrl(organizationId)}/credit-terms`);
   }
 
   createCreditTerm(organizationId: string, request: CreateCreditTermRequest): Observable<CreditTerm> {
@@ -53,7 +62,7 @@ export class ConfigurationService {
   }
 
   listPaymentModes(organizationId: string): Observable<PaymentMode[]> {
-    return this.http.get<PaymentMode[]>(`${this.baseUrl(organizationId)}/payment-modes`, { withCredentials: true });
+    return this.listAll<PaymentMode>(`${this.baseUrl(organizationId)}/payment-modes`);
   }
 
   createPaymentMode(organizationId: string, request: CreatePaymentModeRequest): Observable<PaymentMode> {
@@ -73,7 +82,7 @@ export class ConfigurationService {
   }
 
   listTdsTypes(organizationId: string): Observable<TdsType[]> {
-    return this.http.get<TdsType[]>(`${this.baseUrl(organizationId)}/tds-types`, { withCredentials: true });
+    return this.listAll<TdsType>(`${this.baseUrl(organizationId)}/tds-types`);
   }
 
   createTdsType(organizationId: string, request: CreateTdsTypeRequest): Observable<TdsType> {
@@ -89,7 +98,7 @@ export class ConfigurationService {
   }
 
   listTaskTypes(organizationId: string): Observable<TaskType[]> {
-    return this.http.get<TaskType[]>(`${this.baseUrl(organizationId)}/task-types`, { withCredentials: true });
+    return this.listAll<TaskType>(`${this.baseUrl(organizationId)}/task-types`);
   }
 
   createTaskType(organizationId: string, request: CreateTaskTypeRequest): Observable<TaskType> {
@@ -107,7 +116,7 @@ export class ConfigurationService {
   }
 
   listLeadSources(organizationId: string): Observable<LeadSource[]> {
-    return this.http.get<LeadSource[]>(`${this.baseUrl(organizationId)}/lead-sources`, { withCredentials: true });
+    return this.listAll<LeadSource>(`${this.baseUrl(organizationId)}/lead-sources`);
   }
 
   createLeadSource(organizationId: string, request: CreateLeadSourceRequest): Observable<LeadSource> {
@@ -125,7 +134,7 @@ export class ConfigurationService {
   }
 
   listDealStages(organizationId: string): Observable<DealStage[]> {
-    return this.http.get<DealStage[]>(`${this.baseUrl(organizationId)}/deal-stages`, { withCredentials: true });
+    return this.listAll<DealStage>(`${this.baseUrl(organizationId)}/deal-stages`);
   }
 
   createDealStage(organizationId: string, request: CreateDealStageRequest): Observable<DealStage> {

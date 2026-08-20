@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Exceptions;
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Contacts;
 using MediatR;
@@ -52,9 +53,16 @@ public sealed class ContactStatementQueryHandler(IAppDbContext db) : IRequestHan
                 ContactLedgerReader.BalanceType(request.ContactType, running)));
         }
 
+        // Pagination slices the already-fully-computed rows list for display only -- each row's
+        // running Balance (and the OpeningBalance/ClosingBalance above) depend on every event in
+        // the date range, not just the displayed page, so the sequential accumulation above must
+        // always run over the complete event set first.
+        var paged = request.ExportAll ? rows.ToUnpagedResult() : rows.ToPagedResult(request.Page, request.PageSize);
+
         return new ContactStatementDto(
             contact.Id, contact.Code, contact.Name, contact.Type, request.FromDate, request.ToDate,
             Math.Abs(openingBalance), ContactLedgerReader.BalanceType(request.ContactType, openingBalance),
-            rows, Math.Abs(running), ContactLedgerReader.BalanceType(request.ContactType, running));
+            paged.Items, Math.Abs(running), ContactLedgerReader.BalanceType(request.ContactType, running),
+            paged.Page, paged.PageSize, paged.TotalCount);
     }
 }

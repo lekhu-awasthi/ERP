@@ -31,6 +31,8 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 14 | Role Reference full editor: per-org custom roles, permission-matrix UI, invite-by-RoleId | `phase-14-status.md` |
 | 15 | CRM: Deals (`Deal`/`DealAssignee`, `LeadSource`/`DealStage` lookups) | `phase-15-status.md` |
 | 16a | Void lifecycle (all 13 ApprovableTransaction types) + Organization.LockDate enforcement | `phase-16a-status.md` |
+| 16b | Discounts retrofit: line/header `DiscountPct` across all 7 Product-line document types | `phase-16b-status.md` |
+| 16c | Pagination (`PagedResult<T>`, shared Angular pagination component) + report export (ClosedXML, current view/full dataset) | `phase-16c-status.md` |
 
 ---
 
@@ -57,12 +59,22 @@ document-level header-`DiscountPct` equality check. PurchaseBill/DebitNote's TDS
 pre-discount `Quantity*Rate` to the discounted `Amount`. Sales/Purchase Master Report gained
 `ItemDiscount`/`TransactionDiscount`/`NetSales`.
 
-### 16c. Pagination + report export
-NFR-5.1 (every list unpaginated today) and FR-9.8 (no export anywhere).
-1. Shared server-side pagination contract (page/pageSize/total) + one shared Angular pagination component; retrofit the highest-row-count screens first (document lists, Master Reports, Statements), then sweep the rest.
-2. Spreadsheet export per report: "current view" and "full dataset" variants (FR-9.8), download endpoint per the established permission key of each report. Print-formatted output deferred to Phase 20's Printing Templates.
+### 16c. Pagination + report export — **COMPLETE**, see `phase-16c-status.md`
+Every one of the 22 document-list queries and 7 of the 8 reports (VAT Summary excluded — fixed
+2×3-bucket cardinality) return a shared `PagedResult<T>` envelope; a new shared Angular
+`<app-pagination-control>` is wired into all 27 non-lookup screens (the 14 types sharing the
+generic lookup query keep their bare-array contract, no visible pager — bounded master data).
+Every report gained a ClosedXML spreadsheet export ("current view"/"full dataset") behind its
+existing permission key. Two real bugs fixed along the way: report footer totals silently
+breaking under pagination (now computed server-side over the full filtered set), and ClosedXML's
+synchronous `SaveAs` needing a `MemoryStream` buffer since Kestrel disallows sync writes to the
+live response stream.
 
-*Exit criteria: a seeded 100+-row list pages correctly through the real UI; exported spreadsheet of a filtered Master Report matches the on-screen rows exactly; export endpoint honors the same 403 as its report.*
+*Exit criteria: confirmed live against a 105-row seeded Invoice table and a 60-row seeded
+PurchaseBill table (`TotalCount` matched `sqlcmd COUNT(*)`, zero duplicate/skipped rows across
+pages, real `OFFSET`/`FETCH NEXT` SQL); exported spreadsheets unzipped and diffed cell-by-cell
+against the on-screen/API rows; export endpoints confirmed 403 with the same key as their report,
+for a Member, on two reports.*
 
 ### 16d. System Audit report
 FR-9.6/NFR-3.3: an append-only audit trail + report.

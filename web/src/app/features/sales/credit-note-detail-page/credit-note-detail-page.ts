@@ -102,9 +102,9 @@ export class CreditNoteDetailPage {
   });
 
   constructor() {
-    this.contactsService.listContacts(this.organizationId, 'Customer').subscribe({ next: (c) => this.customers.set(c) });
-    this.catalogService.listProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
-    this.accountingService.listAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
+    this.contactsService.listAllContacts(this.organizationId, 'Customer').subscribe({ next: (c) => this.customers.set(c) });
+    this.catalogService.listAllProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
+    this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
 
     this.route.paramMap.subscribe((params) => {
       this.routeCreditNoteId = params.get('creditNoteId')!;

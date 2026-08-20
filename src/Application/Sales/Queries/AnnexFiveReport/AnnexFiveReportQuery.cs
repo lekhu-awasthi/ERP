@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using MediatR;
@@ -30,7 +31,13 @@ namespace ErpApp.Application.Sales.Queries.AnnexFiveReport;
 /// CN0004/83-84 listed Amount 25,800, Total_Amount 29,050, both positive). This is a raw per-bill
 /// audit log, not a netted filing rollup, so each document is simply its own row.
 /// </summary>
-public sealed record AnnexFiveReportQuery(Guid OrganizationId, DateOnly FromDate, DateOnly ToDate)
+public sealed record AnnexFiveReportQuery(
+    Guid OrganizationId,
+    DateOnly FromDate,
+    DateOnly ToDate,
+    int Page = 1,
+    int PageSize = PagingDefaults.DefaultPageSize,
+    bool ExportAll = false)
     : IRequest<AnnexFiveReportDto>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.AnnexFiveView;
@@ -56,4 +63,10 @@ public sealed record AnnexFiveReportRowDto(
     decimal TotalAmount,
     bool IsActive);
 
-public sealed record AnnexFiveReportDto(DateOnly FromDate, DateOnly ToDate, IReadOnlyList<AnnexFiveReportRowDto> Rows);
+public sealed record AnnexFiveReportDto(
+    DateOnly FromDate,
+    DateOnly ToDate,
+    IReadOnlyList<AnnexFiveReportRowDto> Rows,
+    int Page,
+    int PageSize,
+    int TotalCount);

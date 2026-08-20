@@ -69,7 +69,7 @@ export class WarehouseTransferDetailPage {
   });
 
   constructor() {
-    this.catalogService.listProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
+    this.catalogService.listAllProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
     this.organizationsService.listWarehouses(this.organizationId).subscribe({ next: (w) => this.warehouses.set(w) });
 
     this.route.paramMap.subscribe((params) => {

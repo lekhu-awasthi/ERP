@@ -100,8 +100,8 @@ export class QuotationDetailPage {
   });
 
   constructor() {
-    this.contactsService.listContacts(this.organizationId, 'Customer').subscribe({ next: (c) => this.customers.set(c) });
-    this.catalogService.listProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
+    this.contactsService.listAllContacts(this.organizationId, 'Customer').subscribe({ next: (c) => this.customers.set(c) });
+    this.catalogService.listAllProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
 
     this.route.paramMap.subscribe((params) => {
       this.routeQuotationId = params.get('quotationId')!;

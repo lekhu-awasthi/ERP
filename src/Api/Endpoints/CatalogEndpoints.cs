@@ -7,6 +7,7 @@ using ErpApp.Application.Catalog.Commands.UpdateProductCategory;
 using ErpApp.Application.Catalog.Commands.UpdateUnitOfMeasurement;
 using ErpApp.Application.Catalog.Queries.GetProduct;
 using ErpApp.Application.Catalog.Queries.ListProducts;
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
 using ErpApp.Domain.Catalog;
@@ -29,9 +30,11 @@ public static class CatalogEndpoints
 
     private static void MapProductCategoryEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/product-categories", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+        group.MapGet(
+            "/product-categories", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListLookupsQuery<ProductCategory>(organizationId), ct);
+            var result = await sender.Send(
+                new ListLookupsQuery<ProductCategory>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -61,9 +64,11 @@ public static class CatalogEndpoints
 
     private static void MapUnitOfMeasurementEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/units-of-measurement", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+        group.MapGet(
+            "/units-of-measurement", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListLookupsQuery<UnitOfMeasurement>(organizationId), ct);
+            var result = await sender.Send(
+                new ListLookupsQuery<UnitOfMeasurement>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -94,9 +99,10 @@ public static class CatalogEndpoints
     private static void MapProductEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/products", async (
-            Guid organizationId, ProductType? type, ISender sender, CancellationToken ct) =>
+            Guid organizationId, ProductType? type, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListProductsQuery(organizationId, type), ct);
+            var result = await sender.Send(
+                new ListProductsQuery(organizationId, type, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
             return Results.Ok(result);
         });
 

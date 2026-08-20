@@ -1,3 +1,5 @@
+using ErpApp.Api.Reports;
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Purchasing;
 using ErpApp.Application.Purchasing.Commands.ApproveDebitNote;
 using ErpApp.Application.Purchasing.Commands.ApproveExpense;
@@ -54,9 +56,10 @@ public static class PurchasingEndpoints
     private static void MapPurchaseOrderEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/purchase-orders", async (
-            Guid organizationId, PurchaseOrderStatus? status, ISender sender, CancellationToken ct) =>
+            Guid organizationId, PurchaseOrderStatus? status, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListPurchaseOrdersQuery(organizationId, status), ct);
+            var result = await sender.Send(
+                new ListPurchaseOrdersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -105,9 +108,10 @@ public static class PurchasingEndpoints
     private static void MapPurchaseBillEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/purchase-bills", async (
-            Guid organizationId, PurchaseBillStatus? status, ISender sender, CancellationToken ct) =>
+            Guid organizationId, PurchaseBillStatus? status, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListPurchaseBillsQuery(organizationId, status), ct);
+            var result = await sender.Send(
+                new ListPurchaseBillsQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -198,9 +202,10 @@ public static class PurchasingEndpoints
     private static void MapExpenseEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/expenses", async (
-            Guid organizationId, ExpenseStatus? status, ISender sender, CancellationToken ct) =>
+            Guid organizationId, ExpenseStatus? status, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListExpensesQuery(organizationId, status), ct);
+            var result = await sender.Send(
+                new ListExpensesQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -259,9 +264,10 @@ public static class PurchasingEndpoints
     private static void MapDebitNoteEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/debit-notes", async (
-            Guid organizationId, DebitNoteStatus? status, ISender sender, CancellationToken ct) =>
+            Guid organizationId, DebitNoteStatus? status, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListDebitNotesQuery(organizationId, status), ct);
+            var result = await sender.Send(
+                new ListDebitNotesQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -320,30 +326,70 @@ public static class PurchasingEndpoints
     {
         group.MapGet("/reports/purchase-master-report", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid? productId, Guid? warehouseId,
-            ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new PurchaseMasterReportQuery(organizationId, fromDate, toDate, contactId, productId, warehouseId), ct);
+                new PurchaseMasterReportQuery(
+                    organizationId, fromDate, toDate, contactId, productId, warehouseId,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
             return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/purchase-master-report/export", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid? productId, Guid? warehouseId,
+            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new PurchaseMasterReportQuery(
+                    organizationId, fromDate, toDate, contactId, productId, warehouseId,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                ct);
+            return ReportSpreadsheetExporter.ExportPurchaseMasterReport(result, fromDate, toDate);
         });
 
         group.MapGet("/reports/tds-report", async (
-            Guid organizationId, DateOnly fromDate, DateOnly toDate, ISender sender, CancellationToken ct) =>
-        {
-            var result = await sender.Send(new TdsReportQuery(organizationId, fromDate, toDate), ct);
-            return Results.Ok(result);
-        });
-
-        group.MapGet("/reports/annex-thirteen", async (
-            Guid organizationId, DateOnly fromDate, DateOnly toDate, decimal? thresholdAmount,
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, int? page, int? pageSize,
             ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                thresholdAmount is { } threshold
-                    ? new AnnexThirteenReportQuery(organizationId, fromDate, toDate, threshold)
-                    : new AnnexThirteenReportQuery(organizationId, fromDate, toDate),
+                new TdsReportQuery(organizationId, fromDate, toDate, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/tds-report/export", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, bool full, int? page, int? pageSize,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new TdsReportQuery(
+                    organizationId, fromDate, toDate, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                ct);
+            return ReportSpreadsheetExporter.ExportTdsReport(result, fromDate, toDate);
+        });
+
+        group.MapGet("/reports/annex-thirteen", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, decimal? thresholdAmount, int? page, int? pageSize,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new AnnexThirteenReportQuery(
+                    organizationId, fromDate, toDate, thresholdAmount ?? 100000m,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
                 ct);
             return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/annex-thirteen/export", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, decimal? thresholdAmount, bool full,
+            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new AnnexThirteenReportQuery(
+                    organizationId, fromDate, toDate, thresholdAmount ?? 100000m,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                ct);
+            return ReportSpreadsheetExporter.ExportAnnexThirteenReport(result, fromDate, toDate);
         });
     }
 

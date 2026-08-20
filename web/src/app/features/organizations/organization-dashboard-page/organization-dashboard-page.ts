@@ -110,7 +110,7 @@ export class OrganizationDashboardPage {
   }
 
   private loadRoles(): void {
-    this.organizationsService.listRoles(this.organizationId()).subscribe({
+    this.organizationsService.listAllRoles(this.organizationId()).subscribe({
       next: (roles) => {
         this.roles.set(roles);
         this.inviteForm.patchValue({ roleId: this.defaultInviteRoleId() });

@@ -1,3 +1,5 @@
+using ErpApp.Api.Reports;
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Sales;
 using ErpApp.Application.Sales.Commands.ApproveCreditNote;
 using ErpApp.Application.Sales.Commands.ApproveInvoice;
@@ -52,9 +54,10 @@ public static class SalesEndpoints
     private static void MapQuotationEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/quotations", async (
-            Guid organizationId, QuotationStatus? status, ISender sender, CancellationToken ct) =>
+            Guid organizationId, QuotationStatus? status, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListQuotationsQuery(organizationId, status), ct);
+            var result = await sender.Send(
+                new ListQuotationsQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -105,9 +108,13 @@ public static class SalesEndpoints
     private static void MapInvoiceEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/invoices", async (
-            Guid organizationId, InvoiceStatus? status, ISender sender, CancellationToken ct) =>
+            Guid organizationId, InvoiceStatus? status, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListInvoicesQuery(organizationId, status), ct);
+            var result = await sender.Send(
+                new ListInvoicesQuery(
+                    organizationId, status,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
             return Results.Ok(result);
         });
 
@@ -173,9 +180,10 @@ public static class SalesEndpoints
     private static void MapSalesOrderEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/sales-orders", async (
-            Guid organizationId, SalesOrderStatus? status, ISender sender, CancellationToken ct) =>
+            Guid organizationId, SalesOrderStatus? status, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListSalesOrdersQuery(organizationId, status), ct);
+            var result = await sender.Send(
+                new ListSalesOrdersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -226,9 +234,10 @@ public static class SalesEndpoints
     private static void MapCreditNoteEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/credit-notes", async (
-            Guid organizationId, CreditNoteStatus? status, ISender sender, CancellationToken ct) =>
+            Guid organizationId, CreditNoteStatus? status, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListCreditNotesQuery(organizationId, status), ct);
+            var result = await sender.Send(
+                new ListCreditNotesQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
             return Results.Ok(result);
         });
 
@@ -286,18 +295,46 @@ public static class SalesEndpoints
     {
         group.MapGet("/reports/sales-master-report", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid? productId, Guid? warehouseId,
-            ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new SalesMasterReportQuery(organizationId, fromDate, toDate, contactId, productId, warehouseId), ct);
+                new SalesMasterReportQuery(
+                    organizationId, fromDate, toDate, contactId, productId, warehouseId,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
             return Results.Ok(result);
         });
 
-        group.MapGet("/reports/annex-five", async (
-            Guid organizationId, DateOnly fromDate, DateOnly toDate, ISender sender, CancellationToken ct) =>
+        group.MapGet("/reports/sales-master-report/export", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid? productId, Guid? warehouseId,
+            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new AnnexFiveReportQuery(organizationId, fromDate, toDate), ct);
+            var result = await sender.Send(
+                new SalesMasterReportQuery(
+                    organizationId, fromDate, toDate, contactId, productId, warehouseId,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                ct);
+            return ReportSpreadsheetExporter.ExportSalesMasterReport(result, fromDate, toDate);
+        });
+
+        group.MapGet("/reports/annex-five", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, int? page, int? pageSize,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new AnnexFiveReportQuery(organizationId, fromDate, toDate, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
             return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/annex-five/export", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, bool full, int? page, int? pageSize,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new AnnexFiveReportQuery(
+                    organizationId, fromDate, toDate, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                ct);
+            return ReportSpreadsheetExporter.ExportAnnexFiveReport(result, fromDate, toDate);
         });
     }
 

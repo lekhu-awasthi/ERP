@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
@@ -31,7 +32,14 @@ namespace ErpApp.Application.Contacts.Queries.ContactStatement;
 /// entirely), the same "omit a column needing a capability that doesn't exist" precedent Annex 5 set.
 /// </summary>
 public sealed record ContactStatementQuery(
-    Guid OrganizationId, ContactType ContactType, Guid ContactId, DateOnly FromDate, DateOnly ToDate)
+    Guid OrganizationId,
+    ContactType ContactType,
+    Guid ContactId,
+    DateOnly FromDate,
+    DateOnly ToDate,
+    int Page = 1,
+    int PageSize = PagingDefaults.DefaultPageSize,
+    bool ExportAll = false)
     : IRequest<ContactStatementDto>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey =>
@@ -63,4 +71,7 @@ public sealed record ContactStatementDto(
     string OpeningBalanceType,
     IReadOnlyList<ContactStatementRowDto> Rows,
     decimal ClosingBalance,
-    string ClosingBalanceType);
+    string ClosingBalanceType,
+    int Page,
+    int PageSize,
+    int TotalCount);

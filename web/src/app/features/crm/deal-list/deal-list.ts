@@ -10,6 +10,8 @@ import { CrmService } from '../../../core/crm/crm.service';
 import { DealRow, DealStatus } from '../../../core/crm/crm.models';
 import { OrganizationMember } from '../../../core/organizations/organizations.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
+import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
+import { PaginationControl } from '../../../shared/pagination/pagination-control';
 
 /**
  * Shared Deal list component (roadmap Phase 15) -- reused, not duplicated, across its two
@@ -25,7 +27,7 @@ import { OrganizationsService } from '../../../core/organizations/organizations.
  */
 @Component({
   selector: 'app-deal-list',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, PaginationControl],
   templateUrl: './deal-list.html',
 })
 export class DealList implements OnInit {
@@ -44,6 +46,10 @@ export class DealList implements OnInit {
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly rows = signal<DealRow[]>([]);
+
+  protected readonly page = signal(1);
+  protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
+  protected readonly totalCount = signal(0);
 
   protected readonly leadSources = signal<LeadSource[]>([]);
   protected readonly dealStages = signal<DealStage[]>([]);
@@ -78,7 +84,7 @@ export class DealList implements OnInit {
       next: (members) => this.members.set(members),
     });
     if (!this.contactId()) {
-      this.contactsService.listContacts(this.organizationId()).subscribe({
+      this.contactsService.listAllContacts(this.organizationId()).subscribe({
         next: (contacts) => this.dealableContacts.set(contacts.filter((c) => c.type !== 'Supplier')),
       });
     }
@@ -87,6 +93,18 @@ export class DealList implements OnInit {
 
   protected switchTab(status: DealStatus): void {
     this.activeStatus.set(status);
+    this.page.set(1);
+    this.load();
+  }
+
+  protected onPageChange(page: number): void {
+    this.page.set(page);
+    this.load();
+  }
+
+  protected onPageSizeChange(pageSize: number): void {
+    this.pageSize.set(pageSize);
+    this.page.set(1);
     this.load();
   }
 
@@ -186,15 +204,18 @@ export class DealList implements OnInit {
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
-    this.crmService.listDeals(this.organizationId(), this.contactId(), this.activeStatus()).subscribe({
-      next: (result) => {
-        this.rows.set(result.rows);
-        this.loading.set(false);
-      },
-      error: (err: unknown) => {
-        this.loading.set(false);
-        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load deals.');
-      },
-    });
+    this.crmService
+      .listDeals(this.organizationId(), this.contactId(), this.activeStatus(), this.page(), this.pageSize())
+      .subscribe({
+        next: (result) => {
+          this.rows.set(result.rows);
+          this.totalCount.set(result.totalCount);
+          this.loading.set(false);
+        },
+        error: (err: unknown) => {
+          this.loading.set(false);
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load deals.');
+        },
+      });
   }
 }

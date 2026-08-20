@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
 import {
   AnnexThirteenReportDto,
   ApproveDebitNoteResult,
@@ -54,9 +55,15 @@ export class PurchasingService {
     return `${environment.apiBaseUrl}/api/organizations/${organizationId}`;
   }
 
-  listPurchaseOrders(organizationId: string, status?: PurchaseOrderStatus): Observable<PurchaseOrder[]> {
-    const params: Record<string, string> = status ? { status } : {};
-    return this.http.get<PurchaseOrder[]>(`${this.baseUrl(organizationId)}/purchase-orders`, { withCredentials: true, params });
+  listPurchaseOrders(
+    organizationId: string, status?: PurchaseOrderStatus, page = 1, pageSize = 50,
+  ): Observable<PagedResult<PurchaseOrder>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (status) params['status'] = status;
+    return this.http.get<PagedResult<PurchaseOrder>>(`${this.baseUrl(organizationId)}/purchase-orders`, {
+      withCredentials: true,
+      params,
+    });
   }
 
   getPurchaseOrder(organizationId: string, id: string): Observable<PurchaseOrderDetail> {
@@ -94,9 +101,20 @@ export class PurchasingService {
     );
   }
 
-  listPurchaseBills(organizationId: string, status?: PurchaseBillStatus): Observable<PurchaseBill[]> {
-    const params: Record<string, string> = status ? { status } : {};
-    return this.http.get<PurchaseBill[]>(`${this.baseUrl(organizationId)}/purchase-bills`, { withCredentials: true, params });
+  listPurchaseBills(
+    organizationId: string, status?: PurchaseBillStatus, page = 1, pageSize = 50,
+  ): Observable<PagedResult<PurchaseBill>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (status) params['status'] = status;
+    return this.http.get<PagedResult<PurchaseBill>>(`${this.baseUrl(organizationId)}/purchase-bills`, {
+      withCredentials: true,
+      params,
+    });
+  }
+
+  /** Picker use (e.g. a Supplier Payment's allocation target list) -- everything in one page, no pager. */
+  listAllPurchaseBills(organizationId: string, status?: PurchaseBillStatus): Observable<PurchaseBill[]> {
+    return this.listPurchaseBills(organizationId, status, 1, MAX_PAGE_SIZE).pipe(map((result) => result.items));
   }
 
   getPurchaseBill(organizationId: string, id: string): Observable<PurchaseBillDetail> {
@@ -147,9 +165,10 @@ export class PurchasingService {
     );
   }
 
-  listExpenses(organizationId: string, status?: ExpenseStatus): Observable<Expense[]> {
-    const params: Record<string, string> = status ? { status } : {};
-    return this.http.get<Expense[]>(`${this.baseUrl(organizationId)}/expenses`, { withCredentials: true, params });
+  listExpenses(organizationId: string, status?: ExpenseStatus, page = 1, pageSize = 50): Observable<PagedResult<Expense>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (status) params['status'] = status;
+    return this.http.get<PagedResult<Expense>>(`${this.baseUrl(organizationId)}/expenses`, { withCredentials: true, params });
   }
 
   getExpense(organizationId: string, id: string): Observable<ExpenseDetail> {
@@ -191,9 +210,10 @@ export class PurchasingService {
     );
   }
 
-  listDebitNotes(organizationId: string, status?: DebitNoteStatus): Observable<DebitNote[]> {
-    const params: Record<string, string> = status ? { status } : {};
-    return this.http.get<DebitNote[]>(`${this.baseUrl(organizationId)}/debit-notes`, { withCredentials: true, params });
+  listDebitNotes(organizationId: string, status?: DebitNoteStatus, page = 1, pageSize = 50): Observable<PagedResult<DebitNote>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (status) params['status'] = status;
+    return this.http.get<PagedResult<DebitNote>>(`${this.baseUrl(organizationId)}/debit-notes`, { withCredentials: true, params });
   }
 
   getDebitNote(organizationId: string, id: string): Observable<DebitNoteDetail> {
@@ -231,8 +251,10 @@ export class PurchasingService {
     contactId: string | null,
     productId: string | null,
     warehouseId: string | null,
+    page = 1,
+    pageSize = 50,
   ): Observable<PurchaseMasterReportDto> {
-    const params: Record<string, string> = { fromDate, toDate };
+    const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
     if (contactId) params['contactId'] = contactId;
     if (productId) params['productId'] = productId;
     if (warehouseId) params['warehouseId'] = warehouseId;
@@ -243,10 +265,47 @@ export class PurchasingService {
     });
   }
 
-  getTdsReport(organizationId: string, fromDate: string, toDate: string): Observable<TdsReportDto> {
+  exportPurchaseMasterReport(
+    organizationId: string,
+    fromDate: string,
+    toDate: string,
+    contactId: string | null,
+    productId: string | null,
+    warehouseId: string | null,
+    full: boolean,
+    page: number,
+    pageSize: number,
+  ): Observable<Blob> {
+    const params: Record<string, string> = {
+      fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
+    };
+    if (contactId) params['contactId'] = contactId;
+    if (productId) params['productId'] = productId;
+    if (warehouseId) params['warehouseId'] = warehouseId;
+
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/purchase-master-report/export`, {
+      withCredentials: true,
+      params,
+      responseType: 'blob',
+    });
+  }
+
+  getTdsReport(
+    organizationId: string, fromDate: string, toDate: string, page = 1, pageSize = 50,
+  ): Observable<TdsReportDto> {
     return this.http.get<TdsReportDto>(`${this.baseUrl(organizationId)}/reports/tds-report`, {
       withCredentials: true,
-      params: { fromDate, toDate },
+      params: { fromDate, toDate, page: String(page), pageSize: String(pageSize) },
+    });
+  }
+
+  exportTdsReport(
+    organizationId: string, fromDate: string, toDate: string, full: boolean, page: number, pageSize: number,
+  ): Observable<Blob> {
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/tds-report/export`, {
+      withCredentials: true,
+      params: { fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize) },
+      responseType: 'blob',
     });
   }
 
@@ -255,11 +314,34 @@ export class PurchasingService {
     fromDate: string,
     toDate: string,
     thresholdAmount: number,
+    page = 1,
+    pageSize = 50,
   ): Observable<AnnexThirteenReportDto> {
-    const params: Record<string, string> = { fromDate, toDate, thresholdAmount: thresholdAmount.toString() };
+    const params: Record<string, string> = {
+      fromDate, toDate, thresholdAmount: thresholdAmount.toString(), page: String(page), pageSize: String(pageSize),
+    };
     return this.http.get<AnnexThirteenReportDto>(`${this.baseUrl(organizationId)}/reports/annex-thirteen`, {
       withCredentials: true,
       params,
+    });
+  }
+
+  exportAnnexThirteenReport(
+    organizationId: string,
+    fromDate: string,
+    toDate: string,
+    thresholdAmount: number,
+    full: boolean,
+    page: number,
+    pageSize: number,
+  ): Observable<Blob> {
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/annex-thirteen/export`, {
+      withCredentials: true,
+      params: {
+        fromDate, toDate, thresholdAmount: thresholdAmount.toString(), full: String(full),
+        page: String(page), pageSize: String(pageSize),
+      },
+      responseType: 'blob',
     });
   }
 }

@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Catalog;
 using MediatR;
@@ -6,9 +7,9 @@ using Microsoft.EntityFrameworkCore;
 namespace ErpApp.Application.Catalog.Queries.ListProducts;
 
 public sealed class ListProductsQueryHandler(IAppDbContext db)
-    : IRequestHandler<ListProductsQuery, IReadOnlyList<Product>>
+    : IRequestHandler<ListProductsQuery, PagedResult<Product>>
 {
-    public async Task<IReadOnlyList<Product>> Handle(ListProductsQuery request, CancellationToken cancellationToken)
+    public async Task<PagedResult<Product>> Handle(ListProductsQuery request, CancellationToken cancellationToken)
     {
         var query = db.Products.Where(x => x.OrganizationId == request.OrganizationId);
 
@@ -17,6 +18,6 @@ public sealed class ListProductsQueryHandler(IAppDbContext db)
             query = query.Where(x => x.Type == type);
         }
 
-        return await query.OrderBy(x => x.Name).ToListAsync(cancellationToken);
+        return await query.OrderBy(x => x.Name).ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
     }
 }

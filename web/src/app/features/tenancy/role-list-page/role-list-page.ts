@@ -137,7 +137,7 @@ export class RoleListPage {
 
   private load(): void {
     this.loading.set(true);
-    this.organizationsService.listRoles(this.organizationId).subscribe({
+    this.organizationsService.listAllRoles(this.organizationId).subscribe({
       next: (roles) => {
         this.roles.set(roles);
         this.loading.set(false);

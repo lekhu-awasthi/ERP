@@ -10,17 +10,20 @@ import { CatalogService } from '../../../core/catalog/catalog.service';
 import { Product } from '../../../core/catalog/catalog.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { Warehouse } from '../../../core/organizations/organizations.models';
+import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
+import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { triggerBlobDownload } from '../../../shared/download-file';
 
 /**
  * Read-only report screen -- roadmap Phase 8b's SalesMasterReportQuery, a flat unaggregated
  * fact table (one row per Invoice/CreditNote line) over a date range with optional Contact/
- * Product/Warehouse filters. Unpaginated by design -- see phase-8b-status.md's scope decision
- * (no pagination component exists anywhere in this codebase yet; this report ships flat/
- * unpaginated for now rather than building one for a single screen).
+ * Product/Warehouse filters. Paginated (Phase 16c) -- the highest-row-count report screen, one of
+ * the two explicit pagination-UI exit-criteria targets. Also the first screen with the new
+ * "Export current view" / "Export full dataset" spreadsheet download pair (FR-9.8).
  */
 @Component({
   selector: 'app-sales-master-report-page',
-  imports: [RouterLink],
+  imports: [RouterLink, PaginationControl],
   templateUrl: './sales-master-report-page.html',
 })
 export class SalesMasterReportPage {
@@ -45,40 +48,91 @@ export class SalesMasterReportPage {
   protected readonly productId = signal('');
   protected readonly warehouseId = signal('');
 
+  protected readonly page = signal(1);
+  protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
+  protected readonly totalCount = signal(0);
+  protected readonly totalAmount = signal(0);
+
+  protected readonly exporting = signal(false);
+
   constructor() {
-    this.contactsService.listContacts(this.organizationId, 'Customer').subscribe({ next: (c) => this.customers.set(c) });
-    this.catalogService.listProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
+    this.contactsService.listAllContacts(this.organizationId, 'Customer').subscribe({
+      next: (customers) => this.customers.set(customers),
+    });
+    this.catalogService.listAllProducts(this.organizationId).subscribe({
+      next: (products) => this.products.set(products),
+    });
     this.organizationsService.listWarehouses(this.organizationId).subscribe({ next: (w) => this.warehouses.set(w) });
     this.load();
   }
 
   protected onFromDateChange(event: Event): void {
     this.fromDate.set((event.target as HTMLInputElement).value);
+    this.page.set(1);
     this.load();
   }
 
   protected onToDateChange(event: Event): void {
     this.toDate.set((event.target as HTMLInputElement).value);
+    this.page.set(1);
     this.load();
   }
 
   protected onContactChange(event: Event): void {
     this.contactId.set((event.target as HTMLSelectElement).value);
+    this.page.set(1);
     this.load();
   }
 
   protected onProductChange(event: Event): void {
     this.productId.set((event.target as HTMLSelectElement).value);
+    this.page.set(1);
     this.load();
   }
 
   protected onWarehouseChange(event: Event): void {
     this.warehouseId.set((event.target as HTMLSelectElement).value);
+    this.page.set(1);
     this.load();
   }
 
-  protected totalAmount(): number {
-    return this.rows().reduce((sum, r) => sum + r.totalAmount, 0);
+  protected onPageChange(page: number): void {
+    this.page.set(page);
+    this.load();
+  }
+
+  protected onPageSizeChange(pageSize: number): void {
+    this.pageSize.set(pageSize);
+    this.page.set(1);
+    this.load();
+  }
+
+  protected exportCurrentView(): void {
+    this.runExport(false, this.page(), this.pageSize());
+  }
+
+  protected exportFullDataset(): void {
+    this.runExport(true, 1, this.pageSize());
+  }
+
+  private runExport(full: boolean, page: number, pageSize: number): void {
+    this.exporting.set(true);
+    this.salesService
+      .exportSalesMasterReport(
+        this.organizationId, this.fromDate(), this.toDate(),
+        this.contactId() || null, this.productId() || null, this.warehouseId() || null,
+        full, page, pageSize,
+      )
+      .subscribe({
+        next: (blob) => {
+          this.exporting.set(false);
+          triggerBlobDownload(blob, `SalesMasterReport_${this.fromDate()}_${this.toDate()}.xlsx`);
+        },
+        error: (err: unknown) => {
+          this.exporting.set(false);
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not export the Sales Master Report.');
+        },
+      });
   }
 
   private load(): void {
@@ -93,10 +147,14 @@ export class SalesMasterReportPage {
         this.contactId() || null,
         this.productId() || null,
         this.warehouseId() || null,
+        this.page(),
+        this.pageSize(),
       )
       .subscribe({
         next: (report) => {
           this.rows.set(report.rows);
+          this.totalCount.set(report.totalCount);
+          this.totalAmount.set(report.totalAmount);
           this.loading.set(false);
         },
         error: (err: unknown) => {

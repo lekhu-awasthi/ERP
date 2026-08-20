@@ -4,6 +4,9 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { PurchasingService } from '../../../core/purchasing/purchasing.service';
 import { AnnexThirteenReportDto } from '../../../core/purchasing/purchasing.models';
+import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
+import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { triggerBlobDownload } from '../../../shared/download-file';
 
 /**
  * Read-only report screen -- roadmap Phase 8e's AnnexThirteenReportQuery, a per-Contact rollup of
@@ -12,11 +15,11 @@ import { AnnexThirteenReportDto } from '../../../core/purchasing/purchasing.mode
  * editable here). Date-range plus a Threshold Amount input -- no Contact/Product filters, same
  * filing-period-register shape decision as VAT Summary/TDS Report. No totals footer -- each row is
  * already a per-Contact total, a footer summing across Contacts isn't a meaningful Annex 13 number
- * (see phase-8e-status.md's scope decision).
+ * (see phase-8e-status.md's scope decision). Paginated (Phase 16c).
  */
 @Component({
   selector: 'app-annex-thirteen-report-page',
-  imports: [RouterLink],
+  imports: [RouterLink, PaginationControl],
   templateUrl: './annex-thirteen-report-page.html',
 })
 export class AnnexThirteenReportPage {
@@ -32,24 +35,67 @@ export class AnnexThirteenReportPage {
   protected readonly toDate = signal(this.today());
   protected readonly thresholdAmount = signal(100000);
 
+  protected readonly page = signal(1);
+  protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
+  protected readonly exporting = signal(false);
+
   constructor() {
     this.load();
   }
 
   protected onFromDateChange(event: Event): void {
     this.fromDate.set((event.target as HTMLInputElement).value);
+    this.page.set(1);
     this.load();
   }
 
   protected onToDateChange(event: Event): void {
     this.toDate.set((event.target as HTMLInputElement).value);
+    this.page.set(1);
     this.load();
   }
 
   protected onThresholdAmountChange(event: Event): void {
     const value = Number((event.target as HTMLInputElement).value);
     this.thresholdAmount.set(Number.isFinite(value) && value >= 0 ? value : 0);
+    this.page.set(1);
     this.load();
+  }
+
+  protected onPageChange(page: number): void {
+    this.page.set(page);
+    this.load();
+  }
+
+  protected onPageSizeChange(pageSize: number): void {
+    this.pageSize.set(pageSize);
+    this.page.set(1);
+    this.load();
+  }
+
+  protected exportCurrentView(): void {
+    this.runExport(false, this.page(), this.pageSize());
+  }
+
+  protected exportFullDataset(): void {
+    this.runExport(true, 1, this.pageSize());
+  }
+
+  private runExport(full: boolean, page: number, pageSize: number): void {
+    this.exporting.set(true);
+    this.purchasingService
+      .exportAnnexThirteenReport(
+        this.organizationId, this.fromDate(), this.toDate(), this.thresholdAmount(), full, page, pageSize)
+      .subscribe({
+        next: (blob) => {
+          this.exporting.set(false);
+          triggerBlobDownload(blob, `AnnexThirteenReport_${this.fromDate()}_${this.toDate()}.xlsx`);
+        },
+        error: (err: unknown) => {
+          this.exporting.set(false);
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not export the Annex 13 Report.');
+        },
+      });
   }
 
   private load(): void {
@@ -57,7 +103,8 @@ export class AnnexThirteenReportPage {
     this.errorMessage.set(null);
 
     this.purchasingService
-      .getAnnexThirteenReport(this.organizationId, this.fromDate(), this.toDate(), this.thresholdAmount())
+      .getAnnexThirteenReport(
+        this.organizationId, this.fromDate(), this.toDate(), this.thresholdAmount(), this.page(), this.pageSize())
       .subscribe({
         next: (report) => {
           this.report.set(report);

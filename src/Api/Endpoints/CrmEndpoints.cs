@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Crm.Commands.CreateDeal;
 using ErpApp.Application.Crm.Commands.MarkDealLost;
 using ErpApp.Application.Crm.Commands.MarkDealWon;
@@ -18,9 +19,11 @@ public static class CrmEndpoints
             .RequireAuthorization();
 
         group.MapGet("/deals", async (
-            Guid organizationId, Guid? contactId, DealStatus? status, ISender sender, CancellationToken ct) =>
+            Guid organizationId, Guid? contactId, DealStatus? status, int? page, int? pageSize,
+            ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ListDealsQuery(organizationId, contactId, status), ct);
+            var result = await sender.Send(
+                new ListDealsQuery(organizationId, contactId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
             return Results.Ok(result);
         });
 

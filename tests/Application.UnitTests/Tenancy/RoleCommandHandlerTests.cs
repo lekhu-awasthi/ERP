@@ -160,11 +160,11 @@ public class RoleCommandHandlerTests
         var handler = new ListRolesQueryHandler(db);
         var result = await handler.Handle(new ListRolesQuery(organizationId), CancellationToken.None);
 
-        Assert.Equal(3, result.Count);
-        Assert.Contains(result, r => r.Name == "Admin" && r.IsSystemRole);
-        Assert.Contains(result, r => r.Name == "Member" && r.IsSystemRole);
-        Assert.Contains(result, r => r.Name == "Sales Rep" && !r.IsSystemRole);
-        Assert.DoesNotContain(result, r => r.Name == "Other Org's Role");
+        Assert.Equal(3, result.Items.Count);
+        Assert.Contains(result.Items, r => r.Name == "Admin" && r.IsSystemRole);
+        Assert.Contains(result.Items, r => r.Name == "Member" && r.IsSystemRole);
+        Assert.Contains(result.Items, r => r.Name == "Sales Rep" && !r.IsSystemRole);
+        Assert.DoesNotContain(result.Items, r => r.Name == "Other Org's Role");
     }
 
     [Fact]

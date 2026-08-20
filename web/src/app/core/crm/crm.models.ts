@@ -31,6 +31,9 @@ export interface DealRow {
 
 export interface DealListDto {
   rows: DealRow[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
 }
 
 export interface CreateDealRequest {

@@ -1,14 +1,14 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Payments;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Payments.Queries.ListPayments;
 
 public sealed class ListPaymentsQueryHandler(IAppDbContext db)
-    : IRequestHandler<ListPaymentsQuery, IReadOnlyList<Payment>>
+    : IRequestHandler<ListPaymentsQuery, PagedResult<Payment>>
 {
-    public async Task<IReadOnlyList<Payment>> Handle(ListPaymentsQuery request, CancellationToken cancellationToken)
+    public async Task<PagedResult<Payment>> Handle(ListPaymentsQuery request, CancellationToken cancellationToken)
     {
         var query = db.Payments.Where(x => x.OrganizationId == request.OrganizationId);
 
@@ -17,6 +17,11 @@ public sealed class ListPaymentsQueryHandler(IAppDbContext db)
             query = query.Where(x => x.Status == status);
         }
 
-        return await query.OrderByDescending(x => x.CreatedAt).ToListAsync(cancellationToken);
+        if (request.Direction is { } direction)
+        {
+            query = query.Where(x => x.Direction == direction);
+        }
+
+        return await query.OrderByDescending(x => x.CreatedAt).ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
     }
 }

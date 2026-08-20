@@ -79,7 +79,7 @@ export class JournalVoucherDetailPage {
   protected readonly sortedAccounts = computed(() => [...this.accounts()].sort((a, b) => a.code.localeCompare(b.code)));
 
   constructor() {
-    this.accountingService.listAccounts(this.organizationId).subscribe({ next: (accounts) => this.accounts.set(accounts) });
+    this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (accounts) => this.accounts.set(accounts) });
 
     this.route.paramMap.subscribe((params) => {
       this.routeJournalVoucherId = params.get('journalVoucherId')!;

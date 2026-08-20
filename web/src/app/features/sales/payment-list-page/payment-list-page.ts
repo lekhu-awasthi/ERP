@@ -4,12 +4,14 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { PaymentsService } from '../../../core/payments/payments.service';
 import { Payment, PaymentStatus } from '../../../core/payments/payments.models';
+import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
+import { PaginationControl } from '../../../shared/pagination/pagination-control';
 
 type StatusFilter = PaymentStatus | 'All';
 
 @Component({
   selector: 'app-payment-list-page',
-  imports: [RouterLink],
+  imports: [RouterLink, PaginationControl],
   templateUrl: './payment-list-page.html',
 })
 export class PaymentListPage {
@@ -23,6 +25,10 @@ export class PaymentListPage {
   protected readonly items = signal<Payment[]>([]);
   protected readonly statusFilter = signal<StatusFilter>('All');
 
+  protected readonly page = signal(1);
+  protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
+  protected readonly totalCount = signal(0);
+
   protected readonly statuses: StatusFilter[] = ['All', 'Draft', 'Approved'];
 
   constructor() {
@@ -31,24 +37,36 @@ export class PaymentListPage {
 
   protected selectStatus(status: StatusFilter): void {
     this.statusFilter.set(status);
+    this.page.set(1);
+    this.load();
+  }
+
+  protected onPageChange(page: number): void {
+    this.page.set(page);
+    this.load();
+  }
+
+  protected onPageSizeChange(pageSize: number): void {
+    this.pageSize.set(pageSize);
+    this.page.set(1);
     this.load();
   }
 
   private load(): void {
     this.loading.set(true);
     const status = this.statusFilter();
-    this.paymentsService.listPayments(this.organizationId, status === 'All' ? undefined : status).subscribe({
-      next: (items) => {
-        // Direction isn't filterable server-side (see phase-6-status.md's scope decision on why
-        // Payments.Payment.* stays a single shared permission/query) -- filtered client-side
-        // instead of adding a Direction query param nothing else needs.
-        this.items.set(items.filter((p) => p.direction === 'Received'));
-        this.loading.set(false);
-      },
-      error: (err: unknown) => {
-        this.loading.set(false);
-        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load payments.');
-      },
-    });
+    this.paymentsService
+      .listPayments(this.organizationId, status === 'All' ? undefined : status, 'Received', this.page(), this.pageSize())
+      .subscribe({
+        next: (result) => {
+          this.items.set(result.items);
+          this.totalCount.set(result.totalCount);
+          this.loading.set(false);
+        },
+        error: (err: unknown) => {
+          this.loading.set(false);
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load payments.');
+        },
+      });
   }
 }

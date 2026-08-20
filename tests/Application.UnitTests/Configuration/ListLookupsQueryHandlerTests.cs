@@ -21,7 +21,7 @@ public class ListLookupsQueryHandlerTests
 
         var result = await handler.Handle(new ListLookupsQuery<CreditTerm>(organizationId), CancellationToken.None);
 
-        Assert.Equal(2, result.Count);
-        Assert.Equal(["Net 30", "Net 60"], result.Select(x => x.Name));
+        Assert.Equal(2, result.Items.Count);
+        Assert.Equal(["Net 30", "Net 60"], result.Items.Select(x => x.Name));
     }
 }

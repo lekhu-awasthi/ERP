@@ -4,6 +4,9 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact, ContactStatementDto } from '../../../core/contacts/contacts.models';
+import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
+import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { triggerBlobDownload } from '../../../shared/download-file';
 
 /**
  * Read-only report screen -- roadmap Phase 9's ContactStatementQuery (ContactType=Supplier).
@@ -13,11 +16,12 @@ import { Contact, ContactStatementDto } from '../../../core/contacts/contacts.mo
  * "DR"/"CR". Debit/Credit follow real double-entry polarity -- AP is credit-normal for a Supplier,
  * the exact opposite of Customer Statement's AR-debit-normal polarity (confirmed directly against the
  * live screen: its Opening Balance row carried its value in the Credit column) -- computed
- * server-side, this page only formats already-authoritative numbers.
+ * server-side, this page only formats already-authoritative numbers. Paginated (Phase 16c) -- see
+ * customer-statement-page.ts's doc comment on OpeningBalance/ClosingBalance staying pagination-safe.
  */
 @Component({
   selector: 'app-supplier-statement-page',
-  imports: [RouterLink],
+  imports: [RouterLink, PaginationControl],
   templateUrl: './supplier-statement-page.html',
 })
 export class SupplierStatementPage {
@@ -35,8 +39,12 @@ export class SupplierStatementPage {
   protected readonly fromDate = signal(this.firstOfMonth());
   protected readonly toDate = signal(this.today());
 
+  protected readonly page = signal(1);
+  protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
+  protected readonly exporting = signal(false);
+
   constructor() {
-    this.contactsService.listContacts(this.organizationId, 'Supplier').subscribe({ next: (c) => this.suppliers.set(c) });
+    this.contactsService.listAllContacts(this.organizationId, 'Supplier').subscribe({ next: (c) => this.suppliers.set(c) });
 
     // Pre-filled from the Contact Overview tab's "View Full Statement" link -- the sensible default
     // date range is this page's own existing first-of-month-to-today default, not a new convention.
@@ -47,17 +55,58 @@ export class SupplierStatementPage {
 
   protected onContactChange(event: Event): void {
     this.contactId.set((event.target as HTMLSelectElement).value);
+    this.page.set(1);
     this.load();
   }
 
   protected onFromDateChange(event: Event): void {
     this.fromDate.set((event.target as HTMLInputElement).value);
+    this.page.set(1);
     this.load();
   }
 
   protected onToDateChange(event: Event): void {
     this.toDate.set((event.target as HTMLInputElement).value);
+    this.page.set(1);
     this.load();
+  }
+
+  protected onPageChange(page: number): void {
+    this.page.set(page);
+    this.load();
+  }
+
+  protected onPageSizeChange(pageSize: number): void {
+    this.pageSize.set(pageSize);
+    this.page.set(1);
+    this.load();
+  }
+
+  protected exportCurrentView(): void {
+    this.runExport(false, this.page(), this.pageSize());
+  }
+
+  protected exportFullDataset(): void {
+    this.runExport(true, 1, this.pageSize());
+  }
+
+  private runExport(full: boolean, page: number, pageSize: number): void {
+    if (!this.contactId()) {
+      return;
+    }
+    this.exporting.set(true);
+    this.contactsService
+      .exportSupplierStatement(this.organizationId, this.contactId(), this.fromDate(), this.toDate(), full, page, pageSize)
+      .subscribe({
+        next: (blob) => {
+          this.exporting.set(false);
+          triggerBlobDownload(blob, `SupplierStatement_${this.fromDate()}_${this.toDate()}.xlsx`);
+        },
+        error: (err: unknown) => {
+          this.exporting.set(false);
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not export the Supplier Statement.');
+        },
+      });
   }
 
   private load(): void {
@@ -69,16 +118,18 @@ export class SupplierStatementPage {
     this.loading.set(true);
     this.errorMessage.set(null);
 
-    this.contactsService.getSupplierStatement(this.organizationId, this.contactId(), this.fromDate(), this.toDate()).subscribe({
-      next: (statement) => {
-        this.statement.set(statement);
-        this.loading.set(false);
-      },
-      error: (err: unknown) => {
-        this.loading.set(false);
-        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load the Supplier Statement.');
-      },
-    });
+    this.contactsService
+      .getSupplierStatement(this.organizationId, this.contactId(), this.fromDate(), this.toDate(), this.page(), this.pageSize())
+      .subscribe({
+        next: (statement) => {
+          this.statement.set(statement);
+          this.loading.set(false);
+        },
+        error: (err: unknown) => {
+          this.loading.set(false);
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load the Supplier Statement.');
+        },
+      });
   }
 
   private today(): string {

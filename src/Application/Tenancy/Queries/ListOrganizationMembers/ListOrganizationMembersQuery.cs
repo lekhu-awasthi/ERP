@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using MediatR;
 
@@ -10,8 +11,9 @@ namespace ErpApp.Application.Tenancy.Queries.ListOrganizationMembers;
 /// gated on PermissionKeys.TaskView rather than minting a standalone Tenancy-level "view members"
 /// key that nothing else needs yet.
 /// </summary>
-public sealed record ListOrganizationMembersQuery(Guid OrganizationId)
-    : IRequest<IReadOnlyList<OrganizationMemberDto>>, IRequirePermission, IOrganizationScoped
+public sealed record ListOrganizationMembersQuery(
+    Guid OrganizationId, int Page = 1, int PageSize = PagingDefaults.MaxPageSize)
+    : IRequest<PagedResult<OrganizationMemberDto>>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.TaskView;
 }

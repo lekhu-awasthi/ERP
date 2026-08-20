@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { PagedResult } from '../common/paged-result';
 import {
   ApproveInventoryAdjustmentResult,
   ApproveWarehouseTransferResult,
@@ -32,9 +33,15 @@ export class InventoryService {
     return `${environment.apiBaseUrl}/api/organizations/${organizationId}`;
   }
 
-  listWarehouseTransfers(organizationId: string, status?: WarehouseTransferStatus): Observable<WarehouseTransfer[]> {
-    const params: Record<string, string> = status ? { status } : {};
-    return this.http.get<WarehouseTransfer[]>(`${this.baseUrl(organizationId)}/warehouse-transfers`, {
+  listWarehouseTransfers(
+    organizationId: string,
+    status?: WarehouseTransferStatus,
+    page = 1,
+    pageSize = 50,
+  ): Observable<PagedResult<WarehouseTransfer>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (status) params['status'] = status;
+    return this.http.get<PagedResult<WarehouseTransfer>>(`${this.baseUrl(organizationId)}/warehouse-transfers`, {
       withCredentials: true,
       params,
     });
@@ -72,9 +79,15 @@ export class InventoryService {
     );
   }
 
-  listInventoryAdjustments(organizationId: string, status?: InventoryAdjustmentStatus): Observable<InventoryAdjustment[]> {
-    const params: Record<string, string> = status ? { status } : {};
-    return this.http.get<InventoryAdjustment[]>(`${this.baseUrl(organizationId)}/inventory-adjustments`, {
+  listInventoryAdjustments(
+    organizationId: string,
+    status?: InventoryAdjustmentStatus,
+    page = 1,
+    pageSize = 50,
+  ): Observable<PagedResult<InventoryAdjustment>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (status) params['status'] = status;
+    return this.http.get<PagedResult<InventoryAdjustment>>(`${this.baseUrl(organizationId)}/inventory-adjustments`, {
       withCredentials: true,
       params,
     });

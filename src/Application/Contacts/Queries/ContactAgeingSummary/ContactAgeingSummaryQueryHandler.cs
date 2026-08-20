@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
@@ -121,7 +122,11 @@ public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db)
             .OrderBy(x => x.ContactCode)
             .ToList();
 
-        return new ContactAgeingSummaryDto(request.AsOfDate, request.ContactType, rows);
+        var paged = request.ExportAll ? rows.ToUnpagedResult() : rows.ToPagedResult(request.Page, request.PageSize);
+
+        return new ContactAgeingSummaryDto(
+            request.AsOfDate, request.ContactType, paged.Items, paged.Page, paged.PageSize, paged.TotalCount,
+            rows.Sum(r => r.Days1To30), rows.Sum(r => r.Days31To60), rows.Sum(r => r.Days61To90), rows.Sum(r => r.Days91Plus));
     }
 
     private async Task<List<Bill>> LoadCustomerBillsAsync(ContactAgeingSummaryQuery request, CancellationToken cancellationToken)

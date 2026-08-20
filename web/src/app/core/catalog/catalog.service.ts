@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
 import {
   AddSecondaryUnitRequest,
   AddSecondaryUnitResult,
@@ -32,10 +33,19 @@ export class CatalogService {
     return `${environment.apiBaseUrl}/api/organizations/${organizationId}`;
   }
 
+  /** Bounded master-data / picker lists (Phase 16c) -- no visible pager, just request everything
+   * in one page and unwrap, keeping every caller's Observable<T[]> contract intact. */
+  private listAll<T>(url: string, extraParams: Record<string, string> = {}): Observable<T[]> {
+    return this.http
+      .get<PagedResult<T>>(url, {
+        withCredentials: true,
+        params: { ...extraParams, page: '1', pageSize: String(MAX_PAGE_SIZE) },
+      })
+      .pipe(map((result) => result.items));
+  }
+
   listProductCategories(organizationId: string): Observable<ProductCategory[]> {
-    return this.http.get<ProductCategory[]>(`${this.baseUrl(organizationId)}/product-categories`, {
-      withCredentials: true,
-    });
+    return this.listAll<ProductCategory>(`${this.baseUrl(organizationId)}/product-categories`);
   }
 
   createProductCategory(
@@ -66,9 +76,7 @@ export class CatalogService {
   }
 
   listUnitsOfMeasurement(organizationId: string): Observable<UnitOfMeasurement[]> {
-    return this.http.get<UnitOfMeasurement[]>(`${this.baseUrl(organizationId)}/units-of-measurement`, {
-      withCredentials: true,
-    });
+    return this.listAll<UnitOfMeasurement>(`${this.baseUrl(organizationId)}/units-of-measurement`);
   }
 
   createUnitOfMeasurement(
@@ -100,9 +108,15 @@ export class CatalogService {
     });
   }
 
-  listProducts(organizationId: string, type?: ProductType): Observable<Product[]> {
-    const params: Record<string, string> = type ? { type } : {};
-    return this.http.get<Product[]>(`${this.baseUrl(organizationId)}/products`, { withCredentials: true, params });
+  listProducts(organizationId: string, type?: ProductType, page = 1, pageSize = 50): Observable<PagedResult<Product>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (type) params['type'] = type;
+    return this.http.get<PagedResult<Product>>(`${this.baseUrl(organizationId)}/products`, { withCredentials: true, params });
+  }
+
+  /** Picker use (e.g. an invoice line's Product dropdown) -- everything in one page, no pager. */
+  listAllProducts(organizationId: string, type?: ProductType): Observable<Product[]> {
+    return this.listProducts(organizationId, type, 1, MAX_PAGE_SIZE).pipe(map((result) => result.items));
   }
 
   getProduct(organizationId: string, id: string): Observable<Product> {
