@@ -5,6 +5,8 @@ import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
 import {
+  Bank,
+  CreateBankRequest,
   CreateCreditTermRequest,
   CreateDealStageRequest,
   CreateLeadSourceRequest,
@@ -17,6 +19,7 @@ import {
   PaymentMode,
   TaskType,
   TdsType,
+  UpdateBankRequest,
   UpdateCreditTermRequest,
   UpdateDealStageRequest,
   UpdateLeadSourceRequest,
@@ -79,6 +82,22 @@ export class ConfigurationService {
 
   deletePaymentMode(organizationId: string, id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl(organizationId)}/payment-modes/${id}`, { withCredentials: true });
+  }
+
+  listBanks(organizationId: string): Observable<Bank[]> {
+    return this.listAll<Bank>(`${this.baseUrl(organizationId)}/banks`);
+  }
+
+  createBank(organizationId: string, request: CreateBankRequest): Observable<Bank> {
+    return this.http.post<Bank>(`${this.baseUrl(organizationId)}/banks`, request, { withCredentials: true });
+  }
+
+  updateBank(organizationId: string, id: string, request: UpdateBankRequest): Observable<Bank> {
+    return this.http.put<Bank>(`${this.baseUrl(organizationId)}/banks/${id}`, request, { withCredentials: true });
+  }
+
+  deleteBank(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/banks/${id}`, { withCredentials: true });
   }
 
   listTdsTypes(organizationId: string): Observable<TdsType[]> {

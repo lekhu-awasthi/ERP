@@ -160,3 +160,29 @@ export interface InventoryLedgerRowDto {
   unitCost: number;
   runningBalance: number;
 }
+
+// --- Phase 17: Opening Balances (Product tab) ---
+
+export interface ProductOpeningBalanceDto {
+  productId: string;
+  productCode: string;
+  productName: string;
+  categoryName: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+}
+
+export interface OpeningStockLineRequest {
+  warehouseId: string;
+  quantity: number;
+  rate: number;
+}
+
+export interface OpeningStockLineResult {
+  id: string;
+  productId: string;
+  warehouseId: string;
+  quantity: number;
+  rate: number;
+}

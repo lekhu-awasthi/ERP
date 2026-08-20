@@ -22,6 +22,7 @@ public static class LookupPermissionKeys
         {
             var t when t == typeof(CreditTerm) => PermissionKeys.CreditTermView,
             var t when t == typeof(PaymentMode) => PermissionKeys.PaymentModeView,
+            var t when t == typeof(Bank) => PermissionKeys.BankView,
             var t when t == typeof(CustomStatus) => PermissionKeys.CustomStatusView,
             var t when t == typeof(ReportingTagCategory) => PermissionKeys.ReportingTagCategoryView,
             var t when t == typeof(ReportingTagOption) => PermissionKeys.ReportingTagOptionView,
@@ -42,6 +43,7 @@ public static class LookupPermissionKeys
         {
             var t when t == typeof(CreditTerm) => PermissionKeys.CreditTermManage,
             var t when t == typeof(PaymentMode) => PermissionKeys.PaymentModeManage,
+            var t when t == typeof(Bank) => PermissionKeys.BankManage,
             var t when t == typeof(CustomStatus) => PermissionKeys.CustomStatusManage,
             var t when t == typeof(ReportingTagCategory) => PermissionKeys.ReportingTagCategoryManage,
             var t when t == typeof(ReportingTagOption) => PermissionKeys.ReportingTagOptionManage,

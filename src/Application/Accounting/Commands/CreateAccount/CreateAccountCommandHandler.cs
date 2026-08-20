@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Numbering;
 using ErpApp.Application.Common.Persistence;
@@ -25,12 +26,18 @@ public sealed class CreateAccountCommandHandler(IAppDbContext db, IDocumentNumbe
             throw new ConflictException($"An account named '{request.Name}' already exists.");
         }
 
+        await AccountingValidation.EnsureBankExistsAsync(db, request.OrganizationId, request.BankId, cancellationToken);
+
         var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.Account, cancellationToken);
 
-        var account = Account.Create(request.OrganizationId, code, request.Name, group.RootType, request.GroupId);
+        var account = Account.Create(
+            request.OrganizationId, code, request.Name, group.RootType, request.GroupId,
+            request.Kind, request.BankId, request.AccountNumber);
         db.Accounts.Add(account);
         await db.SaveChangesAsync(cancellationToken);
 
-        return new CreateAccountResult(account.Id, account.Code, account.Name, account.RootType, account.GroupId);
+        return new CreateAccountResult(
+            account.Id, account.Code, account.Name, account.RootType, account.GroupId,
+            account.Kind, account.BankId, account.AccountNumber);
     }
 }

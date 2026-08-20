@@ -29,12 +29,10 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.HasOne<PaymentMode>().WithMany().HasForeignKey(x => x.PaymentModeId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Account>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasMany(x => x.Allocations)
-            .WithOne()
-            .HasForeignKey("PaymentId")
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.Metadata.FindNavigation(nameof(Payment.Allocations))!
-            .SetPropertyAccessMode(PropertyAccessMode.Field);
+        // No EF navigation for Allocations anymore -- PaymentAllocation.SourceId is polymorphic
+        // (docs/phase-17-status.md decision #2), so it can't be a real FK-constrained child
+        // collection scoped to just this table. Handlers query PaymentAllocations directly
+        // (SourceType=Payment, SourceId=this.Id) and call Payment.AttachAllocations to hydrate.
+        builder.Ignore(x => x.Allocations);
     }
 }

@@ -60,7 +60,7 @@ public sealed class JournalVoucher
         Reference = reference;
     }
 
-    public void AddLine(Guid accountId, decimal debit, decimal credit)
+    public void AddLine(Guid accountId, decimal debit, decimal credit, Guid? contactId = null)
     {
         EnsureDraft();
 
@@ -70,7 +70,7 @@ public sealed class JournalVoucher
                 "Each journal voucher line must have exactly one of Debit or Credit greater than zero.");
         }
 
-        _lines.Add(JournalVoucherLine.Create(Id, accountId, debit, credit));
+        _lines.Add(JournalVoucherLine.Create(Id, accountId, debit, credit, contactId));
     }
 
     /// <summary>Full-replace of the line set -- the simplest correct approach for a client-driven

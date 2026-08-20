@@ -12,9 +12,12 @@ public sealed class GetPaymentQueryHandler(IAppDbContext db) : IRequestHandler<G
     public async Task<PaymentDetailDto> Handle(GetPaymentQuery request, CancellationToken cancellationToken)
     {
         var payment = await db.Payments
-            .Include(x => x.Allocations)
             .SingleOrDefaultAsync(x => x.Id == request.Id && x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Payment not found.");
+
+        var allocations = await db.PaymentAllocations
+            .Where(x => x.SourceType == DocumentType.Payment && x.SourceId == payment.Id)
+            .ToListAsync(cancellationToken);
 
         IReadOnlyList<PostedGlLineDto>? glLines = null;
 
@@ -43,7 +46,7 @@ public sealed class GetPaymentQueryHandler(IAppDbContext db) : IRequestHandler<G
             payment.ApprovedByUserId,
             payment.ApprovedAt,
             payment.CreatedAt,
-            payment.Allocations.Select(x => new PaymentAllocationDto(x.Id, x.TargetDocumentType, x.TargetDocumentId, x.Amount)).ToList(),
+            allocations.Select(x => new PaymentAllocationDto(x.Id, x.TargetDocumentType, x.TargetDocumentId, x.Amount)).ToList(),
             glLines);
     }
 }

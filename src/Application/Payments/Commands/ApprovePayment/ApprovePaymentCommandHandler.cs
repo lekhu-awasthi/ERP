@@ -22,7 +22,6 @@ public sealed class ApprovePaymentCommandHandler(
     public async Task<ApprovePaymentResult> Handle(ApprovePaymentCommand request, CancellationToken cancellationToken)
     {
         var payment = await db.Payments
-            .Include(x => x.Allocations)
             .SingleOrDefaultAsync(x => x.Id == request.Id && x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Payment not found.");
 
@@ -31,9 +30,14 @@ public sealed class ApprovePaymentCommandHandler(
             throw new ConflictException("Only a Draft payment can be approved.");
         }
 
-        if (payment.Allocations.Count == 0 || payment.Allocations.Sum(x => x.Amount) != payment.Amount)
+        var existingAllocations = await db.PaymentAllocations
+            .Where(x => x.SourceType == DocumentType.Payment && x.SourceId == payment.Id)
+            .ToListAsync(cancellationToken);
+        payment.AttachAllocations(existingAllocations);
+
+        if (payment.Allocations.Sum(x => x.Amount) > payment.Amount)
         {
-            throw new ConflictException("A payment's allocations must add up to exactly its Amount to be approved.");
+            throw new ConflictException("A payment's allocations cannot exceed its Amount.");
         }
 
         // Phase 16a: EnsureAllocationTargetsExistAsync only ran at Create/Update time -- a target

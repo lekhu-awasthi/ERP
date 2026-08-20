@@ -4,10 +4,14 @@ using MediatR;
 
 namespace ErpApp.Application.Accounting.Commands.CreateAccount;
 
-public sealed record CreateAccountCommand(Guid OrganizationId, string Name, Guid GroupId)
+public sealed record CreateAccountCommand(
+    Guid OrganizationId, string Name, Guid GroupId,
+    AccountKind Kind = AccountKind.Other, Guid? BankId = null, string? AccountNumber = null)
     : IRequest<CreateAccountResult>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.AccountManage;
 }
 
-public sealed record CreateAccountResult(Guid Id, string Code, string Name, AccountRootType RootType, Guid GroupId);
+public sealed record CreateAccountResult(
+    Guid Id, string Code, string Name, AccountRootType RootType, Guid GroupId,
+    AccountKind Kind, Guid? BankId, string? AccountNumber);

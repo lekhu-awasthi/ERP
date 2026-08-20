@@ -33,6 +33,7 @@ public interface IAppDbContext
     DbSet<RolePermission> RolePermissions { get; }
     DbSet<CreditTerm> CreditTerms { get; }
     DbSet<PaymentMode> PaymentModes { get; }
+    DbSet<Bank> Banks { get; }
     DbSet<CustomStatus> CustomStatuses { get; }
     DbSet<ReportingTagCategory> ReportingTagCategories { get; }
     DbSet<ReportingTagOption> ReportingTagOptions { get; }
@@ -63,6 +64,7 @@ public interface IAppDbContext
     DbSet<CreditNoteLine> CreditNoteLines { get; }
     DbSet<Payment> Payments { get; }
     DbSet<PaymentAllocation> PaymentAllocations { get; }
+    DbSet<Cheque> Cheques { get; }
     DbSet<TdsType> TdsTypes { get; }
     DbSet<PurchaseOrder> PurchaseOrders { get; }
     DbSet<PurchaseOrderLine> PurchaseOrderLines { get; }
@@ -85,6 +87,8 @@ public interface IAppDbContext
     DbSet<Deal> Deals { get; }
     DbSet<DealAssignee> DealAssignees { get; }
     DbSet<Audit> Audits { get; }
+    DbSet<OpeningBalanceLine> OpeningBalanceLines { get; }
+    DbSet<OpeningStockLine> OpeningStockLines { get; }
 
     /// <summary>
     /// Generic accessor mirroring DbContext's own Set&lt;TEntity&gt;() -- lets the generic

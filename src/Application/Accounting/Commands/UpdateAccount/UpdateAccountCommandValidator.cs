@@ -10,5 +10,6 @@ public sealed class UpdateAccountCommandValidator : AbstractValidator<UpdateAcco
         RuleFor(x => x.Id).NotEmpty();
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.GroupId).NotEmpty();
+        RuleFor(x => x.AccountNumber).MaximumLength(50);
     }
 }

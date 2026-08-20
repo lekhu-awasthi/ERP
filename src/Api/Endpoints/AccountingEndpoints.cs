@@ -5,6 +5,7 @@ using ErpApp.Application.Accounting.Commands.CreateAccount;
 using ErpApp.Application.Accounting.Commands.CreateAccountGroup;
 using ErpApp.Application.Accounting.Commands.CreateCashTransfer;
 using ErpApp.Application.Accounting.Commands.CreateJournalVoucher;
+using ErpApp.Application.Accounting.Commands.CreateOrUpdateOpeningBalanceLine;
 using ErpApp.Application.Accounting.Commands.UpdateAccount;
 using ErpApp.Application.Accounting.Commands.UpdateAccountGroup;
 using ErpApp.Application.Accounting.Commands.UpdateCashTransfer;
@@ -17,8 +18,10 @@ using ErpApp.Application.Accounting.Queries.GetCashTransfer;
 using ErpApp.Application.Accounting.Queries.GetJournalVoucher;
 using ErpApp.Application.Accounting.Queries.IncomeStatement;
 using ErpApp.Application.Accounting.Queries.ListAccounts;
+using ErpApp.Application.Accounting.Queries.ListBankAccounts;
 using ErpApp.Application.Accounting.Queries.ListCashTransfers;
 using ErpApp.Application.Accounting.Queries.ListJournalVouchers;
+using ErpApp.Application.Accounting.Queries.ListOpeningBalanceLines;
 using ErpApp.Application.Accounting.Queries.PreviewGlPosting;
 using ErpApp.Application.Accounting.Queries.TrialBalance;
 using ErpApp.Application.Accounting.Queries.VatSummaryReport;
@@ -41,8 +44,10 @@ public static class AccountingEndpoints
 
         MapAccountGroupEndpoints(group);
         MapAccountEndpoints(group);
+        MapBankAccountEndpoints(group);
         MapJournalVoucherEndpoints(group);
         MapCashTransferEndpoints(group);
+        MapOpeningBalanceEndpoints(group);
         MapReportEndpoints(group);
     }
 
@@ -99,7 +104,10 @@ public static class AccountingEndpoints
         group.MapPost("/accounts", async (
             Guid organizationId, CreateAccountRequest request, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new CreateAccountCommand(organizationId, request.Name, request.GroupId), ct);
+            var result = await sender.Send(
+                new CreateAccountCommand(
+                    organizationId, request.Name, request.GroupId, request.Kind, request.BankId, request.AccountNumber),
+                ct);
             return Results.Created($"/api/organizations/{organizationId}/accounts/{result.Id}", result);
         });
 
@@ -107,7 +115,23 @@ public static class AccountingEndpoints
             Guid organizationId, Guid id, UpdateAccountRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new UpdateAccountCommand(organizationId, id, request.Name, request.GroupId, request.IsActive), ct);
+                new UpdateAccountCommand(
+                    organizationId, id, request.Name, request.GroupId, request.IsActive,
+                    request.Kind, request.BankId, request.AccountNumber),
+                ct);
+            return Results.Ok(result);
+        });
+    }
+
+    private static void MapBankAccountEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/bank-accounts", async (
+            Guid organizationId, bool? isActive, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListBankAccountsQuery(
+                    organizationId, isActive ?? true, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
             return Results.Ok(result);
         });
     }
@@ -218,6 +242,25 @@ public static class AccountingEndpoints
         });
     }
 
+    private static void MapOpeningBalanceEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/opening-balances/accounts", async (
+            Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListAccountOpeningBalancesQuery(organizationId, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPut("/opening-balances/accounts/{accountId:guid}", async (
+            Guid organizationId, Guid accountId, OpeningBalanceLineRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new CreateOrUpdateOpeningBalanceLineCommand(organizationId, accountId, request.Debit, request.Credit), ct);
+            return Results.Ok(result);
+        });
+    }
+
     private static void MapReportEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/reports/trial-balance", async (
@@ -263,9 +306,12 @@ public static class AccountingEndpoints
 
     private sealed record UpdateAccountGroupRequest(string Name, Guid? ParentGroupId, bool IsActive);
 
-    private sealed record CreateAccountRequest(string Name, Guid GroupId);
+    private sealed record CreateAccountRequest(
+        string Name, Guid GroupId, AccountKind Kind = AccountKind.Other, Guid? BankId = null, string? AccountNumber = null);
 
-    private sealed record UpdateAccountRequest(string Name, Guid GroupId, bool IsActive);
+    private sealed record UpdateAccountRequest(
+        string Name, Guid GroupId, bool IsActive, AccountKind Kind = AccountKind.Other, Guid? BankId = null,
+        string? AccountNumber = null);
 
     private sealed record JournalVoucherRequest(DateOnly Date, string? Reference, IReadOnlyList<JournalVoucherLineInput> Lines);
 
@@ -273,4 +319,6 @@ public static class AccountingEndpoints
 
     private sealed record CashTransferRequest(
         DateOnly Date, string? Reference, Guid FromAccountId, IReadOnlyList<CashTransferLineInput> Lines);
+
+    private sealed record OpeningBalanceLineRequest(decimal Debit, decimal Credit);
 }

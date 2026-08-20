@@ -45,9 +45,13 @@ public sealed class VoidInvoiceCommandHandler(IAppDbContext db, ICurrentUserServ
             throw new ConflictException("Cannot void this invoice -- void the credit note(s) issued against it first.");
         }
 
+        // Phase 17 decision #2: scoped to Payment-sourced allocations only -- see the matching note
+        // in ContactAgeingSummaryQueryHandler. A JournalVoucher-sourced allocation against this
+        // invoice wouldn't block a Void here yet (docs/phase-17-status.md's Known limitation).
         var hasApprovedPaymentAllocation = await (
             from a in db.PaymentAllocations
-            join p in db.Payments on a.PaymentId equals p.Id
+            where a.SourceType == DocumentType.Payment
+            join p in db.Payments on a.SourceId equals p.Id
             where a.TargetDocumentType == DocumentType.Invoice && a.TargetDocumentId == invoice.Id
                   && p.Status == PaymentStatus.Approved
             select a.Id).AnyAsync(cancellationToken);

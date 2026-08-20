@@ -3,10 +3,10 @@ using MediatR;
 
 namespace ErpApp.Application.Configuration.Commands.CreatePaymentMode;
 
-public sealed record CreatePaymentModeCommand(Guid OrganizationId, string Name)
+public sealed record CreatePaymentModeCommand(Guid OrganizationId, string Name, bool RequiresChequeDetails = false)
     : IRequest<CreatePaymentModeResult>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.PaymentModeManage;
 }
 
-public sealed record CreatePaymentModeResult(Guid Id, string Name);
+public sealed record CreatePaymentModeResult(Guid Id, string Name, bool RequiresChequeDetails);

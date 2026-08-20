@@ -15,6 +15,7 @@ public sealed class PaymentModeConfiguration : IEntityTypeConfiguration<PaymentM
         builder.Property(x => x.OrganizationId).IsRequired();
         builder.Property(x => x.Name).HasMaxLength(100).IsRequired();
         builder.Property(x => x.IsActive).IsRequired();
+        builder.Property(x => x.RequiresChequeDetails).IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
 
         builder.HasIndex(x => new { x.OrganizationId, x.Name }).IsUnique();

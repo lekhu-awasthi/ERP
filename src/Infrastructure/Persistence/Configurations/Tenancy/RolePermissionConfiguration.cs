@@ -393,6 +393,33 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminSystemAuditViewId = Guid.Parse("00000000-0000-0000-0002-0000000000fd");
     private static readonly Guid MemberSystemAuditViewId = Guid.Parse("00000000-0000-0000-0002-0000000000fe");
 
+    // Phase 17 (Accounting breadth) -- continues the tail past 0xff into a new byte (see this
+    // file's own header comment). Bank: same Member-View/Admin-Manage lookup split as every other
+    // Configuration lookup. BankAccount: View-only new key (see PermissionKeys.cs's own comment on
+    // why there's no BankAccountManage sibling). Cheque: standard View/Manage pair, both
+    // Member-granted (routine daily-use working data, same bar as PaymentCreate/PaymentEdit --
+    // status transitions here have no GL effect per decision #4, so they don't need the
+    // Approve-style maker-checker split). OpeningBalance: View/Edit pair per FR-3.4's own confirmed
+    // split, Admin-only Edit (a "day zero" balance correction after go-live is exactly the kind of
+    // backdated-looking change LockDate exists to gate elsewhere -- Member gets View only).
+    private static readonly Guid AdminBankViewId = Guid.Parse("00000000-0000-0000-0002-0000000000ff");
+    private static readonly Guid AdminBankManageId = Guid.Parse("00000000-0000-0000-0002-000000000100");
+    private static readonly Guid MemberBankViewId = Guid.Parse("00000000-0000-0000-0002-000000000101");
+    private static readonly Guid MemberBankManageId = Guid.Parse("00000000-0000-0000-0002-000000000102");
+
+    private static readonly Guid AdminBankAccountViewId = Guid.Parse("00000000-0000-0000-0002-000000000103");
+    private static readonly Guid MemberBankAccountViewId = Guid.Parse("00000000-0000-0000-0002-000000000104");
+
+    private static readonly Guid AdminChequeViewId = Guid.Parse("00000000-0000-0000-0002-000000000105");
+    private static readonly Guid AdminChequeManageId = Guid.Parse("00000000-0000-0000-0002-000000000106");
+    private static readonly Guid MemberChequeViewId = Guid.Parse("00000000-0000-0000-0002-000000000107");
+    private static readonly Guid MemberChequeManageId = Guid.Parse("00000000-0000-0000-0002-000000000108");
+
+    private static readonly Guid AdminOpeningBalanceViewId = Guid.Parse("00000000-0000-0000-0002-000000000109");
+    private static readonly Guid AdminOpeningBalanceEditId = Guid.Parse("00000000-0000-0000-0002-00000000010a");
+    private static readonly Guid MemberOpeningBalanceViewId = Guid.Parse("00000000-0000-0000-0002-00000000010b");
+    private static readonly Guid MemberOpeningBalanceEditId = Guid.Parse("00000000-0000-0000-0002-00000000010c");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -712,6 +739,24 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
                 MemberOrganizationLockDateManageId, Role.MemberId, PermissionKeys.OrganizationLockDateManage, false),
 
             RolePermission.Create(AdminSystemAuditViewId, Role.AdminId, PermissionKeys.SystemAuditView, true),
-            RolePermission.Create(MemberSystemAuditViewId, Role.MemberId, PermissionKeys.SystemAuditView, false));
+            RolePermission.Create(MemberSystemAuditViewId, Role.MemberId, PermissionKeys.SystemAuditView, false),
+
+            RolePermission.Create(AdminBankViewId, Role.AdminId, PermissionKeys.BankView, true),
+            RolePermission.Create(AdminBankManageId, Role.AdminId, PermissionKeys.BankManage, true),
+            RolePermission.Create(MemberBankViewId, Role.MemberId, PermissionKeys.BankView, true),
+            RolePermission.Create(MemberBankManageId, Role.MemberId, PermissionKeys.BankManage, false),
+
+            RolePermission.Create(AdminBankAccountViewId, Role.AdminId, PermissionKeys.BankAccountView, true),
+            RolePermission.Create(MemberBankAccountViewId, Role.MemberId, PermissionKeys.BankAccountView, true),
+
+            RolePermission.Create(AdminChequeViewId, Role.AdminId, PermissionKeys.ChequeView, true),
+            RolePermission.Create(AdminChequeManageId, Role.AdminId, PermissionKeys.ChequeManage, true),
+            RolePermission.Create(MemberChequeViewId, Role.MemberId, PermissionKeys.ChequeView, true),
+            RolePermission.Create(MemberChequeManageId, Role.MemberId, PermissionKeys.ChequeManage, true),
+
+            RolePermission.Create(AdminOpeningBalanceViewId, Role.AdminId, PermissionKeys.OpeningBalanceView, true),
+            RolePermission.Create(AdminOpeningBalanceEditId, Role.AdminId, PermissionKeys.OpeningBalanceEdit, true),
+            RolePermission.Create(MemberOpeningBalanceViewId, Role.MemberId, PermissionKeys.OpeningBalanceView, true),
+            RolePermission.Create(MemberOpeningBalanceEditId, Role.MemberId, PermissionKeys.OpeningBalanceEdit, false));
     }
 }

@@ -326,4 +326,25 @@ public static class PermissionKeys
     // seeing "who did what" across the whole org is materially more sensitive than any one
     // document type's own View permission.
     public const string SystemAuditView = "Reports.SystemAudit.View";
+
+    // Phase 17 (Accounting breadth) -- Bank is a routine Configuration lookup (same Member-View/
+    // Admin-Manage split as every other lookup in this file). Bank Accounts is a distinct nav
+    // entry (its own screen) but creating/editing one goes through the existing
+    // CreateAccount/UpdateAccountCommand -- still literally an Account row -- so it deliberately
+    // reuses AccountManage rather than a new BankAccountManage key; only the screen's own new
+    // capability (the live-balance list) is new, hence BankAccountView only, no ...Manage sibling.
+    // OpeningBalance is a real new screen+capability (no existing command it piggybacks on) so it
+    // gets its own View/Edit pair, matching FR-3.4's own confirmed View-vs-Edit permission split
+    // (not the View/Create/Edit/Approve/Void shape of a real document -- see decision recorded in
+    // docs/phase-17-status.md). Cheque gets the standard View/Manage pair; no separate
+    // status-transition key -- decision #4 (docs/phase-17-status.md) found no GL side-effect on any
+    // Cheque status transition, so it doesn't rise to the maker-checker bar a Void or Approve key
+    // exists for.
+    public const string BankView = "Configuration.Bank.View";
+    public const string BankManage = "Configuration.Bank.Manage";
+    public const string BankAccountView = "Accounting.BankAccount.View";
+    public const string ChequeView = "Accounting.Cheque.View";
+    public const string ChequeManage = "Accounting.Cheque.Manage";
+    public const string OpeningBalanceView = "Accounting.OpeningBalance.View";
+    public const string OpeningBalanceEdit = "Accounting.OpeningBalance.Edit";
 }

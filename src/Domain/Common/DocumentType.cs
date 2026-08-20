@@ -32,4 +32,15 @@ public enum DocumentType
     /// <summary>Added Phase 5 (Sales chain) -- Customer Payment's own numbering pool. Supplier
     /// Payment (Phase 6, Direction=Paid) reuses the same Payment aggregate and this same pool.</summary>
     Payment,
+
+    /// <summary>Phase 17 -- GlJournalEntry.SourceDocumentType for an Account opening-balance
+    /// posting (docs/phase-17-status.md). Not a numbering-pool document (no code assigned) --
+    /// OpeningBalanceLine is keyed by (OrganizationId, AccountId), one row per account, referenced
+    /// by its own Id as SourceDocumentId.</summary>
+    OpeningBalance,
+
+    /// <summary>Phase 17 -- StockLedgerEntry.SourceDocumentType for a Product opening-stock FIFO
+    /// layer (docs/phase-17-status.md). Same non-numbered shape as OpeningBalance above --
+    /// OpeningStockLine is keyed by (OrganizationId, ProductId, WarehouseId).</summary>
+    OpeningStock,
 }

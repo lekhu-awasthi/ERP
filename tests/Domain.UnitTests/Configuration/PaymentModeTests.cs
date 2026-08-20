@@ -18,9 +18,19 @@ public class PaymentModeTests
     {
         var paymentMode = PaymentMode.Create(Guid.NewGuid(), "Cash");
 
-        paymentMode.Update("Bank Transfer", false);
+        paymentMode.Update("Bank Transfer", false, requiresChequeDetails: false);
 
         Assert.Equal("Bank Transfer", paymentMode.Name);
         Assert.False(paymentMode.IsActive);
+    }
+
+    [Fact]
+    public void Update_can_set_requires_cheque_details()
+    {
+        var paymentMode = PaymentMode.Create(Guid.NewGuid(), "Cheque");
+
+        paymentMode.Update("Cheque", true, requiresChequeDetails: true);
+
+        Assert.True(paymentMode.RequiresChequeDetails);
     }
 }

@@ -28,6 +28,13 @@ namespace ErpApp.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("AccountNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid?>("BankId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -41,6 +48,11 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -57,10 +69,14 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BankId");
+
                     b.HasIndex("GroupId");
 
                     b.HasIndex("OrganizationId", "Code")
                         .IsUnique();
+
+                    b.HasIndex("OrganizationId", "Kind");
 
                     b.HasIndex("OrganizationId", "Name")
                         .IsUnique();
@@ -305,6 +321,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid>("AccountId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("ContactId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("Credit")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -320,9 +339,45 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasIndex("AccountId");
 
+                    b.HasIndex("ContactId");
+
                     b.HasIndex("JournalVoucherId");
 
                     b.ToTable("JournalVoucherLines", "accounting");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Accounting.OpeningBalanceLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("Credit")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Debit")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("OrganizationId", "AccountId")
+                        .IsUnique();
+
+                    b.ToTable("OpeningBalanceLines", "accounting");
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Catalog.Product", b =>
@@ -522,6 +577,34 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("UnitsOfMeasurement", "catalog");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Configuration.Bank", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("Banks", "configuration");
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Configuration.CreditTerm", b =>
@@ -802,6 +885,9 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("RequiresChequeDetails")
+                        .HasColumnType("bit");
 
                     b.HasKey("Id");
 
@@ -1303,6 +1389,45 @@ namespace ErpApp.Infrastructure.Migrations
                     b.ToTable("InventoryAdjustmentLines", "inventory");
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Inventory.OpeningStockLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("Rate")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("WarehouseId");
+
+                    b.HasIndex("OrganizationId", "ProductId", "WarehouseId")
+                        .IsUnique();
+
+                    b.ToTable("OpeningStockLines", "inventory");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Inventory.StockLedgerEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1495,6 +1620,59 @@ namespace ErpApp.Infrastructure.Migrations
                     b.ToTable("WarehouseTransferLines", "inventory");
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Payments.Cheque", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateOnly>("ChequeDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ChequeNo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("LinkedPaymentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("ReceivedDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("LinkedPaymentId");
+
+                    b.HasIndex("OrganizationId", "Status");
+
+                    b.ToTable("Cheques", "payments");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Payments.Payment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1581,8 +1759,13 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
-                    b.Property<Guid>("PaymentId")
+                    b.Property<Guid>("SourceId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<Guid>("TargetDocumentId")
                         .HasColumnType("uniqueidentifier");
@@ -1594,7 +1777,7 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PaymentId");
+                    b.HasIndex("SourceType", "SourceId");
 
                     b.HasIndex("TargetDocumentType", "TargetDocumentId");
 
@@ -4512,6 +4695,104 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = false,
                             PermissionKey = "Reports.SystemAudit.View",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000000ff"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.Bank.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000100"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.Bank.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000101"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.Bank.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000102"),
+                            IsGranted = false,
+                            PermissionKey = "Configuration.Bank.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000103"),
+                            IsGranted = true,
+                            PermissionKey = "Accounting.BankAccount.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000104"),
+                            IsGranted = true,
+                            PermissionKey = "Accounting.BankAccount.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000105"),
+                            IsGranted = true,
+                            PermissionKey = "Accounting.Cheque.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000106"),
+                            IsGranted = true,
+                            PermissionKey = "Accounting.Cheque.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000107"),
+                            IsGranted = true,
+                            PermissionKey = "Accounting.Cheque.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000108"),
+                            IsGranted = true,
+                            PermissionKey = "Accounting.Cheque.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000109"),
+                            IsGranted = true,
+                            PermissionKey = "Accounting.OpeningBalance.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000010a"),
+                            IsGranted = true,
+                            PermissionKey = "Accounting.OpeningBalance.Edit",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000010b"),
+                            IsGranted = true,
+                            PermissionKey = "Accounting.OpeningBalance.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000010c"),
+                            IsGranted = false,
+                            PermissionKey = "Accounting.OpeningBalance.Edit",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 
@@ -4799,6 +5080,11 @@ namespace ErpApp.Infrastructure.Migrations
 
             modelBuilder.Entity("ErpApp.Domain.Accounting.Account", b =>
                 {
+                    b.HasOne("ErpApp.Domain.Configuration.Bank", null)
+                        .WithMany()
+                        .HasForeignKey("BankId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Accounting.AccountGroup", null)
                         .WithMany()
                         .HasForeignKey("GroupId")
@@ -4861,10 +5147,24 @@ namespace ErpApp.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("ErpApp.Domain.Contacts.Contact", null)
+                        .WithMany()
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Accounting.JournalVoucher", null)
                         .WithMany("Lines")
                         .HasForeignKey("JournalVoucherId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Accounting.OpeningBalanceLine", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Accounting.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -5033,6 +5333,21 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Inventory.OpeningStockLine", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Tenancy.Warehouse", null)
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Inventory.StockLedgerEntry", b =>
                 {
                     b.HasOne("ErpApp.Domain.Catalog.Product", null)
@@ -5093,6 +5408,21 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Payments.Cheque", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Accounting.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Payments.Payment", null)
+                        .WithMany()
+                        .HasForeignKey("LinkedPaymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Payments.Payment", b =>
                 {
                     b.HasOne("ErpApp.Domain.Accounting.Account", null)
@@ -5111,15 +5441,6 @@ namespace ErpApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("PaymentModeId")
                         .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("ErpApp.Domain.Payments.PaymentAllocation", b =>
-                {
-                    b.HasOne("ErpApp.Domain.Payments.Payment", null)
-                        .WithMany("Allocations")
-                        .HasForeignKey("PaymentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Purchasing.DebitNote", b =>
@@ -5485,11 +5806,6 @@ namespace ErpApp.Infrastructure.Migrations
             modelBuilder.Entity("ErpApp.Domain.Inventory.WarehouseTransfer", b =>
                 {
                     b.Navigation("Lines");
-                });
-
-            modelBuilder.Entity("ErpApp.Domain.Payments.Payment", b =>
-                {
-                    b.Navigation("Allocations");
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Purchasing.DebitNote", b =>
