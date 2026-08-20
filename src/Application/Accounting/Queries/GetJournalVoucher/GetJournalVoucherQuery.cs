@@ -10,7 +10,7 @@ public sealed record GetJournalVoucherQuery(Guid OrganizationId, Guid Id)
     public string PermissionKey => PermissionKeys.JournalVoucherView;
 }
 
-public sealed record JournalVoucherLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
+public sealed record JournalVoucherLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit, Guid? ContactId);
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
 

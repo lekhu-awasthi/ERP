@@ -11,11 +11,13 @@ public sealed class CreateJournalVoucherCommandHandler(IAppDbContext db)
     {
         await AccountingValidation.EnsureAccountsExistAsync(
             db, request.OrganizationId, request.Lines.Select(x => x.AccountId), cancellationToken);
+        await AccountingValidation.EnsureContactsExistAsync(
+            db, request.OrganizationId, request.Lines.Select(x => x.ContactId), cancellationToken);
 
         var journalVoucher = JournalVoucher.Create(request.OrganizationId, request.Date, request.Reference);
         foreach (var line in request.Lines)
         {
-            journalVoucher.AddLine(line.AccountId, line.Debit, line.Credit);
+            journalVoucher.AddLine(line.AccountId, line.Debit, line.Credit, line.ContactId);
         }
 
         db.JournalVouchers.Add(journalVoucher);

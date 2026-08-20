@@ -46,9 +46,13 @@ public sealed class VoidPurchaseBillCommandHandler(
             throw new ConflictException("Cannot void this purchase bill -- void the debit note(s) issued against it first.");
         }
 
+        // Phase 17 decision #2: scoped to Payment-sourced allocations only -- see the matching note
+        // in ContactAgeingSummaryQueryHandler. A JournalVoucher-sourced allocation against this
+        // purchase bill wouldn't block a Void here yet (docs/phase-17-status.md's Known limitation).
         var hasApprovedPaymentAllocation = await (
             from a in db.PaymentAllocations
-            join p in db.Payments on a.PaymentId equals p.Id
+            where a.SourceType == DocumentType.Payment
+            join p in db.Payments on a.SourceId equals p.Id
             where a.TargetDocumentType == DocumentType.PurchaseBill && a.TargetDocumentId == purchaseBill.Id
                   && p.Status == PaymentStatus.Approved
             select a.Id).AnyAsync(cancellationToken);

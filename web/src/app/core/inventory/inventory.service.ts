@@ -16,6 +16,9 @@ import {
   InventoryAdjustmentRequest,
   InventoryAdjustmentStatus,
   InventoryLedgerRowDto,
+  OpeningStockLineRequest,
+  OpeningStockLineResult,
+  ProductOpeningBalanceDto,
   StockPositionDto,
   UpdateInventoryAdjustmentResult,
   UpdateWarehouseTransferResult,
@@ -146,5 +149,29 @@ export class InventoryService {
       withCredentials: true,
       params: { productId, warehouseId },
     });
+  }
+
+  listProductOpeningBalances(
+    organizationId: string,
+    warehouseId: string,
+    page = 1,
+    pageSize = 50,
+  ): Observable<PagedResult<ProductOpeningBalanceDto>> {
+    return this.http.get<PagedResult<ProductOpeningBalanceDto>>(`${this.baseUrl(organizationId)}/opening-balances/products`, {
+      withCredentials: true,
+      params: { warehouseId, page: String(page), pageSize: String(pageSize) },
+    });
+  }
+
+  saveProductOpeningBalance(
+    organizationId: string,
+    productId: string,
+    request: OpeningStockLineRequest,
+  ): Observable<OpeningStockLineResult> {
+    return this.http.put<OpeningStockLineResult>(
+      `${this.baseUrl(organizationId)}/opening-balances/products/${productId}`,
+      request,
+      { withCredentials: true },
+    );
   }
 }

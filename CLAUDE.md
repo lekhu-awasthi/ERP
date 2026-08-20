@@ -92,6 +92,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A "reverse of X" GL posting is foolproof only if it mirrors the *original entry's own posted lines* (swap every Debit/Credit) rather than re-deriving a reversal from the document's posting rule — a hand-derived reverse can satisfy its own balanced-entry invariant while still leaving a paired account (TDS Payable, etc.) permanently unbalanced (see the gotcha above). `GlJournalEntry.PostReversalOf` posts a second entry against the same `SourceDocumentType`/`SourceDocumentId` rather than mutating the original — `GlJournalEntry` has no UPDATE/DELETE path anywhere, and every GL-reading report already sums by account with no per-document uniqueness assumption, so this needs zero report changes. See `docs/phase-16a-status.md`.
 - `dotnet ef migrations add`/`database update` diffs against whatever `Api` project output the `--startup-project` build actually produced — rebuilding only `Infrastructure` standalone in between (`dotnet build src/Infrastructure/...`) leaves `Api`'s own output stale, so a subsequent `dotnet ef` call can report `PendingModelChangesWarning` and re-scaffold an already-applied diff. Let `dotnet ef` rebuild itself (omit `--no-build`) after any partial rebuild, or rebuild the full solution first. See `docs/phase-16a-status.md`.
 - A footer/summary total on any paginated screen must be computed server-side from the *full* filtered result, never a client-side `.reduce()`/sum over the currently-loaded page — the moment a list becomes paginated, the client only holds one page, so a pre-existing client-side total silently starts showing a page subtotal with no error and no failing test. Four report pages had exactly this latent bug, caught only by re-reading the Angular templates before assuming pagination was purely a backend change. See `docs/phase-16c-status.md`'s bug #1.
+- This Angular app is **zoneless** (Angular 21 default — confirmed by no `zone.js` in `web/package.json`). A `computed()` signal only re-evaluates when a tracked *signal* it read during its last evaluation changes; wrapping a read of a plain (non-signal) mutable value inside `computed()` — most commonly `FormControl.value` from a Reactive Forms group — silently caches the first result forever, since the computed has no signal dependency to invalidate it on. A direct (uncached) template read of the same `form.controls.x.value`, by contrast, works fine — zoneless change detection still reruns the template function after an Angular-bound DOM event (`(change)`, `(click)`, etc.), so a plain property read comes back fresh every time. `tsc`/`ng build` cannot catch this class of bug; it only surfaces as a UI element silently never updating, caught in Phase 17 only by live browser testing (`quick-payment-page`'s Cheque Details section never appearing after selecting a Cheque-mode Payment Mode). Fix: track the value driving conditional UI in its own plain `signal()`, written directly by the control's `(change)`/`(input)` handler, rather than deriving it from the FormGroup inside a `computed()`.
 - ClosedXML's (and any other sync-only writer's) `SaveAs(Stream)` cannot target a live ASP.NET Core response stream directly — Kestrel disallows synchronous writes there by default and throws `InvalidOperationException: Synchronous operations are disallowed`, surfacing only as a generic 500 unless you check the server's own console log (an InMemory-provider unit test never touches a real Kestrel response, so nothing catches this except manual E2E against the real server). `SaveAs` into a `MemoryStream` first, then `CopyToAsync` that buffer to the real response stream. See `docs/phase-16c-status.md`'s bug #3 and `ReportSpreadsheetExporter.WriteWorkbookAsync`.
 
 ## Current status
@@ -102,32 +103,46 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 > `docs/phase-N-status.md` and the roadmap's index table; never append essay-length phase
 > write-ups here, and never keep more than the latest one or two phases in this section.
 
-**Phase 16d (System Audit report) is complete** — an append-only `Audit` entity (`workflow.Audits`)
-is written by a new `AuditBehavior` pipeline step (registered 5th, after `LockDateBehavior`) for
-every Create/Update/Approve/Void of the 13 ApprovableTransaction document types. Two new marker
-interfaces, `IAuditableRequest`/`IAuditableRequestWithId` (`Application.Common.Security`), let
-Create/Update commands declare their DocumentType/DocumentId without a 50-branch switch in the
-behavior; Approve/Void reuse the existing `ILockDateSensitiveDocument` interface instead of adding
-a redundant one, and a Create command's new DocumentId (not known pre-handler) is read off the
-handler's response via reflection on its conventional `Guid Id` property rather than touching ~50
-Result records. Immutability is enforced twice — Domain-level (private ctor, no mutators) and a
-real mechanism, `AppDbContext.SaveChangesAsync`'s own override throwing on any tracked
-`Modified`/`Deleted` `Audit` entity, proven by 3 new InMemory-provider unit tests (no Docker
-needed). A new `Reports.SystemAudit.View` (Admin-only) report screen mirrors the Phase 16c report
-shape exactly — paginated, filterable by User/Action/DocumentType/date range, with spreadsheet
-export, and each row links to its document via a copy of `transaction-approval-queue-page.ts`'s own
-13-branch `detailRoute` switch (same SalesOrder-has-no-detail-page gap, same Payment-Direction
-split). Administrative actions (InviteUser, lookup CRUD, etc.) are explicitly out of scope this
-phase — flagged via `spawn_task` rather than left unstated. Tests: Domain.UnitTests 76 (unchanged),
-Application.UnitTests 216 (4 new `AuditBehaviorTests`), Api.IntegrationTests +3 new
-(`AuditImmutabilityTests`, InMemory-provider — the pre-existing 5 Testcontainers-based tests
-weren't re-run this session, Docker Desktop wasn't running locally), Angular 7 specs (unchanged) —
-all green. Manual E2E against a fresh Organization via curl: Create→Approve→Void a JournalVoucher
-produced exactly 3 audit rows in the right order; all 4 filters independently narrowed results
-correctly; a failing 400/404/409 call each produced zero audit rows; a real invited Member got
-`403` naming `Reports.SystemAudit.View` on both the report and export endpoints; 12 seeded rows
-paged cleanly across 2 pages with zero dupes/gaps; the exported `.xlsx` opened correctly; and in
-the browser, the report's filters, User picker, and row "View" link (navigating to the real
-JournalVoucher detail page) all worked live. Full reasoning in `docs/phase-16d-status.md`.
+**Phase 17 (Accounting breadth) is complete** — five surfaces: Quick Payment/Receipt, Bank
+Accounts, Cheque Register, Allocate Customer/Supplier Payment, Opening Balances. The blocking
+prerequisite, `Payment.Approve()`'s allocation invariant, relaxed from "exactly Amount" to "at most
+Amount" (a zero/partially-allocated Payment can now be Approved), plus a new
+`Payment.AllocateFurther()` letting an already-Approved Payment take on more allocation later — the
+Allocate screens' own write path. New `AccountKind` (Bank/Cash — live-confirmed no third "Wallet"
+kind) + `Bank` lookup on `Account`; `Cheque` aggregate with a 5-state status and an explicit
+allowed-transition table, linked to Payment via a new `PaymentMode.RequiresChequeDetails` flag;
+`OpeningBalanceLine`/`OpeningStockLine` posting real GL entries / FIFO layers immediately on save
+(no Draft/Approve lifecycle), corrections reversing the prior posting first rather than netting by
+hand. Live confirmation against the Tigg reference product turned up one real surprise: Tigg's own
+"Quick Receipt" is a generic multi-line-Accounts document, not a thin Payment variant — doesn't fit
+this codebase's Contact/Account separation, so Quick Payment/Receipt here stays a thin
+`CreatePaymentCommand`/`ApprovePaymentCommand` variant with zero allocations instead (functionally
+equivalent, differently shaped). JournalVoucher-as-allocation-source, initially deferred (flagged
+via `spawn_task`), was picked up the same day as a follow-up: `PaymentAllocation.PaymentId` became
+`SourceType`/`SourceId` (`DocumentType`-discriminated, mirroring `TargetDocumentType`/
+`TargetDocumentId`), `JournalVoucherLine` gained a nullable `ContactId`, and `Payment.Allocations`
+stopped being an EF-navigable collection (no DB-level FK survives a polymorphic column pointing at
+two tables) — every former `.Include(x => x.Allocations)` call site now queries
+`PaymentAllocations` directly and calls a new `Payment.AttachAllocations()` hydration method. Four
+pre-existing "already allocated" consumers (Ageing, both Void guards, the FIFO-suggestion query)
+stayed scoped to Payment-sourced allocations only, flagged as a fresh known limitation rather than
+silently extended. Two bugs caught only by live browser testing, not `tsc`/`ng build`: a `computed()` wrapping a
+`FormControl.value` read never re-evaluates in this zoneless app (see Known Gotchas), and a
+Quick-Payment success toast showed the pre-Approve `"DRAFT"` code instead of the real one. Tests:
+Domain.UnitTests 112 (was 76), Application.UnitTests 231 (was 216), Angular 7 specs (unchanged),
+`ng build`/`tsc --noEmit` clean — all green. Manual E2E via curl + browser against a fresh
+Organization: Bank Account/Trial Balance/`sqlcmd` all agreed on a corrected (not summed) opening
+balance; Opening Stock fed Stock Position with zero report changes and correctly rejected a
+correction attempt after the layer was partly consumed (no partial-write damage, `sqlcmd`-verified);
+a Cheque cycled Pending→Deposited→Bounced with the Bank Account balance unchanged throughout and
+the terminal-state guard rejected a backward transition; a live Allocate-screen application moved a
+Payment to the Allocated tab and dropped the target Invoice's balance by exactly the applied
+amount; every new endpoint's 403 named its own exact permission key. Addendum manual E2E: created
+and Approved a Contact-tagged JournalVoucher line, confirmed it surfaced on the Allocate screen
+alongside Payment rows, applied it against a real Invoice, and cross-checked via `sqlcmd` that the
+resulting `PaymentAllocations` row carries `SourceType='JournalVoucher'` and `SourceId` equal to the
+contributing line's own Id. Full reasoning in `docs/phase-17-status.md`, including a known
+pre-existing (not-this-phase) gap: allocation amount isn't capped against the target document's own
+remaining balance, only the source Payment's/JournalVoucher line's own.
 
-**Next up: Phase 17 — Accounting breadth.** See `docs/roadmap.md`'s Phase 17 section for the task breakdown and the completed-phase index table for everything prior.
+**Next up: Phase 18 — CRM completion.** See `docs/roadmap.md`'s Phase 18 section for the task breakdown and the completed-phase index table for everything prior.

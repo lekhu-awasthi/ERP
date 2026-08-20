@@ -29,6 +29,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<CreditTerm> CreditTerms => Set<CreditTerm>();
     public DbSet<PaymentMode> PaymentModes => Set<PaymentMode>();
+    public DbSet<Bank> Banks => Set<Bank>();
     public DbSet<CustomStatus> CustomStatuses => Set<CustomStatus>();
     public DbSet<ReportingTagCategory> ReportingTagCategories => Set<ReportingTagCategory>();
     public DbSet<ReportingTagOption> ReportingTagOptions => Set<ReportingTagOption>();
@@ -59,6 +60,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<CreditNoteLine> CreditNoteLines => Set<CreditNoteLine>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<PaymentAllocation> PaymentAllocations => Set<PaymentAllocation>();
+    public DbSet<Cheque> Cheques => Set<Cheque>();
     public DbSet<TdsType> TdsTypes => Set<TdsType>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
@@ -81,6 +83,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<Deal> Deals => Set<Deal>();
     public DbSet<DealAssignee> DealAssignees => Set<DealAssignee>();
     public DbSet<Audit> Audits => Set<Audit>();
+    public DbSet<OpeningBalanceLine> OpeningBalanceLines => Set<OpeningBalanceLine>();
+    public DbSet<OpeningStockLine> OpeningStockLines => Set<OpeningStockLine>();
 
     // IAppDbContext.Set<TEntity>() -- satisfied implicitly by DbContext's own public
     // Set<TEntity>() (identical signature), needed by the generic

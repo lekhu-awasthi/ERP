@@ -59,6 +59,9 @@ public static class DependencyInjection
         // per verb whenever a new lookup type joins the pattern.
         RegisterLookupHandlers<CreditTerm>(services);
         RegisterLookupHandlers<PaymentMode>(services);
+        // Phase 17 (Accounting breadth) -- Bank is the same "pure {id, name}" lookup shape,
+        // populating the "Select Bank" picker a Bank-kind Account needs.
+        RegisterLookupHandlers<Bank>(services);
         RegisterLookupHandlers<CustomStatus>(services);
         RegisterLookupHandlers<ReportingTagCategory>(services);
         RegisterLookupHandlers<ReportingTagOption>(services);

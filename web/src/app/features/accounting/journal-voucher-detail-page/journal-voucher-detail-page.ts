@@ -5,12 +5,15 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account, JournalVoucherDetail, JournalVoucherLineInput } from '../../../core/accounting/accounting.models';
+import { ContactsService } from '../../../core/contacts/contacts.service';
+import { Contact } from '../../../core/contacts/contacts.models';
 
 interface EditableLine {
   key: number;
   accountId: string;
   debit: number;
   credit: number;
+  contactId: string | null;
 }
 
 let nextLineKey = 1;
@@ -39,6 +42,7 @@ export class JournalVoucherDetailPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly accountingService = inject(AccountingService);
+  private readonly contactsService = inject(ContactsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -49,6 +53,7 @@ export class JournalVoucherDetailPage {
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly journalVoucher = signal<JournalVoucherDetail | null>(null);
   protected readonly accounts = signal<Account[]>([]);
+  protected readonly contacts = signal<Contact[]>([]);
   protected readonly isNew = signal(false);
 
   protected readonly date = signal(this.today());
@@ -77,9 +82,11 @@ export class JournalVoucherDetailPage {
   });
 
   protected readonly sortedAccounts = computed(() => [...this.accounts()].sort((a, b) => a.code.localeCompare(b.code)));
+  protected readonly sortedContacts = computed(() => [...this.contacts()].sort((a, b) => a.name.localeCompare(b.name)));
 
   constructor() {
     this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (accounts) => this.accounts.set(accounts) });
+    this.contactsService.listAllContacts(this.organizationId).subscribe({ next: (contacts) => this.contacts.set(contacts) });
 
     this.route.paramMap.subscribe((params) => {
       this.routeJournalVoucherId = params.get('journalVoucherId')!;
@@ -104,6 +111,14 @@ export class JournalVoucherDetailPage {
     return account ? `${account.code} — ${account.name}` : '—';
   }
 
+  protected contactLabel(contactId: string | null): string {
+    if (!contactId) {
+      return '—';
+    }
+    const contact = this.contacts().find((c) => c.id === contactId);
+    return contact ? contact.name : '—';
+  }
+
   protected onAccountChange(key: number, event: Event): void {
     const accountId = (event.target as HTMLSelectElement).value;
     this.updateLine(key, { accountId });
@@ -117,6 +132,11 @@ export class JournalVoucherDetailPage {
   protected onCreditChange(key: number, event: Event): void {
     const credit = (event.target as HTMLInputElement).valueAsNumber;
     this.updateLine(key, { credit: Number.isFinite(credit) ? credit : 0 });
+  }
+
+  protected onContactChange(key: number, event: Event): void {
+    const contactId = (event.target as HTMLSelectElement).value || null;
+    this.updateLine(key, { contactId });
   }
 
   protected addLine(): void {
@@ -196,7 +216,7 @@ export class JournalVoucherDetailPage {
   private toLineInputs(): JournalVoucherLineInput[] | null {
     const lines = this.lines()
       .filter((l) => l.accountId && (l.debit > 0 || l.credit > 0))
-      .map((l) => ({ accountId: l.accountId, debit: l.debit || 0, credit: l.credit || 0 }));
+      .map((l) => ({ accountId: l.accountId, debit: l.debit || 0, credit: l.credit || 0, contactId: l.contactId }));
 
     if (lines.length === 0) {
       this.errorMessage.set('Add at least one line with an Account and a Debit or Credit amount.');
@@ -206,7 +226,7 @@ export class JournalVoucherDetailPage {
     return lines;
   }
 
-  private updateLine(key: number, patch: Partial<Pick<EditableLine, 'accountId' | 'debit' | 'credit'>>): void {
+  private updateLine(key: number, patch: Partial<Pick<EditableLine, 'accountId' | 'debit' | 'credit' | 'contactId'>>): void {
     this.lines.update((lines) =>
       lines.map((l) => {
         if (l.key !== key) {
@@ -227,7 +247,7 @@ export class JournalVoucherDetailPage {
   }
 
   private newLine(): EditableLine {
-    return { key: nextLineKey++, accountId: '', debit: 0, credit: 0 };
+    return { key: nextLineKey++, accountId: '', debit: 0, credit: 0, contactId: null };
   }
 
   private today(): string {
@@ -247,7 +267,13 @@ export class JournalVoucherDetailPage {
         this.reference.set(journalVoucher.reference ?? '');
         this.lines.set(
           journalVoucher.lines.length > 0
-            ? journalVoucher.lines.map((l) => ({ key: nextLineKey++, accountId: l.accountId, debit: l.debit, credit: l.credit }))
+            ? journalVoucher.lines.map((l) => ({
+                key: nextLineKey++,
+                accountId: l.accountId,
+                debit: l.debit,
+                credit: l.credit,
+                contactId: l.contactId,
+              }))
             : [this.newLine(), this.newLine()],
         );
         this.loading.set(false);

@@ -1,3 +1,4 @@
+using ErpApp.Application.Configuration.Commands.CreateBank;
 using ErpApp.Application.Configuration.Commands.CreateCreditTerm;
 using ErpApp.Application.Configuration.Commands.CreateCustomFieldDefinition;
 using ErpApp.Application.Configuration.Commands.CreateCustomStatus;
@@ -10,6 +11,7 @@ using ErpApp.Application.Configuration.Commands.CreateTaskType;
 using ErpApp.Application.Configuration.Commands.CreateTdsType;
 using ErpApp.Application.Configuration.Commands.DeleteCustomFieldDefinition;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
+using ErpApp.Application.Configuration.Commands.UpdateBank;
 using ErpApp.Application.Configuration.Commands.UpdateCreditTerm;
 using ErpApp.Application.Configuration.Commands.UpdateCustomFieldDefinition;
 using ErpApp.Application.Configuration.Commands.UpdateCustomStatus;
@@ -39,6 +41,7 @@ public static class ConfigurationEndpoints
 
         MapCreditTermEndpoints(group);
         MapPaymentModeEndpoints(group);
+        MapBankEndpoints(group);
         MapCustomStatusEndpoints(group);
         MapReportingTagCategoryEndpoints(group);
         MapReportingTagOptionEndpoints(group);
@@ -94,7 +97,8 @@ public static class ConfigurationEndpoints
         group.MapPost("/payment-modes", async (
             Guid organizationId, CreatePaymentModeRequest request, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new CreatePaymentModeCommand(organizationId, request.Name), ct);
+            var result = await sender.Send(
+                new CreatePaymentModeCommand(organizationId, request.Name, request.RequiresChequeDetails), ct);
             return Results.Created($"/api/organizations/{organizationId}/configuration/payment-modes/{result.Id}", result);
         });
 
@@ -102,7 +106,7 @@ public static class ConfigurationEndpoints
             Guid organizationId, Guid id, UpdatePaymentModeRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new UpdatePaymentModeCommand(organizationId, id, request.Name, request.IsActive), ct);
+                new UpdatePaymentModeCommand(organizationId, id, request.Name, request.IsActive, request.RequiresChequeDetails), ct);
             return Results.Ok(result);
         });
 
@@ -110,6 +114,38 @@ public static class ConfigurationEndpoints
             Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
         {
             await sender.Send(new DeleteLookupCommand<PaymentMode>(organizationId, id), ct);
+            return Results.NoContent();
+        });
+    }
+
+    private static void MapBankEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/banks", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListLookupsQuery<Bank>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/banks", async (
+            Guid organizationId, CreateBankRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new CreateBankCommand(organizationId, request.Name), ct);
+            return Results.Created($"/api/organizations/{organizationId}/configuration/banks/{result.Id}", result);
+        });
+
+        group.MapPut("/banks/{id:guid}", async (
+            Guid organizationId, Guid id, UpdateBankRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdateBankCommand(organizationId, id, request.Name, request.IsActive), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapDelete("/banks/{id:guid}", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteLookupCommand<Bank>(organizationId, id), ct);
             return Results.NoContent();
         });
     }
@@ -389,9 +425,13 @@ public static class ConfigurationEndpoints
 
     private sealed record UpdateCreditTermRequest(string Name, int DueDays, bool IsActive);
 
-    private sealed record CreatePaymentModeRequest(string Name);
+    private sealed record CreatePaymentModeRequest(string Name, bool RequiresChequeDetails = false);
 
-    private sealed record UpdatePaymentModeRequest(string Name, bool IsActive);
+    private sealed record UpdatePaymentModeRequest(string Name, bool IsActive, bool RequiresChequeDetails);
+
+    private sealed record CreateBankRequest(string Name);
+
+    private sealed record UpdateBankRequest(string Name, bool IsActive);
 
     private sealed record CreateCustomStatusRequest(string Name, DocumentType DocumentType);
 

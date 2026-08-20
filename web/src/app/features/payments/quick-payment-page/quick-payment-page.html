@@ -1,0 +1,112 @@
+<div class="container py-5" style="max-width: 700px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-lightning-charge fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">{{ isReceipt ? 'Quick Receipt' : 'Quick Payment' }}</h1>
+          <p class="text-muted small mb-0">One-off cash movement, no invoice allocation required</p>
+        </div>
+      </div>
+      <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'payments']">
+        <i class="bi bi-arrow-left"></i> Payments
+      </a>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+  @if (successMessage()) {
+    <div class="alert alert-success d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-check-circle-fill"></i>
+      <div>{{ successMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <form [formGroup]="form" (ngSubmit)="save()" class="row g-3">
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold">{{ isReceipt ? 'Received From' : 'Paid To' }}</label>
+          <select class="form-select" formControlName="contactId">
+            <option value="" disabled [selected]="!form.controls.contactId.value">Select a contact</option>
+            @for (contact of contacts(); track contact.id) {
+              <option [value]="contact.id" [selected]="contact.id === form.controls.contactId.value">
+                {{ contact.code }} — {{ contact.name }}
+              </option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold">Date</label>
+          <input type="date" class="form-control" formControlName="date" />
+        </div>
+
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold">Payment Mode</label>
+          <select class="form-select" formControlName="paymentModeId" (change)="onPaymentModeChange($any($event.target).value)">
+            <option value="" [selected]="!selectedPaymentModeId()">— Not set —</option>
+            @for (mode of paymentModes(); track mode.id) {
+              <option [value]="mode.id" [selected]="mode.id === selectedPaymentModeId()">{{ mode.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold">{{ isReceipt ? 'Deposited To' : 'Paid From' }}</label>
+          <select class="form-select" formControlName="accountId">
+            <option value="" disabled [selected]="!form.controls.accountId.value">Select an account</option>
+            @for (account of accounts(); track account.id) {
+              <option [value]="account.id" [selected]="account.id === form.controls.accountId.value">
+                {{ account.code }} — {{ account.name }}
+              </option>
+            }
+          </select>
+        </div>
+
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold">Amount</label>
+          <input type="number" class="form-control" formControlName="amount" min="0.01" step="0.01" />
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold">Reference</label>
+          <input type="text" class="form-control" formControlName="reference" placeholder="Optional" />
+        </div>
+
+        @if (requiresChequeDetails()) {
+          <div class="col-12">
+            <hr />
+            <h6 class="fw-bold text-dark mb-3"><i class="bi bi-postcard"></i> Cheque Details</h6>
+          </div>
+          <div class="col-12 col-sm-4">
+            <label class="form-label small fw-semibold">Cheque No.</label>
+            <input type="text" class="form-control" formControlName="chequeNo" />
+          </div>
+          <div class="col-12 col-sm-4">
+            <label class="form-label small fw-semibold">Cheque Date</label>
+            <input type="date" class="form-control" formControlName="chequeDate" />
+          </div>
+          <div class="col-12 col-sm-4">
+            <label class="form-label small fw-semibold">Received Date</label>
+            <input type="date" class="form-control" formControlName="receivedDate" />
+          </div>
+        }
+
+        <div class="col-12 d-flex gap-2 mt-2">
+          <button type="submit" class="btn btn-primary fw-bold" [disabled]="saving()">
+            @if (saving()) {
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            } @else {
+              Approve {{ isReceipt ? 'Receipt' : 'Payment' }}
+            }
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

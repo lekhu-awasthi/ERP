@@ -9,5 +9,6 @@ public sealed class CreateAccountCommandValidator : AbstractValidator<CreateAcco
         RuleFor(x => x.OrganizationId).NotEmpty();
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.GroupId).NotEmpty();
+        RuleFor(x => x.AccountNumber).MaximumLength(50);
     }
 }

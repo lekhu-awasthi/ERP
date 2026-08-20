@@ -23,14 +23,36 @@ export interface PaymentMode {
   organizationId: string;
   name: string;
   isActive: boolean;
+  requiresChequeDetails: boolean;
   createdAt: string;
 }
 
 export interface CreatePaymentModeRequest {
   name: string;
+  requiresChequeDetails?: boolean;
 }
 
 export interface UpdatePaymentModeRequest {
+  name: string;
+  isActive: boolean;
+  requiresChequeDetails: boolean;
+}
+
+// Phase 17 -- Bank lookup (docs/phase-17-status.md decision #3), populates a Bank-kind Account's
+// "Select Bank" picker.
+export interface Bank {
+  id: string;
+  organizationId: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateBankRequest {
+  name: string;
+}
+
+export interface UpdateBankRequest {
   name: string;
   isActive: boolean;
 }

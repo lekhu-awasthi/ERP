@@ -29,6 +29,7 @@ export class PaymentModeListPage {
   protected readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
     isActive: [true],
+    requiresChequeDetails: [false],
   });
 
   constructor() {
@@ -37,12 +38,12 @@ export class PaymentModeListPage {
 
   protected startCreate(): void {
     this.editingId.set(null);
-    this.form.reset({ name: '', isActive: true });
+    this.form.reset({ name: '', isActive: true, requiresChequeDetails: false });
   }
 
   protected startEdit(item: PaymentMode): void {
     this.editingId.set(item.id);
-    this.form.reset({ name: item.name, isActive: item.isActive });
+    this.form.reset({ name: item.name, isActive: item.isActive, requiresChequeDetails: item.requiresChequeDetails });
   }
 
   protected save(): void {
@@ -54,12 +55,12 @@ export class PaymentModeListPage {
     this.saving.set(true);
     this.errorMessage.set(null);
 
-    const { name, isActive } = this.form.getRawValue();
+    const { name, isActive, requiresChequeDetails } = this.form.getRawValue();
     const editingId = this.editingId();
 
     const request$ = editingId
-      ? this.configurationService.updatePaymentMode(this.organizationId, editingId, { name, isActive })
-      : this.configurationService.createPaymentMode(this.organizationId, { name });
+      ? this.configurationService.updatePaymentMode(this.organizationId, editingId, { name, isActive, requiresChequeDetails })
+      : this.configurationService.createPaymentMode(this.organizationId, { name, requiresChequeDetails });
 
     request$.subscribe({
       next: () => {

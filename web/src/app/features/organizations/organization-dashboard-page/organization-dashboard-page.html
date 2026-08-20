@@ -78,6 +78,18 @@
             <a [routerLink]="['/organizations', organizationId(), 'payments']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-cash-coin"></i> Payments
             </a>
+            <a [routerLink]="['/organizations', organizationId(), 'quick-receipt']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-lightning-charge"></i> Quick Receipt
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'quick-payment']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-lightning-charge"></i> Quick Payment
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'allocate-customer-payment']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-diagram-3"></i> Allocate Customer Payment
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'allocate-supplier-payment']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-diagram-3"></i> Allocate Supplier Payment
+            </a>
             <a [routerLink]="['/organizations', organizationId(), 'workflow', 'transaction-approval-queue']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-check2-square"></i> Approval Queue
             </a>
@@ -98,6 +110,12 @@
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'accounting', 'accounts']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-journal-text"></i> Accounting
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'accounting', 'bank-accounts']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-bank"></i> Bank Accounts
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'accounting', 'cheque-register']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-postcard"></i> Cheque Register
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'inventory', 'warehouse-transfers']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-arrow-left-right"></i> Warehouse Transfers

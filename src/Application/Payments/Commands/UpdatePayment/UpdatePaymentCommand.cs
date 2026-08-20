@@ -7,7 +7,7 @@ namespace ErpApp.Application.Payments.Commands.UpdatePayment;
 
 public sealed record UpdatePaymentCommand(
     Guid OrganizationId, Guid Id, Guid ContactId, DateOnly Date, Guid? PaymentModeId, Guid AccountId, decimal Amount,
-    string? Reference, IReadOnlyList<PaymentAllocationInput> Allocations)
+    string? Reference, IReadOnlyList<PaymentAllocationInput> Allocations, ChequeDetailsInput? ChequeDetails = null)
     : IRequest<UpdatePaymentResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId
 {
     public string PermissionKey => PermissionKeys.PaymentEdit;

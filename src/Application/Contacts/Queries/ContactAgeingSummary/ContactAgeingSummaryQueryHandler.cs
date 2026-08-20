@@ -53,9 +53,15 @@ public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db)
         var targetDocumentType = request.ContactType == ContactType.Customer ? DocumentType.Invoice : DocumentType.PurchaseBill;
         var paymentDirection = request.ContactType == ContactType.Customer ? PaymentDirection.Received : PaymentDirection.Paid;
         var billIds = bills.Select(x => x.Id).ToList();
+        // Phase 17 decision #2: PaymentAllocation.SourceId is now polymorphic (Payment or a
+        // JournalVoucher line). This join stays scoped to Payment-sourced allocations only, same
+        // as before generalization -- folding JournalVoucher-sourced credits into ageing is an
+        // explicit, flagged follow-up (see docs/phase-17-status.md's Known limitation section),
+        // not silently done here.
         var allocationsByBillId = await (
                 from a in db.PaymentAllocations
-                join p in db.Payments on a.PaymentId equals p.Id
+                where a.SourceType == DocumentType.Payment
+                join p in db.Payments on a.SourceId equals p.Id
                 where a.TargetDocumentType == targetDocumentType && billIds.Contains(a.TargetDocumentId)
                       && p.Direction == paymentDirection && p.Status == PaymentStatus.Approved
                 group a by a.TargetDocumentId into g

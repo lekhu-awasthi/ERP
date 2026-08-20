@@ -26,6 +26,8 @@ public sealed class UpdateJournalVoucherCommandHandler(IAppDbContext db)
 
         await AccountingValidation.EnsureAccountsExistAsync(
             db, request.OrganizationId, request.Lines.Select(x => x.AccountId), cancellationToken);
+        await AccountingValidation.EnsureContactsExistAsync(
+            db, request.OrganizationId, request.Lines.Select(x => x.ContactId), cancellationToken);
 
         // Explicit DbSet Remove/Add rather than relying on collection-navigation-triggered
         // orphan-delete fixup for the replaced lines -- same defensive precedent as
@@ -38,7 +40,7 @@ public sealed class UpdateJournalVoucherCommandHandler(IAppDbContext db)
         journalVoucher.ClearLines();
         foreach (var line in request.Lines)
         {
-            journalVoucher.AddLine(line.AccountId, line.Debit, line.Credit);
+            journalVoucher.AddLine(line.AccountId, line.Debit, line.Credit, line.ContactId);
         }
 
         db.JournalVoucherLines.RemoveRange(oldLines);

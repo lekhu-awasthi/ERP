@@ -80,6 +80,20 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'organizations/:id/configuration/banks',
+    loadComponent: () =>
+      import('./features/configuration/bank-list-page/bank-list-page').then((m) => m.BankListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/configuration/opening-balances',
+    loadComponent: () =>
+      import('./features/configuration/opening-balances-page/opening-balances-page').then(
+        (m) => m.OpeningBalancesPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/configuration/tds-types',
     loadComponent: () =>
       import('./features/configuration/tds-type-list-page/tds-type-list-page').then((m) => m.TdsTypeListPage),
@@ -180,6 +194,20 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'organizations/:id/accounting/bank-accounts',
+    loadComponent: () =>
+      import('./features/accounting/bank-account-list-page/bank-account-list-page').then(
+        (m) => m.BankAccountListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/accounting/cheque-register',
+    loadComponent: () =>
+      import('./features/accounting/cheque-register-page/cheque-register-page').then((m) => m.ChequeRegisterPage),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/accounting/defaults',
     loadComponent: () =>
       import('./features/accounting/accounting-defaults-page/accounting-defaults-page').then(
@@ -245,6 +273,34 @@ export const routes: Routes = [
     path: 'organizations/:id/payments/:paymentId',
     loadComponent: () =>
       import('./features/sales/payment-detail-page/payment-detail-page').then((m) => m.PaymentDetailPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/quick-payment',
+    loadComponent: () =>
+      import('./features/payments/quick-payment-page/quick-payment-page').then((m) => m.QuickPaymentPage),
+    data: { direction: 'Paid' },
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/quick-receipt',
+    loadComponent: () =>
+      import('./features/payments/quick-payment-page/quick-payment-page').then((m) => m.QuickPaymentPage),
+    data: { direction: 'Received' },
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/allocate-customer-payment',
+    loadComponent: () =>
+      import('./features/payments/allocate-payment-page/allocate-payment-page').then((m) => m.AllocatePaymentPage),
+    data: { direction: 'Received' },
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/allocate-supplier-payment',
+    loadComponent: () =>
+      import('./features/payments/allocate-payment-page/allocate-payment-page').then((m) => m.AllocatePaymentPage),
+    data: { direction: 'Paid' },
     canActivate: [authGuard],
   },
   {

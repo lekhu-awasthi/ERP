@@ -40,6 +40,19 @@ public class JournalVoucherTests
     }
 
     [Fact]
+    public void AddLine_carries_an_optional_contact_id()
+    {
+        var journalVoucher = JournalVoucher.Create(Guid.NewGuid(), DateOnly.FromDateTime(DateTime.UtcNow), null);
+        var contactId = Guid.NewGuid();
+
+        journalVoucher.AddLine(Guid.NewGuid(), 0m, 100m, contactId);
+        journalVoucher.AddLine(Guid.NewGuid(), 100m, 0m);
+
+        Assert.Equal(contactId, journalVoucher.Lines[0].ContactId);
+        Assert.Null(journalVoucher.Lines[1].ContactId);
+    }
+
+    [Fact]
     public void ClearLines_removes_every_line()
     {
         var journalVoucher = JournalVoucher.Create(Guid.NewGuid(), DateOnly.FromDateTime(DateTime.UtcNow), null);

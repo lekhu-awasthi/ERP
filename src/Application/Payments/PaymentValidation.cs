@@ -1,6 +1,7 @@
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Payments;
 using Microsoft.EntityFrameworkCore;
@@ -27,20 +28,26 @@ internal static class PaymentValidation
         }
     }
 
-    public static async Task EnsurePaymentModeExistsAsync(
+    /// <summary>Returns the resolved PaymentMode (null if none was specified) so callers can read
+    /// RequiresChequeDetails (Phase 17, docs/phase-17-status.md decision #6) without a second
+    /// round-trip.</summary>
+    public static async Task<PaymentMode?> EnsurePaymentModeExistsAsync(
         IAppDbContext db, Guid organizationId, Guid? paymentModeId, CancellationToken cancellationToken)
     {
         if (paymentModeId is not { } id)
         {
-            return;
+            return null;
         }
 
-        var exists = await db.PaymentModes.AnyAsync(x => x.Id == id && x.OrganizationId == organizationId, cancellationToken);
+        var paymentMode = await db.PaymentModes.SingleOrDefaultAsync(
+            x => x.Id == id && x.OrganizationId == organizationId, cancellationToken);
 
-        if (!exists)
+        if (paymentMode is null)
         {
             throw new NotFoundException("Payment mode not found.");
         }
+
+        return paymentMode;
     }
 
     /// <summary>Invoice (Customer Payment) and PurchaseBill (Supplier Payment) targets both

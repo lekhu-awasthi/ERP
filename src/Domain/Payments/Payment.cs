@@ -9,10 +9,21 @@ namespace ErpApp.Domain.Payments;
 /// Phase 6's near-zero-new-code reuse. AccountId is the cash/bank Account the money moved
 /// through, same "Select Account" picker JournalVoucher/CashTransfer already use.
 ///
-/// Approve() requires Allocations to sum to exactly Amount -- v1 doesn't model an unallocated
-/// "advance from customer" remainder (see phase-5-status.md's scope decisions); the client fills
-/// allocations (GetDefaultPaymentAllocationsQuery's FIFO-oldest-first suggestion, manually
-/// overridable) until the full Amount is accounted for.
+/// Approve() requires Allocations to sum to at most Amount (relaxed from "exactly Amount" in
+/// Phase 17 -- see phase-17-status.md decision #1): a zero- or partially-allocated Payment can now
+/// be Approved, which is what Quick Payment/Quick Receipt (no Contact-tied obligation to allocate
+/// against) and the Allocate Customer/Supplier Payment screens (which list exactly these
+/// under/un-allocated Approved Payments as sources to apply later) both require. Over-allocation is
+/// still rejected -- Allocations can never exceed Amount. The client still fills allocations
+/// (GetDefaultPaymentAllocationsQuery's FIFO-oldest-first suggestion, manually overridable) when
+/// there's a specific Invoice/PurchaseBill to net against; Quick Payment/Receipt skips that
+/// suggestion step entirely.
+///
+/// AttachAllocations exists because PaymentAllocation.SourceId is polymorphic (decision #2) and so
+/// can no longer be an EF-navigable child collection scoped to just the Payments table (a real FK
+/// constraint would reject JournalVoucher-sourced rows) -- handlers query PaymentAllocations by
+/// (SourceType=Payment, SourceId=this.Id) themselves and hydrate the aggregate before calling any
+/// method that reads Allocations.
 /// </summary>
 public sealed class Payment
 {
@@ -96,13 +107,7 @@ public sealed class Payment
     public void AddAllocation(DocumentType targetDocumentType, Guid targetDocumentId, decimal amount)
     {
         EnsureDraft();
-
-        if (amount <= 0)
-        {
-            throw new InvalidOperationException("A payment allocation's Amount must be greater than zero.");
-        }
-
-        _allocations.Add(PaymentAllocation.Create(Id, targetDocumentType, targetDocumentId, amount));
+        _allocations.Add(PaymentAllocation.Create(DocumentType.Payment, Id, targetDocumentType, targetDocumentId, amount));
     }
 
     public void ClearAllocations()
@@ -111,13 +116,41 @@ public sealed class Payment
         _allocations.Clear();
     }
 
+    /// <summary>DB-load plumbing, not a domain action -- see the class doc comment. Replaces
+    /// whatever's currently in the in-memory collection with what the caller just loaded from
+    /// PaymentAllocations.</summary>
+    public void AttachAllocations(IEnumerable<PaymentAllocation> allocations)
+    {
+        _allocations.Clear();
+        _allocations.AddRange(allocations);
+    }
+
+    /// <summary>
+    /// Phase 17 -- the Allocate Customer/Supplier Payment screens' own write action: apply more of
+    /// an already-Approved (and still under-allocated, per decision #1) Payment's remaining
+    /// Balance against a target document, without touching Status/Code/ApprovedAt. Distinct from
+    /// AddAllocation (Draft-only, used while a Payment is still being composed) -- this is the
+    /// counterpart for a Payment that's already posted to GL and simply has room left.
+    /// </summary>
+    public void AllocateFurther(DocumentType targetDocumentType, Guid targetDocumentId, decimal amount)
+    {
+        EnsureApproved();
+
+        if (_allocations.Sum(x => x.Amount) + amount > Amount)
+        {
+            throw new InvalidOperationException("A payment's allocations cannot exceed its Amount.");
+        }
+
+        _allocations.Add(PaymentAllocation.Create(DocumentType.Payment, Id, targetDocumentType, targetDocumentId, amount));
+    }
+
     public void Approve(Guid approvedByUserId, string code)
     {
         EnsureDraft();
 
-        if (_allocations.Count == 0 || _allocations.Sum(x => x.Amount) != Amount)
+        if (_allocations.Sum(x => x.Amount) > Amount)
         {
-            throw new InvalidOperationException("A payment's allocations must add up to exactly its Amount to be approved.");
+            throw new InvalidOperationException("A payment's allocations cannot exceed its Amount.");
         }
 
         Status = PaymentStatus.Approved;

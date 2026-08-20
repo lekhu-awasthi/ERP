@@ -1,0 +1,151 @@
+<div class="container py-5" style="max-width: 1100px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-bank fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Bank Accounts</h1>
+          <p class="text-muted small mb-0">Live balances for every bank &amp; cash account</p>
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-primary fw-bold" (click)="openAddForm()">
+          <i class="bi bi-plus-lg"></i> Add New
+        </button>
+        <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId]">
+          <i class="bi bi-arrow-left"></i> Dashboard
+        </a>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  @if (showAddForm()) {
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <h6 class="fw-bold text-dark mb-3">New Bank Account</h6>
+        <form [formGroup]="form" (ngSubmit)="save()" class="row g-3">
+          <div class="col-12">
+            <div class="btn-group" role="group">
+              <input type="radio" class="btn-check" id="kindBank" value="Bank" formControlName="kind" />
+              <label class="btn btn-outline-primary" for="kindBank"><i class="bi bi-bank"></i> Bank</label>
+              <input type="radio" class="btn-check" id="kindCash" value="Cash" formControlName="kind" />
+              <label class="btn btn-outline-primary" for="kindCash"><i class="bi bi-cash-stack"></i> Cash</label>
+            </div>
+          </div>
+          @if (form.controls.kind.value === 'Bank') {
+            <div class="col-12 col-sm-6">
+              <label class="form-label small fw-semibold">Select Bank</label>
+              <select class="form-select" formControlName="bankId">
+                <option value="" [selected]="!form.controls.bankId.value">— Not set —</option>
+                @for (bank of banks(); track bank.id) {
+                  <option [value]="bank.id" [selected]="bank.id === form.controls.bankId.value">{{ bank.name }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-label small fw-semibold">Account Number</label>
+              <input type="text" class="form-control" formControlName="accountNumber" placeholder="Optional" />
+            </div>
+          }
+          <div class="col-12 col-sm-6">
+            <label class="form-label small fw-semibold">Display Name</label>
+            <input type="text" class="form-control" formControlName="name" placeholder="e.g. Cash in Hand" />
+          </div>
+          <div class="col-12 col-sm-6">
+            <label class="form-label small fw-semibold">Parent Group</label>
+            <select class="form-select" formControlName="groupId">
+              <option value="" disabled [selected]="!form.controls.groupId.value">Select a group</option>
+              @for (group of groups(); track group.id) {
+                <option [value]="group.id" [selected]="group.id === form.controls.groupId.value">{{ group.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-12 d-flex gap-2">
+            <button type="submit" class="btn btn-primary fw-bold" [disabled]="saving()">
+              @if (saving()) {
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              } @else {
+                Save
+              }
+            </button>
+            <button type="button" class="btn btn-outline-secondary" (click)="closeAddForm()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+      <button type="button" class="nav-link" [class.active]="activeTab() === 'active'" (click)="switchTab('active')">All</button>
+    </li>
+    <li class="nav-item">
+      <button type="button" class="nav-link" [class.active]="activeTab() === 'inactive'" (click)="switchTab('inactive')">Inactive</button>
+    </li>
+  </ul>
+
+  @if (loading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary mb-3" role="status"></div>
+      <p class="text-muted mb-0">Loading bank accounts...</p>
+    </div>
+  } @else if (items().length === 0) {
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center py-5">
+        <div class="bg-light d-inline-flex p-4 rounded-circle mb-3 text-muted">
+          <i class="bi bi-bank fs-1"></i>
+        </div>
+        <h5 class="fw-bold text-dark">No Bank Accounts Yet</h5>
+        <p class="text-muted small mb-0">Add one using the button above.</p>
+      </div>
+    </div>
+  } @else {
+    <div class="row g-3 mb-4">
+      @for (item of items(); track item.id) {
+        <div class="col-12 col-sm-6 col-lg-4">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-3 d-flex align-items-center gap-3">
+              <div
+                class="p-2 rounded-circle d-flex align-items-center justify-content-center"
+                [class.bg-primary-subtle]="item.kind === 'Bank'"
+                [class.text-primary]="item.kind === 'Bank'"
+                [class.bg-success-subtle]="item.kind === 'Cash'"
+                [class.text-success]="item.kind === 'Cash'"
+                style="width: 42px; height: 42px;"
+              >
+                <i class="fs-5" [class.bi-bank]="item.kind === 'Bank'" [class.bi-cash-stack]="item.kind === 'Cash'"></i>
+              </div>
+              <div class="flex-grow-1 overflow-hidden">
+                <h6 class="fw-bold mb-0 text-dark text-truncate" [title]="item.name">{{ item.name }}</h6>
+                @if (item.bankName) {
+                  <span class="text-muted small">{{ item.bankName }}</span>
+                }
+                @if (item.accountNumber) {
+                  <span class="text-muted small d-block">{{ item.accountNumber }}</span>
+                }
+                <div class="fw-bold" [class.text-danger]="item.balance < 0">{{ item.balance | number: '1.2-2' }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <app-pagination-control
+      [page]="page()"
+      [pageSize]="pageSize()"
+      [totalCount]="totalCount()"
+      (pageChange)="onPageChange($event)"
+      (pageSizeChange)="onPageSizeChange($event)"
+    />
+  }
+</div>

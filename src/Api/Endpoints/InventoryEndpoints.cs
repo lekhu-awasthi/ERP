@@ -3,6 +3,7 @@ using ErpApp.Application.Inventory;
 using ErpApp.Application.Inventory.Commands.ApproveInventoryAdjustment;
 using ErpApp.Application.Inventory.Commands.ApproveWarehouseTransfer;
 using ErpApp.Application.Inventory.Commands.CreateInventoryAdjustment;
+using ErpApp.Application.Inventory.Commands.CreateOrUpdateOpeningStockLine;
 using ErpApp.Application.Inventory.Commands.CreateWarehouseTransfer;
 using ErpApp.Application.Inventory.Commands.UpdateInventoryAdjustment;
 using ErpApp.Application.Inventory.Commands.UpdateWarehouseTransfer;
@@ -12,6 +13,7 @@ using ErpApp.Application.Inventory.Queries.GetInventoryAdjustment;
 using ErpApp.Application.Inventory.Queries.GetWarehouseTransfer;
 using ErpApp.Application.Inventory.Queries.InventoryLedger;
 using ErpApp.Application.Inventory.Queries.ListInventoryAdjustments;
+using ErpApp.Application.Inventory.Queries.ListOpeningStockLines;
 using ErpApp.Application.Inventory.Queries.ListWarehouseTransfers;
 using ErpApp.Application.Inventory.Queries.ProductStockPosition;
 using ErpApp.Domain.Inventory;
@@ -29,8 +31,34 @@ public static class InventoryEndpoints
 
         MapWarehouseTransferEndpoints(group);
         MapInventoryAdjustmentEndpoints(group);
+        MapOpeningBalanceEndpoints(group);
         MapReportEndpoints(group);
     }
+
+    private static void MapOpeningBalanceEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/opening-balances/products", async (
+            Guid organizationId, Guid warehouseId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListProductOpeningBalancesQuery(
+                    organizationId, warehouseId, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPut("/opening-balances/products/{productId:guid}", async (
+            Guid organizationId, Guid productId, OpeningStockLineRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new CreateOrUpdateOpeningStockLineCommand(
+                    organizationId, productId, request.WarehouseId, request.Quantity, request.Rate),
+                ct);
+            return Results.Ok(result);
+        });
+    }
+
+    private sealed record OpeningStockLineRequest(Guid WarehouseId, decimal Quantity, decimal Rate);
 
     private static void MapWarehouseTransferEndpoints(RouteGroupBuilder group)
     {

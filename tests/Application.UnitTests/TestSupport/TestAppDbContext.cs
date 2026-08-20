@@ -41,6 +41,8 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
 
     public DbSet<PaymentMode> PaymentModes => Set<PaymentMode>();
 
+    public DbSet<Bank> Banks => Set<Bank>();
+
     public DbSet<CustomStatus> CustomStatuses => Set<CustomStatus>();
 
     public DbSet<ReportingTagCategory> ReportingTagCategories => Set<ReportingTagCategory>();
@@ -101,6 +103,8 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
 
     public DbSet<PaymentAllocation> PaymentAllocations => Set<PaymentAllocation>();
 
+    public DbSet<Cheque> Cheques => Set<Cheque>();
+
     public DbSet<TdsType> TdsTypes => Set<TdsType>();
 
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
@@ -144,6 +148,10 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<DealAssignee> DealAssignees => Set<DealAssignee>();
 
     public DbSet<Audit> Audits => Set<Audit>();
+
+    public DbSet<OpeningBalanceLine> OpeningBalanceLines => Set<OpeningBalanceLine>();
+
+    public DbSet<OpeningStockLine> OpeningStockLines => Set<OpeningStockLine>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -7,12 +7,14 @@ import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
 import {
   Account,
   AccountGroup,
+  AccountOpeningBalanceDto,
   AccountRootType,
   ApproveCashTransferResult,
   ApproveJournalVoucherResult,
   VoidCashTransferResult,
   VoidJournalVoucherResult,
   BalanceSheetDto,
+  BankAccountDto,
   CashTransfer,
   CashTransferDetail,
   CashTransferRequest,
@@ -30,6 +32,8 @@ import {
   JournalVoucherLineInput,
   JournalVoucherRequest,
   JournalVoucherStatus,
+  OpeningBalanceLineRequest,
+  OpeningBalanceLineResult,
   PostedGlLineDto,
   TrialBalanceDto,
   UpdateAccountGroupRequest,
@@ -217,6 +221,36 @@ export class AccountingService {
     return this.http.post<VoidCashTransferResult>(
       `${this.baseUrl(organizationId)}/cash-transfers/${id}/void`,
       null,
+      { withCredentials: true },
+    );
+  }
+
+  listBankAccounts(organizationId: string, isActive = true, page = 1, pageSize = 50): Observable<PagedResult<BankAccountDto>> {
+    return this.http.get<PagedResult<BankAccountDto>>(`${this.baseUrl(organizationId)}/bank-accounts`, {
+      withCredentials: true,
+      params: { isActive: String(isActive), page: String(page), pageSize: String(pageSize) },
+    });
+  }
+
+  listAccountOpeningBalances(
+    organizationId: string,
+    page = 1,
+    pageSize = 50,
+  ): Observable<PagedResult<AccountOpeningBalanceDto>> {
+    return this.http.get<PagedResult<AccountOpeningBalanceDto>>(`${this.baseUrl(organizationId)}/opening-balances/accounts`, {
+      withCredentials: true,
+      params: { page: String(page), pageSize: String(pageSize) },
+    });
+  }
+
+  saveAccountOpeningBalance(
+    organizationId: string,
+    accountId: string,
+    request: OpeningBalanceLineRequest,
+  ): Observable<OpeningBalanceLineResult> {
+    return this.http.put<OpeningBalanceLineResult>(
+      `${this.baseUrl(organizationId)}/opening-balances/accounts/${accountId}`,
+      request,
       { withCredentials: true },
     );
   }

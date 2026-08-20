@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using MediatR;
@@ -27,9 +28,13 @@ public sealed class UpdateAccountCommandHandler(IAppDbContext db)
             throw new ConflictException($"An account named '{request.Name}' already exists.");
         }
 
-        account.Update(request.Name, request.GroupId, group.RootType, request.IsActive);
+        await AccountingValidation.EnsureBankExistsAsync(db, request.OrganizationId, request.BankId, cancellationToken);
+
+        account.Update(request.Name, request.GroupId, group.RootType, request.IsActive, request.Kind, request.BankId, request.AccountNumber);
         await db.SaveChangesAsync(cancellationToken);
 
-        return new UpdateAccountResult(account.Id, account.Name, account.RootType, account.GroupId, account.IsActive);
+        return new UpdateAccountResult(
+            account.Id, account.Name, account.RootType, account.GroupId, account.IsActive,
+            account.Kind, account.BankId, account.AccountNumber);
     }
 }

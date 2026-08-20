@@ -1,4 +1,5 @@
 using ErpApp.Domain.Accounting;
+using ErpApp.Domain.Contacts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -16,5 +17,6 @@ public sealed class JournalVoucherLineConfiguration : IEntityTypeConfiguration<J
         builder.Property(x => x.Credit).HasPrecision(18, 4).IsRequired();
 
         builder.HasOne<Account>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Contact>().WithMany().HasForeignKey(x => x.ContactId).OnDelete(DeleteBehavior.Restrict);
     }
 }

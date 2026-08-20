@@ -23,9 +23,9 @@ public sealed class UpdatePaymentModeCommandHandler(IAppDbContext db)
             throw new ConflictException($"A payment mode named '{request.Name}' already exists.");
         }
 
-        paymentMode.Update(request.Name, request.IsActive);
+        paymentMode.Update(request.Name, request.IsActive, request.RequiresChequeDetails);
         await db.SaveChangesAsync(cancellationToken);
 
-        return new UpdatePaymentModeResult(paymentMode.Id, paymentMode.Name, paymentMode.IsActive);
+        return new UpdatePaymentModeResult(paymentMode.Id, paymentMode.Name, paymentMode.IsActive, paymentMode.RequiresChequeDetails);
     }
 }

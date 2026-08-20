@@ -2,6 +2,10 @@ import { VatRate } from '../catalog/catalog.models';
 
 export type AccountRootType = 'Asset' | 'Liability' | 'Equity' | 'Income' | 'Expense';
 
+// Phase 17 -- Bank/Cash marker (docs/phase-17-status.md decision #3). No "Wallet" kind --
+// e-wallets are Bank-kind accounts pointing at a wallet provider in the Bank lookup.
+export type AccountKind = 'Other' | 'Bank' | 'Cash';
+
 export interface AccountGroup {
   id: string;
   organizationId: string;
@@ -46,6 +50,9 @@ export interface Account {
   name: string;
   rootType: AccountRootType;
   groupId: string;
+  kind: AccountKind;
+  bankId: string | null;
+  accountNumber: string | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -53,6 +60,9 @@ export interface Account {
 export interface CreateAccountRequest {
   name: string;
   groupId: string;
+  kind?: AccountKind;
+  bankId?: string | null;
+  accountNumber?: string | null;
 }
 
 export interface CreateAccountResult {
@@ -61,12 +71,18 @@ export interface CreateAccountResult {
   name: string;
   rootType: AccountRootType;
   groupId: string;
+  kind: AccountKind;
+  bankId: string | null;
+  accountNumber: string | null;
 }
 
 export interface UpdateAccountRequest {
   name: string;
   groupId: string;
   isActive: boolean;
+  kind?: AccountKind;
+  bankId?: string | null;
+  accountNumber?: string | null;
 }
 
 export interface UpdateAccountResult {
@@ -75,6 +91,47 @@ export interface UpdateAccountResult {
   rootType: AccountRootType;
   groupId: string;
   isActive: boolean;
+  kind: AccountKind;
+  bankId: string | null;
+  accountNumber: string | null;
+}
+
+// --- Phase 17: Bank Accounts ---
+
+export interface BankAccountDto {
+  id: string;
+  code: string;
+  name: string;
+  kind: AccountKind;
+  bankId: string | null;
+  bankName: string | null;
+  accountNumber: string | null;
+  isActive: boolean;
+  balance: number;
+}
+
+// --- Phase 17: Opening Balances (Account tab) ---
+
+export interface AccountOpeningBalanceDto {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  rootType: string;
+  groupName: string;
+  debit: number;
+  credit: number;
+}
+
+export interface OpeningBalanceLineRequest {
+  debit: number;
+  credit: number;
+}
+
+export interface OpeningBalanceLineResult {
+  id: string;
+  accountId: string;
+  debit: number;
+  credit: number;
 }
 
 export type JournalVoucherStatus = 'Draft' | 'Approved' | 'Void';
@@ -83,6 +140,9 @@ export interface JournalVoucherLineInput {
   accountId: string;
   debit: number;
   credit: number;
+  /** Decision #2 (docs/phase-17-status.md) -- tags this line as posting against a Contact's own
+   * AR/AP control account, making it an allocatable credit source once the voucher is Approved. */
+  contactId: string | null;
 }
 
 export interface JournalVoucher {
@@ -102,6 +162,7 @@ export interface JournalVoucherLineDto {
   accountId: string;
   debit: number;
   credit: number;
+  contactId: string | null;
 }
 
 export interface PostedGlLineDto {

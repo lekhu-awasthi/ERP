@@ -27,12 +27,16 @@
     <div class="card-body p-4">
       <h6 class="fw-bold text-dark mb-3">{{ editingId() ? 'Edit Payment Mode' : 'New Payment Mode' }}</h6>
       <form [formGroup]="form" (ngSubmit)="save()" class="row g-3 align-items-end">
-        <div class="col-12 col-sm-7">
+        <div class="col-12 col-sm-5">
           <label class="form-label small fw-semibold">Name</label>
           <input type="text" class="form-control" formControlName="name" placeholder="e.g. Cash" />
         </div>
+        <div class="col-6 col-sm-2 form-check ps-4 align-self-center">
+          <input type="checkbox" class="form-check-input" id="requiresChequeDetails" formControlName="requiresChequeDetails" />
+          <label class="form-check-label small" for="requiresChequeDetails">Cheque mode</label>
+        </div>
         @if (editingId()) {
-          <div class="col-6 col-sm-2 form-check ps-4">
+          <div class="col-6 col-sm-2 form-check ps-4 align-self-center">
             <input type="checkbox" class="form-check-input" id="isActive" formControlName="isActive" />
             <label class="form-check-label small" for="isActive">Active</label>
           </div>
@@ -78,6 +82,9 @@
                 </div>
                 <div>
                   <h6 class="fw-bold mb-1 text-dark">{{ item.name }}</h6>
+                  @if (item.requiresChequeDetails) {
+                    <span class="badge bg-info-subtle text-info me-1">Cheque mode</span>
+                  }
                   @if (!item.isActive) {
                     <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
                   }

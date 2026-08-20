@@ -81,6 +81,7 @@
             <thead>
               <tr class="text-muted small">
                 <th style="min-width: 260px;">Account</th>
+                <th style="min-width: 200px;">Contact</th>
                 <th style="width: 160px;" class="text-end">Debit</th>
                 <th style="width: 160px;" class="text-end">Credit</th>
                 @if (isDraft()) {
@@ -101,6 +102,18 @@
                       </select>
                     } @else {
                       {{ accountLabel(line.accountId) }}
+                    }
+                  </td>
+                  <td>
+                    @if (isDraft()) {
+                      <select class="form-select form-select-sm" (change)="onContactChange(line.key, $event)">
+                        <option value="" [selected]="!line.contactId">— None —</option>
+                        @for (contact of sortedContacts(); track contact.id) {
+                          <option [value]="contact.id" [selected]="contact.id === line.contactId">{{ contact.name }}</option>
+                        }
+                      </select>
+                    } @else {
+                      {{ contactLabel(line.contactId) }}
                     }
                   </td>
                   <td class="text-end">
@@ -143,7 +156,7 @@
             </tbody>
             <tfoot>
               <tr class="fw-bold">
-                <td>Total</td>
+                <td colspan="2">Total</td>
                 <td class="text-end">{{ totalDebit().toFixed(2) }}</td>
                 <td class="text-end">{{ totalCredit().toFixed(2) }}</td>
                 @if (isDraft()) {
@@ -151,7 +164,7 @@
                 }
               </tr>
               <tr>
-                <td colspan="4" class="text-end">
+                <td colspan="5" class="text-end">
                   @if (difference() === 0) {
                     <span class="badge bg-success-subtle text-success">Difference: 0.00</span>
                   } @else {
