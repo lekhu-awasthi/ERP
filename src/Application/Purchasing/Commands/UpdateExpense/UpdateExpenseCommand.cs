@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Security;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Purchasing;
 using MediatR;
 
@@ -15,9 +16,11 @@ public sealed record UpdateExpenseCommand(
     bool TdsApplicable,
     Guid? TdsTypeId,
     IReadOnlyList<ExpenseLineInput> Lines)
-    : IRequest<UpdateExpenseResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
+    : IRequest<UpdateExpenseResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId
 {
     public string PermissionKey => PermissionKeys.ExpenseEdit;
+    public DocumentType AuditDocumentType => DocumentType.Expense;
+    public Guid AuditDocumentId => Id;
 }
 
 public sealed record UpdateExpenseResult(Guid Id, string Code, ExpenseStatus Status);

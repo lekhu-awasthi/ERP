@@ -15,9 +15,10 @@ public sealed record CreateDebitNoteCommand(
     DocumentType? ReferrerType = null,
     Guid? ReferrerId = null,
     decimal DiscountPct = 0)
-    : IRequest<CreateDebitNoteResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
+    : IRequest<CreateDebitNoteResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequest
 {
     public string PermissionKey => PermissionKeys.DebitNoteCreate;
+    public DocumentType AuditDocumentType => DocumentType.DebitNote;
 }
 
 public sealed record CreateDebitNoteResult(Guid Id, string Code, DebitNoteStatus Status);

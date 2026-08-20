@@ -84,6 +84,7 @@ public interface IAppDbContext
     DbSet<DealStage> DealStages { get; }
     DbSet<Deal> Deals { get; }
     DbSet<DealAssignee> DealAssignees { get; }
+    DbSet<Audit> Audits { get; }
 
     /// <summary>
     /// Generic accessor mirroring DbContext's own Set&lt;TEntity&gt;() -- lets the generic

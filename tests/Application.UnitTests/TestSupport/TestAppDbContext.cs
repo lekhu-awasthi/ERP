@@ -143,6 +143,8 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
 
     public DbSet<DealAssignee> DealAssignees => Set<DealAssignee>();
 
+    public DbSet<Audit> Audits => Set<Audit>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

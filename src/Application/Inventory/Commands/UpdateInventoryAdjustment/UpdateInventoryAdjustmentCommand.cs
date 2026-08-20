@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Security;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Inventory;
 using MediatR;
 
@@ -11,9 +12,11 @@ public sealed record UpdateInventoryAdjustmentCommand(
     DateOnly Date,
     string? Reference,
     IReadOnlyList<InventoryAdjustmentLineInput> Lines)
-    : IRequest<UpdateInventoryAdjustmentResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
+    : IRequest<UpdateInventoryAdjustmentResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId
 {
     public string PermissionKey => PermissionKeys.InventoryAdjustmentEdit;
+    public DocumentType AuditDocumentType => DocumentType.InventoryAdjustment;
+    public Guid AuditDocumentId => Id;
 }
 
 public sealed record UpdateInventoryAdjustmentResult(Guid Id, string Code, InventoryAdjustmentStatus Status);

@@ -390,6 +390,9 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminOrganizationLockDateManageId = Guid.Parse("00000000-0000-0000-0002-0000000000fb");
     private static readonly Guid MemberOrganizationLockDateManageId = Guid.Parse("00000000-0000-0000-0002-0000000000fc");
 
+    private static readonly Guid AdminSystemAuditViewId = Guid.Parse("00000000-0000-0000-0002-0000000000fd");
+    private static readonly Guid MemberSystemAuditViewId = Guid.Parse("00000000-0000-0000-0002-0000000000fe");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -706,6 +709,9 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(
                 AdminOrganizationLockDateManageId, Role.AdminId, PermissionKeys.OrganizationLockDateManage, true),
             RolePermission.Create(
-                MemberOrganizationLockDateManageId, Role.MemberId, PermissionKeys.OrganizationLockDateManage, false));
+                MemberOrganizationLockDateManageId, Role.MemberId, PermissionKeys.OrganizationLockDateManage, false),
+
+            RolePermission.Create(AdminSystemAuditViewId, Role.AdminId, PermissionKeys.SystemAuditView, true),
+            RolePermission.Create(MemberSystemAuditViewId, Role.MemberId, PermissionKeys.SystemAuditView, false));
     }
 }

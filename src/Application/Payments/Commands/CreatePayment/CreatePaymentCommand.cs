@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Security;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Payments;
 using MediatR;
 
@@ -15,9 +16,10 @@ namespace ErpApp.Application.Payments.Commands.CreatePayment;
 public sealed record CreatePaymentCommand(
     Guid OrganizationId, Guid ContactId, PaymentDirection Direction, DateOnly Date, Guid? PaymentModeId, Guid AccountId,
     decimal Amount, string? Reference, IReadOnlyList<PaymentAllocationInput> Allocations)
-    : IRequest<CreatePaymentResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
+    : IRequest<CreatePaymentResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequest
 {
     public string PermissionKey => PermissionKeys.PaymentCreate;
+    public DocumentType AuditDocumentType => DocumentType.Payment;
 }
 
 public sealed record CreatePaymentResult(Guid Id, string Code, PaymentStatus Status);

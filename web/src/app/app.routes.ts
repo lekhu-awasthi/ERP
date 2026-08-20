@@ -462,6 +462,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'organizations/:id/reports/system-audit',
+    loadComponent: () =>
+      import('./features/reports/system-audit-report-page/system-audit-report-page').then(
+        (m) => m.SystemAuditReportPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/workflow/transaction-approval-queue',
     loadComponent: () =>
       import('./features/workflow/transaction-approval-queue-page/transaction-approval-queue-page').then(

@@ -102,29 +102,32 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 > `docs/phase-N-status.md` and the roadmap's index table; never append essay-length phase
 > write-ups here, and never keep more than the latest one or two phases in this section.
 
-**Phase 16c (Pagination + report export) is complete** — all 22 document-list queries and all 8
-reports (except the fixed-cardinality VAT Summary) now return a shared `PagedResult<T>` envelope
-(`Items`/`Page`/`PageSize`/`TotalCount`) instead of a bare array, a new shared Angular
-`<app-pagination-control>` is wired into all 27 screens backed by a dedicated (non-lookup) query,
-and every report gained a ClosedXML spreadsheet export with "current view"/"full dataset"
-variants behind its screen's existing permission key — no new permission keys needed. The 14
-lookup types sharing the generic `ListLookupsQuery<TLookup>` get the paginated contract for
-consistency but no visible pager (bounded master data, a pager would be clutter) — their Angular
-service methods kept their pre-existing `Observable<T[]>` contract unchanged. Two real bugs caught
-during manual E2E, not by any automated test: four report pages' footer "Total" rows summed the
-client-side paginated `rows()` signal, which silently becomes a page-subtotal instead of a grand
-total the moment a list is paginated (fixed with server-computed `Total*` DTO fields, now called
-out in the Known Gotchas list); and ClosedXML's synchronous `SaveAs` can't target Kestrel's live
-response stream directly (`InvalidOperationException`, also now a gotcha) — fixed via a
-`MemoryStream` buffer + `CopyToAsync`. `ListPaymentsQuery` also gained a real server-side
-`Direction` filter (previously client-side only, which pagination would have silently broken
-further). Tests: Domain.UnitTests 76 (unchanged), Application.UnitTests 212 (13 new paging
-tests), Api.IntegrationTests 5 (unchanged), Angular 7 specs (unchanged) — all green; manual E2E
-seeded 105 real Invoices and 60 real PurchaseBills via curl, cross-checked `TotalCount` against
-`sqlcmd COUNT(*)`, confirmed zero duplicate/skipped rows across pages via ID-set diffing, confirmed
-real `OFFSET`/`FETCH NEXT` SQL (not in-memory paging) via the API's own query log, unzipped and
-diffed exported `.xlsx` cell values against the JSON API response, and confirmed a same-key 403 on
-both the GET and export routes for a Member on two reports. Full reasoning in
-`docs/phase-16c-status.md`.
+**Phase 16d (System Audit report) is complete** — an append-only `Audit` entity (`workflow.Audits`)
+is written by a new `AuditBehavior` pipeline step (registered 5th, after `LockDateBehavior`) for
+every Create/Update/Approve/Void of the 13 ApprovableTransaction document types. Two new marker
+interfaces, `IAuditableRequest`/`IAuditableRequestWithId` (`Application.Common.Security`), let
+Create/Update commands declare their DocumentType/DocumentId without a 50-branch switch in the
+behavior; Approve/Void reuse the existing `ILockDateSensitiveDocument` interface instead of adding
+a redundant one, and a Create command's new DocumentId (not known pre-handler) is read off the
+handler's response via reflection on its conventional `Guid Id` property rather than touching ~50
+Result records. Immutability is enforced twice — Domain-level (private ctor, no mutators) and a
+real mechanism, `AppDbContext.SaveChangesAsync`'s own override throwing on any tracked
+`Modified`/`Deleted` `Audit` entity, proven by 3 new InMemory-provider unit tests (no Docker
+needed). A new `Reports.SystemAudit.View` (Admin-only) report screen mirrors the Phase 16c report
+shape exactly — paginated, filterable by User/Action/DocumentType/date range, with spreadsheet
+export, and each row links to its document via a copy of `transaction-approval-queue-page.ts`'s own
+13-branch `detailRoute` switch (same SalesOrder-has-no-detail-page gap, same Payment-Direction
+split). Administrative actions (InviteUser, lookup CRUD, etc.) are explicitly out of scope this
+phase — flagged via `spawn_task` rather than left unstated. Tests: Domain.UnitTests 76 (unchanged),
+Application.UnitTests 216 (4 new `AuditBehaviorTests`), Api.IntegrationTests +3 new
+(`AuditImmutabilityTests`, InMemory-provider — the pre-existing 5 Testcontainers-based tests
+weren't re-run this session, Docker Desktop wasn't running locally), Angular 7 specs (unchanged) —
+all green. Manual E2E against a fresh Organization via curl: Create→Approve→Void a JournalVoucher
+produced exactly 3 audit rows in the right order; all 4 filters independently narrowed results
+correctly; a failing 400/404/409 call each produced zero audit rows; a real invited Member got
+`403` naming `Reports.SystemAudit.View` on both the report and export endpoints; 12 seeded rows
+paged cleanly across 2 pages with zero dupes/gaps; the exported `.xlsx` opened correctly; and in
+the browser, the report's filters, User picker, and row "View" link (navigating to the real
+JournalVoucher detail page) all worked live. Full reasoning in `docs/phase-16d-status.md`.
 
-**Next up: Phase 16d — System Audit report.** See `docs/roadmap.md`'s Phase 16 section for the task breakdown and the completed-phase index table for everything prior.
+**Next up: Phase 17 — Accounting breadth.** See `docs/roadmap.md`'s Phase 17 section for the task breakdown and the completed-phase index table for everything prior.
