@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Security;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Purchasing;
 using MediatR;
 
@@ -19,9 +20,11 @@ public sealed record UpdatePurchaseBillCommand(
     Guid? TdsTypeId,
     IReadOnlyList<PurchaseBillLineInput> Lines,
     decimal DiscountPct = 0)
-    : IRequest<UpdatePurchaseBillResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
+    : IRequest<UpdatePurchaseBillResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId
 {
     public string PermissionKey => PermissionKeys.PurchaseBillEdit;
+    public DocumentType AuditDocumentType => DocumentType.PurchaseBill;
+    public Guid AuditDocumentId => Id;
 }
 
 public sealed record UpdatePurchaseBillResult(Guid Id, string Code, PurchaseBillStatus Status);

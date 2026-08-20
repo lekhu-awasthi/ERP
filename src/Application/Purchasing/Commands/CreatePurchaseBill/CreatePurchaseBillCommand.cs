@@ -21,9 +21,10 @@ public sealed record CreatePurchaseBillCommand(
     DocumentType? ReferrerType = null,
     Guid? ReferrerId = null,
     decimal DiscountPct = 0)
-    : IRequest<CreatePurchaseBillResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
+    : IRequest<CreatePurchaseBillResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequest
 {
     public string PermissionKey => PermissionKeys.PurchaseBillCreate;
+    public DocumentType AuditDocumentType => DocumentType.PurchaseBill;
 }
 
 public sealed record CreatePurchaseBillResult(Guid Id, string Code, PurchaseBillStatus Status);

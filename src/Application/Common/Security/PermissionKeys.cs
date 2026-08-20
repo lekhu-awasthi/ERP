@@ -319,4 +319,11 @@ public static class PermissionKeys
     // lock date would let them reopen exactly the backdated-write window this feature exists to
     // close.
     public const string OrganizationLockDateManage = "Tenancy.Organization.LockDateManage";
+
+    // Phase 16d (System Audit report) -- a flat per-user activity register naming every Create/
+    // Update/Approve/Void action any member of the org took, the same PAN/per-transaction-identity
+    // exposure factor that made TdsReportView Admin-only (phase-8b-status.md's discriminator):
+    // seeing "who did what" across the whole org is materially more sensitive than any one
+    // document type's own View permission.
+    public const string SystemAuditView = "Reports.SystemAudit.View";
 }

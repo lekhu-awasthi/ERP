@@ -107,3 +107,24 @@ export interface UpdateTaskRequest {
 export interface UpdateTaskStatusRequest {
   newStatus: TaskStatus;
 }
+
+// Phase 16d (System Audit report, the third Workflow-context feature).
+
+/** Matches AuditBehavior's own AuditedActionPrefixes -- every audited command's type name starts
+ * with exactly one of these four verbs. */
+export type SystemAuditAction = 'Create' | 'Update' | 'Approve' | 'Void';
+
+/** AuditBehavior only ever writes a row for the 13 ApprovableTransaction types, the same set
+ * TransactionApprovalDocumentType already names -- reused here rather than duplicated. */
+export type SystemAuditDocumentType = TransactionApprovalDocumentType;
+
+export interface AuditRowDto {
+  id: string;
+  createdAt: string;
+  userId: string;
+  userName: string;
+  action: SystemAuditAction;
+  documentType: SystemAuditDocumentType;
+  documentId: string;
+  direction: PaymentDirection | null;
+}

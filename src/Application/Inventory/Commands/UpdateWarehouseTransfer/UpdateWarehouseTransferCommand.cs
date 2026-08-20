@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Security;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Inventory;
 using MediatR;
 
@@ -12,9 +13,11 @@ public sealed record UpdateWarehouseTransferCommand(
     DateOnly Date,
     string? Reference,
     IReadOnlyList<WarehouseTransferLineInput> Lines)
-    : IRequest<UpdateWarehouseTransferResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
+    : IRequest<UpdateWarehouseTransferResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId
 {
     public string PermissionKey => PermissionKeys.WarehouseTransferEdit;
+    public DocumentType AuditDocumentType => DocumentType.WarehouseTransfer;
+    public Guid AuditDocumentId => Id;
 }
 
 public sealed record UpdateWarehouseTransferResult(Guid Id, string Code, WarehouseTransferStatus Status);

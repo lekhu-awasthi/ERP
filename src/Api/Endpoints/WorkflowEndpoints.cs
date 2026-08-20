@@ -1,9 +1,12 @@
+using ErpApp.Api.Reports;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Workflow.Commands.CreateTask;
 using ErpApp.Application.Workflow.Commands.UpdateTask;
 using ErpApp.Application.Workflow.Commands.UpdateTaskStatus;
 using ErpApp.Application.Workflow.Queries.ListTasks;
+using ErpApp.Application.Workflow.Queries.SystemAuditReport;
 using ErpApp.Application.Workflow.Queries.TransactionApproval;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Workflow;
 using MediatR;
 
@@ -22,6 +25,32 @@ public static class WorkflowEndpoints
         {
             var result = await sender.Send(new TransactionApprovalQuery(organizationId), ct);
             return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/system-audit", async (
+            Guid organizationId, Guid? userId, string? action, DocumentType? documentType,
+            DateOnly? fromDate, DateOnly? toDate, int? page, int? pageSize,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new SystemAuditReportQuery(
+                    organizationId, userId, action, documentType, fromDate, toDate,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/system-audit/export", async (
+            Guid organizationId, Guid? userId, string? action, DocumentType? documentType,
+            DateOnly? fromDate, DateOnly? toDate, bool full, int? page, int? pageSize,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new SystemAuditReportQuery(
+                    organizationId, userId, action, documentType, fromDate, toDate,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                ct);
+            return ReportSpreadsheetExporter.ExportSystemAuditReport(result);
         });
 
         MapTaskEndpoints(group);

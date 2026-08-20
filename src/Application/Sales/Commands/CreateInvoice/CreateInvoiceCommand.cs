@@ -15,9 +15,10 @@ public sealed record CreateInvoiceCommand(
     DocumentType? ReferrerType = null,
     Guid? ReferrerId = null,
     decimal DiscountPct = 0)
-    : IRequest<CreateInvoiceResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive
+    : IRequest<CreateInvoiceResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequest
 {
     public string PermissionKey => PermissionKeys.InvoiceCreate;
+    public DocumentType AuditDocumentType => DocumentType.Invoice;
 }
 
 public sealed record CreateInvoiceResult(Guid Id, string Code, InvoiceStatus Status);

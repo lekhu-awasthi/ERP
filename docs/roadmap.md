@@ -33,6 +33,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 16a | Void lifecycle (all 13 ApprovableTransaction types) + Organization.LockDate enforcement | `phase-16a-status.md` |
 | 16b | Discounts retrofit: line/header `DiscountPct` across all 7 Product-line document types | `phase-16b-status.md` |
 | 16c | Pagination (`PagedResult<T>`, shared Angular pagination component) + report export (ClosedXML, current view/full dataset) | `phase-16c-status.md` |
+| 16d | System Audit report: append-only `Audit` trail via `AuditBehavior` pipeline step, `Reports.SystemAudit.View` report screen | `phase-16d-status.md` |
 
 ---
 
@@ -76,12 +77,23 @@ pages, real `OFFSET`/`FETCH NEXT` SQL); exported spreadsheets unzipped and diffe
 against the on-screen/API rows; export endpoints confirmed 403 with the same key as their report,
 for a Member, on two reports.*
 
-### 16d. System Audit report
-FR-9.6/NFR-3.3: an append-only audit trail + report.
-1. Audit entity written from a pipeline behavior (one place, all commands), capturing user, action, document type/id, timestamp — not editable/deletable through the app.
-2. Audit report screen filterable by user/action/document type, each row linking to the affected record. `Reports.SystemAudit.View` Admin-only (flat per-user activity register — the Phase 8b discriminator applies).
+### 16d. System Audit report — **COMPLETE**, see `phase-16d-status.md`
+An append-only `Audit` entity (`workflow.Audits`) is written by a new `AuditBehavior` pipeline
+step (5th, after `LockDateBehavior`) for every Create/Update/Approve/Void of the 13
+ApprovableTransaction document types, via two new marker interfaces
+(`IAuditableRequest`/`IAuditableRequestWithId`) plus reuse of the existing
+`ILockDateSensitiveDocument` for Approve/Void. Immutability enforced twice: Domain-level (private
+ctor) and a real `AppDbContext.SaveChangesAsync` override throwing on any tracked
+`Modified`/`Deleted` `Audit` row. `Reports.SystemAudit.View` (Admin-only) report screen mirrors the
+Phase 16c report shape — paginated, filterable by User/Action/DocumentType/date range, spreadsheet
+export, row-linking via a copy of the Transaction Approval Queue's `detailRoute` switch.
+Administrative (non-document) actions explicitly out of scope this phase.
 
-*Exit criteria: create/edit/approve/void actions each produce exactly one audit row with the right actor; the report filters correctly; a Member gets 403; no code path can update or delete an audit row.*
+*Exit criteria: confirmed live — Create→Approve→Void a JournalVoucher produced exactly 3 audit rows
+with the right actor/order; all 4 filters narrow correctly; a failing 400/404/409 call produces
+zero audit rows; a real invited Member gets 403 naming `Reports.SystemAudit.View`; a direct
+`Modified`/`Deleted` attempt on an `Audit` entity throws (unit-tested); pagination clean across
+seeded rows.*
 
 ---
 

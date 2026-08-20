@@ -1,5 +1,6 @@
 using ClosedXML.Excel;
 using ErpApp.Application.Accounting.Queries.VatSummaryReport;
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Contacts.Queries.ContactAgeingSummary;
 using ErpApp.Application.Contacts.Queries.ContactStatement;
 using ErpApp.Application.Purchasing.Queries.AnnexThirteenReport;
@@ -7,6 +8,7 @@ using ErpApp.Application.Purchasing.Queries.PurchaseMasterReport;
 using ErpApp.Application.Purchasing.Queries.TdsReport;
 using ErpApp.Application.Sales.Queries.AnnexFiveReport;
 using ErpApp.Application.Sales.Queries.SalesMasterReport;
+using ErpApp.Application.Workflow.Queries.SystemAuditReport;
 
 namespace ErpApp.Api.Reports;
 
@@ -164,6 +166,19 @@ public static class ReportSpreadsheetExporter
                 sheet.Cell(report.Rows.Count + 2, 11).Style.NumberFormat.Format = "#,##0.00";
                 sheet.Cell(report.Rows.Count + 2, 11).Style.Font.Bold = true;
             });
+
+    public static IResult ExportSystemAuditReport(PagedResult<AuditRowDto> report) =>
+        ExportTable(
+            "System Audit",
+            $"SystemAuditReport_{DateTimeOffset.UtcNow:yyyy-MM-dd_HHmmss}.xlsx",
+            [
+                ("Timestamp", (AuditRowDto r) => (object?)r.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")),
+                ("User", r => r.UserName),
+                ("Action", r => r.Action),
+                ("Document Type", r => r.DocumentType.ToString()),
+                ("Document Id", r => r.DocumentId.ToString()),
+            ],
+            report.Items);
 
     public static IResult ExportContactAgeingSummary(
         ContactAgeingSummaryDto report, string contactTypeLabel, DateOnly asOfDate) =>

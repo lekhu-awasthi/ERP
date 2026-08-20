@@ -80,6 +80,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<DealStage> DealStages => Set<DealStage>();
     public DbSet<Deal> Deals => Set<Deal>();
     public DbSet<DealAssignee> DealAssignees => Set<DealAssignee>();
+    public DbSet<Audit> Audits => Set<Audit>();
 
     // IAppDbContext.Set<TEntity>() -- satisfied implicitly by DbContext's own public
     // Set<TEntity>() (identical signature), needed by the generic
@@ -90,5 +91,27 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+    }
+
+    /// <summary>
+    /// Enforces Audit's own "append-only, no code path can update or delete a row" exit criterion
+    /// (roadmap Phase 16d) as a real mechanism, not just an absence of an Update/Delete handler --
+    /// a private constructor + no public mutator prevents Application code from ever composing a
+    /// change, but nothing stops a future EF Core Update/Remove call reaching an Audit entity
+    /// directly, so this checks the change tracker itself right before every save.
+    /// </summary>
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        var mutatedAudits = ChangeTracker.Entries<Audit>()
+            .Where(e => e.State is EntityState.Modified or EntityState.Deleted)
+            .ToList();
+
+        if (mutatedAudits.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "Audit rows are append-only and can never be updated or deleted.");
+        }
+
+        return base.SaveChangesAsync(cancellationToken);
     }
 }

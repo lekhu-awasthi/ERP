@@ -1,0 +1,129 @@
+<div class="container py-5" style="max-width: 1300px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-clock-history fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">System Audit</h1>
+          <p class="text-muted small mb-0">Who did what, to which document, and when</p>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportCurrentView()">
+          <i class="bi bi-download"></i> Export Current View
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
+          <i class="bi bi-download"></i> Export Full Dataset
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3">
+        <div class="col-12 col-sm-6 col-lg-2">
+          <label class="form-label small fw-semibold">User</label>
+          <select class="form-select" (change)="onUserChange($event)">
+            <option value="">All Users</option>
+            @for (member of members(); track member.userId) {
+              <option [value]="member.userId" [selected]="member.userId === userId()">{{ member.fullName }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+          <label class="form-label small fw-semibold">Action</label>
+          <select class="form-select" (change)="onActionChange($event)">
+            <option value="">All Actions</option>
+            @for (a of actions; track a) {
+              <option [value]="a" [selected]="a === action()">{{ a }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold">Document Type</label>
+          <select class="form-select" (change)="onDocumentTypeChange($event)">
+            <option value="">All Document Types</option>
+            @for (dt of documentTypes; track dt) {
+              <option [value]="dt" [selected]="dt === documentType()">{{ dt }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+          <label class="form-label small fw-semibold">From Date</label>
+          <input type="date" class="form-control" [value]="fromDate()" (change)="onFromDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+          <label class="form-label small fw-semibold">To Date</label>
+          <input type="date" class="form-control" [value]="toDate()" (change)="onToDateChange($event)" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading System Audit report...</p>
+        </div>
+      } @else if (report(); as r) {
+        @if (r.items.length === 0) {
+          <div class="text-center py-4">
+            <p class="text-muted small mb-0">No audited actions match these filters.</p>
+          </div>
+        } @else {
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr class="text-muted small">
+                  <th>Timestamp</th>
+                  <th>User</th>
+                  <th>Action</th>
+                  <th>Document Type</th>
+                  <th>Document</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of r.items; track row.id) {
+                  <tr>
+                    <td>{{ row.createdAt | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+                    <td>{{ row.userName }}</td>
+                    <td>
+                      <span class="badge bg-primary-subtle text-primary">{{ row.action }}</span>
+                    </td>
+                    <td>{{ row.documentType }}</td>
+                    <td>
+                      @if (detailRoute(row); as routeLink) {
+                        <a [routerLink]="routeLink" class="link-primary fw-semibold">View</a>
+                      } @else {
+                        <span class="text-muted">—</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <app-pagination-control
+            [page]="page()"
+            [pageSize]="pageSize()"
+            [totalCount]="r.totalCount"
+            (pageChange)="onPageChange($event)"
+            (pageSizeChange)="onPageSizeChange($event)"
+          />
+        }
+      }
+    </div>
+  </div>
+</div>
