@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Payments;
 using MediatR;
 
@@ -19,4 +20,7 @@ public sealed record ListPaymentsQuery(
     PaymentDirection? Direction = null,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<Payment>>;
+    : IRequest<PagedResult<Payment>>, IRequirePermission, IOrganizationScoped
+{
+    public string PermissionKey => PermissionKeys.PaymentView;
+}

@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Sales;
 using MediatR;
 
@@ -9,4 +10,7 @@ public sealed record ListInvoicesQuery(
     InvoiceStatus? Status,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<Invoice>>;
+    : IRequest<PagedResult<Invoice>>, IRequirePermission, IOrganizationScoped
+{
+    public string PermissionKey => PermissionKeys.InvoiceView;
+}
