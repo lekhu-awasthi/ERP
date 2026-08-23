@@ -123,6 +123,7 @@ app.MapPurchasingEndpoints();
 app.MapInventoryEndpoints();
 app.MapWorkflowEndpoints();
 app.MapCrmEndpoints();
+app.MapAttachmentsEndpoints();
 
 app.Run();
 

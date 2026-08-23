@@ -122,6 +122,16 @@ export class QuotationDetailPage {
         this.load();
       }
     });
+
+    // Quick-action prefill (FR-4.6, roadmap Phase 18) -- subscribed after paramMap above so a
+    // fresh 'new' navigation's form reset always runs before this applies the ?contactId= query
+    // param, not after. Read reactively (not route.snapshot), per the route-reuse gotcha.
+    this.route.queryParamMap.subscribe((params) => {
+      const contactId = params.get('contactId');
+      if (contactId && this.isNew()) {
+        this.contactId.set(contactId);
+      }
+    });
   }
 
   protected contactLabel(contactId: string): string {

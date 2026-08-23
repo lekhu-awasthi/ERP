@@ -1,0 +1,131 @@
+<div>
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-3" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="btn-group mb-3" role="group">
+    <button type="button" class="btn btn-sm" [class.btn-primary]="subTab() === 'Comments'" [class.btn-outline-primary]="subTab() !== 'Comments'" (click)="switchSubTab('Comments')">Comments</button>
+    <button type="button" class="btn btn-sm" [class.btn-primary]="subTab() === 'Activities'" [class.btn-outline-primary]="subTab() !== 'Activities'" (click)="switchSubTab('Activities')">Activities</button>
+    <button type="button" class="btn btn-sm" [class.btn-primary]="subTab() === 'SmsHistory'" [class.btn-outline-primary]="subTab() !== 'SmsHistory'" (click)="switchSubTab('SmsHistory')">SMS History</button>
+    <button type="button" class="btn btn-sm" [class.btn-primary]="subTab() === 'EmailLogs'" [class.btn-outline-primary]="subTab() !== 'EmailLogs'" (click)="switchSubTab('EmailLogs')">Email Logs</button>
+  </div>
+
+  @if (subTab() === 'Comments') {
+    <div class="mb-3">
+      <textarea
+        class="form-control form-control-sm"
+        rows="2"
+        placeholder="Write comment here..."
+        [value]="newComment()"
+        (input)="onCommentInput($event)"
+      ></textarea>
+      <button type="button" class="btn btn-primary btn-sm fw-bold mt-2" [disabled]="postingComment() || !newComment().trim()" (click)="postComment()">
+        @if (postingComment()) {
+          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        } @else {
+          ADD COMMENT
+        }
+      </button>
+    </div>
+
+    @if (commentsLoading()) {
+      <div class="text-center py-3">
+        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+      </div>
+    } @else if (commentRows().length === 0) {
+      <p class="text-muted small mb-0">No comments yet.</p>
+    } @else {
+      <div class="list-group list-group-flush mb-3">
+        @for (row of commentRows(); track row.id) {
+          <div class="list-group-item">
+            <p class="mb-1">{{ row.content }}</p>
+            <span class="text-muted small">{{ row.authorName }} · {{ row.createdAt }}</span>
+          </div>
+        }
+      </div>
+      <app-pagination-control
+        [page]="commentPage()"
+        [pageSize]="commentPageSize()"
+        [totalCount]="commentTotalCount()"
+        (pageChange)="onCommentPageChange($event)"
+        (pageSizeChange)="onCommentPageSizeChange($event)"
+      />
+    }
+  }
+
+  @if (subTab() === 'Activities') {
+    @if (activitiesLoading()) {
+      <div class="text-center py-3">
+        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+      </div>
+    } @else if (activityRows().length === 0) {
+      <p class="text-muted small mb-0">No activity recorded yet.</p>
+    } @else {
+      <div class="list-group list-group-flush mb-3">
+        @for (row of activityRows(); track row.id) {
+          <div class="list-group-item">
+            <p class="mb-1">{{ row.userName }} {{ row.action }}d this contact</p>
+            <span class="text-muted small">{{ row.createdAt }}</span>
+          </div>
+        }
+      </div>
+      <app-pagination-control
+        [page]="activityPage()"
+        [pageSize]="activityPageSize()"
+        [totalCount]="activityTotalCount()"
+        (pageChange)="onActivityPageChange($event)"
+        (pageSizeChange)="onActivityPageSizeChange($event)"
+      />
+    }
+  }
+
+  @if (subTab() === 'SmsHistory') {
+    @if (smsLoading()) {
+      <div class="text-center py-3">
+        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+      </div>
+    } @else if (smsRows().length === 0) {
+      <p class="text-muted small mb-0">No SMS sent to this contact yet.</p>
+    } @else {
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr class="text-muted small">
+              <th>Sent</th>
+              <th>Title</th>
+              <th>Content</th>
+              <th class="text-end">Credits</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of smsRows(); track row.id) {
+              <tr>
+                <td>{{ row.sentAt }}</td>
+                <td>{{ row.title }}</td>
+                <td class="text-truncate" style="max-width: 260px;">{{ row.content }}</td>
+                <td class="text-end">{{ row.creditsUsed }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <app-pagination-control
+        [page]="smsPage()"
+        [pageSize]="smsPageSize()"
+        [totalCount]="smsTotalCount()"
+        (pageChange)="onSmsPageChange($event)"
+        (pageSizeChange)="onSmsPageSizeChange($event)"
+      />
+    }
+  }
+
+  @if (subTab() === 'EmailLogs') {
+    <div class="text-center py-4">
+      <i class="bi bi-envelope-slash fs-2 text-muted mb-2 d-block"></i>
+      <p class="text-muted small mb-0">Email logging isn't available yet.</p>
+    </div>
+  }
+</div>

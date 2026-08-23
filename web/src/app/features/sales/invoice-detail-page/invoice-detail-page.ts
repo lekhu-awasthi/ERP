@@ -153,6 +153,18 @@ export class InvoiceDetailPage {
         this.load();
       }
     });
+
+    // Quick-action prefill (FR-4.6, roadmap Phase 18) -- subscribed after paramMap above so a
+    // fresh 'new' navigation's form reset always runs before this applies the ?contactId= query
+    // param, not after. Read reactively (not route.snapshot), per the route-reuse gotcha. Only
+    // applies when there's no pending conversion template (that template already carries its own
+    // contactId, and takes precedence over a quick-action query param).
+    this.route.queryParamMap.subscribe((params) => {
+      const contactId = params.get('contactId');
+      if (contactId && this.isNew() && !this.referrerId) {
+        this.contactId.set(contactId);
+      }
+    });
   }
 
   protected contactLabel(contactId: string): string {

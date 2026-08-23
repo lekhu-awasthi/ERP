@@ -42,6 +42,7 @@ import {
   UpdateInvoiceResult,
   UpdateQuotationResult,
   UpdateSalesOrderResult,
+  VoidSalesOrderResult,
 } from './sales.models';
 
 @Injectable({ providedIn: 'root' })
@@ -183,6 +184,12 @@ export class SalesService {
 
   approveSalesOrder(organizationId: string, id: string): Observable<ApproveSalesOrderResult> {
     return this.http.post<ApproveSalesOrderResult>(`${this.baseUrl(organizationId)}/sales-orders/${id}/approve`, null, {
+      withCredentials: true,
+    });
+  }
+
+  voidSalesOrder(organizationId: string, id: string): Observable<VoidSalesOrderResult> {
+    return this.http.post<VoidSalesOrderResult>(`${this.baseUrl(organizationId)}/sales-orders/${id}/void`, null, {
       withCredentials: true,
     });
   }

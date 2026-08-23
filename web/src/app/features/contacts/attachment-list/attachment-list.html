@@ -1,0 +1,66 @@
+<div>
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-3" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <label
+    class="d-flex flex-column align-items-center justify-content-center border border-2 rounded-3 p-4 mb-3 text-center"
+    style="cursor: pointer; border-style: dashed !important;"
+    [class.border-primary]="dragging()"
+    [class.bg-primary-subtle]="dragging()"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+    (drop)="onDrop($event)"
+  >
+    @if (uploading()) {
+      <span class="spinner-border spinner-border-sm text-primary mb-2" role="status"></span>
+    } @else {
+      <i class="bi bi-cloud-arrow-up fs-2 text-muted mb-2"></i>
+    }
+    <span class="fw-semibold text-dark">Drop your files or Click to upload new document</span>
+    <span class="text-muted small mt-1">PDF, images, Office docs, CSV, TXT -- up to 10MB</span>
+    <input type="file" class="d-none" (change)="onFileSelected($event)" />
+  </label>
+
+  @if (loading()) {
+    <div class="text-center py-4">
+      <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+    </div>
+  } @else if (rows().length === 0) {
+    <p class="text-muted small mb-0">No documents uploaded yet.</p>
+  } @else {
+    <div class="list-group list-group-flush">
+      @for (row of rows(); track row.id) {
+        <div class="list-group-item d-flex justify-content-between align-items-center gap-3">
+          <div class="d-flex align-items-center gap-3">
+            <i class="bi bi-file-earmark text-primary fs-5"></i>
+            <div>
+              <p class="fw-semibold mb-0 text-dark">{{ row.fileName }}</p>
+              <span class="text-muted small">
+                {{ formatSize(row.sizeBytes) }} · {{ row.uploadedByName }} · {{ row.uploadedAt | date: 'short' }}
+              </span>
+            </div>
+          </div>
+          <div class="d-flex gap-1 flex-shrink-0">
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="download(row)">
+              <i class="bi bi-download"></i>
+            </button>
+            <button type="button" class="btn btn-outline-danger btn-sm" (click)="remove(row)">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+    <app-pagination-control
+      [page]="page()"
+      [pageSize]="pageSize()"
+      [totalCount]="totalCount()"
+      (pageChange)="onPageChange($event)"
+      (pageSizeChange)="onPageSizeChange($event)"
+    />
+  }
+</div>

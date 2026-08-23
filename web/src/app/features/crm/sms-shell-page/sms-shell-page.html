@@ -1,0 +1,290 @@
+<div class="container py-5" style="max-width: 1000px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex align-items-center gap-3">
+      <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+        <i class="bi bi-chat-dots fs-4 d-flex"></i>
+      </div>
+      <div>
+        <h1 class="h3 fw-bold mb-0 text-dark">SMS</h1>
+        <p class="text-muted small mb-0">Send bulk or targeted SMS, manage templates and credit</p>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="btn-group mb-4" role="group">
+    <button type="button" class="btn btn-sm" [class.btn-primary]="activeTab() === 'Overview'" [class.btn-outline-primary]="activeTab() !== 'Overview'" (click)="switchTab('Overview')">Overview</button>
+    <button type="button" class="btn btn-sm" [class.btn-primary]="activeTab() === 'History'" [class.btn-outline-primary]="activeTab() !== 'History'" (click)="switchTab('History')">SMS History</button>
+    <button type="button" class="btn btn-sm" [class.btn-primary]="activeTab() === 'Templates'" [class.btn-outline-primary]="activeTab() !== 'Templates'" (click)="switchTab('Templates')">Templates</button>
+    <button type="button" class="btn btn-sm" [class.btn-primary]="activeTab() === 'CreditHistory'" [class.btn-outline-primary]="activeTab() !== 'CreditHistory'" (click)="switchTab('CreditHistory')">Credit History</button>
+  </div>
+
+  @if (activeTab() === 'Overview') {
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+          <div>
+            <p class="text-muted small mb-1">SMS Credit Balance</p>
+            <h3 class="fw-bold text-dark mb-0">{{ balance() }}</h3>
+          </div>
+          <button type="button" class="btn btn-primary btn-sm fw-bold" (click)="showSendForm.set(!showSendForm())">
+            <i class="bi bi-send"></i> {{ showSendForm() ? 'Cancel' : 'Send SMS' }}
+          </button>
+        </div>
+
+        @if (showSendForm()) {
+          <div class="border rounded-3 p-3 mb-3">
+            <app-send-sms-form [organizationId]="organizationId" (sent)="onSmsSent()" />
+          </div>
+        }
+
+        <h6 class="fw-bold text-dark small mb-2">Recent SMS</h6>
+        @if (overviewLoading()) {
+          <div class="text-center py-3">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+          </div>
+        } @else if (recentSms().length === 0) {
+          <p class="text-muted small mb-0">No SMS sent yet.</p>
+        } @else {
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr class="text-muted small">
+                  <th>Sent</th>
+                  <th>Contact</th>
+                  <th>Title</th>
+                  <th>Phone</th>
+                  <th class="text-end">Credits</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of recentSms(); track row.id) {
+                  <tr>
+                    <td>{{ row.sentAt | date: 'short' }}</td>
+                    <td>{{ row.contactName }}</td>
+                    <td>{{ row.title }}</td>
+                    <td>{{ row.phoneNumber }}</td>
+                    <td class="text-end">{{ row.creditsUsed }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  @if (activeTab() === 'History') {
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <h6 class="fw-bold text-dark mb-3">SMS History</h6>
+        @if (historyLoading()) {
+          <div class="text-center py-4">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+          </div>
+        } @else if (historyRows().length === 0) {
+          <p class="text-muted small mb-0">No SMS sent yet.</p>
+        } @else {
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr class="text-muted small">
+                  <th>Sent</th>
+                  <th>Contact</th>
+                  <th>Title</th>
+                  <th>Content</th>
+                  <th>Phone</th>
+                  <th class="text-end">Credits</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of historyRows(); track row.id) {
+                  <tr>
+                    <td>{{ row.sentAt | date: 'short' }}</td>
+                    <td>{{ row.contactName }}</td>
+                    <td>{{ row.title }}</td>
+                    <td class="text-truncate" style="max-width: 240px;">{{ row.content }}</td>
+                    <td>{{ row.phoneNumber }}</td>
+                    <td class="text-end">{{ row.creditsUsed }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <app-pagination-control
+            [page]="historyPage()"
+            [pageSize]="historyPageSize()"
+            [totalCount]="historyTotalCount()"
+            (pageChange)="onHistoryPageChange($event)"
+            (pageSizeChange)="onHistoryPageSizeChange($event)"
+          />
+        }
+      </div>
+    </div>
+  }
+
+  @if (activeTab() === 'Templates') {
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold text-dark mb-0">Templates</h6>
+          @if (!showTemplateForm()) {
+            <button type="button" class="btn btn-outline-primary btn-sm" (click)="startCreateTemplate()">
+              <i class="bi bi-plus-lg"></i> New Template
+            </button>
+          }
+        </div>
+
+        @if (showTemplateForm()) {
+          <form [formGroup]="templateForm" (ngSubmit)="saveTemplate()" class="border rounded-3 p-3 mb-3">
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Title</label>
+              <input type="text" class="form-control form-control-sm" formControlName="title" />
+            </div>
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Content</label>
+              <textarea class="form-control form-control-sm" rows="3" formControlName="content"></textarea>
+              <p class="text-muted small mt-1 mb-0">
+                Use <code>$[name]$</code>, <code>$[balance]$</code>, <code>$[balance_date]$</code> to personalize.
+              </p>
+            </div>
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-primary btn-sm fw-bold" [disabled]="templateSaving()">
+                @if (templateSaving()) {
+                  <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                } @else {
+                  Save
+                }
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelTemplateForm()">Cancel</button>
+            </div>
+          </form>
+        }
+
+        @if (templatesLoading()) {
+          <div class="text-center py-4">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+          </div>
+        } @else if (templateRows().length === 0) {
+          <p class="text-muted small mb-0">No templates yet.</p>
+        } @else {
+          <div class="list-group list-group-flush mb-3">
+            @for (row of templateRows(); track row.id) {
+              <div class="list-group-item d-flex justify-content-between align-items-start gap-3">
+                <div>
+                  <h6 class="fw-bold mb-1 text-dark">{{ row.title }}</h6>
+                  <p class="text-muted small mb-0">{{ row.content }}</p>
+                </div>
+                <div class="d-flex gap-2 flex-shrink-0">
+                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="startEditTemplate(row)">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-danger btn-sm" (click)="deleteTemplate(row)">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+          <app-pagination-control
+            [page]="templatePage()"
+            [pageSize]="templatePageSize()"
+            [totalCount]="templateTotalCount()"
+            (pageChange)="onTemplatePageChange($event)"
+            (pageSizeChange)="onTemplatePageSizeChange($event)"
+          />
+        }
+      </div>
+    </div>
+  }
+
+  @if (activeTab() === 'CreditHistory') {
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+          <div>
+            <p class="text-muted small mb-1">SMS Credit Balance</p>
+            <h3 class="fw-bold text-dark mb-0">{{ ledgerBalance() }}</h3>
+          </div>
+          <button type="button" class="btn btn-outline-primary btn-sm fw-bold" (click)="showAdjustForm.set(!showAdjustForm())">
+            <i class="bi bi-sliders"></i> {{ showAdjustForm() ? 'Cancel' : 'Adjust Credit' }}
+          </button>
+        </div>
+
+        @if (showAdjustForm()) {
+          <form [formGroup]="adjustForm" (ngSubmit)="saveAdjustment()" class="border rounded-3 p-3 mb-3">
+            <div class="row g-2">
+              <div class="col-4">
+                <label class="form-label small fw-semibold">Change Amount</label>
+                <input type="number" class="form-control form-control-sm" formControlName="changeAmount" step="1" />
+                <p class="text-muted small mt-1 mb-0">Positive to add, negative to deduct.</p>
+              </div>
+              <div class="col-8">
+                <label class="form-label small fw-semibold">Reason</label>
+                <input type="text" class="form-control form-control-sm" formControlName="reason" />
+              </div>
+            </div>
+            <div class="d-flex gap-2 mt-2">
+              <button type="submit" class="btn btn-primary btn-sm fw-bold" [disabled]="adjustSaving()">
+                @if (adjustSaving()) {
+                  <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                } @else {
+                  Save
+                }
+              </button>
+            </div>
+          </form>
+        }
+
+        @if (ledgerLoading()) {
+          <div class="text-center py-4">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+          </div>
+        } @else if (ledgerRows().length === 0) {
+          <p class="text-muted small mb-0">No ledger entries yet.</p>
+        } @else {
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr class="text-muted small">
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th class="text-end">Change</th>
+                  <th>Reason</th>
+                  <th>By</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of ledgerRows(); track row.id) {
+                  <tr>
+                    <td>{{ row.createdAt | date: 'short' }}</td>
+                    <td>{{ row.type }}</td>
+                    <td class="text-end" [class.text-success]="row.changeAmount > 0" [class.text-danger]="row.changeAmount < 0">
+                      {{ row.changeAmount > 0 ? '+' : '' }}{{ row.changeAmount }}
+                    </td>
+                    <td>{{ row.reason || '—' }}</td>
+                    <td>{{ row.createdByName }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <app-pagination-control
+            [page]="ledgerPage()"
+            [pageSize]="ledgerPageSize()"
+            [totalCount]="ledgerTotalCount()"
+            (pageChange)="onLedgerPageChange($event)"
+            (pageSizeChange)="onLedgerPageSizeChange($event)"
+          />
+        }
+      </div>
+    </div>
+  }
+</div>

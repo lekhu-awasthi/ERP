@@ -420,6 +420,25 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid MemberOpeningBalanceViewId = Guid.Parse("00000000-0000-0000-0002-00000000010b");
     private static readonly Guid MemberOpeningBalanceEditId = Guid.Parse("00000000-0000-0000-0002-00000000010c");
 
+    // Phase 18 (CRM completion) -- see PermissionKeys.cs's own comment for the reasoning behind
+    // each key's Admin/Member split. SmsSend is the one Admin-only key in this set (Member row is
+    // an explicit IsGranted=false denial, matching every other Admin-only key's convention).
+    private static readonly Guid AdminSmsSendId = Guid.Parse("00000000-0000-0000-0002-00000000010d");
+    private static readonly Guid MemberSmsSendId = Guid.Parse("00000000-0000-0000-0002-00000000010e");
+
+    private static readonly Guid AdminSmsTemplateViewId = Guid.Parse("00000000-0000-0000-0002-00000000010f");
+    private static readonly Guid AdminSmsTemplateManageId = Guid.Parse("00000000-0000-0000-0002-000000000110");
+    private static readonly Guid MemberSmsTemplateViewId = Guid.Parse("00000000-0000-0000-0002-000000000111");
+    private static readonly Guid MemberSmsTemplateManageId = Guid.Parse("00000000-0000-0000-0002-000000000112");
+
+    private static readonly Guid AdminSmsCreditLedgerViewId = Guid.Parse("00000000-0000-0000-0002-000000000113");
+    private static readonly Guid AdminSmsCreditLedgerAdjustId = Guid.Parse("00000000-0000-0000-0002-000000000114");
+    private static readonly Guid MemberSmsCreditLedgerViewId = Guid.Parse("00000000-0000-0000-0002-000000000115");
+    private static readonly Guid MemberSmsCreditLedgerAdjustId = Guid.Parse("00000000-0000-0000-0002-000000000116");
+
+    private static readonly Guid AdminSmsLogViewId = Guid.Parse("00000000-0000-0000-0002-000000000117");
+    private static readonly Guid MemberSmsLogViewId = Guid.Parse("00000000-0000-0000-0002-000000000118");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -757,6 +776,22 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminOpeningBalanceViewId, Role.AdminId, PermissionKeys.OpeningBalanceView, true),
             RolePermission.Create(AdminOpeningBalanceEditId, Role.AdminId, PermissionKeys.OpeningBalanceEdit, true),
             RolePermission.Create(MemberOpeningBalanceViewId, Role.MemberId, PermissionKeys.OpeningBalanceView, true),
-            RolePermission.Create(MemberOpeningBalanceEditId, Role.MemberId, PermissionKeys.OpeningBalanceEdit, false));
+            RolePermission.Create(MemberOpeningBalanceEditId, Role.MemberId, PermissionKeys.OpeningBalanceEdit, false),
+
+            RolePermission.Create(AdminSmsSendId, Role.AdminId, PermissionKeys.SmsSend, true),
+            RolePermission.Create(MemberSmsSendId, Role.MemberId, PermissionKeys.SmsSend, false),
+
+            RolePermission.Create(AdminSmsTemplateViewId, Role.AdminId, PermissionKeys.SmsTemplateView, true),
+            RolePermission.Create(AdminSmsTemplateManageId, Role.AdminId, PermissionKeys.SmsTemplateManage, true),
+            RolePermission.Create(MemberSmsTemplateViewId, Role.MemberId, PermissionKeys.SmsTemplateView, true),
+            RolePermission.Create(MemberSmsTemplateManageId, Role.MemberId, PermissionKeys.SmsTemplateManage, false),
+
+            RolePermission.Create(AdminSmsCreditLedgerViewId, Role.AdminId, PermissionKeys.SmsCreditLedgerView, true),
+            RolePermission.Create(AdminSmsCreditLedgerAdjustId, Role.AdminId, PermissionKeys.SmsCreditLedgerAdjust, true),
+            RolePermission.Create(MemberSmsCreditLedgerViewId, Role.MemberId, PermissionKeys.SmsCreditLedgerView, true),
+            RolePermission.Create(MemberSmsCreditLedgerAdjustId, Role.MemberId, PermissionKeys.SmsCreditLedgerAdjust, false),
+
+            RolePermission.Create(AdminSmsLogViewId, Role.AdminId, PermissionKeys.SmsLogView, true),
+            RolePermission.Create(MemberSmsLogViewId, Role.MemberId, PermissionKeys.SmsLogView, true));
     }
 }

@@ -2,16 +2,24 @@ using ErpApp.Api.Reports;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
+using ErpApp.Application.Contacts.Commands.AddComment;
 using ErpApp.Application.Contacts.Commands.CreateContact;
 using ErpApp.Application.Contacts.Commands.CreateContactGroup;
+using ErpApp.Application.Contacts.Commands.CreateContactPersonnel;
 using ErpApp.Application.Contacts.Commands.DeactivateContact;
+using ErpApp.Application.Contacts.Commands.RemoveContactPersonnel;
 using ErpApp.Application.Contacts.Commands.UpdateContact;
 using ErpApp.Application.Contacts.Commands.UpdateContactGroup;
+using ErpApp.Application.Contacts.Commands.UpdateContactPersonnel;
 using ErpApp.Application.Contacts.Queries.ContactAgeingSummary;
 using ErpApp.Application.Contacts.Queries.ContactOverview;
 using ErpApp.Application.Contacts.Queries.ContactStatement;
 using ErpApp.Application.Contacts.Queries.GetContact;
+using ErpApp.Application.Contacts.Queries.ListActivities;
+using ErpApp.Application.Contacts.Queries.ListComments;
+using ErpApp.Application.Contacts.Queries.ListContactPersonnel;
 using ErpApp.Application.Contacts.Queries.ListContacts;
+using ErpApp.Application.Crm.Queries.ListSmsLogs;
 using ErpApp.Domain.Contacts;
 using MediatR;
 
@@ -27,6 +35,8 @@ public static class ContactsEndpoints
 
         MapContactGroupEndpoints(group);
         MapContactEndpoints(group);
+        MapContactPersonnelEndpoints(group);
+        MapCommentAndActivityEndpoints(group);
         MapReportEndpoints(group);
     }
 
@@ -116,6 +126,80 @@ public static class ContactsEndpoints
             Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new ContactOverviewQuery(organizationId, id), ct);
+            return Results.Ok(result);
+        });
+    }
+
+    private static void MapContactPersonnelEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/contacts/{contactId:guid}/contact-personnel", async (
+            Guid organizationId, Guid contactId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListContactPersonnelQuery(organizationId, contactId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/contacts/{contactId:guid}/contact-personnel", async (
+            Guid organizationId, Guid contactId, ContactPersonnelRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new CreateContactPersonnelCommand(
+                    organizationId, contactId, request.Name, request.Address, request.Code, request.Phone,
+                    request.GroupId, request.Email, request.OrganizationTitle),
+                ct);
+            return Results.Created($"/api/organizations/{organizationId}/contacts/{contactId}/contact-personnel/{result.Id}", result);
+        });
+
+        group.MapPut("/contacts/{contactId:guid}/contact-personnel/{id:guid}", async (
+            Guid organizationId, Guid contactId, Guid id, ContactPersonnelRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdateContactPersonnelCommand(
+                    organizationId, contactId, id, request.Name, request.Address, request.Code, request.Phone,
+                    request.GroupId, request.Email, request.OrganizationTitle),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapDelete("/contacts/{contactId:guid}/contact-personnel/{id:guid}", async (
+            Guid organizationId, Guid contactId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new RemoveContactPersonnelCommand(organizationId, contactId, id), ct);
+            return Results.NoContent();
+        });
+    }
+
+    private static void MapCommentAndActivityEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/contacts/{contactId:guid}/comments", async (
+            Guid organizationId, Guid contactId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListCommentsQuery(organizationId, contactId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/contacts/{contactId:guid}/comments", async (
+            Guid organizationId, Guid contactId, AddCommentRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new AddCommentCommand(organizationId, contactId, request.Content), ct);
+            return Results.Created($"/api/organizations/{organizationId}/contacts/{contactId}/comments/{result.Id}", result);
+        });
+
+        group.MapGet("/contacts/{contactId:guid}/activities", async (
+            Guid organizationId, Guid contactId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListActivitiesQuery(organizationId, contactId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/contacts/{contactId:guid}/sms-history", async (
+            Guid organizationId, Guid contactId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListSmsLogsQuery(organizationId, contactId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
             return Results.Ok(result);
         });
     }
@@ -237,4 +321,9 @@ public static class ContactsEndpoints
 
     private sealed record UpdateContactRequest(
         string Name, string? Address, string? Pan, string? Phone, string? Email, Guid? GroupId, decimal OpeningBalance);
+
+    private sealed record ContactPersonnelRequest(
+        string Name, string? Address, string? Code, string? Phone, Guid? GroupId, string? Email, string? OrganizationTitle);
+
+    private sealed record AddCommentRequest(string Content);
 }

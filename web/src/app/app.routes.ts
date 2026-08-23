@@ -120,6 +120,11 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'organizations/:id/sms',
+    loadComponent: () => import('./features/crm/sms-shell-page/sms-shell-page').then((m) => m.SmsShellPage),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/products',
     loadComponent: () =>
       import('./features/catalog/product-list-page/product-list-page').then((m) => m.ProductListPage),
@@ -237,6 +242,18 @@ export const routes: Routes = [
     path: 'organizations/:id/sales/quotations/:quotationId',
     loadComponent: () =>
       import('./features/sales/quotation-detail-page/quotation-detail-page').then((m) => m.QuotationDetailPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/sales/sales-orders',
+    loadComponent: () =>
+      import('./features/sales/sales-order-list-page/sales-order-list-page').then((m) => m.SalesOrderListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/sales/sales-orders/:salesOrderId',
+    loadComponent: () =>
+      import('./features/sales/sales-order-detail-page/sales-order-detail-page').then((m) => m.SalesOrderDetailPage),
     canActivate: [authGuard],
   },
   {

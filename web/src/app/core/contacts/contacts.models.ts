@@ -167,3 +167,109 @@ export interface ContactOverviewDto {
   closingBalanceType: BalanceType;
   recentTransactions: ContactOverviewTransactionDto[];
 }
+
+// Phase 18 (Contact Personnel, Attachments, Comments, Activities -- the Contact detail page's
+// remaining tabs: "Contact Personnel", "Documents", "Activity").
+
+export interface ContactPersonnelRowDto {
+  id: string;
+  name: string;
+  address: string | null;
+  code: string | null;
+  phone: string | null;
+  groupId: string | null;
+  groupName: string | null;
+  email: string | null;
+  organizationTitle: string | null;
+  createdAt: string;
+}
+
+export interface ContactPersonnelListDto {
+  rows: ContactPersonnelRowDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface ContactPersonnelRequest {
+  name: string;
+  address: string | null;
+  code: string | null;
+  phone: string | null;
+  groupId: string | null;
+  email: string | null;
+  organizationTitle: string | null;
+}
+
+export interface ContactPersonnelResult {
+  id: string;
+  contactId: string;
+  name: string;
+  address: string | null;
+  code: string | null;
+  phone: string | null;
+  groupId: string | null;
+  email: string | null;
+  organizationTitle: string | null;
+}
+
+export interface AttachmentRowDto {
+  id: string;
+  fileName: string;
+  sizeBytes: number;
+  contentType: string;
+  uploadedByUserId: string;
+  uploadedByName: string;
+  uploadedAt: string;
+}
+
+export interface AttachmentListDto {
+  rows: AttachmentRowDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface AttachmentResult {
+  id: string;
+  parentType: string;
+  parentId: string;
+  fileName: string;
+  sizeBytes: number;
+  contentType: string;
+  uploadedByUserId: string;
+  uploadedByName: string;
+  uploadedAt: string;
+}
+
+export interface CommentRowDto {
+  id: string;
+  content: string;
+  authorUserId: string;
+  authorName: string;
+  createdAt: string;
+}
+
+export interface CommentListDto {
+  rows: CommentRowDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export type ActivityAction = 'Create' | 'Update' | 'Approve' | 'Void';
+
+export interface ActivityRowDto {
+  id: string;
+  action: ActivityAction;
+  userId: string;
+  userName: string;
+  createdAt: string;
+}
+
+export interface ActivityListDto {
+  rows: ActivityRowDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}

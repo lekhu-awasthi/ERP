@@ -2,9 +2,13 @@ using ErpApp.Application.Common.Email;
 using ErpApp.Application.Common.Numbering;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
+using ErpApp.Application.Common.Sms;
+using ErpApp.Application.Common.Storage;
 using ErpApp.Infrastructure.Email;
 using ErpApp.Infrastructure.Identity;
 using ErpApp.Infrastructure.Persistence;
+using ErpApp.Infrastructure.Sms;
+using ErpApp.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -55,6 +59,11 @@ public static class DependencyInjection
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
         services.AddScoped<IDocumentNumberGenerator, DocumentNumberGenerator>();
+
+        services.AddOptions<FileStorageOptions>()
+            .Bind(configuration.GetSection(FileStorageOptions.SectionName));
+        services.AddScoped<IFileStorage, LocalDiskFileStorage>();
+        services.AddScoped<ISmsSender, ConsoleSmsSender>();
 
         return services;
     }

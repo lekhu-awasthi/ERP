@@ -153,6 +153,18 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
 
     public DbSet<OpeningStockLine> OpeningStockLines => Set<OpeningStockLine>();
 
+    public DbSet<Attachment> Attachments => Set<Attachment>();
+
+    public DbSet<ContactPersonnel> ContactPersonnel => Set<ContactPersonnel>();
+
+    public DbSet<Comment> Comments => Set<Comment>();
+
+    public DbSet<SmsTemplate> SmsTemplates => Set<SmsTemplate>();
+
+    public DbSet<SmsLog> SmsLogs => Set<SmsLog>();
+
+    public DbSet<SmsCreditLedgerEntry> SmsCreditLedgerEntries => Set<SmsCreditLedgerEntry>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

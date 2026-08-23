@@ -241,6 +241,13 @@ export interface ApproveSalesOrderResult {
   approvedAt: string | null;
 }
 
+export interface VoidSalesOrderResult {
+  id: string;
+  code: string;
+  status: SalesOrderStatus;
+  voidedAt: string | null;
+}
+
 export interface CreditNoteLineInput {
   productId: string;
   quantity: number;

@@ -24,6 +24,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
   - `phase-16a` — the Void lifecycle's reversal mechanism (`GlJournalEntry.PostReversalOf`, `IStockLedgerService.ReverseIncrementAsync`) and `LockDateBehavior`'s two-marker-interface split — read before building any future document type's own reversal, or before running `dotnet ef` right after a single-project (not full-solution) rebuild
   - `phase-16b` — before adding any per-line/per-document adjustment field (discount, future surcharge/rounding): the "fold every adjustment into the stored `Line.Amount`/`VatAmount` so GL/report code needs zero changes" pattern, and the "confirm live which GL account it posts to before writing any posting-rule code" precedent (discount turned out to have none)
   - `phase-16c` — before adding a footer/summary total to any paginated screen (it must come from a server-computed field over the *full* filtered set, never a client-side reduce over the current page — a bug this phase found in four pre-existing report pages); before writing any file-download endpoint (Kestrel disallows synchronous writes to the live response stream — ClosedXML/any sync-only writer must target a `MemoryStream` first, then `CopyToAsync` the real stream)
+  - `phase-18` — before designing a second polymorphic (ParentType, ParentId) entity: confirm live whether it's really the same concept as an existing one (`Attachment` vs. `WorkTask`) before reusing its enum — Decision #2's Contact-Documents-vs-Workflow-Document split; before assuming a new "sub-record of a Contact" needs Phase 4's full-collection-replace treatment — confirm live whether the real UI even submits it as a list (`ContactPersonnel` didn't, so it's a standalone entity like `WorkTask`/`Deal`, sidestepping the gotcha by design); before writing any Minimal API endpoint that binds `IFormFile` (needs `.DisableAntiforgery()` — see Known Gotchas)
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -94,6 +95,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A footer/summary total on any paginated screen must be computed server-side from the *full* filtered result, never a client-side `.reduce()`/sum over the currently-loaded page — the moment a list becomes paginated, the client only holds one page, so a pre-existing client-side total silently starts showing a page subtotal with no error and no failing test. Four report pages had exactly this latent bug, caught only by re-reading the Angular templates before assuming pagination was purely a backend change. See `docs/phase-16c-status.md`'s bug #1.
 - This Angular app is **zoneless** (Angular 21 default — confirmed by no `zone.js` in `web/package.json`). A `computed()` signal only re-evaluates when a tracked *signal* it read during its last evaluation changes; wrapping a read of a plain (non-signal) mutable value inside `computed()` — most commonly `FormControl.value` from a Reactive Forms group — silently caches the first result forever, since the computed has no signal dependency to invalidate it on. A direct (uncached) template read of the same `form.controls.x.value`, by contrast, works fine — zoneless change detection still reruns the template function after an Angular-bound DOM event (`(change)`, `(click)`, etc.), so a plain property read comes back fresh every time. `tsc`/`ng build` cannot catch this class of bug; it only surfaces as a UI element silently never updating, caught in Phase 17 only by live browser testing (`quick-payment-page`'s Cheque Details section never appearing after selecting a Cheque-mode Payment Mode). Fix: track the value driving conditional UI in its own plain `signal()`, written directly by the control's `(change)`/`(input)` handler, rather than deriving it from the FormGroup inside a `computed()`.
 - ClosedXML's (and any other sync-only writer's) `SaveAs(Stream)` cannot target a live ASP.NET Core response stream directly — Kestrel disallows synchronous writes there by default and throws `InvalidOperationException: Synchronous operations are disallowed`, surfacing only as a generic 500 unless you check the server's own console log (an InMemory-provider unit test never touches a real Kestrel response, so nothing catches this except manual E2E against the real server). `SaveAs` into a `MemoryStream` first, then `CopyToAsync` that buffer to the real response stream. See `docs/phase-16c-status.md`'s bug #3 and `ReportSpreadsheetExporter.WriteWorkbookAsync`.
+- A Minimal API endpoint that binds an `IFormFile` parameter gets antiforgery metadata attached automatically by ASP.NET Core, even though nothing about the endpoint asked for it — every request 500s with `InvalidOperationException: ... contains anti-forgery metadata, but a middleware was not found` unless `app.UseAntiforgery()` is registered (it isn't, anywhere, in this app — CSRF mitigation here is the explicit CORS origin allow-list plus the httpOnly JWT cookie, not antiforgery tokens) or the endpoint opts out explicitly with `.DisableAntiforgery()`. Surfaces only via manual E2E against the real server (an InMemory-provider unit test never touches real Minimal API endpoint metadata). See `docs/phase-18-status.md`'s bug #1 and `AttachmentsEndpoints.cs`'s upload route.
 
 ## Current status
 
@@ -103,46 +105,43 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 > `docs/phase-N-status.md` and the roadmap's index table; never append essay-length phase
 > write-ups here, and never keep more than the latest one or two phases in this section.
 
-**Phase 17 (Accounting breadth) is complete** — five surfaces: Quick Payment/Receipt, Bank
-Accounts, Cheque Register, Allocate Customer/Supplier Payment, Opening Balances. The blocking
-prerequisite, `Payment.Approve()`'s allocation invariant, relaxed from "exactly Amount" to "at most
-Amount" (a zero/partially-allocated Payment can now be Approved), plus a new
-`Payment.AllocateFurther()` letting an already-Approved Payment take on more allocation later — the
-Allocate screens' own write path. New `AccountKind` (Bank/Cash — live-confirmed no third "Wallet"
-kind) + `Bank` lookup on `Account`; `Cheque` aggregate with a 5-state status and an explicit
-allowed-transition table, linked to Payment via a new `PaymentMode.RequiresChequeDetails` flag;
-`OpeningBalanceLine`/`OpeningStockLine` posting real GL entries / FIFO layers immediately on save
-(no Draft/Approve lifecycle), corrections reversing the prior posting first rather than netting by
-hand. Live confirmation against the Tigg reference product turned up one real surprise: Tigg's own
-"Quick Receipt" is a generic multi-line-Accounts document, not a thin Payment variant — doesn't fit
-this codebase's Contact/Account separation, so Quick Payment/Receipt here stays a thin
-`CreatePaymentCommand`/`ApprovePaymentCommand` variant with zero allocations instead (functionally
-equivalent, differently shaped). JournalVoucher-as-allocation-source, initially deferred (flagged
-via `spawn_task`), was picked up the same day as a follow-up: `PaymentAllocation.PaymentId` became
-`SourceType`/`SourceId` (`DocumentType`-discriminated, mirroring `TargetDocumentType`/
-`TargetDocumentId`), `JournalVoucherLine` gained a nullable `ContactId`, and `Payment.Allocations`
-stopped being an EF-navigable collection (no DB-level FK survives a polymorphic column pointing at
-two tables) — every former `.Include(x => x.Allocations)` call site now queries
-`PaymentAllocations` directly and calls a new `Payment.AttachAllocations()` hydration method. Four
-pre-existing "already allocated" consumers (Ageing, both Void guards, the FIFO-suggestion query)
-stayed scoped to Payment-sourced allocations only, flagged as a fresh known limitation rather than
-silently extended. Two bugs caught only by live browser testing, not `tsc`/`ng build`: a `computed()` wrapping a
-`FormControl.value` read never re-evaluates in this zoneless app (see Known Gotchas), and a
-Quick-Payment success toast showed the pre-Approve `"DRAFT"` code instead of the real one. Tests:
-Domain.UnitTests 112 (was 76), Application.UnitTests 231 (was 216), Angular 7 specs (unchanged),
-`ng build`/`tsc --noEmit` clean — all green. Manual E2E via curl + browser against a fresh
-Organization: Bank Account/Trial Balance/`sqlcmd` all agreed on a corrected (not summed) opening
-balance; Opening Stock fed Stock Position with zero report changes and correctly rejected a
-correction attempt after the layer was partly consumed (no partial-write damage, `sqlcmd`-verified);
-a Cheque cycled Pending→Deposited→Bounced with the Bank Account balance unchanged throughout and
-the terminal-state guard rejected a backward transition; a live Allocate-screen application moved a
-Payment to the Allocated tab and dropped the target Invoice's balance by exactly the applied
-amount; every new endpoint's 403 named its own exact permission key. Addendum manual E2E: created
-and Approved a Contact-tagged JournalVoucher line, confirmed it surfaced on the Allocate screen
-alongside Payment rows, applied it against a real Invoice, and cross-checked via `sqlcmd` that the
-resulting `PaymentAllocations` row carries `SourceType='JournalVoucher'` and `SourceId` equal to the
-contributing line's own Id. Full reasoning in `docs/phase-17-status.md`, including a known
-pre-existing (not-this-phase) gap: allocation amount isn't capped against the target document's own
-remaining balance, only the source Payment's/JournalVoucher line's own.
+**Phase 18 (CRM completion) is complete** — `IFileStorage` (local-disk dev implementation, the
+codebase's first file-storage abstraction, reused as-is by Phase 22 later); `Attachment` (polymorphic
+like `WorkTask` but its own `AttachmentParentType` enum — live-confirmed Contact Documents and
+Workflow Document are visually/functionally distinct screens in the reference product, so the two
+enums stay separate); `ContactPersonnel`/`Comment` (standalone entities referencing `ContactId`
+directly, not an encapsulated child collection — live-confirmed the real dialog adds/edits/removes
+one row at a time, so the Phase 4 full-collection-replace gotcha doesn't apply, by design); a real
+auto-generated Activity feed reusing Phase 16d's `Audit`/`AuditBehavior` exactly as its own doc
+comment anticipated (Phase 18 is the first caller — `CreateContact`/`UpdateContact` were retrofitted
+with `IAuditableRequest`, closing a pre-existing "Contact writes were never audited" gap); full SMS
+(`SmsTemplate`/`SmsLog`/`SmsCreditLedgerEntry`, `ISmsSender`/console dev impl, `SendSmsCommand` with
+per-recipient merge-field resolution — `$[name]$`/`$[balance]$`/`$[balance_date]$`, live-confirmed
+syntax — and atomicity achieved by construction: every send happens before a single terminal
+`SaveChangesAsync`, so a mid-batch failure leaves zero partial rows by construction, not rollback
+machinery). Quick-action prefill (`?contactId=`, read reactively via `route.queryParamMap`) on 4
+routes from the Contact OPTION menu. Scope expansion, user-approved mid-phase: Sales Order never had
+an Angular UI (deliberately deferred in Phase 5, still true as of Phase 16b) — since "Create Sales
+Order" is one of FR-4.6's four quick actions, a minimal list/detail page mirroring Quotation's exact
+shape was built so the quick action has a real target. Two real bugs, both caught only by manual E2E
+against the real server, not `tsc`/`ng build`/InMemory-provider tests: a Minimal API endpoint binding
+`IFormFile` needs `.DisableAntiforgery()` or every upload 500s (this app has no antiforgery
+middleware at all); and `ListSalesOrdersQuery` was missing `IRequirePermission`/`IOrganizationScoped`
+— found while wiring the new Sales Order page, this turned out to be a pre-existing, codebase-wide
+gap shared by 8 sibling List queries across Sales/Purchasing/Payments (a real cross-tenant data leak
+predating this phase), fixed here only for the one query this phase newly exposes and flagged as an
+urgent separate `spawn_task` for the rest. Tests: Domain.UnitTests 125 (was 112), Application.UnitTests
+242 (was 231), Angular 7 specs (unchanged), `ng build`/`tsc --noEmit` clean — all green. Manual E2E via
+curl + `sqlcmd` + live browser against a fresh Organization: Attachments round-trip through real
+on-disk files (byte-identical download, zero orphans after delete, cross-tenant access 404s, not
+200s); SMS sends are atomic (insufficient credit → zero rows; a real 3-recipient send → exactly 3
+rows with genuinely different merge-resolved text, ledger decremented by exactly 3, `sqlcmd`-verified
+throughout); every new Admin-only permission key 403s a real invited Member by its exact name; all 4
+quick actions verified by reading the target form's actual bound control value (not just its visible
+label); a live-created Sales Order went Draft → Approve (real sequential number assigned) → appears
+correctly in its own list. Full reasoning in `docs/phase-18-status.md`, including known limitations:
+Email Logs has no backing capability (flagged via `spawn_task`), SMS credit purchase/billing has no
+UI (flagged via `spawn_task`), and the Activities feed doesn't include Task/Deal events (out of
+scope — those aggregates weren't touched this phase).
 
-**Next up: Phase 18 — CRM completion.** See `docs/roadmap.md`'s Phase 18 section for the task breakdown and the completed-phase index table for everything prior.
+**Next up: Phase 19 — Reporting Tags + remaining reports.** See `docs/roadmap.md`'s Phase 19 section for the task breakdown and the completed-phase index table for everything prior.
