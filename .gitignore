@@ -7,6 +7,10 @@ obj/
 TestResults/
 artifacts/
 
+# Local file storage (Phase 18's IFileStorage local-disk dev implementation) — uploaded files land
+# here at runtime, never something to commit.
+src/Api/App_Data/
+
 # Angular / Node
 web/node_modules/
 web/dist/

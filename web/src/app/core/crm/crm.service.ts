@@ -4,11 +4,20 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import {
+  AdjustSmsCreditRequest,
   CreateDealRequest,
   CreateDealResult,
   DealListDto,
   DealStatus,
   MoveDealToStageRequest,
+  SendSmsRequest,
+  SendSmsResult,
+  SmsCreditAdjustmentResult,
+  SmsCreditLedgerDto,
+  SmsLogListDto,
+  SmsTemplateListDto,
+  SmsTemplateRequest,
+  SmsTemplateResult,
   UpdateDealRequest,
 } from './crm.models';
 
@@ -55,5 +64,54 @@ export class CrmService {
 
   markDealLost(organizationId: string, id: string): Observable<void> {
     return this.http.post<void>(`${this.baseUrl(organizationId)}/deals/${id}/mark-lost`, {}, { withCredentials: true });
+  }
+
+  // --- SMS module (Phase 18) ---
+
+  listSmsTemplates(organizationId: string, page = 1, pageSize = 50): Observable<SmsTemplateListDto> {
+    return this.http.get<SmsTemplateListDto>(`${this.baseUrl(organizationId)}/sms/templates`, {
+      withCredentials: true,
+      params: { page: String(page), pageSize: String(pageSize) },
+    });
+  }
+
+  createSmsTemplate(organizationId: string, request: SmsTemplateRequest): Observable<SmsTemplateResult> {
+    return this.http.post<SmsTemplateResult>(`${this.baseUrl(organizationId)}/sms/templates`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updateSmsTemplate(organizationId: string, id: string, request: SmsTemplateRequest): Observable<SmsTemplateResult> {
+    return this.http.put<SmsTemplateResult>(`${this.baseUrl(organizationId)}/sms/templates/${id}`, request, {
+      withCredentials: true,
+    });
+  }
+
+  deleteSmsTemplate(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/sms/templates/${id}`, { withCredentials: true });
+  }
+
+  listSmsCreditLedger(organizationId: string, page = 1, pageSize = 50): Observable<SmsCreditLedgerDto> {
+    return this.http.get<SmsCreditLedgerDto>(`${this.baseUrl(organizationId)}/sms/credit-ledger`, {
+      withCredentials: true,
+      params: { page: String(page), pageSize: String(pageSize) },
+    });
+  }
+
+  adjustSmsCredit(organizationId: string, request: AdjustSmsCreditRequest): Observable<SmsCreditAdjustmentResult> {
+    return this.http.post<SmsCreditAdjustmentResult>(`${this.baseUrl(organizationId)}/sms/credit-ledger/adjust`, request, {
+      withCredentials: true,
+    });
+  }
+
+  listSmsHistory(organizationId: string, page = 1, pageSize = 50): Observable<SmsLogListDto> {
+    return this.http.get<SmsLogListDto>(`${this.baseUrl(organizationId)}/sms/history`, {
+      withCredentials: true,
+      params: { page: String(page), pageSize: String(pageSize) },
+    });
+  }
+
+  sendSms(organizationId: string, request: SendSmsRequest): Observable<SendSmsResult> {
+    return this.http.post<SendSmsResult>(`${this.baseUrl(organizationId)}/sms/send`, request, { withCredentials: true });
   }
 }

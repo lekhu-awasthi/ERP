@@ -4,11 +4,20 @@ import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
+import { SmsLogListDto } from '../crm/crm.models';
 import {
+  ActivityListDto,
+  AttachmentListDto,
+  AttachmentResult,
+  CommentListDto,
+  CommentRowDto,
   Contact,
   ContactAgeingSummaryDto,
   ContactGroup,
   ContactOverviewDto,
+  ContactPersonnelListDto,
+  ContactPersonnelRequest,
+  ContactPersonnelResult,
   ContactStatementDto,
   ContactType,
   CreateContactGroupRequest,
@@ -217,6 +226,95 @@ export class ContactsService {
     return this.http.get<ContactStatementDto>(`${this.baseUrl(organizationId)}/reports/${route}`, {
       withCredentials: true,
       params: { contactId, fromDate, toDate, page: String(page), pageSize: String(pageSize) },
+    });
+  }
+
+  // --- Contact Personnel (Phase 18) ---
+
+  listContactPersonnel(organizationId: string, contactId: string, page = 1, pageSize = 50): Observable<ContactPersonnelListDto> {
+    return this.http.get<ContactPersonnelListDto>(`${this.baseUrl(organizationId)}/contacts/${contactId}/contact-personnel`, {
+      withCredentials: true,
+      params: { page: String(page), pageSize: String(pageSize) },
+    });
+  }
+
+  createContactPersonnel(
+    organizationId: string, contactId: string, request: ContactPersonnelRequest,
+  ): Observable<ContactPersonnelResult> {
+    return this.http.post<ContactPersonnelResult>(
+      `${this.baseUrl(organizationId)}/contacts/${contactId}/contact-personnel`, request, { withCredentials: true },
+    );
+  }
+
+  updateContactPersonnel(
+    organizationId: string, contactId: string, id: string, request: ContactPersonnelRequest,
+  ): Observable<ContactPersonnelResult> {
+    return this.http.put<ContactPersonnelResult>(
+      `${this.baseUrl(organizationId)}/contacts/${contactId}/contact-personnel/${id}`, request, { withCredentials: true },
+    );
+  }
+
+  deleteContactPersonnel(organizationId: string, contactId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/contacts/${contactId}/contact-personnel/${id}`, {
+      withCredentials: true,
+    });
+  }
+
+  // --- Attachments (Phase 18) -- "Documents" tab ---
+
+  listAttachments(organizationId: string, contactId: string, page = 1, pageSize = 50): Observable<AttachmentListDto> {
+    return this.http.get<AttachmentListDto>(`${this.baseUrl(organizationId)}/contacts/${contactId}/attachments`, {
+      withCredentials: true,
+      params: { page: String(page), pageSize: String(pageSize) },
+    });
+  }
+
+  uploadAttachment(organizationId: string, contactId: string, file: File): Observable<AttachmentResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<AttachmentResult>(`${this.baseUrl(organizationId)}/contacts/${contactId}/attachments`, formData, {
+      withCredentials: true,
+    });
+  }
+
+  downloadAttachment(organizationId: string, id: string): Observable<Blob> {
+    return this.http.get(`${this.baseUrl(organizationId)}/attachments/${id}/download`, {
+      withCredentials: true,
+      responseType: 'blob',
+    });
+  }
+
+  deleteAttachment(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/attachments/${id}`, { withCredentials: true });
+  }
+
+  // --- Comments, Activities, per-contact SMS history (Phase 18) -- the "Activity" tab's 3 sub-tabs
+  // (Email Logs has no backend capability at all, see contact-detail-page's own comment) ---
+
+  listComments(organizationId: string, contactId: string, page = 1, pageSize = 50): Observable<CommentListDto> {
+    return this.http.get<CommentListDto>(`${this.baseUrl(organizationId)}/contacts/${contactId}/comments`, {
+      withCredentials: true,
+      params: { page: String(page), pageSize: String(pageSize) },
+    });
+  }
+
+  addComment(organizationId: string, contactId: string, content: string): Observable<CommentRowDto> {
+    return this.http.post<CommentRowDto>(
+      `${this.baseUrl(organizationId)}/contacts/${contactId}/comments`, { content }, { withCredentials: true },
+    );
+  }
+
+  listActivities(organizationId: string, contactId: string, page = 1, pageSize = 50): Observable<ActivityListDto> {
+    return this.http.get<ActivityListDto>(`${this.baseUrl(organizationId)}/contacts/${contactId}/activities`, {
+      withCredentials: true,
+      params: { page: String(page), pageSize: String(pageSize) },
+    });
+  }
+
+  listContactSmsHistory(organizationId: string, contactId: string, page = 1, pageSize = 50): Observable<SmsLogListDto> {
+    return this.http.get<SmsLogListDto>(`${this.baseUrl(organizationId)}/contacts/${contactId}/sms-history`, {
+      withCredentials: true,
+      params: { page: String(page), pageSize: String(pageSize) },
     });
   }
 

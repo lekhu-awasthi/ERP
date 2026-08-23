@@ -1,10 +1,18 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Crm.Commands.AdjustSmsCredit;
 using ErpApp.Application.Crm.Commands.CreateDeal;
+using ErpApp.Application.Crm.Commands.CreateSmsTemplate;
+using ErpApp.Application.Crm.Commands.DeleteSmsTemplate;
 using ErpApp.Application.Crm.Commands.MarkDealLost;
 using ErpApp.Application.Crm.Commands.MarkDealWon;
 using ErpApp.Application.Crm.Commands.MoveDealToStage;
+using ErpApp.Application.Crm.Commands.SendSms;
 using ErpApp.Application.Crm.Commands.UpdateDeal;
+using ErpApp.Application.Crm.Commands.UpdateSmsTemplate;
 using ErpApp.Application.Crm.Queries.ListDeals;
+using ErpApp.Application.Crm.Queries.ListSmsCreditLedger;
+using ErpApp.Application.Crm.Queries.ListSmsLogs;
+using ErpApp.Application.Crm.Queries.ListSmsTemplates;
 using ErpApp.Domain.Crm;
 using MediatR;
 
@@ -69,6 +77,74 @@ public static class CrmEndpoints
             var result = await sender.Send(new MarkDealLostCommand(organizationId, id), ct);
             return Results.Ok(result);
         });
+
+        MapSmsEndpoints(group);
+    }
+
+    private static void MapSmsEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/sms/templates", async (
+            Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListSmsTemplatesQuery(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/sms/templates", async (
+            Guid organizationId, SmsTemplateRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new CreateSmsTemplateCommand(organizationId, request.Title, request.Content), ct);
+            return Results.Created($"/api/organizations/{organizationId}/sms/templates/{result.Id}", result);
+        });
+
+        group.MapPut("/sms/templates/{id:guid}", async (
+            Guid organizationId, Guid id, SmsTemplateRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new UpdateSmsTemplateCommand(organizationId, id, request.Title, request.Content), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapDelete("/sms/templates/{id:guid}", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteSmsTemplateCommand(organizationId, id), ct);
+            return Results.NoContent();
+        });
+
+        group.MapGet("/sms/credit-ledger", async (
+            Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListSmsCreditLedgerQuery(organizationId, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/sms/credit-ledger/adjust", async (
+            Guid organizationId, AdjustSmsCreditRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new AdjustSmsCreditCommand(organizationId, request.ChangeAmount, request.Reason), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/sms/history", async (
+            Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListSmsLogsQuery(organizationId, ContactId: null, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/sms/send", async (
+            Guid organizationId, SendSmsRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new SendSmsCommand(
+                    organizationId, request.AudienceMode, request.ContactGroupId, request.ContactIds,
+                    request.TemplateId, request.Title, request.Content),
+                ct);
+            return Results.Ok(result);
+        });
     }
 
     private sealed record CreateDealRequest(
@@ -91,4 +167,16 @@ public static class CrmEndpoints
         bool IsPrivate);
 
     private sealed record MoveDealToStageRequest(Guid DealStageId);
+
+    private sealed record SmsTemplateRequest(string Title, string Content);
+
+    private sealed record AdjustSmsCreditRequest(int ChangeAmount, string? Reason);
+
+    private sealed record SendSmsRequest(
+        SmsAudienceMode AudienceMode,
+        Guid? ContactGroupId,
+        IReadOnlyList<Guid>? ContactIds,
+        Guid? TemplateId,
+        string Title,
+        string Content);
 }

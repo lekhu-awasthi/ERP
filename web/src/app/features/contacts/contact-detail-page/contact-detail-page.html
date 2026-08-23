@@ -57,6 +57,16 @@
               <button
                 type="button"
                 class="list-group-item list-group-item-action fw-semibold"
+                [class.active]="activeTab() === 'Personnel'"
+                (click)="switchTab('Personnel')"
+              >
+                <i class="bi bi-person-lines-fill me-2"></i> Contact Personnel
+              </button>
+            }
+            @if (!isNew()) {
+              <button
+                type="button"
+                class="list-group-item list-group-item-action fw-semibold"
                 [class.active]="activeTab() === 'Tasks'"
                 (click)="switchTab('Tasks')"
               >
@@ -71,6 +81,26 @@
                 (click)="switchTab('Deals')"
               >
                 <i class="bi bi-currency-exchange me-2"></i> Deals
+              </button>
+            }
+            @if (!isNew()) {
+              <button
+                type="button"
+                class="list-group-item list-group-item-action fw-semibold"
+                [class.active]="activeTab() === 'Documents'"
+                (click)="switchTab('Documents')"
+              >
+                <i class="bi bi-folder2-open me-2"></i> Documents
+              </button>
+            }
+            @if (!isNew()) {
+              <button
+                type="button"
+                class="list-group-item list-group-item-action fw-semibold"
+                [class.active]="activeTab() === 'Activity'"
+                (click)="switchTab('Activity')"
+              >
+                <i class="bi bi-clock-history me-2"></i> Activity
               </button>
             }
           </div>
@@ -92,6 +122,30 @@
             <div class="card-body p-4">
               <h6 class="fw-bold text-dark mb-3">Deals</h6>
               <app-deal-list [organizationId]="organizationId" [contactId]="routeContactId" />
+            </div>
+          </div>
+        }
+        @if (activeTab() === 'Personnel' && !isNew()) {
+          <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+              <h6 class="fw-bold text-dark mb-3">Contact Personnel</h6>
+              <app-contact-personnel-list [organizationId]="organizationId" [contactId]="routeContactId" />
+            </div>
+          </div>
+        }
+        @if (activeTab() === 'Documents' && !isNew()) {
+          <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+              <h6 class="fw-bold text-dark mb-3">Documents</h6>
+              <app-attachment-list [organizationId]="organizationId" [contactId]="routeContactId" />
+            </div>
+          </div>
+        }
+        @if (activeTab() === 'Activity' && !isNew()) {
+          <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+              <h6 class="fw-bold text-dark mb-3">Activity</h6>
+              <app-activity-panel [organizationId]="organizationId" [contactId]="routeContactId" />
             </div>
           </div>
         }
@@ -119,11 +173,37 @@
                           <i class="bi bi-slash-circle me-2"></i> Deactivate
                         </button>
                       }
+                      <div class="dropdown-divider"></div>
+                      <button type="button" class="dropdown-item" (click)="sendSms()">
+                        <i class="bi bi-chat-dots me-2"></i> Send SMS
+                      </button>
+                      <button type="button" class="dropdown-item" (click)="recordPayment()">
+                        <i class="bi bi-cash-coin me-2"></i> Record Payment
+                      </button>
+                      <button type="button" class="dropdown-item" (click)="createInvoice()">
+                        <i class="bi bi-receipt me-2"></i> Create Invoice
+                      </button>
+                      <button type="button" class="dropdown-item" (click)="createQuotation()">
+                        <i class="bi bi-file-earmark-text me-2"></i> Create Quotation
+                      </button>
+                      <button type="button" class="dropdown-item" (click)="createSalesOrder()">
+                        <i class="bi bi-cart-check me-2"></i> Create Sales Order
+                      </button>
                     </div>
                   }
                 </div>
               }
             </div>
+
+            @if (showSendSms()) {
+              <div class="border rounded-3 p-3 mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h6 class="fw-bold text-dark mb-0 small">Send SMS</h6>
+                  <button type="button" class="btn-close" aria-label="Close" (click)="closeSendSms()"></button>
+                </div>
+                <app-send-sms-form [organizationId]="organizationId" [lockedContactId]="routeContactId" (sent)="closeSendSms()" />
+              </div>
+            }
 
             @if (editing()) {
               <form [formGroup]="form" (ngSubmit)="save()">

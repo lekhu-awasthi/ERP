@@ -89,6 +89,12 @@ public interface IAppDbContext
     DbSet<Audit> Audits { get; }
     DbSet<OpeningBalanceLine> OpeningBalanceLines { get; }
     DbSet<OpeningStockLine> OpeningStockLines { get; }
+    DbSet<Attachment> Attachments { get; }
+    DbSet<ContactPersonnel> ContactPersonnel { get; }
+    DbSet<Comment> Comments { get; }
+    DbSet<SmsTemplate> SmsTemplates { get; }
+    DbSet<SmsLog> SmsLogs { get; }
+    DbSet<SmsCreditLedgerEntry> SmsCreditLedgerEntries { get; }
 
     /// <summary>
     /// Generic accessor mirroring DbContext's own Set&lt;TEntity&gt;() -- lets the generic

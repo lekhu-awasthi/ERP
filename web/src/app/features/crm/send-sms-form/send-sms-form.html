@@ -1,0 +1,101 @@
+<div>
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-3" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+  @if (successResult(); as result) {
+    <div class="alert alert-success d-flex align-items-center gap-2 mb-3" role="alert">
+      <i class="bi bi-check-circle-fill"></i>
+      <div>
+        Sent to {{ result.recipientCount }} recipient(s), used {{ result.creditsUsed }} credit(s). Remaining balance:
+        {{ result.remainingBalance }}.
+      </div>
+    </div>
+  }
+
+  <div class="mb-3">
+    <label class="form-label small fw-semibold">Audience</label>
+    @if (isLocked()) {
+      <div class="form-control-plaintext small">
+        <span class="badge bg-primary-subtle text-primary">{{ lockedContactLabel() }}</span>
+      </div>
+    } @else {
+      <div class="btn-group w-100 mb-2" role="group">
+        @for (mode of audienceModes; track mode) {
+          <button
+            type="button"
+            class="btn btn-sm"
+            [class.btn-primary]="audienceMode() === mode"
+            [class.btn-outline-primary]="audienceMode() !== mode"
+            (click)="selectAudienceMode(mode)"
+          >
+            {{ mode === 'All' ? 'All Contacts' : mode === 'ContactGroup' ? 'Contact Group' : 'Custom' }}
+          </button>
+        }
+      </div>
+
+      @if (audienceMode() === 'ContactGroup') {
+        <select class="form-select form-select-sm" (change)="onContactGroupChange($event)">
+          <option value="" [selected]="!contactGroupId()">Select a group</option>
+          @for (group of contactGroups(); track group.id) {
+            <option [value]="group.id" [selected]="group.id === contactGroupId()">{{ group.name }}</option>
+          }
+        </select>
+      }
+
+      @if (audienceMode() === 'Custom') {
+        <div class="border rounded-3 p-2" style="max-height: 200px; overflow-y: auto;">
+          @for (contact of contacts(); track contact.id) {
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                [id]="'sms-contact-' + contact.id"
+                [checked]="selectedContactIds().has(contact.id)"
+                (change)="toggleContact(contact.id)"
+              />
+              <label class="form-check-label small" [for]="'sms-contact-' + contact.id">
+                {{ contact.code }} — {{ contact.name }}
+              </label>
+            </div>
+          }
+        </div>
+        <p class="text-muted small mt-1 mb-0">{{ selectedContactIds().size }} contact(s) selected.</p>
+      }
+    }
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label small fw-semibold">Template (optional)</label>
+    <select class="form-select form-select-sm" (change)="onTemplateChange($event)">
+      <option value="" [selected]="!templateId()">None -- write your own</option>
+      @for (template of templates(); track template.id) {
+        <option [value]="template.id" [selected]="template.id === templateId()">{{ template.title }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label small fw-semibold">Title</label>
+    <input type="text" class="form-control form-control-sm" [value]="title()" (input)="onTitleChange($event)" />
+  </div>
+
+  <div class="mb-2">
+    <label class="form-label small fw-semibold">Content</label>
+    <textarea class="form-control form-control-sm" rows="4" [value]="content()" (input)="onContentChange($event)"></textarea>
+  </div>
+  <p class="text-muted small mb-3">
+    Use <code>$[name]$</code>, <code>$[balance]$</code>, <code>$[balance_date]$</code> to personalize each message --
+    these merge fields work in every send, including bulk.
+  </p>
+
+  <button type="button" class="btn btn-primary fw-bold btn-sm" [disabled]="sending()" (click)="send()">
+    @if (sending()) {
+      <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+    } @else {
+      <i class="bi bi-send"></i> Send SMS
+    }
+  </button>
+</div>

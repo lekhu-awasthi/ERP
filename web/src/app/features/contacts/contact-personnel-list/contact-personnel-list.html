@@ -1,0 +1,118 @@
+<div>
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-3" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <span></span>
+    @if (!showForm()) {
+      <button type="button" class="btn btn-outline-primary btn-sm" (click)="startCreate()">
+        <i class="bi bi-plus-lg"></i> Add Contact Person
+      </button>
+    }
+  </div>
+
+  @if (showForm()) {
+    <form [formGroup]="form" (ngSubmit)="save()" class="border rounded-3 p-3 mb-3">
+      <div class="row g-2">
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold">Name</label>
+          <input type="text" class="form-control form-control-sm" formControlName="name" />
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold">Title</label>
+          <input type="text" class="form-control form-control-sm" formControlName="organizationTitle" />
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold">Code</label>
+          <input type="text" class="form-control form-control-sm" formControlName="code" />
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold">Group</label>
+          <select class="form-select form-select-sm" formControlName="groupId">
+            <option value="">None</option>
+            @for (group of groups(); track group.id) {
+              <option [value]="group.id">{{ group.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold">Phone</label>
+          <input type="text" class="form-control form-control-sm" formControlName="phone" />
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold">Email</label>
+          <input type="email" class="form-control form-control-sm" formControlName="email" />
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Address</label>
+          <input type="text" class="form-control form-control-sm" formControlName="address" />
+        </div>
+      </div>
+      <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-primary btn-sm fw-bold" [disabled]="saving()">
+          @if (saving()) {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+          } @else {
+            Save
+          }
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelForm()">Cancel</button>
+      </div>
+    </form>
+  }
+
+  @if (loading()) {
+    <div class="text-center py-4">
+      <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+    </div>
+  } @else if (rows().length === 0) {
+    <p class="text-muted small mb-0">No contact persons yet.</p>
+  } @else {
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr class="text-muted small">
+            <th>Name</th>
+            <th>Title</th>
+            <th>Group</th>
+            <th>Phone</th>
+            <th>Email</th>
+            <th style="width: 90px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.id) {
+            <tr>
+              <td class="fw-semibold">{{ row.name }}</td>
+              <td>{{ row.organizationTitle || '—' }}</td>
+              <td>{{ groupName(row.groupId) }}</td>
+              <td>{{ row.phone || '—' }}</td>
+              <td>{{ row.email || '—' }}</td>
+              <td>
+                <div class="d-flex gap-1">
+                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="startEdit(row)">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-danger btn-sm" (click)="remove(row)">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-pagination-control
+      [page]="page()"
+      [pageSize]="pageSize()"
+      [totalCount]="totalCount()"
+      (pageChange)="onPageChange($event)"
+      (pageSizeChange)="onPageSizeChange($event)"
+    />
+  }
+</div>

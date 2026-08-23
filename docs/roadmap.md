@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–14)
+## Completed phases (0–18)
 
 Detail lives in each phase's own status doc — this table is the index, not the history.
 
@@ -34,6 +34,8 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 16b | Discounts retrofit: line/header `DiscountPct` across all 7 Product-line document types | `phase-16b-status.md` |
 | 16c | Pagination (`PagedResult<T>`, shared Angular pagination component) + report export (ClosedXML, current view/full dataset) | `phase-16c-status.md` |
 | 16d | System Audit report: append-only `Audit` trail via `AuditBehavior` pipeline step, `Reports.SystemAudit.View` report screen | `phase-16d-status.md` |
+| 17 | Accounting breadth: Quick Payment/Receipt, Bank Accounts, Cheque Register, Allocate Customer/Supplier Payment, Opening Balances; `PaymentAllocation` generalized to a polymorphic Payment/JournalVoucher source | `phase-17-status.md` |
+| 18 | CRM completion: `IFileStorage` (local-disk), `Attachment`/Contact Personnel/Comment (Contact-scoped), Activity feed (reused `Audit`/`AuditBehavior`), SMS (`SmsTemplate`/`SmsLog`/`SmsCreditLedgerEntry`, `ISmsSender`), quick-action prefill, Sales Order Angular UI (a pre-existing Phase 5 gap, closed here) | `phase-18-status.md` |
 
 ---
 
@@ -97,30 +99,6 @@ seeded rows.*
 
 ---
 
-## Phase 17 — Accounting breadth
-**Goal:** finish the Accounting module to reference parity. Confirmed screens: `erp-module-scan.md` Accounting §3–§7, Sales §7, Purchase §7, Configurations §3/§18.
-
-1. **Quick Payment / Quick Receipt** (FR-7.4): simplified one-off cash movement documents, no Contact/allocation required — likely thin variants over the existing posting path (the CashTransfer precedent).
-2. **Bank Accounts** (FR-7.5): bank/cash/wallet account records (Banks config lookup §3) with live running balances, dashboard summary card.
-3. **Cheque Register** (FR-7.6): cheques received/issued linked to their Payment, pending/cleared/bounced lifecycle; decide whether a bounce reverses GL (confirm live).
-4. **Allocate Customer/Supplier Payment screens** (FR-5.12/FR-6.12): list unallocated/partially-allocated credits (Payments, JVs, Quick Receipts) and apply them to open documents after the fact — reuses Phase 11's netting logic.
-5. **Opening Balances screen** (Configurations §18): view/edit per-account and per-contact opening balances, with the edit permission split FR-3.4 describes.
-
-*Exit criteria: each of the five surfaces works end-to-end through the real UI with hand-verified GL where applicable; an allocation made from the Allocate screen shows up identically in the Contact Statement; negative permission checks per new key.*
-
----
-
-## Phase 18 — CRM completion
-**Goal:** the rest of the Contact/CRM story (FR-4.5, FR-4.6, FR-4.8). This phase introduces the codebase's first file-storage infrastructure — design it once, here, since Phase 22's Document inbox reuses it.
-
-1. **Contact Personnel** (sub-contacts child collection) + **comments/activity log** on the Contact detail page.
-2. **File attachments**: storage abstraction (`IFileStorage`, local-disk dev implementation, cloud-swappable), attachment entity polymorphic like `WorkTask`'s parent, upload/download endpoints, Contact detail Attachments tab.
-3. **Quick actions from Contact** (FR-4.6): Record Payment / Create Invoice / Create Quotation / Create Sales Order buttons pre-filling the target form with that Contact — routing + prefill only, no new commands.
-4. **SMS** (FR-4.8): `ISmsSender` abstraction (log-to-console dev implementation, real gateway later), merge-field templates, send-to-audience (all/ContactGroup/custom selection), history + credit-usage ledger. Confirm the live screen's shape first (scan CRM §4 was a category listing, not a hands-on pass).
-
-*Exit criteria: personnel/comments/attachments round-trip on a real Contact; a quick-action lands on the target form correctly pre-filled; an SMS send to a ContactGroup writes one history row per recipient and decrements credits; Member/Admin permission splits proven.*
-
----
 
 ## Phase 19 — Reporting Tags + remaining reports
 **Goal:** complete the report catalog (FR-9.1, FR-9.3, FR-9.5, FR-9.7, FR-9.9). Tags first — they're a write-side change the reports then consume.

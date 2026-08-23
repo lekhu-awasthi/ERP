@@ -1028,6 +1028,40 @@ namespace ErpApp.Infrastructure.Migrations
                     b.ToTable("TdsTypes", "configuration");
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Contacts.Comment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AuthorUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorUserId");
+
+                    b.HasIndex("ContactId");
+
+                    b.HasIndex("OrganizationId", "ContactId");
+
+                    b.ToTable("Comments", "contacts");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Contacts.Contact", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1124,6 +1158,60 @@ namespace ErpApp.Infrastructure.Migrations
                     b.ToTable("ContactGroups", "contacts");
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Contacts.ContactPersonnel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid?>("GroupId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("OrganizationTitle")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContactId");
+
+                    b.HasIndex("GroupId");
+
+                    b.HasIndex("OrganizationId", "ContactId");
+
+                    b.ToTable("ContactPersonnel", "contacts");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Crm.Deal", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1210,6 +1298,131 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("DealAssignees", "crm");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Crm.SmsCreditLedgerEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("ChangeAmount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid?>("RelatedSmsBatchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("SmsCreditLedgerEntries", "crm");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Crm.SmsLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BatchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("CreditsUsed")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTimeOffset>("SentAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("SentByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("TemplateId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContactId");
+
+                    b.HasIndex("SentByUserId");
+
+                    b.HasIndex("TemplateId");
+
+                    b.HasIndex("OrganizationId", "BatchId");
+
+                    b.HasIndex("OrganizationId", "ContactId");
+
+                    b.ToTable("SmsLogs", "crm");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Crm.SmsTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("SmsTemplates", "crm");
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Identity.User", b =>
@@ -4793,6 +5006,90 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = false,
                             PermissionKey = "Accounting.OpeningBalance.Edit",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000010d"),
+                            IsGranted = true,
+                            PermissionKey = "Crm.Sms.Send",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000010e"),
+                            IsGranted = false,
+                            PermissionKey = "Crm.Sms.Send",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000010f"),
+                            IsGranted = true,
+                            PermissionKey = "Crm.SmsTemplate.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000110"),
+                            IsGranted = true,
+                            PermissionKey = "Crm.SmsTemplate.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000111"),
+                            IsGranted = true,
+                            PermissionKey = "Crm.SmsTemplate.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000112"),
+                            IsGranted = false,
+                            PermissionKey = "Crm.SmsTemplate.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000113"),
+                            IsGranted = true,
+                            PermissionKey = "Crm.SmsCreditLedger.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000114"),
+                            IsGranted = true,
+                            PermissionKey = "Crm.SmsCreditLedger.Adjust",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000115"),
+                            IsGranted = true,
+                            PermissionKey = "Crm.SmsCreditLedger.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000116"),
+                            IsGranted = false,
+                            PermissionKey = "Crm.SmsCreditLedger.Adjust",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000117"),
+                            IsGranted = true,
+                            PermissionKey = "Crm.SmsLog.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000118"),
+                            IsGranted = true,
+                            PermissionKey = "Crm.SmsLog.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 
@@ -4968,6 +5265,56 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Warehouses", "tenancy");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Workflow.Attachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ParentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ParentType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<DateTimeOffset>("UploadedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UploadedByUserId");
+
+                    b.HasIndex("OrganizationId", "ParentType", "ParentId");
+
+                    b.ToTable("Attachments", "workflow");
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Workflow.Audit", b =>
@@ -5244,6 +5591,21 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Contacts.Comment", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Contacts.Contact", null)
+                        .WithMany()
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Contacts.Contact", b =>
                 {
                     b.HasOne("ErpApp.Domain.Contacts.ContactGroup", null)
@@ -5257,6 +5619,20 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasOne("ErpApp.Domain.Contacts.ContactGroup", null)
                         .WithMany()
                         .HasForeignKey("ParentGroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Contacts.ContactPersonnel", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Contacts.Contact", null)
+                        .WithMany()
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Contacts.ContactGroup", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
@@ -5298,6 +5674,35 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Crm.SmsCreditLedgerEntry", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Crm.SmsLog", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Contacts.Contact", null)
+                        .WithMany()
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("SentByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Crm.SmsTemplate", null)
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Identity.VerificationCode", b =>
@@ -5741,6 +6146,15 @@ namespace ErpApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Workflow.Attachment", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UploadedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

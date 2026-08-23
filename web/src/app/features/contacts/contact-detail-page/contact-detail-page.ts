@@ -7,7 +7,11 @@ import { buildTreeRows, TreeRow } from '../../../core/common/tree';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact, ContactGroup, ContactOverviewDto, ContactType } from '../../../core/contacts/contacts.models';
 import { DealList } from '../../crm/deal-list/deal-list';
+import { SendSmsForm } from '../../crm/send-sms-form/send-sms-form';
 import { TaskList } from '../../workflow/task-list/task-list';
+import { ContactPersonnelList } from '../contact-personnel-list/contact-personnel-list';
+import { AttachmentList } from '../attachment-list/attachment-list';
+import { ActivityPanel } from '../activity-panel/activity-panel';
 
 /** Record-detail-page chrome: left mini-profile panel + vertical tab list + right content pane
  * -- new pattern for this codebase, established here per roadmap Phase 3's Angular deliverable.
@@ -27,7 +31,16 @@ import { TaskList } from '../../workflow/task-list/task-list';
  * doc comment for why Supplier is rejected server-side too). */
 @Component({
   selector: 'app-contact-detail-page',
-  imports: [ReactiveFormsModule, RouterLink, TaskList, DealList],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    TaskList,
+    DealList,
+    ContactPersonnelList,
+    AttachmentList,
+    ActivityPanel,
+    SendSmsForm,
+  ],
   templateUrl: './contact-detail-page.html',
 })
 export class ContactDetailPage {
@@ -46,7 +59,8 @@ export class ContactDetailPage {
   protected readonly optionsOpen = signal(false);
   protected readonly groups = signal<ContactGroup[]>([]);
   protected readonly isNew = signal(false);
-  protected readonly activeTab = signal<'Overview' | 'Tasks' | 'Deals'>('Overview');
+  protected readonly activeTab = signal<'Overview' | 'Personnel' | 'Tasks' | 'Deals' | 'Documents' | 'Activity'>('Overview');
+  protected readonly showSendSms = signal(false);
 
   protected readonly overview = signal<ContactOverviewDto | null>(null);
   protected readonly overviewLoading = signal(false);
@@ -92,6 +106,7 @@ export class ContactDetailPage {
       this.overview.set(null);
       this.overviewError.set(null);
       this.activeTab.set('Overview');
+      this.showSendSms.set(false);
 
       if (isNew) {
         this.loading.set(false);
@@ -111,8 +126,60 @@ export class ContactDetailPage {
     });
   }
 
-  protected switchTab(tab: 'Overview' | 'Tasks' | 'Deals'): void {
+  protected switchTab(tab: 'Overview' | 'Personnel' | 'Tasks' | 'Deals' | 'Documents' | 'Activity'): void {
     this.activeTab.set(tab);
+  }
+
+  // --- OPTION menu quick actions (FR-4.6, roadmap Phase 18) -- routing + prefill only, no new
+  // commands. Each target reads route.queryParamMap reactively for ?contactId= (see that page's
+  // own doc comment for the route-reuse-safe implementation). ---
+
+  protected sendSms(): void {
+    this.optionsOpen.set(false);
+    this.showSendSms.set(true);
+  }
+
+  protected closeSendSms(): void {
+    this.showSendSms.set(false);
+  }
+
+  /** Tigg's own "Record Payment" opens a plain Payment create form pre-filled with the Contact --
+   * this codebase splits that by Direction into two components sharing the same Payment aggregate
+   * (payment-detail-page for Customer/Received, supplier-payment-detail-page for Supplier/Paid),
+   * so route by the Contact's own type rather than always targeting the Customer variant. */
+  protected recordPayment(): void {
+    this.optionsOpen.set(false);
+    const contact = this.contact();
+    if (contact?.type === 'Supplier') {
+      this.router.navigate(['/organizations', this.organizationId, 'purchasing', 'supplier-payments', 'new'], {
+        queryParams: { contactId: this.routeContactId },
+      });
+    } else {
+      this.router.navigate(['/organizations', this.organizationId, 'payments', 'new'], {
+        queryParams: { contactId: this.routeContactId },
+      });
+    }
+  }
+
+  protected createInvoice(): void {
+    this.optionsOpen.set(false);
+    this.router.navigate(['/organizations', this.organizationId, 'sales', 'invoices', 'new'], {
+      queryParams: { contactId: this.routeContactId },
+    });
+  }
+
+  protected createQuotation(): void {
+    this.optionsOpen.set(false);
+    this.router.navigate(['/organizations', this.organizationId, 'sales', 'quotations', 'new'], {
+      queryParams: { contactId: this.routeContactId },
+    });
+  }
+
+  protected createSalesOrder(): void {
+    this.optionsOpen.set(false);
+    this.router.navigate(['/organizations', this.organizationId, 'sales', 'sales-orders', 'new'], {
+      queryParams: { contactId: this.routeContactId },
+    });
   }
 
   protected startEdit(): void {

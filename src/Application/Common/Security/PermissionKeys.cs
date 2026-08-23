@@ -347,4 +347,36 @@ public static class PermissionKeys
     public const string ChequeManage = "Accounting.Cheque.Manage";
     public const string OpeningBalanceView = "Accounting.OpeningBalance.View";
     public const string OpeningBalanceEdit = "Accounting.OpeningBalance.Edit";
+
+    // Phase 18 (CRM completion) -- Contact Personnel / Attachments / Comments deliberately ride on
+    // the existing Contacts.Contact.* pair rather than new keys: live-confirmed against the Tigg
+    // reference product, neither sub-tab has its own permission screen or gating distinct from the
+    // parent Contact -- both are reached only through a Contact's own detail page, already gated by
+    // ContactView/ContactManage. See docs/phase-18-status.md decision #7. A Contact's own "SMS
+    // History" activity sub-tab uses Crm.SmsLogView instead (below) -- one ListSmsLogsQuery serves
+    // both that sub-tab and the standalone SMS module's org-wide History tab, and both are
+    // Admin+Member same as ContactView, so splitting the query by caller context would add
+    // complexity without changing who can see what.
+    //
+    // SMS gets its own key set, standalone (not folded into Contacts.Contact.*), since it's a
+    // distinct nav module (CRM > SMS) with its own screen, not a Contact-detail sub-tab:
+    // - Crm.Sms.Send is Admin-only, the one deliberate exception in this feature set -- sending
+    //   consumes paid credits and reaches external contacts directly, the same "flat/sensitive
+    //   action" bar that made Tenancy.Role.*/Tenancy.Organization.LockDateManage Admin-only.
+    // - Crm.SmsTemplate.* is a routine View/Manage pair, same shape as Crm.LeadSource.*/
+    //   Crm.DealStage.*.
+    // - Crm.SmsCreditLedger.View (Admin+Member -- routine "how many credits are left" visibility,
+    //   the same Phase 8a/17-style rollup reasoning as OpeningBalanceView) is split from
+    //   Crm.SmsCreditLedger.Adjust (Admin-only -- manually crediting/correcting the balance, the
+    //   same "settable starting number" sensitivity as OpeningBalanceEdit).
+    // - Crm.SmsLog.View (Admin+Member) gates the standalone SMS module's own org-wide "SMS
+    //   History" tab (every send across every Contact) -- a broader exposure than the
+    //   already-ContactView-gated per-Contact sub-tab, but still routine send-log visibility, not
+    //   a PAN-adjacent register, so it stays Admin+Member rather than joining the Admin-only bar.
+    public const string SmsSend = "Crm.Sms.Send";
+    public const string SmsTemplateView = "Crm.SmsTemplate.View";
+    public const string SmsTemplateManage = "Crm.SmsTemplate.Manage";
+    public const string SmsCreditLedgerView = "Crm.SmsCreditLedger.View";
+    public const string SmsCreditLedgerAdjust = "Crm.SmsCreditLedger.Adjust";
+    public const string SmsLogView = "Crm.SmsLog.View";
 }
