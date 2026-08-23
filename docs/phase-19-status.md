@@ -230,16 +230,13 @@ rendering against the same real data with zero console errors.
   `listReportingTagCategories`/`listReportingTagOptions` exist now. Without that screen, a tenant
   can only create tags via direct API calls, not through the UI; flagged via `spawn_task`, not fixed
   here (out of this phase's explicit scope, which is attach/detach + report filtering).
-- **Net Profit Margin/ROA/ROE can read confusingly negative for a tenant that uses both a "Purchase"
-  Expense account and a separate "COGS" Expense account.** `PurchaseBillPostingRule` debits the whole
-  purchase to a Purchase Expense account (period-expense treatment, a pre-existing Phase 6 design);
-  Invoice's own COGS relief separately debits a COGS account for whatever FIFO-unit cost was actually
-  sold. A tenant whose chart of accounts routes both to genuine Expense-type accounts double-counts
-  the cost of goods sold in `IncomeStatementQueryHandler`'s Net Profit (once as "all purchases this
-  period," again as "COGS of what sold") — confirmed live during this phase's own E2E seed (Net Profit
-  Margin came back -420% on a deliberately minimal synthetic dataset). Ratio Analysis inherits this
-  as-is, per the kickoff's own instruction to reuse Balance Sheet/Income Statement's internals rather
-  than re-deriving from raw GL — not a Phase 19 bug, a pre-existing GL-modeling characteristic, but
-  worth flagging since it makes Ratio Analysis's profitability ratios look wrong for exactly this
-  common chart-of-accounts shape. Not fixed here (would mean re-architecting Purchase/COGS posting,
-  well outside this phase's remit) — flagged via `spawn_task` for future investigation.
+- ~~**Net Profit Margin/ROA/ROE can read confusingly negative for a tenant that uses both a
+  "Purchase" Expense account and a separate "COGS" Expense account.**~~ **Fixed** by
+  `PurchaseBillAccountResolver`'s post-Phase-19 rework (see `docs/phase-7-status.md`'s addendum and
+  CLAUDE.md's "Known gotchas" `DefaultInventoryAccountId` entry): a Goods line now debits
+  `TenantSettings.DefaultInventoryAccountId` (Asset), not a Purchase Expense account, so the only
+  Expense recognition left for a sold Goods unit is Invoice's existing COGS relief — recognised
+  exactly once. `IncomeStatementQueryHandler`/`RatioAnalysisQueryHandler` needed no changes.
+  Regression coverage: `IncomeStatementQueryHandlerTests.Handle_recognises_goods_cost_as_cogs_only_once_not_also_as_purchase_expense`
+  (buy 10 @ 40, sell 5, asserts Net Income is the correct 300, not the double-counted -100) plus
+  `ApprovePurchaseBillCommandHandlerTests`'s three GL-posting-level cases.
