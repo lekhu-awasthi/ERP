@@ -1,16 +1,30 @@
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Catalog;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Purchasing.Posting;
 
 /// <summary>
 /// Shared by ApprovePurchaseBillCommandHandler and PreviewPurchaseBillGlPostingQuery -- resolves
-/// each line's Purchase Account (Product.PurchaseAccountId, falling back to TenantSettings'
-/// DefaultPurchaseAccountId) plus the tenant's Accounts Payable/VAT Receivable/TDS Payable
+/// each line's debit account plus the tenant's Accounts Payable/VAT Receivable/TDS Payable
 /// accounts, then hands back the pure PurchaseBillPostingInput PurchaseBillPostingRule.BuildLines
 /// consumes. Same friendly-ConflictException-not-a-Domain-500 precedent as
 /// Sales.Posting.InvoiceAccountResolver.
+///
+/// A Goods line always debits TenantSettings.DefaultInventoryAccountId (Product.PurchaseAccountId
+/// is ignored for Goods -- Phase 7 never added a per-Product inventory-account override, tenant-wide
+/// only, same precedent as Sales' Inventory/COGS defaults). A Service line keeps the original Phase
+/// 6 behaviour: Product.PurchaseAccountId falling back to TenantSettings.DefaultPurchaseAccountId.
+/// Fixed post-Phase-19: the original design debited every line's Purchase (Expense) account
+/// regardless of Product.Type, which double-posted the cost of Goods lines once as a period expense
+/// here and again as COGS on the eventual Invoice's FIFO relief -- see the investigation this fix
+/// closes for the full reasoning (erp-module-scan.md's own reference-product formula, "Cost Of Sales
+/// = Opening Inventory + Purchases - Closing Inventory", requires Purchases to actually reach the
+/// Inventory account, which they never did before this fix). Goods lines now behave as a genuine
+/// perpetual-inventory purchase (Debit Inventory, not Debit Expense); COGS is recognised only once,
+/// at sale, via the existing Phase 7 FIFO relief. Service lines are untouched -- they were never
+/// double-counted since they never touch the FIFO ledger.
 /// </summary>
 internal static class PurchaseBillAccountResolver
 {
@@ -24,10 +38,10 @@ internal static class PurchaseBillAccountResolver
         var lineList = lines.ToList();
         var productIds = lineList.Select(x => x.ProductId).Distinct().ToList();
 
-        var productPurchaseAccounts = await db.Products
+        var products = await db.Products
             .Where(x => x.OrganizationId == organizationId && productIds.Contains(x.Id))
-            .Select(x => new { x.Id, x.PurchaseAccountId })
-            .ToDictionaryAsync(x => x.Id, x => x.PurchaseAccountId, cancellationToken);
+            .Select(x => new { x.Id, x.PurchaseAccountId, x.Type })
+            .ToDictionaryAsync(x => x.Id, x => x, cancellationToken);
 
         var settings = await db.TenantSettings.SingleOrDefaultAsync(
             x => x.OrganizationId == organizationId, cancellationToken)
@@ -36,13 +50,25 @@ internal static class PurchaseBillAccountResolver
         var postingLines = new List<PurchaseBillPostingLineInput>();
         foreach (var line in lineList)
         {
-            var purchaseAccountId = (productPurchaseAccounts.TryGetValue(line.ProductId, out var productAccountId) ? productAccountId : null)
-                ?? settings.DefaultPurchaseAccountId
-                ?? throw new ConflictException(
-                    "One or more products have no Purchase Account and no Default Purchase Account is configured. " +
-                    "Set a Purchase Account on the product, or configure a Default Purchase Account under Accounting Defaults.");
+            products.TryGetValue(line.ProductId, out var product);
 
-            postingLines.Add(new PurchaseBillPostingLineInput(purchaseAccountId, line.Amount, line.VatAmount));
+            Guid debitAccountId;
+            if (product?.Type == ProductType.Goods)
+            {
+                debitAccountId = settings.DefaultInventoryAccountId
+                    ?? throw new ConflictException(
+                        "Default Inventory account is not configured. Set it under Accounting Defaults before approving purchase bills with Goods lines.");
+            }
+            else
+            {
+                debitAccountId = product?.PurchaseAccountId
+                    ?? settings.DefaultPurchaseAccountId
+                    ?? throw new ConflictException(
+                        "One or more products have no Purchase Account and no Default Purchase Account is configured. " +
+                        "Set a Purchase Account on the product, or configure a Default Purchase Account under Accounting Defaults.");
+            }
+
+            postingLines.Add(new PurchaseBillPostingLineInput(debitAccountId, line.Amount, line.VatAmount));
         }
 
         if (settings.DefaultAccountsPayableId is not { } accountsPayableId)

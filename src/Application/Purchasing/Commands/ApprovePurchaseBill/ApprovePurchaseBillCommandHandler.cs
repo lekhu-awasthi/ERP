@@ -21,9 +21,18 @@ namespace ErpApp.Application.Purchasing.Commands.ApprovePurchaseBill;
 /// checks IStockAvailabilityPolicy. Phase 7: for every Goods line (a Service line never touches
 /// stock -- Product.Type gate, same as Invoice's), creates a new FIFO layer at UnitCost=line.Rate
 /// (the price actually paid -- landed-cost/import-duty allocation onto UnitCost is out of scope,
-/// see phase-7-status.md's scope decisions). No GL change from Phase 6 -- the Purchase Account
-/// debit already represents the inventory cost at the pre-VAT Rate; a separate Inventory-asset
-/// leg here would double-count it, so PurchaseBillPostingRule is untouched.
+/// see phase-7-status.md's scope decisions). GL fix post-Phase-19: Phase 6/7 originally left every
+/// line -- Goods included -- debiting the Purchase (Expense) account, on the theory that a separate
+/// Inventory-asset leg here would double-count "the inventory cost." That reasoning missed that
+/// Invoice's own COGS relief (Phase 7) already debits COGS/credits Inventory for whatever FIFO cost
+/// actually sells -- so a Goods line's Purchase-Expense debit and its eventual COGS debit were both
+/// landing in Expense accounts, double-counting the same cost in IncomeStatementQueryHandler's Net
+/// Profit for any tenant whose chart of accounts routes Purchase to a genuine Expense-type account
+/// (confirmed the common case -- every prior phase's own manual-E2E setup named it "Purchase
+/// Expense"). PurchaseBillAccountResolver now resolves a Goods line's debit account to
+/// DefaultInventoryAccountId instead, making the FIFO ledger's perpetual-inventory model the actual
+/// system of record: Goods purchases debit Inventory (an asset), and the only Expense recognition
+/// happens once, at sale, via COGS. Service lines are untouched.
 /// </summary>
 public sealed class ApprovePurchaseBillCommandHandler(
     IAppDbContext db,

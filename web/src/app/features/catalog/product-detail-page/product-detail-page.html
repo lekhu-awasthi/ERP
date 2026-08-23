@@ -175,6 +175,9 @@
                           <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
                         }
                       </select>
+                      @if (form.controls.type.value === 'Goods') {
+                        <p class="form-text">Goods purchases always post to the Default Inventory Account instead -- this field only applies if the product is later switched to Service.</p>
+                      }
                     </div>
                     <div class="col-12 col-sm-6">
                       <label class="form-label small fw-semibold">Purchase Return Account</label>
