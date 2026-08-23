@@ -30,11 +30,11 @@ public sealed class RatioAnalysisQueryHandler(IAppDbContext db, ITreeQuery<Accou
         var payables = settings?.DefaultAccountsPayableId is { } apId
             ? -await NetDebitBalanceAsync(apId, cutoff, cancellationToken) : 0m;
 
-        // Not the GL DefaultInventoryAccountId balance -- PurchaseBillPostingRule debits a Purchase
-        // (Expense) account, not Inventory, so that GL account only ever receives Invoice's own COGS-
-        // relief credit and runs permanently negative, never reflecting real stock value (confirmed
-        // via Phase 19 manual E2E, a Trial Balance check against a fresh seeded org). Same
-        // FIFO-layer valuation Stock Ageing/Product Profitability already use instead.
+        // Not the GL DefaultInventoryAccountId balance -- even though PurchaseBillPostingRule now
+        // debits that account for Goods lines (post-Phase-19 fix, see phase-7-status.md's addendum),
+        // this still reads the FIFO stock ledger directly rather than switching to the GL balance:
+        // same source of truth Stock Ageing/Product Profitability already use, and it's unaffected by
+        // whichever accounts a tenant's postings happen to route through.
         var inventory = await db.StockLedgerEntries
             .Where(x => x.OrganizationId == request.OrganizationId && x.TransactionDate <= request.ToDate)
             .SumAsync(x => x.QuantityRemaining * x.UnitCost, cancellationToken);

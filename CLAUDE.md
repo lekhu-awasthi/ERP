@@ -98,7 +98,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - ClosedXML's (and any other sync-only writer's) `SaveAs(Stream)` cannot target a live ASP.NET Core response stream directly — Kestrel disallows synchronous writes there by default and throws `InvalidOperationException: Synchronous operations are disallowed`, surfacing only as a generic 500 unless you check the server's own console log (an InMemory-provider unit test never touches a real Kestrel response, so nothing catches this except manual E2E against the real server). `SaveAs` into a `MemoryStream` first, then `CopyToAsync` that buffer to the real response stream. See `docs/phase-16c-status.md`'s bug #3 and `ReportSpreadsheetExporter.WriteWorkbookAsync`.
 - A Minimal API endpoint that binds an `IFormFile` parameter gets antiforgery metadata attached automatically by ASP.NET Core, even though nothing about the endpoint asked for it — every request 500s with `InvalidOperationException: ... contains anti-forgery metadata, but a middleware was not found` unless `app.UseAntiforgery()` is registered (it isn't, anywhere, in this app — CSRF mitigation here is the explicit CORS origin allow-list plus the httpOnly JWT cookie, not antiforgery tokens) or the endpoint opts out explicitly with `.DisableAntiforgery()`. Surfaces only via manual E2E against the real server (an InMemory-provider unit test never touches real Minimal API endpoint metadata). See `docs/phase-18-status.md`'s bug #1 and `AttachmentsEndpoints.cs`'s upload route.
 - A GL-report handler's unit test written with fixed calendar dates (e.g. `new DateOnly(2026, 1, 1)`) against real Create/Approve-seeded documents comes back all-zero, not a thrown exception — `GlJournalEntry.PostedAt` is stamped from the real clock at Approve() time (`GlDateBoundary`'s own doc comment), never the document's own business `Date`, so a query window built from fixed past/future dates never overlaps any real `PostedAt`. Every existing GL-report test already works around this by bracketing `DateOnly.FromDateTime(DateTime.UtcNow)` — grep for that pattern before writing a new one. See `docs/phase-19-status.md`'s bug #2.
-- `PurchaseBillPostingRule` debits the whole purchase to a Purchase (Expense) account, never an Inventory (Asset) account (a Phase 6 design decision) — a report/ratio computation that wants a live Inventory *value* must sum `StockLedgerEntry.QuantityRemaining × UnitCost` (the same FIFO-layer valuation Stock Ageing/Product Profitability use), never `TenantSettings.DefaultInventoryAccountId`'s GL balance, which only ever receives Invoice's own COGS-relief *credit* and runs permanently negative. Caught only by a live Trial Balance cross-check against a freshly seeded org, not by a unit test that happened to avoid PurchaseBill activity. See `docs/phase-19-status.md`'s bug #1.
+- `PurchaseBillPostingRule` debited the whole purchase to a Purchase (Expense) account, never an Inventory (Asset) account, until the post-Phase-19 fix (`docs/phase-7-status.md`'s addendum) made Goods lines debit `TenantSettings.DefaultInventoryAccountId` instead — Service lines still debit Purchase Expense. A report/ratio computation that wants a live Inventory *value* must still sum `StockLedgerEntry.QuantityRemaining × UnitCost` (the same FIFO-layer valuation Stock Ageing/Product Profitability use), not `TenantSettings.DefaultInventoryAccountId`'s GL balance — that balance is now a real perpetual-inventory asset balance post-fix, but nothing re-derived Ratio Analysis's Inventory figure to read it since the FIFO-sum approach already works and needs no further change. Caught only by a live Trial Balance cross-check against a freshly seeded org, not by a unit test that happened to avoid PurchaseBill activity. See `docs/phase-19-status.md`'s bug #1.
 
 ## Current status
 
@@ -139,12 +139,19 @@ and excluded the untagged one and every CreditNote; Stock Ageing's total reconci
 Stock Position's Balance; all 6 spreadsheet exports produced valid non-corrupt files with zero server
 exceptions; a second real invited-Member user proved all 6 new permission keys live (403 naming the
 exact key for the 3 Admin-only reports, 200 for the 3 Admin+Member ones — six separate proofs).
-Known limitations, both flagged via `spawn_task`: the Reporting Tag category/option management
+Known limitation, flagged via `spawn_task`: the Reporting Tag category/option management
 screen doesn't exist in the Angular frontend (discovered mid-phase — the backend's existed since
-Phase 2, the UI never got built despite this file's own prior summary claiming otherwise); and a
-tenant whose chart of accounts routes both "Purchase" and "COGS" to Expense-type accounts
-double-counts cost of goods sold in Income Statement's Net Profit (a pre-existing Phase 6 GL-modeling
-characteristic, not introduced by this phase, but it makes Ratio Analysis's profitability ratios read
-oddly for that common setup). Full reasoning in `docs/phase-19-status.md`.
+Phase 2, the UI never got built despite this file's own prior summary claiming otherwise). Full
+reasoning in `docs/phase-19-status.md`.
+
+**Post-Phase-19 fix (Purchase/COGS double-count) is complete** — the pre-existing Phase 6
+GL-modeling bug this phase's manual E2E surfaced (a tenant routing both "Purchase" and "COGS" to
+Expense-type accounts double-counted cost of goods sold in Income Statement's Net Profit) is fixed:
+`PurchaseBillAccountResolver` now debits `TenantSettings.DefaultInventoryAccountId` for Goods
+lines instead of a Purchase Expense account, so the sold portion's cost is recognised exactly once,
+via Invoice's existing FIFO COGS relief. Zero `IncomeStatementQueryHandler`/`RatioAnalysisQueryHandler`
+changes needed. New regression coverage in `IncomeStatementQueryHandlerTests` and
+`ApprovePurchaseBillCommandHandlerTests`; Application.UnitTests now 261. Full reasoning in
+`docs/phase-7-status.md`'s addendum.
 
 **Next up: Phase 20 — Configuration & extensibility completion.** See `docs/roadmap.md`'s Phase 20 section for the task breakdown and the completed-phase index table for everything prior.
