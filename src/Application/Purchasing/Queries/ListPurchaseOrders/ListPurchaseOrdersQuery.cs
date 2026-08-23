@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Purchasing;
 using MediatR;
 
@@ -9,4 +10,7 @@ public sealed record ListPurchaseOrdersQuery(
     PurchaseOrderStatus? Status,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<PurchaseOrder>>;
+    : IRequest<PagedResult<PurchaseOrder>>, IRequirePermission, IOrganizationScoped
+{
+    public string PermissionKey => PermissionKeys.PurchaseOrderView;
+}
