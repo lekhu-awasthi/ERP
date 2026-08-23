@@ -15,6 +15,8 @@ import {
   CreateTaskTypeRequest,
   CreateTdsTypeRequest,
   CreditTerm,
+  CreateReportingTagCategoryRequest,
+  CreateReportingTagOptionRequest,
   DealStage,
   LeadSource,
   PaymentMode,
@@ -27,6 +29,8 @@ import {
   UpdateDealStageRequest,
   UpdateLeadSourceRequest,
   UpdatePaymentModeRequest,
+  UpdateReportingTagCategoryRequest,
+  UpdateReportingTagOptionRequest,
   UpdateTaskTypeRequest,
   UpdateTdsTypeRequest,
 } from './configuration.models';
@@ -173,16 +177,67 @@ export class ConfigurationService {
     return this.http.delete<void>(`${this.baseUrl(organizationId)}/deal-stages/${id}`, { withCredentials: true });
   }
 
-  // Reporting Tags (Phase 2 backend) -- read-only here, the category/option management CRUD
-  // screen is a pre-existing gap this phase doesn't build (see phase-19-status.md). Phase 19 is
-  // the first frontend consumer: the picker on Quotation/Invoice detail pages and every affected
-  // report's filter drawer both need the option list.
+  // Reporting Tags (Phase 2 backend) -- Phase 19 is the first frontend consumer: the picker on
+  // Quotation/Invoice detail pages and every affected report's filter drawer, plus the admin
+  // management screen (Configurations > Reporting Tags) below.
   listReportingTagCategories(organizationId: string): Observable<ReportingTagCategory[]> {
     return this.listAll<ReportingTagCategory>(`${this.baseUrl(organizationId)}/reporting-tag-categories`);
   }
 
+  createReportingTagCategory(
+    organizationId: string,
+    request: CreateReportingTagCategoryRequest,
+  ): Observable<ReportingTagCategory> {
+    return this.http.post<ReportingTagCategory>(`${this.baseUrl(organizationId)}/reporting-tag-categories`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updateReportingTagCategory(
+    organizationId: string,
+    id: string,
+    request: UpdateReportingTagCategoryRequest,
+  ): Observable<ReportingTagCategory> {
+    return this.http.put<ReportingTagCategory>(
+      `${this.baseUrl(organizationId)}/reporting-tag-categories/${id}`,
+      request,
+      { withCredentials: true },
+    );
+  }
+
+  deleteReportingTagCategory(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/reporting-tag-categories/${id}`, {
+      withCredentials: true,
+    });
+  }
+
   listReportingTagOptions(organizationId: string): Observable<ReportingTagOption[]> {
     return this.listAll<ReportingTagOption>(`${this.baseUrl(organizationId)}/reporting-tag-options`);
+  }
+
+  createReportingTagOption(
+    organizationId: string,
+    request: CreateReportingTagOptionRequest,
+  ): Observable<ReportingTagOption> {
+    return this.http.post<ReportingTagOption>(`${this.baseUrl(organizationId)}/reporting-tag-options`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updateReportingTagOption(
+    organizationId: string,
+    id: string,
+    request: UpdateReportingTagOptionRequest,
+  ): Observable<ReportingTagOption> {
+    return this.http.put<ReportingTagOption>(`${this.baseUrl(organizationId)}/reporting-tag-options/${id}`, request, {
+      withCredentials: true,
+    });
+  }
+
+  deleteReportingTagOption(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/reporting-tag-options/${id}`, {
+      withCredentials: true,
+    });
   }
 
   getTransactionReportingTags(

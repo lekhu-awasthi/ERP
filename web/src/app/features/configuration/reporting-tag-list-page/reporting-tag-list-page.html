@@ -1,0 +1,177 @@
+<div class="container py-5" style="max-width: 800px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-tags-fill fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Reporting Tags</h1>
+          <p class="text-muted small mb-0">Tenant-defined categories &amp; options for slicing Sales/Purchase documents in Reports</p>
+        </div>
+      </div>
+      <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'configuration']">
+        <i class="bi bi-arrow-left"></i> Configurations
+      </a>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <h6 class="fw-bold text-dark mb-3">{{ categoryEditingId() ? 'Edit Category' : 'New Reporting Tag Category' }}</h6>
+      <form [formGroup]="categoryForm" (ngSubmit)="saveCategory()" class="row g-3 align-items-end">
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold">Name</label>
+          <input type="text" class="form-control" formControlName="name" placeholder="e.g. Project" />
+        </div>
+        @if (categoryEditingId()) {
+          <div class="col-6 col-sm-2 form-check ps-4 align-self-center">
+            <input type="checkbox" class="form-check-input" id="categoryIsActive" formControlName="isActive" />
+            <label class="form-check-label small" for="categoryIsActive">Active</label>
+          </div>
+        }
+        <div class="col-12 col-sm-3 d-flex gap-2">
+          <button type="submit" class="btn btn-primary fw-bold flex-fill" [disabled]="saving()">
+            @if (saving()) {
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            } @else {
+              {{ categoryEditingId() ? 'Update' : 'Add' }}
+            }
+          </button>
+          @if (categoryEditingId()) {
+            <button type="button" class="btn btn-outline-secondary" (click)="startCreateCategory()">Cancel</button>
+          }
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading reporting tags...</p>
+        </div>
+      } @else if (categories().length === 0) {
+        <div class="text-center py-5">
+          <div class="bg-light d-inline-flex p-4 rounded-circle mb-3 text-muted">
+            <i class="bi bi-tags fs-1"></i>
+          </div>
+          <h5 class="fw-bold text-dark">No Reporting Tag Categories Yet</h5>
+          <p class="text-muted small mb-0">Add one using the form above.</p>
+        </div>
+      } @else {
+        <div class="list-group list-group-flush">
+          @for (category of categories(); track category.id) {
+            <div class="list-group-item border rounded-3 mb-3 p-3">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-circle">
+                    <i class="bi bi-tag fs-5"></i>
+                  </div>
+                  <div>
+                    <h6 class="fw-bold mb-1 text-dark">{{ category.name }}</h6>
+                    <span class="text-muted small">{{ optionsForCategory(category.id).length }} option(s)</span>
+                    @if (!category.isActive) {
+                      <span class="badge bg-secondary-subtle text-secondary ms-2">Inactive</span>
+                    }
+                  </div>
+                </div>
+                <div class="d-flex gap-2">
+                  @if (categoryConfirmingDeleteId() === category.id) {
+                    <span class="small text-danger fw-semibold align-self-center me-1">Delete this category?</span>
+                    <button type="button" class="btn btn-danger btn-sm" (click)="confirmDeleteCategory(category)">
+                      <i class="bi bi-check2"></i> Confirm
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelDeleteCategory()">Cancel</button>
+                  } @else {
+                    <button type="button" class="btn btn-outline-primary btn-sm" (click)="toggleExpanded(category)">
+                      <i class="bi" [class.bi-chevron-down]="expandedCategoryId() !== category.id" [class.bi-chevron-up]="expandedCategoryId() === category.id"></i>
+                      Options
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" (click)="startEditCategory(category)">
+                      <i class="bi bi-pencil"></i> Edit
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" (click)="requestDeleteCategory(category)">
+                      <i class="bi bi-trash"></i> Delete
+                    </button>
+                  }
+                </div>
+              </div>
+
+              @if (expandedCategoryId() === category.id) {
+                <div class="mt-3 pt-3 border-top">
+                  <form [formGroup]="optionForm" (ngSubmit)="saveOption()" class="row g-2 align-items-end mb-3">
+                    <div class="col-12 col-sm-6">
+                      <label class="form-label small fw-semibold">{{ optionEditingId() ? 'Edit Option' : 'New Option' }}</label>
+                      <input type="text" class="form-control form-control-sm" formControlName="name" placeholder="e.g. Project A" />
+                    </div>
+                    @if (optionEditingId()) {
+                      <div class="col-6 col-sm-2 form-check ps-4 align-self-center">
+                        <input type="checkbox" class="form-check-input" id="optionIsActive-{{ category.id }}" formControlName="isActive" />
+                        <label class="form-check-label small" for="optionIsActive-{{ category.id }}">Active</label>
+                      </div>
+                    }
+                    <div class="col-12 col-sm-4 d-flex gap-2">
+                      <button type="submit" class="btn btn-primary btn-sm fw-bold flex-fill" [disabled]="optionSaving()">
+                        @if (optionSaving()) {
+                          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        } @else {
+                          {{ optionEditingId() ? 'Update' : 'Add' }}
+                        }
+                      </button>
+                      @if (optionEditingId()) {
+                        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="startCreateOption()">Cancel</button>
+                      }
+                    </div>
+                  </form>
+
+                  @if (optionsForCategory(category.id).length === 0) {
+                    <p class="text-muted small mb-0">No options yet. Add one using the form above.</p>
+                  } @else {
+                    <div class="list-group list-group-flush">
+                      @for (option of optionsForCategory(category.id); track option.id) {
+                        <div class="list-group-item border rounded-3 mb-2 p-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                          <div>
+                            <span class="fw-semibold text-dark small">{{ option.name }}</span>
+                            @if (!option.isActive) {
+                              <span class="badge bg-secondary-subtle text-secondary ms-2">Inactive</span>
+                            }
+                          </div>
+                          <div class="d-flex gap-2">
+                            @if (optionConfirmingDeleteId() === option.id) {
+                              <span class="small text-danger fw-semibold align-self-center me-1">Delete this option?</span>
+                              <button type="button" class="btn btn-danger btn-sm" (click)="confirmDeleteOption(option)">
+                                <i class="bi bi-check2"></i>
+                              </button>
+                              <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelDeleteOption()">Cancel</button>
+                            } @else {
+                              <button type="button" class="btn btn-outline-secondary btn-sm" (click)="startEditOption(option)">
+                                <i class="bi bi-pencil"></i>
+                              </button>
+                              <button type="button" class="btn btn-outline-danger btn-sm" (click)="requestDeleteOption(option)">
+                                <i class="bi bi-trash"></i>
+                              </button>
+                            }
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</div>
