@@ -22,10 +22,11 @@ namespace ErpApp.Application.Purchasing.Commands.ApproveDebitNote;
 /// warn-and-override flow, if the goods being returned to the supplier aren't actually still on
 /// hand (already resold, transferred elsewhere, etc.), same direct-reject precedent
 /// ApproveWarehouseTransferCommandHandler/ApproveInventoryAdjustmentCommandHandler's Decrease-side
-/// already use. No new GL leg -- DebitNotePostingRule's existing Credit-Purchase-Account line is the
-/// exact reverse of PurchaseBillPostingRule's Debit, which already represents the inventory cost (no
-/// separate Inventory-asset account exists on the Purchase side, see ApprovePurchaseBillCommandHandler's
-/// doc comment), so nothing further needs to post here. A standalone DebitNote (no ReferrerId, or one
+/// already use. No new GL leg -- DebitNotePostingRule's existing Credit line (against whichever
+/// account PurchaseBillAccountResolver/DebitNoteAccountResolver resolved -- Inventory for a Goods
+/// line since the post-Phase-19 fix, Purchase Expense for a Service line, see
+/// ApprovePurchaseBillCommandHandler's doc comment) is the exact reverse of PurchaseBillPostingRule's
+/// Debit, so nothing further needs to post here. A standalone DebitNote (no ReferrerId, or one
 /// whose referrer isn't a PurchaseBill) skips this entirely, same as CreditNote's standalone case.
 /// </summary>
 public sealed class ApproveDebitNoteCommandHandler(
