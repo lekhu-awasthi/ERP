@@ -14,9 +14,13 @@ import {
   CreateTaskTypeRequest,
   CreateTdsTypeRequest,
   CreditTerm,
+  CreateReportingTagCategoryRequest,
+  CreateReportingTagOptionRequest,
   DealStage,
   LeadSource,
   PaymentMode,
+  ReportingTagCategory,
+  ReportingTagOption,
   TaskType,
   TdsType,
   UpdateBankRequest,
@@ -24,6 +28,8 @@ import {
   UpdateDealStageRequest,
   UpdateLeadSourceRequest,
   UpdatePaymentModeRequest,
+  UpdateReportingTagCategoryRequest,
+  UpdateReportingTagOptionRequest,
   UpdateTaskTypeRequest,
   UpdateTdsTypeRequest,
 } from './configuration.models';
@@ -168,5 +174,65 @@ export class ConfigurationService {
 
   deleteDealStage(organizationId: string, id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl(organizationId)}/deal-stages/${id}`, { withCredentials: true });
+  }
+
+  listReportingTagCategories(organizationId: string): Observable<ReportingTagCategory[]> {
+    return this.listAll<ReportingTagCategory>(`${this.baseUrl(organizationId)}/reporting-tag-categories`);
+  }
+
+  createReportingTagCategory(
+    organizationId: string,
+    request: CreateReportingTagCategoryRequest,
+  ): Observable<ReportingTagCategory> {
+    return this.http.post<ReportingTagCategory>(`${this.baseUrl(organizationId)}/reporting-tag-categories`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updateReportingTagCategory(
+    organizationId: string,
+    id: string,
+    request: UpdateReportingTagCategoryRequest,
+  ): Observable<ReportingTagCategory> {
+    return this.http.put<ReportingTagCategory>(
+      `${this.baseUrl(organizationId)}/reporting-tag-categories/${id}`,
+      request,
+      { withCredentials: true },
+    );
+  }
+
+  deleteReportingTagCategory(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/reporting-tag-categories/${id}`, {
+      withCredentials: true,
+    });
+  }
+
+  listReportingTagOptions(organizationId: string): Observable<ReportingTagOption[]> {
+    return this.listAll<ReportingTagOption>(`${this.baseUrl(organizationId)}/reporting-tag-options`);
+  }
+
+  createReportingTagOption(
+    organizationId: string,
+    request: CreateReportingTagOptionRequest,
+  ): Observable<ReportingTagOption> {
+    return this.http.post<ReportingTagOption>(`${this.baseUrl(organizationId)}/reporting-tag-options`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updateReportingTagOption(
+    organizationId: string,
+    id: string,
+    request: UpdateReportingTagOptionRequest,
+  ): Observable<ReportingTagOption> {
+    return this.http.put<ReportingTagOption>(`${this.baseUrl(organizationId)}/reporting-tag-options/${id}`, request, {
+      withCredentials: true,
+    });
+  }
+
+  deleteReportingTagOption(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/reporting-tag-options/${id}`, {
+      withCredentials: true,
+    });
   }
 }

@@ -141,3 +141,42 @@ export interface UpdateDealStageRequest {
   color: string | null;
   isActive: boolean;
 }
+
+// Phase 19 -- Reporting Tags (config) -- ReportingTagCategory { Name } + ReportingTagOption
+// { Name, CategoryId }, referenced from Quotation/Invoice forms and Reports filters.
+export interface ReportingTagCategory {
+  id: string;
+  organizationId: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateReportingTagCategoryRequest {
+  name: string;
+}
+
+export interface UpdateReportingTagCategoryRequest {
+  name: string;
+  isActive: boolean;
+}
+
+export interface ReportingTagOption {
+  id: string;
+  organizationId: string;
+  name: string;
+  categoryId: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateReportingTagOptionRequest {
+  name: string;
+  categoryId: string;
+}
+
+export interface UpdateReportingTagOptionRequest {
+  name: string;
+  categoryId: string;
+  isActive: boolean;
+}

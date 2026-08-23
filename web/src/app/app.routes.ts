@@ -100,6 +100,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'organizations/:id/configuration/reporting-tags',
+    loadComponent: () =>
+      import('./features/configuration/reporting-tag-list-page/reporting-tag-list-page').then(
+        (m) => m.ReportingTagListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/contacts',
     loadComponent: () =>
       import('./features/contacts/contact-list-page/contact-list-page').then((m) => m.ContactListPage),
