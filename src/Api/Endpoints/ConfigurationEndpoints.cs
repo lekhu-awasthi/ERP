@@ -11,6 +11,7 @@ using ErpApp.Application.Configuration.Commands.CreateTaskType;
 using ErpApp.Application.Configuration.Commands.CreateTdsType;
 using ErpApp.Application.Configuration.Commands.DeleteCustomFieldDefinition;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
+using ErpApp.Application.Configuration.Commands.SetTransactionReportingTags;
 using ErpApp.Application.Configuration.Commands.UpdateBank;
 using ErpApp.Application.Configuration.Commands.UpdateCreditTerm;
 using ErpApp.Application.Configuration.Commands.UpdateCustomFieldDefinition;
@@ -23,6 +24,7 @@ using ErpApp.Application.Configuration.Commands.UpdateReportingTagOption;
 using ErpApp.Application.Configuration.Commands.UpdateTaskType;
 using ErpApp.Application.Configuration.Commands.UpdateTdsType;
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Configuration.Queries.GetTransactionReportingTags;
 using ErpApp.Application.Configuration.Queries.ListCustomFieldDefinitions;
 using ErpApp.Application.Configuration.Queries.ListLookups;
 using ErpApp.Domain.Common;
@@ -50,6 +52,7 @@ public static class ConfigurationEndpoints
         MapTaskTypeEndpoints(group);
         MapLeadSourceEndpoints(group);
         MapDealStageEndpoints(group);
+        MapTransactionReportingTagEndpoints(group);
     }
 
     private static void MapCreditTermEndpoints(RouteGroupBuilder group)
@@ -466,4 +469,29 @@ public static class ConfigurationEndpoints
     private sealed record CreateDealStageRequest(string Name, int SortOrder, string? Color);
 
     private sealed record UpdateDealStageRequest(string Name, int SortOrder, string? Color, bool IsActive);
+
+    // Reporting tags live outside the /configuration group's own lookup-CRUD shape -- they attach
+    // to a transaction document, not a Configuration lookup row -- but stay in this file since
+    // they're still under this same route base and reuse ReportingTagOption. See
+    // SetTransactionReportingTagsCommand's doc comment for the granularity/permission reasoning.
+    private static void MapTransactionReportingTagEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/reporting-tags/{documentType}/{documentId:guid}", async (
+            Guid organizationId, DocumentType documentType, Guid documentId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new GetTransactionReportingTagsQuery(organizationId, documentType, documentId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPut("/reporting-tags/{documentType}/{documentId:guid}", async (
+            Guid organizationId, DocumentType documentType, Guid documentId, SetTransactionReportingTagsRequest request,
+            ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(
+                new SetTransactionReportingTagsCommand(organizationId, documentType, documentId, request.TagOptionIds), ct);
+            return Results.NoContent();
+        });
+    }
+
+    private sealed record SetTransactionReportingTagsRequest(IReadOnlyList<Guid> TagOptionIds);
 }

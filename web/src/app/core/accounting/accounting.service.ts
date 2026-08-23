@@ -15,6 +15,7 @@ import {
   VoidJournalVoucherResult,
   BalanceSheetDto,
   BankAccountDto,
+  CashFlowSummaryDto,
   CashTransfer,
   CashTransferDetail,
   CashTransferRequest,
@@ -35,6 +36,7 @@ import {
   OpeningBalanceLineRequest,
   OpeningBalanceLineResult,
   PostedGlLineDto,
+  RatioAnalysisDto,
   TrialBalanceDto,
   UpdateAccountGroupRequest,
   UpdateAccountGroupResult,
@@ -287,6 +289,44 @@ export class AccountingService {
    * 2x3-bucket result (see the endpoint's own comment), so there's only one export variant. */
   exportVatSummaryReport(organizationId: string, fromDate: string, toDate: string): Observable<Blob> {
     return this.http.get(`${this.baseUrl(organizationId)}/reports/vat-summary/export`, {
+      withCredentials: true,
+      params: { fromDate, toDate },
+      responseType: 'blob',
+    });
+  }
+
+  getCashFlowSummary(
+    organizationId: string, fromDate: string, toDate: string, bankAccountId: string | null,
+  ): Observable<CashFlowSummaryDto> {
+    const params: Record<string, string> = { fromDate, toDate };
+    if (bankAccountId) params['bankAccountId'] = bankAccountId;
+    return this.http.get<CashFlowSummaryDto>(`${this.baseUrl(organizationId)}/reports/cash-flow-summary`, {
+      withCredentials: true,
+      params,
+    });
+  }
+
+  exportCashFlowSummary(
+    organizationId: string, fromDate: string, toDate: string, bankAccountId: string | null,
+  ): Observable<Blob> {
+    const params: Record<string, string> = { fromDate, toDate };
+    if (bankAccountId) params['bankAccountId'] = bankAccountId;
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/cash-flow-summary/export`, {
+      withCredentials: true,
+      params,
+      responseType: 'blob',
+    });
+  }
+
+  getRatioAnalysis(organizationId: string, fromDate: string, toDate: string): Observable<RatioAnalysisDto> {
+    return this.http.get<RatioAnalysisDto>(`${this.baseUrl(organizationId)}/reports/ratio-analysis`, {
+      withCredentials: true,
+      params: { fromDate, toDate },
+    });
+  }
+
+  exportRatioAnalysis(organizationId: string, fromDate: string, toDate: string): Observable<Blob> {
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/ratio-analysis/export`, {
       withCredentials: true,
       params: { fromDate, toDate },
       responseType: 'blob',

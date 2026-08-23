@@ -445,3 +445,38 @@ export interface AnnexThirteenReportDto {
   pageSize: number;
   totalCount: number;
 }
+
+// --- Purchase Register (Phase 19) ---
+
+export interface PurchaseRegisterRowDto {
+  date: string;
+  documentType: DocumentType;
+  documentCode: string;
+  importDeclarationNo: string | null;
+  contactId: string;
+  contactName: string;
+  contactPan: string | null;
+  taxExemptValue: number;
+  taxableNonCapitalLocalValue: number;
+  taxableNonCapitalLocalVat: number;
+  taxableNonCapitalImportValue: number;
+  taxableNonCapitalImportVat: number;
+  taxableCapitalValue: number;
+  taxableCapitalVat: number;
+}
+
+export interface PurchaseRegisterDto {
+  fromDate: string;
+  toDate: string;
+  items: PurchaseRegisterRowDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalTaxExemptValue: number;
+  totalTaxableNonCapitalLocalValue: number;
+  totalTaxableNonCapitalLocalVat: number;
+  totalTaxableNonCapitalImportValue: number;
+  totalTaxableNonCapitalImportVat: number;
+  totalTaxableCapitalValue: number;
+  totalTaxableCapitalVat: number;
+}

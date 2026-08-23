@@ -30,6 +30,7 @@ using ErpApp.Application.Sales.Queries.ListSalesOrders;
 using ErpApp.Application.Sales.Queries.PreviewInvoiceGlPosting;
 using ErpApp.Application.Sales.Queries.AnnexFiveReport;
 using ErpApp.Application.Sales.Queries.SalesMasterReport;
+using ErpApp.Application.Sales.Queries.SalesRegister;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
 using MediatR;
@@ -315,6 +316,30 @@ public static class SalesEndpoints
                     page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
                 ct);
             return ReportSpreadsheetExporter.ExportSalesMasterReport(result, fromDate, toDate);
+        });
+
+        group.MapGet("/reports/sales-register", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid[]? tagOptionIds,
+            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new SalesRegisterQuery(
+                    organizationId, fromDate, toDate, contactId, tagOptionIds,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/sales-register/export", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid[]? tagOptionIds,
+            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new SalesRegisterQuery(
+                    organizationId, fromDate, toDate, contactId, tagOptionIds,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                ct);
+            return ReportSpreadsheetExporter.ExportSalesRegister(result);
         });
 
         group.MapGet("/reports/annex-five", async (

@@ -1,0 +1,104 @@
+<div class="container py-5" style="max-width: 900px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-calculator fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Ratio Analysis</h1>
+          <p class="text-muted small mb-0">Liquidity, solvency, efficiency, and profitability ratios</p>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="export()">
+          <i class="bi bi-download"></i> Export
+        </button>
+        <a [routerLink]="['/organizations', organizationId, 'reports', 'balance-sheet']" class="btn btn-outline-secondary btn-sm fw-bold">
+          <i class="bi bi-bank"></i> Balance Sheet
+        </a>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3">
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold">From Date</label>
+          <input type="date" class="form-control" [value]="fromDate()" (change)="onFromDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold">To Date</label>
+          <input type="date" class="form-control" [value]="toDate()" (change)="onToDateChange($event)" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading Ratio Analysis...</p>
+        </div>
+      } @else if (report(); as r) {
+        <div class="mb-4">
+          <h6 class="fw-bold text-dark mb-2">Liquidity</h6>
+          <table class="table table-sm align-middle mb-0">
+            <tbody>
+              <tr><td>Current Ratio</td><td class="text-end">{{ r.currentRatio.toFixed(2) }}</td></tr>
+              <tr><td>Quick Ratio</td><td class="text-end">{{ r.quickRatio.toFixed(2) }}</td></tr>
+              <tr><td>Cash Ratio</td><td class="text-end">{{ r.cashRatio.toFixed(2) }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mb-4">
+          <h6 class="fw-bold text-dark mb-2">Solvency</h6>
+          <table class="table table-sm align-middle mb-0">
+            <tbody>
+              <tr><td>Debt-to-Equity Ratio</td><td class="text-end">{{ r.debtToEquityRatio.toFixed(2) }}</td></tr>
+              <tr><td>Debt Ratio</td><td class="text-end">{{ r.debtRatio.toFixed(2) }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mb-4">
+          <h6 class="fw-bold text-dark mb-2">Efficiency</h6>
+          <table class="table table-sm align-middle mb-0">
+            <tbody>
+              <tr><td>Inventory Turnover</td><td class="text-end">{{ r.inventoryTurnover.toFixed(2) }}</td></tr>
+              <tr><td>Receivables Turnover</td><td class="text-end">{{ r.receivablesTurnover.toFixed(2) }}</td></tr>
+              <tr><td>Asset Turnover</td><td class="text-end">{{ r.assetTurnover.toFixed(2) }}</td></tr>
+              <tr><td>Receivable Days</td><td class="text-end">{{ r.receivableDays.toFixed(1) }}</td></tr>
+              <tr><td>Payable Days</td><td class="text-end">{{ r.payableDays.toFixed(1) }}</td></tr>
+              <tr><td>Inventory Holding Period (Days)</td><td class="text-end">{{ r.inventoryHoldingPeriodDays.toFixed(1) }}</td></tr>
+              <tr><td>Cash Conversion Cycle (Days)</td><td class="text-end">{{ r.cashConversionCycleDays.toFixed(1) }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <h6 class="fw-bold text-dark mb-2">Profitability</h6>
+          <table class="table table-sm align-middle mb-0">
+            <tbody>
+              <tr><td>Gross Profit Margin (%)</td><td class="text-end">{{ r.grossProfitMarginPct.toFixed(2) }}%</td></tr>
+              <tr><td>Net Profit Margin (%)</td><td class="text-end">{{ r.netProfitMarginPct.toFixed(2) }}%</td></tr>
+              <tr><td>Return On Assets (%)</td><td class="text-end">{{ r.returnOnAssetsPct.toFixed(2) }}%</td></tr>
+              <tr><td>Return On Equity (%)</td><td class="text-end">{{ r.returnOnEquityPct.toFixed(2) }}%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  </div>
+</div>

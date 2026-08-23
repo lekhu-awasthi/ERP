@@ -369,3 +369,45 @@ export interface VatSummaryReportDto {
   totalInputVat: number;
   netVatPayable: number;
 }
+
+// --- Reports (Phase 19) ---
+
+export interface CashFlowSummaryDto {
+  fromDate: string;
+  toDate: string;
+  startingBalance: number;
+  receivedFromCustomerCashIn: number;
+  receivedFromCustomerCashOut: number;
+  otherReceiptsCashIn: number;
+  otherReceiptsCashOut: number;
+  paidToSupplierCashIn: number;
+  paidToSupplierCashOut: number;
+  otherPaymentsCashIn: number;
+  otherPaymentsCashOut: number;
+  endingBalance: number;
+  receivedFromCustomerBalance: number;
+  otherReceiptsBalance: number;
+  paidToSupplierBalance: number;
+  otherPaymentsBalance: number;
+}
+
+export interface RatioAnalysisDto {
+  fromDate: string;
+  toDate: string;
+  currentRatio: number;
+  quickRatio: number;
+  cashRatio: number;
+  debtToEquityRatio: number;
+  debtRatio: number;
+  inventoryTurnover: number;
+  receivablesTurnover: number;
+  assetTurnover: number;
+  receivableDays: number;
+  payableDays: number;
+  inventoryHoldingPeriodDays: number;
+  cashConversionCycleDays: number;
+  grossProfitMarginPct: number;
+  netProfitMarginPct: number;
+  returnOnAssetsPct: number;
+  returnOnEquityPct: number;
+}

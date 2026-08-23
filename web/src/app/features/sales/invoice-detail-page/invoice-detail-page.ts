@@ -15,6 +15,7 @@ import { Account } from '../../../core/accounting/accounting.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { Warehouse } from '../../../core/organizations/organizations.models';
 import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
+import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 
 interface EditableLine {
   key: number;
@@ -33,7 +34,7 @@ let nextLineKey = 1;
  * own lines the way JournalVoucher's is. */
 @Component({
   selector: 'app-invoice-detail-page',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, ReportingTagsEditor],
   templateUrl: './invoice-detail-page.html',
 })
 export class InvoiceDetailPage {

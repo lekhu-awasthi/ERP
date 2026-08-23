@@ -37,6 +37,7 @@ public interface IAppDbContext
     DbSet<CustomStatus> CustomStatuses { get; }
     DbSet<ReportingTagCategory> ReportingTagCategories { get; }
     DbSet<ReportingTagOption> ReportingTagOptions { get; }
+    DbSet<TransactionReportingTag> TransactionReportingTags { get; }
     DbSet<DocumentNumberingRule> DocumentNumberingRules { get; }
     DbSet<CustomFieldDefinition> CustomFieldDefinitions { get; }
     DbSet<CustomFieldValue> CustomFieldValues { get; }
