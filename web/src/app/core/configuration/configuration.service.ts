@@ -4,6 +4,7 @@ import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
+import { DocumentType, TransactionReportingTagDto } from '../sales/sales.models';
 import {
   Bank,
   CreateBankRequest,
@@ -176,6 +177,9 @@ export class ConfigurationService {
     return this.http.delete<void>(`${this.baseUrl(organizationId)}/deal-stages/${id}`, { withCredentials: true });
   }
 
+  // Reporting Tags (Phase 2 backend) -- Phase 19 is the first frontend consumer: the picker on
+  // Quotation/Invoice detail pages and every affected report's filter drawer, plus the admin
+  // management screen (Configurations > Reporting Tags) below.
   listReportingTagCategories(organizationId: string): Observable<ReportingTagCategory[]> {
     return this.listAll<ReportingTagCategory>(`${this.baseUrl(organizationId)}/reporting-tag-categories`);
   }
@@ -234,5 +238,24 @@ export class ConfigurationService {
     return this.http.delete<void>(`${this.baseUrl(organizationId)}/reporting-tag-options/${id}`, {
       withCredentials: true,
     });
+  }
+
+  getTransactionReportingTags(
+    organizationId: string, documentType: DocumentType, documentId: string,
+  ): Observable<TransactionReportingTagDto[]> {
+    return this.http.get<TransactionReportingTagDto[]>(
+      `${this.baseUrl(organizationId)}/reporting-tags/${documentType}/${documentId}`,
+      { withCredentials: true },
+    );
+  }
+
+  setTransactionReportingTags(
+    organizationId: string, documentType: DocumentType, documentId: string, tagOptionIds: string[],
+  ): Observable<void> {
+    return this.http.put<void>(
+      `${this.baseUrl(organizationId)}/reporting-tags/${documentType}/${documentId}`,
+      { tagOptionIds },
+      { withCredentials: true },
+    );
   }
 }

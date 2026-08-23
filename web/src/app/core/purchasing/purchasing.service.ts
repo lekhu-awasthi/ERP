@@ -32,6 +32,7 @@ import {
   PurchaseBillRequest,
   PurchaseBillStatus,
   PurchaseMasterReportDto,
+  PurchaseRegisterDto,
   PurchaseOrder,
   PurchaseOrderDetail,
   PurchaseOrderRequest,
@@ -341,6 +342,34 @@ export class PurchasingService {
         fromDate, toDate, thresholdAmount: thresholdAmount.toString(), full: String(full),
         page: String(page), pageSize: String(pageSize),
       },
+      responseType: 'blob',
+    });
+  }
+
+  getPurchaseRegister(
+    organizationId: string, fromDate: string, toDate: string, contactId: string | null, page = 1, pageSize = 50,
+  ): Observable<PurchaseRegisterDto> {
+    const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
+    if (contactId) params['contactId'] = contactId;
+
+    return this.http.get<PurchaseRegisterDto>(`${this.baseUrl(organizationId)}/reports/purchase-register`, {
+      withCredentials: true,
+      params,
+    });
+  }
+
+  exportPurchaseRegister(
+    organizationId: string, fromDate: string, toDate: string, contactId: string | null,
+    full: boolean, page: number, pageSize: number,
+  ): Observable<Blob> {
+    const params: Record<string, string> = {
+      fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
+    };
+    if (contactId) params['contactId'] = contactId;
+
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/purchase-register/export`, {
+      withCredentials: true,
+      params,
       responseType: 'blob',
     });
   }

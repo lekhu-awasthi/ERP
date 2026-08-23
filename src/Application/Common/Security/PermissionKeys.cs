@@ -379,4 +379,31 @@ public static class PermissionKeys
     public const string SmsCreditLedgerView = "Crm.SmsCreditLedger.View";
     public const string SmsCreditLedgerAdjust = "Crm.SmsCreditLedger.Adjust";
     public const string SmsLogView = "Crm.SmsLog.View";
+
+    // Phase 19 (Reporting Tags + remaining reports) -- see docs/phase-19-status.md decision #7 for
+    // the full reasoning per key.
+    // - CashFlowSummaryView / RatioAnalysisView: Admin+Member, same bar as Phase 8a's three
+    //   statements -- both are rollups (Bank/Cash movement summary; ratios computed from
+    //   Balance Sheet/Income Statement figures) with no PAN/per-transaction exposure beyond what a
+    //   Member with ordinary document View access can already piece together.
+    // - SalesRegisterView / PurchaseRegisterView: Admin-only, same bar as every flat per-transaction
+    //   register with PAN exposure (Phase 8b/8d/8e/8f) -- both factors (flat fact table, PAN column)
+    //   independently justify it, no tension to resolve.
+    // - StockAgeingView: Admin+Member, weighed against InventoryLedgerView -- a per-product×bucket
+    //   rollup, not a per-transaction fact table, no PAN/contact exposure; same shape class as Stock
+    //   Position, not Sales Master Report.
+    // - ProductProfitabilityView: Admin-only -- the one genuine judgment call. Exposes per-product
+    //   Cost Of Sales next to Sales in the same row, a direct margin readout a Member with ordinary
+    //   Sales.Invoice.View/InventoryLedgerView access cannot reconstruct today (Invoice screens show
+    //   Rate, never COGS unit cost). Closer to Sales Master Report's "bulk margin-adjacent data"
+    //   reasoning (Phase 8b) than InventoryLedgerView's, so it joins the Admin-only set.
+    // - Reporting Tags: no new key -- attaching a tag to a Quotation/Invoice rides on that document
+    //   type's own existing Edit permission (see SetTransactionReportingTagsCommand), since tagging
+    //   is a detail-page edit action, not a distinct capability.
+    public const string CashFlowSummaryView = "Reports.CashFlowSummary.View";
+    public const string SalesRegisterView = "Reports.SalesRegister.View";
+    public const string PurchaseRegisterView = "Reports.PurchaseRegister.View";
+    public const string StockAgeingView = "Reports.StockAgeing.View";
+    public const string ProductProfitabilityView = "Reports.ProductProfitability.View";
+    public const string RatioAnalysisView = "Reports.RatioAnalysis.View";
 }

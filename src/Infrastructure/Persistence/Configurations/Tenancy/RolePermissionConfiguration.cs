@@ -439,6 +439,21 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminSmsLogViewId = Guid.Parse("00000000-0000-0000-0002-000000000117");
     private static readonly Guid MemberSmsLogViewId = Guid.Parse("00000000-0000-0000-0002-000000000118");
 
+    // Phase 19 (Reporting Tags + remaining reports) -- see PermissionKeys.cs's own comment for the
+    // reasoning behind each key's Admin/Member split.
+    private static readonly Guid AdminCashFlowSummaryViewId = Guid.Parse("00000000-0000-0000-0002-000000000119");
+    private static readonly Guid MemberCashFlowSummaryViewId = Guid.Parse("00000000-0000-0000-0002-00000000011a");
+    private static readonly Guid AdminSalesRegisterViewId = Guid.Parse("00000000-0000-0000-0002-00000000011b");
+    private static readonly Guid MemberSalesRegisterViewId = Guid.Parse("00000000-0000-0000-0002-00000000011c");
+    private static readonly Guid AdminPurchaseRegisterViewId = Guid.Parse("00000000-0000-0000-0002-00000000011d");
+    private static readonly Guid MemberPurchaseRegisterViewId = Guid.Parse("00000000-0000-0000-0002-00000000011e");
+    private static readonly Guid AdminStockAgeingViewId = Guid.Parse("00000000-0000-0000-0002-00000000011f");
+    private static readonly Guid MemberStockAgeingViewId = Guid.Parse("00000000-0000-0000-0002-000000000120");
+    private static readonly Guid AdminProductProfitabilityViewId = Guid.Parse("00000000-0000-0000-0002-000000000121");
+    private static readonly Guid MemberProductProfitabilityViewId = Guid.Parse("00000000-0000-0000-0002-000000000122");
+    private static readonly Guid AdminRatioAnalysisViewId = Guid.Parse("00000000-0000-0000-0002-000000000123");
+    private static readonly Guid MemberRatioAnalysisViewId = Guid.Parse("00000000-0000-0000-0002-000000000124");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -792,6 +807,24 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(MemberSmsCreditLedgerAdjustId, Role.MemberId, PermissionKeys.SmsCreditLedgerAdjust, false),
 
             RolePermission.Create(AdminSmsLogViewId, Role.AdminId, PermissionKeys.SmsLogView, true),
-            RolePermission.Create(MemberSmsLogViewId, Role.MemberId, PermissionKeys.SmsLogView, true));
+            RolePermission.Create(MemberSmsLogViewId, Role.MemberId, PermissionKeys.SmsLogView, true),
+
+            RolePermission.Create(AdminCashFlowSummaryViewId, Role.AdminId, PermissionKeys.CashFlowSummaryView, true),
+            RolePermission.Create(MemberCashFlowSummaryViewId, Role.MemberId, PermissionKeys.CashFlowSummaryView, true),
+
+            RolePermission.Create(AdminSalesRegisterViewId, Role.AdminId, PermissionKeys.SalesRegisterView, true),
+            RolePermission.Create(MemberSalesRegisterViewId, Role.MemberId, PermissionKeys.SalesRegisterView, false),
+
+            RolePermission.Create(AdminPurchaseRegisterViewId, Role.AdminId, PermissionKeys.PurchaseRegisterView, true),
+            RolePermission.Create(MemberPurchaseRegisterViewId, Role.MemberId, PermissionKeys.PurchaseRegisterView, false),
+
+            RolePermission.Create(AdminStockAgeingViewId, Role.AdminId, PermissionKeys.StockAgeingView, true),
+            RolePermission.Create(MemberStockAgeingViewId, Role.MemberId, PermissionKeys.StockAgeingView, true),
+
+            RolePermission.Create(AdminProductProfitabilityViewId, Role.AdminId, PermissionKeys.ProductProfitabilityView, true),
+            RolePermission.Create(MemberProductProfitabilityViewId, Role.MemberId, PermissionKeys.ProductProfitabilityView, false),
+
+            RolePermission.Create(AdminRatioAnalysisViewId, Role.AdminId, PermissionKeys.RatioAnalysisView, true),
+            RolePermission.Create(MemberRatioAnalysisViewId, Role.MemberId, PermissionKeys.RatioAnalysisView, true));
     }
 }

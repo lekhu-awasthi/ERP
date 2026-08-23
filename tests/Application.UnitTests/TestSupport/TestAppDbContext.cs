@@ -49,6 +49,8 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
 
     public DbSet<ReportingTagOption> ReportingTagOptions => Set<ReportingTagOption>();
 
+    public DbSet<TransactionReportingTag> TransactionReportingTags => Set<TransactionReportingTag>();
+
     public DbSet<DocumentNumberingRule> DocumentNumberingRules => Set<DocumentNumberingRule>();
 
     public DbSet<CustomFieldDefinition> CustomFieldDefinitions => Set<CustomFieldDefinition>();

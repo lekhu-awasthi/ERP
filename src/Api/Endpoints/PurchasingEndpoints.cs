@@ -30,6 +30,7 @@ using ErpApp.Application.Purchasing.Queries.ListPurchaseOrders;
 using ErpApp.Application.Purchasing.Queries.PreviewExpenseGlPosting;
 using ErpApp.Application.Purchasing.Queries.PreviewPurchaseBillGlPosting;
 using ErpApp.Application.Purchasing.Queries.AnnexThirteenReport;
+using ErpApp.Application.Purchasing.Queries.PurchaseRegister;
 using ErpApp.Application.Purchasing.Queries.PurchaseMasterReport;
 using ErpApp.Application.Purchasing.Queries.TdsReport;
 using ErpApp.Domain.Common;
@@ -346,6 +347,29 @@ public static class PurchasingEndpoints
                     page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
                 ct);
             return ReportSpreadsheetExporter.ExportPurchaseMasterReport(result, fromDate, toDate);
+        });
+
+        group.MapGet("/reports/purchase-register", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId,
+            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new PurchaseRegisterQuery(
+                    organizationId, fromDate, toDate, contactId, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/purchase-register/export", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId,
+            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new PurchaseRegisterQuery(
+                    organizationId, fromDate, toDate, contactId,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                ct);
+            return ReportSpreadsheetExporter.ExportPurchaseRegister(result);
         });
 
         group.MapGet("/reports/tds-report", async (

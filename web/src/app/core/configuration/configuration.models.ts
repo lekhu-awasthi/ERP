@@ -143,7 +143,9 @@ export interface UpdateDealStageRequest {
 }
 
 // Phase 19 -- Reporting Tags (config) -- ReportingTagCategory { Name } + ReportingTagOption
-// { Name, CategoryId }, referenced from Quotation/Invoice forms and Reports filters.
+// { Name, CategoryId }, referenced from Quotation/Invoice forms and Reports filters. Backend CRUD
+// has existed since Phase 2; this phase adds both the read-only Quotation/Invoice tag picker and
+// the admin management screen (Configurations > Reporting Tags), closing the pre-existing gap.
 export interface ReportingTagCategory {
   id: string;
   organizationId: string;

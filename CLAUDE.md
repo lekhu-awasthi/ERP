@@ -25,6 +25,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
   - `phase-16b` — before adding any per-line/per-document adjustment field (discount, future surcharge/rounding): the "fold every adjustment into the stored `Line.Amount`/`VatAmount` so GL/report code needs zero changes" pattern, and the "confirm live which GL account it posts to before writing any posting-rule code" precedent (discount turned out to have none)
   - `phase-16c` — before adding a footer/summary total to any paginated screen (it must come from a server-computed field over the *full* filtered set, never a client-side reduce over the current page — a bug this phase found in four pre-existing report pages); before writing any file-download endpoint (Kestrel disallows synchronous writes to the live response stream — ClosedXML/any sync-only writer must target a `MemoryStream` first, then `CopyToAsync` the real stream)
   - `phase-18` — before designing a second polymorphic (ParentType, ParentId) entity: confirm live whether it's really the same concept as an existing one (`Attachment` vs. `WorkTask`) before reusing its enum — Decision #2's Contact-Documents-vs-Workflow-Document split; before assuming a new "sub-record of a Contact" needs Phase 4's full-collection-replace treatment — confirm live whether the real UI even submits it as a list (`ContactPersonnel` didn't, so it's a standalone entity like `WorkTask`/`Deal`, sidestepping the gotcha by design); before writing any Minimal API endpoint that binds `IFormFile` (needs `.DisableAntiforgery()` — see Known Gotchas)
+  - `phase-7`'s addendum (bottom of the file) — before adding a new tenant-wide default GL account or changing which account a posting rule debits/credits: grep for the field name across every posting rule that's supposed to read it. `DefaultInventoryAccountId` sat completely unread by `PurchaseBillPostingRule` for 12 phases (Goods purchases debited Purchase Expense instead), silently double-counting Cost of Goods Sold in `IncomeStatementQueryHandler`'s Net Profit for any tenant whose Purchase account was Expense-typed — the obvious/default choice, caught only by a later phase's live E2E, not by any test or `dotnet build`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -96,6 +97,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - This Angular app is **zoneless** (Angular 21 default — confirmed by no `zone.js` in `web/package.json`). A `computed()` signal only re-evaluates when a tracked *signal* it read during its last evaluation changes; wrapping a read of a plain (non-signal) mutable value inside `computed()` — most commonly `FormControl.value` from a Reactive Forms group — silently caches the first result forever, since the computed has no signal dependency to invalidate it on. A direct (uncached) template read of the same `form.controls.x.value`, by contrast, works fine — zoneless change detection still reruns the template function after an Angular-bound DOM event (`(change)`, `(click)`, etc.), so a plain property read comes back fresh every time. `tsc`/`ng build` cannot catch this class of bug; it only surfaces as a UI element silently never updating, caught in Phase 17 only by live browser testing (`quick-payment-page`'s Cheque Details section never appearing after selecting a Cheque-mode Payment Mode). Fix: track the value driving conditional UI in its own plain `signal()`, written directly by the control's `(change)`/`(input)` handler, rather than deriving it from the FormGroup inside a `computed()`.
 - ClosedXML's (and any other sync-only writer's) `SaveAs(Stream)` cannot target a live ASP.NET Core response stream directly — Kestrel disallows synchronous writes there by default and throws `InvalidOperationException: Synchronous operations are disallowed`, surfacing only as a generic 500 unless you check the server's own console log (an InMemory-provider unit test never touches a real Kestrel response, so nothing catches this except manual E2E against the real server). `SaveAs` into a `MemoryStream` first, then `CopyToAsync` that buffer to the real response stream. See `docs/phase-16c-status.md`'s bug #3 and `ReportSpreadsheetExporter.WriteWorkbookAsync`.
 - A Minimal API endpoint that binds an `IFormFile` parameter gets antiforgery metadata attached automatically by ASP.NET Core, even though nothing about the endpoint asked for it — every request 500s with `InvalidOperationException: ... contains anti-forgery metadata, but a middleware was not found` unless `app.UseAntiforgery()` is registered (it isn't, anywhere, in this app — CSRF mitigation here is the explicit CORS origin allow-list plus the httpOnly JWT cookie, not antiforgery tokens) or the endpoint opts out explicitly with `.DisableAntiforgery()`. Surfaces only via manual E2E against the real server (an InMemory-provider unit test never touches real Minimal API endpoint metadata). See `docs/phase-18-status.md`'s bug #1 and `AttachmentsEndpoints.cs`'s upload route.
+- A GL-report handler's unit test written with fixed calendar dates (e.g. `new DateOnly(2026, 1, 1)`) against real Create/Approve-seeded documents comes back all-zero, not a thrown exception — `GlJournalEntry.PostedAt` is stamped from the real clock at Approve() time (`GlDateBoundary`'s own doc comment), never the document's own business `Date`, so a query window built from fixed past/future dates never overlaps any real `PostedAt`. Every existing GL-report test already works around this by bracketing `DateOnly.FromDateTime(DateTime.UtcNow)` — grep for that pattern before writing a new one. See `docs/phase-19-status.md`'s bug #2.
+- `PurchaseBillPostingRule` debits the whole purchase to a Purchase (Expense) account, never an Inventory (Asset) account (a Phase 6 design decision) — a report/ratio computation that wants a live Inventory *value* must sum `StockLedgerEntry.QuantityRemaining × UnitCost` (the same FIFO-layer valuation Stock Ageing/Product Profitability use), never `TenantSettings.DefaultInventoryAccountId`'s GL balance, which only ever receives Invoice's own COGS-relief *credit* and runs permanently negative. Caught only by a live Trial Balance cross-check against a freshly seeded org, not by a unit test that happened to avoid PurchaseBill activity. See `docs/phase-19-status.md`'s bug #1.
 
 ## Current status
 
@@ -105,43 +108,43 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 > `docs/phase-N-status.md` and the roadmap's index table; never append essay-length phase
 > write-ups here, and never keep more than the latest one or two phases in this section.
 
-**Phase 18 (CRM completion) is complete** — `IFileStorage` (local-disk dev implementation, the
-codebase's first file-storage abstraction, reused as-is by Phase 22 later); `Attachment` (polymorphic
-like `WorkTask` but its own `AttachmentParentType` enum — live-confirmed Contact Documents and
-Workflow Document are visually/functionally distinct screens in the reference product, so the two
-enums stay separate); `ContactPersonnel`/`Comment` (standalone entities referencing `ContactId`
-directly, not an encapsulated child collection — live-confirmed the real dialog adds/edits/removes
-one row at a time, so the Phase 4 full-collection-replace gotcha doesn't apply, by design); a real
-auto-generated Activity feed reusing Phase 16d's `Audit`/`AuditBehavior` exactly as its own doc
-comment anticipated (Phase 18 is the first caller — `CreateContact`/`UpdateContact` were retrofitted
-with `IAuditableRequest`, closing a pre-existing "Contact writes were never audited" gap); full SMS
-(`SmsTemplate`/`SmsLog`/`SmsCreditLedgerEntry`, `ISmsSender`/console dev impl, `SendSmsCommand` with
-per-recipient merge-field resolution — `$[name]$`/`$[balance]$`/`$[balance_date]$`, live-confirmed
-syntax — and atomicity achieved by construction: every send happens before a single terminal
-`SaveChangesAsync`, so a mid-batch failure leaves zero partial rows by construction, not rollback
-machinery). Quick-action prefill (`?contactId=`, read reactively via `route.queryParamMap`) on 4
-routes from the Contact OPTION menu. Scope expansion, user-approved mid-phase: Sales Order never had
-an Angular UI (deliberately deferred in Phase 5, still true as of Phase 16b) — since "Create Sales
-Order" is one of FR-4.6's four quick actions, a minimal list/detail page mirroring Quotation's exact
-shape was built so the quick action has a real target. Two real bugs, both caught only by manual E2E
-against the real server, not `tsc`/`ng build`/InMemory-provider tests: a Minimal API endpoint binding
-`IFormFile` needs `.DisableAntiforgery()` or every upload 500s (this app has no antiforgery
-middleware at all); and `ListSalesOrdersQuery` was missing `IRequirePermission`/`IOrganizationScoped`
-— found while wiring the new Sales Order page, this turned out to be a pre-existing, codebase-wide
-gap shared by 8 sibling List queries across Sales/Purchasing/Payments (a real cross-tenant data leak
-predating this phase), fixed here only for the one query this phase newly exposes and flagged as an
-urgent separate `spawn_task` for the rest. Tests: Domain.UnitTests 125 (was 112), Application.UnitTests
-242 (was 231), Angular 7 specs (unchanged), `ng build`/`tsc --noEmit` clean — all green. Manual E2E via
-curl + `sqlcmd` + live browser against a fresh Organization: Attachments round-trip through real
-on-disk files (byte-identical download, zero orphans after delete, cross-tenant access 404s, not
-200s); SMS sends are atomic (insufficient credit → zero rows; a real 3-recipient send → exactly 3
-rows with genuinely different merge-resolved text, ledger decremented by exactly 3, `sqlcmd`-verified
-throughout); every new Admin-only permission key 403s a real invited Member by its exact name; all 4
-quick actions verified by reading the target form's actual bound control value (not just its visible
-label); a live-created Sales Order went Draft → Approve (real sequential number assigned) → appears
-correctly in its own list. Full reasoning in `docs/phase-18-status.md`, including known limitations:
-Email Logs has no backing capability (flagged via `spawn_task`), SMS credit purchase/billing has no
-UI (flagged via `spawn_task`), and the Activities feed doesn't include Task/Deal events (out of
-scope — those aggregates weren't touched this phase).
+**Phase 19 (Reporting Tags + remaining reports) is complete** — `TransactionReportingTag`
+(document-level join, live-confirmed against a real Approved Quotation's detail sidebar — tags
+attach post-creation, not at create time; only Quotation and Invoice confirmed to carry the field),
+`SetTransactionReportingTagsCommand` (replace-the-whole-set, rides on that document type's own Edit
+permission rather than a new key), and a `ReportingTagFilter` OR-semantics helper threaded through
+Sales Register (the one report whose source documents, Invoices, actually carry tags). Six new
+reports close the FR-9.1/9.4/9.5/9.7 catalog: Cash Flow Summary (direct-method Bank/Cash movement
+summary, live-confirmed — **not** an indirect-method statement, the reference product has no
+Operating/Investing/Financing concept at all); Sales Register / Purchase Register (Nepal IRD
+statutory Sales/Purchase Book format, live-confirmed column-by-column, Purchase Register reusing
+PurchaseBill's existing `IsImport`/`ExpenditureClassification` split with zero domain gap); Stock
+Ageing (same 1-30/31-60/61-90/91+ buckets as Customer/Supplier Ageing); Product Profitability
+(a per-product-per-period aggregate, not a per-line fact table, live-confirmed); Ratio Analysis (all
+16 ratios computed by calling `BalanceSheetQueryHandler`/`IncomeStatementQueryHandler` directly,
+"Current Assets/Liabilities" approximated from `TenantSettings`' AR/AP/Inventory defaults since this
+codebase's Chart of Accounts has no Current/Non-current classification). Six new `Reports.*.View`
+permission keys, three Admin-only (Sales/Purchase Register, Product Profitability — PAN exposure or
+margin-adjacent bulk data) and three Admin+Member (Cash Flow Summary, Stock Ageing, Ratio Analysis —
+rollups with no new exposure). Tests: Domain.UnitTests 125 (unchanged), Application.UnitTests 257
+(was 242, all 15 new tests hand-computed against real Create/Approve-seeded documents), Angular 7
+specs (unchanged), `ng build`/`tsc --noEmit` clean. One real bug caught only by manual E2E: Ratio
+Analysis's Inventory figure originally read `TenantSettings.DefaultInventoryAccountId`'s GL balance,
+which runs permanently negative in this codebase (`PurchaseBillPostingRule` debits a Purchase Expense
+account, never Inventory) — fixed to sum FIFO-layer valuation instead, matching Stock Ageing/Product
+Profitability's own approach. Manual E2E via curl + `sqlcmd` + live browser against a fresh
+Organization: every report's numbers hand-verified against a real seeded PurchaseBill/Invoice/
+Payment/JournalVoucher scenario; Sales Register's tag filter narrowed to exactly the tagged Invoice
+and excluded the untagged one and every CreditNote; Stock Ageing's total reconciled exactly against
+Stock Position's Balance; all 6 spreadsheet exports produced valid non-corrupt files with zero server
+exceptions; a second real invited-Member user proved all 6 new permission keys live (403 naming the
+exact key for the 3 Admin-only reports, 200 for the 3 Admin+Member ones — six separate proofs).
+Known limitations, both flagged via `spawn_task`: the Reporting Tag category/option management
+screen doesn't exist in the Angular frontend (discovered mid-phase — the backend's existed since
+Phase 2, the UI never got built despite this file's own prior summary claiming otherwise); and a
+tenant whose chart of accounts routes both "Purchase" and "COGS" to Expense-type accounts
+double-counts cost of goods sold in Income Statement's Net Profit (a pre-existing Phase 6 GL-modeling
+characteristic, not introduced by this phase, but it makes Ratio Analysis's profitability ratios read
+oddly for that common setup). Full reasoning in `docs/phase-19-status.md`.
 
-**Next up: Phase 19 — Reporting Tags + remaining reports.** See `docs/roadmap.md`'s Phase 19 section for the task breakdown and the completed-phase index table for everything prior.
+**Next up: Phase 20 — Configuration & extensibility completion.** See `docs/roadmap.md`'s Phase 20 section for the task breakdown and the completed-phase index table for everything prior.

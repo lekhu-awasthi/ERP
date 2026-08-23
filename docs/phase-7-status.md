@@ -342,3 +342,68 @@ PurchaseBill's stock UnitCost (scope decision #8) if precise import-cost account
 requirement; (b) wiring `PreviewConsumptionCostAsync` into Invoice's GL-preview-before-approve flow
 (scope decision #4) once a `WarehouseId` is threaded through that query, for full COGS-leg preview
 parity with the rest of the posting logic.
+
+## Addendum (post-Phase-19 investigation) — Purchase/COGS double-count fix, implemented
+
+A later phase (19, on its own not-yet-merged branch) flagged via manual E2E that
+`IncomeStatementQueryHandler`'s Net Profit could come back wildly negative (-420% margin on a
+synthetic 10-purchased/5-sold scenario) for a tenant whose chart of accounts routes both
+`DefaultPurchaseAccountId` and `DefaultCogsAccountId` to genuine Expense-type accounts. Investigated
+from this branch (pre-Phase-19) since the root cause is this phase's own posting logic, not Phase
+19's. Findings:
+
+1. **This is a real, near-universal bug, not a synthetic edge case.** Nothing anywhere (backend
+   validation, the Angular Accounting Defaults page, Product's own GL-account dropdowns) restricts
+   `DefaultPurchaseAccountId` to an Asset-type account — every dropdown is fed the same unfiltered
+   account list. And every prior phase's own manual-E2E setup (6, 7, 8d, 8e, 9, 11, 16a — independent
+   sessions) named this account "Purchase Expense" unprompted, the obvious choice for a field labeled
+   "Default Purchase Account" under "Purchase-Side Defaults." Any tenant selling Goods products hits
+   this.
+2. **erp-module-scan.md:275 has the reference product's actual Income Statement formula**: `Direct
+   Income -> Cost Of Sales (Opening Inventory + Purchases - Closing Inventory) -> Gross Profit ->
+   Indirect Income -> Indirect Expenses -> Net Profit` — the classic periodic-inventory formula. Tigg
+   does treat Purchases as Expense-flavored (Phase 6 wasn't wrong to make it Expense-rooted), but it
+   never flat-sums Expense accounts the way `IncomeStatementQueryHandler` does — it nets Purchases
+   against Opening/Closing Inventory first. There's also no sign of a distinct perpetual "COGS"
+   account in the scan; this phase's FIFO/COGS engine was always this codebase's own invention (see
+   scope decision #1 above, "not confirmed against the reference product").
+3. **Fix implemented** (not the literal Tigg formula — see reasoning below): `PurchaseBillAccountResolver`
+   now resolves a Goods line's debit account to `TenantSettings.DefaultInventoryAccountId` instead of
+   `Product.PurchaseAccountId ?? DefaultPurchaseAccountId` (Service lines are unchanged — they never
+   touch the FIFO ledger, so they were never double-counted). This makes the Goods-line purchase a
+   genuine perpetual-inventory transaction (Debit Inventory, an asset) instead of a period expense,
+   so the only Expense recognition left for a sold Goods unit is this phase's existing COGS relief at
+   Invoice-approval time — recognised exactly once. `DebitNotePostingRule`/`DebitNoteAccountResolver`
+   needed no separate change; they wrap `PurchaseBillAccountResolver` and mirror whichever account it
+   resolves. `IncomeStatementQueryHandler` needed **zero changes** — no Gross-Profit/Cost-of-Sales
+   section, no exclusion list. `PurchaseBillPostingLineInput.PurchaseAccountId` renamed to
+   `DebitAccountId` since it no longer always holds a Purchase account.
+   Chose this over literally reproducing Tigg's Opening+Purchases-Closing formula because the latter
+   turned out to depend on the same prerequisite anyway: `DefaultInventoryAccountId` was never
+   debited by `PurchaseBillPostingRule` before this fix (only credited, by Invoice/COGS-relief and
+   Decrease-Adjustments) — under the old code, "Closing Inventory" was structurally meaningless
+   regardless of which formula read it. Reproducing Tigg exactly would mean this same
+   resolver fix *plus* a new Gross Profit report section and excluding the perpetual COGS leg from
+   the Expense rollup — strictly more work for an identical Net Profit figure, buying only exact UI
+   fidelity to Tigg's Gross Profit subtotal (not built here; flagged as a possible future addition if
+   report-layout fidelity to Tigg ever matters).
+   Migration note: `GlJournalEntry` has no UPDATE/DELETE path (existing codebase gotcha) — this only
+   changes postings going forward, historical closed-period Income Statements are unaffected, which
+   is the expected/normal behaviour for an accounting system.
+4. **UI copy fixed to match**: Accounting Defaults' "Default Purchase Account" help text now says it
+   only applies to Service lines; Product's own "Purchase Account" field shows a note when the
+   product is Goods-typed that the field is ignored (Goods purchases always use the tenant's Default
+   Inventory Account). The Inventory Account help text's claim that it's "debited on PurchaseBill...
+   approval" was previously false (grep-confirmed `DefaultInventoryAccountId` was never read by any
+   Purchasing code) and is now actually true.
+
+New tests: `ApprovePurchaseBillCommandHandlerTests` (3 cases) — Goods line debits Inventory not
+Purchase Expense, Service line still debits Purchase Expense, and a Goods product's own
+`PurchaseAccountId` override is correctly ignored. `AnnexThirteenReportQueryHandlerTests`'s existing
+Goods-line PurchaseBill/DebitNote coverage (which asserts against document-line data, not GL account
+balances) stayed green unchanged, confirming the fix doesn't disturb VAT/Annex reporting. Full
+Domain.UnitTests (125) + Application.UnitTests (245, was 242) green.
+
+Not done here: porting this same fix to `feature/phase-19-reporting-tags-reports` (the branch where
+`RatioAnalysisQueryHandler` actually inherits the symptom) — the root-cause files are identical on
+both branches since this phase, so the same edit applies once that branch is rebased/merged.

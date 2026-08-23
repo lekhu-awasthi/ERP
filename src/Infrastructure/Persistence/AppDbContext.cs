@@ -33,6 +33,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<CustomStatus> CustomStatuses => Set<CustomStatus>();
     public DbSet<ReportingTagCategory> ReportingTagCategories => Set<ReportingTagCategory>();
     public DbSet<ReportingTagOption> ReportingTagOptions => Set<ReportingTagOption>();
+    public DbSet<TransactionReportingTag> TransactionReportingTags => Set<TransactionReportingTag>();
     public DbSet<DocumentNumberingRule> DocumentNumberingRules => Set<DocumentNumberingRule>();
     public DbSet<CustomFieldDefinition> CustomFieldDefinitions => Set<CustomFieldDefinition>();
     public DbSet<CustomFieldValue> CustomFieldValues => Set<CustomFieldValue>();

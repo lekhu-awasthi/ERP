@@ -88,7 +88,10 @@
               <option [value]="account.id" [selected]="account.id === defaultPurchaseAccountId()">{{ account.code }} — {{ account.name }}</option>
             }
           </select>
-          <p class="form-text">Used for a Product with no Purchase Account of its own.</p>
+          <p class="form-text">
+            Used for a Service product with no Purchase Account of its own. Goods products always use the Inventory
+            Account below instead, regardless of any Purchase Account set on the product.
+          </p>
         </div>
 
         <div class="mb-3">

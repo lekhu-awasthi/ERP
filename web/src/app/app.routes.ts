@@ -551,6 +551,48 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'organizations/:id/reports/cash-flow-summary',
+    loadComponent: () =>
+      import('./features/reports/cash-flow-summary-page/cash-flow-summary-page').then(
+        (m) => m.CashFlowSummaryPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/sales-register',
+    loadComponent: () =>
+      import('./features/reports/sales-register-page/sales-register-page').then((m) => m.SalesRegisterPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/purchase-register',
+    loadComponent: () =>
+      import('./features/reports/purchase-register-page/purchase-register-page').then(
+        (m) => m.PurchaseRegisterPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/stock-ageing',
+    loadComponent: () =>
+      import('./features/reports/stock-ageing-page/stock-ageing-page').then((m) => m.StockAgeingPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/product-profitability',
+    loadComponent: () =>
+      import('./features/reports/product-profitability-page/product-profitability-page').then(
+        (m) => m.ProductProfitabilityPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/ratio-analysis',
+    loadComponent: () =>
+      import('./features/reports/ratio-analysis-page/ratio-analysis-page').then((m) => m.RatioAnalysisPage),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/workflow/transaction-approval-queue',
     loadComponent: () =>
       import('./features/workflow/transaction-approval-queue-page/transaction-approval-queue-page').then(

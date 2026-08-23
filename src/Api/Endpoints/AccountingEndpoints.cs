@@ -13,6 +13,7 @@ using ErpApp.Application.Accounting.Commands.UpdateJournalVoucher;
 using ErpApp.Application.Accounting.Commands.VoidCashTransfer;
 using ErpApp.Application.Accounting.Commands.VoidJournalVoucher;
 using ErpApp.Application.Accounting.Queries.BalanceSheet;
+using ErpApp.Application.Accounting.Queries.CashFlowSummary;
 using ErpApp.Application.Accounting.Queries.GetAccount;
 using ErpApp.Application.Accounting.Queries.GetCashTransfer;
 using ErpApp.Application.Accounting.Queries.GetJournalVoucher;
@@ -23,6 +24,7 @@ using ErpApp.Application.Accounting.Queries.ListCashTransfers;
 using ErpApp.Application.Accounting.Queries.ListJournalVouchers;
 using ErpApp.Application.Accounting.Queries.ListOpeningBalanceLines;
 using ErpApp.Application.Accounting.Queries.PreviewGlPosting;
+using ErpApp.Application.Accounting.Queries.RatioAnalysis;
 using ErpApp.Application.Accounting.Queries.TrialBalance;
 using ErpApp.Application.Accounting.Queries.VatSummaryReport;
 using ErpApp.Api.Reports;
@@ -282,6 +284,34 @@ public static class AccountingEndpoints
         {
             var result = await sender.Send(new IncomeStatementQuery(organizationId, fromDate, toDate), ct);
             return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/cash-flow-summary", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? bankAccountId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new CashFlowSummaryQuery(organizationId, fromDate, toDate, bankAccountId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/cash-flow-summary/export", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? bankAccountId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new CashFlowSummaryQuery(organizationId, fromDate, toDate, bankAccountId), ct);
+            return ReportSpreadsheetExporter.ExportCashFlowSummary(result);
+        });
+
+        group.MapGet("/reports/ratio-analysis", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new RatioAnalysisQuery(organizationId, fromDate, toDate), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/ratio-analysis/export", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new RatioAnalysisQuery(organizationId, fromDate, toDate), ct);
+            return ReportSpreadsheetExporter.ExportRatioAnalysis(result);
         });
 
         group.MapGet("/reports/vat-summary", async (

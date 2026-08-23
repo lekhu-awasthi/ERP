@@ -392,3 +392,44 @@ export interface AnnexFiveReportDto {
   pageSize: number;
   totalCount: number;
 }
+
+// --- Sales Register (Phase 19) ---
+
+export interface SalesRegisterRowDto {
+  date: string;
+  documentType: DocumentType;
+  documentCode: string;
+  contactId: string;
+  contactName: string;
+  contactPan: string | null;
+  totalValue: number;
+  taxExemptValue: number;
+  taxableValue: number;
+  vatAmount: number;
+  exportValue: number;
+  exportCountry: string | null;
+  exportDeclarationNo: string | null;
+  exportDeclarationDate: string | null;
+}
+
+export interface SalesRegisterDto {
+  fromDate: string;
+  toDate: string;
+  items: SalesRegisterRowDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalValue: number;
+  totalTaxExemptValue: number;
+  totalTaxableValue: number;
+  totalVatAmount: number;
+}
+
+// --- Reporting Tags (Phase 19) ---
+
+export interface TransactionReportingTagDto {
+  tagOptionId: string;
+  tagOptionName: string;
+  categoryId: string;
+  categoryName: string;
+}
