@@ -34,6 +34,7 @@ import {
   QuotationRequest,
   QuotationStatus,
   SalesMasterReportDto,
+  SalesRegisterDto,
   SalesOrder,
   SalesOrderDetail,
   SalesOrderRequest,
@@ -298,6 +299,37 @@ export class SalesService {
     return this.http.get(`${this.baseUrl(organizationId)}/reports/annex-five/export`, {
       withCredentials: true,
       params: { fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize) },
+      responseType: 'blob',
+    });
+  }
+
+  getSalesRegister(
+    organizationId: string, fromDate: string, toDate: string, contactId: string | null, tagOptionIds: string[],
+    page = 1, pageSize = 50,
+  ): Observable<SalesRegisterDto> {
+    const params: Record<string, string | string[]> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
+    if (contactId) params['contactId'] = contactId;
+    if (tagOptionIds.length > 0) params['tagOptionIds'] = tagOptionIds;
+
+    return this.http.get<SalesRegisterDto>(`${this.baseUrl(organizationId)}/reports/sales-register`, {
+      withCredentials: true,
+      params,
+    });
+  }
+
+  exportSalesRegister(
+    organizationId: string, fromDate: string, toDate: string, contactId: string | null, tagOptionIds: string[],
+    full: boolean, page: number, pageSize: number,
+  ): Observable<Blob> {
+    const params: Record<string, string | string[]> = {
+      fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
+    };
+    if (contactId) params['contactId'] = contactId;
+    if (tagOptionIds.length > 0) params['tagOptionIds'] = tagOptionIds;
+
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/sales-register/export`, {
+      withCredentials: true,
+      params,
       responseType: 'blob',
     });
   }

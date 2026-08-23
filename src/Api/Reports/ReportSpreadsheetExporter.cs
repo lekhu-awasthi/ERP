@@ -1,13 +1,19 @@
 using ClosedXML.Excel;
+using ErpApp.Application.Accounting.Queries.CashFlowSummary;
+using ErpApp.Application.Accounting.Queries.RatioAnalysis;
 using ErpApp.Application.Accounting.Queries.VatSummaryReport;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Contacts.Queries.ContactAgeingSummary;
 using ErpApp.Application.Contacts.Queries.ContactStatement;
+using ErpApp.Application.Inventory.Queries.ProductProfitability;
+using ErpApp.Application.Inventory.Queries.StockAgeing;
 using ErpApp.Application.Purchasing.Queries.AnnexThirteenReport;
 using ErpApp.Application.Purchasing.Queries.PurchaseMasterReport;
+using ErpApp.Application.Purchasing.Queries.PurchaseRegister;
 using ErpApp.Application.Purchasing.Queries.TdsReport;
 using ErpApp.Application.Sales.Queries.AnnexFiveReport;
 using ErpApp.Application.Sales.Queries.SalesMasterReport;
+using ErpApp.Application.Sales.Queries.SalesRegister;
 using ErpApp.Application.Workflow.Queries.SystemAuditReport;
 
 namespace ErpApp.Api.Reports;
@@ -314,6 +320,177 @@ public static class ReportSpreadsheetExporter
             },
             XlsxContentType,
             FileName("VatSummaryReport", report.FromDate, report.ToDate));
+
+    public static IResult ExportCashFlowSummary(CashFlowSummaryDto report) =>
+        Results.Stream(
+            async stream =>
+            {
+                using var workbook = new XLWorkbook();
+                var sheet = workbook.Worksheets.Add("Cash Flow Summary");
+
+                string[] headers = ["Particulars", "Cash In", "Cash Out", "Balance"];
+                for (var c = 0; c < headers.Length; c++)
+                {
+                    sheet.Cell(1, c + 1).Value = headers[c];
+                    sheet.Cell(1, c + 1).Style.Font.Bold = true;
+                }
+
+                (string Label, decimal In, decimal Out, decimal Balance)[] rows =
+                [
+                    ("Starting Balance", 0, 0, report.StartingBalance),
+                    ("Received From Customer", report.ReceivedFromCustomerCashIn, report.ReceivedFromCustomerCashOut, report.ReceivedFromCustomerBalance),
+                    ("Other Receipts", report.OtherReceiptsCashIn, report.OtherReceiptsCashOut, report.OtherReceiptsBalance),
+                    ("Paid To Supplier", report.PaidToSupplierCashIn, report.PaidToSupplierCashOut, report.PaidToSupplierBalance),
+                    ("Other Payments", report.OtherPaymentsCashIn, report.OtherPaymentsCashOut, report.OtherPaymentsBalance),
+                    ("Ending Balance", 0, 0, report.EndingBalance),
+                ];
+
+                for (var r = 0; r < rows.Length; r++)
+                {
+                    var row = rows[r];
+                    sheet.Cell(r + 2, 1).Value = row.Label;
+                    WriteNumericCell(sheet, r + 2, 2, row.In);
+                    WriteNumericCell(sheet, r + 2, 3, row.Out);
+                    WriteNumericCell(sheet, r + 2, 4, row.Balance);
+                }
+
+                sheet.Columns().AdjustToContents();
+                await WriteWorkbookAsync(workbook, stream);
+            },
+            XlsxContentType,
+            FileName("CashFlowSummary", report.FromDate, report.ToDate));
+
+    public static IResult ExportSalesRegister(SalesRegisterDto report) =>
+        ExportTable(
+            "Sales Register",
+            FileName("SalesRegister", report.FromDate, report.ToDate),
+            [
+                ("Date", (SalesRegisterRowDto r) => (object?)r.Date),
+                ("Type", r => r.DocumentType.ToString()),
+                ("Document No", r => r.DocumentCode),
+                ("Contact Name", r => r.ContactName),
+                ("Contact PAN", r => r.ContactPan),
+                ("Total Value", r => r.TotalValue),
+                ("Tax-Exempt Value", r => r.TaxExemptValue),
+                ("Taxable Value", r => r.TaxableValue),
+                ("VAT Amount", r => r.VatAmount),
+                ("Export Value", r => r.ExportValue),
+                ("Export Country", r => r.ExportCountry),
+                ("Export Declaration No", r => r.ExportDeclarationNo),
+                ("Export Declaration Date", r => (object?)r.ExportDeclarationDate),
+            ],
+            report.Items,
+            sheet => WriteTotalRow(sheet, report.Items.Count, "Total Value", 6, report.TotalValue));
+
+    public static IResult ExportPurchaseRegister(PurchaseRegisterDto report) =>
+        ExportTable(
+            "Purchase Register",
+            FileName("PurchaseRegister", report.FromDate, report.ToDate),
+            [
+                ("Date", (PurchaseRegisterRowDto r) => (object?)r.Date),
+                ("Type", r => r.DocumentType.ToString()),
+                ("Document No", r => r.DocumentCode),
+                ("Import Declaration No", r => r.ImportDeclarationNo),
+                ("Supplier Name", r => r.ContactName),
+                ("Supplier PAN", r => r.ContactPan),
+                ("Tax-Exempt Value", r => r.TaxExemptValue),
+                ("Taxable Non-Capital (Local) Value", r => r.TaxableNonCapitalLocalValue),
+                ("Taxable Non-Capital (Local) VAT", r => r.TaxableNonCapitalLocalVat),
+                ("Taxable Non-Capital (Import) Value", r => r.TaxableNonCapitalImportValue),
+                ("Taxable Non-Capital (Import) VAT", r => r.TaxableNonCapitalImportVat),
+                ("Taxable Capital Value", r => r.TaxableCapitalValue),
+                ("Taxable Capital VAT", r => r.TaxableCapitalVat),
+            ],
+            report.Items);
+
+    public static IResult ExportStockAgeing(StockAgeingDto report) =>
+        ExportTable(
+            "Stock Ageing",
+            FileName("StockAgeing", report.AsOfDate, report.AsOfDate),
+            [
+                ("Product Code", (StockAgeingRowDto r) => (object?)r.ProductCode),
+                ("Product Name", r => r.ProductName),
+                ("Category", r => r.CategoryName),
+                ("Unit", r => r.UnitShortName),
+                ("1-30 Days", r => r.Days1To30),
+                ("31-60 Days", r => r.Days31To60),
+                ("61-90 Days", r => r.Days61To90),
+                ("91+ Days", r => r.Days91Plus),
+                ("Total", r => r.Total),
+                ("Rate", r => r.Rate),
+                ("Amount", r => r.Amount),
+            ],
+            report.Items,
+            sheet => WriteTotalRow(sheet, report.Items.Count, "Amount", 11, report.TotalAmount));
+
+    public static IResult ExportProductProfitability(ProductProfitabilityDto report) =>
+        ExportTable(
+            "Product Profitability Report",
+            FileName("ProductProfitability", report.FromDate, report.ToDate),
+            [
+                ("Product Code", (ProductProfitabilityRowDto r) => (object?)r.ProductCode),
+                ("Product Name", r => r.ProductName),
+                ("Category", r => r.CategoryName),
+                ("Opening Balance", r => r.OpeningBalance),
+                ("Purchase", r => r.Purchase),
+                ("Production Cost", r => r.ProductionCost),
+                ("Additional Cost", r => r.AdditionalCost),
+                ("Closing Balance", r => r.ClosingBalance),
+                ("Cost Of Sales", r => r.CostOfSales),
+                ("Sales", r => r.Sales),
+                ("Consumption", r => r.Consumption),
+                ("Gross Profit", r => r.GrossProfit),
+                ("Gross Margin (%)", r => r.GrossMarginPct),
+            ],
+            report.Items,
+            sheet => WriteTotalRow(sheet, report.Items.Count, "Gross Profit", 12, report.TotalGrossProfit));
+
+    public static IResult ExportRatioAnalysis(RatioAnalysisDto report) =>
+        Results.Stream(
+            async stream =>
+            {
+                using var workbook = new XLWorkbook();
+                var sheet = workbook.Worksheets.Add("Ratio Analysis");
+
+                string[] headers = ["Category", "Ratio", "Value"];
+                for (var c = 0; c < headers.Length; c++)
+                {
+                    sheet.Cell(1, c + 1).Value = headers[c];
+                    sheet.Cell(1, c + 1).Style.Font.Bold = true;
+                }
+
+                (string Category, string Ratio, decimal Value)[] rows =
+                [
+                    ("Liquidity", "Current Ratio", report.CurrentRatio),
+                    ("Liquidity", "Quick Ratio", report.QuickRatio),
+                    ("Liquidity", "Cash Ratio", report.CashRatio),
+                    ("Solvency", "Debt-to-Equity Ratio", report.DebtToEquityRatio),
+                    ("Solvency", "Debt Ratio", report.DebtRatio),
+                    ("Efficiency", "Inventory Turnover", report.InventoryTurnover),
+                    ("Efficiency", "Receivables Turnover", report.ReceivablesTurnover),
+                    ("Efficiency", "Asset Turnover", report.AssetTurnover),
+                    ("Efficiency", "Receivable Days", report.ReceivableDays),
+                    ("Efficiency", "Payable Days", report.PayableDays),
+                    ("Efficiency", "Inventory Holding Period (Days)", report.InventoryHoldingPeriodDays),
+                    ("Efficiency", "Cash Conversion Cycle (Days)", report.CashConversionCycleDays),
+                    ("Profitability", "Gross Profit Margin (%)", report.GrossProfitMarginPct),
+                    ("Profitability", "Net Profit Margin (%)", report.NetProfitMarginPct),
+                    ("Profitability", "Return On Assets (%)", report.ReturnOnAssetsPct),
+                    ("Profitability", "Return On Equity (%)", report.ReturnOnEquityPct),
+                ];
+
+                for (var r = 0; r < rows.Length; r++)
+                {
+                    sheet.Cell(r + 2, 1).Value = rows[r].Category;
+                    sheet.Cell(r + 2, 2).Value = rows[r].Ratio;
+                    WriteNumericCell(sheet, r + 2, 3, rows[r].Value);
+                }
+
+                sheet.Columns().AdjustToContents();
+                await WriteWorkbookAsync(workbook, stream);
+            },
+            XlsxContentType,
+            FileName("RatioAnalysis", report.FromDate, report.ToDate));
 
     private static IResult ExportTable<T>(
         string sheetName,

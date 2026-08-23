@@ -141,3 +141,23 @@ export interface UpdateDealStageRequest {
   color: string | null;
   isActive: boolean;
 }
+
+// --- Reporting Tags (Phase 2 backend; Phase 19 is the first frontend consumer -- read-only here,
+// category/option management CRUD screen is a pre-existing gap, not built by this phase) ---
+
+export interface ReportingTagCategory {
+  id: string;
+  organizationId: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface ReportingTagOption {
+  id: string;
+  organizationId: string;
+  name: string;
+  categoryId: string;
+  isActive: boolean;
+  createdAt: string;
+}

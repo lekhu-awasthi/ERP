@@ -9,6 +9,7 @@ import { Contact } from '../../../core/contacts/contacts.models';
 import { CatalogService } from '../../../core/catalog/catalog.service';
 import { Product, VatRate } from '../../../core/catalog/catalog.models';
 import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
+import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 
 interface EditableLine {
   key: number;
@@ -30,7 +31,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-quotation-detail-page',
-  imports: [RouterLink],
+  imports: [RouterLink, ReportingTagsEditor],
   templateUrl: './quotation-detail-page.html',
 })
 export class QuotationDetailPage {

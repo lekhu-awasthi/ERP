@@ -1,0 +1,118 @@
+<div class="container py-5" style="max-width: 900px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-cash-coin fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Cash Flow Summary</h1>
+          <p class="text-muted small mb-0">Bank/Cash movements for the selected period</p>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="export()">
+          <i class="bi bi-download"></i> Export
+        </button>
+        <a [routerLink]="['/organizations', organizationId, 'reports', 'trial-balance']" class="btn btn-outline-secondary btn-sm fw-bold">
+          <i class="bi bi-journal-text"></i> Trial Balance
+        </a>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3">
+        <div class="col-12 col-sm-4">
+          <label class="form-label small fw-semibold">From Date</label>
+          <input type="date" class="form-control" [value]="fromDate()" (change)="onFromDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-4">
+          <label class="form-label small fw-semibold">To Date</label>
+          <input type="date" class="form-control" [value]="toDate()" (change)="onToDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-4">
+          <label class="form-label small fw-semibold">Bank Account</label>
+          <select class="form-select" (change)="onBankAccountChange($event)">
+            <option value="" [selected]="!bankAccountId()">All</option>
+            @for (account of bankAccountOptions(); track account.id) {
+              <option [value]="account.id" [selected]="account.id === bankAccountId()">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading Cash Flow Summary...</p>
+        </div>
+      } @else if (report(); as cf) {
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead>
+              <tr class="text-muted small">
+                <th>Particulars</th>
+                <th class="text-end">Cash In</th>
+                <th class="text-end">Cash Out</th>
+                <th class="text-end">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Starting Balance</td>
+                <td class="text-end">—</td>
+                <td class="text-end">—</td>
+                <td class="text-end">{{ cf.startingBalance.toFixed(2) }}</td>
+              </tr>
+              <tr>
+                <td>Received From Customer</td>
+                <td class="text-end">{{ cf.receivedFromCustomerCashIn.toFixed(2) }}</td>
+                <td class="text-end">{{ cf.receivedFromCustomerCashOut.toFixed(2) }}</td>
+                <td class="text-end">{{ cf.receivedFromCustomerBalance.toFixed(2) }}</td>
+              </tr>
+              <tr>
+                <td>Other Receipts</td>
+                <td class="text-end">{{ cf.otherReceiptsCashIn.toFixed(2) }}</td>
+                <td class="text-end">{{ cf.otherReceiptsCashOut.toFixed(2) }}</td>
+                <td class="text-end">{{ cf.otherReceiptsBalance.toFixed(2) }}</td>
+              </tr>
+              <tr>
+                <td>Paid To Supplier</td>
+                <td class="text-end">{{ cf.paidToSupplierCashIn.toFixed(2) }}</td>
+                <td class="text-end">{{ cf.paidToSupplierCashOut.toFixed(2) }}</td>
+                <td class="text-end">{{ cf.paidToSupplierBalance.toFixed(2) }}</td>
+              </tr>
+              <tr>
+                <td>Other Payments</td>
+                <td class="text-end">{{ cf.otherPaymentsCashIn.toFixed(2) }}</td>
+                <td class="text-end">{{ cf.otherPaymentsCashOut.toFixed(2) }}</td>
+                <td class="text-end">{{ cf.otherPaymentsBalance.toFixed(2) }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="fw-bold border-top">
+                <td>Ending Balance</td>
+                <td></td>
+                <td></td>
+                <td class="text-end">{{ cf.endingBalance.toFixed(2) }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      }
+    </div>
+  </div>
+</div>

@@ -4,6 +4,7 @@ import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
+import { DocumentType, TransactionReportingTagDto } from '../sales/sales.models';
 import {
   Bank,
   CreateBankRequest,
@@ -17,6 +18,8 @@ import {
   DealStage,
   LeadSource,
   PaymentMode,
+  ReportingTagCategory,
+  ReportingTagOption,
   TaskType,
   TdsType,
   UpdateBankRequest,
@@ -168,5 +171,36 @@ export class ConfigurationService {
 
   deleteDealStage(organizationId: string, id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl(organizationId)}/deal-stages/${id}`, { withCredentials: true });
+  }
+
+  // Reporting Tags (Phase 2 backend) -- read-only here, the category/option management CRUD
+  // screen is a pre-existing gap this phase doesn't build (see phase-19-status.md). Phase 19 is
+  // the first frontend consumer: the picker on Quotation/Invoice detail pages and every affected
+  // report's filter drawer both need the option list.
+  listReportingTagCategories(organizationId: string): Observable<ReportingTagCategory[]> {
+    return this.listAll<ReportingTagCategory>(`${this.baseUrl(organizationId)}/reporting-tag-categories`);
+  }
+
+  listReportingTagOptions(organizationId: string): Observable<ReportingTagOption[]> {
+    return this.listAll<ReportingTagOption>(`${this.baseUrl(organizationId)}/reporting-tag-options`);
+  }
+
+  getTransactionReportingTags(
+    organizationId: string, documentType: DocumentType, documentId: string,
+  ): Observable<TransactionReportingTagDto[]> {
+    return this.http.get<TransactionReportingTagDto[]>(
+      `${this.baseUrl(organizationId)}/reporting-tags/${documentType}/${documentId}`,
+      { withCredentials: true },
+    );
+  }
+
+  setTransactionReportingTags(
+    organizationId: string, documentType: DocumentType, documentId: string, tagOptionIds: string[],
+  ): Observable<void> {
+    return this.http.put<void>(
+      `${this.baseUrl(organizationId)}/reporting-tags/${documentType}/${documentId}`,
+      { tagOptionIds },
+      { withCredentials: true },
+    );
   }
 }

@@ -1028,6 +1028,43 @@ namespace ErpApp.Infrastructure.Migrations
                     b.ToTable("TdsTypes", "configuration");
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Configuration.TransactionReportingTag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TagOptionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TagOptionId");
+
+                    b.HasIndex("OrganizationId", "TagOptionId");
+
+                    b.HasIndex("DocumentType", "DocumentId", "TagOptionId")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "DocumentType", "DocumentId");
+
+                    b.ToTable("TransactionReportingTags", "configuration");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Contacts.Comment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5090,6 +5127,90 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = true,
                             PermissionKey = "Crm.SmsLog.View",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000119"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.CashFlowSummary.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000011a"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.CashFlowSummary.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000011b"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.SalesRegister.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000011c"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.SalesRegister.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000011d"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.PurchaseRegister.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000011e"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.PurchaseRegister.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000011f"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.StockAgeing.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000120"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.StockAgeing.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000121"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.ProductProfitability.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000122"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.ProductProfitability.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000123"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.RatioAnalysis.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000124"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.RatioAnalysis.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 
@@ -5588,6 +5709,15 @@ namespace ErpApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Configuration.TransactionReportingTag", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Configuration.ReportingTagOption", null)
+                        .WithMany()
+                        .HasForeignKey("TagOptionId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

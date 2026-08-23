@@ -186,3 +186,64 @@ export interface OpeningStockLineResult {
   quantity: number;
   rate: number;
 }
+
+// --- Stock Ageing (Phase 19) ---
+
+export interface StockAgeingRowDto {
+  productId: string;
+  productCode: string;
+  productName: string;
+  categoryName: string;
+  unitShortName: string;
+  days1To30: number;
+  days31To60: number;
+  days61To90: number;
+  days91Plus: number;
+  total: number;
+  rate: number;
+  amount: number;
+}
+
+export interface StockAgeingDto {
+  asOfDate: string;
+  items: StockAgeingRowDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalDays1To30: number;
+  totalDays31To60: number;
+  totalDays61To90: number;
+  totalDays91Plus: number;
+  totalAmount: number;
+}
+
+// --- Product Profitability Report (Phase 19) ---
+
+export interface ProductProfitabilityRowDto {
+  productId: string;
+  productCode: string;
+  productName: string;
+  categoryName: string;
+  openingBalance: number;
+  purchase: number;
+  productionCost: number;
+  additionalCost: number;
+  closingBalance: number;
+  costOfSales: number;
+  sales: number;
+  consumption: number;
+  grossProfit: number;
+  grossMarginPct: number;
+}
+
+export interface ProductProfitabilityDto {
+  fromDate: string;
+  toDate: string;
+  items: ProductProfitabilityRowDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalSales: number;
+  totalCostOfSales: number;
+  totalGrossProfit: number;
+}

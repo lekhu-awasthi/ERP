@@ -19,6 +19,8 @@ import {
   OpeningStockLineRequest,
   OpeningStockLineResult,
   ProductOpeningBalanceDto,
+  ProductProfitabilityDto,
+  StockAgeingDto,
   StockPositionDto,
   UpdateInventoryAdjustmentResult,
   UpdateWarehouseTransferResult,
@@ -173,5 +175,67 @@ export class InventoryService {
       request,
       { withCredentials: true },
     );
+  }
+
+  getStockAgeing(
+    organizationId: string, asOfDate: string, productCategoryId: string | null, productId: string | null,
+    warehouseId: string | null, page = 1, pageSize = 50,
+  ): Observable<StockAgeingDto> {
+    const params: Record<string, string> = { asOfDate, page: String(page), pageSize: String(pageSize) };
+    if (productCategoryId) params['productCategoryId'] = productCategoryId;
+    if (productId) params['productId'] = productId;
+    if (warehouseId) params['warehouseId'] = warehouseId;
+
+    return this.http.get<StockAgeingDto>(`${this.baseUrl(organizationId)}/reports/stock-ageing`, {
+      withCredentials: true,
+      params,
+    });
+  }
+
+  exportStockAgeing(
+    organizationId: string, asOfDate: string, productCategoryId: string | null, productId: string | null,
+    warehouseId: string | null, full: boolean, page: number, pageSize: number,
+  ): Observable<Blob> {
+    const params: Record<string, string> = { asOfDate, full: String(full), page: String(page), pageSize: String(pageSize) };
+    if (productCategoryId) params['productCategoryId'] = productCategoryId;
+    if (productId) params['productId'] = productId;
+    if (warehouseId) params['warehouseId'] = warehouseId;
+
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/stock-ageing/export`, {
+      withCredentials: true,
+      params,
+      responseType: 'blob',
+    });
+  }
+
+  getProductProfitability(
+    organizationId: string, fromDate: string, toDate: string, productCategoryId: string | null,
+    productId: string | null, page = 1, pageSize = 50,
+  ): Observable<ProductProfitabilityDto> {
+    const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
+    if (productCategoryId) params['productCategoryId'] = productCategoryId;
+    if (productId) params['productId'] = productId;
+
+    return this.http.get<ProductProfitabilityDto>(`${this.baseUrl(organizationId)}/reports/product-profitability`, {
+      withCredentials: true,
+      params,
+    });
+  }
+
+  exportProductProfitability(
+    organizationId: string, fromDate: string, toDate: string, productCategoryId: string | null,
+    productId: string | null, full: boolean, page: number, pageSize: number,
+  ): Observable<Blob> {
+    const params: Record<string, string> = {
+      fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
+    };
+    if (productCategoryId) params['productCategoryId'] = productCategoryId;
+    if (productId) params['productId'] = productId;
+
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/product-profitability/export`, {
+      withCredentials: true,
+      params,
+      responseType: 'blob',
+    });
   }
 }
