@@ -13,8 +13,9 @@ Manual E2E via curl + sqlcmd + live browser against a fresh Organization: full c
 edit-time round-trips proven through the real UI for Text/Number/Choices fields on both document
 types, a 400 for an invalid Choices value, and a 403 naming `Sales.Quotation.Edit` proven against a
 nonexistent document id with a custom Role. Both outstanding Phase 19 flag-and-abandon items
-(Reporting Tags admin screen, Purchase/COGS double-expense) re-flagged via `spawn_task` a second time,
-not fixed inline — see "Known limitations" below for reasoning.
+(Reporting Tags admin screen, Purchase/COGS double-expense) were re-flagged via `spawn_task` a second
+time rather than fixed inline; **both have since been resolved outside this sub-phase** — see
+"Known limitations" below.
 
 ## Confirm-live decisions (step 2 of the kickoff prompt)
 
@@ -154,14 +155,17 @@ UI gap. Manual E2E seeded all three field definitions via `curl` instead, per th
   close, since its mandate was the value-write side. `curl` remains the only way to define a field
   in this codebase today.
 - **Reporting Tags admin screen (Configurations > Reporting Tags category/option management)** —
-  re-flagged via `spawn_task` again this session. This is the **second** flag-and-abandon cycle (first
-  was during Phase 19). Not fixed inline: building it properly means also wiring category creation,
-  option creation scoped to a category, and the two-step delete-confirmation pattern Phase 2 already
-  established (`docs/phase-2-status.md` decision #11) — a full page, not a quick addition, and this
-  session's budget went to the sub-phase's actual mandate instead.
-- **Purchase/COGS double-expense in Income Statement's Net Profit** — re-flagged via `spawn_task`
-  again this session. This is also the **second** flag-and-abandon cycle (first was during Phase 19).
-  Not investigated further here; unrelated to Custom Fields.
+  re-flagged via `spawn_task` again this session (the **second** flag-and-abandon cycle; the first was
+  during Phase 19), because building it properly means wiring category creation, option creation scoped
+  to a category, and Phase 2's two-step delete-confirmation pattern (`docs/phase-2-status.md` decision
+  #11) — a full page, not a quick addition, and this session's budget went to the sub-phase's actual
+  mandate. **RESOLVED** since this doc was written: the screen shipped in PR #34 (`f7c885e`). No longer
+  an open item; do not re-flag.
+- **Purchase/COGS double-expense in Income Statement's Net Profit** — re-flagged via `spawn_task` again
+  this session (also the **second** cycle, first during Phase 19), not investigated here.
+  **RESOLVED** since this doc was written: fixed in PR #35 (`2acb383`) — Goods purchases now debit
+  `TenantSettings.DefaultInventoryAccountId` instead of Purchase Expense — with a regression test added
+  in PR #36 (`055b49f`). See `docs/phase-7-status.md`'s addendum. No longer an open item; do not re-flag.
 
 ## Manual E2E (fresh Organization, curl + sqlcmd + live browser)
 

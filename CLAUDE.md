@@ -127,4 +127,4 @@ proven through the real UI for Text/Number/Choices fields on both document types
 invalid Choices value, and a 403 naming `Sales.Quotation.Edit` proven against a nonexistent document
 id with a purpose-built custom Role. Full reasoning in `docs/phase-20a-status.md`.
 
-**Next up: Phase 20b onward — the rest of Phase 20's Configuration & extensibility completion** (Custom Status wiring, Cost Terms, Printing/Custom Templates, Alert Scheduler, tenant feature-flag enforcement, Turnstile). See `docs/roadmap.md`'s Phase 20 section for the task breakdown and the completed-phase index table for everything prior.
+**Next up: the rest of Phase 20, in the locked order 20c (in progress, `feature/phase-20c-cost-terms`) → 20b Custom Status wiring → 20g Turnstile → 20d Printing/Custom Templates → 20f tenant feature-flag enforcement → 20e Alert Scheduler** (highest-risk last — background-job architecture gets its own session). See `docs/roadmap.md`'s Phase 20 section for each sub-phase's brief and the ordering reasoning, and the completed-phase index table for everything prior.

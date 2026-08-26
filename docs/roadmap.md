@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–18)
+## Completed phases (0–20a)
 
 Detail lives in each phase's own status doc — this table is the index, not the history.
 
@@ -37,6 +37,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 17 | Accounting breadth: Quick Payment/Receipt, Bank Accounts, Cheque Register, Allocate Customer/Supplier Payment, Opening Balances; `PaymentAllocation` generalized to a polymorphic Payment/JournalVoucher source | `phase-17-status.md` |
 | 18 | CRM completion: `IFileStorage` (local-disk), `Attachment`/Contact Personnel/Comment (Contact-scoped), Activity feed (reused `Audit`/`AuditBehavior`), SMS (`SmsTemplate`/`SmsLog`/`SmsCreditLedgerEntry`, `ISmsSender`), quick-action prefill, Sales Order Angular UI (a pre-existing Phase 5 gap, closed here) | `phase-18-status.md` |
 | 19 | `TransactionReportingTag` (document-level, Quotation/Invoice) + tag-filtered Sales Register; Cash Flow Summary, Sales/Purchase Register, Stock Ageing, Product Profitability, Ratio Analysis reports, closing FR-9.1/9.4/9.5/9.7's non-migrated catalog | `phase-19-status.md` |
+| 20a | Custom Fields reach the forms: `SetCustomFieldValuesCommand`/`GetCustomFieldValuesQuery` + `CustomFieldDefinition.ChoiceOptions`, shared `app-custom-fields-editor` wired to Quotation/Invoice | `phase-20a-status.md` |
 
 ---
 
@@ -116,17 +117,82 @@ seeded rows.*
 ---
 
 ## Phase 20 — Configuration & extensibility completion
-**Goal:** make the Phase 2 extensibility foundations actually reach the UI, plus the notification/template surface (FR-11.x, FR-12.x).
+**Goal:** make the Phase 2 extensibility foundations actually reach the UI, plus the notification/template surface (FR-11.x, FR-12.x). Split into seven independently shippable sub-phases; one sub-phase = one session.
 
-1. **Custom fields rendered on forms** (FR-12.1): the deferred half of Phase 2's EAV — a shared Angular component rendering a document type's `CustomFieldDefinition`s inline, values saved via `CustomFieldValue`.
-2. **Custom Status wiring** (FR-12.2): per-document-type custom status/stage pipelines (the lookup exists; the assignment on documents doesn't).
-3. **Cost Terms** lookup (Configurations §7) — prerequisite reference data for Phase 25's Manufacturing.
-4. **Printing Templates / Custom Templates** (FR-11.2/11.3): print/PDF layout per document type with a tenant default; merge-field text templates. This closes 16c's deferred print-formatted output.
-5. **Alert Scheduler** (FR-11.1): first background-job infrastructure (scheduled recurring emails) — design the job runner once; Phase 21's async import/export reuses it (NFR-4.3).
-6. **Tenant feature-flag enforcement** (FR-2.6): the wizard's Accounting Features checkboxes (recorded since Phase 1b) actually gate document types and UI surfaces at point of use.
-7. **Turnstile bot-check** on registration — the Phase 1 hardening deferral.
+**Locked execution order: 20a ✅ → 20c (in progress) → 20b → 20g → 20d → 20f → 20e.** Reasoning (not the
+list order — deliberately resequenced):
+- **20b after 20c** because it is the same shape and size as the just-finished 20a (extend a Phase 2 lookup onto real documents, confirm-live step, shared editor component). Running that pattern again while the muscle memory is fresh is lower-risk than pivoting to something structurally new.
+- **20g early** because it is small and isolable — a good pairing candidate with leftover budget or a short session of its own, but never the main event.
+- **20d and 20e are both greenfield-and-risky**, and 20e in particular is an architecture decision (background-job infra, a new authentication-bypass surface) that deserves a session where it is the *only* thing being decided — so it goes last, treated as an architecture review rather than "whatever's next."
+- **20f is a sweep across already-built surfaces**, easiest to scope correctly once more document types exist and have settled shapes, so it waits until fewer sub-phases are still landing and re-doing gating work is less likely.
 
-*Exit criteria: a custom field defined for Invoice appears on the Invoice form and round-trips; a printed Invoice renders through the selected template; a scheduled alert email actually arrives on schedule; a tenant without Track Inventory no longer sees warehouse-dependent surfaces.*
+### 20a. Custom fields rendered on forms (FR-12.1) — **COMPLETE**, see `phase-20a-status.md`
+The deferred write-side half of Phase 2's EAV: `SetCustomFieldValuesCommand`/`GetCustomFieldValuesQuery`
+(riding on the target document's own Edit/View permission), a `ChoiceOptions` field
+`CustomFieldDefinition` never had, and a shared `app-custom-fields-editor` rendering a document type's
+applicable fields inline in its create/edit form. Wired to Quotation and Invoice only; the other 15
+applicable document types and a `CustomFieldDefinition` admin screen are mechanical follow-up.
+
+### 20b. Custom Status wiring (FR-12.2) — **NEXT** (after 20c merges)
+Per-document-type custom status/stage pipelines. The same shape of gap 20a just closed for Custom Fields,
+and the *third* instance of "cross-cutting data attached to a document" after Phase 19's
+`ReportingTagsEditor` and 20a's `app-custom-fields-editor` — read both predecessors before designing this
+one rather than assuming it repeats either.
+
+Verified current state (grepped this session, not assumed):
+- The lookup entity is **`CustomStatus`** (`src/Domain/Configuration/CustomStatus.cs`), *not*
+  `CustomStatusDefinition` — an `ITenantLookupEntity` with `Name` + a `DocumentType` discriminator, with
+  full Create/Update/List/Delete through the generic lookup CRUD since Phase 2.
+- **No document aggregate references it.** `grep -rin customstatus src/Domain` hits only the entity's own
+  file; no `CustomStatusId` exists anywhere. The assignment-onto-a-document half is 100% unbuilt.
+- **There is no Angular screen for `CustomStatus`** — `configuration-shell.ts`'s own comment records that
+  only ReportingTags got one (Phase 19); `CustomStatus` and `CustomFieldDefinition` are API-only. Defining
+  a status is `curl`-only today. Decide up front whether 20b also builds that admin screen or keeps
+  definition-seeding on `curl` (as 20a did for `CustomFieldDefinition`) — don't discover it mid-session.
+
+**Confirm live before coding** (the scan lists Sales Order, Purchase Order, Quotation, Cheque, Production
+Order as status-pipeline-*definable* — a candidate list, not a confirmed one):
+- Which document types actually show a status-picker control on the real document form. "The lookup can be defined for this type" and "the form has the control" are two different confirmations — the same distinction Phase 19 drew between `ReportingTagCategory` (Phase 2) and `TransactionReportingTag` (Phase 19).
+- Whether changing a custom status has any side effect (GL, stock, notification) or is purely informational — if purely informational this is a much smaller sub-phase.
+- Whether a Kanban/board view grouped by status exists at all. Don't build one speculatively.
+- Whether the picker is a plain `<select>` (native-`<select>` `[selected]`-per-option gotcha applies immediately) or something richer.
+
+**Backend:** nullable `CustomStatusId` on whichever aggregates are confirmed to carry it; a
+`SetCustomStatusCommand`; validation that the assigned `CustomStatus.DocumentType` matches the
+target document's own type (**400**, not a silent accept); a `GetCustomStatusOptionsQuery` (or fold into the
+document type's existing lookup-loading call) returning only options valid for that type; permission shape
+derived the way 20a did it (rides on the document's own Edit permission, or its own key — reasoning recorded
+either way).
+
+**Frontend:** the picker on the confirmed document types' detail pages; a Kanban board grouped by status
+*only* if live-confirmed to exist.
+
+*Exit criteria: a status persists and reads back through the real Angular form; a status defined for the
+wrong document type is rejected with 400; permission-key derivation recorded with reasoning; manual E2E
+(seed a `CustomStatus` via curl, set via curl, confirm via `sqlcmd`, then confirm in the real
+form) plus a 403 naming the exact key; if a board view is in scope, dragging between columns persists.*
+
+### 20c. Cost Terms lookup — *in progress* (`feature/phase-20c-cost-terms`)
+Configurations §7 — prerequisite reference data for Phase 25's Manufacturing.
+
+### 20d. Printing Templates / Custom Templates (FR-11.2/11.3)
+Print/PDF layout per document type with a tenant default; merge-field text templates. Closes 16c's deferred
+print-formatted output. Greenfield — treat the template model as its own design decision.
+
+### 20e. Alert Scheduler (FR-11.1)
+First background-job infrastructure (scheduled recurring emails) — design the job runner once; Phase 21's
+async import/export reuses it (NFR-4.3). **Highest-risk sub-phase**: a job-runner architecture choice plus a
+new authentication-bypass surface. Scheduled last, for a session that treats it as an architecture review.
+
+### 20f. Tenant feature-flag enforcement (FR-2.6)
+The wizard's Accounting Features checkboxes (recorded since Phase 1b) actually gate document types and UI
+surfaces at point of use. A sweep across already-built surfaces — scoped after the other build-out
+sub-phases land, so gating work isn't re-done.
+
+### 20g. Turnstile bot-check on registration
+The Phase 1 hardening deferral. Small and isolable.
+
+*Phase exit criteria: a custom field defined for Invoice appears on the Invoice form and round-trips; a printed Invoice renders through the selected template; a scheduled alert email actually arrives on schedule; a tenant without Track Inventory no longer sees warehouse-dependent surfaces.*
 
 ---
 
