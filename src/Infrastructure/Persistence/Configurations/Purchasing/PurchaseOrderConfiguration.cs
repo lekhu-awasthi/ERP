@@ -1,3 +1,4 @@
+using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Purchasing;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +24,9 @@ public sealed class PurchaseOrderConfiguration : IEntityTypeConfiguration<Purcha
         builder.Property(x => x.DiscountPct).HasPrecision(18, 4).IsRequired();
 
         builder.HasOne<Contact>().WithMany().HasForeignKey(x => x.ContactId).OnDelete(DeleteBehavior.Restrict);
+
+        // SetNull -- see QuotationConfiguration's identical comment (Phase 20b).
+        builder.HasOne<CustomStatus>().WithMany().HasForeignKey(x => x.CustomStatusId).OnDelete(DeleteBehavior.SetNull);
 
         builder.HasMany(x => x.Lines)
             .WithOne()

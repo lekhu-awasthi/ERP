@@ -43,6 +43,7 @@ export interface PurchaseOrder {
   approvedAt: string | null;
   createdAt: string;
   discountPct: number;
+  customStatusId: string | null;
 }
 
 export interface PurchaseOrderLineDto extends PurchaseOrderLineInput {

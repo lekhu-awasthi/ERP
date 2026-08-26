@@ -207,6 +207,20 @@ export interface UpdateReportingTagOptionRequest {
   isActive: boolean;
 }
 
+// Phase 20b -- Custom Status (config) -- tenant-defined status pipeline, one lookup row per
+// (DocumentType, Name). Backend CRUD has existed since Phase 2; this phase adds the first
+// consumer, the write-side assignment onto Quotation/PurchaseOrder (see sales.models.ts'
+// setCustomStatus). No admin management screen yet -- definitions are curl-seeded, same gap
+// Phase 20a left for CustomFieldDefinition (see phase-20b-status.md's Known limitations).
+export interface CustomStatus {
+  id: string;
+  organizationId: string;
+  name: string;
+  documentType: DocumentType;
+  isActive: boolean;
+  createdAt: string;
+}
+
 // Phase 20a -- Custom Fields (config) -- CustomFieldDefinition { Name, Type, ApplicableDocumentTypes,
 // ChoiceOptions }, EAV definition CRUD (Phase 2). The value-write side (CustomFieldValue) lives in
 // sales.models.ts alongside TransactionReportingTagDto, since DocumentType is defined there.

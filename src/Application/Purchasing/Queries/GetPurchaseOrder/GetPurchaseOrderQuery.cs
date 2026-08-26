@@ -26,4 +26,5 @@ public sealed record PurchaseOrderDetailDto(
     DateTimeOffset? ApprovedAt,
     DateTimeOffset CreatedAt,
     decimal DiscountPct,
+    Guid? CustomStatusId,
     IReadOnlyList<PurchaseOrderLineDto> Lines);
