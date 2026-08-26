@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–20a)
+## Completed phases (0–20c)
 
 Detail lives in each phase's own status doc — this table is the index, not the history.
 
@@ -37,7 +37,8 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 17 | Accounting breadth: Quick Payment/Receipt, Bank Accounts, Cheque Register, Allocate Customer/Supplier Payment, Opening Balances; `PaymentAllocation` generalized to a polymorphic Payment/JournalVoucher source | `phase-17-status.md` |
 | 18 | CRM completion: `IFileStorage` (local-disk), `Attachment`/Contact Personnel/Comment (Contact-scoped), Activity feed (reused `Audit`/`AuditBehavior`), SMS (`SmsTemplate`/`SmsLog`/`SmsCreditLedgerEntry`, `ISmsSender`), quick-action prefill, Sales Order Angular UI (a pre-existing Phase 5 gap, closed here) | `phase-18-status.md` |
 | 19 | `TransactionReportingTag` (document-level, Quotation/Invoice) + tag-filtered Sales Register; Cash Flow Summary, Sales/Purchase Register, Stock Ageing, Product Profitability, Ratio Analysis reports, closing FR-9.1/9.4/9.5/9.7's non-migrated catalog | `phase-19-status.md` |
-| 20a | Custom Fields reach the forms: `SetCustomFieldValuesCommand`/`GetCustomFieldValuesQuery` + `CustomFieldDefinition.ChoiceOptions`, shared `app-custom-fields-editor` wired to Quotation/Invoice | `phase-20a-status.md` |
+| 20a | Custom Fields reach the forms: `SetCustomFieldValuesCommand`/`GetCustomFieldValuesQuery` + `CustomFieldDefinition.ChoiceOptions`, shared `app-custom-fields-editor` wired into Quotation/Invoice (FR-12.1) | `phase-20a-status.md` |
+| 20c | `CostTerm` lookup (Additional Cost / Production Cost categories) + Configurations screen — prerequisite reference data for Phase 25's Manufacturing, nothing consumes it yet | `phase-20c-status.md` |
 
 ---
 
@@ -119,12 +120,16 @@ seeded rows.*
 ## Phase 20 — Configuration & extensibility completion
 **Goal:** make the Phase 2 extensibility foundations actually reach the UI, plus the notification/template surface (FR-11.x, FR-12.x). Split into seven independently shippable sub-phases; one sub-phase = one session.
 
-**Locked execution order: 20a ✅ → 20c (in progress) → 20b → 20g → 20d → 20f → 20e.** Reasoning (not the
-list order — deliberately resequenced):
-- **20b after 20c** because it is the same shape and size as the just-finished 20a (extend a Phase 2 lookup onto real documents, confirm-live step, shared editor component). Running that pattern again while the muscle memory is fresh is lower-risk than pivoting to something structurally new.
+**Locked execution order: 20a ✅ → 20c ✅ → 20b → 20g → 20d → 20f → 20e.** Reasoning (this is
+*not* the original list order — deliberately resequenced):
+- **20b next** because it is the same shape and size as 20a (extend a Phase 2 lookup onto real documents, confirm-live step, shared editor component). Running that pattern again while the muscle memory is fresh is lower-risk than pivoting to something structurally new.
 - **20g early** because it is small and isolable — a good pairing candidate with leftover budget or a short session of its own, but never the main event.
-- **20d and 20e are both greenfield-and-risky**, and 20e in particular is an architecture decision (background-job infra, a new authentication-bypass surface) that deserves a session where it is the *only* thing being decided — so it goes last, treated as an architecture review rather than "whatever's next."
+- **20d and 20e are both greenfield-and-risky**, and 20e in particular is an architecture decision (background-job infra, plus how a jobless command authenticates itself — a new authentication-bypass surface) that deserves a session where it is the *only* thing being decided — so it goes last, treated as an architecture review rather than "whatever's next."
 - **20f is a sweep across already-built surfaces**, easiest to scope correctly once more document types exist and have settled shapes, so it waits until fewer sub-phases are still landing and re-doing gating work is less likely.
+
+**20b and 20d still need a confirm-live pass** against the Tigg UAT tenant before any code (20c was the
+one remaining sub-phase that didn't — `erp-module-scan.md` §7 already had its data model from a
+hands-on pass).
 
 ### 20a. Custom fields rendered on forms (FR-12.1) — **COMPLETE**, see `phase-20a-status.md`
 The deferred write-side half of Phase 2's EAV: `SetCustomFieldValuesCommand`/`GetCustomFieldValuesQuery`
@@ -133,7 +138,7 @@ The deferred write-side half of Phase 2's EAV: `SetCustomFieldValuesCommand`/`Ge
 applicable fields inline in its create/edit form. Wired to Quotation and Invoice only; the other 15
 applicable document types and a `CustomFieldDefinition` admin screen are mechanical follow-up.
 
-### 20b. Custom Status wiring (FR-12.2) — **NEXT** (after 20c merges)
+### 20b. Custom Status wiring (FR-12.2) — **NEXT**
 Per-document-type custom status/stage pipelines. The same shape of gap 20a just closed for Custom Fields,
 and the *third* instance of "cross-cutting data attached to a document" after Phase 19's
 `ReportingTagsEditor` and 20a's `app-custom-fields-editor` — read both predecessors before designing this
@@ -172,8 +177,10 @@ wrong document type is rejected with 400; permission-key derivation recorded wit
 (seed a `CustomStatus` via curl, set via curl, confirm via `sqlcmd`, then confirm in the real
 form) plus a 403 naming the exact key; if a board view is in scope, dragging between columns persists.*
 
-### 20c. Cost Terms lookup — *in progress* (`feature/phase-20c-cost-terms`)
-Configurations §7 — prerequisite reference data for Phase 25's Manufacturing.
+### 20c. Cost Terms lookup — **COMPLETE**, see `phase-20c-status.md`
+Configurations §7 — the `CostTerm` lookup (`AdditionalCost`/`ProductionCost` categories, uniqueness per
+`(Organization, Category, Name)`) plus its Configurations screen. Prerequisite reference data for Phase
+25's Manufacturing; nothing consumes it yet, by design.
 
 ### 20d. Printing Templates / Custom Templates (FR-11.2/11.3)
 Print/PDF layout per document type with a tenant default; merge-field text templates. Closes 16c's deferred

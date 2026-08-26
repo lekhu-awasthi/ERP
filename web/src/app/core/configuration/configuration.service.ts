@@ -8,12 +8,14 @@ import { CustomFieldValueDto, CustomFieldValueInput, DocumentType, TransactionRe
 import {
   Bank,
   CreateBankRequest,
+  CreateCostTermRequest,
   CreateCreditTermRequest,
   CreateDealStageRequest,
   CreateLeadSourceRequest,
   CreatePaymentModeRequest,
   CreateTaskTypeRequest,
   CreateTdsTypeRequest,
+  CostTerm,
   CreditTerm,
   CreateReportingTagCategoryRequest,
   CreateReportingTagOptionRequest,
@@ -26,6 +28,7 @@ import {
   TaskType,
   TdsType,
   UpdateBankRequest,
+  UpdateCostTermRequest,
   UpdateCreditTermRequest,
   UpdateDealStageRequest,
   UpdateLeadSourceRequest,
@@ -70,6 +73,26 @@ export class ConfigurationService {
 
   deleteCreditTerm(organizationId: string, id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl(organizationId)}/credit-terms/${id}`, { withCredentials: true });
+  }
+
+  listCostTerms(organizationId: string): Observable<CostTerm[]> {
+    return this.listAll<CostTerm>(`${this.baseUrl(organizationId)}/cost-terms`);
+  }
+
+  createCostTerm(organizationId: string, request: CreateCostTermRequest): Observable<CostTerm> {
+    return this.http.post<CostTerm>(`${this.baseUrl(organizationId)}/cost-terms`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updateCostTerm(organizationId: string, id: string, request: UpdateCostTermRequest): Observable<CostTerm> {
+    return this.http.put<CostTerm>(`${this.baseUrl(organizationId)}/cost-terms/${id}`, request, {
+      withCredentials: true,
+    });
+  }
+
+  deleteCostTerm(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/cost-terms/${id}`, { withCredentials: true });
   }
 
   listPaymentModes(organizationId: string): Observable<PaymentMode[]> {

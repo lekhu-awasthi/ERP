@@ -35,6 +35,7 @@ public interface IAppDbContext
     DbSet<PaymentMode> PaymentModes { get; }
     DbSet<Bank> Banks { get; }
     DbSet<CustomStatus> CustomStatuses { get; }
+    DbSet<CostTerm> CostTerms { get; }
     DbSet<ReportingTagCategory> ReportingTagCategories { get; }
     DbSet<ReportingTagOption> ReportingTagOptions { get; }
     DbSet<TransactionReportingTag> TransactionReportingTags { get; }

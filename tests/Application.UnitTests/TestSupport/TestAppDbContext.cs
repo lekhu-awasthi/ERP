@@ -45,6 +45,8 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
 
     public DbSet<CustomStatus> CustomStatuses => Set<CustomStatus>();
 
+    public DbSet<CostTerm> CostTerms => Set<CostTerm>();
+
     public DbSet<ReportingTagCategory> ReportingTagCategories => Set<ReportingTagCategory>();
 
     public DbSet<ReportingTagOption> ReportingTagOptions => Set<ReportingTagOption>();

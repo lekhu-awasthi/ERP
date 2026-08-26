@@ -94,6 +94,10 @@ public static class DependencyInjection
         RegisterLookupHandlers<LeadSource>(services);
         RegisterLookupHandlers<DealStage>(services);
 
+        // Phase 20c (Cost Terms) -- the same "pure {id, name, category}" lookup shape; reference
+        // data for Phase 25's BOM/Production Journal, nothing consumes it yet.
+        RegisterLookupHandlers<CostTerm>(services);
+
         // IGlPostingRule<T> (architecture-spec.md §3.4) -- pure TDocument->GL-lines mappers, one
         // per document type that posts to GL. Registered so ApproveXCommandHandler and
         // PreviewGlPostingQueryHandler share the exact same instance type (no duplicated math).
