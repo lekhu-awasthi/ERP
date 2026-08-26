@@ -1,3 +1,5 @@
+import { DocumentType } from '../sales/sales.models';
+
 export interface CreditTerm {
   id: string;
   organizationId: string;
@@ -180,5 +182,19 @@ export interface CreateReportingTagOptionRequest {
 export interface UpdateReportingTagOptionRequest {
   name: string;
   categoryId: string;
+  isActive: boolean;
+}
+
+// Phase 20a -- Custom Fields (config) -- CustomFieldDefinition { Name, Type, ApplicableDocumentTypes,
+// ChoiceOptions }, EAV definition CRUD (Phase 2). The value-write side (CustomFieldValue) lives in
+// sales.models.ts alongside TransactionReportingTagDto, since DocumentType is defined there.
+export type CustomFieldType = 'Text' | 'Number' | 'Description' | 'Choices';
+
+export interface CustomFieldDefinition {
+  id: string;
+  name: string;
+  type: CustomFieldType;
+  applicableDocumentTypes: DocumentType[];
+  choiceOptions: string[];
   isActive: boolean;
 }

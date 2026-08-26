@@ -25,6 +25,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
   - `phase-16b` — before adding any per-line/per-document adjustment field (discount, future surcharge/rounding): the "fold every adjustment into the stored `Line.Amount`/`VatAmount` so GL/report code needs zero changes" pattern, and the "confirm live which GL account it posts to before writing any posting-rule code" precedent (discount turned out to have none)
   - `phase-16c` — before adding a footer/summary total to any paginated screen (it must come from a server-computed field over the *full* filtered set, never a client-side reduce over the current page — a bug this phase found in four pre-existing report pages); before writing any file-download endpoint (Kestrel disallows synchronous writes to the live response stream — ClosedXML/any sync-only writer must target a `MemoryStream` first, then `CopyToAsync` the real stream)
   - `phase-18` — before designing a second polymorphic (ParentType, ParentId) entity: confirm live whether it's really the same concept as an existing one (`Attachment` vs. `WorkTask`) before reusing its enum — Decision #2's Contact-Documents-vs-Workflow-Document split; before assuming a new "sub-record of a Contact" needs Phase 4's full-collection-replace treatment — confirm live whether the real UI even submits it as a list (`ContactPersonnel` didn't, so it's a standalone entity like `WorkTask`/`Deal`, sidestepping the gotcha by design); before writing any Minimal API endpoint that binds `IFormFile` (needs `.DisableAntiforgery()` — see Known Gotchas)
+  - `phase-20a` — before building a second "cross-cutting data attached to a document" editor (custom fields, reporting tags, or similar): confirm live whether it saves inline with the document's own Save action (Custom Fields) or as its own independent post-creation action (Reporting Tags, Phase 19) — the two aren't the same shape and the live reference product answers this per-feature, not by analogy to the last one built
   - `phase-7`'s addendum (bottom of the file) — before adding a new tenant-wide default GL account or changing which account a posting rule debits/credits: grep for the field name across every posting rule that's supposed to read it. `DefaultInventoryAccountId` sat completely unread by `PurchaseBillPostingRule` for 12 phases (Goods purchases debited Purchase Expense instead), silently double-counting Cost of Goods Sold in `IncomeStatementQueryHandler`'s Net Profit for any tenant whose Purchase account was Expense-typed — the obvious/default choice, caught only by a later phase's live E2E, not by any test or `dotnet build`
 
 ## Stack & conventions
@@ -108,50 +109,22 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 > `docs/phase-N-status.md` and the roadmap's index table; never append essay-length phase
 > write-ups here, and never keep more than the latest one or two phases in this section.
 
-**Phase 19 (Reporting Tags + remaining reports) is complete** — `TransactionReportingTag`
-(document-level join, live-confirmed against a real Approved Quotation's detail sidebar — tags
-attach post-creation, not at create time; only Quotation and Invoice confirmed to carry the field),
-`SetTransactionReportingTagsCommand` (replace-the-whole-set, rides on that document type's own Edit
-permission rather than a new key), and a `ReportingTagFilter` OR-semantics helper threaded through
-Sales Register (the one report whose source documents, Invoices, actually carry tags). Six new
-reports close the FR-9.1/9.4/9.5/9.7 catalog: Cash Flow Summary (direct-method Bank/Cash movement
-summary, live-confirmed — **not** an indirect-method statement, the reference product has no
-Operating/Investing/Financing concept at all); Sales Register / Purchase Register (Nepal IRD
-statutory Sales/Purchase Book format, live-confirmed column-by-column, Purchase Register reusing
-PurchaseBill's existing `IsImport`/`ExpenditureClassification` split with zero domain gap); Stock
-Ageing (same 1-30/31-60/61-90/91+ buckets as Customer/Supplier Ageing); Product Profitability
-(a per-product-per-period aggregate, not a per-line fact table, live-confirmed); Ratio Analysis (all
-16 ratios computed by calling `BalanceSheetQueryHandler`/`IncomeStatementQueryHandler` directly,
-"Current Assets/Liabilities" approximated from `TenantSettings`' AR/AP/Inventory defaults since this
-codebase's Chart of Accounts has no Current/Non-current classification). Six new `Reports.*.View`
-permission keys, three Admin-only (Sales/Purchase Register, Product Profitability — PAN exposure or
-margin-adjacent bulk data) and three Admin+Member (Cash Flow Summary, Stock Ageing, Ratio Analysis —
-rollups with no new exposure). Tests: Domain.UnitTests 125 (unchanged), Application.UnitTests 257
-(was 242, all 15 new tests hand-computed against real Create/Approve-seeded documents), Angular 7
-specs (unchanged), `ng build`/`tsc --noEmit` clean. One real bug caught only by manual E2E: Ratio
-Analysis's Inventory figure originally read `TenantSettings.DefaultInventoryAccountId`'s GL balance,
-which runs permanently negative in this codebase (`PurchaseBillPostingRule` debits a Purchase Expense
-account, never Inventory) — fixed to sum FIFO-layer valuation instead, matching Stock Ageing/Product
-Profitability's own approach. Manual E2E via curl + `sqlcmd` + live browser against a fresh
-Organization: every report's numbers hand-verified against a real seeded PurchaseBill/Invoice/
-Payment/JournalVoucher scenario; Sales Register's tag filter narrowed to exactly the tagged Invoice
-and excluded the untagged one and every CreditNote; Stock Ageing's total reconciled exactly against
-Stock Position's Balance; all 6 spreadsheet exports produced valid non-corrupt files with zero server
-exceptions; a second real invited-Member user proved all 6 new permission keys live (403 naming the
-exact key for the 3 Admin-only reports, 200 for the 3 Admin+Member ones — six separate proofs).
-Known limitation, flagged via `spawn_task`: the Reporting Tag category/option management
-screen doesn't exist in the Angular frontend (discovered mid-phase — the backend's existed since
-Phase 2, the UI never got built despite this file's own prior summary claiming otherwise). Full
-reasoning in `docs/phase-19-status.md`.
+**Phase 20a (Custom Fields reach the forms) is complete** — the deferred write-side half of Phase 2's
+EAV Custom Fields system. `SetCustomFieldValuesCommand`/`GetCustomFieldValuesQuery` (replace-the-
+whole-set, riding on the target document's own Edit/View permission, same reasoning Phase 19 used
+for Reporting Tags) plus a `ChoiceOptions` field `CustomFieldDefinition` never had, needed to validate
+a Choices-type value against its own option list. A shared `app-custom-fields-editor` Angular
+component renders a document type's applicable fields inline in its create/edit form — live-confirmed
+to be structurally *different* from Reporting Tags: inline in the main form rather than gated behind
+an "Add/Edit" action, no Required flag exists anywhere in the reference product, and editability isn't
+locked by Draft/Approved status (unlike this codebase's own header/line fields). Wired into Quotation
+and Invoice only, per the roadmap's own scope guard; the other 15 applicable document types and a
+`CustomFieldDefinition` admin management screen (still `curl`-only) are explicit mechanical follow-up.
+Tests: Domain.UnitTests 126 (+1), Application.UnitTests 269 (+8 over the 261 baseline this phase
+started from), Angular 7 specs (unchanged), `ng build`/`tsc --noEmit` clean. Manual E2E via curl +
+`sqlcmd` + live browser against a fresh Organization: full create-time and edit-time round-trips
+proven through the real UI for Text/Number/Choices fields on both document types, a 400 for an
+invalid Choices value, and a 403 naming `Sales.Quotation.Edit` proven against a nonexistent document
+id with a purpose-built custom Role. Full reasoning in `docs/phase-20a-status.md`.
 
-**Post-Phase-19 fix (Purchase/COGS double-count) is complete** — the pre-existing Phase 6
-GL-modeling bug this phase's manual E2E surfaced (a tenant routing both "Purchase" and "COGS" to
-Expense-type accounts double-counted cost of goods sold in Income Statement's Net Profit) is fixed:
-`PurchaseBillAccountResolver` now debits `TenantSettings.DefaultInventoryAccountId` for Goods
-lines instead of a Purchase Expense account, so the sold portion's cost is recognised exactly once,
-via Invoice's existing FIFO COGS relief. Zero `IncomeStatementQueryHandler`/`RatioAnalysisQueryHandler`
-changes needed. New regression coverage in `IncomeStatementQueryHandlerTests` and
-`ApprovePurchaseBillCommandHandlerTests`; Application.UnitTests now 261. Full reasoning in
-`docs/phase-7-status.md`'s addendum.
-
-**Next up: Phase 20 — Configuration & extensibility completion.** See `docs/roadmap.md`'s Phase 20 section for the task breakdown and the completed-phase index table for everything prior.
+**Next up: Phase 20b onward — the rest of Phase 20's Configuration & extensibility completion** (Custom Status wiring, Cost Terms, Printing/Custom Templates, Alert Scheduler, tenant feature-flag enforcement, Turnstile). See `docs/roadmap.md`'s Phase 20 section for the task breakdown and the completed-phase index table for everything prior.

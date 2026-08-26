@@ -101,6 +101,12 @@
       <app-reporting-tags-editor [organizationId]="organizationId" documentType="Invoice" [documentId]="inv.id" />
     }
 
+    <app-custom-fields-editor
+      [organizationId]="organizationId"
+      documentType="Invoice"
+      [documentId]="invoice()?.id ?? null"
+    />
+
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-center mb-3">

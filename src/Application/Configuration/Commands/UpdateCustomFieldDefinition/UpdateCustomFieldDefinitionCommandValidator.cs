@@ -1,3 +1,4 @@
+using ErpApp.Domain.Configuration;
 using FluentValidation;
 
 namespace ErpApp.Application.Configuration.Commands.UpdateCustomFieldDefinition;
@@ -12,5 +13,8 @@ public sealed class UpdateCustomFieldDefinitionCommandValidator : AbstractValida
         RuleFor(x => x.Type).IsInEnum();
         RuleFor(x => x.ApplicableDocumentTypes).NotEmpty();
         RuleForEach(x => x.ApplicableDocumentTypes).IsInEnum();
+
+        RuleFor(x => x.ChoiceOptions).NotEmpty().When(x => x.Type == CustomFieldType.Choices);
+        RuleForEach(x => x.ChoiceOptions).NotEmpty().MaximumLength(100);
     }
 }

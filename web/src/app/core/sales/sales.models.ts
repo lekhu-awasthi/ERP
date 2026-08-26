@@ -433,3 +433,15 @@ export interface TransactionReportingTagDto {
   categoryId: string;
   categoryName: string;
 }
+
+// --- Custom Field Values (Phase 20a) ---
+
+export interface CustomFieldValueDto {
+  fieldDefinitionId: string;
+  value: string;
+}
+
+export interface CustomFieldValueInput {
+  fieldDefinitionId: string;
+  value: string;
+}

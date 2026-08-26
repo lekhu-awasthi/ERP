@@ -4,7 +4,7 @@ import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
-import { DocumentType, TransactionReportingTagDto } from '../sales/sales.models';
+import { CustomFieldValueDto, CustomFieldValueInput, DocumentType, TransactionReportingTagDto } from '../sales/sales.models';
 import {
   Bank,
   CreateBankRequest,
@@ -17,6 +17,7 @@ import {
   CreditTerm,
   CreateReportingTagCategoryRequest,
   CreateReportingTagOptionRequest,
+  CustomFieldDefinition,
   DealStage,
   LeadSource,
   PaymentMode,
@@ -255,6 +256,31 @@ export class ConfigurationService {
     return this.http.put<void>(
       `${this.baseUrl(organizationId)}/reporting-tags/${documentType}/${documentId}`,
       { tagOptionIds },
+      { withCredentials: true },
+    );
+  }
+
+  // --- Custom Fields (Phase 20a) ---
+
+  listCustomFieldDefinitions(organizationId: string): Observable<CustomFieldDefinition[]> {
+    return this.listAll<CustomFieldDefinition>(`${this.baseUrl(organizationId)}/custom-field-definitions`);
+  }
+
+  getCustomFieldValues(
+    organizationId: string, documentType: DocumentType, documentId: string,
+  ): Observable<CustomFieldValueDto[]> {
+    return this.http.get<CustomFieldValueDto[]>(
+      `${this.baseUrl(organizationId)}/custom-field-values/${documentType}/${documentId}`,
+      { withCredentials: true },
+    );
+  }
+
+  setCustomFieldValues(
+    organizationId: string, documentType: DocumentType, documentId: string, values: CustomFieldValueInput[],
+  ): Observable<void> {
+    return this.http.put<void>(
+      `${this.baseUrl(organizationId)}/custom-field-values/${documentType}/${documentId}`,
+      { values },
       { withCredentials: true },
     );
   }

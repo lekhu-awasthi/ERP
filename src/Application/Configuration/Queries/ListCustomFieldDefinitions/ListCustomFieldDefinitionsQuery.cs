@@ -16,4 +16,9 @@ public sealed record ListCustomFieldDefinitionsQuery(
 }
 
 public sealed record CustomFieldDefinitionDto(
-    Guid Id, string Name, CustomFieldType Type, IReadOnlyList<DocumentType> ApplicableDocumentTypes, bool IsActive);
+    Guid Id,
+    string Name,
+    CustomFieldType Type,
+    IReadOnlyList<DocumentType> ApplicableDocumentTypes,
+    IReadOnlyList<string> ChoiceOptions,
+    bool IsActive);

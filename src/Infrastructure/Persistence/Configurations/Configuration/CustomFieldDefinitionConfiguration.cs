@@ -8,6 +8,11 @@ namespace ErpApp.Infrastructure.Persistence.Configurations.Configuration;
 
 public sealed class CustomFieldDefinitionConfiguration : IEntityTypeConfiguration<CustomFieldDefinition>
 {
+    // ASCII Unit Separator -- ChoiceOptions is tenant free-text (not an enum name like
+    // ApplicableDocumentTypes below), so a comma delimiter could collide with real option text.
+    // Not typeable from a plain text input, so it's safe as a delimiter.
+    private const char ChoiceOptionSeparator = '\u001F';
+
     public void Configure(EntityTypeBuilder<CustomFieldDefinition> builder)
     {
         builder.ToTable("CustomFieldDefinitions", schema: "configuration");
@@ -36,6 +41,23 @@ public sealed class CustomFieldDefinitionConfiguration : IEntityTypeConfiguratio
                     v => v.Aggregate(0, (hash, e) => HashCode.Combine(hash, e)),
                     v => v.ToList()))
             .HasMaxLength(500)
+            .IsRequired();
+
+        // Same delimited-string approach as ApplicableDocumentTypes above -- see
+        // ChoiceOptionSeparator's doc comment for why the delimiter differs. Only meaningful for
+        // Type == Choices (empty for Text/Number/Description), per CustomFieldDefinition's own
+        // doc comment.
+        builder.Property(x => x.ChoiceOptions)
+            .HasConversion(
+                v => string.Join(ChoiceOptionSeparator, v),
+                v => v.Length == 0
+                    ? new List<string>()
+                    : v.Split(ChoiceOptionSeparator, StringSplitOptions.RemoveEmptyEntries).ToList(),
+                new ValueComparer<IReadOnlyList<string>>(
+                    (a, b) => a!.SequenceEqual(b!),
+                    v => v.Aggregate(0, (hash, e) => HashCode.Combine(hash, e)),
+                    v => v.ToList()))
+            .HasMaxLength(1000)
             .IsRequired();
 
         builder.HasIndex(x => new { x.OrganizationId, x.Name }).IsUnique();

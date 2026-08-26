@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
@@ -10,6 +10,7 @@ import { CatalogService } from '../../../core/catalog/catalog.service';
 import { Product, VatRate } from '../../../core/catalog/catalog.models';
 import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
+import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
 
 interface EditableLine {
   key: number;
@@ -31,10 +32,12 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-quotation-detail-page',
-  imports: [RouterLink, ReportingTagsEditor],
+  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor],
   templateUrl: './quotation-detail-page.html',
 })
 export class QuotationDetailPage {
+  private readonly customFieldsEditor = viewChild(CustomFieldsEditor);
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly salesService = inject(SalesService);
@@ -214,8 +217,19 @@ export class QuotationDetailPage {
     if (this.isNew()) {
       this.salesService.createQuotation(this.organizationId, request).subscribe({
         next: (result) => {
-          this.saving.set(false);
-          this.router.navigate(['/organizations', this.organizationId, 'sales', 'quotations', result.id]);
+          this.customFieldsEditor()
+            ?.commitTo(result.id)
+            .subscribe({
+              next: () => {
+                this.saving.set(false);
+                this.router.navigate(['/organizations', this.organizationId, 'sales', 'quotations', result.id]);
+              },
+              error: (err: unknown) => {
+                this.saving.set(false);
+                this.errorMessage.set(extractErrorMessage(err) ?? 'Quotation saved, but custom field values could not be saved.');
+                this.router.navigate(['/organizations', this.organizationId, 'sales', 'quotations', result.id]);
+              },
+            });
         },
         error: (err: unknown) => {
           this.saving.set(false);
@@ -225,8 +239,19 @@ export class QuotationDetailPage {
     } else {
       this.salesService.updateQuotation(this.organizationId, this.routeQuotationId, request).subscribe({
         next: () => {
-          this.saving.set(false);
-          this.load();
+          this.customFieldsEditor()
+            ?.commitTo(this.routeQuotationId)
+            .subscribe({
+              next: () => {
+                this.saving.set(false);
+                this.load();
+              },
+              error: (err: unknown) => {
+                this.saving.set(false);
+                this.errorMessage.set(extractErrorMessage(err) ?? 'Quotation saved, but custom field values could not be saved.');
+                this.load();
+              },
+            });
         },
         error: (err: unknown) => {
           this.saving.set(false);

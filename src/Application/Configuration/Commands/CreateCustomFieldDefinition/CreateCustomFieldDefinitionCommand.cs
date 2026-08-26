@@ -6,11 +6,15 @@ using MediatR;
 namespace ErpApp.Application.Configuration.Commands.CreateCustomFieldDefinition;
 
 public sealed record CreateCustomFieldDefinitionCommand(
-    Guid OrganizationId, string Name, CustomFieldType Type, IReadOnlyList<DocumentType> ApplicableDocumentTypes)
+    Guid OrganizationId,
+    string Name,
+    CustomFieldType Type,
+    IReadOnlyList<DocumentType> ApplicableDocumentTypes,
+    IReadOnlyList<string> ChoiceOptions)
     : IRequest<CreateCustomFieldDefinitionResult>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.CustomFieldDefinitionManage;
 }
 
 public sealed record CreateCustomFieldDefinitionResult(
-    Guid Id, string Name, CustomFieldType Type, IReadOnlyList<DocumentType> ApplicableDocumentTypes);
+    Guid Id, string Name, CustomFieldType Type, IReadOnlyList<DocumentType> ApplicableDocumentTypes, IReadOnlyList<string> ChoiceOptions);
