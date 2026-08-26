@@ -127,9 +127,12 @@ per-category uniqueness proven in both directions, and four separate 403s naming
 (including PUT/DELETE against nonexistent ids, proving the gate fires before the handler). Full
 reasoning in `docs/phase-20c-status.md`; Phase 20a's own history is in `docs/phase-20a-status.md`.
 
-**Next up: Phase 20b, 20d–20g — the rest of Phase 20's Configuration & extensibility completion**
-(Custom Status wiring, Printing/Custom Templates, Alert Scheduler, tenant feature-flag enforcement,
-Turnstile). 20b and 20d both need a confirm-live pass against the Tigg UAT tenant before any code;
-20e (Alert Scheduler) is the highest-risk one — this codebase's first background-job infrastructure,
-including how a jobless command authenticates itself. See `docs/roadmap.md`'s Phase 20 section for
-the task breakdown and the completed-phase index table for everything prior.
+**Next up: the rest of Phase 20, in the locked order 20b → 20g → 20d → 20f → 20e**
+(Custom Status wiring → Turnstile → Printing/Custom Templates → tenant feature-flag enforcement →
+Alert Scheduler). 20b runs next because it is the same shape as the just-finished 20a — extending a
+Phase 2 lookup onto real documents with a confirm-live step and a shared editor component. 20b and 20d
+both need a confirm-live pass against the Tigg UAT tenant before any code; 20e (Alert Scheduler) is
+deliberately last as the highest-risk one — this codebase's first background-job infrastructure,
+including how a jobless command authenticates itself, which deserves a session where it is the only
+decision. See `docs/roadmap.md`'s Phase 20 section for each sub-phase's brief and the full ordering
+reasoning, and the completed-phase index table for everything prior.
