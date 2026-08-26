@@ -30,6 +30,7 @@ public sealed class Quotation
     public DateTimeOffset CreatedAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
     public decimal DiscountPct { get; private set; }
+    public Guid? CustomStatusId { get; private set; }
 
     public IReadOnlyList<QuotationLine> Lines => _lines;
 
@@ -131,6 +132,16 @@ public sealed class Quotation
         Status = QuotationStatus.Void;
         VoidedByUserId = voidedByUserId;
         VoidedAt = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>Phase 20b -- tenant-defined status pipeline (CustomStatus), orthogonal to the
+    /// Draft/Approved/Void/Converted lifecycle above (FR-12.2, live-confirmed against the real
+    /// Tigg tenant: settable on both Draft and Approved rows, no interaction with Approve/Void/
+    /// Convert). Not gated by EnsureDraft -- unlike header/line fields, this carries no GL/stock
+    /// weight, same reasoning Phase 20a used for Custom Fields.</summary>
+    public void SetCustomStatus(Guid? customStatusId)
+    {
+        CustomStatusId = customStatusId;
     }
 
     private void EnsureDraft()

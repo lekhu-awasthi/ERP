@@ -1,3 +1,4 @@
+using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Sales;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +24,11 @@ public sealed class QuotationConfiguration : IEntityTypeConfiguration<Quotation>
         builder.Property(x => x.DiscountPct).HasPrecision(18, 4).IsRequired();
 
         builder.HasOne<Contact>().WithMany().HasForeignKey(x => x.ContactId).OnDelete(DeleteBehavior.Restrict);
+
+        // SetNull, not Restrict/Cascade: CustomStatusId carries no GL/financial weight (Phase 20b),
+        // so deleting the CustomStatus definition should just clear the assignment, not block the
+        // delete or (Cascade's real risk here) delete the Quotation itself.
+        builder.HasOne<CustomStatus>().WithMany().HasForeignKey(x => x.CustomStatusId).OnDelete(DeleteBehavior.SetNull);
 
         builder.HasMany(x => x.Lines)
             .WithOne()

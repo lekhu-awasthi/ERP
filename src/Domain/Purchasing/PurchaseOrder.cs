@@ -30,6 +30,7 @@ public sealed class PurchaseOrder
     public DateTimeOffset CreatedAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
     public decimal DiscountPct { get; private set; }
+    public Guid? CustomStatusId { get; private set; }
 
     public IReadOnlyList<PurchaseOrderLine> Lines => _lines;
 
@@ -126,6 +127,14 @@ public sealed class PurchaseOrder
         Status = PurchaseOrderStatus.Void;
         VoidedByUserId = voidedByUserId;
         VoidedAt = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>Phase 20b -- tenant-defined status pipeline (CustomStatus), orthogonal to the
+    /// Draft/Approved/Void/Converted lifecycle above -- see Quotation.SetCustomStatus's identical
+    /// doc comment (same live-confirmed reasoning).</summary>
+    public void SetCustomStatus(Guid? customStatusId)
+    {
+        CustomStatusId = customStatusId;
     }
 
     private void EnsureDraft()

@@ -27,4 +27,5 @@ public sealed record QuotationDetailDto(
     DateTimeOffset? ApprovedAt,
     DateTimeOffset CreatedAt,
     decimal DiscountPct,
+    Guid? CustomStatusId,
     IReadOnlyList<QuotationLineDto> Lines);

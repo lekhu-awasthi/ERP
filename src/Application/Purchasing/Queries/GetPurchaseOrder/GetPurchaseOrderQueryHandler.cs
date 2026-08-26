@@ -26,6 +26,7 @@ public sealed class GetPurchaseOrderQueryHandler(IAppDbContext db) : IRequestHan
             purchaseOrder.ApprovedAt,
             purchaseOrder.CreatedAt,
             purchaseOrder.DiscountPct,
+            purchaseOrder.CustomStatusId,
             purchaseOrder.Lines.Select(x => new PurchaseOrderLineDto(
                 x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount)).ToList());
     }

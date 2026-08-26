@@ -13,6 +13,7 @@ using ErpApp.Application.Configuration.Commands.CreateTdsType;
 using ErpApp.Application.Configuration.Commands.DeleteCustomFieldDefinition;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Commands.SetCustomFieldValues;
+using ErpApp.Application.Configuration.Commands.SetCustomStatus;
 using ErpApp.Application.Configuration.Commands.SetTransactionReportingTags;
 using ErpApp.Application.Configuration.Commands.UpdateBank;
 using ErpApp.Application.Configuration.Commands.UpdateCostTerm;
@@ -58,6 +59,7 @@ public static class ConfigurationEndpoints
         MapDealStageEndpoints(group);
         MapTransactionReportingTagEndpoints(group);
         MapCustomFieldValueEndpoints(group);
+        MapCustomStatusAssignmentEndpoints(group);
         MapCostTermEndpoints(group);
     }
 
@@ -570,4 +572,20 @@ public static class ConfigurationEndpoints
     }
 
     private sealed record SetCustomFieldValuesRequest(IReadOnlyList<CustomFieldValueInput> Values);
+
+    // Custom status assignment (Phase 20b) -- write-only: the document's own DTO (Quotation,
+    // PurchaseOrder) already carries CustomStatusId, so no GET is needed here, unlike reporting
+    // tags/custom field values which have no other read path.
+    private static void MapCustomStatusAssignmentEndpoints(RouteGroupBuilder group)
+    {
+        group.MapPut("/custom-status/{documentType}/{documentId:guid}", async (
+            Guid organizationId, DocumentType documentType, Guid documentId, SetCustomStatusRequest request,
+            ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new SetCustomStatusCommand(organizationId, documentType, documentId, request.CustomStatusId), ct);
+            return Results.NoContent();
+        });
+    }
+
+    private sealed record SetCustomStatusRequest(Guid? CustomStatusId);
 }

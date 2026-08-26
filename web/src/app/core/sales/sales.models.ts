@@ -36,6 +36,7 @@ export interface Quotation {
   approvedAt: string | null;
   createdAt: string;
   discountPct: number;
+  customStatusId: string | null;
 }
 
 export interface QuotationLineDto extends QuotationLineInput {

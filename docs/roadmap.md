@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–20c)
+## Completed phases (0–20c, 20b)
 
 Detail lives in each phase's own status doc — this table is the index, not the history.
 
@@ -39,6 +39,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 19 | `TransactionReportingTag` (document-level, Quotation/Invoice) + tag-filtered Sales Register; Cash Flow Summary, Sales/Purchase Register, Stock Ageing, Product Profitability, Ratio Analysis reports, closing FR-9.1/9.4/9.5/9.7's non-migrated catalog | `phase-19-status.md` |
 | 20a | Custom Fields reach the forms: `SetCustomFieldValuesCommand`/`GetCustomFieldValuesQuery` + `CustomFieldDefinition.ChoiceOptions`, shared `app-custom-fields-editor` wired into Quotation/Invoice (FR-12.1) | `phase-20a-status.md` |
 | 20c | `CostTerm` lookup (Additional Cost / Production Cost categories) + Configurations screen — prerequisite reference data for Phase 25's Manufacturing, nothing consumes it yet | `phase-20c-status.md` |
+| 20b | Custom Status wiring: `SetCustomStatusCommand` (nullable `CustomStatusId` on Quotation/PurchaseOrder) + shared `app-custom-status-picker`, live-confirmed as a list-grid-only control orthogonal to Draft/Approved (FR-12.2); Cheque excluded (its pipeline drives the native lifecycle, not orthogonal to it) | `phase-20b-status.md` |
 
 ---
 
@@ -120,16 +121,16 @@ seeded rows.*
 ## Phase 20 — Configuration & extensibility completion
 **Goal:** make the Phase 2 extensibility foundations actually reach the UI, plus the notification/template surface (FR-11.x, FR-12.x). Split into seven independently shippable sub-phases; one sub-phase = one session.
 
-**Locked execution order: 20a ✅ → 20c ✅ → 20b → 20g → 20d → 20f → 20e.** Reasoning (this is
+**Locked execution order: 20a ✅ → 20c ✅ → 20b ✅ → 20g → 20d → 20f → 20e.** Reasoning (this is
 *not* the original list order — deliberately resequenced):
 - **20b next** because it is the same shape and size as 20a (extend a Phase 2 lookup onto real documents, confirm-live step, shared editor component). Running that pattern again while the muscle memory is fresh is lower-risk than pivoting to something structurally new.
 - **20g early** because it is small and isolable — a good pairing candidate with leftover budget or a short session of its own, but never the main event.
 - **20d and 20e are both greenfield-and-risky**, and 20e in particular is an architecture decision (background-job infra, plus how a jobless command authenticates itself — a new authentication-bypass surface) that deserves a session where it is the *only* thing being decided — so it goes last, treated as an architecture review rather than "whatever's next."
 - **20f is a sweep across already-built surfaces**, easiest to scope correctly once more document types exist and have settled shapes, so it waits until fewer sub-phases are still landing and re-doing gating work is less likely.
 
-**20b and 20d still need a confirm-live pass** against the Tigg UAT tenant before any code (20c was the
-one remaining sub-phase that didn't — `erp-module-scan.md` §7 already had its data model from a
-hands-on pass).
+**20d still needs a confirm-live pass** against the Tigg UAT tenant before any code (20c and 20b are
+now both done — 20c's data model came from `erp-module-scan.md` §7's own hands-on pass; 20b's confirm-
+live session reshaped the plan on three counts, see `phase-20b-status.md`'s TL;DR).
 
 ### 20a. Custom fields rendered on forms (FR-12.1) — **COMPLETE**, see `phase-20a-status.md`
 The deferred write-side half of Phase 2's EAV: `SetCustomFieldValuesCommand`/`GetCustomFieldValuesQuery`
@@ -138,44 +139,18 @@ The deferred write-side half of Phase 2's EAV: `SetCustomFieldValuesCommand`/`Ge
 applicable fields inline in its create/edit form. Wired to Quotation and Invoice only; the other 15
 applicable document types and a `CustomFieldDefinition` admin screen are mechanical follow-up.
 
-### 20b. Custom Status wiring (FR-12.2) — **NEXT**
-Per-document-type custom status/stage pipelines. The same shape of gap 20a just closed for Custom Fields,
-and the *third* instance of "cross-cutting data attached to a document" after Phase 19's
-`ReportingTagsEditor` and 20a's `app-custom-fields-editor` — read both predecessors before designing this
-one rather than assuming it repeats either.
-
-Verified current state (grepped this session, not assumed):
-- The lookup entity is **`CustomStatus`** (`src/Domain/Configuration/CustomStatus.cs`), *not*
-  `CustomStatusDefinition` — an `ITenantLookupEntity` with `Name` + a `DocumentType` discriminator, with
-  full Create/Update/List/Delete through the generic lookup CRUD since Phase 2.
-- **No document aggregate references it.** `grep -rin customstatus src/Domain` hits only the entity's own
-  file; no `CustomStatusId` exists anywhere. The assignment-onto-a-document half is 100% unbuilt.
-- **There is no Angular screen for `CustomStatus`** — `configuration-shell.ts`'s own comment records that
-  only ReportingTags got one (Phase 19); `CustomStatus` and `CustomFieldDefinition` are API-only. Defining
-  a status is `curl`-only today. Decide up front whether 20b also builds that admin screen or keeps
-  definition-seeding on `curl` (as 20a did for `CustomFieldDefinition`) — don't discover it mid-session.
-
-**Confirm live before coding** (the scan lists Sales Order, Purchase Order, Quotation, Cheque, Production
-Order as status-pipeline-*definable* — a candidate list, not a confirmed one):
-- Which document types actually show a status-picker control on the real document form. "The lookup can be defined for this type" and "the form has the control" are two different confirmations — the same distinction Phase 19 drew between `ReportingTagCategory` (Phase 2) and `TransactionReportingTag` (Phase 19).
-- Whether changing a custom status has any side effect (GL, stock, notification) or is purely informational — if purely informational this is a much smaller sub-phase.
-- Whether a Kanban/board view grouped by status exists at all. Don't build one speculatively.
-- Whether the picker is a plain `<select>` (native-`<select>` `[selected]`-per-option gotcha applies immediately) or something richer.
-
-**Backend:** nullable `CustomStatusId` on whichever aggregates are confirmed to carry it; a
-`SetCustomStatusCommand`; validation that the assigned `CustomStatus.DocumentType` matches the
-target document's own type (**400**, not a silent accept); a `GetCustomStatusOptionsQuery` (or fold into the
-document type's existing lookup-loading call) returning only options valid for that type; permission shape
-derived the way 20a did it (rides on the document's own Edit permission, or its own key — reasoning recorded
-either way).
-
-**Frontend:** the picker on the confirmed document types' detail pages; a Kanban board grouped by status
-*only* if live-confirmed to exist.
-
-*Exit criteria: a status persists and reads back through the real Angular form; a status defined for the
-wrong document type is rejected with 400; permission-key derivation recorded with reasoning; manual E2E
-(seed a `CustomStatus` via curl, set via curl, confirm via `sqlcmd`, then confirm in the real
-form) plus a 403 naming the exact key; if a board view is in scope, dragging between columns persists.*
+### 20b. Custom Status wiring (FR-12.2) — **COMPLETE**, see `phase-20b-status.md`
+`SetCustomStatusCommand` (nullable `CustomStatusId` on Quotation/PurchaseOrder, riding on the target
+document's own Edit permission) plus a shared `app-custom-status-picker`. Confirm-live reshaped the
+plan on three counts: the picker lives only in the LIST grid (a "Stage" column, applying instantly on
+selection) with no presence on the detail page at all — a third shape distinct from both 20a's inline-
+form and Phase 19's sidebar-action patterns; Invoice has no Custom Status section in the real product,
+so Quotation+PurchaseOrder were wired instead (spanning Sales and Purchasing, not both-Sales like
+20a); Cheque was excluded outright (not deferred) since its pipeline appears to drive the native
+`ChequeStatus` lifecycle rather than sit orthogonal to it. SalesOrder (identical shape) is mechanical
+follow-up. No `CustomStatus` admin screen was built — the third consecutive lookup-CRUD-with-no-UI
+deferral (`CustomFieldDefinition` in 20a, now this), flagged as worth a dedicated follow-up session
+covering all three at once rather than a fourth one-off next time.
 
 ### 20c. Cost Terms lookup — **COMPLETE**, see `phase-20c-status.md`
 Configurations §7 — the `CostTerm` lookup (`AdditionalCost`/`ProductionCost` categories, uniqueness per

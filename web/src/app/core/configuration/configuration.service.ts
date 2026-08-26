@@ -20,6 +20,7 @@ import {
   CreateReportingTagCategoryRequest,
   CreateReportingTagOptionRequest,
   CustomFieldDefinition,
+  CustomStatus,
   DealStage,
   LeadSource,
   PaymentMode,
@@ -304,6 +305,24 @@ export class ConfigurationService {
     return this.http.put<void>(
       `${this.baseUrl(organizationId)}/custom-field-values/${documentType}/${documentId}`,
       { values },
+      { withCredentials: true },
+    );
+  }
+
+  // --- Custom Status (Phase 20b) ---
+
+  listCustomStatuses(organizationId: string): Observable<CustomStatus[]> {
+    return this.listAll<CustomStatus>(`${this.baseUrl(organizationId)}/custom-statuses`);
+  }
+
+  /** Write-only, no matching GET -- the target document's own DTO already carries
+   * customStatusId (Quotation, PurchaseOrder). Pass customStatusId: null to clear it. */
+  setCustomStatus(
+    organizationId: string, documentType: DocumentType, documentId: string, customStatusId: string | null,
+  ): Observable<void> {
+    return this.http.put<void>(
+      `${this.baseUrl(organizationId)}/custom-status/${documentType}/${documentId}`,
+      { customStatusId },
       { withCredentials: true },
     );
   }

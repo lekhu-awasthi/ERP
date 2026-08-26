@@ -26,6 +26,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
   - `phase-16c` — before adding a footer/summary total to any paginated screen (it must come from a server-computed field over the *full* filtered set, never a client-side reduce over the current page — a bug this phase found in four pre-existing report pages); before writing any file-download endpoint (Kestrel disallows synchronous writes to the live response stream — ClosedXML/any sync-only writer must target a `MemoryStream` first, then `CopyToAsync` the real stream)
   - `phase-18` — before designing a second polymorphic (ParentType, ParentId) entity: confirm live whether it's really the same concept as an existing one (`Attachment` vs. `WorkTask`) before reusing its enum — Decision #2's Contact-Documents-vs-Workflow-Document split; before assuming a new "sub-record of a Contact" needs Phase 4's full-collection-replace treatment — confirm live whether the real UI even submits it as a list (`ContactPersonnel` didn't, so it's a standalone entity like `WorkTask`/`Deal`, sidestepping the gotcha by design); before writing any Minimal API endpoint that binds `IFormFile` (needs `.DisableAntiforgery()` — see Known Gotchas)
   - `phase-20a` — before building a second "cross-cutting data attached to a document" editor (custom fields, reporting tags, or similar): confirm live whether it saves inline with the document's own Save action (Custom Fields) or as its own independent post-creation action (Reporting Tags, Phase 19) — the two aren't the same shape and the live reference product answers this per-feature, not by analogy to the last one built
+  - `phase-20b` — a third "cross-cutting data attached to a document" shape: confirm live *where the control even renders* before assuming it's on the detail page at all — Custom Status turned out to live only in the document's LIST grid (a per-row column, saving instantly, no detail-page presence whatsoever), which neither 20a's nor Phase 19's shape anticipated; also, before assuming a lookup's candidate document-type list from the module scan is accurate, check live whether each candidate type actually has the picker (Invoice didn't, despite being assumed) and whether any candidate's pipeline is genuinely orthogonal to the native lifecycle (Cheque's wasn't — its custom-status values matched its native lifecycle enum exactly, a sign to exclude rather than force-fit)
   - `phase-7`'s addendum (bottom of the file) — before adding a new tenant-wide default GL account or changing which account a posting rule debits/credits: grep for the field name across every posting rule that's supposed to read it. `DefaultInventoryAccountId` sat completely unread by `PurchaseBillPostingRule` for 12 phases (Goods purchases debited Purchase Expense instead), silently double-counting Cost of Goods Sold in `IncomeStatementQueryHandler`'s Net Profit for any tenant whose Purchase account was Expense-typed — the obvious/default choice, caught only by a later phase's live E2E, not by any test or `dotnet build`
 
 ## Stack & conventions
@@ -109,30 +110,37 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 > `docs/phase-N-status.md` and the roadmap's index table; never append essay-length phase
 > write-ups here, and never keep more than the latest one or two phases in this section.
 
-**Phase 20c (Cost Terms) is complete** — the `CostTerm` lookup (`{ Id, OrganizationId, Name,
-Category, IsActive }`, `CostTermCategory` = `AdditionalCost`/`ProductionCost`), prerequisite
-reference data for Phase 25's Manufacturing with **no consumer yet, by design**. Pure `LookupList<T>`
-work: the generic `ListLookupsQuery<CostTerm>`/`DeleteLookupCommand<CostTerm>` are reused untouched,
-so only the concrete Create/Update pair, a `cost-terms` endpoint group, and one Angular Configurations
-screen were new. Key decisions: uniqueness is per `(Organization, Category, Name)` so "Freight" can
-exist in both sections; the reference product's two sections are one entity with a discriminator
-(mirroring `CustomStatus.DocumentType`), derived client-side from one list call; permission keys take
-the standard Member-View/Admin-Manage lookup split, with Member View granted specifically because
-Phase 25's BOM/Production forms will need the picker. This was also the one remaining Phase 20
-sub-phase needing **no** confirm-live pass — `erp-module-scan.md` §7 already captured the exact data
-model from a hands-on pass; 20b and 20d still need one. Tests: Domain.UnitTests 128 (+2),
-Application.UnitTests 278 (+9), Angular 7 specs (unchanged), `dotnet build`/`ng build`/`tsc --noEmit`
-clean. Manual E2E via curl + `sqlcmd` against a fresh Organization: full CRUD in both categories,
-per-category uniqueness proven in both directions, and four separate 403s naming the exact key
-(including PUT/DELETE against nonexistent ids, proving the gate fires before the handler). Full
-reasoning in `docs/phase-20c-status.md`; Phase 20a's own history is in `docs/phase-20a-status.md`.
+**Phase 20b (Custom Status wiring) is complete** — `SetCustomStatusCommand` (nullable
+`CustomStatusId` on Quotation/PurchaseOrder, riding on the target document's own Edit permission via
+a `CustomStatusPermissions` switch, no new `PermissionKeys`) plus a shared `app-custom-status-picker`.
+The confirm-live pass reshaped the plan on three counts: the picker lives **only in the list grid**
+(a "Stage" column per row, applying instantly on selection with no Save action) and has **no
+presence on the detail page at all** — a third shape distinct from both 20a's inline-form pattern and
+Phase 19's sidebar-action pattern; **Invoice has no Custom Status section** in the real product at
+all, so Quotation+PurchaseOrder were wired instead (spanning Sales *and* Purchasing, unlike 20a's
+both-Sales Quotation+Invoice duo); **Cheque was excluded outright, not deferred** — its Custom Status
+definitions are the exact same 5 values as the native `ChequeStatus` enum, and the live tenant's
+Cheque list "STATUS" column appears to actually drive that lifecycle rather than sit orthogonal to
+it, which would make wiring it a materially different, larger task (real Deposit/Clear/Bounce/Cancel
+transition commands) than "add a nullable FK." For Quotation/PurchaseOrder, custom status is
+genuinely orthogonal to Draft/Approved (settable on both, no GL/stock side effect, no Kanban board
+exists anywhere in the tenant) — confirmed rather than assumed. `SalesOrder` (identical shape) is
+mechanical follow-up. No `CustomStatus` admin Angular screen was built — the **third** consecutive
+lookup-CRUD-with-no-UI deferral (`CustomFieldDefinition` in 20a, now this), flagged explicitly as
+worth one dedicated follow-up session covering all three rather than a fourth one-off deferral.
+Tests: Domain.UnitTests 134 (+6), Application.UnitTests 287 (+9), Angular 7 specs (unchanged),
+`dotnet build`/`ng build`/`tsc --noEmit` clean. Manual E2E via curl + `sqlcmd` + live browser against
+a fresh Organization: full positive round-trip on both document types (verified via `sqlcmd`, not
+just the API's own response) including a UI-driven clear/re-set cycle; four negative-validation paths
+(wrong document type, inactive status, cross-org status, nonexistent document id); and a 403 naming
+`Sales.Quotation.Edit` proven against a nonexistent document id with a purpose-built custom Role.
+Full reasoning in `docs/phase-20b-status.md`; Phase 20a's own history is in `docs/phase-20a-status.md`.
 
-**Next up: the rest of Phase 20, in the locked order 20b → 20g → 20d → 20f → 20e**
-(Custom Status wiring → Turnstile → Printing/Custom Templates → tenant feature-flag enforcement →
-Alert Scheduler). 20b runs next because it is the same shape as the just-finished 20a — extending a
-Phase 2 lookup onto real documents with a confirm-live step and a shared editor component. 20b and 20d
-both need a confirm-live pass against the Tigg UAT tenant before any code; 20e (Alert Scheduler) is
-deliberately last as the highest-risk one — this codebase's first background-job infrastructure,
-including how a jobless command authenticates itself, which deserves a session where it is the only
-decision. See `docs/roadmap.md`'s Phase 20 section for each sub-phase's brief and the full ordering
-reasoning, and the completed-phase index table for everything prior.
+**Next up: the rest of Phase 20, in the locked order 20g → 20d → 20f → 20e**
+(Turnstile → Printing/Custom Templates → tenant feature-flag enforcement → Alert Scheduler). 20g runs
+next because it's small and isolable — a good pairing candidate with leftover budget or a short
+session of its own. 20d still needs a confirm-live pass against the Tigg UAT tenant before any code;
+20e (Alert Scheduler) is deliberately last as the highest-risk one — this codebase's first
+background-job infrastructure, including how a jobless command authenticates itself, which deserves a
+session where it is the only decision. See `docs/roadmap.md`'s Phase 20 section for each sub-phase's
+brief and the full ordering reasoning, and the completed-phase index table for everything prior.
