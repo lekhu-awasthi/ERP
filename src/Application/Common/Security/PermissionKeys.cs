@@ -41,6 +41,13 @@ public static class PermissionKeys
     public const string CustomFieldDefinitionView = "Configuration.CustomFieldDefinition.View";
     public const string CustomFieldDefinitionManage = "Configuration.CustomFieldDefinition.Manage";
 
+    // Phase 20c (Cost Terms) -- same Member-View-only/Admin-write split as every other
+    // Configuration lookup (CreditTerm/PaymentMode/TdsType): a tenant-wide control-plane named
+    // list, not per-user working data. Members read it because Phase 25's BOM/Production Journal
+    // forms will need to populate a cost-term picker; only Admins curate the list itself.
+    public const string CostTermView = "Configuration.CostTerm.View";
+    public const string CostTermManage = "Configuration.CostTerm.Manage";
+
     // Phase 3 (Contacts & Catalog). ContactGroup/ProductCategory/UnitOfMeasurement are
     // taxonomy/control-plane, same shape as Phase 2's lookups -- Member gets View only, Manage
     // denied. Contact/Product are working data Members create/edit daily -- Member gets
