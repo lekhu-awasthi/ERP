@@ -11,11 +11,17 @@ public sealed record UpdateCustomFieldDefinitionCommand(
     string Name,
     CustomFieldType Type,
     IReadOnlyList<DocumentType> ApplicableDocumentTypes,
-    bool IsActive)
+    bool IsActive,
+    IReadOnlyList<string> ChoiceOptions)
     : IRequest<UpdateCustomFieldDefinitionResult>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.CustomFieldDefinitionManage;
 }
 
 public sealed record UpdateCustomFieldDefinitionResult(
-    Guid Id, string Name, CustomFieldType Type, IReadOnlyList<DocumentType> ApplicableDocumentTypes, bool IsActive);
+    Guid Id,
+    string Name,
+    CustomFieldType Type,
+    IReadOnlyList<DocumentType> ApplicableDocumentTypes,
+    bool IsActive,
+    IReadOnlyList<string> ChoiceOptions);

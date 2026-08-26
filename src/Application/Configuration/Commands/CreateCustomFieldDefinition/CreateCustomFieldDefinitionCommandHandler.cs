@@ -21,11 +21,11 @@ public sealed class CreateCustomFieldDefinitionCommandHandler(IAppDbContext db)
         }
 
         var definition = CustomFieldDefinition.Create(
-            request.OrganizationId, request.Name, request.Type, request.ApplicableDocumentTypes);
+            request.OrganizationId, request.Name, request.Type, request.ApplicableDocumentTypes, request.ChoiceOptions);
         db.CustomFieldDefinitions.Add(definition);
         await db.SaveChangesAsync(cancellationToken);
 
         return new CreateCustomFieldDefinitionResult(
-            definition.Id, definition.Name, definition.Type, definition.ApplicableDocumentTypes);
+            definition.Id, definition.Name, definition.Type, definition.ApplicableDocumentTypes, definition.ChoiceOptions);
     }
 }

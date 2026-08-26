@@ -24,10 +24,15 @@ public sealed class UpdateCustomFieldDefinitionCommandHandler(IAppDbContext db)
             throw new ConflictException($"A custom field named '{request.Name}' already exists.");
         }
 
-        definition.Update(request.Name, request.Type, request.ApplicableDocumentTypes, request.IsActive);
+        definition.Update(request.Name, request.Type, request.ApplicableDocumentTypes, request.IsActive, request.ChoiceOptions);
         await db.SaveChangesAsync(cancellationToken);
 
         return new UpdateCustomFieldDefinitionResult(
-            definition.Id, definition.Name, definition.Type, definition.ApplicableDocumentTypes, definition.IsActive);
+            definition.Id,
+            definition.Name,
+            definition.Type,
+            definition.ApplicableDocumentTypes,
+            definition.IsActive,
+            definition.ChoiceOptions);
     }
 }

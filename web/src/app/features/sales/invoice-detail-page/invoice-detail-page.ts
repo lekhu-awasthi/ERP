@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
@@ -16,6 +16,7 @@ import { OrganizationsService } from '../../../core/organizations/organizations.
 import { Warehouse } from '../../../core/organizations/organizations.models';
 import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
+import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
 
 interface EditableLine {
   key: number;
@@ -34,10 +35,12 @@ let nextLineKey = 1;
  * own lines the way JournalVoucher's is. */
 @Component({
   selector: 'app-invoice-detail-page',
-  imports: [RouterLink, DatePipe, ReportingTagsEditor],
+  imports: [RouterLink, DatePipe, ReportingTagsEditor, CustomFieldsEditor],
   templateUrl: './invoice-detail-page.html',
 })
 export class InvoiceDetailPage {
+  private readonly customFieldsEditor = viewChild(CustomFieldsEditor);
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly salesService = inject(SalesService);
@@ -254,8 +257,19 @@ export class InvoiceDetailPage {
     if (this.isNew()) {
       this.salesService.createInvoice(this.organizationId, request).subscribe({
         next: (result) => {
-          this.saving.set(false);
-          this.router.navigate(['/organizations', this.organizationId, 'sales', 'invoices', result.id]);
+          this.customFieldsEditor()
+            ?.commitTo(result.id)
+            .subscribe({
+              next: () => {
+                this.saving.set(false);
+                this.router.navigate(['/organizations', this.organizationId, 'sales', 'invoices', result.id]);
+              },
+              error: (err: unknown) => {
+                this.saving.set(false);
+                this.errorMessage.set(extractErrorMessage(err) ?? 'Invoice saved, but custom field values could not be saved.');
+                this.router.navigate(['/organizations', this.organizationId, 'sales', 'invoices', result.id]);
+              },
+            });
         },
         error: (err: unknown) => {
           this.saving.set(false);
@@ -265,8 +279,19 @@ export class InvoiceDetailPage {
     } else {
       this.salesService.updateInvoice(this.organizationId, this.routeInvoiceId, request).subscribe({
         next: () => {
-          this.saving.set(false);
-          this.load();
+          this.customFieldsEditor()
+            ?.commitTo(this.routeInvoiceId)
+            .subscribe({
+              next: () => {
+                this.saving.set(false);
+                this.load();
+              },
+              error: (err: unknown) => {
+                this.saving.set(false);
+                this.errorMessage.set(extractErrorMessage(err) ?? 'Invoice saved, but custom field values could not be saved.');
+                this.load();
+              },
+            });
         },
         error: (err: unknown) => {
           this.saving.set(false);

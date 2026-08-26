@@ -1,0 +1,53 @@
+@if (definitions().length > 0) {
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <h6 class="fw-bold text-dark mb-3">Custom Fields</h6>
+
+      @if (errorMessage()) {
+        <div class="alert alert-danger py-2 small mb-2">{{ errorMessage() }}</div>
+      }
+
+      <div class="row g-3">
+        @for (definition of definitions(); track definition.id) {
+          <div class="col-12 col-sm-6 col-lg-4">
+            <label class="form-label small fw-semibold">{{ definition.name }}</label>
+            @switch (definition.type) {
+              @case ('Number') {
+                <input
+                  type="number"
+                  class="form-control"
+                  [value]="valueFor(definition.id)"
+                  (input)="onValueChange(definition.id, $event)"
+                />
+              }
+              @case ('Description') {
+                <textarea
+                  class="form-control"
+                  rows="2"
+                  [value]="valueFor(definition.id)"
+                  (input)="onValueChange(definition.id, $event)"
+                ></textarea>
+              }
+              @case ('Choices') {
+                <select class="form-select" (change)="onValueChange(definition.id, $event)">
+                  <option value="" [selected]="!valueFor(definition.id)">—</option>
+                  @for (option of definition.choiceOptions; track option) {
+                    <option [value]="option" [selected]="option === valueFor(definition.id)">{{ option }}</option>
+                  }
+                </select>
+              }
+              @default {
+                <input
+                  type="text"
+                  class="form-control"
+                  [value]="valueFor(definition.id)"
+                  (input)="onValueChange(definition.id, $event)"
+                />
+              }
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}

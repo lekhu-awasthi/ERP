@@ -14,7 +14,7 @@ public sealed class ListCustomFieldDefinitionsQueryHandler(IAppDbContext db)
         return await db.CustomFieldDefinitions
             .Where(x => x.OrganizationId == request.OrganizationId)
             .OrderBy(x => x.Name)
-            .Select(x => new CustomFieldDefinitionDto(x.Id, x.Name, x.Type, x.ApplicableDocumentTypes, x.IsActive))
+            .Select(x => new CustomFieldDefinitionDto(x.Id, x.Name, x.Type, x.ApplicableDocumentTypes, x.ChoiceOptions, x.IsActive))
             .ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
     }
 }
