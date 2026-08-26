@@ -1,4 +1,5 @@
 using ErpApp.Application.Configuration.Commands.CreateBank;
+using ErpApp.Application.Configuration.Commands.CreateCostTerm;
 using ErpApp.Application.Configuration.Commands.CreateCreditTerm;
 using ErpApp.Application.Configuration.Commands.CreateCustomFieldDefinition;
 using ErpApp.Application.Configuration.Commands.CreateCustomStatus;
@@ -14,6 +15,7 @@ using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Commands.SetCustomFieldValues;
 using ErpApp.Application.Configuration.Commands.SetTransactionReportingTags;
 using ErpApp.Application.Configuration.Commands.UpdateBank;
+using ErpApp.Application.Configuration.Commands.UpdateCostTerm;
 using ErpApp.Application.Configuration.Commands.UpdateCreditTerm;
 using ErpApp.Application.Configuration.Commands.UpdateCustomFieldDefinition;
 using ErpApp.Application.Configuration.Commands.UpdateCustomStatus;
@@ -56,6 +58,7 @@ public static class ConfigurationEndpoints
         MapDealStageEndpoints(group);
         MapTransactionReportingTagEndpoints(group);
         MapCustomFieldValueEndpoints(group);
+        MapCostTermEndpoints(group);
     }
 
     private static void MapCreditTermEndpoints(RouteGroupBuilder group)
@@ -427,6 +430,48 @@ public static class ConfigurationEndpoints
             return Results.NoContent();
         });
     }
+
+    /// <summary>
+    /// Phase 20c -- Cost Terms (erp-module-scan.md Configurations §7). Reference data only; the
+    /// two categories are one list with a discriminator, not two endpoints, matching how the
+    /// reference product's single screen splits into two sections over one CostTerm shape.
+    /// </summary>
+    private static void MapCostTermEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/cost-terms", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListLookupsQuery<CostTerm>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/cost-terms", async (
+            Guid organizationId, CreateCostTermRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new CreateCostTermCommand(organizationId, request.Name, request.Category), ct);
+            return Results.Created($"/api/organizations/{organizationId}/configuration/cost-terms/{result.Id}", result);
+        });
+
+        group.MapPut("/cost-terms/{id:guid}", async (
+            Guid organizationId, Guid id, UpdateCostTermRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdateCostTermCommand(organizationId, id, request.Name, request.Category, request.IsActive), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapDelete("/cost-terms/{id:guid}", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteLookupCommand<CostTerm>(organizationId, id), ct);
+            return Results.NoContent();
+        });
+    }
+
+    private sealed record CreateCostTermRequest(string Name, CostTermCategory Category);
+
+    private sealed record UpdateCostTermRequest(string Name, CostTermCategory Category, bool IsActive);
 
     private sealed record CreateCreditTermRequest(string Name, int DueDays);
 

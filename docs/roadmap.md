@@ -37,6 +37,8 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 17 | Accounting breadth: Quick Payment/Receipt, Bank Accounts, Cheque Register, Allocate Customer/Supplier Payment, Opening Balances; `PaymentAllocation` generalized to a polymorphic Payment/JournalVoucher source | `phase-17-status.md` |
 | 18 | CRM completion: `IFileStorage` (local-disk), `Attachment`/Contact Personnel/Comment (Contact-scoped), Activity feed (reused `Audit`/`AuditBehavior`), SMS (`SmsTemplate`/`SmsLog`/`SmsCreditLedgerEntry`, `ISmsSender`), quick-action prefill, Sales Order Angular UI (a pre-existing Phase 5 gap, closed here) | `phase-18-status.md` |
 | 19 | `TransactionReportingTag` (document-level, Quotation/Invoice) + tag-filtered Sales Register; Cash Flow Summary, Sales/Purchase Register, Stock Ageing, Product Profitability, Ratio Analysis reports, closing FR-9.1/9.4/9.5/9.7's non-migrated catalog | `phase-19-status.md` |
+| 20a | Custom Fields reach the forms: `SetCustomFieldValuesCommand`/`GetCustomFieldValuesQuery` + `CustomFieldDefinition.ChoiceOptions`, shared `app-custom-fields-editor` wired into Quotation/Invoice (FR-12.1) | `phase-20a-status.md` |
+| 20c | `CostTerm` lookup (Additional Cost / Production Cost categories) + Configurations screen — prerequisite reference data for Phase 25's Manufacturing, nothing consumes it yet | `phase-20c-status.md` |
 
 ---
 
@@ -118,9 +120,9 @@ seeded rows.*
 ## Phase 20 — Configuration & extensibility completion
 **Goal:** make the Phase 2 extensibility foundations actually reach the UI, plus the notification/template surface (FR-11.x, FR-12.x).
 
-1. **Custom fields rendered on forms** (FR-12.1): the deferred half of Phase 2's EAV — a shared Angular component rendering a document type's `CustomFieldDefinition`s inline, values saved via `CustomFieldValue`.
+1. ~~**Custom fields rendered on forms** (FR-12.1)~~ — **COMPLETE (20a)**, see `phase-20a-status.md`. Wired into Quotation and Invoice; rolling out to the other 15 applicable document types and a `CustomFieldDefinition` admin screen remain mechanical follow-ups.
 2. **Custom Status wiring** (FR-12.2): per-document-type custom status/stage pipelines (the lookup exists; the assignment on documents doesn't).
-3. **Cost Terms** lookup (Configurations §7) — prerequisite reference data for Phase 25's Manufacturing.
+3. ~~**Cost Terms** lookup (Configurations §7)~~ — **COMPLETE (20c)**, see `phase-20c-status.md`.
 4. **Printing Templates / Custom Templates** (FR-11.2/11.3): print/PDF layout per document type with a tenant default; merge-field text templates. This closes 16c's deferred print-formatted output.
 5. **Alert Scheduler** (FR-11.1): first background-job infrastructure (scheduled recurring emails) — design the job runner once; Phase 21's async import/export reuses it (NFR-4.3).
 6. **Tenant feature-flag enforcement** (FR-2.6): the wizard's Accounting Features checkboxes (recorded since Phase 1b) actually gate document types and UI surfaces at point of use.

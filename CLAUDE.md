@@ -109,22 +109,27 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 > `docs/phase-N-status.md` and the roadmap's index table; never append essay-length phase
 > write-ups here, and never keep more than the latest one or two phases in this section.
 
-**Phase 20a (Custom Fields reach the forms) is complete** — the deferred write-side half of Phase 2's
-EAV Custom Fields system. `SetCustomFieldValuesCommand`/`GetCustomFieldValuesQuery` (replace-the-
-whole-set, riding on the target document's own Edit/View permission, same reasoning Phase 19 used
-for Reporting Tags) plus a `ChoiceOptions` field `CustomFieldDefinition` never had, needed to validate
-a Choices-type value against its own option list. A shared `app-custom-fields-editor` Angular
-component renders a document type's applicable fields inline in its create/edit form — live-confirmed
-to be structurally *different* from Reporting Tags: inline in the main form rather than gated behind
-an "Add/Edit" action, no Required flag exists anywhere in the reference product, and editability isn't
-locked by Draft/Approved status (unlike this codebase's own header/line fields). Wired into Quotation
-and Invoice only, per the roadmap's own scope guard; the other 15 applicable document types and a
-`CustomFieldDefinition` admin management screen (still `curl`-only) are explicit mechanical follow-up.
-Tests: Domain.UnitTests 126 (+1), Application.UnitTests 269 (+8 over the 261 baseline this phase
-started from), Angular 7 specs (unchanged), `ng build`/`tsc --noEmit` clean. Manual E2E via curl +
-`sqlcmd` + live browser against a fresh Organization: full create-time and edit-time round-trips
-proven through the real UI for Text/Number/Choices fields on both document types, a 400 for an
-invalid Choices value, and a 403 naming `Sales.Quotation.Edit` proven against a nonexistent document
-id with a purpose-built custom Role. Full reasoning in `docs/phase-20a-status.md`.
+**Phase 20c (Cost Terms) is complete** — the `CostTerm` lookup (`{ Id, OrganizationId, Name,
+Category, IsActive }`, `CostTermCategory` = `AdditionalCost`/`ProductionCost`), prerequisite
+reference data for Phase 25's Manufacturing with **no consumer yet, by design**. Pure `LookupList<T>`
+work: the generic `ListLookupsQuery<CostTerm>`/`DeleteLookupCommand<CostTerm>` are reused untouched,
+so only the concrete Create/Update pair, a `cost-terms` endpoint group, and one Angular Configurations
+screen were new. Key decisions: uniqueness is per `(Organization, Category, Name)` so "Freight" can
+exist in both sections; the reference product's two sections are one entity with a discriminator
+(mirroring `CustomStatus.DocumentType`), derived client-side from one list call; permission keys take
+the standard Member-View/Admin-Manage lookup split, with Member View granted specifically because
+Phase 25's BOM/Production forms will need the picker. This was also the one remaining Phase 20
+sub-phase needing **no** confirm-live pass — `erp-module-scan.md` §7 already captured the exact data
+model from a hands-on pass; 20b and 20d still need one. Tests: Domain.UnitTests 128 (+2),
+Application.UnitTests 278 (+9), Angular 7 specs (unchanged), `dotnet build`/`ng build`/`tsc --noEmit`
+clean. Manual E2E via curl + `sqlcmd` against a fresh Organization: full CRUD in both categories,
+per-category uniqueness proven in both directions, and four separate 403s naming the exact key
+(including PUT/DELETE against nonexistent ids, proving the gate fires before the handler). Full
+reasoning in `docs/phase-20c-status.md`; Phase 20a's own history is in `docs/phase-20a-status.md`.
 
-**Next up: Phase 20b onward — the rest of Phase 20's Configuration & extensibility completion** (Custom Status wiring, Cost Terms, Printing/Custom Templates, Alert Scheduler, tenant feature-flag enforcement, Turnstile). See `docs/roadmap.md`'s Phase 20 section for the task breakdown and the completed-phase index table for everything prior.
+**Next up: Phase 20b, 20d–20g — the rest of Phase 20's Configuration & extensibility completion**
+(Custom Status wiring, Printing/Custom Templates, Alert Scheduler, tenant feature-flag enforcement,
+Turnstile). 20b and 20d both need a confirm-live pass against the Tigg UAT tenant before any code;
+20e (Alert Scheduler) is the highest-risk one — this codebase's first background-job infrastructure,
+including how a jobless command authenticates itself. See `docs/roadmap.md`'s Phase 20 section for
+the task breakdown and the completed-phase index table for everything prior.

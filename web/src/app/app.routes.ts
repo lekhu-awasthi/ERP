@@ -72,6 +72,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'organizations/:id/configuration/cost-terms',
+    loadComponent: () =>
+      import('./features/configuration/cost-term-list-page/cost-term-list-page').then((m) => m.CostTermListPage),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/configuration/payment-modes',
     loadComponent: () =>
       import('./features/configuration/payment-mode-list-page/payment-mode-list-page').then(

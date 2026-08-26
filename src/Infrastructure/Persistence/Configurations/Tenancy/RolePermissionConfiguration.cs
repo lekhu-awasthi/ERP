@@ -454,6 +454,13 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminRatioAnalysisViewId = Guid.Parse("00000000-0000-0000-0002-000000000123");
     private static readonly Guid MemberRatioAnalysisViewId = Guid.Parse("00000000-0000-0000-0002-000000000124");
 
+    // Phase 20c (Cost Terms) -- Member reads (Phase 25's BOM/Production forms need the picker),
+    // Admin curates; see PermissionKeys.cs's CostTerm comment.
+    private static readonly Guid AdminCostTermViewId = Guid.Parse("00000000-0000-0000-0002-000000000125");
+    private static readonly Guid AdminCostTermManageId = Guid.Parse("00000000-0000-0000-0002-000000000126");
+    private static readonly Guid MemberCostTermViewId = Guid.Parse("00000000-0000-0000-0002-000000000127");
+    private static readonly Guid MemberCostTermManageId = Guid.Parse("00000000-0000-0000-0002-000000000128");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -825,6 +832,11 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(MemberProductProfitabilityViewId, Role.MemberId, PermissionKeys.ProductProfitabilityView, false),
 
             RolePermission.Create(AdminRatioAnalysisViewId, Role.AdminId, PermissionKeys.RatioAnalysisView, true),
-            RolePermission.Create(MemberRatioAnalysisViewId, Role.MemberId, PermissionKeys.RatioAnalysisView, true));
+            RolePermission.Create(MemberRatioAnalysisViewId, Role.MemberId, PermissionKeys.RatioAnalysisView, true),
+
+            RolePermission.Create(AdminCostTermViewId, Role.AdminId, PermissionKeys.CostTermView, true),
+            RolePermission.Create(AdminCostTermManageId, Role.AdminId, PermissionKeys.CostTermManage, true),
+            RolePermission.Create(MemberCostTermViewId, Role.MemberId, PermissionKeys.CostTermView, true),
+            RolePermission.Create(MemberCostTermManageId, Role.MemberId, PermissionKeys.CostTermManage, false));
     }
 }

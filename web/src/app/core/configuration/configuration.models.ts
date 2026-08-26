@@ -20,6 +20,28 @@ export interface UpdateCreditTermRequest {
   isActive: boolean;
 }
 
+export type CostTermCategory = 'AdditionalCost' | 'ProductionCost';
+
+export interface CostTerm {
+  id: string;
+  organizationId: string;
+  name: string;
+  category: CostTermCategory;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateCostTermRequest {
+  name: string;
+  category: CostTermCategory;
+}
+
+export interface UpdateCostTermRequest {
+  name: string;
+  category: CostTermCategory;
+  isActive: boolean;
+}
+
 export interface PaymentMode {
   id: string;
   organizationId: string;
