@@ -6,6 +6,7 @@ public sealed record RegisterUserCommand(
     string FullName,
     string Email,
     string Phone,
-    string Password) : IRequest<RegisterUserResult>;
+    string Password,
+    string TurnstileToken) : IRequest<RegisterUserResult>;
 
 public sealed record RegisterUserResult(Guid UserId, string Email);

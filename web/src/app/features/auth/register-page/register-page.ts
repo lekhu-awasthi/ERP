@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, viewChild } from '@angular/core';
 import { AbstractControl, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { FormBuilder } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -6,6 +6,7 @@ import { switchMap } from 'rxjs';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { extractErrorMessage } from '../../../core/auth/api-error';
+import { TurnstileWidget } from '../../../shared/turnstile/turnstile-widget';
 
 export const passwordMatchValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
   const password = control.get('password');
@@ -20,13 +21,14 @@ export const passwordMatchValidator: ValidatorFn = (control: AbstractControl): V
 
 @Component({
   selector: 'app-register-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, TurnstileWidget],
   templateUrl: './register-page.html',
 })
 export class RegisterPage {
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly turnstileWidget = viewChild(TurnstileWidget);
 
   protected readonly form = this.fb.nonNullable.group({
     fullName: ['', [Validators.required]],
@@ -38,9 +40,22 @@ export class RegisterPage {
 
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly turnstileToken = signal<string | null>(null);
+  protected readonly turnstileTouched = signal(false);
+
+  protected onTurnstileVerified(token: string): void {
+    this.turnstileToken.set(token);
+  }
+
+  protected onTurnstileExpiredOrFailed(): void {
+    this.turnstileToken.set(null);
+  }
 
   protected submit(): void {
-    if (this.form.invalid) {
+    this.turnstileTouched.set(true);
+
+    const token = this.turnstileToken();
+    if (this.form.invalid || !token) {
       this.form.markAllAsTouched();
       return;
     }
@@ -52,13 +67,17 @@ export class RegisterPage {
 
     // Send only registration parameters required by backend api
     this.authService
-      .register({ fullName, email, phone, password })
+      .register({ fullName, email, phone, password, turnstileToken: token })
       .pipe(switchMap(() => this.authService.requestVerificationCode(email)))
       .subscribe({
         next: () => this.router.navigate(['/verify-email'], { queryParams: { email } }),
         error: (err: unknown) => {
           this.submitting.set(false);
           this.errorMessage.set(extractErrorMessage(err) ?? 'Registration failed. Please try again.');
+          // Turnstile tokens are single-use -- a failed submit (including a rejected token) needs
+          // a fresh one before the user can retry.
+          this.turnstileToken.set(null);
+          this.turnstileWidget()?.reset();
         },
       });
   }

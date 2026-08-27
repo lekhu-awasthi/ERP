@@ -3,6 +3,7 @@ export interface RegisterRequest {
   email: string;
   phone: string;
   password: string;
+  turnstileToken: string;
 }
 
 export interface RegisterResponse {
