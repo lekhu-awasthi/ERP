@@ -21,7 +21,7 @@ public static class AuthEndpoints
         group.MapPost("/register", async (RegisterRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new RegisterUserCommand(request.FullName, request.Email, request.Phone, request.Password), ct);
+                new RegisterUserCommand(request.FullName, request.Email, request.Phone, request.Password, request.TurnstileToken), ct);
             return Results.Created($"/api/auth/{result.UserId}", result);
         });
 
@@ -93,7 +93,7 @@ public static class AuthEndpoints
         }).RequireAuthorization();
     }
 
-    private sealed record RegisterRequest(string FullName, string Email, string Phone, string Password);
+    private sealed record RegisterRequest(string FullName, string Email, string Phone, string Password, string TurnstileToken);
 
     private sealed record RequestVerificationCodeRequest(string Email);
 

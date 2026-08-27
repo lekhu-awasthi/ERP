@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–20c, 20b)
+## Completed phases (0–20c, 20b, 20g)
 
 Detail lives in each phase's own status doc — this table is the index, not the history.
 
@@ -40,6 +40,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 20a | Custom Fields reach the forms: `SetCustomFieldValuesCommand`/`GetCustomFieldValuesQuery` + `CustomFieldDefinition.ChoiceOptions`, shared `app-custom-fields-editor` wired into Quotation/Invoice (FR-12.1) | `phase-20a-status.md` |
 | 20c | `CostTerm` lookup (Additional Cost / Production Cost categories) + Configurations screen — prerequisite reference data for Phase 25's Manufacturing, nothing consumes it yet | `phase-20c-status.md` |
 | 20b | Custom Status wiring: `SetCustomStatusCommand` (nullable `CustomStatusId` on Quotation/PurchaseOrder) + shared `app-custom-status-picker`, live-confirmed as a list-grid-only control orthogonal to Draft/Approved (FR-12.2); Cheque excluded (its pipeline drives the native lifecycle, not orthogonal to it) | `phase-20b-status.md` |
+| 20g | Turnstile bot-check on registration (FR-1.1): `RegisterUserCommand.TurnstileToken` verified server-side by `ITurnstileVerifier` against Cloudflare's `siteverify`, `app-turnstile-widget` wired into the registration page only (New Organization wizard's two checks stay out of scope) | `phase-20g-status.md` |
 
 ---
 
@@ -121,7 +122,7 @@ seeded rows.*
 ## Phase 20 — Configuration & extensibility completion
 **Goal:** make the Phase 2 extensibility foundations actually reach the UI, plus the notification/template surface (FR-11.x, FR-12.x). Split into seven independently shippable sub-phases; one sub-phase = one session.
 
-**Locked execution order: 20a ✅ → 20c ✅ → 20b ✅ → 20g → 20d → 20f → 20e.** Reasoning (this is
+**Locked execution order: 20a ✅ → 20c ✅ → 20b ✅ → 20g ✅ → 20d → 20f → 20e.** Reasoning (this is
 *not* the original list order — deliberately resequenced):
 - **20b next** because it is the same shape and size as 20a (extend a Phase 2 lookup onto real documents, confirm-live step, shared editor component). Running that pattern again while the muscle memory is fresh is lower-risk than pivoting to something structurally new.
 - **20g early** because it is small and isolable — a good pairing candidate with leftover budget or a short session of its own, but never the main event.
@@ -171,8 +172,16 @@ The wizard's Accounting Features checkboxes (recorded since Phase 1b) actually g
 surfaces at point of use. A sweep across already-built surfaces — scoped after the other build-out
 sub-phases land, so gating work isn't re-done.
 
-### 20g. Turnstile bot-check on registration
-The Phase 1 hardening deferral. Small and isolable.
+### 20g. Turnstile bot-check on registration — **COMPLETE**, see `phase-20g-status.md`
+`RegisterUserCommand` gained a required `TurnstileToken`, verified server-side by a new
+`ITurnstileVerifier` (Infrastructure: a typed `HttpClient` against Cloudflare's `siteverify`) before
+any uniqueness check — a failed/missing token never reaches user creation. A shared
+`app-turnstile-widget` (no new npm dependency) wired into the registration page only, per the
+roadmap title and FR-1.1 — the New Organization wizard's two additional Turnstile checks
+(module-scan §5) stay out of scope, mechanical follow-up reusing the same component. Proving the
+negative path required temporarily swapping to Cloudflare's always-*fails* dummy secret key (the
+always-*passes* dummy secret ignores the token value entirely, so it can't itself prove the
+server-side check rejects a bad token).
 
 *Phase exit criteria: a custom field defined for Invoice appears on the Invoice form and round-trips; a printed Invoice renders through the selected template; a scheduled alert email actually arrives on schedule; a tenant without Track Inventory no longer sees warehouse-dependent surfaces.*
 

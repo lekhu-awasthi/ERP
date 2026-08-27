@@ -1,9 +1,11 @@
+using ErpApp.Application.Common.BotProtection;
 using ErpApp.Application.Common.Email;
 using ErpApp.Application.Common.Numbering;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Application.Common.Sms;
 using ErpApp.Application.Common.Storage;
+using ErpApp.Infrastructure.BotProtection;
 using ErpApp.Infrastructure.Email;
 using ErpApp.Infrastructure.Identity;
 using ErpApp.Infrastructure.Persistence;
@@ -64,6 +66,14 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(FileStorageOptions.SectionName));
         services.AddScoped<IFileStorage, LocalDiskFileStorage>();
         services.AddScoped<ISmsSender, ConsoleSmsSender>();
+
+        services.AddOptions<TurnstileOptions>()
+            .Bind(configuration.GetSection(TurnstileOptions.SectionName))
+            .Validate(o => !string.IsNullOrWhiteSpace(o.SecretKey), "Missing 'Turnstile:SecretKey'. Set it via user-secrets: " +
+                "dotnet user-secrets set \"Turnstile:SecretKey\" \"<your secret key>\" --project src/Api " +
+                "(Cloudflare's always-passes dummy secret key for local dev is 1x0000000000000000000000000000000AA)")
+            .ValidateOnStart();
+        services.AddHttpClient<ITurnstileVerifier, TurnstileVerifier>();
 
         return services;
     }

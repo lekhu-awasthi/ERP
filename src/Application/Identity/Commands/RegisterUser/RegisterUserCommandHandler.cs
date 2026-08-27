@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.BotProtection;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
@@ -7,11 +8,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Identity.Commands.RegisterUser;
 
-public sealed class RegisterUserCommandHandler(IAppDbContext db, IPasswordHasher passwordHasher)
+public sealed class RegisterUserCommandHandler(
+    IAppDbContext db,
+    IPasswordHasher passwordHasher,
+    ITurnstileVerifier turnstileVerifier)
     : IRequestHandler<RegisterUserCommand, RegisterUserResult>
 {
     public async Task<RegisterUserResult> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
     {
+        var turnstileVerified = await turnstileVerifier.VerifyAsync(request.TurnstileToken, cancellationToken);
+        if (!turnstileVerified)
+        {
+            throw new TurnstileVerificationFailedException("Bot verification failed. Please try again.");
+        }
+
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
         var emailTaken = await db.Users

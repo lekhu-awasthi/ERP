@@ -43,7 +43,13 @@ describe('AuthService', () => {
 
   it('register posts to the register endpoint', () => {
     service
-      .register({ fullName: 'Jane Doe', email: 'jane@example.com', phone: '9800000000', password: 'Password123' })
+      .register({
+        fullName: 'Jane Doe',
+        email: 'jane@example.com',
+        phone: '9800000000',
+        password: 'Password123',
+        turnstileToken: 'turnstile-token',
+      })
       .subscribe();
 
     const req = httpMock.expectOne(`${environment.apiBaseUrl}/api/auth/register`);

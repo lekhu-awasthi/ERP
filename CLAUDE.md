@@ -101,6 +101,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A Minimal API endpoint that binds an `IFormFile` parameter gets antiforgery metadata attached automatically by ASP.NET Core, even though nothing about the endpoint asked for it — every request 500s with `InvalidOperationException: ... contains anti-forgery metadata, but a middleware was not found` unless `app.UseAntiforgery()` is registered (it isn't, anywhere, in this app — CSRF mitigation here is the explicit CORS origin allow-list plus the httpOnly JWT cookie, not antiforgery tokens) or the endpoint opts out explicitly with `.DisableAntiforgery()`. Surfaces only via manual E2E against the real server (an InMemory-provider unit test never touches real Minimal API endpoint metadata). See `docs/phase-18-status.md`'s bug #1 and `AttachmentsEndpoints.cs`'s upload route.
 - A GL-report handler's unit test written with fixed calendar dates (e.g. `new DateOnly(2026, 1, 1)`) against real Create/Approve-seeded documents comes back all-zero, not a thrown exception — `GlJournalEntry.PostedAt` is stamped from the real clock at Approve() time (`GlDateBoundary`'s own doc comment), never the document's own business `Date`, so a query window built from fixed past/future dates never overlaps any real `PostedAt`. Every existing GL-report test already works around this by bracketing `DateOnly.FromDateTime(DateTime.UtcNow)` — grep for that pattern before writing a new one. See `docs/phase-19-status.md`'s bug #2.
 - `PurchaseBillPostingRule` debited the whole purchase to a Purchase (Expense) account, never an Inventory (Asset) account, until the post-Phase-19 fix (`docs/phase-7-status.md`'s addendum) made Goods lines debit `TenantSettings.DefaultInventoryAccountId` instead — Service lines still debit Purchase Expense. A report/ratio computation that wants a live Inventory *value* must still sum `StockLedgerEntry.QuantityRemaining × UnitCost` (the same FIFO-layer valuation Stock Ageing/Product Profitability use), not `TenantSettings.DefaultInventoryAccountId`'s GL balance — that balance is now a real perpetual-inventory asset balance post-fix, but nothing re-derived Ratio Analysis's Inventory figure to read it since the FIFO-sum approach already works and needs no further change. Caught only by a live Trial Balance cross-check against a freshly seeded org, not by a unit test that happened to avoid PurchaseBill activity. See `docs/phase-19-status.md`'s bug #1.
+- A third-party verification API's *test/dummy* credentials that "always pass" (e.g. Cloudflare Turnstile's documented `1x0000000000000000000000000000000AA` secret key) accept literally any input value, not just well-formed ones — hitting the real endpoint with a bogus token under that secret still returns `success: true`, so it cannot be used to prove a server-side check actually *rejects* a bad token. Proving the negative path needs the vendor's matching *always-fails* dummy credential (Turnstile: `2x0000000000000000000000000000000AA`) swapped in temporarily. See `docs/phase-20g-status.md`.
+- `IOptions<T>` (unlike `IOptionsSnapshot<T>`/`IOptionsMonitor<T>`) caches its bound value at first resolution and does not observe a later `dotnet user-secrets set` — even though the user-secrets JSON file is a reloading config source, a singleton service holding `IOptions<T>` keeps serving the value it saw at startup. Changing a user-secret mid-session (e.g. to flip a verification service between pass/fail for manual E2E) requires restarting the Api process, not just re-running `dotnet user-secrets set`. See `docs/phase-20g-status.md`.
 
 ## Current status
 
@@ -110,37 +112,28 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 > `docs/phase-N-status.md` and the roadmap's index table; never append essay-length phase
 > write-ups here, and never keep more than the latest one or two phases in this section.
 
-**Phase 20b (Custom Status wiring) is complete** — `SetCustomStatusCommand` (nullable
-`CustomStatusId` on Quotation/PurchaseOrder, riding on the target document's own Edit permission via
-a `CustomStatusPermissions` switch, no new `PermissionKeys`) plus a shared `app-custom-status-picker`.
-The confirm-live pass reshaped the plan on three counts: the picker lives **only in the list grid**
-(a "Stage" column per row, applying instantly on selection with no Save action) and has **no
-presence on the detail page at all** — a third shape distinct from both 20a's inline-form pattern and
-Phase 19's sidebar-action pattern; **Invoice has no Custom Status section** in the real product at
-all, so Quotation+PurchaseOrder were wired instead (spanning Sales *and* Purchasing, unlike 20a's
-both-Sales Quotation+Invoice duo); **Cheque was excluded outright, not deferred** — its Custom Status
-definitions are the exact same 5 values as the native `ChequeStatus` enum, and the live tenant's
-Cheque list "STATUS" column appears to actually drive that lifecycle rather than sit orthogonal to
-it, which would make wiring it a materially different, larger task (real Deposit/Clear/Bounce/Cancel
-transition commands) than "add a nullable FK." For Quotation/PurchaseOrder, custom status is
-genuinely orthogonal to Draft/Approved (settable on both, no GL/stock side effect, no Kanban board
-exists anywhere in the tenant) — confirmed rather than assumed. `SalesOrder` (identical shape) is
-mechanical follow-up. No `CustomStatus` admin Angular screen was built — the **third** consecutive
-lookup-CRUD-with-no-UI deferral (`CustomFieldDefinition` in 20a, now this), flagged explicitly as
-worth one dedicated follow-up session covering all three rather than a fourth one-off deferral.
-Tests: Domain.UnitTests 134 (+6), Application.UnitTests 287 (+9), Angular 7 specs (unchanged),
-`dotnet build`/`ng build`/`tsc --noEmit` clean. Manual E2E via curl + `sqlcmd` + live browser against
-a fresh Organization: full positive round-trip on both document types (verified via `sqlcmd`, not
-just the API's own response) including a UI-driven clear/re-set cycle; four negative-validation paths
-(wrong document type, inactive status, cross-org status, nonexistent document id); and a 403 naming
-`Sales.Quotation.Edit` proven against a nonexistent document id with a purpose-built custom Role.
-Full reasoning in `docs/phase-20b-status.md`; Phase 20a's own history is in `docs/phase-20a-status.md`.
+**Phase 20g (Turnstile bot-check on registration) is complete** — `RegisterUserCommand` gained a
+required `TurnstileToken`, verified server-side by a new `ITurnstileVerifier` (Infrastructure:
+`TurnstileVerifier`, this codebase's first outbound-HTTP-call Infrastructure service, a typed
+`HttpClient` against Cloudflare's `siteverify` endpoint) before any uniqueness check — a
+failed/missing token throws `TurnstileVerificationFailedException` (400) and never reaches user
+creation. A shared `app-turnstile-widget` (script tag in `index.html`, no new npm dependency) was
+wired into the registration page only — scope match to the roadmap title and FR-1.1, not the New
+Organization wizard's two additional Turnstile checks (`erp-module-scan.md` §5), which stay out of
+scope as mechanical follow-up. Tests: Domain.UnitTests 134 (unchanged), Application.UnitTests 288
+(+1), Angular 7 specs (unchanged), `dotnet build`/`ng build`/`tsc --noEmit` clean. Manual E2E via
+live browser + curl + `sqlcmd` against local dev: full positive round-trip (widget auto-resolves
+with Cloudflare's documented always-passes dummy sitekey, register → 201 → verify-email page); a 400
+validation error naming `TurnstileToken` for an empty token; and a genuine negative-path proof that
+required temporarily swapping the configured secret to Cloudflare's always-*fails* dummy secret and
+restarting the Api (the always-*passes* dummy secret ignores the token value entirely, so it can't
+itself prove the server-side check rejects a bad token) — `sqlcmd` confirmed the two rejected
+attempts never persisted a `Users` row. Full reasoning in `docs/phase-20g-status.md`.
 
-**Next up: the rest of Phase 20, in the locked order 20g → 20d → 20f → 20e**
-(Turnstile → Printing/Custom Templates → tenant feature-flag enforcement → Alert Scheduler). 20g runs
-next because it's small and isolable — a good pairing candidate with leftover budget or a short
-session of its own. 20d still needs a confirm-live pass against the Tigg UAT tenant before any code;
-20e (Alert Scheduler) is deliberately last as the highest-risk one — this codebase's first
-background-job infrastructure, including how a jobless command authenticates itself, which deserves a
-session where it is the only decision. See `docs/roadmap.md`'s Phase 20 section for each sub-phase's
-brief and the full ordering reasoning, and the completed-phase index table for everything prior.
+**Next up: the rest of Phase 20, in the locked order 20d → 20f → 20e**
+(Printing/Custom Templates → tenant feature-flag enforcement → Alert Scheduler). 20d still needs a
+confirm-live pass against the Tigg UAT tenant before any code; 20e (Alert Scheduler) is deliberately
+last as the highest-risk one — this codebase's first background-job infrastructure, including how a
+jobless command authenticates itself, which deserves a session where it is the only decision. See
+`docs/roadmap.md`'s Phase 20 section for each sub-phase's brief and the full ordering reasoning, and
+the completed-phase index table for everything prior.
