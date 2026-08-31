@@ -99,6 +99,8 @@ public interface IAppDbContext
     DbSet<SmsTemplate> SmsTemplates { get; }
     DbSet<SmsLog> SmsLogs { get; }
     DbSet<SmsCreditLedgerEntry> SmsCreditLedgerEntries { get; }
+    DbSet<AlertDefinition> AlertDefinitions { get; }
+    DbSet<AlertSendLog> AlertSendLogs { get; }
 
     /// <summary>
     /// Generic accessor mirroring DbContext's own Set&lt;TEntity&gt;() -- lets the generic

@@ -479,6 +479,16 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminSubscriptionViewId = Guid.Parse("00000000-0000-0000-0002-000000000131");
     private static readonly Guid MemberSubscriptionViewId = Guid.Parse("00000000-0000-0000-0002-000000000132");
 
+    // Phase 20e (Alert Scheduler) -- Admin-only on all three, including View: an alert definition
+    // records where the tenant's figures are being mailed, and the send log records every address
+    // actually mailed. See PermissionKeys.AlertDefinitionView's note for the full derivation.
+    private static readonly Guid AdminAlertDefinitionViewId = Guid.Parse("00000000-0000-0000-0002-000000000133");
+    private static readonly Guid AdminAlertDefinitionManageId = Guid.Parse("00000000-0000-0000-0002-000000000134");
+    private static readonly Guid MemberAlertDefinitionViewId = Guid.Parse("00000000-0000-0000-0002-000000000135");
+    private static readonly Guid MemberAlertDefinitionManageId = Guid.Parse("00000000-0000-0000-0002-000000000136");
+    private static readonly Guid AdminAlertSendLogViewId = Guid.Parse("00000000-0000-0000-0002-000000000137");
+    private static readonly Guid MemberAlertSendLogViewId = Guid.Parse("00000000-0000-0000-0002-000000000138");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -866,6 +876,13 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(MemberCustomTemplateManageId, Role.MemberId, PermissionKeys.CustomTemplateManage, false),
 
             RolePermission.Create(AdminSubscriptionViewId, Role.AdminId, PermissionKeys.SubscriptionView, true),
-            RolePermission.Create(MemberSubscriptionViewId, Role.MemberId, PermissionKeys.SubscriptionView, true));
+            RolePermission.Create(MemberSubscriptionViewId, Role.MemberId, PermissionKeys.SubscriptionView, true),
+
+            RolePermission.Create(AdminAlertDefinitionViewId, Role.AdminId, PermissionKeys.AlertDefinitionView, true),
+            RolePermission.Create(AdminAlertDefinitionManageId, Role.AdminId, PermissionKeys.AlertDefinitionManage, true),
+            RolePermission.Create(MemberAlertDefinitionViewId, Role.MemberId, PermissionKeys.AlertDefinitionView, false),
+            RolePermission.Create(MemberAlertDefinitionManageId, Role.MemberId, PermissionKeys.AlertDefinitionManage, false),
+            RolePermission.Create(AdminAlertSendLogViewId, Role.AdminId, PermissionKeys.AlertSendLogView, true),
+            RolePermission.Create(MemberAlertSendLogViewId, Role.MemberId, PermissionKeys.AlertSendLogView, false));
     }
 }

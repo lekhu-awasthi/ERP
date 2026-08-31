@@ -1,3 +1,4 @@
+using ErpApp.Application.Configuration.Commands.CreateAlertDefinition;
 using ErpApp.Application.Configuration.Commands.CreateBank;
 using ErpApp.Application.Configuration.Commands.CreateCostTerm;
 using ErpApp.Application.Configuration.Commands.CreateCreditTerm;
@@ -14,11 +15,13 @@ using ErpApp.Application.Configuration.Commands.CreateTaskType;
 using ErpApp.Application.Configuration.Commands.CreateTdsType;
 using ErpApp.Application.Configuration.Commands.DeleteCustomFieldDefinition;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
+using ErpApp.Application.Configuration.Commands.SetAlertDefinitionActive;
 using ErpApp.Application.Configuration.Commands.SetCustomFieldValues;
 using ErpApp.Application.Configuration.Commands.SetCustomStatus;
 using ErpApp.Application.Configuration.Commands.SetDefaultCustomTemplate;
 using ErpApp.Application.Configuration.Commands.SetDefaultPrintingTemplate;
 using ErpApp.Application.Configuration.Commands.SetTransactionReportingTags;
+using ErpApp.Application.Configuration.Commands.UpdateAlertDefinition;
 using ErpApp.Application.Configuration.Commands.UpdateBank;
 using ErpApp.Application.Configuration.Commands.UpdateCostTerm;
 using ErpApp.Application.Configuration.Commands.UpdateCreditTerm;
@@ -36,6 +39,7 @@ using ErpApp.Application.Configuration.Commands.UpdateTdsType;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Configuration.Queries.GetCustomFieldValues;
 using ErpApp.Application.Configuration.Queries.GetTransactionReportingTags;
+using ErpApp.Application.Configuration.Queries.ListAlertSendLogs;
 using ErpApp.Application.Configuration.Queries.ListCustomFieldDefinitions;
 using ErpApp.Application.Configuration.Queries.ListLookups;
 using ErpApp.Domain.Common;
@@ -69,6 +73,7 @@ public static class ConfigurationEndpoints
         MapCostTermEndpoints(group);
         MapPrintingTemplateEndpoints(group);
         MapCustomTemplateEndpoints(group);
+        MapAlertSchedulerEndpoints(group);
     }
 
     private static void MapCreditTermEndpoints(RouteGroupBuilder group)
@@ -566,6 +571,76 @@ public static class ConfigurationEndpoints
             return Results.NoContent();
         });
     }
+
+
+    /// <summary>Phase 20e -- Alert Scheduler (erp-module-scan.md Configurations §15, FR-11.1). The
+    /// definitions CRUD plus the send ledger the reference product exposes as "Email Logs". There is
+    /// deliberately no "run now" route: the reference product has no such action (confirmed live --
+    /// its row menu is Edit / Delete / Mark As Inactive), and adding one would create an
+    /// authenticated way to make the server send mail on demand, which is a spam surface this phase
+    /// has no requirement for. Manual testing shortens AlertScheduler:PollInterval instead.</summary>
+    private static void MapAlertSchedulerEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/alerts", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListLookupsQuery<AlertDefinition>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/alerts", async (
+            Guid organizationId, CreateAlertDefinitionRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new CreateAlertDefinitionCommand(
+                    organizationId, request.Name, request.Medium, request.AlertType,
+                    request.Recipients, request.Frequency, request.ScheduleTime), ct);
+            return Results.Created($"/api/organizations/{organizationId}/configuration/alerts/{result.Id}", result);
+        });
+
+        group.MapPut("/alerts/{id:guid}", async (
+            Guid organizationId, Guid id, UpdateAlertDefinitionRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdateAlertDefinitionCommand(
+                    organizationId, id, request.Name, request.Medium, request.AlertType,
+                    request.Recipients, request.Frequency, request.ScheduleTime, request.IsActive), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPut("/alerts/{id:guid}/active", async (
+            Guid organizationId, Guid id, SetAlertDefinitionActiveRequest request, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new SetAlertDefinitionActiveCommand(organizationId, id, request.IsActive), ct);
+            return Results.NoContent();
+        });
+
+        group.MapDelete("/alerts/{id:guid}", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteLookupCommand<AlertDefinition>(organizationId, id), ct);
+            return Results.NoContent();
+        });
+
+        group.MapGet("/alert-send-logs", async (
+            Guid organizationId, Guid? alertDefinitionId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListAlertSendLogsQuery(
+                    organizationId, alertDefinitionId, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+            return Results.Ok(result);
+        });
+    }
+
+    private sealed record CreateAlertDefinitionRequest(
+        string Name, AlertMedium Medium, AlertType AlertType, string Recipients,
+        AlertScheduleFrequency Frequency, TimeOnly ScheduleTime);
+
+    private sealed record UpdateAlertDefinitionRequest(
+        string Name, AlertMedium Medium, AlertType AlertType, string Recipients,
+        AlertScheduleFrequency Frequency, TimeOnly ScheduleTime, bool IsActive);
+
+    private sealed record SetAlertDefinitionActiveRequest(bool IsActive);
 
     private sealed record CreatePrintingTemplateRequest(string Name, DocumentType DocumentType);
 

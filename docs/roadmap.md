@@ -43,6 +43,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 20g | Turnstile bot-check on registration (FR-1.1): `RegisterUserCommand.TurnstileToken` verified server-side by `ITurnstileVerifier` against Cloudflare's `siteverify`, `app-turnstile-widget` wired into the registration page only (New Organization wizard's two checks stay out of scope) | `phase-20g-status.md` |
 | 20d | Printing Templates / Custom Templates (FR-11.2/11.3): confirm-live found the reference product's template gallery is a real visual editor, descoped by user decision to metadata-only `PrintingTemplate`/`CustomTemplate` lookups + `SetDefault`; the real deliverable is a print-to-PDF pipeline (QuestPDF, 2 shared layouts) wired for 6 document types, closing Phase 16c's deferred print output | `phase-20d-status.md` |
 | 20f | Tenant feature-flag enforcement (FR-2.6): `IRequireFeature` + `FeatureGateBehavior` (4th pipeline behavior) make `TenantSubscription`'s flags a real gate, `FeatureNotEnabledException` → 403 naming the feature. Investigation found only 2 of 7 flags have a surface to gate (`TrackInventory`, `MultipleWarehouses`) — both of FR-2.6's own examples are unbuildable here; scope reduced accordingly. MultipleWarehouses is a **cap at one**, not a block (nothing seeds a default warehouse and Invoice requires one). Read-only Subscription & Features screen; flags stay immutable, live-confirmed as matching the reference product | `phase-20f-status.md` |
+| 20e | Alert Scheduler (FR-11.1) — this codebase's **first background-job infrastructure**: hand-rolled `AlertSchedulerHostedService` (`BackgroundService` + `PeriodicTimer` + `TimeProvider`, scope per tick, `IOptionsMonitor`) driving `IAlertDispatcher`; `AlertDefinition` + an `AlertSendLog` ledger whose unique index on (definition, local occurrence date, recipient) delivers idempotency, multi-instance safety and at-most-once delivery at once. **No authentication-bypass surface was introduced** — the job sends no MediatR request, reading through `IAlertContentBuilder` with an explicit `OrganizationId` instead, so `CurrentUserService` still throws outside HTTP. Nepal-local (UTC+05:45) scheduling. Confirm-live closed every open question and surfaced a screen the scan had missed (Email Logs) | `phase-20e-status.md` |
 
 ---
 
@@ -124,7 +125,7 @@ seeded rows.*
 ## Phase 20 — Configuration & extensibility completion
 **Goal:** make the Phase 2 extensibility foundations actually reach the UI, plus the notification/template surface (FR-11.x, FR-12.x). Split into seven independently shippable sub-phases; one sub-phase = one session.
 
-**Locked execution order: 20a ✅ → 20c ✅ → 20b ✅ → 20g ✅ → 20d ✅ → 20f ✅ → 20e.** Reasoning (this is
+**Locked execution order: 20a ✅ → 20c ✅ → 20b ✅ → 20g ✅ → 20d ✅ → 20f ✅ → 20e ✅ — Phase 20 is complete.** Reasoning (this is
 *not* the original list order — deliberately resequenced):
 - **20b next** because it is the same shape and size as 20a (extend a Phase 2 lookup onto real documents, confirm-live step, shared editor component). Running that pattern again while the muscle memory is fresh is lower-risk than pivoting to something structurally new.
 - **20g early** because it is small and isolable — a good pairing candidate with leftover budget or a short session of its own, but never the main event.
@@ -172,10 +173,39 @@ Quotation, SalesOrder, PurchaseOrder, PurchaseBill, JournalVoucher); the rest ar
 follow-up (a new handler case reusing the existing shared layout, no new design). No admin screen
 gap this time — both lookups got real Angular CRUD+SetDefault screens.
 
-### 20e. Alert Scheduler (FR-11.1)
-First background-job infrastructure (scheduled recurring emails) — design the job runner once; Phase 21's
-async import/export reuses it (NFR-4.3). **Highest-risk sub-phase**: a job-runner architecture choice plus a
-new authentication-bypass surface. Scheduled last, for a session that treats it as an architecture review.
+### 20e. Alert Scheduler (FR-11.1) — **COMPLETE**, see `phase-20e-status.md`
+This codebase's first background-job infrastructure. `AlertSchedulerHostedService` (Infrastructure) owns a
+`PeriodicTimer` built from `TimeProvider`, creates a **DI scope per tick** (both `IAppDbContext` and
+`IEmailSender` are scoped), reads its interval through `IOptionsMonitor` (not `IOptions` — the phase-20g
+caching gotcha), and swallows tick failures so the loop survives. It holds **no business decision**: those all
+live in `IAlertDispatcher` (Application) behind an injected clock, which is why the whole suite runs on
+`FakeTimeProvider` with no `Task.Delay` anywhere.
+
+**Decision A — hand-rolled, not Hangfire/Quartz/Coravel.** Everything a scheduler library sells is already
+covered: the schedule is durable because it is tenant data (`AlertDefinitions`), catch-up and multi-instance
+locking fall out of the `AlertSendLog` unique index this phase needs anyway, and the reference product's own
+Email Logs screen is the operational visibility. A library would have added a second schema and a dashboard to
+secure in exchange for machinery this design does not use.
+
+**Decision B — the anticipated authentication-bypass surface was not built, because it was not needed.** The
+dispatcher sends **no MediatR request**; it reads through `IAlertContentBuilder` implementations taking an
+explicit `OrganizationId`. `CurrentUserService` still throws outside an HTTP context, and no system principal,
+ambient user, or "runs as" field exists. Access control is entirely at *definition* time
+(`Configuration.AlertDefinition.Manage`, Admin-only), which is the right place because the real risk is data
+**egress** to unvalidated free-text recipient addresses — mitigated further by keeping every alert body to
+bounded aggregates (counts and totals; no PAN, contact names, or per-transaction rows).
+
+**Decision C — at-most-once, ledger-first.** The `AlertSendLog` row is committed *before* SMTP is called, under
+a unique index on `(AlertDefinitionId, OccurrenceDate, Recipient)`. Crash-between-the-two leaves a visible
+`Pending` row and is never retried; a second instance's duplicate insert is rejected; a missed slot fires late
+the *same local day* but a multi-day outage never backfills. A duplicate daily summary to a real customer is
+worse than a missing one, and a missing one is visible in Email Logs.
+
+Confirm-live closed every open question (Alert Type has exactly two options, Medium exactly one, Schedule
+exactly one plus an HH:mm picker), ruled out `CustomTemplateType.Email` (no template picker exists on the alert
+form) and a "Run now" action (the product has none), established that the time picker is **Nepal-local
+UTC+05:45** — and surfaced a screen the module scan had missed entirely: **Email Logs**, behind the panel's own
+kebab menu, which turned the send ledger from testing scaffolding into a real feature.
 
 ### 20f. Tenant feature-flag enforcement (FR-2.6) — **COMPLETE**, see `phase-20f-status.md`
 The wizard's Accounting Features checkboxes (recorded since Phase 1b, read nowhere in the twelve phases

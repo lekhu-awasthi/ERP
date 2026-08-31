@@ -3,10 +3,13 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
 import { CustomFieldValueDto, CustomFieldValueInput, DocumentType, TransactionReportingTagDto } from '../sales/sales.models';
 import {
+  AlertDefinition,
+  AlertSendLog,
   Bank,
+  CreateAlertDefinitionRequest,
   CreateBankRequest,
   CreateCostTermRequest,
   CreateCreditTermRequest,
@@ -33,6 +36,7 @@ import {
   TaskType,
   TdsType,
   UpdateBankRequest,
+  UpdateAlertDefinitionRequest,
   UpdateCostTermRequest,
   UpdateCreditTermRequest,
   UpdateCustomTemplateRequest,
@@ -392,6 +396,48 @@ export class ConfigurationService {
   deleteCustomTemplate(organizationId: string, id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl(organizationId)}/custom-templates/${id}`, {
       withCredentials: true,
+    });
+  }
+
+  // --- Alert Scheduler (Phase 20e) ---
+
+  listAlerts(organizationId: string): Observable<AlertDefinition[]> {
+    return this.listAll<AlertDefinition>(`${this.baseUrl(organizationId)}/alerts`);
+  }
+
+  createAlert(organizationId: string, request: CreateAlertDefinitionRequest): Observable<AlertDefinition> {
+    return this.http.post<AlertDefinition>(`${this.baseUrl(organizationId)}/alerts`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updateAlert(organizationId: string, id: string, request: UpdateAlertDefinitionRequest): Observable<AlertDefinition> {
+    return this.http.put<AlertDefinition>(`${this.baseUrl(organizationId)}/alerts/${id}`, request, {
+      withCredentials: true,
+    });
+  }
+
+  setAlertActive(organizationId: string, id: string, isActive: boolean): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl(organizationId)}/alerts/${id}/active`, { isActive }, {
+      withCredentials: true,
+    });
+  }
+
+  deleteAlert(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/alerts/${id}`, { withCredentials: true });
+  }
+
+  /** The send ledger behind the reference product's "Email Logs" panel. Genuinely paginated,
+   * unlike every other list on this service -- it grows by (alerts x recipients) rows a day. */
+  listAlertSendLogs(
+    organizationId: string,
+    page = 1,
+    pageSize = DEFAULT_PAGE_SIZE,
+  ): Observable<PagedResult<AlertSendLog>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    return this.http.get<PagedResult<AlertSendLog>>(`${this.baseUrl(organizationId)}/alert-send-logs`, {
+      withCredentials: true,
+      params,
     });
   }
 }

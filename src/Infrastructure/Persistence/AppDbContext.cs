@@ -95,6 +95,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<SmsTemplate> SmsTemplates => Set<SmsTemplate>();
     public DbSet<SmsLog> SmsLogs => Set<SmsLog>();
     public DbSet<SmsCreditLedgerEntry> SmsCreditLedgerEntries => Set<SmsCreditLedgerEntry>();
+    public DbSet<AlertDefinition> AlertDefinitions => Set<AlertDefinition>();
+    public DbSet<AlertSendLog> AlertSendLogs => Set<AlertSendLog>();
 
     // IAppDbContext.Set<TEntity>() -- satisfied implicitly by DbContext's own public
     // Set<TEntity>() (identical signature), needed by the generic

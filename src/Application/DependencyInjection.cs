@@ -1,6 +1,7 @@
 using System.Reflection;
 using ErpApp.Application.Accounting;
 using ErpApp.Application.Accounting.Posting;
+using ErpApp.Application.Alerts;
 using ErpApp.Application.Common.Trees;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
@@ -110,6 +111,10 @@ public static class DependencyInjection
         RegisterLookupHandlers<PrintingTemplate>(services);
         RegisterLookupHandlers<CustomTemplate>(services);
 
+        // Phase 20e (Alert Scheduler) -- AlertDefinition satisfies ITenantLookupEntity, so List and
+        // Delete come free; Create/Update/SetActive are concrete (extra fields), same as above.
+        RegisterLookupHandlers<AlertDefinition>(services);
+
         // IGlPostingRule<T> (architecture-spec.md §3.4) -- pure TDocument->GL-lines mappers, one
         // per document type that posts to GL. Registered so ApproveXCommandHandler and
         // PreviewGlPostingQueryHandler share the exact same instance type (no duplicated math).
@@ -127,6 +132,19 @@ public static class DependencyInjection
         // InventoryAdjustment is the one Inventory document type that posts GL (WarehouseTransfer
         // deliberately doesn't -- see that aggregate's doc comment).
         services.AddTransient<IGlPostingRule<InventoryAdjustmentPostingInput>, InventoryAdjustmentPostingRule>();
+
+        // Phase 20e (Alert Scheduler, FR-11.1) -- IAlertContentBuilder is the IGlPostingRule<T>
+        // shape applied to alert bodies: one implementation per AlertType enum member, resolved by
+        // AlertDispatcher from the injected IEnumerable. Adding an alert type is a new class plus a
+        // line here, with no change to the dispatcher.
+        //
+        // Everything here is scoped, not singleton, and that is load-bearing: the background hosted
+        // service (Infrastructure) creates an IServiceScope per tick and resolves IAlertDispatcher
+        // from it, because IAppDbContext and IEmailSender are both scoped and a singleton
+        // BackgroundService cannot hold either. See AlertSchedulerHostedService.
+        services.AddScoped<IAlertContentBuilder, DailyTransactionSummaryContentBuilder>();
+        services.AddScoped<IAlertContentBuilder, CrmReportContentBuilder>();
+        services.AddScoped<IAlertDispatcher, AlertDispatcher>();
 
         // Phase 7's real FIFO ledger engine (architecture-spec.md §3.5) and the stock-decrement
         // policy it backs -- replaces Phase 5's AlwaysOkStockAvailabilityPolicy stub.

@@ -5,6 +5,7 @@ using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Application.Common.Sms;
 using ErpApp.Application.Common.Storage;
+using ErpApp.Infrastructure.Alerts;
 using ErpApp.Infrastructure.BotProtection;
 using ErpApp.Infrastructure.Email;
 using ErpApp.Infrastructure.Identity;
@@ -14,6 +15,7 @@ using ErpApp.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace ErpApp.Infrastructure;
 
@@ -66,6 +68,13 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(FileStorageOptions.SectionName));
         services.AddScoped<IFileStorage, LocalDiskFileStorage>();
         services.AddScoped<ISmsSender, ConsoleSmsSender>();
+
+        // Phase 20e (Alert Scheduler, FR-11.1) -- this codebase's first background job.
+        // TryAddSingleton so a test host that already substituted a FakeTimeProvider keeps it.
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddOptions<AlertSchedulerOptions>()
+            .Bind(configuration.GetSection(AlertSchedulerOptions.SectionName));
+        services.AddHostedService<AlertSchedulerHostedService>();
 
         services.AddOptions<TurnstileOptions>()
             .Bind(configuration.GetSection(TurnstileOptions.SectionName))
