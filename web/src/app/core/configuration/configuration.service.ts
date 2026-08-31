@@ -10,9 +10,11 @@ import {
   CreateBankRequest,
   CreateCostTermRequest,
   CreateCreditTermRequest,
+  CreateCustomTemplateRequest,
   CreateDealStageRequest,
   CreateLeadSourceRequest,
   CreatePaymentModeRequest,
+  CreatePrintingTemplateRequest,
   CreateTaskTypeRequest,
   CreateTdsTypeRequest,
   CostTerm,
@@ -21,9 +23,11 @@ import {
   CreateReportingTagOptionRequest,
   CustomFieldDefinition,
   CustomStatus,
+  CustomTemplate,
   DealStage,
   LeadSource,
   PaymentMode,
+  PrintingTemplate,
   ReportingTagCategory,
   ReportingTagOption,
   TaskType,
@@ -31,9 +35,11 @@ import {
   UpdateBankRequest,
   UpdateCostTermRequest,
   UpdateCreditTermRequest,
+  UpdateCustomTemplateRequest,
   UpdateDealStageRequest,
   UpdateLeadSourceRequest,
   UpdatePaymentModeRequest,
+  UpdatePrintingTemplateRequest,
   UpdateReportingTagCategoryRequest,
   UpdateReportingTagOptionRequest,
   UpdateTaskTypeRequest,
@@ -325,5 +331,67 @@ export class ConfigurationService {
       { customStatusId },
       { withCredentials: true },
     );
+  }
+
+  // --- Printing Templates (Phase 20d) ---
+
+  listPrintingTemplates(organizationId: string): Observable<PrintingTemplate[]> {
+    return this.listAll<PrintingTemplate>(`${this.baseUrl(organizationId)}/printing-templates`);
+  }
+
+  createPrintingTemplate(organizationId: string, request: CreatePrintingTemplateRequest): Observable<PrintingTemplate> {
+    return this.http.post<PrintingTemplate>(`${this.baseUrl(organizationId)}/printing-templates`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updatePrintingTemplate(
+    organizationId: string, id: string, request: UpdatePrintingTemplateRequest,
+  ): Observable<PrintingTemplate> {
+    return this.http.put<PrintingTemplate>(`${this.baseUrl(organizationId)}/printing-templates/${id}`, request, {
+      withCredentials: true,
+    });
+  }
+
+  setDefaultPrintingTemplate(organizationId: string, id: string): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl(organizationId)}/printing-templates/${id}/default`, {}, {
+      withCredentials: true,
+    });
+  }
+
+  deletePrintingTemplate(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/printing-templates/${id}`, {
+      withCredentials: true,
+    });
+  }
+
+  // --- Custom Templates (Phase 20d) ---
+
+  listCustomTemplates(organizationId: string): Observable<CustomTemplate[]> {
+    return this.listAll<CustomTemplate>(`${this.baseUrl(organizationId)}/custom-templates`);
+  }
+
+  createCustomTemplate(organizationId: string, request: CreateCustomTemplateRequest): Observable<CustomTemplate> {
+    return this.http.post<CustomTemplate>(`${this.baseUrl(organizationId)}/custom-templates`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updateCustomTemplate(organizationId: string, id: string, request: UpdateCustomTemplateRequest): Observable<CustomTemplate> {
+    return this.http.put<CustomTemplate>(`${this.baseUrl(organizationId)}/custom-templates/${id}`, request, {
+      withCredentials: true,
+    });
+  }
+
+  setDefaultCustomTemplate(organizationId: string, id: string): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl(organizationId)}/custom-templates/${id}/default`, {}, {
+      withCredentials: true,
+    });
+  }
+
+  deleteCustomTemplate(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/custom-templates/${id}`, {
+      withCredentials: true,
+    });
   }
 }

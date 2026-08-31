@@ -11,6 +11,12 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
+// Phase 20d -- QuestPDF's Community license is free for this project's size/revenue bracket but
+// must be set explicitly or every document-generation call throws at runtime. A static settings
+// assignment, not config-dependent, so it's safe this early (unlike the config-read-before-Build
+// gotcha this file's other setup has to avoid).
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddApplication();
@@ -124,6 +130,7 @@ app.MapInventoryEndpoints();
 app.MapWorkflowEndpoints();
 app.MapCrmEndpoints();
 app.MapAttachmentsEndpoints();
+app.MapPrintingEndpoints();
 
 app.Run();
 

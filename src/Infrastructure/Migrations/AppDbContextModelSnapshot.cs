@@ -788,6 +788,47 @@ namespace ErpApp.Infrastructure.Migrations
                     b.ToTable("CustomStatuses", "configuration");
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Configuration.CustomTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "Type", "Name")
+                        .IsUnique();
+
+                    b.ToTable("CustomTemplates", "configuration");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Configuration.DealStage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -933,6 +974,42 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("PaymentModes", "configuration");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Configuration.PrintingTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "DocumentType", "Name")
+                        .IsUnique();
+
+                    b.ToTable("PrintingTemplates", "configuration");
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Configuration.ReportingTagCategory", b =>
@@ -5286,6 +5363,62 @@ namespace ErpApp.Infrastructure.Migrations
                             Id = new Guid("00000000-0000-0000-0002-000000000128"),
                             IsGranted = false,
                             PermissionKey = "Configuration.CostTerm.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000129"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.PrintingTemplate.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000012a"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.PrintingTemplate.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000012b"),
+                            IsGranted = false,
+                            PermissionKey = "Configuration.PrintingTemplate.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000012c"),
+                            IsGranted = false,
+                            PermissionKey = "Configuration.PrintingTemplate.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000012d"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.CustomTemplate.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000012e"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.CustomTemplate.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000012f"),
+                            IsGranted = false,
+                            PermissionKey = "Configuration.CustomTemplate.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000130"),
+                            IsGranted = false,
+                            PermissionKey = "Configuration.CustomTemplate.Manage",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });

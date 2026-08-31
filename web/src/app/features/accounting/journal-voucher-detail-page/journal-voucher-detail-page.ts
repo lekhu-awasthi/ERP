@@ -7,6 +7,8 @@ import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account, JournalVoucherDetail, JournalVoucherLineInput } from '../../../core/accounting/accounting.models';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact } from '../../../core/contacts/contacts.models';
+import { PrintingService } from '../../../core/printing/printing.service';
+import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 
 interface EditableLine {
   key: number;
@@ -43,6 +45,7 @@ export class JournalVoucherDetailPage {
   private readonly router = inject(Router);
   private readonly accountingService = inject(AccountingService);
   private readonly contactsService = inject(ContactsService);
+  private readonly printingService = inject(PrintingService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -50,6 +53,7 @@ export class JournalVoucherDetailPage {
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
+  protected readonly printing = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly journalVoucher = signal<JournalVoucherDetail | null>(null);
   protected readonly accounts = signal<Account[]>([]);
@@ -173,6 +177,24 @@ export class JournalVoucherDetailPage {
       error: (err: unknown) => {
         this.saving.set(false);
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save journal voucher. Please try again.');
+      },
+    });
+  }
+
+  protected print(): void {
+    this.printing.set(true);
+    this.errorMessage.set(null);
+    const tab = openBlankTabForPrint();
+
+    this.printingService.printDocument(this.organizationId, 'JournalVoucher', this.routeJournalVoucherId).subscribe({
+      next: (blob) => {
+        this.printing.set(false);
+        openBlobInNewTab(blob, tab);
+      },
+      error: (err: unknown) => {
+        this.printing.set(false);
+        tab?.close();
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not print journal voucher. Please try again.');
       },
     });
   }

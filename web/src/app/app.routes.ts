@@ -114,6 +114,22 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'organizations/:id/configuration/printing-templates',
+    loadComponent: () =>
+      import('./features/configuration/printing-template-list-page/printing-template-list-page').then(
+        (m) => m.PrintingTemplateListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/configuration/custom-templates',
+    loadComponent: () =>
+      import('./features/configuration/custom-template-list-page/custom-template-list-page').then(
+        (m) => m.CustomTemplateListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/contacts',
     loadComponent: () =>
       import('./features/contacts/contact-list-page/contact-list-page').then((m) => m.ContactListPage),

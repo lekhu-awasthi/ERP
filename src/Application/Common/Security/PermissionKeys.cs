@@ -413,4 +413,21 @@ public static class PermissionKeys
     public const string StockAgeingView = "Reports.StockAgeing.View";
     public const string ProductProfitabilityView = "Reports.ProductProfitability.View";
     public const string RatioAnalysisView = "Reports.RatioAnalysis.View";
+
+    // Phase 20d (Printing Templates / Custom Templates, FR-11.2/11.3) -- Admin-only for both pairs,
+    // a judgment call rather than the CreditTerm/PaymentMode/CostTerm Member-View-by-default norm:
+    // unlike those lookups, nothing here ever populates a Member-facing picker on a document form --
+    // the print action itself (rendering a document to PDF) doesn't even read these tables, it rides
+    // on the target document type's own existing View permission (see PrintDocumentPermissions, the
+    // same "no new key" reasoning SetCustomStatusCommand/SetTransactionReportingTagsCommand used for
+    // their own write actions). So a Member has no legitimate reason to view or manage either list --
+    // this is pure admin curation of a control-plane gallery/text library, the same bar Tenancy.Role.*
+    // set in Phase 14. Not re-confirmed live against the reference tenant's own Member-role gating
+    // (Step 1's confirm-live pass covered screen shape, not the permission boundary) -- flagged in
+    // docs/phase-20d-status.md as a judgment call to revisit if that turns out wrong.
+    public const string PrintingTemplateView = "Configuration.PrintingTemplate.View";
+    public const string PrintingTemplateManage = "Configuration.PrintingTemplate.Manage";
+
+    public const string CustomTemplateView = "Configuration.CustomTemplate.View";
+    public const string CustomTemplateManage = "Configuration.CustomTemplate.Manage";
 }

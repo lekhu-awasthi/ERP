@@ -98,6 +98,12 @@ public static class DependencyInjection
         // data for Phase 25's BOM/Production Journal, nothing consumes it yet.
         RegisterLookupHandlers<CostTerm>(services);
 
+        // Phase 20d (Printing Templates / Custom Templates) -- same generic lookup shape; each
+        // also gets its own SetDefault* command (concrete, not generic -- MediatR's assembly scan
+        // discovers those fine, same as SetCustomStatusCommand).
+        RegisterLookupHandlers<PrintingTemplate>(services);
+        RegisterLookupHandlers<CustomTemplate>(services);
+
         // IGlPostingRule<T> (architecture-spec.md §3.4) -- pure TDocument->GL-lines mappers, one
         // per document type that posts to GL. Registered so ApproveXCommandHandler and
         // PreviewGlPostingQueryHandler share the exact same instance type (no duplicated math).

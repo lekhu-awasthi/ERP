@@ -36,6 +36,8 @@ public static class LookupPermissionKeys
             var t when t == typeof(TaskType) => PermissionKeys.TaskTypeView,
             var t when t == typeof(LeadSource) => PermissionKeys.LeadSourceView,
             var t when t == typeof(DealStage) => PermissionKeys.DealStageView,
+            var t when t == typeof(PrintingTemplate) => PermissionKeys.PrintingTemplateView,
+            var t when t == typeof(CustomTemplate) => PermissionKeys.CustomTemplateView,
             _ => throw new NotSupportedException($"No View permission key registered for lookup type {typeof(TLookup).Name}."),
         };
 
@@ -58,6 +60,8 @@ public static class LookupPermissionKeys
             var t when t == typeof(TaskType) => PermissionKeys.TaskTypeManage,
             var t when t == typeof(LeadSource) => PermissionKeys.LeadSourceManage,
             var t when t == typeof(DealStage) => PermissionKeys.DealStageManage,
+            var t when t == typeof(PrintingTemplate) => PermissionKeys.PrintingTemplateManage,
+            var t when t == typeof(CustomTemplate) => PermissionKeys.CustomTemplateManage,
             _ => throw new NotSupportedException($"No Manage permission key registered for lookup type {typeof(TLookup).Name}."),
         };
 }

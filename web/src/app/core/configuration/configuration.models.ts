@@ -234,3 +234,56 @@ export interface CustomFieldDefinition {
   choiceOptions: string[];
   isActive: boolean;
 }
+
+// Phase 20d -- Printing Templates (config) -- metadata-only rows (see PrintingTemplate's backend
+// doc comment): a Name + one IsDefault flag per (OrganizationId, DocumentType). No layout-
+// definition field -- the real product's visual template designer was judged out of scope for
+// this sub-phase; the Print action renders one shared layout per document "family" regardless of
+// which row here is marked default.
+export interface PrintingTemplate {
+  id: string;
+  organizationId: string;
+  name: string;
+  documentType: DocumentType;
+  isDefault: boolean;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreatePrintingTemplateRequest {
+  name: string;
+  documentType: DocumentType;
+}
+
+export interface UpdatePrintingTemplateRequest {
+  name: string;
+  documentType: DocumentType;
+  isActive: boolean;
+}
+
+// Phase 20d -- Custom Templates (config) -- merge-field text templates, one of four fixed types.
+export type CustomTemplateType = 'CustomerBalanceConfirmation' | 'SupplierBalanceConfirmation' | 'TermsAndConditions' | 'Email';
+
+export interface CustomTemplate {
+  id: string;
+  organizationId: string;
+  name: string;
+  type: CustomTemplateType;
+  body: string;
+  isDefault: boolean;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateCustomTemplateRequest {
+  name: string;
+  type: CustomTemplateType;
+  body: string;
+}
+
+export interface UpdateCustomTemplateRequest {
+  name: string;
+  type: CustomTemplateType;
+  body: string;
+  isActive: boolean;
+}

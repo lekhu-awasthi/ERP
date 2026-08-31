@@ -17,6 +17,8 @@ import { Warehouse } from '../../../core/organizations/organizations.models';
 import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
+import { PrintingService } from '../../../core/printing/printing.service';
+import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 
 interface EditableLine {
   key: number;
@@ -49,6 +51,7 @@ export class InvoiceDetailPage {
   private readonly accountingService = inject(AccountingService);
   private readonly organizationsService = inject(OrganizationsService);
   private readonly pendingTemplateStore = inject(PendingTemplateStore);
+  private readonly printingService = inject(PrintingService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -57,6 +60,7 @@ export class InvoiceDetailPage {
   protected readonly approving = signal(false);
   protected readonly converting = signal(false);
   protected readonly voiding = signal(false);
+  protected readonly printing = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly invoice = signal<InvoiceDetail | null>(null);
   protected readonly customers = signal<Contact[]>([]);
@@ -329,6 +333,24 @@ export class InvoiceDetailPage {
         }
 
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not approve invoice. Please try again.');
+      },
+    });
+  }
+
+  protected print(): void {
+    this.printing.set(true);
+    this.errorMessage.set(null);
+    const tab = openBlankTabForPrint();
+
+    this.printingService.printDocument(this.organizationId, 'Invoice', this.routeInvoiceId).subscribe({
+      next: (blob) => {
+        this.printing.set(false);
+        openBlobInNewTab(blob, tab);
+      },
+      error: (err: unknown) => {
+        this.printing.set(false);
+        tab?.close();
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not print invoice. Please try again.');
       },
     });
   }

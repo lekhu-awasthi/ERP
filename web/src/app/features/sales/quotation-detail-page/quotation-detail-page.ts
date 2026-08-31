@@ -11,6 +11,8 @@ import { Product, VatRate } from '../../../core/catalog/catalog.models';
 import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
+import { PrintingService } from '../../../core/printing/printing.service';
+import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 
 interface EditableLine {
   key: number;
@@ -44,6 +46,7 @@ export class QuotationDetailPage {
   private readonly contactsService = inject(ContactsService);
   private readonly catalogService = inject(CatalogService);
   private readonly pendingTemplateStore = inject(PendingTemplateStore);
+  private readonly printingService = inject(PrintingService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -52,6 +55,7 @@ export class QuotationDetailPage {
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
   protected readonly converting = signal(false);
+  protected readonly printing = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly quotation = signal<QuotationDetail | null>(null);
   protected readonly customers = signal<Contact[]>([]);
@@ -273,6 +277,24 @@ export class QuotationDetailPage {
       error: (err: unknown) => {
         this.approving.set(false);
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not approve quotation. Please try again.');
+      },
+    });
+  }
+
+  protected print(): void {
+    this.printing.set(true);
+    this.errorMessage.set(null);
+    const tab = openBlankTabForPrint();
+
+    this.printingService.printDocument(this.organizationId, 'Quotation', this.routeQuotationId).subscribe({
+      next: (blob) => {
+        this.printing.set(false);
+        openBlobInNewTab(blob, tab);
+      },
+      error: (err: unknown) => {
+        this.printing.set(false);
+        tab?.close();
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not print quotation. Please try again.');
       },
     });
   }

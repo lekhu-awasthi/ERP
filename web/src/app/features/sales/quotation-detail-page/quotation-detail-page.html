@@ -16,7 +16,14 @@
       }
     }
     @if (quotation()?.status === 'Approved') {
-      <button type="button" class="btn btn-primary btn-sm fw-bold ms-auto" [disabled]="converting()" (click)="convertToInvoice()">
+      <button type="button" class="btn btn-outline-secondary btn-sm fw-bold ms-auto" [disabled]="printing()" (click)="print()">
+        @if (printing()) {
+          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        } @else {
+          <i class="bi bi-printer"></i> Print
+        }
+      </button>
+      <button type="button" class="btn btn-primary btn-sm fw-bold" [disabled]="converting()" (click)="convertToInvoice()">
         @if (converting()) {
           <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
         } @else {

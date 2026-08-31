@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–20c, 20b, 20g)
+## Completed phases (0–20c, 20b, 20g, 20d)
 
 Detail lives in each phase's own status doc — this table is the index, not the history.
 
@@ -41,6 +41,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 20c | `CostTerm` lookup (Additional Cost / Production Cost categories) + Configurations screen — prerequisite reference data for Phase 25's Manufacturing, nothing consumes it yet | `phase-20c-status.md` |
 | 20b | Custom Status wiring: `SetCustomStatusCommand` (nullable `CustomStatusId` on Quotation/PurchaseOrder) + shared `app-custom-status-picker`, live-confirmed as a list-grid-only control orthogonal to Draft/Approved (FR-12.2); Cheque excluded (its pipeline drives the native lifecycle, not orthogonal to it) | `phase-20b-status.md` |
 | 20g | Turnstile bot-check on registration (FR-1.1): `RegisterUserCommand.TurnstileToken` verified server-side by `ITurnstileVerifier` against Cloudflare's `siteverify`, `app-turnstile-widget` wired into the registration page only (New Organization wizard's two checks stay out of scope) | `phase-20g-status.md` |
+| 20d | Printing Templates / Custom Templates (FR-11.2/11.3): confirm-live found the reference product's template gallery is a real visual editor, descoped by user decision to metadata-only `PrintingTemplate`/`CustomTemplate` lookups + `SetDefault`; the real deliverable is a print-to-PDF pipeline (QuestPDF, 2 shared layouts) wired for 6 document types, closing Phase 16c's deferred print output | `phase-20d-status.md` |
 
 ---
 
@@ -122,16 +123,16 @@ seeded rows.*
 ## Phase 20 — Configuration & extensibility completion
 **Goal:** make the Phase 2 extensibility foundations actually reach the UI, plus the notification/template surface (FR-11.x, FR-12.x). Split into seven independently shippable sub-phases; one sub-phase = one session.
 
-**Locked execution order: 20a ✅ → 20c ✅ → 20b ✅ → 20g ✅ → 20d → 20f → 20e.** Reasoning (this is
+**Locked execution order: 20a ✅ → 20c ✅ → 20b ✅ → 20g ✅ → 20d ✅ → 20f → 20e.** Reasoning (this is
 *not* the original list order — deliberately resequenced):
 - **20b next** because it is the same shape and size as 20a (extend a Phase 2 lookup onto real documents, confirm-live step, shared editor component). Running that pattern again while the muscle memory is fresh is lower-risk than pivoting to something structurally new.
 - **20g early** because it is small and isolable — a good pairing candidate with leftover budget or a short session of its own, but never the main event.
 - **20d and 20e are both greenfield-and-risky**, and 20e in particular is an architecture decision (background-job infra, plus how a jobless command authenticates itself — a new authentication-bypass surface) that deserves a session where it is the *only* thing being decided — so it goes last, treated as an architecture review rather than "whatever's next."
 - **20f is a sweep across already-built surfaces**, easiest to scope correctly once more document types exist and have settled shapes, so it waits until fewer sub-phases are still landing and re-doing gating work is less likely.
 
-**20d still needs a confirm-live pass** against the Tigg UAT tenant before any code (20c and 20b are
-now both done — 20c's data model came from `erp-module-scan.md` §7's own hands-on pass; 20b's confirm-
-live session reshaped the plan on three counts, see `phase-20b-status.md`'s TL;DR).
+**20d's confirm-live pass is done** — it found the reference product's Printing Templates screen is a
+genuine visual template-authoring surface, not a fixed catalog; the user chose a metadata-only
+descope rather than building that editor. See `phase-20d-status.md`'s TL;DR.
 
 ### 20a. Custom fields rendered on forms (FR-12.1) — **COMPLETE**, see `phase-20a-status.md`
 The deferred write-side half of Phase 2's EAV: `SetCustomFieldValuesCommand`/`GetCustomFieldValuesQuery`
@@ -158,9 +159,17 @@ Configurations §7 — the `CostTerm` lookup (`AdditionalCost`/`ProductionCost` 
 `(Organization, Category, Name)`) plus its Configurations screen. Prerequisite reference data for Phase
 25's Manufacturing; nothing consumes it yet, by design.
 
-### 20d. Printing Templates / Custom Templates (FR-11.2/11.3)
-Print/PDF layout per document type with a tenant default; merge-field text templates. Closes 16c's deferred
-print-formatted output. Greenfield — treat the template model as its own design decision.
+### 20d. Printing Templates / Custom Templates (FR-11.2/11.3) — **COMPLETE**, see `phase-20d-status.md`
+Confirm-live found the reference product's Printing Templates screen is a genuine visual
+template-authoring surface (toggle/canvas editor), not a fixed catalog picker — the user chose to
+descope it to a metadata-only `PrintingTemplate` lookup (Name + `IsDefault` per DocumentType, no
+layout-definition field) rather than build that editor. `CustomTemplate` (merge-field text, 4 types)
+shipped as originally scoped. The real deliverable is the print-to-PDF pipeline this closes Phase
+16c's deferral with: a generic print endpoint rendering via QuestPDF (2 shared layouts — line-item
+and ledger — not one per document type), wired for 6 of the ~15 printable document types (Invoice,
+Quotation, SalesOrder, PurchaseOrder, PurchaseBill, JournalVoucher); the rest are mechanical
+follow-up (a new handler case reusing the existing shared layout, no new design). No admin screen
+gap this time — both lookups got real Angular CRUD+SetDefault screens.
 
 ### 20e. Alert Scheduler (FR-11.1)
 First background-job infrastructure (scheduled recurring emails) — design the job runner once; Phase 21's

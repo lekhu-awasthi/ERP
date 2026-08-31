@@ -14,7 +14,14 @@
       }
     }
     @if (salesOrder()?.status === 'Approved') {
-      <button type="button" class="btn btn-outline-danger btn-sm fw-bold ms-auto" [disabled]="voiding()" (click)="voidSalesOrder()">
+      <button type="button" class="btn btn-outline-secondary btn-sm fw-bold ms-auto" [disabled]="printing()" (click)="print()">
+        @if (printing()) {
+          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        } @else {
+          <i class="bi bi-printer"></i> Print
+        }
+      </button>
+      <button type="button" class="btn btn-outline-danger btn-sm fw-bold" [disabled]="voiding()" (click)="voidSalesOrder()">
         @if (voiding()) {
           <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
         } @else {

@@ -461,6 +461,18 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid MemberCostTermViewId = Guid.Parse("00000000-0000-0000-0002-000000000127");
     private static readonly Guid MemberCostTermManageId = Guid.Parse("00000000-0000-0000-0002-000000000128");
 
+    // Phase 20d (Printing Templates / Custom Templates) -- Admin-only for all four keys; see
+    // PermissionKeys.cs's own comment for the reasoning (no Member-facing picker reads either
+    // table, unlike CostTerm/CreditTerm/PaymentMode above).
+    private static readonly Guid AdminPrintingTemplateViewId = Guid.Parse("00000000-0000-0000-0002-000000000129");
+    private static readonly Guid AdminPrintingTemplateManageId = Guid.Parse("00000000-0000-0000-0002-00000000012a");
+    private static readonly Guid MemberPrintingTemplateViewId = Guid.Parse("00000000-0000-0000-0002-00000000012b");
+    private static readonly Guid MemberPrintingTemplateManageId = Guid.Parse("00000000-0000-0000-0002-00000000012c");
+    private static readonly Guid AdminCustomTemplateViewId = Guid.Parse("00000000-0000-0000-0002-00000000012d");
+    private static readonly Guid AdminCustomTemplateManageId = Guid.Parse("00000000-0000-0000-0002-00000000012e");
+    private static readonly Guid MemberCustomTemplateViewId = Guid.Parse("00000000-0000-0000-0002-00000000012f");
+    private static readonly Guid MemberCustomTemplateManageId = Guid.Parse("00000000-0000-0000-0002-000000000130");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -837,6 +849,14 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminCostTermViewId, Role.AdminId, PermissionKeys.CostTermView, true),
             RolePermission.Create(AdminCostTermManageId, Role.AdminId, PermissionKeys.CostTermManage, true),
             RolePermission.Create(MemberCostTermViewId, Role.MemberId, PermissionKeys.CostTermView, true),
-            RolePermission.Create(MemberCostTermManageId, Role.MemberId, PermissionKeys.CostTermManage, false));
+            RolePermission.Create(MemberCostTermManageId, Role.MemberId, PermissionKeys.CostTermManage, false),
+            RolePermission.Create(AdminPrintingTemplateViewId, Role.AdminId, PermissionKeys.PrintingTemplateView, true),
+            RolePermission.Create(AdminPrintingTemplateManageId, Role.AdminId, PermissionKeys.PrintingTemplateManage, true),
+            RolePermission.Create(MemberPrintingTemplateViewId, Role.MemberId, PermissionKeys.PrintingTemplateView, false),
+            RolePermission.Create(MemberPrintingTemplateManageId, Role.MemberId, PermissionKeys.PrintingTemplateManage, false),
+            RolePermission.Create(AdminCustomTemplateViewId, Role.AdminId, PermissionKeys.CustomTemplateView, true),
+            RolePermission.Create(AdminCustomTemplateManageId, Role.AdminId, PermissionKeys.CustomTemplateManage, true),
+            RolePermission.Create(MemberCustomTemplateViewId, Role.MemberId, PermissionKeys.CustomTemplateView, false),
+            RolePermission.Create(MemberCustomTemplateManageId, Role.MemberId, PermissionKeys.CustomTemplateManage, false));
     }
 }

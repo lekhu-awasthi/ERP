@@ -13,7 +13,17 @@ export type DocumentType =
   | 'PurchaseBill'
   | 'Expense'
   | 'DebitNote'
-  | 'Payment';
+  | 'Payment'
+  // Phase 20d -- added so Printing Templates' DocumentType picker (a document-type-scoped
+  // lookup, same shape as CustomStatus) can offer every ApprovableTransaction type the backend's
+  // DocumentType enum has, not just the 9 this union already covered for Reporting Tags/Custom
+  // Fields' earlier, narrower consumers.
+  | 'JournalVoucher'
+  | 'CashTransfer'
+  | 'WarehouseTransfer'
+  | 'InventoryAdjustment'
+  | 'ProductionOrder'
+  | 'ProductionJournal';
 
 export interface QuotationLineInput {
   productId: string;

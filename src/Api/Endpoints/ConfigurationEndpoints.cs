@@ -3,9 +3,11 @@ using ErpApp.Application.Configuration.Commands.CreateCostTerm;
 using ErpApp.Application.Configuration.Commands.CreateCreditTerm;
 using ErpApp.Application.Configuration.Commands.CreateCustomFieldDefinition;
 using ErpApp.Application.Configuration.Commands.CreateCustomStatus;
+using ErpApp.Application.Configuration.Commands.CreateCustomTemplate;
 using ErpApp.Application.Configuration.Commands.CreateDealStage;
 using ErpApp.Application.Configuration.Commands.CreateLeadSource;
 using ErpApp.Application.Configuration.Commands.CreatePaymentMode;
+using ErpApp.Application.Configuration.Commands.CreatePrintingTemplate;
 using ErpApp.Application.Configuration.Commands.CreateReportingTagCategory;
 using ErpApp.Application.Configuration.Commands.CreateReportingTagOption;
 using ErpApp.Application.Configuration.Commands.CreateTaskType;
@@ -14,15 +16,19 @@ using ErpApp.Application.Configuration.Commands.DeleteCustomFieldDefinition;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Commands.SetCustomFieldValues;
 using ErpApp.Application.Configuration.Commands.SetCustomStatus;
+using ErpApp.Application.Configuration.Commands.SetDefaultCustomTemplate;
+using ErpApp.Application.Configuration.Commands.SetDefaultPrintingTemplate;
 using ErpApp.Application.Configuration.Commands.SetTransactionReportingTags;
 using ErpApp.Application.Configuration.Commands.UpdateBank;
 using ErpApp.Application.Configuration.Commands.UpdateCostTerm;
 using ErpApp.Application.Configuration.Commands.UpdateCreditTerm;
 using ErpApp.Application.Configuration.Commands.UpdateCustomFieldDefinition;
 using ErpApp.Application.Configuration.Commands.UpdateCustomStatus;
+using ErpApp.Application.Configuration.Commands.UpdateCustomTemplate;
 using ErpApp.Application.Configuration.Commands.UpdateDealStage;
 using ErpApp.Application.Configuration.Commands.UpdateLeadSource;
 using ErpApp.Application.Configuration.Commands.UpdatePaymentMode;
+using ErpApp.Application.Configuration.Commands.UpdatePrintingTemplate;
 using ErpApp.Application.Configuration.Commands.UpdateReportingTagCategory;
 using ErpApp.Application.Configuration.Commands.UpdateReportingTagOption;
 using ErpApp.Application.Configuration.Commands.UpdateTaskType;
@@ -61,6 +67,8 @@ public static class ConfigurationEndpoints
         MapCustomFieldValueEndpoints(group);
         MapCustomStatusAssignmentEndpoints(group);
         MapCostTermEndpoints(group);
+        MapPrintingTemplateEndpoints(group);
+        MapCustomTemplateEndpoints(group);
     }
 
     private static void MapCreditTermEndpoints(RouteGroupBuilder group)
@@ -470,6 +478,102 @@ public static class ConfigurationEndpoints
             return Results.NoContent();
         });
     }
+
+    /// <summary>
+    /// Phase 20d -- Printing Templates (erp-module-scan.md §12, FR-11.2). Metadata-only rows (see
+    /// PrintingTemplate's own doc comment) -- Create/Update/List follow the same generic-lookup
+    /// shape as every other Configuration lookup; SetDefault is its own PUT, mirroring the
+    /// reference product's gallery where clicking a thumbnail moves the single checkmark.
+    /// </summary>
+    private static void MapPrintingTemplateEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/printing-templates", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListLookupsQuery<PrintingTemplate>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/printing-templates", async (
+            Guid organizationId, CreatePrintingTemplateRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new CreatePrintingTemplateCommand(organizationId, request.Name, request.DocumentType), ct);
+            return Results.Created($"/api/organizations/{organizationId}/configuration/printing-templates/{result.Id}", result);
+        });
+
+        group.MapPut("/printing-templates/{id:guid}", async (
+            Guid organizationId, Guid id, UpdatePrintingTemplateRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdatePrintingTemplateCommand(organizationId, id, request.Name, request.DocumentType, request.IsActive), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPut("/printing-templates/{id:guid}/default", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new SetDefaultPrintingTemplateCommand(organizationId, id), ct);
+            return Results.NoContent();
+        });
+
+        group.MapDelete("/printing-templates/{id:guid}", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteLookupCommand<PrintingTemplate>(organizationId, id), ct);
+            return Results.NoContent();
+        });
+    }
+
+    /// <summary>Phase 20d -- Custom Templates (erp-module-scan.md §13, FR-11.3). Same shape as
+    /// Printing Templates above, keyed by CustomTemplateType instead of DocumentType.</summary>
+    private static void MapCustomTemplateEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/custom-templates", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListLookupsQuery<CustomTemplate>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/custom-templates", async (
+            Guid organizationId, CreateCustomTemplateRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new CreateCustomTemplateCommand(organizationId, request.Name, request.Type, request.Body), ct);
+            return Results.Created($"/api/organizations/{organizationId}/configuration/custom-templates/{result.Id}", result);
+        });
+
+        group.MapPut("/custom-templates/{id:guid}", async (
+            Guid organizationId, Guid id, UpdateCustomTemplateRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdateCustomTemplateCommand(organizationId, id, request.Name, request.Type, request.Body, request.IsActive), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPut("/custom-templates/{id:guid}/default", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new SetDefaultCustomTemplateCommand(organizationId, id), ct);
+            return Results.NoContent();
+        });
+
+        group.MapDelete("/custom-templates/{id:guid}", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteLookupCommand<CustomTemplate>(organizationId, id), ct);
+            return Results.NoContent();
+        });
+    }
+
+    private sealed record CreatePrintingTemplateRequest(string Name, DocumentType DocumentType);
+
+    private sealed record UpdatePrintingTemplateRequest(string Name, DocumentType DocumentType, bool IsActive);
+
+    private sealed record CreateCustomTemplateRequest(string Name, CustomTemplateType Type, string Body);
+
+    private sealed record UpdateCustomTemplateRequest(string Name, CustomTemplateType Type, string Body, bool IsActive);
 
     private sealed record CreateCostTermRequest(string Name, CostTermCategory Category);
 

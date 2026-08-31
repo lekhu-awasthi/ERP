@@ -17,6 +17,8 @@ import { Warehouse } from '../../../core/organizations/organizations.models';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
 import { TdsType } from '../../../core/configuration/configuration.models';
 import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
+import { PrintingService } from '../../../core/printing/printing.service';
+import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 
 interface EditableLine {
   key: number;
@@ -50,6 +52,7 @@ export class PurchaseBillDetailPage {
   private readonly organizationsService = inject(OrganizationsService);
   private readonly configurationService = inject(ConfigurationService);
   private readonly pendingTemplateStore = inject(PendingTemplateStore);
+  private readonly printingService = inject(PrintingService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -58,6 +61,7 @@ export class PurchaseBillDetailPage {
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
   protected readonly converting = signal(false);
+  protected readonly printing = signal(false);
   protected readonly previewingGl = signal(false);
   protected readonly glPreview = signal<{ accountId: string; debit: number; credit: number }[] | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
@@ -323,6 +327,24 @@ export class PurchaseBillDetailPage {
         },
       });
     }
+  }
+
+  protected print(): void {
+    this.printing.set(true);
+    this.errorMessage.set(null);
+    const tab = openBlankTabForPrint();
+
+    this.printingService.printDocument(this.organizationId, 'PurchaseBill', this.routePurchaseBillId).subscribe({
+      next: (blob) => {
+        this.printing.set(false);
+        openBlobInNewTab(blob, tab);
+      },
+      error: (err: unknown) => {
+        this.printing.set(false);
+        tab?.close();
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not print purchase bill. Please try again.');
+      },
+    });
   }
 
   protected voidPurchaseBill(): void {

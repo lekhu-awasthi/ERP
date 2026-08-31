@@ -9,6 +9,8 @@ import { Contact } from '../../../core/contacts/contacts.models';
 import { CatalogService } from '../../../core/catalog/catalog.service';
 import { Product, VatRate } from '../../../core/catalog/catalog.models';
 import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
+import { PrintingService } from '../../../core/printing/printing.service';
+import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 
 interface EditableLine {
   key: number;
@@ -35,6 +37,7 @@ export class PurchaseOrderDetailPage {
   private readonly contactsService = inject(ContactsService);
   private readonly catalogService = inject(CatalogService);
   private readonly pendingTemplateStore = inject(PendingTemplateStore);
+  private readonly printingService = inject(PrintingService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -43,6 +46,7 @@ export class PurchaseOrderDetailPage {
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
   protected readonly converting = signal(false);
+  protected readonly printing = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly purchaseOrder = signal<PurchaseOrderDetail | null>(null);
   protected readonly suppliers = signal<Contact[]>([]);
@@ -215,6 +219,24 @@ export class PurchaseOrderDetailPage {
         },
       });
     }
+  }
+
+  protected print(): void {
+    this.printing.set(true);
+    this.errorMessage.set(null);
+    const tab = openBlankTabForPrint();
+
+    this.printingService.printDocument(this.organizationId, 'PurchaseOrder', this.routePurchaseOrderId).subscribe({
+      next: (blob) => {
+        this.printing.set(false);
+        openBlobInNewTab(blob, tab);
+      },
+      error: (err: unknown) => {
+        this.printing.set(false);
+        tab?.close();
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not print purchase order. Please try again.');
+      },
+    });
   }
 
   protected voidPurchaseOrder(): void {

@@ -27,6 +27,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
   - `phase-18` — before designing a second polymorphic (ParentType, ParentId) entity: confirm live whether it's really the same concept as an existing one (`Attachment` vs. `WorkTask`) before reusing its enum — Decision #2's Contact-Documents-vs-Workflow-Document split; before assuming a new "sub-record of a Contact" needs Phase 4's full-collection-replace treatment — confirm live whether the real UI even submits it as a list (`ContactPersonnel` didn't, so it's a standalone entity like `WorkTask`/`Deal`, sidestepping the gotcha by design); before writing any Minimal API endpoint that binds `IFormFile` (needs `.DisableAntiforgery()` — see Known Gotchas)
   - `phase-20a` — before building a second "cross-cutting data attached to a document" editor (custom fields, reporting tags, or similar): confirm live whether it saves inline with the document's own Save action (Custom Fields) or as its own independent post-creation action (Reporting Tags, Phase 19) — the two aren't the same shape and the live reference product answers this per-feature, not by analogy to the last one built
   - `phase-20b` — a third "cross-cutting data attached to a document" shape: confirm live *where the control even renders* before assuming it's on the detail page at all — Custom Status turned out to live only in the document's LIST grid (a per-row column, saving instantly, no detail-page presence whatsoever), which neither 20a's nor Phase 19's shape anticipated; also, before assuming a lookup's candidate document-type list from the module scan is accurate, check live whether each candidate type actually has the picker (Invoice didn't, despite being assumed) and whether any candidate's pipeline is genuinely orthogonal to the native lifecycle (Cheque's wasn't — its custom-status values matched its native lifecycle enum exactly, a sign to exclude rather than force-fit)
+  - `phase-20d` — before building a screen the module-scan flagged as a "gallery of named layout variants," confirm live whether picking one is a *choice* or the gallery's "Add Template" actually opens a real visual toggle/canvas editor (Printing Templates turned out to be the latter, and got descoped to metadata-only by explicit user decision rather than built) — the same confirm-live-before-assuming discipline as `phase-8f`'s Annex 5 lesson, now applied to "this looks like a simple lookup" instead of "this looks like a report"; also the precedent for picking a PDF-rendering approach (QuestPDF, in-process, over a headless-browser pipeline) as an explicit recorded decision rather than a default
   - `phase-7`'s addendum (bottom of the file) — before adding a new tenant-wide default GL account or changing which account a posting rule debits/credits: grep for the field name across every posting rule that's supposed to read it. `DefaultInventoryAccountId` sat completely unread by `PurchaseBillPostingRule` for 12 phases (Goods purchases debited Purchase Expense instead), silently double-counting Cost of Goods Sold in `IncomeStatementQueryHandler`'s Net Profit for any tenant whose Purchase account was Expense-typed — the obvious/default choice, caught only by a later phase's live E2E, not by any test or `dotnet build`
 
 ## Stack & conventions
@@ -112,28 +113,36 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 > `docs/phase-N-status.md` and the roadmap's index table; never append essay-length phase
 > write-ups here, and never keep more than the latest one or two phases in this section.
 
-**Phase 20g (Turnstile bot-check on registration) is complete** — `RegisterUserCommand` gained a
-required `TurnstileToken`, verified server-side by a new `ITurnstileVerifier` (Infrastructure:
-`TurnstileVerifier`, this codebase's first outbound-HTTP-call Infrastructure service, a typed
-`HttpClient` against Cloudflare's `siteverify` endpoint) before any uniqueness check — a
-failed/missing token throws `TurnstileVerificationFailedException` (400) and never reaches user
-creation. A shared `app-turnstile-widget` (script tag in `index.html`, no new npm dependency) was
-wired into the registration page only — scope match to the roadmap title and FR-1.1, not the New
-Organization wizard's two additional Turnstile checks (`erp-module-scan.md` §5), which stay out of
-scope as mechanical follow-up. Tests: Domain.UnitTests 134 (unchanged), Application.UnitTests 288
-(+1), Angular 7 specs (unchanged), `dotnet build`/`ng build`/`tsc --noEmit` clean. Manual E2E via
-live browser + curl + `sqlcmd` against local dev: full positive round-trip (widget auto-resolves
-with Cloudflare's documented always-passes dummy sitekey, register → 201 → verify-email page); a 400
-validation error naming `TurnstileToken` for an empty token; and a genuine negative-path proof that
-required temporarily swapping the configured secret to Cloudflare's always-*fails* dummy secret and
-restarting the Api (the always-*passes* dummy secret ignores the token value entirely, so it can't
-itself prove the server-side check rejects a bad token) — `sqlcmd` confirmed the two rejected
-attempts never persisted a `Users` row. Full reasoning in `docs/phase-20g-status.md`.
+**Phase 20d (Printing Templates / Custom Templates) is complete** — confirm-live against the real
+Tigg tenant found the Printing Templates screen is a genuine visual template-authoring surface (a
+toggle/canvas editor for Custom Fields/Organization/Date-System placement), not a fixed catalog;
+the user chose to descope it to a metadata-only `PrintingTemplate` lookup (Name + `IsDefault` per
+DocumentType, no layout-definition field at all) rather than build that editor.  `CustomTemplate`
+(merge-field text, 4 confirmed types) shipped as originally scoped. Both get full CRUD +
+`SetDefault` (clears any other default in the same group) and new Angular admin screens. The real
+deliverable — closing Phase 16c's deferred print-formatted output — is a print-to-PDF pipeline: one
+generic `GET .../print/{documentType}/{documentId}` endpoint rendering via **QuestPDF** (chosen
+over a headless-browser HTML-to-PDF pipeline — no Chromium to deploy, this codebase's first PDF
+output), using exactly two shared layouts (line-item family, ledger family — not one per document
+type or per PrintingTemplate) picked by which of the response DTO's `Lines`/`GlLines` is populated.
+Wired for 6 of the ~15 printable document types (Invoice, Quotation, SalesOrder, PurchaseOrder,
+PurchaseBill, JournalVoucher); the rest are mechanical follow-up (a new DTO-building handler case
+reusing the existing shared layout, no new design). Print itself gets no new PermissionKeys.\*
+entry — it rides on the target document's own existing `.View` permission, the same "no new key"
+pattern `SetCustomStatusCommand` used. Tests: Domain.UnitTests 143 (+9), Application.UnitTests 306
+(+18), Angular 7 specs (unchanged), `dotnet build`/`ng build`/`tsc --noEmit` clean. Manual E2E via
+curl + cookie jar + `sqlcmd` + live browser against a fresh Organization: full CRUD+SetDefault
+round-trip for both lookups verified via `sqlcmd`; a real Invoice and JournalVoucher created and
+approved end-to-end, then printed to an actual PDF (visually inspected: org header, line/ledger
+table, grand total, and a "Template: Modern" footer proving the default-template metadata is
+genuinely read); four negative-permission proofs against a genuine Member-role user (both lookups'
+View/Manage keys, the last against a nonexistent id so it can't be confused with a 404); an
+org-membership negative proof (403 naming `Sales.Invoice.View`, mirroring Phase 20c's precedent).
+Full reasoning in `docs/phase-20d-status.md`.
 
-**Next up: the rest of Phase 20, in the locked order 20d → 20f → 20e**
-(Printing/Custom Templates → tenant feature-flag enforcement → Alert Scheduler). 20d still needs a
-confirm-live pass against the Tigg UAT tenant before any code; 20e (Alert Scheduler) is deliberately
-last as the highest-risk one — this codebase's first background-job infrastructure, including how a
+**Next up: the rest of Phase 20, in the locked order 20f → 20e**
+(tenant feature-flag enforcement → Alert Scheduler). 20e (Alert Scheduler) is deliberately last as
+the highest-risk one — this codebase's first background-job infrastructure, including how a
 jobless command authenticates itself, which deserves a session where it is the only decision. See
 `docs/roadmap.md`'s Phase 20 section for each sub-phase's brief and the full ordering reasoning, and
 the completed-phase index table for everything prior.
