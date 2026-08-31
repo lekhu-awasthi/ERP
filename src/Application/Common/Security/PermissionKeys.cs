@@ -444,4 +444,24 @@ public static class PermissionKeys
     // per-transaction data -- which puts it squarely in the "bounded, routine" half of this
     // codebase's permission-derivation rule.
     public const string SubscriptionView = "Tenancy.Subscription.View";
+
+    // Phase 20e (Alert Scheduler, FR-11.1). Admin-only for all three keys, and this one is not a
+    // close call: an AlertDefinition is an outbound data feed. Creating one causes the server to
+    // mail the tenant's trading figures, on a schedule, to arbitrary addresses that no permission
+    // check anywhere ever validates -- the recipient list is free text. That is a strictly larger
+    // capability than any of Phase 20d's control-plane lookups, which only curate a gallery, so it
+    // inherits their Admin-only bar rather than the CreditTerm/CostTerm Member-View-by-default norm.
+    // View is Admin-only too: the list itself discloses where the tenant's figures are being sent.
+    //
+    // AlertSendLogView is separated from AlertDefinitionView rather than folded into it because the
+    // ledger is a distinct screen in the reference product (the Alert Scheduler panel's own kebab
+    // menu -> "Email Logs", found during Phase 20e's confirm-live pass) and it exposes strictly
+    // more: every address actually mailed, per occurrence, with failures. Same Admin-only bar.
+    //
+    // Note what is deliberately *not* here: no key for "the scheduler runs an alert". The background
+    // dispatcher sends no MediatR request and has no acting user, so there is nothing to gate at
+    // send time -- the gate is entirely at definition time. See docs/phase-20e-status.md, Decision B.
+    public const string AlertDefinitionView = "Configuration.AlertDefinition.View";
+    public const string AlertDefinitionManage = "Configuration.AlertDefinition.Manage";
+    public const string AlertSendLogView = "Configuration.AlertSendLog.View";
 }

@@ -287,3 +287,52 @@ export interface UpdateCustomTemplateRequest {
   body: string;
   isActive: boolean;
 }
+
+// Phase 20e -- Alert Scheduler (FR-11.1). All three unions are single/two-valued because that is
+// what the reference product's own dropdowns actually contain (confirmed live), not a placeholder.
+export type AlertMedium = 'Email';
+export type AlertType = 'DailyTransactionSummary' | 'CrmReport';
+export type AlertScheduleFrequency = 'Daily';
+export type AlertSendStatus = 'Pending' | 'Sent' | 'Failed';
+
+export interface AlertDefinition {
+  id: string;
+  organizationId: string;
+  name: string;
+  medium: AlertMedium;
+  alertType: AlertType;
+  /** Comma-separated; the reference product's Recipients control is a single free-text input. */
+  recipients: string;
+  frequency: AlertScheduleFrequency;
+  /** Tenant-local (Nepal) wall-clock time, serialized as "HH:mm:ss". */
+  scheduleTime: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateAlertDefinitionRequest {
+  name: string;
+  medium: AlertMedium;
+  alertType: AlertType;
+  recipients: string;
+  frequency: AlertScheduleFrequency;
+  scheduleTime: string;
+}
+
+export interface UpdateAlertDefinitionRequest extends CreateAlertDefinitionRequest {
+  isActive: boolean;
+}
+
+export interface AlertSendLog {
+  id: string;
+  alertDefinitionId: string;
+  alertName: string;
+  alertType: AlertType;
+  occurrenceDate: string;
+  recipient: string;
+  subject: string;
+  status: AlertSendStatus;
+  failureReason: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}

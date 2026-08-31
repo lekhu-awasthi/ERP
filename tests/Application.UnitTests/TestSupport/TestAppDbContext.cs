@@ -173,6 +173,10 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
 
     public DbSet<SmsCreditLedgerEntry> SmsCreditLedgerEntries => Set<SmsCreditLedgerEntry>();
 
+    public DbSet<AlertDefinition> AlertDefinitions => Set<AlertDefinition>();
+
+    public DbSet<AlertSendLog> AlertSendLogs => Set<AlertSendLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -197,6 +201,12 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<Expense>().Ignore(x => x.RowVersion);
         modelBuilder.Entity<Expense>().Ignore(x => x.GrandTotal);
         modelBuilder.Entity<DebitNote>().Ignore(x => x.RowVersion);
+
+        // AlertDefinition.RecipientAddresses is a computed get-only view over the stored
+        // comma-separated Recipients string. EF Core 8+ maps IEnumerable<string> properties as
+        // primitive collections, so leaving this to convention risks a phantom column here even
+        // though the real AlertDefinitionConfiguration already ignores it.
+        modelBuilder.Entity<AlertDefinition>().Ignore(x => x.RecipientAddresses);
 
         // ApplicableDocumentTypes needs the same delimited-string conversion as the real
         // CustomFieldDefinitionConfiguration (Infrastructure) -- IEntityTypeConfiguration classes

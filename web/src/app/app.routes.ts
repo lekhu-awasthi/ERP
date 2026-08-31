@@ -130,6 +130,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'organizations/:id/configuration/alerts',
+    loadComponent: () =>
+      import('./features/configuration/alert-list-page/alert-list-page').then((m) => m.AlertListPage),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/contacts',
     loadComponent: () =>
       import('./features/contacts/contact-list-page/contact-list-page').then((m) => m.ContactListPage),

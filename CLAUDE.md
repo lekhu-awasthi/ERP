@@ -28,6 +28,14 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
   - `phase-20a` — before building a second "cross-cutting data attached to a document" editor (custom fields, reporting tags, or similar): confirm live whether it saves inline with the document's own Save action (Custom Fields) or as its own independent post-creation action (Reporting Tags, Phase 19) — the two aren't the same shape and the live reference product answers this per-feature, not by analogy to the last one built
   - `phase-20b` — a third "cross-cutting data attached to a document" shape: confirm live *where the control even renders* before assuming it's on the detail page at all — Custom Status turned out to live only in the document's LIST grid (a per-row column, saving instantly, no detail-page presence whatsoever), which neither 20a's nor Phase 19's shape anticipated; also, before assuming a lookup's candidate document-type list from the module scan is accurate, check live whether each candidate type actually has the picker (Invoice didn't, despite being assumed) and whether any candidate's pipeline is genuinely orthogonal to the native lifecycle (Cheque's wasn't — its custom-status values matched its native lifecycle enum exactly, a sign to exclude rather than force-fit)
   - `phase-20d` — before building a screen the module-scan flagged as a "gallery of named layout variants," confirm live whether picking one is a *choice* or the gallery's "Add Template" actually opens a real visual toggle/canvas editor (Printing Templates turned out to be the latter, and got descoped to metadata-only by explicit user decision rather than built) — the same confirm-live-before-assuming discipline as `phase-8f`'s Annex 5 lesson, now applied to "this looks like a simple lookup" instead of "this looks like a report"; also the precedent for picking a PDF-rendering approach (QuestPDF, in-process, over a headless-browser pipeline) as an explicit recorded decision rather than a default
+  - `phase-20e` — before adding **any** background job, or any second one: the runner/decider split (a
+    `BackgroundService` that owns only the timer, the per-tick DI scope and `IOptionsMonitor`, driving an
+    Application-layer service that owns every decision behind an injected `TimeProvider`), and the
+    "claim a ledger row under a unique index, *then* do the external side effect" idiom that gives
+    idempotency-across-restart and multi-instance safety in one move. Also the precedent for **not**
+    giving a job an identity at all — the anticipated authentication-bypass surface was avoided rather
+    than narrowed, by having the job read through a purpose-built service taking an explicit
+    `OrganizationId` instead of sending a MediatR request
   - `phase-20f` — before gating anything behind a tenant feature flag: check whether a flag-*off* tenant can still function with the gate on. `MultipleWarehouses` had to become a **cap at one** rather than an on/off block, because nothing seeds a default Warehouse at Organization creation and Invoice/PurchaseBill both require a `WarehouseId` — blocking creation outright would have left such a tenant permanently unable to invoice. A conditional gate like that can't ride a marker-interface pipeline behavior and belongs in the handler. Also the precedent for sizing a "sweep" phase down to what actually exists: only 2 of 7 flags had a surface to gate, and *both* of the FR's own worked examples were unbuildable
   - `phase-7`'s addendum (bottom of the file) — before adding a new tenant-wide default GL account or changing which account a posting rule debits/credits: grep for the field name across every posting rule that's supposed to read it. `DefaultInventoryAccountId` sat completely unread by `PurchaseBillPostingRule` for 12 phases (Goods purchases debited Purchase Expense instead), silently double-counting Cost of Goods Sold in `IncomeStatementQueryHandler`'s Net Profit for any tenant whose Purchase account was Expense-typed — the obvious/default choice, caught only by a later phase's live E2E, not by any test or `dotnet build`
 
@@ -104,6 +112,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A GL-report handler's unit test written with fixed calendar dates (e.g. `new DateOnly(2026, 1, 1)`) against real Create/Approve-seeded documents comes back all-zero, not a thrown exception — `GlJournalEntry.PostedAt` is stamped from the real clock at Approve() time (`GlDateBoundary`'s own doc comment), never the document's own business `Date`, so a query window built from fixed past/future dates never overlaps any real `PostedAt`. Every existing GL-report test already works around this by bracketing `DateOnly.FromDateTime(DateTime.UtcNow)` — grep for that pattern before writing a new one. See `docs/phase-19-status.md`'s bug #2.
 - `PurchaseBillPostingRule` debited the whole purchase to a Purchase (Expense) account, never an Inventory (Asset) account, until the post-Phase-19 fix (`docs/phase-7-status.md`'s addendum) made Goods lines debit `TenantSettings.DefaultInventoryAccountId` instead — Service lines still debit Purchase Expense. A report/ratio computation that wants a live Inventory *value* must still sum `StockLedgerEntry.QuantityRemaining × UnitCost` (the same FIFO-layer valuation Stock Ageing/Product Profitability use), not `TenantSettings.DefaultInventoryAccountId`'s GL balance — that balance is now a real perpetual-inventory asset balance post-fix, but nothing re-derived Ratio Analysis's Inventory figure to read it since the FIFO-sum approach already works and needs no further change. Caught only by a live Trial Balance cross-check against a freshly seeded org, not by a unit test that happened to avoid PurchaseBill activity. See `docs/phase-19-status.md`'s bug #1.
 - A third-party verification API's *test/dummy* credentials that "always pass" (e.g. Cloudflare Turnstile's documented `1x0000000000000000000000000000000AA` secret key) accept literally any input value, not just well-formed ones — hitting the real endpoint with a bogus token under that secret still returns `success: true`, so it cannot be used to prove a server-side check actually *rejects* a bad token. Proving the negative path needs the vendor's matching *always-fails* dummy credential (Turnstile: `2x0000000000000000000000000000000AA`) swapped in temporarily. See `docs/phase-20g-status.md`.
+- Anything scheduled or dated for a tenant must be computed on the **Nepal wall clock (UTC+05:45)**, never on UTC — this is a Nepal-only product and `Organization` has no timezone field, so `Domain/Common/NepalTime` is the single conversion point (a fixed offset, deliberately not `TimeZoneInfo`: Nepal has had no DST since 1986, and the tz id differs between Windows and Linux so a `FindSystemTimeZoneById` miss throws on whichever platform the code was not written on). The :45 offset makes the failure mode subtle: between 18:15 and 24:00 UTC the Nepal calendar date is already *tomorrow*, so a UTC-derived "today" silently keys the wrong day. A test that only asserts an evening-UTC case passes under a naive UTC implementation by luck — assert an after-local-midnight case too (see `AlertDispatcherTests.Uses_the_Nepal_local_day_and_time_not_UTC`). See `docs/phase-20e-status.md`.
+- A background job that needs to do something exactly once must **write its claim row and commit it before performing the external side effect**, under a unique index on the occurrence key — not after, and not "check then act". That one ordering is simultaneously the idempotency-across-process-restart mechanism, the multi-instance mechanism (the losing instance's insert violates the index; catch `DbUpdateException`, detach the entry, skip) and the at-most-once guarantee. Note the InMemory provider **does not enforce unique indexes**, so the race path is unreachable in unit tests and has to be verified against real SQL Server — the already-claimed pre-check is what the tests can cover. See `AlertSendLog`/`AlertDispatcher` and `docs/phase-20e-status.md`'s Decision C.
+- A singleton `BackgroundService` **cannot inject a scoped service** (`IAppDbContext` and `IEmailSender` are both `AddScoped` here) — injecting one either fails at startup or pins it for the process lifetime. Take `IServiceScopeFactory` and create a scope per tick. Two companions to the same rule: read options through `IOptionsMonitor`, not `IOptions` (see the caching gotcha below — a long-lived singleton is exactly what it bites), and never let a tick's exception escape `ExecuteAsync`, or the loop stops for the rest of the process's life while the app keeps serving HTTP perfectly happily. See `AlertSchedulerHostedService`.
 - `IOptions<T>` (unlike `IOptionsSnapshot<T>`/`IOptionsMonitor<T>`) caches its bound value at first resolution and does not observe a later `dotnet user-secrets set` — even though the user-secrets JSON file is a reloading config source, a singleton service holding `IOptions<T>` keeps serving the value it saw at startup. Changing a user-secret mid-session (e.g. to flip a verification service between pass/fail for manual E2E) requires restarting the Api process, not just re-running `dotnet user-secrets set`. See `docs/phase-20g-status.md`.
 
 ## Current status
@@ -114,35 +125,39 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 > `docs/phase-N-status.md` and the roadmap's index table; never append essay-length phase
 > write-ups here, and never keep more than the latest one or two phases in this section.
 
-**Phase 20f (Tenant feature-flag enforcement, FR-2.6) is complete** — `TenantSubscription`'s seven
-Accounting Feature flags, written at Organization creation since Phase 1b and read nowhere since,
-are now a real gate. A fourth pipeline behavior, `FeatureGateBehavior`, keyed by a new
-`IRequireFeature` marker (`IReadOnlyCollection<TenantFeature> RequiredFeatures`), sits between
-`AuthorizationBehavior` and `LockDateBehavior`; `FeatureNotEnabledException` maps to **403** naming
-the feature. The mandatory scope investigation found **only 2 of the 7 flags have a surface here to
-gate** — `TrackInventory` (16 Inventory-context requests) and `MultipleWarehouses` — and that *both*
-of FR-2.6's own examples are unbuildable (no `Currency` class exists; BOM/Production is Phase 25;
-POS is out of the rebuild's scope); scope was sized to that rather than padded. Two design calls
-worth carrying forward: **`MultipleWarehouses` is a cap at one, not a block** (nothing seeds a
-default Warehouse and Invoice/PurchaseBill require one, so blocking creation would leave a flag-off
-tenant unable to invoice) — being conditional it lives in `CreateWarehouseCommandHandler`, the one
-deliberate exception to the one-behavior rule, and needs no backfill; and **the gate never touches
-the FIFO/GL engine** (proven live: a Track-Inventory-off tenant still approves Invoices with
-balanced GL). Confirm-live settled mutability outright — the reference product's subscription screen
-is read-only and its disabled-feature panel says to contact vendor support — so immutable-at-creation
-is not a divergence and no Update path exists. Also shipped: `GetTenantSubscriptionQuery`
-(`Tenancy.Subscription.View`, Admin+Member so every role's nav can gate), a read-only Angular
-Subscription & Features page, and feature-conditional Inventory nav. Tests: Domain.UnitTests 159
-(+16), Application.UnitTests 319 (+13), Angular 7 specs (unchanged); `dotnet build`/`ng build`/
-`tsc --noEmit` clean. Manual E2E across **three** fresh Organizations covering all meaningful flag
-combinations — including one with `TrackInventory` on and `MultipleWarehouses` off, which is what
-proves the gate checks *every* declared feature rather than stopping at the first satisfied one.
-Full reasoning in `docs/phase-20f-status.md`.
+**Phase 20e (Alert Scheduler, FR-11.1) is complete — and with it, all of Phase 20.** This codebase
+now has **background-job infrastructure**: `AlertSchedulerHostedService` (Infrastructure) owns a
+`PeriodicTimer` built from `TimeProvider`, creates a **DI scope per tick** (`IAppDbContext` and
+`IEmailSender` are both scoped), reads its interval through `IOptionsMonitor`, and swallows tick
+failures so the loop survives — and holds **no business decision**, all of which live in
+`IAlertDispatcher` (Application) behind an injected clock. That split is why the suite runs on
+`FakeTimeProvider` with no `Task.Delay` anywhere. **Decision A** was to hand-roll rather than take
+Hangfire/Quartz/Coravel: durable schedule state is already tenant data, and catch-up plus
+multi-instance safety fall out of the `AlertSendLog` unique index the phase needs regardless.
+**Decision B is the one to carry forward — the anticipated authentication-bypass surface was not
+built, because it was not needed**: the dispatcher sends no MediatR request at all, reading through
+`IAlertContentBuilder` implementations that take an explicit `OrganizationId`, so
+`CurrentUserService` still throws outside HTTP and no system principal or ambient user exists
+anywhere. Access control sits entirely at definition time (Admin-only
+`Configuration.AlertDefinition.*`), because the real risk is **egress** to unvalidated free-text
+recipients — mitigated further by keeping alert bodies to bounded aggregates (no PAN, contact names,
+or per-transaction rows). **Decision C** is at-most-once, ledger-first: the send-log row is committed
+*before* SMTP, keyed `(definition, tenant-local occurrence date, recipient)`. Scheduling is on the
+Nepal wall clock (UTC+05:45), live-confirmed. Confirm-live closed every open question (Alert Type has
+exactly two options, Medium one, Schedule one plus an HH:mm picker), ruled out both
+`CustomTemplateType.Email` and a "Run now" action, and surfaced a screen the module scan had missed
+entirely — **Email Logs** — which turned the ledger from testing scaffolding into a real feature.
+Tests: Domain.UnitTests 177 (+18), Application.UnitTests 351 (+32), Angular 7 (unchanged);
+`dotnet build`/`ng build`/`tsc --noEmit` clean. Manual E2E against a fresh Organization with real
+SQL Server and real SMTP proved the local-minute fire, no double send, restart idempotency, the
+unique index rejecting a duplicate claim, and a real SMTP failure recorded and not retried. Full
+reasoning — including what Phase 21 inherits from the runner and what it still must add — in
+`docs/phase-20e-status.md`.
 
-**Next up: 20e (Alert Scheduler, FR-11.1) — the last sub-phase of Phase 20.** Deliberately scheduled
-last as the highest-risk one: this codebase's first background-job infrastructure, including how a
-jobless command authenticates itself (a new authentication-bypass surface), which the roadmap
-reserves a dedicated, undistracted session for and asks to be treated as an architecture review
-rather than "whatever's next." Phase 21's async import/export reuses whatever job runner it picks
-(NFR-4.3). See `docs/roadmap.md`'s Phase 20 section for its brief and the full ordering reasoning,
-and the completed-phase index table for everything prior.
+**Next up: Phase 21 — Import/Export & backup (FR-2.8/2.9/2.10, NFR-4.3).** It reuses this phase's
+hosted-service shape, per-tick scoping and claim-under-unique-index idiom, but must add what an
+alert never needed: a work queue (import/export is on-demand, not scheduled), progress and
+cancellation, payload storage, and completion notification to the initiating user — which, unlike an
+alert, does have a specific user to notify, so Decision B's "no ambient identity" default gets
+re-examined for that narrow purpose. See `docs/phase-20e-status.md`'s handoff section and
+`docs/roadmap.md`'s Phase 21 brief.
