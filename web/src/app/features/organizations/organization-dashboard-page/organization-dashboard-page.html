@@ -123,15 +123,23 @@
             <a [routerLink]="['/organizations', organizationId(), 'accounting', 'cheque-register']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-postcard"></i> Cheque Register
             </a>
-            <a [routerLink]="['/organizations', organizationId(), 'inventory', 'warehouse-transfers']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-arrow-left-right"></i> Warehouse Transfers
-            </a>
-            <a [routerLink]="['/organizations', organizationId(), 'inventory', 'inventory-adjustments']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-sliders"></i> Inventory Adjustments
-            </a>
-            <a [routerLink]="['/organizations', organizationId(), 'inventory', 'stock-position']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-boxes"></i> Stock Position
-            </a>
+            <!-- Phase 20f (FR-2.6): Inventory-context entries are gated on the tenant's opted-in
+                 Accounting Features, mirroring FeatureGateBehavior. Warehouse Transfers needs both
+                 entitlements, exactly as CreateWarehouseTransferCommand declares. Catalog entries
+                 (Products, Categories, Units) are deliberately never gated. -->
+            @if (hasFeature('TrackInventory') && hasFeature('MultipleWarehouses')) {
+              <a [routerLink]="['/organizations', organizationId(), 'inventory', 'warehouse-transfers']" class="btn btn-outline-secondary btn-sm fw-bold">
+                <i class="bi bi-arrow-left-right"></i> Warehouse Transfers
+              </a>
+            }
+            @if (hasFeature('TrackInventory')) {
+              <a [routerLink]="['/organizations', organizationId(), 'inventory', 'inventory-adjustments']" class="btn btn-outline-secondary btn-sm fw-bold">
+                <i class="bi bi-sliders"></i> Inventory Adjustments
+              </a>
+              <a [routerLink]="['/organizations', organizationId(), 'inventory', 'stock-position']" class="btn btn-outline-secondary btn-sm fw-bold">
+                <i class="bi bi-boxes"></i> Stock Position
+              </a>
+            }
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'trial-balance']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-journal-text"></i> Trial Balance
             </a>
@@ -200,6 +208,9 @@
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'lock-date']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-lock"></i> Lock Date
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'features']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-toggles"></i> Subscription &amp; Features
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'configuration']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-gear"></i> Configurations

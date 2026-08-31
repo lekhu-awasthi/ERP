@@ -28,6 +28,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
   - `phase-20a` — before building a second "cross-cutting data attached to a document" editor (custom fields, reporting tags, or similar): confirm live whether it saves inline with the document's own Save action (Custom Fields) or as its own independent post-creation action (Reporting Tags, Phase 19) — the two aren't the same shape and the live reference product answers this per-feature, not by analogy to the last one built
   - `phase-20b` — a third "cross-cutting data attached to a document" shape: confirm live *where the control even renders* before assuming it's on the detail page at all — Custom Status turned out to live only in the document's LIST grid (a per-row column, saving instantly, no detail-page presence whatsoever), which neither 20a's nor Phase 19's shape anticipated; also, before assuming a lookup's candidate document-type list from the module scan is accurate, check live whether each candidate type actually has the picker (Invoice didn't, despite being assumed) and whether any candidate's pipeline is genuinely orthogonal to the native lifecycle (Cheque's wasn't — its custom-status values matched its native lifecycle enum exactly, a sign to exclude rather than force-fit)
   - `phase-20d` — before building a screen the module-scan flagged as a "gallery of named layout variants," confirm live whether picking one is a *choice* or the gallery's "Add Template" actually opens a real visual toggle/canvas editor (Printing Templates turned out to be the latter, and got descoped to metadata-only by explicit user decision rather than built) — the same confirm-live-before-assuming discipline as `phase-8f`'s Annex 5 lesson, now applied to "this looks like a simple lookup" instead of "this looks like a report"; also the precedent for picking a PDF-rendering approach (QuestPDF, in-process, over a headless-browser pipeline) as an explicit recorded decision rather than a default
+  - `phase-20f` — before gating anything behind a tenant feature flag: check whether a flag-*off* tenant can still function with the gate on. `MultipleWarehouses` had to become a **cap at one** rather than an on/off block, because nothing seeds a default Warehouse at Organization creation and Invoice/PurchaseBill both require a `WarehouseId` — blocking creation outright would have left such a tenant permanently unable to invoice. A conditional gate like that can't ride a marker-interface pipeline behavior and belongs in the handler. Also the precedent for sizing a "sweep" phase down to what actually exists: only 2 of 7 flags had a surface to gate, and *both* of the FR's own worked examples were unbuildable
   - `phase-7`'s addendum (bottom of the file) — before adding a new tenant-wide default GL account or changing which account a posting rule debits/credits: grep for the field name across every posting rule that's supposed to read it. `DefaultInventoryAccountId` sat completely unread by `PurchaseBillPostingRule` for 12 phases (Goods purchases debited Purchase Expense instead), silently double-counting Cost of Goods Sold in `IncomeStatementQueryHandler`'s Net Profit for any tenant whose Purchase account was Expense-typed — the obvious/default choice, caught only by a later phase's live E2E, not by any test or `dotnet build`
 
 ## Stack & conventions
@@ -113,36 +114,35 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 > `docs/phase-N-status.md` and the roadmap's index table; never append essay-length phase
 > write-ups here, and never keep more than the latest one or two phases in this section.
 
-**Phase 20d (Printing Templates / Custom Templates) is complete** — confirm-live against the real
-Tigg tenant found the Printing Templates screen is a genuine visual template-authoring surface (a
-toggle/canvas editor for Custom Fields/Organization/Date-System placement), not a fixed catalog;
-the user chose to descope it to a metadata-only `PrintingTemplate` lookup (Name + `IsDefault` per
-DocumentType, no layout-definition field at all) rather than build that editor.  `CustomTemplate`
-(merge-field text, 4 confirmed types) shipped as originally scoped. Both get full CRUD +
-`SetDefault` (clears any other default in the same group) and new Angular admin screens. The real
-deliverable — closing Phase 16c's deferred print-formatted output — is a print-to-PDF pipeline: one
-generic `GET .../print/{documentType}/{documentId}` endpoint rendering via **QuestPDF** (chosen
-over a headless-browser HTML-to-PDF pipeline — no Chromium to deploy, this codebase's first PDF
-output), using exactly two shared layouts (line-item family, ledger family — not one per document
-type or per PrintingTemplate) picked by which of the response DTO's `Lines`/`GlLines` is populated.
-Wired for 6 of the ~15 printable document types (Invoice, Quotation, SalesOrder, PurchaseOrder,
-PurchaseBill, JournalVoucher); the rest are mechanical follow-up (a new DTO-building handler case
-reusing the existing shared layout, no new design). Print itself gets no new PermissionKeys.\*
-entry — it rides on the target document's own existing `.View` permission, the same "no new key"
-pattern `SetCustomStatusCommand` used. Tests: Domain.UnitTests 143 (+9), Application.UnitTests 306
-(+18), Angular 7 specs (unchanged), `dotnet build`/`ng build`/`tsc --noEmit` clean. Manual E2E via
-curl + cookie jar + `sqlcmd` + live browser against a fresh Organization: full CRUD+SetDefault
-round-trip for both lookups verified via `sqlcmd`; a real Invoice and JournalVoucher created and
-approved end-to-end, then printed to an actual PDF (visually inspected: org header, line/ledger
-table, grand total, and a "Template: Modern" footer proving the default-template metadata is
-genuinely read); four negative-permission proofs against a genuine Member-role user (both lookups'
-View/Manage keys, the last against a nonexistent id so it can't be confused with a 404); an
-org-membership negative proof (403 naming `Sales.Invoice.View`, mirroring Phase 20c's precedent).
-Full reasoning in `docs/phase-20d-status.md`.
+**Phase 20f (Tenant feature-flag enforcement, FR-2.6) is complete** — `TenantSubscription`'s seven
+Accounting Feature flags, written at Organization creation since Phase 1b and read nowhere since,
+are now a real gate. A fourth pipeline behavior, `FeatureGateBehavior`, keyed by a new
+`IRequireFeature` marker (`IReadOnlyCollection<TenantFeature> RequiredFeatures`), sits between
+`AuthorizationBehavior` and `LockDateBehavior`; `FeatureNotEnabledException` maps to **403** naming
+the feature. The mandatory scope investigation found **only 2 of the 7 flags have a surface here to
+gate** — `TrackInventory` (16 Inventory-context requests) and `MultipleWarehouses` — and that *both*
+of FR-2.6's own examples are unbuildable (no `Currency` class exists; BOM/Production is Phase 25;
+POS is out of the rebuild's scope); scope was sized to that rather than padded. Two design calls
+worth carrying forward: **`MultipleWarehouses` is a cap at one, not a block** (nothing seeds a
+default Warehouse and Invoice/PurchaseBill require one, so blocking creation would leave a flag-off
+tenant unable to invoice) — being conditional it lives in `CreateWarehouseCommandHandler`, the one
+deliberate exception to the one-behavior rule, and needs no backfill; and **the gate never touches
+the FIFO/GL engine** (proven live: a Track-Inventory-off tenant still approves Invoices with
+balanced GL). Confirm-live settled mutability outright — the reference product's subscription screen
+is read-only and its disabled-feature panel says to contact vendor support — so immutable-at-creation
+is not a divergence and no Update path exists. Also shipped: `GetTenantSubscriptionQuery`
+(`Tenancy.Subscription.View`, Admin+Member so every role's nav can gate), a read-only Angular
+Subscription & Features page, and feature-conditional Inventory nav. Tests: Domain.UnitTests 159
+(+16), Application.UnitTests 319 (+13), Angular 7 specs (unchanged); `dotnet build`/`ng build`/
+`tsc --noEmit` clean. Manual E2E across **three** fresh Organizations covering all meaningful flag
+combinations — including one with `TrackInventory` on and `MultipleWarehouses` off, which is what
+proves the gate checks *every* declared feature rather than stopping at the first satisfied one.
+Full reasoning in `docs/phase-20f-status.md`.
 
-**Next up: the rest of Phase 20, in the locked order 20f → 20e**
-(tenant feature-flag enforcement → Alert Scheduler). 20e (Alert Scheduler) is deliberately last as
-the highest-risk one — this codebase's first background-job infrastructure, including how a
-jobless command authenticates itself, which deserves a session where it is the only decision. See
-`docs/roadmap.md`'s Phase 20 section for each sub-phase's brief and the full ordering reasoning, and
-the completed-phase index table for everything prior.
+**Next up: 20e (Alert Scheduler, FR-11.1) — the last sub-phase of Phase 20.** Deliberately scheduled
+last as the highest-risk one: this codebase's first background-job infrastructure, including how a
+jobless command authenticates itself (a new authentication-bypass surface), which the roadmap
+reserves a dedicated, undistracted session for and asks to be treated as an architecture review
+rather than "whatever's next." Phase 21's async import/export reuses whatever job runner it picks
+(NFR-4.3). See `docs/roadmap.md`'s Phase 20 section for its brief and the full ordering reasoning,
+and the completed-phase index table for everything prior.

@@ -42,6 +42,11 @@ public static class ExceptionHandling
                 AuthenticationFailedException => (StatusCodes.Status401Unauthorized, exception.Message),
                 EmailNotVerifiedException => (StatusCodes.Status403Forbidden, exception.Message),
                 ForbiddenException => (StatusCodes.Status403Forbidden, exception.Message),
+                // Phase 20f (FR-2.6): the tenant never opted into the feature. 403 alongside
+                // ForbiddenException -- same "understood, authorization refused" semantics, just
+                // decided by the Organization's entitlements rather than the user's role. The
+                // message always names the feature, which is what tells the two apart.
+                FeatureNotEnabledException => (StatusCodes.Status403Forbidden, exception.Message),
                 InvalidVerificationCodeException => (StatusCodes.Status400BadRequest, exception.Message),
                 TurnstileVerificationFailedException => (StatusCodes.Status400BadRequest, exception.Message),
                 System.Text.Json.JsonException => (

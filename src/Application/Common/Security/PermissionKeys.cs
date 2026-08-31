@@ -430,4 +430,18 @@ public static class PermissionKeys
 
     public const string CustomTemplateView = "Configuration.CustomTemplate.View";
     public const string CustomTemplateManage = "Configuration.CustomTemplate.Manage";
+
+    // Phase 20f (tenant feature-flag enforcement, FR-2.6). A View key with no Manage counterpart,
+    // because there is nothing to manage: the entitlements are chosen once at Organization
+    // creation and are immutable afterwards (live-confirmed -- the reference product's own
+    // subscription screen is read-only and tells you to contact vendor support to change one).
+    //
+    // Admin+Member, departing from the Admin-only bar Phase 20d's control-plane keys set, for a
+    // concrete reason rather than by analogy: the Angular shell reads this query to decide which
+    // feature-gated nav entries to render, so *every* signed-in role needs it or a Member's nav
+    // silently shows Inventory links that then 403 at the API. It also exposes nothing sensitive
+    // -- plan name, trial dates, and seven booleans, no PAN, no contact identity, no
+    // per-transaction data -- which puts it squarely in the "bounded, routine" half of this
+    // codebase's permission-derivation rule.
+    public const string SubscriptionView = "Tenancy.Subscription.View";
 }

@@ -115,6 +115,9 @@ public class PurchaseMasterReportQueryHandlerTests
         var db = TestAppDbContext.Create();
         var seed = await SeedAsync(db);
 
+        // Phase 20f: a second warehouse needs the MultipleWarehouses entitlement.
+        await TenantFeatureSeed.SeedAllFeaturesEnabledAsync(db, seed.OrganizationId);
+
         var otherWarehouse = await new CreateWarehouseCommandHandler(db).Handle(
             new CreateWarehouseCommand(seed.OrganizationId, "Other Warehouse"), CancellationToken.None);
 

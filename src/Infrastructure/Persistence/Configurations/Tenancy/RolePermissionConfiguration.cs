@@ -473,6 +473,12 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid MemberCustomTemplateViewId = Guid.Parse("00000000-0000-0000-0002-00000000012f");
     private static readonly Guid MemberCustomTemplateManageId = Guid.Parse("00000000-0000-0000-0002-000000000130");
 
+    // Phase 20f (tenant feature-flag enforcement) -- granted to both roles; the Angular shell
+    // needs it for every user to render feature-gated nav correctly. See PermissionKeys'
+    // SubscriptionView note for why this departs from Phase 20d's Admin-only control-plane bar.
+    private static readonly Guid AdminSubscriptionViewId = Guid.Parse("00000000-0000-0000-0002-000000000131");
+    private static readonly Guid MemberSubscriptionViewId = Guid.Parse("00000000-0000-0000-0002-000000000132");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -857,6 +863,9 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminCustomTemplateViewId, Role.AdminId, PermissionKeys.CustomTemplateView, true),
             RolePermission.Create(AdminCustomTemplateManageId, Role.AdminId, PermissionKeys.CustomTemplateManage, true),
             RolePermission.Create(MemberCustomTemplateViewId, Role.MemberId, PermissionKeys.CustomTemplateView, false),
-            RolePermission.Create(MemberCustomTemplateManageId, Role.MemberId, PermissionKeys.CustomTemplateManage, false));
+            RolePermission.Create(MemberCustomTemplateManageId, Role.MemberId, PermissionKeys.CustomTemplateManage, false),
+
+            RolePermission.Create(AdminSubscriptionViewId, Role.AdminId, PermissionKeys.SubscriptionView, true),
+            RolePermission.Create(MemberSubscriptionViewId, Role.MemberId, PermissionKeys.SubscriptionView, true));
     }
 }

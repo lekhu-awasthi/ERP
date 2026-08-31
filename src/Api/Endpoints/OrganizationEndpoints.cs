@@ -17,6 +17,7 @@ using ErpApp.Application.Tenancy.Commands.UpdateWarehouse;
 using ErpApp.Application.Tenancy.Queries.CheckWorkspaceNameAvailability;
 using ErpApp.Application.Tenancy.Queries.GetAccountingDefaults;
 using ErpApp.Application.Tenancy.Queries.GetOrganizationLockDate;
+using ErpApp.Application.Tenancy.Queries.GetTenantSubscription;
 using ErpApp.Application.Tenancy.Queries.GetRolePermissionMatrix;
 using ErpApp.Application.Tenancy.Queries.ListOrganizationMembers;
 using ErpApp.Application.Tenancy.Queries.ListRoles;
@@ -222,6 +223,16 @@ public static class OrganizationEndpoints
             Guid organizationId, SetOrganizationLockDateRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new SetOrganizationLockDateCommand(organizationId, request.LockDate), ct);
+            return Results.Ok(result);
+        });
+
+        // Phase 20f (tenant feature-flag enforcement, FR-2.6) -- read-only plan + entitlement
+        // state, mirroring the reference product's Tigg Subscriptions / Organization > Features
+        // screens. No PUT counterpart on purpose: the flags are immutable after creation.
+        group.MapGet("/{organizationId:guid}/subscription", async (
+            Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new GetTenantSubscriptionQuery(organizationId), ct);
             return Results.Ok(result);
         });
     }

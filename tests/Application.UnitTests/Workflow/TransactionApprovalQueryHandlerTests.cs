@@ -167,6 +167,9 @@ public class TransactionApprovalQueryHandlerTests
                 VatRate.NoVat, 0, true),
             CancellationToken.None);
 
+        // Phase 20f: a second warehouse needs the MultipleWarehouses entitlement.
+        await TenantFeatureSeed.SeedAllFeaturesEnabledAsync(db, organizationId);
+
         var warehouse1 = await new CreateWarehouseCommandHandler(db).Handle(
             new CreateWarehouseCommand(organizationId, "Main Warehouse"), CancellationToken.None);
         var warehouse2 = await new CreateWarehouseCommandHandler(db).Handle(

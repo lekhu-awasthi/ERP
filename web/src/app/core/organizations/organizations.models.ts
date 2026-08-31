@@ -189,3 +189,34 @@ export interface UpdateRolePermissionsRequest {
 export interface UpdateMembershipRoleRequest {
   roleId: string;
 }
+
+// Phase 20f (tenant feature-flag enforcement, FR-2.6). Read-only: the Accounting Features are
+// chosen once in the New Organization wizard's Step 2 and are immutable afterwards, matching the
+// reference product (whose own subscription screen is read-only and directs you to vendor support
+// to change one). There is deliberately no update request shape here.
+export type TenantFeatureKey =
+  | 'TrackInventory'
+  | 'MultipleLocations'
+  | 'MultipleWarehouses'
+  | 'MultiCurrency'
+  | 'Manufacturing'
+  | 'PosRetail'
+  | 'PosRestaurant';
+
+export interface TenantFeatureState {
+  feature: TenantFeatureKey;
+  displayName: string;
+  description: string;
+  isEnabled: boolean;
+}
+
+export interface TenantSubscription {
+  organizationId: string;
+  planName: string;
+  trialStartsAt: string;
+  trialEndsAt: string;
+  isTrialActive: boolean;
+  daysRemaining: number;
+  irdSyncEnabled: boolean;
+  features: TenantFeatureState[];
+}

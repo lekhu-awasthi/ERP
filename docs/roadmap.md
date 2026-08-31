@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–20c, 20b, 20g, 20d)
+## Completed phases (0–20c, 20b, 20g, 20d, 20f)
 
 Detail lives in each phase's own status doc — this table is the index, not the history.
 
@@ -42,6 +42,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 20b | Custom Status wiring: `SetCustomStatusCommand` (nullable `CustomStatusId` on Quotation/PurchaseOrder) + shared `app-custom-status-picker`, live-confirmed as a list-grid-only control orthogonal to Draft/Approved (FR-12.2); Cheque excluded (its pipeline drives the native lifecycle, not orthogonal to it) | `phase-20b-status.md` |
 | 20g | Turnstile bot-check on registration (FR-1.1): `RegisterUserCommand.TurnstileToken` verified server-side by `ITurnstileVerifier` against Cloudflare's `siteverify`, `app-turnstile-widget` wired into the registration page only (New Organization wizard's two checks stay out of scope) | `phase-20g-status.md` |
 | 20d | Printing Templates / Custom Templates (FR-11.2/11.3): confirm-live found the reference product's template gallery is a real visual editor, descoped by user decision to metadata-only `PrintingTemplate`/`CustomTemplate` lookups + `SetDefault`; the real deliverable is a print-to-PDF pipeline (QuestPDF, 2 shared layouts) wired for 6 document types, closing Phase 16c's deferred print output | `phase-20d-status.md` |
+| 20f | Tenant feature-flag enforcement (FR-2.6): `IRequireFeature` + `FeatureGateBehavior` (4th pipeline behavior) make `TenantSubscription`'s flags a real gate, `FeatureNotEnabledException` → 403 naming the feature. Investigation found only 2 of 7 flags have a surface to gate (`TrackInventory`, `MultipleWarehouses`) — both of FR-2.6's own examples are unbuildable here; scope reduced accordingly. MultipleWarehouses is a **cap at one**, not a block (nothing seeds a default warehouse and Invoice requires one). Read-only Subscription & Features screen; flags stay immutable, live-confirmed as matching the reference product | `phase-20f-status.md` |
 
 ---
 
@@ -123,7 +124,7 @@ seeded rows.*
 ## Phase 20 — Configuration & extensibility completion
 **Goal:** make the Phase 2 extensibility foundations actually reach the UI, plus the notification/template surface (FR-11.x, FR-12.x). Split into seven independently shippable sub-phases; one sub-phase = one session.
 
-**Locked execution order: 20a ✅ → 20c ✅ → 20b ✅ → 20g ✅ → 20d ✅ → 20f → 20e.** Reasoning (this is
+**Locked execution order: 20a ✅ → 20c ✅ → 20b ✅ → 20g ✅ → 20d ✅ → 20f ✅ → 20e.** Reasoning (this is
 *not* the original list order — deliberately resequenced):
 - **20b next** because it is the same shape and size as 20a (extend a Phase 2 lookup onto real documents, confirm-live step, shared editor component). Running that pattern again while the muscle memory is fresh is lower-risk than pivoting to something structurally new.
 - **20g early** because it is small and isolable — a good pairing candidate with leftover budget or a short session of its own, but never the main event.
@@ -176,10 +177,34 @@ First background-job infrastructure (scheduled recurring emails) — design the 
 async import/export reuses it (NFR-4.3). **Highest-risk sub-phase**: a job-runner architecture choice plus a
 new authentication-bypass surface. Scheduled last, for a session that treats it as an architecture review.
 
-### 20f. Tenant feature-flag enforcement (FR-2.6)
-The wizard's Accounting Features checkboxes (recorded since Phase 1b) actually gate document types and UI
-surfaces at point of use. A sweep across already-built surfaces — scoped after the other build-out
-sub-phases land, so gating work isn't re-done.
+### 20f. Tenant feature-flag enforcement (FR-2.6) — **COMPLETE**, see `phase-20f-status.md`
+The wizard's Accounting Features checkboxes (recorded since Phase 1b, read nowhere in the twelve phases
+since) are now enforced at point of use by a fourth pipeline behavior, `FeatureGateBehavior`, keyed by a
+new `IRequireFeature` marker and slotted between `AuthorizationBehavior` and `LockDateBehavior`;
+`FeatureNotEnabledException` maps to 403 naming the feature in the wizard's own wording.
+
+The mandatory scope investigation found **only 2 of the 7 flags have a real surface in this codebase to
+gate** — `TrackInventory` (the Inventory context: WarehouseTransfer, InventoryAdjustment, Opening Stock,
+Stock Position, Inventory Ledger — 16 requests) and `MultipleWarehouses`. The other five have nothing
+built to gate, *including both examples FR-2.6 itself gives* (no `Currency` domain class exists;
+BOM/Production is Phase 25; POS is out of the whole rebuild's scope). Scope was sized to what is real
+rather than padded to match the FR's illustrations; the `TenantFeature` enum still covers all seven, so
+Phase 25's Manufacturing gate is a one-line declaration.
+
+Two findings reshaped the design. **`MultipleWarehouses` is a cap at one, not an on/off block** — nothing
+seeds a default Warehouse at Organization creation and Invoice/PurchaseBill both require a `WarehouseId`,
+so blocking creation outright would leave a flag-off tenant unable to invoice; the *second* warehouse is
+what the entitlement buys. Being conditional, it lives in `CreateWarehouseCommandHandler`, the one
+deliberate exception to the one-behavior rule, and it needs no backfill migration. And **`Track Inventory`
+cannot gate "the Inventory module"** — confirm-live showed the reference product files Products/Categories/
+Units under its Inventory nav, so the gate lands on the Inventory bounded context only and Catalog is
+untouched. The FIFO/GL engine is never gated (proven live: a Track-Inventory-off tenant still approves
+Invoices with balanced GL).
+
+Confirm-live also settled the mutability question outright: the reference product's own subscription screen
+is read-only and its disabled-feature panel says to contact vendor support, so immutable-at-creation is
+*not* a divergence and no Update path was built. A read-only Angular **Subscription & Features** page
+mirrors that shape, and the dashboard's three Inventory nav entries render conditionally.
 
 ### 20g. Turnstile bot-check on registration — **COMPLETE**, see `phase-20g-status.md`
 `RegisterUserCommand` gained a required `TurnstileToken`, verified server-side by a new

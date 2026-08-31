@@ -49,4 +49,30 @@ public sealed class TenantSubscription
             IrdSyncEnabled = false,
         };
     }
+
+    /// <summary>
+    /// Whether this tenant opted into <paramref name="feature"/> at Organization creation
+    /// (FR-2.6, enforced since Phase 20f). The single place the <see cref="TenantFeature"/> enum
+    /// maps back onto the flag columns, so FeatureGateBehavior and the read-only subscription
+    /// query can't disagree about which column a feature means.
+    ///
+    /// These flags are immutable after creation, matching the reference product: its own
+    /// Configurations &gt; Tigg Subscriptions screen renders them as read-only rows, and a
+    /// disabled feature's panel says to contact vendor support to activate it -- there is no
+    /// self-service toggle. See phase-20f-status.md's confirm-live findings.
+    /// </summary>
+    public bool IsEnabled(TenantFeature feature)
+    {
+        return feature switch
+        {
+            TenantFeature.TrackInventory => TrackInventoryEnabled,
+            TenantFeature.MultipleLocations => MultipleLocationsEnabled,
+            TenantFeature.MultipleWarehouses => MultipleWarehousesEnabled,
+            TenantFeature.MultiCurrency => MultiCurrencyEnabled,
+            TenantFeature.Manufacturing => ManufacturingEnabled,
+            TenantFeature.PosRetail => PosRetailEnabled,
+            TenantFeature.PosRestaurant => PosRestaurantEnabled,
+            _ => throw new ArgumentOutOfRangeException(nameof(feature), feature, "Unknown tenant feature."),
+        };
+    }
 }

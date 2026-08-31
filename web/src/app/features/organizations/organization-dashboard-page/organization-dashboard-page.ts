@@ -4,7 +4,12 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AuthService } from '../../../core/auth/auth.service';
-import { MyOrganizations, Role } from '../../../core/organizations/organizations.models';
+import {
+  MyOrganizations,
+  Role,
+  TenantFeatureKey,
+  TenantSubscription,
+} from '../../../core/organizations/organizations.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { DealList } from '../../crm/deal-list/deal-list';
 import { TaskList } from '../../workflow/task-list/task-list';
@@ -40,6 +45,17 @@ export class OrganizationDashboardPage {
   protected readonly organizationId = signal(this.route.snapshot.paramMap.get('id')!);
   protected readonly roles = signal<Role[]>([]);
 
+  // Phase 20f (FR-2.6). The nav mirrors the API's own feature gate so a link never leads to a
+  // screen that immediately 403s -- the same belt-and-braces split permission gating already uses
+  // (conditional rendering here, independent enforcement in FeatureGateBehavior). The API stays
+  // the authority: hiding a link is a courtesy, not the enforcement.
+  protected readonly subscription = signal<TenantSubscription | null>(null);
+
+  /** Defaults to false until the subscription loads, so a gated link never flashes in and out. */
+  protected hasFeature(feature: TenantFeatureKey): boolean {
+    return this.subscription()?.features.find((x) => x.feature === feature)?.isEnabled ?? false;
+  }
+
   protected readonly organization = computed(() =>
     this.data()?.organizations.find((o) => o.organizationId === this.organizationId()) ?? null,
   );
@@ -58,6 +74,7 @@ export class OrganizationDashboardPage {
       this.inviteMessage.set(null);
       this.inviteError.set(null);
       this.loadRoles();
+      this.loadSubscription();
     });
     this.load();
   }
@@ -121,6 +138,15 @@ export class OrganizationDashboardPage {
         // already hidden from non-Admins by org.role === 'Admin' in the template.
         this.roles.set([]);
       },
+    });
+  }
+
+  private loadSubscription(): void {
+    this.organizationsService.getSubscription(this.organizationId()).subscribe({
+      next: (subscription) => this.subscription.set(subscription),
+      // Non-fatal, and deliberately fails closed: with no subscription loaded, hasFeature()
+      // returns false and the feature-gated links stay hidden rather than leading to a 403.
+      error: () => this.subscription.set(null),
     });
   }
 

@@ -19,6 +19,7 @@ import {
   OrganizationMember,
   Role,
   RolePermissionMatrix,
+  TenantSubscription,
   UpdateMembershipRoleRequest,
   UpdateRolePermissionsRequest,
   UpdateRoleRequest,
@@ -112,6 +113,13 @@ export class OrganizationsService {
 
   updateAccountingDefaults(organizationId: string, request: AccountingDefaults): Observable<AccountingDefaults> {
     return this.http.put<AccountingDefaults>(`${this.baseUrl}/${organizationId}/accounting-defaults`, request, {
+      withCredentials: true,
+    });
+  }
+
+  // Phase 20f (FR-2.6). No setter counterpart -- the entitlements are immutable after creation.
+  getSubscription(organizationId: string): Observable<TenantSubscription> {
+    return this.http.get<TenantSubscription>(`${this.baseUrl}/${organizationId}/subscription`, {
       withCredentials: true,
     });
   }

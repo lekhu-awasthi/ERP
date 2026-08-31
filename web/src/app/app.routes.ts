@@ -257,6 +257,15 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    // Phase 20f (FR-2.6) -- read-only plan + Accounting Features state.
+    path: 'organizations/:id/features',
+    loadComponent: () =>
+      import('./features/organizations/subscription-features-page/subscription-features-page').then(
+        (m) => m.SubscriptionFeaturesPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/warehouses',
     loadComponent: () =>
       import('./features/organizations/warehouse-list-page/warehouse-list-page').then((m) => m.WarehouseListPage),

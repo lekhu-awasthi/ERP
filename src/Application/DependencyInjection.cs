@@ -42,6 +42,12 @@ public static class DependencyInjection
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Common.Behaviors.LoggingBehavior<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Common.Behaviors.ValidationBehavior<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Common.Behaviors.AuthorizationBehavior<,>));
+        // Tenant feature entitlements (roadmap Phase 20f, FR-2.6) run after permission is
+        // confirmed -- a caller with no permission on this document type gets a 403 without
+        // learning anything about the tenant's opted-in features -- and before lock date, so an
+        // entitlement rejection never triggers the LockDate lookup. See FeatureGateBehavior's
+        // own doc comment.
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Common.Behaviors.FeatureGateBehavior<,>));
         // Lock date (roadmap Phase 16a, NFR-3.4) runs after permission is confirmed, before the
         // handler itself -- see LockDateBehavior's own doc comment.
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Common.Behaviors.LockDateBehavior<,>));
