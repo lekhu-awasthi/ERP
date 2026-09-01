@@ -78,4 +78,17 @@ public enum DocumentType
     /// return is a negative-valued row of this type.
     /// </summary>
     MigratedPurchaseEntry,
+
+    /// <summary>
+    /// Phase 22 (FR-10.3) -- <c>Audit.DocumentType</c> for one AI-assisted extraction run against a
+    /// Document inbox upload, carrying the <c>UploadedDocument</c>'s own Id.
+    ///
+    /// <para>Same non-accounting shape as <see cref="DataExport"/> above, and for the same reason:
+    /// nothing numbers it, nothing posts it, and no GlJournalEntry or StockLedgerEntry ever carries
+    /// it. It exists because extraction is the one action in the product that sends a customer's
+    /// business document to a third party, and that leaves no other trace -- the resulting
+    /// transaction is audited as an ordinary Create, and says nothing about a machine having read
+    /// the scan first. Appended last, so no persisted ordinal moves.</para>
+    /// </summary>
+    DocumentExtraction,
 }

@@ -65,6 +65,15 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
     record of choosing to say so on the button rather than ship the word. And before writing
     anything to `IFileStorage` from a job, read Decision E — until this phase, exactly one caller in
     the whole tree ever deleted a blob
+  - `phase-22` — before sending **any** tenant data to a third party, or adding a second such
+    integration: Decision C is the record of what leaves, what the two default-closed gates are (a
+    withdrawable `TenantSettings` opt-in, *not* a `TenantFeature` — those are immutable after
+    Organization creation — plus an Admin-only key), and why a vendor failure is an *outcome* rather
+    than an error. Also the precedent for a **conversion that creates nothing**: the prefill query's
+    permission key resolves to the *target document type's own Create key* (`PrintDocumentQuery`'s
+    shape), so a "convert to X" flow can never become a side door around `AuthorizationBehavior` —
+    read it before adding a fifth inbox target or any other cross-document prefill; and the reason
+    Phase 6's `ReferrerType`/`ReferrerId` was **not** reused for the inbox link
   - `phase-7`'s addendum (bottom of the file) — before adding a new tenant-wide default GL account or changing which account a posting rule debits/credits: grep for the field name across every posting rule that's supposed to read it. `DefaultInventoryAccountId` sat completely unread by `PurchaseBillPostingRule` for 12 phases (Goods purchases debited Purchase Expense instead), silently double-counting Cost of Goods Sold in `IncomeStatementQueryHandler`'s Net Profit for any tenant whose Purchase account was Expense-typed — the obvious/default choice, caught only by a later phase's live E2E, not by any test or `dotnet build`
 
 ## Stack & conventions
@@ -158,49 +167,81 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `EF.Functions.Like` cannot be translated by the **InMemory provider at all**, so a `LIKE`-style search in a handler whose tests run on InMemory must be written as `String.Contains` — which SQL Server translates to the same `LIKE '%term%'` and InMemory evaluates directly. Case-insensitivity then comes from the database's collation, as it does for every other comparison in this tree.
 - Executing a file-download `IResult` (`Results.Stream`, and anything else built on `PushStreamHttpResult`) against a bare `DefaultHttpContext` throws `ArgumentNullException (Parameter 'provider')` before a single byte is written: it resolves an `ILoggerFactory` from `HttpContext.RequestServices`. Give the context a real `ServiceProvider` with `AddLogging()` — see `MigratedRegisterTemplateRoundTripTests` (Phase 21c), which is how the generated .xlsx template and the parser that reads it back are proven not to have drifted.
 
+- A `MultipartFormDataContent` built under `using` in a helper that **returns** the `Task` instead of awaiting it is disposed before the send completes, and `WebApplicationFactory`'s `TestHost` then throws `ObjectDisposedException: Cannot access a closed Stream` from `MultipartContent.ContentReadStream.set_Position` — a stack trace naming nothing about the real cause. Await inside the helper. Bit three integration tests at once in Phase 22.
+- **Bootstrap's JavaScript is not loaded anywhere in this app** — `web/angular.json` registers `src/styles.scss` and has no `scripts` entry at all, so `data-bs-toggle="dropdown"` (and modal/tooltip/collapse likewise) renders a control that silently does nothing, with no error and a passing `ng build`. Drive such menus from a signal instead (see `document-inbox-page`'s "+ Add as").
+- A Bootstrap `.dropdown-menu` rendered inside a `.table-responsive` is **clipped**: `overflow-x: auto` makes the browser compute `overflow-y: auto` too, so an absolutely-positioned menu is cut at the wrapper's edge. Every item is still in the DOM, so `ng build`, `tsc` and a component test asserting the items exist are all green while the user can only reach the first one. Render such a menu `position: fixed` at coordinates captured from its trigger on open (see `document-inbox-page`'s "+ Add as"). Caught only in Phase 22's browser pass.
+- Angular sanitizes an `<iframe [src]>` as a *resource* URL and blocks an interpolated string outright, while `<img [src]>` with the identical string is fine. An inline PDF preview therefore needs `DomSanitizer.bypassSecurityTrustResourceUrl`; nothing catches this until the element actually renders. See `SourceDocumentPanel`/`InboxConversionPanel` (Phase 22), where the URL is built only from the API base plus a route-parameter GUID, which is what makes the bypass safe.
+
 ## Current status
 
-**Phase 21 is complete.** 21c (migrated tax-register import + the migrated Sales/Purchase Register
-variants, FR-2.10) shipped, and with it **FR-9.4 is fully closed — Nepal's statutory report set is
-complete.** Two tenant-scoped aggregates hold a prior system's filed Sales/Purchase Book rows, read
-by two new Admin-only report screens and seeded from a template-based `.xlsx` on a new
-`Configurations > Migration` screen. Three Admin-only keys:
-`Reports.MigratedSalesRegister.View` / `Reports.MigratedPurchaseRegister.View` (their own keys, not
-the live registers') and `Configuration.MigratedRegister.Manage` (the per-row write key, on top of
-`ImportJob.Manage` for the upload).
+**Phase 22 is complete.** The Document inbox (FR-10.3) ships all three of its items, including the
+stretch goal. `UploadedDocument` (`Domain/Workflow`) reuses Phase 18's `IFileStorage` and
+`AttachmentValidation` unchanged — exactly as `IFileStorage`'s own doc comment anticipated — behind a
+`Workflow > Document` screen with Pending/Done tabs beside the Transaction Approval queue, conversion
+into all four of FR-10.3's targets, and a permanent viewable link from the produced transaction back
+to the scan it was typed from.
 
-**Decision A is the phase, and it is a domain question nothing in this tree had answered.** A
-migrated register row is *real enough to appear in a tax report and deliberately not real enough to
-be anything else*: no `GlJournalEntry`, no `StockLedgerEntry`/`StockMovement`, no `Payment`, no
-document number, no Draft/Approve/Void lifecycle, no lock-date gate, and presence in exactly two
-reports. Two tables (the column sets share five fields then diverge completely — 21b's Decision C
-reasoning applied unchanged), a **free-text party** with an optional exact-PAN link that never mints
-a `Contact` (so both register row DTOs' `ContactId` widened to nullable), two appended `DocumentType`
-members, and a return modelled as a **negative row** exactly as the live registers render a
-CreditNote/DebitNote. **Decision C runs 21b's own test again and comes out the other way**: no new
-job table, because every `ImportJob` column applies and the loop is the same loop — the two migrated
-types are `ImportEntityType` members (create-only), with a new `ListImportJobsQuery.EntityTypes`
-filter keeping the two screens' histories apart. **Decision D re-argued 21a's identity rule from
-scratch** (21a's *reason* does not transfer when you are writing the Create handler yourself) and
-landed the same way for different reasons. **Decision F** gives migrated rows reach into the two
-register variants only, with VAT Summary / Annex 5 / Annex 13 / TDS each opened, each found
-structurally unable to consume a register-level row, and each given a test proving it is unaffected.
+**Decision A states the invariant in prose at the top of the aggregate**, because the next reader will
+otherwise assume an inbox document is an `Attachment` with extra columns: it is *evidence* — no
+document number, no Draft/Approve/Void lifecycle, no `GlJournalEntry`, no `StockLedgerEntry`, no
+`Payment`, no lock-date gate. The link to the transaction lives on the **document**
+(`LinkedTransactionType`/`LinkedTransactionId`), deliberately *not* on the transaction's
+`ReferrerType`/`ReferrerId` — Phase 6's bug #4 catalogues what that pair actually requires (a
+`Converted` status, quantity caps net of reversals, Contact/TDS consistency) and none of it applies to
+a scan; putting it here costs zero change to any transactional aggregate. One document, one
+transaction: a second link is refused, and so is the prefill.
 
-Confirm-live was **not** possible (non-interactive session), so **Decision E derives the template
-columns from Phase 19's live-confirmed statutory registers** rather than guessing at an unseen
-screen; `Organization > Migration` / `> Developer Mode` / `> Documents` stay unopened and **the
-browser pass on this phase's three new screens is outstanding**. Tests: Domain 192 (unchanged),
-Application.UnitTests 452 (+37), Api.IntegrationTests 14 (+4), Angular 26 (+12); `dotnet build` /
-`ng build` / `ng test` / `dotnet test` clean. Manual E2E against two fresh Organizations on real SQL
-Server uploaded real filled templates through the real endpoint, opened both exported workbooks,
-proved zero GL/stock/payment rows with `sqlcmd`, proved tenant isolation both directions, proved the
-unique index is enforced by the database, ran the accidental second upload, and got four 403s each
-naming its exact key. Full reasoning in `docs/phase-21c-status.md`.
+**Decision B is the phase's centre of gravity: prefill-and-submit.** Converting creates *nothing*. It
+opens the target's ordinary `new` route with the scan beside it, and the user's own Save runs the
+normal `CreateXCommand` through the full pipeline, so numbering, validation, lock-date, feature gates,
+posting rules and audit stay untouched by this phase. The document id rides the **URL query string**,
+not `PendingTemplateStore` — that store is read-once, does not survive a reload, and never covered
+Expense or Quick Payment.
 
-**Next up: Phase 22 — Document inbox (FR-10.3).** Upload scanned receipts/bills and convert them to
-structured transactions, reusing Phase 18's file storage; AI-assisted field extraction is an explicit
-stretch goal that does not block the phase. If it wants a background job, 21c is the evidence that
-joining `ImportJob` can be cheaper than a fifth table — but apply 21b's test rather than either
-precedent: *would the new job's rows leave columns permanently null, and is its loop genuinely a
-different loop?* An inbox document outlives its job and has no notion of rows, which argues for its
-own table. See `docs/roadmap.md`'s Phase 22 section.
+**One pre-existing behaviour was changed rather than warned about:** `QuickPaymentPage` used to create
+*and approve* in a single click, posting straight to the GL with no review step. Defensible for a
+hand-typed screen, indefensible once the inbox can pre-fill it from a scan a model read — so Quick
+Payment/Receipt is now **Save Draft, then Approve**, like every other document type, and the Draft
+lands in the Transaction Approval queue for a second person. Both steps stay on that page: navigating
+to `payment-detail-page` would strand it, because that page's `canApprove()` requires
+`allocations.length > 0 && remaining === 0` and a Quick Payment has none — the same gate that gave the
+screen its own component in Phase 17's decision #7. See `phase-17-status.md`'s addendum.
+
+**Decision C is this codebase's first egress of customer data to an LLM, and it is a product decision
+written for a non-engineer.** What leaves is the bytes of *the one file a user clicked Extract on* plus
+a fixed prompt — no contact list, no product catalogue, no organization name, no user identity, no
+other document. Two default-closed gates: a **withdrawable** tenant opt-in
+(`TenantSettings.AiDocumentExtractionEnabled`, default off, its own command so a routine settings save
+cannot re-enable egress — deliberately *not* a `TenantFeature`, which is immutable after Organization
+creation) plus an Admin-only `Workflow.InboxDocument.Extract`. Never automatic; synchronous with a 90s
+timeout and **no new job table** (21c's test again: not rows, not a loop); audited under a new
+`DocumentType.DocumentExtraction` plus `"Extract"` in `AuditBehavior`'s prefix list, because it is the
+only action in the product that sends a customer document outward and leaves no other trace. Failure is
+an **outcome, not an error** — timeout, 429, garbage or no credential all return 200 with a readable
+status and leave the document exactly as convertible by hand. Built on the official Anthropic C# SDK
+(`claude-opus-5`) behind an Application-layer `IDocumentExtractor`; `DocumentExtractionOptions`
+deliberately has **no `ValidateOnStart`**, so no integration suite needed a new key.
+
+Four keys (Decision F): `Workflow.InboxDocument.View`/`.Manage` **Admin+Member** — the inbox is a
+working queue for whoever photographs the bills, and the flat-register PAN argument does not transfer
+when every transaction it produces is already Member-visible — with `.Extract` and
+`Configuration.AiDocumentExtraction.Manage` **Admin-only**. The *conversion* has no key of its own on
+purpose: `GetInboxDocumentPrefillQuery.PermissionKey` resolves to the **target type's own Create key**
+(`PrintDocumentQuery`'s shape), so the inbox can never be a side door around `AuthorizationBehavior`.
+
+Tests: Domain 202 (+10), Application.UnitTests 477 (+25), Api.IntegrationTests 18 (+4), Angular 47
+(+21); `dotnet build` / `dotnet test` / `ng build` / `ng test` / `tsc --noEmit` all clean. Manual E2E
+against a fresh Organization on real SQL Server uploaded a real PNG through the real multipart endpoint,
+round-tripped the bytes and confirmed the blob on disk, converted it to a **Draft** Purchase Bill with
+`sqlcmd`-verified zero GL/stock/payment rows, found the scan again *from the transaction*, and got 409s
+for convert-twice/delete/reopen and 403s naming four exact keys. The **browser pass** was done and
+earned its keep: it found the "+ Add as" menu clipped by `.table-responsive`'s overflow (three of four
+targets unreachable, every automated check green), a row notice contradicting the consent switch, and
+`SourceDocumentPanel` missing from the two Payment detail pages — all three fixed and re-verified.
+**Still not verified:** the real Anthropic call against a live key, so the extraction path proven end
+to end is the *unconfigured* one. Full reasoning in `docs/phase-22-status.md`.
+
+**Next up: Phase 23 — Nepali localization & parity odds-and-ends.** BS calendar (NFR-1.1) as a shared
+dual AD/BS date component swept across every date field; lakh/crore digit grouping (NFR-1.2) in one
+shared currency pipe; the SalesOrder Angular UI gap; a Home dashboard over existing queries; and the
+export-sale flag on Invoice (FR-5.8) — confirm live first. See `docs/roadmap.md`'s Phase 23 section.

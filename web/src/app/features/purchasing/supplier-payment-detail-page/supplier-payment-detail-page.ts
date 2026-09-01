@@ -13,6 +13,7 @@ import { ConfigurationService } from '../../../core/configuration/configuration.
 import { PaymentMode } from '../../../core/configuration/configuration.models';
 import { PurchasingService } from '../../../core/purchasing/purchasing.service';
 import { PurchaseBill } from '../../../core/purchasing/purchasing.models';
+import { SourceDocumentPanel } from '../../../shared/source-document/source-document-panel';
 
 interface EditableAllocation {
   key: number;
@@ -29,7 +30,7 @@ let nextAllocationKey = 1;
  * -- exact mirror of Customer Payment's posting"). */
 @Component({
   selector: 'app-supplier-payment-detail-page',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, SourceDocumentPanel],
   templateUrl: './supplier-payment-detail-page.html',
 })
 export class SupplierPaymentDetailPage {

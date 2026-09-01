@@ -108,6 +108,7 @@ public interface IAppDbContext
     DbSet<ExportJob> ExportJobs { get; }
     DbSet<MigratedSalesRegisterEntry> MigratedSalesRegisterEntries { get; }
     DbSet<MigratedPurchaseRegisterEntry> MigratedPurchaseRegisterEntries { get; }
+    DbSet<UploadedDocument> UploadedDocuments { get; }
 
     /// <summary>
     /// Generic accessor mirroring DbContext's own Set&lt;TEntity&gt;() -- lets the generic

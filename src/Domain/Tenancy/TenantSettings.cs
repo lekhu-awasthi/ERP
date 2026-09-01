@@ -93,6 +93,22 @@ public sealed class TenantSettings
     public Guid? DefaultCogsAccountId { get; private set; }
     public Guid? DefaultInventoryAdjustmentAccountId { get; private set; }
 
+    /// <summary>
+    /// Phase 22 addition (FR-10.3) -- the tenant's opt-in to AI-assisted extraction on Document
+    /// inbox uploads. <b>Default false, and deliberately so:</b> this is the first feature in the
+    /// product that sends tenant business documents to a third party, and an opt-out default would
+    /// mean the egress started the day the migration ran, with nobody having agreed to it.
+    ///
+    /// <para>Not a <see cref="TenantFeature"/>: those are captured once at Organization creation
+    /// from the signup wizard and are immutable afterwards (see
+    /// <see cref="TenantSubscription.IsEnabled"/>), which is exactly wrong for a consent decision a
+    /// tenant must be able to withdraw. Nothing else about the Document inbox is gated on this --
+    /// upload, manual conversion, linking and viewing all work identically with it off, so a tenant
+    /// that never turns it on still has the whole of FR-10.3's inbox (Phase 20f's lesson: check
+    /// that a flag-off tenant can still function). See docs/phase-22-status.md, Decision C.</para>
+    /// </summary>
+    public bool AiDocumentExtractionEnabled { get; private set; }
+
     private TenantSettings()
     {
     }
@@ -108,6 +124,7 @@ public sealed class TenantSettings
             InventoryTrackingMode = InventoryTrackingMode.AccountingMovement,
             NegativeCashBalanceAction = BalanceAction.Reject,
             NegativeStockBalanceAction = BalanceAction.Warn,
+            AiDocumentExtractionEnabled = false,
             CreatedAt = DateTimeOffset.UtcNow,
         };
     }
@@ -153,4 +170,11 @@ public sealed class TenantSettings
         DefaultCogsAccountId = defaultCogsAccountId;
         DefaultInventoryAdjustmentAccountId = defaultInventoryAdjustmentAccountId;
     }
+
+    /// <summary>Phase 22 -- turns AI-assisted extraction on or off for this tenant. Its own
+    /// mutator rather than a parameter on <see cref="UpdateSettings"/>: the five fields there are
+    /// accounting behaviour set once during onboarding, whereas this is a consent decision an
+    /// Admin may revisit, and folding it in would mean a routine save of the General settings
+    /// screen could silently re-enable data egress.</summary>
+    public void SetAiDocumentExtractionEnabled(bool enabled) => AiDocumentExtractionEnabled = enabled;
 }

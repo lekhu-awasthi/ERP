@@ -662,6 +662,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'organizations/:id/workflow/document-inbox',
+    loadComponent: () =>
+      import('./features/workflow/document-inbox-page/document-inbox-page').then((m) => m.DocumentInboxPage),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/workflow/transaction-approval-queue',
     loadComponent: () =>
       import('./features/workflow/transaction-approval-queue-page/transaction-approval-queue-page').then(

@@ -13,7 +13,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 
 const EMPTY_REPORT: PagedResult<AuditRowDto> = { items: [], page: 1, pageSize: DEFAULT_PAGE_SIZE, totalCount: 0 };
 
-const ACTIONS: SystemAuditAction[] = ['Create', 'Update', 'Approve', 'Void'];
+const ACTIONS: SystemAuditAction[] = ['Create', 'Update', 'Approve', 'Void', 'Extract'];
 
 /** The 13 ApprovableTransaction types AuditBehavior ever writes a row for -- the report's Document
  * Type dropdown deliberately doesn't offer the other 5 DocumentType enum values (Account/Contact/
@@ -22,6 +22,9 @@ const ACTIONS: SystemAuditAction[] = ['Create', 'Update', 'Approve', 'Void'];
 const DOCUMENT_TYPES: SystemAuditDocumentType[] = [
   'Quotation', 'SalesOrder', 'Invoice', 'CreditNote', 'PurchaseOrder', 'PurchaseBill', 'Expense',
   'DebitNote', 'JournalVoucher', 'CashTransfer', 'WarehouseTransfer', 'InventoryAdjustment', 'Payment',
+  // Phase 22 -- so an Admin can filter the audit trail down to "which documents were sent to the
+  // extraction service, by whom", which is the reason that row is written at all.
+  'DocumentExtraction',
 ];
 
 /**
@@ -195,6 +198,11 @@ export class SystemAuditReportPage {
         return row.direction === 'Paid'
           ? ['/organizations', org, 'purchasing', 'supplier-payments', row.documentId]
           : ['/organizations', org, 'payments', row.documentId];
+      // Phase 22 -- an extraction row's DocumentId is an inbox document, and the inbox is a list
+      // with no per-document route, so there is nothing honest to link to. Degrades to plain text
+      // exactly as SalesOrder does above.
+      case 'DocumentExtraction':
+        return null;
     }
   }
 }

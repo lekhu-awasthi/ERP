@@ -133,6 +133,7 @@ app.MapAttachmentsEndpoints();
 app.MapPrintingEndpoints();
 app.MapImportsEndpoints();
 app.MapExportsEndpoints();
+app.MapDocumentInboxEndpoints();
 
 app.Run();
 

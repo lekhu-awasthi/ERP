@@ -112,11 +112,16 @@ export interface UpdateTaskStatusRequest {
 
 /** Matches AuditBehavior's own AuditedActionPrefixes -- every audited command's type name starts
  * with exactly one of these four verbs. */
-export type SystemAuditAction = 'Create' | 'Update' | 'Approve' | 'Void';
+/** 'Extract' joined in Phase 22 (FR-10.3): running AI-assisted extraction on an inbox document is
+ * the one action in the product that sends a customer's business document to a third party, and it
+ * leaves no other trace. */
+export type SystemAuditAction = 'Create' | 'Update' | 'Approve' | 'Void' | 'Extract';
 
-/** AuditBehavior only ever writes a row for the 13 ApprovableTransaction types, the same set
- * TransactionApprovalDocumentType already names -- reused here rather than duplicated. */
-export type SystemAuditDocumentType = TransactionApprovalDocumentType;
+/** AuditBehavior writes a row for the 13 ApprovableTransaction types -- the same set
+ * TransactionApprovalDocumentType already names, reused here rather than duplicated -- plus
+ * 'DocumentExtraction' (Phase 22), which is not a transaction at all and therefore has no detail
+ * route to open. */
+export type SystemAuditDocumentType = TransactionApprovalDocumentType | 'DocumentExtraction';
 
 export interface AuditRowDto {
   id: string;

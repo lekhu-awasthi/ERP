@@ -336,3 +336,33 @@ the payment's own total. This gap already existed in the original `CreatePayment
 capped against target outstanding either; only the FIFO-suggestion query computes a sane default).
 Not fixed here since it predates Phase 17 and wasn't part of its scope — flagged here rather than
 left silently unstated.
+
+---
+
+## Addendum (Phase 22) — Quick Payment/Receipt is now Draft-then-Approve
+
+Decision #7 shipped this screen as **one action**: `createPayment` then, in its own success callback,
+`approvePayment`, then a form reset. That was a reasonable read of "Quick" for a screen a person types
+by hand from a receipt in front of them.
+
+**Phase 22 changed it**, because the Document inbox can now pre-fill this exact form from a scanned
+bill whose values a model suggested. One click posting straight to the General Ledger, from suggested
+values, with no review step, is the one place in the product where "check it before you save" had no
+second chance. It now saves a **Draft** and offers **Approve** as a separate action — matching every
+other document type, and putting the Draft in the Transaction Approval queue where a second person can
+approve it.
+
+Two details worth keeping, both of which are really decision #7's own reasoning coming back around:
+
+- **Both steps stay on `quick-payment-page`.** Navigating the Draft to `payment-detail-page` was the
+  obvious move and is wrong: that page's `canApprove()` requires
+  `allocations.length > 0 && remaining === 0`, so a zero-allocation Quick Payment would arrive with a
+  permanently disabled Approve button. That gate is exactly why decision #7 gave this screen its own
+  component in the first place.
+- **The approved code is read off the `approve` response**, never the `create` one. That is this
+  phase's own bug #3 restated — numbering happens at Approve, so `created.code` is still `"DRAFT"` —
+  and the two-step split makes it easier to get wrong, not harder, because the two responses are now
+  handled in different methods.
+
+See `docs/phase-22-status.md`, Decision B.
+

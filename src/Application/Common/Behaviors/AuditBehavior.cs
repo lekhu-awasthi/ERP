@@ -35,7 +35,12 @@ public sealed class AuditBehavior<TRequest, TResponse>(IAppDbContext db, ICurren
     /// purposes, so this isn't a new pattern. "Convert" isn't a distinct action: every conversion in
     /// this codebase (e.g. CreateInvoiceCommand's optional ReferrerType/ReferrerId) is a plain
     /// Create under the hood, so it's already covered by the "Create" prefix.</summary>
-    private static readonly string[] AuditedActionPrefixes = ["Create", "Update", "Approve", "Void"];
+    /// <summary>"Extract" joined the list in Phase 22 (FR-10.3) for
+    /// <c>ExtractInboxDocumentCommand</c> -- the one action in the product that sends a customer's
+    /// business document to a third party. It is not a Create/Update/Approve/Void of anything, but
+    /// it is precisely the kind of action an audit trail exists for, and it leaves no other
+    /// trace.</summary>
+    private static readonly string[] AuditedActionPrefixes = ["Create", "Update", "Approve", "Void", "Extract"];
 
     public async Task<TResponse> Handle(
         TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)

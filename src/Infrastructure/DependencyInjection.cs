@@ -1,4 +1,5 @@
 ﻿using ErpApp.Application.Common.BotProtection;
+using ErpApp.Application.Common.DocumentExtraction;
 using ErpApp.Application.Common.Email;
 using ErpApp.Application.Common.Numbering;
 using ErpApp.Application.Common.Persistence;
@@ -12,6 +13,7 @@ using ErpApp.Infrastructure.Exports;
 using ErpApp.Infrastructure.Imports;
 using ErpApp.Infrastructure.Jobs;
 using ErpApp.Infrastructure.BotProtection;
+using ErpApp.Infrastructure.DocumentExtraction;
 using ErpApp.Infrastructure.Email;
 using ErpApp.Infrastructure.Identity;
 using ErpApp.Infrastructure.Persistence;
@@ -106,6 +108,15 @@ public static class DependencyInjection
                 "(Cloudflare's always-passes dummy secret key for local dev is 1x0000000000000000000000000000000AA)")
             .ValidateOnStart();
         services.AddHttpClient<ITurnstileVerifier, TurnstileVerifier>();
+
+        // Phase 22 (Document inbox, FR-10.3) -- the AI-assisted extraction seam. Registered
+        // unconditionally: ClaudeDocumentExtractor reports itself unconfigured when no credential is
+        // present, so a deployment without one still serves the whole Document inbox (manual
+        // conversion is the base feature). Deliberately no ValidateOnStart -- see
+        // DocumentExtractionOptions' own doc comment for why that matters in CI.
+        services.AddOptions<DocumentExtractionOptions>()
+            .Bind(configuration.GetSection(DocumentExtractionOptions.SectionName));
+        services.AddSingleton<IDocumentExtractor, ClaudeDocumentExtractor>();
 
         return services;
     }
