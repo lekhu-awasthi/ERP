@@ -45,6 +45,20 @@ jobs:
         run: dotnet test ErpApp.slnx --no-build --configuration Release --logger "trx;LogFileName=test-results.trx"
         env:
           ConnectionStrings__Default: "Server=localhost,1433;Database=ErpApp;User Id=sa;Password=${{ env.CI_SQL_SA_PASSWORD }};TrustServerCertificate=True"
+          # Every option registered with ValidateOnStart must resolve or WebApplicationFactory
+          # throws before a single integration test runs. The four host-booting suites each supply
+          # these in their own AddInMemoryCollection, which is the load-bearing fix and the reason
+          # CI is green; these are belt-and-braces so a new suite that forgets one fails on its own
+          # assertion rather than on an opaque startup error. Not secrets: the Turnstile value is
+          # Cloudflare's documented always-passes dummy key, and no test registers a user or
+          # issues a token.
+          Jwt__SigningKey: "integration-test-signing-key-not-for-real-use"
+          Email__From: "test@example.com"
+          Email__SmtpServer: "localhost"
+          Email__Port: "25"
+          Email__Username: "test"
+          Email__Password: "test"
+          Turnstile__SecretKey: "1x0000000000000000000000000000000AA"
 
       - name: Publish test results
         if: always()

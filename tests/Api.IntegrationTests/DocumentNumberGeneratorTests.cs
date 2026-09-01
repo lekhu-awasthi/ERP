@@ -1,4 +1,4 @@
-using ErpApp.Application.Common.Numbering;
+﻿using ErpApp.Application.Common.Numbering;
 using ErpApp.Domain.Common;
 using ErpApp.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
@@ -42,6 +42,13 @@ public sealed class DocumentNumberGeneratorTests : IAsyncLifetime
                     new KeyValuePair<string, string?>("Email:Port", "25"),
                     new KeyValuePair<string, string?>("Email:Username", "test"),
                     new KeyValuePair<string, string?>("Email:Password", "test"),
+
+                    // Turnstile (Phase 20g) validates on start like Jwt/Email do, and no
+                    // integration test ever registers a user, so any non-empty value satisfies it.
+                    // Cloudflare's documented always-passes dummy secret is used rather than
+                    // "test" so that the value is self-explaining if one ever does.
+                    new KeyValuePair<string, string?>(
+                        "Turnstile:SecretKey", "1x0000000000000000000000000000000AA"),
                 ]);
             });
         });
