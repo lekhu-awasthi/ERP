@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json.Serialization;
 using ErpApp.Api.Endpoints;
 using ErpApp.Api.Middleware;
@@ -131,6 +131,7 @@ app.MapWorkflowEndpoints();
 app.MapCrmEndpoints();
 app.MapAttachmentsEndpoints();
 app.MapPrintingEndpoints();
+app.MapImportsEndpoints();
 
 app.Run();
 

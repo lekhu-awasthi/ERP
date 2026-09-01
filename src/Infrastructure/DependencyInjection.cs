@@ -1,11 +1,13 @@
-using ErpApp.Application.Common.BotProtection;
+﻿using ErpApp.Application.Common.BotProtection;
 using ErpApp.Application.Common.Email;
 using ErpApp.Application.Common.Numbering;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Application.Common.Sms;
 using ErpApp.Application.Common.Storage;
+using ErpApp.Application.Imports;
 using ErpApp.Infrastructure.Alerts;
+using ErpApp.Infrastructure.Imports;
 using ErpApp.Infrastructure.BotProtection;
 using ErpApp.Infrastructure.Email;
 using ErpApp.Infrastructure.Identity;
@@ -75,6 +77,14 @@ public static class DependencyInjection
         services.AddOptions<AlertSchedulerOptions>()
             .Bind(configuration.GetSection(AlertSchedulerOptions.SectionName));
         services.AddHostedService<AlertSchedulerHostedService>();
+
+        // Phase 21a (Bulk import, FR-2.9 / NFR-4.3) -- this codebase's second background job. A
+        // separate hosted service from the alert scheduler on purpose; see
+        // ImportJobRunnerHostedService's own doc comment (Decision A).
+        services.AddScoped<IImportFileReader, ClosedXmlImportFileReader>();
+        services.AddOptions<ImportJobRunnerOptions>()
+            .Bind(configuration.GetSection(ImportJobRunnerOptions.SectionName));
+        services.AddHostedService<ImportJobRunnerHostedService>();
 
         services.AddOptions<TurnstileOptions>()
             .Bind(configuration.GetSection(TurnstileOptions.SectionName))

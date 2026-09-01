@@ -1,4 +1,4 @@
-# Build Roadmap — Phases & Task Breakdown
+﻿# Build Roadmap — Phases & Task Breakdown
 
 Companion to `architecture-spec.md` (what to build) and `product-requirements.md` (why). This doc says *in what order*, broken down small enough to actually pick up and work. The reference product is a live Tigg UAT tenant; when a screen's shape is unconfirmed, it is read live through the Browser pane before building (the user logs in themselves — credentials are never entered by the agent and never committed to this repo; see `phase-8f-status.md` for the established workflow).
 
@@ -44,6 +44,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 20d | Printing Templates / Custom Templates (FR-11.2/11.3): confirm-live found the reference product's template gallery is a real visual editor, descoped by user decision to metadata-only `PrintingTemplate`/`CustomTemplate` lookups + `SetDefault`; the real deliverable is a print-to-PDF pipeline (QuestPDF, 2 shared layouts) wired for 6 document types, closing Phase 16c's deferred print output | `phase-20d-status.md` |
 | 20f | Tenant feature-flag enforcement (FR-2.6): `IRequireFeature` + `FeatureGateBehavior` (4th pipeline behavior) make `TenantSubscription`'s flags a real gate, `FeatureNotEnabledException` → 403 naming the feature. Investigation found only 2 of 7 flags have a surface to gate (`TrackInventory`, `MultipleWarehouses`) — both of FR-2.6's own examples are unbuildable here; scope reduced accordingly. MultipleWarehouses is a **cap at one**, not a block (nothing seeds a default warehouse and Invoice requires one). Read-only Subscription & Features screen; flags stay immutable, live-confirmed as matching the reference product | `phase-20f-status.md` |
 | 20e | Alert Scheduler (FR-11.1) — this codebase's **first background-job infrastructure**: hand-rolled `AlertSchedulerHostedService` (`BackgroundService` + `PeriodicTimer` + `TimeProvider`, scope per tick, `IOptionsMonitor`) driving `IAlertDispatcher`; `AlertDefinition` + an `AlertSendLog` ledger whose unique index on (definition, local occurrence date, recipient) delivers idempotency, multi-instance safety and at-most-once delivery at once. **No authentication-bypass surface was introduced** — the job sends no MediatR request, reading through `IAlertContentBuilder` with an explicit `OrganizationId` instead, so `CurrentUserService` still throws outside HTTP. Nepal-local (UTC+05:45) scheduling. Confirm-live closed every open question and surfaced a screen the scan had missed (Email Logs) | `phase-20e-status.md` |
+| 21a | Async job foundation + bulk import (FR-2.9, NFR-4.3): durable `ImportJob`/`ImportJobRow` queue driven by a second `BackgroundService` (`ImportJobRunnerHostedService`), template-based .xlsx import for Product/Customer/Supplier in create and update modes with per-row error reporting, cancellation and completion notification. **The first background job that writes**, so it answers the identity question 20e sidestepped: it reuses the real Create/Update commands through the full pipeline under a scoped `IJobActingUser`, which means `AuthorizationBehavior` **re-checks permission on every row at execution time**; an `HttpContext` always wins, so a job identity can never serve a request. At-most-once **per row** via a `(ImportJobId, RowNumber)` unique index — partial success is a `Completed` job, `Failed` means the file could not be processed at all. E2E found and fixed a concurrency token that made the user's own Cancel wedge the running job | `phase-21a-status.md` |
 
 ---
 
@@ -254,12 +255,46 @@ server-side check rejects a bad token).
 ## Phase 21 — Import/Export & backup
 **Goal:** FR-2.8/2.9/2.10 — the data-migration story, on Phase 20's async-job infrastructure.
 
-1. Bulk import (Products, Customers, Suppliers, Contacts, Accounts, Product Categories, Account Groups) from downloadable spreadsheet templates, create-new and update-existing modes, row-level error reporting.
-2. Full-tenant backup/export download (FR-2.8).
-3. Historical Sales/Purchase tax-register import (FR-2.10) + the **migrated** Sales/Purchase Register report variants, closing FR-9.4 completely.
-4. All long-running operations async with completion notification (NFR-4.3).
+**Split into three independently shippable sub-phases; one sub-phase = one session. 21a is COMPLETE.**
+The original four numbered items are three deliverables, not one phase: 21b and 21c both need a job
+runner, and 21a is the only one that forces the identity decision — so it went first, alone, the same
+reasoning that put 20e last in Phase 20.
 
-*Exit criteria: a template-based Product import creates and then updates rows correctly with per-row errors surfaced; a migrated-register import shows up only in the migrated report variants, never in live GL; a backup export downloads and contains the seeded data.*
+### 21a. Async job foundation + bulk import (FR-2.9, NFR-4.3) — **COMPLETE**, see `phase-21a-status.md`
+Durable `ImportJob`/`ImportJobRow` queue, a second `BackgroundService` copying 20e's shape (scope per
+job, `IOptionsMonitor`, swallowed tick failures) but draining per tick, and template-based .xlsx
+import for **Product, Customer and Supplier** in both create and update modes, matched on the **Code**
+column (live-confirmed as the reference product's own update key). Row-level errors carry the
+spreadsheet's own row number and the offending column.
+
+**Decision B is the one to carry forward.** Unlike an alert, an import writes, so the job reuses the
+real Create/Update commands through the full six-behavior pipeline under a scoped `IJobActingUser` —
+which makes permission **re-checked per row at execution time** for free, and attributes every
+imported record to the initiating user in the audit trail. `CurrentUserService` prefers `HttpContext`
+unconditionally, so a background identity can never serve an HTTP request. **Decision C** is
+at-most-once *per row* (claim-then-act under a unique index), so a crash at row 500 of 1,000 resumes
+at 501 and creates nothing twice; partial success is a `Completed` job. Confirm-live corrected the
+brief on one point that would have produced the wrong importer: the product's "Contact" upload type
+is `ContactPersonnel`, not `Contact`. Account / Product Category / Account Group / ContactPersonnel
+are deferred as mechanical follow-up (the two tree types additionally need intra-file parent ordering).
+
+### 21b. Full-tenant backup/export (FR-2.8)
+Smallest of the three; reuses 21a's runner, its `ImportTemplateDefinition`/`ImportTemplateWriter` pair
+and the existing ClosedXML export path. Must add an *output* payload and decide whether it joins
+`ImportJobs` or gets its own table — deliberately not pre-decided in 21a. **Note from 21a's
+confirm-live pass: the reference product has no backup screen at all**, so this is design work, not
+mirroring. A read-only job may not need `IJobActingUser`; 20e's "no ambient identity" default still
+applies to jobs that only read.
+
+### 21c. Migrated tax-register import + the migrated Sales/Purchase Register variants (FR-2.10, closing FR-9.4)
+Architecturally distinct and the deepest domain question of the three: historical register rows must
+appear in statutory reports **without existing as documents and without ever touching GL**. Nothing
+for this exists today (re-verified during 21a). **Its home in the reference product is
+`Configurations > Organization > Migration`** — a "Migrated Reports" panel listing *Sales Register*
+and *Purchase Register* with an IMPORT button, a separate screen from Import / Export entirely.
+Deserves its own session.
+
+*Exit criteria: a template-based Product import creates and then updates rows correctly with per-row errors surfaced (**21a — done**); a migrated-register import shows up only in the migrated report variants, never in live GL; a backup export downloads and contains the seeded data.*
 
 ---
 

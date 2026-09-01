@@ -1,4 +1,4 @@
-using ErpApp.Application.Common.Persistence;
+﻿using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
@@ -6,6 +6,7 @@ using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Crm;
 using ErpApp.Domain.Identity;
+using ErpApp.Domain.Imports;
 using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Payments;
 using ErpApp.Domain.Purchasing;
@@ -176,6 +177,10 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<AlertDefinition> AlertDefinitions => Set<AlertDefinition>();
 
     public DbSet<AlertSendLog> AlertSendLogs => Set<AlertSendLog>();
+
+    public DbSet<ImportJob> ImportJobs => Set<ImportJob>();
+
+    public DbSet<ImportJobRow> ImportJobRows => Set<ImportJobRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
