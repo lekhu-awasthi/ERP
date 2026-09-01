@@ -1,0 +1,62 @@
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-4">
+    <h2 class="h6 fw-bold mb-3"><i class="bi bi-paperclip"></i> Converting from: {{ prefill().fileName }}</h2>
+
+    @if (prefill().hasExtraction) {
+      <div class="alert alert-warning">
+        <div class="fw-bold mb-1"><i class="bi bi-stars"></i> Some fields below were read by AI</div>
+        <p class="small mb-2">
+          These are <strong>suggestions, not data</strong>. Check every one against the document beside them and
+          correct anything that is wrong before you save. Nothing reaches your books until you press Save.
+          @if (prefill().extractionModelId) {
+            <span class="d-block">Read by <code>{{ prefill().extractionModelId }}</code>.</span>
+          }
+        </p>
+        <dl class="row small mb-0">
+          <dt class="col-4">Party read</dt>
+          <dd class="col-8">
+            {{ prefill().partyNameRaw ?? '—' }}
+            @if (prefill().partyNameRaw && !prefill().contactId) {
+              <span class="badge text-bg-secondary ms-1">no matching contact — pick one</span>
+            }
+          </dd>
+          @if (prefill().partyPanRaw) {
+            <dt class="col-4">PAN read</dt>
+            <dd class="col-8">{{ prefill().partyPanRaw }}</dd>
+          }
+          @if (prefill().totalAmount !== null) {
+            <dt class="col-4">Total on document</dt>
+            <dd class="col-8">
+              {{ prefill().totalAmount | number: '1.2-2' }}
+              <span class="text-muted">— compare with the total this form computes</span>
+            </dd>
+          }
+          @if (prefill().vatAmount !== null) {
+            <dt class="col-4">VAT on document</dt>
+            <dd class="col-8">{{ prefill().vatAmount | number: '1.2-2' }}</dd>
+          }
+        </dl>
+      </div>
+    } @else {
+      <p class="text-muted small">
+        Nothing was read from this file automatically &mdash; fill the form in from the document beside it. When you
+        save, the two are linked, and this scan stays viewable from the saved document.
+      </p>
+    }
+
+    @if (isImage()) {
+      <img [src]="previewUrl()" [alt]="prefill().fileName" class="img-fluid rounded border" />
+    } @else if (isPdf()) {
+      <iframe
+        [src]="previewResourceUrl()"
+        [title]="prefill().fileName"
+        class="w-100 rounded border"
+        style="height: 520px;"
+      ></iframe>
+    } @else {
+      <div class="alert alert-secondary small mb-0">
+        This file type has no inline preview. Open it from the Document inbox to read it while you fill this form in.
+      </div>
+    }
+  </div>
+</div>

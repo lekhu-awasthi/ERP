@@ -45,6 +45,18 @@
     </div>
   }
 
+  <!-- Phase 22 -- the scan being converted from, or the scan this saved invoice was typed from. -->
+  @if (inboxPrefill(); as prefill) {
+    <app-inbox-conversion-panel [organizationId]="organizationId" [prefill]="prefill" />
+  }
+  @if (!isNew()) {
+    <app-source-document-panel
+      [organizationId]="organizationId"
+      transactionType="Invoice"
+      [transactionId]="invoice()?.id ?? null"
+    />
+  }
+
   @if (loading()) {
     <div class="text-center py-5">
       <div class="spinner-border text-primary mb-3" role="status"></div>

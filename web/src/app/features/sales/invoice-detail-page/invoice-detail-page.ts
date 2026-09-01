@@ -19,6 +19,10 @@ import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-ta
 import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
 import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
+import { InboxPrefill } from '../../../core/workflow/inbox.models';
+import { InboxService } from '../../../core/workflow/inbox.service';
+import { InboxConversionPanel } from '../../../shared/source-document/inbox-conversion-panel';
+import { SourceDocumentPanel } from '../../../shared/source-document/source-document-panel';
 
 interface EditableLine {
   key: number;
@@ -37,7 +41,7 @@ let nextLineKey = 1;
  * own lines the way JournalVoucher's is. */
 @Component({
   selector: 'app-invoice-detail-page',
-  imports: [RouterLink, DatePipe, ReportingTagsEditor, CustomFieldsEditor],
+  imports: [RouterLink, DatePipe, ReportingTagsEditor, CustomFieldsEditor, InboxConversionPanel, SourceDocumentPanel],
   templateUrl: './invoice-detail-page.html',
 })
 export class InvoiceDetailPage {
@@ -52,6 +56,7 @@ export class InvoiceDetailPage {
   private readonly organizationsService = inject(OrganizationsService);
   private readonly pendingTemplateStore = inject(PendingTemplateStore);
   private readonly printingService = inject(PrintingService);
+  private readonly inboxService = inject(InboxService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -68,6 +73,10 @@ export class InvoiceDetailPage {
   protected readonly accounts = signal<Account[]>([]);
   protected readonly warehouses = signal<Warehouse[]>([]);
   protected readonly isNew = signal(false);
+
+  /** Phase 22 -- set when opened from the Document inbox's "+ Add as" with ?inboxDocumentId=. */
+  protected readonly inboxPrefill = signal<InboxPrefill | null>(null);
+  private inboxDocumentId: string | null = null;
 
   protected readonly contactId = signal('');
   protected readonly warehouseId = signal('');
@@ -157,7 +166,11 @@ export class InvoiceDetailPage {
           this.lines.set([this.newLine()]);
         }
         this.warehouseId.set('');
+        this.inboxPrefill.set(null);
+        this.inboxDocumentId = null;
       } else {
+        this.inboxPrefill.set(null);
+        this.inboxDocumentId = null;
         this.load();
       }
     });
@@ -172,6 +185,70 @@ export class InvoiceDetailPage {
       if (contactId && this.isNew() && !this.referrerId) {
         this.contactId.set(contactId);
       }
+
+      // Phase 22's Document-inbox conversion is the third prefill channel on this page, after the
+      // conversion template and the quick action. Read here (reactively, same subscription) rather
+      // than from route.snapshot for the route-reuse reason the block above already documents.
+      const inboxDocumentId = params.get('inboxDocumentId');
+      if (inboxDocumentId && this.isNew() && inboxDocumentId !== this.inboxDocumentId) {
+        this.inboxDocumentId = inboxDocumentId;
+        this.loadInboxPrefill(inboxDocumentId);
+      }
+    });
+  }
+
+  private loadInboxPrefill(inboxDocumentId: string): void {
+    this.inboxService.getPrefill(this.organizationId, inboxDocumentId, 'Invoice').subscribe({
+      next: (prefill) => {
+        this.inboxPrefill.set(prefill);
+        if (prefill.contactId) this.contactId.set(prefill.contactId);
+        if (prefill.date) this.date.set(prefill.date);
+        if (prefill.reference) this.reference.set(prefill.reference);
+
+        const lines = prefill.lines
+          .filter((l) => l.productId)
+          .map((l) => ({
+            key: nextLineKey++,
+            productId: l.productId!,
+            quantity: l.quantity ?? 1,
+            rate: l.rate ?? 0,
+            vatRate: this.products().find((p) => p.id === l.productId)?.vatRate ?? ('NoVat' as VatRate),
+            discountPct: 0,
+          }));
+
+        if (lines.length > 0) {
+          this.lines.set(lines);
+        }
+      },
+      error: (err: unknown) => {
+        this.inboxDocumentId = null;
+        this.errorMessage.set(
+          extractErrorMessage(err) ?? 'Could not load the suggested values from the inbox document.',
+        );
+      },
+    });
+  }
+
+  /** Records which scan this just-saved invoice was typed from. A link failure must not lose the
+   * invoice the user saved, so it navigates regardless and reports the link failure there. */
+  private linkInboxDocumentThenOpen(invoiceId: string): void {
+    const route = ['/organizations', this.organizationId, 'sales', 'invoices', invoiceId];
+    const inboxDocumentId = this.inboxDocumentId;
+
+    if (!inboxDocumentId) {
+      this.router.navigate(route);
+      return;
+    }
+
+    this.inboxDocumentId = null;
+    this.inboxService.linkDocument(this.organizationId, inboxDocumentId, 'Invoice', invoiceId).subscribe({
+      next: () => this.router.navigate(route),
+      error: (err: unknown) => {
+        this.errorMessage.set(
+          extractErrorMessage(err) ?? 'The invoice was saved, but it could not be linked back to the inbox document.',
+        );
+        this.router.navigate(route);
+      },
     });
   }
 
@@ -266,12 +343,12 @@ export class InvoiceDetailPage {
             .subscribe({
               next: () => {
                 this.saving.set(false);
-                this.router.navigate(['/organizations', this.organizationId, 'sales', 'invoices', result.id]);
+                this.linkInboxDocumentThenOpen(result.id);
               },
               error: (err: unknown) => {
                 this.saving.set(false);
                 this.errorMessage.set(extractErrorMessage(err) ?? 'Invoice saved, but custom field values could not be saved.');
-                this.router.navigate(['/organizations', this.organizationId, 'sales', 'invoices', result.id]);
+                this.linkInboxDocumentThenOpen(result.id);
               },
             });
         },

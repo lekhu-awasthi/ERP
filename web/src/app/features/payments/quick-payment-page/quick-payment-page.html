@@ -29,9 +29,14 @@
     </div>
   }
 
+  <!-- Phase 22 -- converting from the Document inbox. -->
+  @if (inboxPrefill(); as prefill) {
+    <app-inbox-conversion-panel [organizationId]="organizationId" [prefill]="prefill" />
+  }
+
   <div class="card border-0 shadow-sm">
     <div class="card-body p-4">
-      <form [formGroup]="form" (ngSubmit)="save()" class="row g-3">
+      <form [formGroup]="form" (ngSubmit)="saveDraft()" class="row g-3">
         <div class="col-12 col-sm-6">
           <label class="form-label small fw-semibold">{{ isReceipt ? 'Received From' : 'Paid To' }}</label>
           <select class="form-select" formControlName="contactId">
@@ -97,14 +102,39 @@
           </div>
         }
 
-        <div class="col-12 d-flex gap-2 mt-2">
-          <button type="submit" class="btn btn-primary fw-bold" [disabled]="saving()">
-            @if (saving()) {
-              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        <!-- Phase 22: Draft first, Approve second -- the same two steps every other document type
+             uses. This used to create and approve in one click, which posted straight to the General
+             Ledger with no review step. -->
+        <div class="col-12 d-flex gap-2 mt-2 align-items-center flex-wrap">
+          @if (!isDraftSaved()) {
+            <button type="submit" class="btn btn-primary fw-bold" [disabled]="saving()">
+              @if (saving()) {
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              } @else {
+                Save Draft
+              }
+            </button>
+            <span class="text-muted small">Saving creates a draft. Nothing is posted until it is approved.</span>
+          } @else if (draft(); as saved) {
+            @if (saved.status === 'Draft') {
+              <span class="badge bg-warning-subtle text-warning-emphasis align-self-center">Draft</span>
+              <button type="button" class="btn btn-success fw-bold" [disabled]="approving()" (click)="approve()">
+                @if (approving()) {
+                  <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                } @else {
+                  Approve {{ isReceipt ? 'Receipt' : 'Payment' }}
+                }
+              </button>
             } @else {
-              Approve {{ isReceipt ? 'Receipt' : 'Payment' }}
+              <span class="badge bg-success-subtle text-success align-self-center">{{ saved.code }} approved</span>
             }
-          </button>
+            @if (savedPaymentRoute(); as route) {
+              <a class="btn btn-outline-secondary fw-bold" [routerLink]="route">Open</a>
+            }
+            <button type="button" class="btn btn-outline-secondary fw-bold" (click)="startAnother()">
+              New {{ isReceipt ? 'Receipt' : 'Payment' }}
+            </button>
+          }
         </div>
       </form>
     </div>

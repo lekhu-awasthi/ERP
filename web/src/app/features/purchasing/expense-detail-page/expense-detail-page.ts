@@ -12,6 +12,10 @@ import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
 import { TdsType } from '../../../core/configuration/configuration.models';
+import { InboxPrefill } from '../../../core/workflow/inbox.models';
+import { InboxService } from '../../../core/workflow/inbox.service';
+import { InboxConversionPanel } from '../../../shared/source-document/inbox-conversion-panel';
+import { SourceDocumentPanel } from '../../../shared/source-document/source-document-panel';
 
 interface EditableLine {
   key: number;
@@ -32,7 +36,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-expense-detail-page',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel],
   templateUrl: './expense-detail-page.html',
 })
 export class ExpenseDetailPage {
@@ -42,6 +46,7 @@ export class ExpenseDetailPage {
   private readonly contactsService = inject(ContactsService);
   private readonly accountingService = inject(AccountingService);
   private readonly configurationService = inject(ConfigurationService);
+  private readonly inboxService = inject(InboxService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -57,6 +62,10 @@ export class ExpenseDetailPage {
   protected readonly accounts = signal<Account[]>([]);
   protected readonly tdsTypes = signal<TdsType[]>([]);
   protected readonly isNew = signal(false);
+
+  /** Phase 22 -- set when opened from the Document inbox's "+ Add as" with ?inboxDocumentId=. */
+  protected readonly inboxPrefill = signal<InboxPrefill | null>(null);
+  private inboxDocumentId: string | null = null;
 
   protected readonly contactId = signal('');
   protected readonly date = signal(this.today());
@@ -111,7 +120,15 @@ export class ExpenseDetailPage {
         this.tdsApplicable.set(false);
         this.tdsTypeId.set('');
         this.lines.set([this.newLine()]);
+
+        this.inboxPrefill.set(null);
+        this.inboxDocumentId = this.route.snapshot.queryParamMap.get('inboxDocumentId');
+        if (this.inboxDocumentId) {
+          this.loadInboxPrefill(this.inboxDocumentId);
+        }
       } else {
+        this.inboxPrefill.set(null);
+        this.inboxDocumentId = null;
         this.load();
       }
     });
@@ -148,6 +165,51 @@ export class ExpenseDetailPage {
 
   protected removeLine(key: number): void {
     this.lines.update((lines) => lines.filter((l) => l.key !== key));
+  }
+
+  private loadInboxPrefill(inboxDocumentId: string): void {
+    this.inboxService.getPrefill(this.organizationId, inboxDocumentId, 'Expense').subscribe({
+      next: (prefill) => {
+        this.inboxPrefill.set(prefill);
+        if (prefill.contactId) this.contactId.set(prefill.contactId);
+        if (prefill.date) this.date.set(prefill.date);
+        if (prefill.reference) this.supplierInvoiceReference.set(prefill.reference);
+      },
+      error: (err: unknown) => {
+        this.inboxDocumentId = null;
+        this.errorMessage.set(
+          extractErrorMessage(err) ?? 'Could not load the suggested values from the inbox document.',
+        );
+      },
+    });
+  }
+
+  /**
+   * Deliberately prefills no lines. An Expense's lines are GL accounts, not products, and an
+   * extracted line description resolves to nothing an account picker could use -- the document's own
+   * total is shown in the conversion panel instead, for the user to split across accounts
+   * themselves. Guessing an account here would be putting a machine's choice into the General
+   * Ledger's own coding, which is exactly what a human is here to do.
+   */
+  private linkInboxDocumentThenOpen(expenseId: string): void {
+    const route = ['/organizations', this.organizationId, 'purchasing', 'expenses', expenseId];
+    const inboxDocumentId = this.inboxDocumentId;
+
+    if (!inboxDocumentId) {
+      this.router.navigate(route);
+      return;
+    }
+
+    this.inboxDocumentId = null;
+    this.inboxService.linkDocument(this.organizationId, inboxDocumentId, 'Expense', expenseId).subscribe({
+      next: () => this.router.navigate(route),
+      error: (err: unknown) => {
+        this.errorMessage.set(
+          extractErrorMessage(err) ?? 'The expense was saved, but it could not be linked back to the inbox document.',
+        );
+        this.router.navigate(route);
+      },
+    });
   }
 
   protected previewGlPosting(): void {
@@ -202,7 +264,7 @@ export class ExpenseDetailPage {
       this.purchasingService.createExpense(this.organizationId, request).subscribe({
         next: (result) => {
           this.saving.set(false);
-          this.router.navigate(['/organizations', this.organizationId, 'purchasing', 'expenses', result.id]);
+          this.linkInboxDocumentThenOpen(result.id);
         },
         error: (err: unknown) => {
           this.saving.set(false);

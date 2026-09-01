@@ -1,0 +1,46 @@
+@if (documents().length > 0) {
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <h2 class="h6 fw-bold mb-3">
+        <i class="bi bi-paperclip"></i> Source document
+        <a class="small fw-normal ms-2" [routerLink]="inboxRoute()">Document inbox</a>
+      </h2>
+
+      @for (document of documents(); track document.id) {
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <div>
+              <span class="fw-bold">{{ document.fileName }}</span>
+              <span class="text-muted small ms-2">
+                uploaded by {{ document.uploadedByName }} on {{ document.uploadedAt | date: 'mediumDate' }}
+              </span>
+              @if (document.extractionStatus === 'Succeeded' && document.extractionModelId) {
+                <span class="badge text-bg-warning text-dark ms-2" [title]="'Read by ' + document.extractionModelId">
+                  <i class="bi bi-stars"></i> AI-assisted
+                </span>
+              }
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="download(document)">
+              <i class="bi bi-download"></i> Download
+            </button>
+          </div>
+
+          @if (isImage(document)) {
+            <img [src]="previewUrl(document)" [alt]="document.fileName" class="img-fluid rounded border" />
+          } @else if (isPdf(document)) {
+            <iframe
+              [src]="previewResourceUrl(document)"
+              [title]="document.fileName"
+              class="w-100 rounded border"
+              style="height: 520px;"
+            ></iframe>
+          } @else {
+            <div class="alert alert-secondary small mb-0">
+              This file type has no inline preview &mdash; download it to view.
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+}

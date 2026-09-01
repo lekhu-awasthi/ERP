@@ -106,6 +106,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<ExportJob> ExportJobs => Set<ExportJob>();
     public DbSet<MigratedSalesRegisterEntry> MigratedSalesRegisterEntries => Set<MigratedSalesRegisterEntry>();
     public DbSet<MigratedPurchaseRegisterEntry> MigratedPurchaseRegisterEntries => Set<MigratedPurchaseRegisterEntry>();
+    public DbSet<UploadedDocument> UploadedDocuments => Set<UploadedDocument>();
 
     // IAppDbContext.Set<TEntity>() -- satisfied implicitly by DbContext's own public
     // Set<TEntity>() (identical signature), needed by the generic

@@ -31,6 +31,16 @@
     </div>
   }
 
+  <!-- Phase 22 -- the scan this payment was typed from, when it came from the Document inbox
+       (Quick Payment/Receipt is a conversion target). Renders nothing otherwise. -->
+  @if (!isNew()) {
+    <app-source-document-panel
+      [organizationId]="organizationId"
+      transactionType="Payment"
+      [transactionId]="payment()?.id ?? null"
+    />
+  }
+
   @if (loading()) {
     <div class="text-center py-5">
       <div class="spinner-border text-primary mb-3" role="status"></div>

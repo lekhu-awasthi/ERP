@@ -543,4 +543,46 @@ public static class PermissionKeys
     public const string MigratedSalesRegisterView = "Reports.MigratedSalesRegister.View";
     public const string MigratedPurchaseRegisterView = "Reports.MigratedPurchaseRegister.View";
     public const string MigratedRegisterManage = "Configuration.MigratedRegister.Manage";
+
+    // Phase 22 (Document inbox, FR-10.3). Four keys -- see docs/phase-22-status.md, Decision F.
+    //
+    // InboxDocumentView / InboxDocumentManage are Admin+Member. The tempting analogy is the flat
+    // registers (Admin-only because a single screen exposes every party's PAN at once), and it does
+    // not hold: the inbox is a *working queue of unprocessed files*, not a register over the
+    // tenant's history. Whatever a scan discloses about one supplier, the resulting Purchase Bill
+    // discloses too -- and PurchaseBillView is already Member-granted, as is ContactView, which is
+    // what a Contact's own uploaded documents ride on (Phase 18). Withholding the inbox from Member
+    // while leaving the transactions it produces visible would protect nothing and would break the
+    // feature for the one person it exists for: whoever photographs the bills. Manage is a single
+    // key covering upload, label, delete, mark-done and link, rather than a View/Create/Edit/Approve
+    // split -- there is no maker-checker step here (the approval that matters happens on the
+    // *transaction*, under its own Approve key) and WorkTask set the Workflow-context precedent for
+    // one View/Manage pair.
+    //
+    // The *conversion* deliberately has no key of its own. It exercises the target document type's
+    // own Create key at the moment the user submits the ordinary form -- InboxDocumentPrefillQuery's
+    // PermissionKey resolves per target type exactly as PrintDocumentQuery's does -- so a user with
+    // the whole inbox but without PurchaseBillCreate cannot obtain a prefill, let alone a bill. A
+    // separate "may convert" key would have been a second, weaker gate in front of the real one.
+    public const string InboxDocumentView = "Workflow.InboxDocument.View";
+    public const string InboxDocumentManage = "Workflow.InboxDocument.Manage";
+
+    // InboxDocumentExtract is Admin-only, and it is the only key in this codebase whose derivation
+    // rests on something other than data sensitivity: running it spends the deployment's money and
+    // sends a customer's business document to a third party. Both are decisions an organization
+    // should make deliberately, and neither is reversible after the fact. It is separated from
+    // InboxDocumentManage precisely so that an organization which wants Members filling the inbox
+    // all day, but wants extraction used sparingly, can express that -- and equally so that one
+    // which wants the opposite can grant it to Member in the role matrix in ten seconds. This is
+    // the key most likely to be widened by a real tenant, and that is fine: default-deny for an
+    // outward-bound, billable action, with an obvious grant path.
+    public const string InboxDocumentExtract = "Workflow.InboxDocument.Extract";
+
+    // The tenant's own opt-in to extraction (TenantSettings.AiDocumentExtractionEnabled) -- the
+    // consent decision, as opposed to InboxDocumentExtract's who-may-run-it decision. Sits in the
+    // Configuration namespace beside AccountingDefaultsManage because it is a tenant-wide setting,
+    // not an inbox action, and Admin-only because it governs whether tenant documents may leave the
+    // system at all. Note the gate is genuinely two-sided: with this off, no InboxDocumentExtract
+    // grant does anything.
+    public const string AiDocumentExtractionManage = "Configuration.AiDocumentExtraction.Manage";
 }

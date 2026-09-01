@@ -517,6 +517,20 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid MemberMigratedPurchaseRegisterViewId = Guid.Parse("00000000-0000-0000-0002-000000000145");
     private static readonly Guid MemberMigratedRegisterManageId = Guid.Parse("00000000-0000-0000-0002-000000000146");
 
+    // Phase 22 (Document inbox, FR-10.3). View/Manage are Admin+Member -- the inbox is routine
+    // daily-use working data for whoever photographs the bills, and the transactions it produces
+    // are already Member-visible. Extract and the tenant-wide AI consent toggle are Admin-only:
+    // one spends money and sends a customer document to a third party, the other decides whether
+    // that egress is permitted at all. See PermissionKeys.InboxDocument* for the full derivation.
+    private static readonly Guid AdminInboxDocumentViewId = Guid.Parse("00000000-0000-0000-0002-000000000147");
+    private static readonly Guid AdminInboxDocumentManageId = Guid.Parse("00000000-0000-0000-0002-000000000148");
+    private static readonly Guid AdminInboxDocumentExtractId = Guid.Parse("00000000-0000-0000-0002-000000000149");
+    private static readonly Guid AdminAiDocumentExtractionManageId = Guid.Parse("00000000-0000-0000-0002-00000000014a");
+    private static readonly Guid MemberInboxDocumentViewId = Guid.Parse("00000000-0000-0000-0002-00000000014b");
+    private static readonly Guid MemberInboxDocumentManageId = Guid.Parse("00000000-0000-0000-0002-00000000014c");
+    private static readonly Guid MemberInboxDocumentExtractId = Guid.Parse("00000000-0000-0000-0002-00000000014d");
+    private static readonly Guid MemberAiDocumentExtractionManageId = Guid.Parse("00000000-0000-0000-0002-00000000014e");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -927,6 +941,15 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminMigratedRegisterManageId, Role.AdminId, PermissionKeys.MigratedRegisterManage, true),
             RolePermission.Create(MemberMigratedSalesRegisterViewId, Role.MemberId, PermissionKeys.MigratedSalesRegisterView, false),
             RolePermission.Create(MemberMigratedPurchaseRegisterViewId, Role.MemberId, PermissionKeys.MigratedPurchaseRegisterView, false),
-            RolePermission.Create(MemberMigratedRegisterManageId, Role.MemberId, PermissionKeys.MigratedRegisterManage, false));
+            RolePermission.Create(MemberMigratedRegisterManageId, Role.MemberId, PermissionKeys.MigratedRegisterManage, false),
+
+            RolePermission.Create(AdminInboxDocumentViewId, Role.AdminId, PermissionKeys.InboxDocumentView, true),
+            RolePermission.Create(AdminInboxDocumentManageId, Role.AdminId, PermissionKeys.InboxDocumentManage, true),
+            RolePermission.Create(AdminInboxDocumentExtractId, Role.AdminId, PermissionKeys.InboxDocumentExtract, true),
+            RolePermission.Create(AdminAiDocumentExtractionManageId, Role.AdminId, PermissionKeys.AiDocumentExtractionManage, true),
+            RolePermission.Create(MemberInboxDocumentViewId, Role.MemberId, PermissionKeys.InboxDocumentView, true),
+            RolePermission.Create(MemberInboxDocumentManageId, Role.MemberId, PermissionKeys.InboxDocumentManage, true),
+            RolePermission.Create(MemberInboxDocumentExtractId, Role.MemberId, PermissionKeys.InboxDocumentExtract, false),
+            RolePermission.Create(MemberAiDocumentExtractionManageId, Role.MemberId, PermissionKeys.AiDocumentExtractionManage, false));
     }
 }

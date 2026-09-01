@@ -18,6 +18,10 @@ import { ConfigurationService } from '../../../core/configuration/configuration.
 import { TdsType } from '../../../core/configuration/configuration.models';
 import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
 import { PrintingService } from '../../../core/printing/printing.service';
+import { InboxPrefill } from '../../../core/workflow/inbox.models';
+import { InboxService } from '../../../core/workflow/inbox.service';
+import { InboxConversionPanel } from '../../../shared/source-document/inbox-conversion-panel';
+import { SourceDocumentPanel } from '../../../shared/source-document/source-document-panel';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 
 interface EditableLine {
@@ -39,7 +43,7 @@ let nextLineKey = 1;
  * "Convert to Credit Note". */
 @Component({
   selector: 'app-purchase-bill-detail-page',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel],
   templateUrl: './purchase-bill-detail-page.html',
 })
 export class PurchaseBillDetailPage {
@@ -53,6 +57,7 @@ export class PurchaseBillDetailPage {
   private readonly configurationService = inject(ConfigurationService);
   private readonly pendingTemplateStore = inject(PendingTemplateStore);
   private readonly printingService = inject(PrintingService);
+  private readonly inboxService = inject(InboxService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -72,6 +77,12 @@ export class PurchaseBillDetailPage {
   protected readonly warehouses = signal<Warehouse[]>([]);
   protected readonly tdsTypes = signal<TdsType[]>([]);
   protected readonly isNew = signal(false);
+
+  /** Phase 22 -- set when this page was opened from the Document inbox's "+ Add as" with
+   * ?inboxDocumentId=. Held in the URL rather than in PendingTemplateStore so a reload during a
+   * conversion does not silently lose the scan and its suggestions. */
+  protected readonly inboxPrefill = signal<InboxPrefill | null>(null);
+  private inboxDocumentId: string | null = null;
 
   protected readonly contactId = signal('');
   protected readonly warehouseId = signal('');
@@ -145,6 +156,8 @@ export class PurchaseBillDetailPage {
 
       if (isNew) {
         this.loading.set(false);
+        this.inboxPrefill.set(null);
+        this.inboxDocumentId = this.route.snapshot.queryParamMap.get('inboxDocumentId');
         const template = this.pendingTemplateStore.takePurchaseBillTemplate();
         if (template) {
           this.contactId.set(template.contactId);
@@ -172,7 +185,13 @@ export class PurchaseBillDetailPage {
         this.importDate.set('');
         this.importDocumentNo.set('');
         this.tdsTypeId.set('');
+
+        if (this.inboxDocumentId) {
+          this.loadInboxPrefill(this.inboxDocumentId);
+        }
       } else {
+        this.inboxPrefill.set(null);
+        this.inboxDocumentId = null;
         this.load();
       }
     });
@@ -308,7 +327,7 @@ export class PurchaseBillDetailPage {
       this.purchasingService.createPurchaseBill(this.organizationId, request).subscribe({
         next: (result) => {
           this.saving.set(false);
-          this.router.navigate(['/organizations', this.organizationId, 'purchasing', 'purchase-bills', result.id]);
+          this.linkInboxDocumentThenOpen(result.id);
         },
         error: (err: unknown) => {
           this.saving.set(false);
@@ -379,6 +398,78 @@ export class PurchaseBillDetailPage {
       error: (err: unknown) => {
         this.approving.set(false);
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not approve purchase bill. Please try again.');
+      },
+    });
+  }
+
+  /**
+   * Phase 22 -- fetches the server-computed pre-fill for this conversion. A failure here is
+   * deliberately non-fatal: the user still gets an ordinary blank Purchase Bill form, which is the
+   * base feature, and the message says the pre-fill (not the bill) could not be loaded.
+   */
+  private loadInboxPrefill(inboxDocumentId: string): void {
+    this.inboxService.getPrefill(this.organizationId, inboxDocumentId, 'PurchaseBill').subscribe({
+      next: (prefill) => {
+        this.inboxPrefill.set(prefill);
+        this.applyInboxPrefill(prefill);
+      },
+      error: (err: unknown) => {
+        this.inboxDocumentId = null;
+        this.errorMessage.set(
+          extractErrorMessage(err) ?? 'Could not load the suggested values from the inbox document.',
+        );
+      },
+    });
+  }
+
+  /** Only writes fields the extraction actually produced -- a null stays an empty box the user must
+   * fill, never a plausible-looking guess (see InboxPrefill's own doc comment). */
+  private applyInboxPrefill(prefill: InboxPrefill): void {
+    if (prefill.contactId) this.contactId.set(prefill.contactId);
+    if (prefill.date) this.date.set(prefill.date);
+    if (prefill.reference) this.supplierInvoiceReference.set(prefill.reference);
+
+    const lines = prefill.lines
+      .filter((l) => l.productId)
+      .map((l) => ({
+        key: nextLineKey++,
+        productId: l.productId!,
+        quantity: l.quantity ?? 1,
+        rate: l.rate ?? 0,
+        vatRate: this.products().find((p) => p.id === l.productId)?.vatRate ?? ('NoVat' as VatRate),
+        expenditureClassification: 'Others' as ExpenditureClassification,
+        discountPct: 0,
+      }));
+
+    if (lines.length > 0) {
+      this.lines.set(lines);
+    }
+  }
+
+  /**
+   * The conversion's second half. The Purchase Bill already exists -- created a moment ago by the
+   * ordinary CreatePurchaseBillCommand, with this user pressing Save -- and this records which scan
+   * it came from. A link failure must not lose the bill the user just saved, so it navigates
+   * regardless and reports the link failure on the saved document's own page.
+   */
+  private linkInboxDocumentThenOpen(purchaseBillId: string): void {
+    const route = ['/organizations', this.organizationId, 'purchasing', 'purchase-bills', purchaseBillId];
+    const inboxDocumentId = this.inboxDocumentId;
+
+    if (!inboxDocumentId) {
+      this.router.navigate(route);
+      return;
+    }
+
+    this.inboxDocumentId = null;
+    this.inboxService.linkDocument(this.organizationId, inboxDocumentId, 'PurchaseBill', purchaseBillId).subscribe({
+      next: () => this.router.navigate(route),
+      error: (err: unknown) => {
+        this.errorMessage.set(
+          extractErrorMessage(err) ??
+            'The purchase bill was saved, but it could not be linked back to the inbox document.',
+        );
+        this.router.navigate(route);
       },
     });
   }
