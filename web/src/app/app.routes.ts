@@ -1,4 +1,4 @@
-﻿import { Routes } from '@angular/router';
+import { Routes } from '@angular/router';
 
 import { authGuard } from './core/auth/auth.guard';
 
@@ -139,6 +139,14 @@ export const routes: Routes = [
     path: 'organizations/:id/configuration/import',
     loadComponent: () =>
       import('./features/configuration/import-page/import-page').then((m) => m.ImportPage),
+    canActivate: [authGuard],
+  },
+  {
+    // Phase 21c -- a separate screen from Import / Export, matching the reference product's own
+    // Organization > Migration tab. See MigrationPage for why the separation is worth keeping.
+    path: 'organizations/:id/configuration/migration',
+    loadComponent: () =>
+      import('./features/configuration/migration-page/migration-page').then((m) => m.MigrationPage),
     canActivate: [authGuard],
   },
   {
@@ -605,6 +613,24 @@ export const routes: Routes = [
     path: 'organizations/:id/reports/sales-register',
     loadComponent: () =>
       import('./features/reports/sales-register-page/sales-register-page').then((m) => m.SalesRegisterPage),
+    canActivate: [authGuard],
+  },
+  {
+    // Phase 21c -- FR-9.4's migrated variants. Separate routes and separate components from the
+    // live pair, deliberately (Decision B).
+    path: 'organizations/:id/reports/migrated-sales-register',
+    loadComponent: () =>
+      import('./features/reports/migrated-sales-register-page/migrated-sales-register-page').then(
+        (m) => m.MigratedSalesRegisterPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/migrated-purchase-register',
+    loadComponent: () =>
+      import('./features/reports/migrated-purchase-register-page/migrated-purchase-register-page').then(
+        (m) => m.MigratedPurchaseRegisterPage,
+      ),
     canActivate: [authGuard],
   },
   {

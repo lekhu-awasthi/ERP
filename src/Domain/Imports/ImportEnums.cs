@@ -20,11 +20,27 @@ namespace ErpApp.Domain.Imports;
 /// codebase is <c>ContactPersonnel</c> (Phase 18), a different aggregate entirely. Naming it here
 /// would have quietly produced the wrong importer.</para>
 /// </summary>
+/// <para><b>Phase 21c appended two members that are not in that dropdown at all</b>, and that is
+/// intentional. The reference product files migrated tax-register import under a different screen
+/// entirely (<c>Configurations &gt; Organization &gt; Migration</c>, a "Migrated Reports" panel with
+/// its own IMPORT button), not under Import / Export's Upload Type list. They ride this enum
+/// because the <i>job</i> is the same job -- an uploaded .xlsx, parsed row by row, each row claimed
+/// under a unique index, cancellable, with per-row errors and the same retention sweep -- and
+/// nothing about <c>ImportJob</c>'s columns is null for them (docs/phase-21c-status.md, Decision C).
+/// The screens stay separate; <c>ListImportJobsQuery</c>'s EntityTypes filter is what keeps each
+/// screen showing only its own history.</para>
 public enum ImportEntityType
 {
     Product,
     Customer,
     Supplier,
+
+    /// <summary>Phase 21c (FR-2.10) -- historical Sales Book rows. Create-only: see
+    /// <see cref="ImportMode"/>.</summary>
+    MigratedSalesRegister,
+
+    /// <summary>Phase 21c (FR-2.10) -- historical Purchase Book rows. Create-only.</summary>
+    MigratedPurchaseRegister,
 }
 
 /// <summary>
@@ -33,6 +49,12 @@ public enum ImportEntityType
 /// upload types, restricting Product Category and Account Group to Create only. All three types
 /// this phase ships support both modes.
 /// </summary>
+/// <para><b>The two Phase 21c migrated-register types are Create-only</b>, rejected at the
+/// validator rather than silently ignored. There is no "update a historical statutory row" story: a
+/// migrated row is a copy of what a prior system already filed, so the only correct fix for a wrong
+/// one is to correct it in the source and re-upload after the bad batch is removed. That
+/// restriction has precedent -- the reference product itself offers Create only for Product Category
+/// and Account Group.</para>
 public enum ImportMode
 {
     CreateNew,

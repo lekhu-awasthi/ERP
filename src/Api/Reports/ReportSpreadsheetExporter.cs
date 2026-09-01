@@ -360,10 +360,19 @@ public static class ReportSpreadsheetExporter
             XlsxContentType,
             FileName("CashFlowSummary", report.FromDate, report.ToDate));
 
-    public static IResult ExportSalesRegister(SalesRegisterDto report) =>
+    /// <param name="migrated">
+    /// Phase 21c. The migrated variant shares this exporter because its column set is identical to
+    /// the live register's by construction -- that identity is the whole point of FR-9.4's migrated
+    /// variants, so a second copy of this list could only drift from the statutory form. Only the
+    /// sheet name and the file stem differ, and they must: a downloaded file called
+    /// SalesRegister.xlsx that actually contains unposted pre-cutover history is precisely the
+    /// cross-reading Decision B's separate screens exist to prevent, and a spreadsheet outlives the
+    /// screen it was downloaded from.
+    /// </param>
+    public static IResult ExportSalesRegister(SalesRegisterDto report, bool migrated = false) =>
         ExportTable(
-            "Sales Register",
-            FileName("SalesRegister", report.FromDate, report.ToDate),
+            migrated ? "Migrated Sales Register" : "Sales Register",
+            FileName(migrated ? "MigratedSalesRegister" : "SalesRegister", report.FromDate, report.ToDate),
             [
                 ("Date", (SalesRegisterRowDto r) => (object?)r.Date),
                 ("Type", r => r.DocumentType.ToString()),
@@ -382,10 +391,11 @@ public static class ReportSpreadsheetExporter
             report.Items,
             sheet => WriteTotalRow(sheet, report.Items.Count, "Total Value", 6, report.TotalValue));
 
-    public static IResult ExportPurchaseRegister(PurchaseRegisterDto report) =>
+    /// <param name="migrated">See <see cref="ExportSalesRegister"/> -- same reasoning.</param>
+    public static IResult ExportPurchaseRegister(PurchaseRegisterDto report, bool migrated = false) =>
         ExportTable(
-            "Purchase Register",
-            FileName("PurchaseRegister", report.FromDate, report.ToDate),
+            migrated ? "Migrated Purchase Register" : "Purchase Register",
+            FileName(migrated ? "MigratedPurchaseRegister" : "PurchaseRegister", report.FromDate, report.ToDate),
             [
                 ("Date", (PurchaseRegisterRowDto r) => (object?)r.Date),
                 ("Type", r => r.DocumentType.ToString()),

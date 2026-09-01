@@ -40,12 +40,20 @@ export class ImportService {
     });
   }
 
+  /**
+   * @param entityTypes Restricts the history to these upload types; omit for all of them. The
+   * Import / Export screen and Phase 21c's Migration screen share this endpoint and the job table,
+   * and this filter is what keeps each showing only its own uploads.
+   */
   listImportJobs(
     organizationId: string,
+    entityTypes: readonly ImportEntityType[] | null = null,
     page = 1,
     pageSize = 25,
   ): Observable<PagedResult<ImportJobSummary>> {
-    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    const params: Record<string, string | string[]> = { page: String(page), pageSize: String(pageSize) };
+    if (entityTypes && entityTypes.length > 0) params['entityTypes'] = [...entityTypes];
+
     return this.http.get<PagedResult<ImportJobSummary>>(`${this.baseUrl(organizationId)}/import-jobs`, {
       withCredentials: true,
       params,

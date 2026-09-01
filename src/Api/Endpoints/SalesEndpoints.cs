@@ -30,6 +30,7 @@ using ErpApp.Application.Sales.Queries.ListSalesOrders;
 using ErpApp.Application.Sales.Queries.PreviewInvoiceGlPosting;
 using ErpApp.Application.Sales.Queries.AnnexFiveReport;
 using ErpApp.Application.Sales.Queries.SalesMasterReport;
+using ErpApp.Application.Sales.Queries.MigratedSalesRegister;
 using ErpApp.Application.Sales.Queries.SalesRegister;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
@@ -340,6 +341,33 @@ public static class SalesEndpoints
                     page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
                 ct);
             return ReportSpreadsheetExporter.ExportSalesRegister(result);
+        });
+
+        // Phase 21c (FR-2.10 / FR-9.4) -- the migrated variant. A separate route with its own
+        // permission key, reading only MigratedSalesRegisterEntries; the live route above is
+        // untouched.
+        group.MapGet("/reports/migrated-sales-register", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, string? partySearch,
+            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new MigratedSalesRegisterQuery(
+                    organizationId, fromDate, toDate, partySearch,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/migrated-sales-register/export", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, string? partySearch,
+            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new MigratedSalesRegisterQuery(
+                    organizationId, fromDate, toDate, partySearch,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                ct);
+            return ReportSpreadsheetExporter.ExportSalesRegister(result, migrated: true);
         });
 
         group.MapGet("/reports/annex-five", async (

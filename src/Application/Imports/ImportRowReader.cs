@@ -81,6 +81,56 @@ public sealed class ImportRowReader
             : throw new ImportRowException(column, $"'{raw}' is not a valid number.");
     }
 
+    /// <summary>
+    /// Reads a date cell (Phase 21c -- the migrated registers are the first import whose rows carry
+    /// one).
+    ///
+    /// <para><b>Why a format list rather than a bare <c>DateTime.TryParse</c>:</b>
+    /// <c>ClosedXmlImportFileReader</c> hands over <c>GetFormattedString()</c>, i.e. the text the
+    /// user sees, so the same real date arrives as "2024-07-30" from a text cell and as whatever
+    /// display format a date-typed cell carries. The explicit list puts <b>day-first ahead of
+    /// month-first</b>, which is the one decision here that can silently corrupt data: 07/08/2024 is
+    /// a real date under both readings, so a wrong guess imports the wrong month with no error
+    /// anywhere. Day-first is the convention in Nepal (and every Commonwealth-derived form this
+    /// product's users fill in), and the template's own instructions ask for ISO yyyy-MM-dd, which is
+    /// unambiguous and is what the sample row shows. The invariant-culture fallback is last so it can
+    /// never pre-empt the explicit list.</para>
+    /// </summary>
+    public DateOnly? GetOptionalDate(string column)
+    {
+        var raw = GetOptionalString(column);
+        if (raw is null)
+        {
+            return null;
+        }
+
+        string[] formats =
+        [
+            "yyyy-MM-dd", "yyyy/MM/dd", "dd-MM-yyyy", "dd/MM/yyyy", "d/M/yyyy", "d-M-yyyy",
+            "dd-MMM-yyyy", "d MMM yyyy", "MMM d, yyyy",
+        ];
+
+        foreach (var format in formats)
+        {
+            if (DateOnly.TryParseExact(raw, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out var exact))
+            {
+                return exact;
+            }
+        }
+
+        // Trailing time-of-day is common when a cell is date-typed and formatted with one.
+        if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+        {
+            return DateOnly.FromDateTime(parsed);
+        }
+
+        throw new ImportRowException(
+            column, $"'{raw}' is not a valid date; use yyyy-MM-dd (for example 2024-07-30).");
+    }
+
+    public DateOnly GetRequiredDate(string column) =>
+        GetOptionalDate(column) ?? throw new ImportRowException(column, $"'{column}' is required.");
+
     public int GetOptionalInt(string column, int fallback = 0)
     {
         var value = GetOptionalDecimal(column, fallback);

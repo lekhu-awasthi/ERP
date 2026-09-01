@@ -373,4 +373,35 @@ export class PurchasingService {
       responseType: 'blob',
     });
   }
+
+  /** Phase 21c -- FR-9.4's migrated Purchase Register variant. See
+   * SalesService.getMigratedSalesRegister for the shape and the separation rationale. */
+  getMigratedPurchaseRegister(
+    organizationId: string, fromDate: string, toDate: string, partySearch: string | null,
+    page = 1, pageSize = 50,
+  ): Observable<PurchaseRegisterDto> {
+    const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
+    if (partySearch) params['partySearch'] = partySearch;
+
+    return this.http.get<PurchaseRegisterDto>(
+      `${this.baseUrl(organizationId)}/reports/migrated-purchase-register`,
+      { withCredentials: true, params },
+    );
+  }
+
+  exportMigratedPurchaseRegister(
+    organizationId: string, fromDate: string, toDate: string, partySearch: string | null,
+    full: boolean, page: number, pageSize: number,
+  ): Observable<Blob> {
+    const params: Record<string, string> = {
+      fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
+    };
+    if (partySearch) params['partySearch'] = partySearch;
+
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/migrated-purchase-register/export`, {
+      withCredentials: true,
+      params,
+      responseType: 'blob',
+    });
+  }
 }

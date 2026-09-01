@@ -50,11 +50,17 @@ public static class ImportsEndpoints
             return Results.Created($"/api/organizations/{organizationId}/import-jobs/{result.Id}", result);
         }).DisableAntiforgery();
 
+        // entityTypes is repeatable (?entityTypes=Product&entityTypes=Customer) and optional. Phase
+        // 21c's Migration screen and this one share the endpoint and the table; the filter is what
+        // keeps each screen's history to its own uploads.
         group.MapGet("/import-jobs", async (
-            Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            Guid organizationId, ImportEntityType[]? entityTypes, int? page, int? pageSize,
+            ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListImportJobsQuery(organizationId, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+                new ListImportJobsQuery(
+                    organizationId, entityTypes, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
             return Results.Ok(result);
         });
 

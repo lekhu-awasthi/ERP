@@ -1,4 +1,4 @@
-﻿namespace ErpApp.Application.Common.Security;
+namespace ErpApp.Application.Common.Security;
 
 /// <summary>
 /// Stable permission-key catalog (architecture-spec.md §3.7's "PermissionKey a stable string"),
@@ -513,4 +513,34 @@ public static class PermissionKeys
     // hard no, and is what the negative tests prove.
     public const string ExportJobView = "Configuration.ExportJob.View";
     public const string ExportJobManage = "Configuration.ExportJob.Manage";
+
+    // Phase 21c (Migrated tax-register import, FR-2.10 / FR-9.4). Three keys, all Admin-only -- see
+    // docs/phase-21c-status.md, Decision G.
+    //
+    // MigratedSalesRegisterView / MigratedPurchaseRegisterView get their *own* keys rather than
+    // riding SalesRegisterView / PurchaseRegisterView, even though the bar lands in the same place
+    // (a flat per-transaction register carrying a party PAN column -- the Phase 19 derivation
+    // applies verbatim, since the migrated variants are the same statutory form by construction).
+    // Two reasons the extra pair earns its keep. First, the data has a different provenance and a
+    // different trust story: these rows were typed into a spreadsheet by whoever ran the cutover and
+    // were never validated against a document, an approval or a GL posting, so an organization that
+    // wants to show a bookkeeper this year's real register without also handing them an unvetted
+    // dump of the prior system's history can now express that. Second, a shared key would make the
+    // audit trail unable to distinguish which register was read. Riding the existing keys would have
+    // been defensible and cheaper; it would just have been irreversible without a migration.
+    //
+    // MigratedRegisterManage is the per-row write key, exercised by
+    // CreateMigratedSalesRegisterEntryCommand / CreateMigratedPurchaseRegisterEntryCommand on *every
+    // row* at execution time -- Phase 21a's corollary, restated: a feature-level *.Manage key does
+    // not replace the per-entity key the rows still exercise. Enqueuing the upload is still
+    // ImportJobManage (it is an ImportJob), so a user needs both, and a user with ImportJobManage
+    // alone imports nothing. It is Admin-only because writing rows that appear in a statutory tax
+    // report without any document, approval or GL trace behind them is the single least reviewable
+    // write in the product: nothing else in this tree can put a number in front of the tax authority
+    // with no posting to reconcile it against. One key rather than a Sales/Purchase pair, because
+    // the capability -- "may seed this tenant's pre-cutover statutory history" -- is one decision an
+    // organization makes once, not two.
+    public const string MigratedSalesRegisterView = "Reports.MigratedSalesRegister.View";
+    public const string MigratedPurchaseRegisterView = "Reports.MigratedPurchaseRegister.View";
+    public const string MigratedRegisterManage = "Configuration.MigratedRegister.Manage";
 }

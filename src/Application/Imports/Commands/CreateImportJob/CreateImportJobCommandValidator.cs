@@ -1,3 +1,4 @@
+using ErpApp.Domain.Imports;
 using FluentValidation;
 
 namespace ErpApp.Application.Imports.Commands.CreateImportJob;
@@ -5,6 +6,9 @@ namespace ErpApp.Application.Imports.Commands.CreateImportJob;
 public sealed class CreateImportJobCommandValidator : AbstractValidator<CreateImportJobCommand>
 {
     private static readonly string[] AllowedExtensions = [".xlsx"];
+
+    private static readonly ImportEntityType[] CreateOnlyEntityTypes =
+        [ImportEntityType.MigratedSalesRegister, ImportEntityType.MigratedPurchaseRegister];
 
     public CreateImportJobCommandValidator()
     {
@@ -23,5 +27,13 @@ public sealed class CreateImportJobCommandValidator : AbstractValidator<CreateIm
         RuleFor(x => x.FileName)
             .Must(name => AllowedExtensions.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase))
             .WithMessage("Only .xlsx files can be imported. Download the template to get the right format.");
+
+        // Phase 21c: the two migrated tax-register types are create-only (see ImportMode). Rejected
+        // here, at upload, rather than one identical row error repeated N times -- a whole-file
+        // mistake is one mistake. The importers re-check it anyway as defence in depth.
+        RuleFor(x => x.Mode)
+            .Equal(ImportMode.CreateNew)
+            .When(x => CreateOnlyEntityTypes.Contains(x.EntityType))
+            .WithMessage("Migrated register rows can only be created, not updated. Choose Create New Records.");
     }
 }

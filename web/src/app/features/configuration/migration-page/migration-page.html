@@ -1,0 +1,207 @@
+<div class="container py-5" style="max-width: 980px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-secondary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-clock-history fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Migration</h1>
+          <p class="text-muted small mb-0">
+            Bring your previous system's statutory Sales and Purchase register history across at cutover.
+            Runs in the background &mdash; you can leave this page.
+          </p>
+        </div>
+      </div>
+      <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'configuration']">
+        <i class="bi bi-arrow-left"></i> Configurations
+      </a>
+    </div>
+  </div>
+
+  <div class="alert alert-warning d-flex align-items-start gap-2 mb-4" role="alert">
+    <i class="bi bi-info-circle-fill mt-1"></i>
+    <div>
+      <strong>Migrated rows are statutory report data only.</strong>
+      They appear in the two Migrated Register reports and nowhere else. They are
+      <strong>never posted to the General Ledger</strong>, never become Invoices or Purchase Bills, produce no stock
+      movements or payments, and do not affect the Trial Balance, VAT Summary, Annex 5, Annex 13 or the TDS report.
+      This is import only &mdash; there is no way to edit or export migrated rows back out from here, and a document
+      number that has already been imported is rejected rather than duplicated.
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <h6 class="fw-bold text-dark mb-3">Migrated Reports</h6>
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-6">
+          <label class="form-label small fw-semibold" for="migrationEntityType">Register to import</label>
+          <!-- [selected] per option, never [value] on the select -- see CLAUDE.md's Angular-select gotcha. -->
+          <select id="migrationEntityType" class="form-select" (change)="onEntityTypeChange($any($event.target).value)">
+            @for (option of entityTypes; track option.value) {
+              <option [value]="option.value" [selected]="option.value === entityType()">{{ option.label }}</option>
+            }
+          </select>
+          <div class="form-text">Migrated rows can only be created, never updated.</div>
+        </div>
+        <div class="col-12 col-md-6">
+          <button type="button" class="btn btn-outline-primary w-100 fw-bold" (click)="downloadTemplate()">
+            <i class="bi bi-download"></i> Download {{ entityTypeLabel(entityType()) }} Template
+          </button>
+        </div>
+      </div>
+
+      <hr class="my-4" />
+
+      <h6 class="fw-bold text-dark mb-3">Upload your file</h6>
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-8">
+          <label class="form-label small fw-semibold" for="migrationFile">Spreadsheet (.xlsx)</label>
+          <input id="migrationFile" type="file" class="form-control" accept=".xlsx" (change)="onFileSelected($event)" />
+          <div class="form-text">
+            The file must use the template's column headers. Enter a sales or purchase RETURN as a row with negative
+            values. Rows that fail are reported individually &mdash; the rest still import.
+          </div>
+        </div>
+        <div class="col-12 col-md-4">
+          <button
+            type="button"
+            class="btn btn-primary w-100 fw-bold"
+            [disabled]="uploading() || !selectedFileName()"
+            (click)="upload()"
+          >
+            @if (uploading()) {
+              <span class="spinner-border spinner-border-sm me-1"></span> Starting&hellip;
+            } @else {
+              <i class="bi bi-play-fill"></i> Start Import
+            }
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-3 d-flex flex-wrap gap-2">
+        @for (option of entityTypes; track option.value) {
+          <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'reports', option.report]">
+            <i class="bi bi-journal-text"></i> View Migrated {{ option.label }}
+          </a>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <h6 class="fw-bold text-dark mb-3">Migration History</h6>
+
+      @if (loading()) {
+        <div class="text-muted small">Loading&hellip;</div>
+      } @else if (jobs().length === 0) {
+        <div class="text-muted small">No register migrations have been run for this organization yet.</div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr class="text-muted small">
+                <th scope="col">File</th>
+                <th scope="col">Register</th>
+                <th scope="col">Status</th>
+                <th scope="col" style="min-width: 160px;">Progress</th>
+                <th scope="col">Started by</th>
+                <th scope="col" class="text-end">&nbsp;</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (job of jobs(); track job.id) {
+                <tr>
+                  <td class="fw-semibold text-dark">{{ job.fileName }}</td>
+                  <td>{{ entityTypeLabel(job.entityType) }}</td>
+                  <td>
+                    <span class="badge" [class]="statusClass(job.status)">{{ job.status }}</span>
+                    @if (job.cancellationRequested && isActive(job.status)) {
+                      <span class="badge text-bg-warning ms-1">stopping</span>
+                    }
+                  </td>
+                  <td>
+                    <div class="progress" style="height: 6px;">
+                      <div class="progress-bar" [style.width.%]="progressPercent(job)"></div>
+                    </div>
+                    <div class="small text-muted mt-1">
+                      {{ job.succeededRowCount }} imported
+                      @if (job.failedRowCount > 0) {
+                        &middot; <span class="text-danger">{{ job.failedRowCount }} failed</span>
+                      }
+                      @if (job.totalRowCount > 0) {
+                        &middot; {{ job.processedRowCount }}/{{ job.totalRowCount }} rows
+                      }
+                    </div>
+                  </td>
+                  <td class="small text-muted">{{ job.initiatedByName }}</td>
+                  <td class="text-end">
+                    @if (isActive(job.status) && !job.cancellationRequested) {
+                      <button type="button" class="btn btn-outline-danger btn-sm" (click)="cancel(job)">Cancel</button>
+                    }
+                    @if (job.failedRowCount > 0) {
+                      <button
+                        type="button"
+                        class="btn btn-outline-secondary btn-sm ms-1"
+                        data-testid="migration-show-errors"
+                        (click)="toggleRows(job)"
+                      >
+                        {{ expandedJobId() === job.id ? 'Hide errors' : 'Show errors' }}
+                      </button>
+                    }
+                  </td>
+                </tr>
+
+                @if (job.status === 'Failed' && job.failureReason) {
+                  <tr>
+                    <td colspan="6" class="pt-0">
+                      <div class="alert alert-danger py-2 px-3 mb-0 small">{{ job.failureReason }}</div>
+                    </td>
+                  </tr>
+                }
+
+                @if (expandedJobId() === job.id) {
+                  <tr>
+                    <td colspan="6" class="pt-0">
+                      @if (expandedRowsLoading()) {
+                        <div class="text-muted small">Loading rows&hellip;</div>
+                      } @else {
+                        <table class="table table-sm mb-0">
+                          <thead>
+                            <tr class="text-muted small">
+                              <th scope="col" style="width: 90px;">Row</th>
+                              <th scope="col" style="width: 220px;">Column</th>
+                              <th scope="col">Message</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (row of expandedRows(); track row.rowNumber) {
+                              <tr>
+                                <td class="small">{{ row.rowNumber }}</td>
+                                <td class="small text-muted">{{ row.columnName ?? '&mdash;' }}</td>
+                                <td class="small">{{ row.message }}</td>
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      }
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  </div>
+</div>

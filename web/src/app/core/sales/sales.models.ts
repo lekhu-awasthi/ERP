@@ -23,7 +23,11 @@ export type DocumentType =
   | 'WarehouseTransfer'
   | 'InventoryAdjustment'
   | 'ProductionOrder'
-  | 'ProductionJournal';
+  | 'ProductionJournal'
+  // Phase 21c -- the register classification the two migrated register queries stamp on every row.
+  // Not a document: nothing numbers it, nothing posts it. See the backing enum.
+  | 'MigratedSalesEntry'
+  | 'MigratedPurchaseEntry';
 
 export interface QuotationLineInput {
   productId: string;
@@ -410,7 +414,8 @@ export interface SalesRegisterRowDto {
   date: string;
   documentType: DocumentType;
   documentCode: string;
-  contactId: string;
+  /** Null on a migrated row whose free-text party matched no Contact by PAN (Phase 21c). */
+  contactId: string | null;
   contactName: string;
   contactPan: string | null;
   totalValue: number;

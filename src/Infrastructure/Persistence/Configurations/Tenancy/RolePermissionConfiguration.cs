@@ -1,4 +1,4 @@
-﻿using ErpApp.Application.Common.Security;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -505,6 +505,18 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid MemberExportJobViewId = Guid.Parse("00000000-0000-0000-0002-00000000013f");
     private static readonly Guid MemberExportJobManageId = Guid.Parse("00000000-0000-0000-0002-000000000140");
 
+    // Phase 21c (Migrated tax-register import, FR-2.10). Admin-only for all three -- see
+    // PermissionKeys.MigratedSalesRegisterView / MigratedPurchaseRegisterView /
+    // MigratedRegisterManage for the derivation (the same flat-register-with-PAN bar as Phase 19's
+    // live pair on the read side; on the write side, the least reviewable write in the product --
+    // statutory numbers with no document, approval or GL posting behind them).
+    private static readonly Guid AdminMigratedSalesRegisterViewId = Guid.Parse("00000000-0000-0000-0002-000000000141");
+    private static readonly Guid AdminMigratedPurchaseRegisterViewId = Guid.Parse("00000000-0000-0000-0002-000000000142");
+    private static readonly Guid AdminMigratedRegisterManageId = Guid.Parse("00000000-0000-0000-0002-000000000143");
+    private static readonly Guid MemberMigratedSalesRegisterViewId = Guid.Parse("00000000-0000-0000-0002-000000000144");
+    private static readonly Guid MemberMigratedPurchaseRegisterViewId = Guid.Parse("00000000-0000-0000-0002-000000000145");
+    private static readonly Guid MemberMigratedRegisterManageId = Guid.Parse("00000000-0000-0000-0002-000000000146");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -908,6 +920,13 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminExportJobViewId, Role.AdminId, PermissionKeys.ExportJobView, true),
             RolePermission.Create(AdminExportJobManageId, Role.AdminId, PermissionKeys.ExportJobManage, true),
             RolePermission.Create(MemberExportJobViewId, Role.MemberId, PermissionKeys.ExportJobView, false),
-            RolePermission.Create(MemberExportJobManageId, Role.MemberId, PermissionKeys.ExportJobManage, false));
+            RolePermission.Create(MemberExportJobManageId, Role.MemberId, PermissionKeys.ExportJobManage, false),
+
+            RolePermission.Create(AdminMigratedSalesRegisterViewId, Role.AdminId, PermissionKeys.MigratedSalesRegisterView, true),
+            RolePermission.Create(AdminMigratedPurchaseRegisterViewId, Role.AdminId, PermissionKeys.MigratedPurchaseRegisterView, true),
+            RolePermission.Create(AdminMigratedRegisterManageId, Role.AdminId, PermissionKeys.MigratedRegisterManage, true),
+            RolePermission.Create(MemberMigratedSalesRegisterViewId, Role.MemberId, PermissionKeys.MigratedSalesRegisterView, false),
+            RolePermission.Create(MemberMigratedPurchaseRegisterViewId, Role.MemberId, PermissionKeys.MigratedPurchaseRegisterView, false),
+            RolePermission.Create(MemberMigratedRegisterManageId, Role.MemberId, PermissionKeys.MigratedRegisterManage, false));
     }
 }

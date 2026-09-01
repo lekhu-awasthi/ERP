@@ -454,7 +454,8 @@ export interface PurchaseRegisterRowDto {
   documentType: DocumentType;
   documentCode: string;
   importDeclarationNo: string | null;
-  contactId: string;
+  /** Null on a migrated row whose free-text party matched no Contact by PAN (Phase 21c). */
+  contactId: string | null;
   contactName: string;
   contactPan: string | null;
   taxExemptValue: number;

@@ -120,6 +120,49 @@ public class ImportRowReaderTests
         Assert.Contains("Service", ex.Message, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Phase 21c added date reading, and this is the assertion that matters: the ambiguous
+    /// dd/MM-vs-MM/dd case resolves <b>day-first</b>. 07/08/2024 is a real date under both readings,
+    /// so a wrong guess imports the wrong month silently, in statutory data, with nothing to catch
+    /// it -- see GetOptionalDate's own comment for why day-first is the right default here.
+    /// </summary>
+    [Theory]
+    [InlineData("2024-07-30", 2024, 7, 30)]
+    [InlineData("2024/07/30", 2024, 7, 30)]
+    [InlineData("30-07-2024", 2024, 7, 30)]
+    [InlineData("30/07/2024", 2024, 7, 30)]
+    [InlineData("7/8/2024", 2024, 8, 7)]
+    [InlineData("30-Jul-2024", 2024, 7, 30)]
+    [InlineData("2024-07-30 00:00:00", 2024, 7, 30)]
+    public void A_date_column_accepts_the_formats_a_real_spreadsheet_produces(
+        string cell, int year, int month, int day)
+    {
+        var reader = Read(["Date"], [cell]);
+
+        Assert.Equal(new DateOnly(year, month, day), reader.GetRequiredDate("Date"));
+    }
+
+    [Fact]
+    public void An_unparseable_date_names_the_column_and_the_expected_format()
+    {
+        var reader = Read(["Date"], ["last Tuesday"]);
+
+        var ex = Assert.Throws<ImportRowException>(() => reader.GetRequiredDate("Date"));
+
+        Assert.Equal("Date", ex.ColumnName);
+        Assert.Contains("yyyy-MM-dd", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_blank_date_is_null_when_optional_and_a_row_error_when_required()
+    {
+        var reader = Read(["Date", "Export Declaration Date"], ["2024-07-30", null]);
+
+        Assert.Null(reader.GetOptionalDate("Export Declaration Date"));
+        Assert.Equal("Export Declaration Date", 
+            Assert.Throws<ImportRowException>(() => reader.GetRequiredDate("Export Declaration Date")).ColumnName);
+    }
+
     private static ImportRowReader Read(string[] headers, string?[] cells) =>
         new(
             ImportRowReader.BuildColumnIndexes([.. headers.Select(ImportRowReader.Normalize)]),
