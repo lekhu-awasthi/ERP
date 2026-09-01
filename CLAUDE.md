@@ -44,6 +44,16 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
     claim-then-act idiom applied at *row* granularity, why partial success must be a `Completed`
     job rather than a `Failed` one, and — before putting a concurrency token on any row a background
     job writes repeatedly — the cancel-versus-progress conflict that wedged a running import
+  - `phase-21b` — before adding a **third** background job, or any job that *produces* a file: 21a's
+    deferred "one runner or many?" question is now answered (separate tables, one shared timer host
+    `QueuedJobRunnerHostedService<TProcessor, TOptions>` over `IQueuedJobProcessor` — a shared
+    **loop**, deliberately not a job framework, with one hosted service per processor so a long
+    import cannot hold up an export), and 20e's "no ambient identity" default is **available again**
+    for a job that only reads. Also the phase to read before promising a user something the codebase
+    cannot deliver: FR-2.8 says "backup", there is no restore path anywhere, and Decision A is the
+    record of choosing to say so on the button rather than ship the word. And before writing
+    anything to `IFileStorage` from a job, read Decision E — until this phase, exactly one caller in
+    the whole tree ever deleted a blob
   - `phase-7`'s addendum (bottom of the file) — before adding a new tenant-wide default GL account or changing which account a posting rule debits/credits: grep for the field name across every posting rule that's supposed to read it. `DefaultInventoryAccountId` sat completely unread by `PurchaseBillPostingRule` for 12 phases (Goods purchases debited Purchase Expense instead), silently double-counting Cost of Goods Sold in `IncomeStatementQueryHandler`'s Net Profit for any tenant whose Purchase account was Expense-typed — the obvious/default choice, caught only by a later phase's live E2E, not by any test or `dotnet build`
 
 ## Stack & conventions
@@ -125,6 +135,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A handler that aggregates counts **in the database** (`GroupBy(...).Select(g => g.Count())`) must run *after* the `SaveChangesAsync` that persists the statuses it is counting — an outcome still sitting in the change tracker is invisible to a store-side aggregate, so the row is counted as neither. Bit Phase 21a's job finalisation, where an interrupted row was reported as neither succeeded nor failed. Caught by a unit test only because the test asserted the failed *count*, not just the row's own status.
 - ClosedXML silently returns **empty text for a hand-rolled `t="inlineStr"` cell**, and ignores `<si>` entries past a stale `uniqueCount` on `<sst>`. Both matter only when *generating* a test .xlsx by hand: the symptom is a file whose headers "aren't there" (or whose new values come back blank) with no error anywhere. Build import fixtures by filling the app's own generated template — parts written by ClosedXML round-trip through ClosedXML — rather than synthesising a package from scratch. See `docs/phase-21a-status.md`'s testing section.
 - A background job that needs to do something exactly once must **write its claim row and commit it before performing the external side effect**, under a unique index on the occurrence key — not after, and not "check then act". That one ordering is simultaneously the idempotency-across-process-restart mechanism, the multi-instance mechanism (the losing instance's insert violates the index; catch `DbUpdateException`, detach the entry, skip) and the at-most-once guarantee. Note the InMemory provider **does not enforce unique indexes**, so the race path is unreachable in unit tests and has to be verified against real SQL Server — the already-claimed pre-check is what the tests can cover. See `AlertSendLog`/`AlertDispatcher` and `docs/phase-20e-status.md`'s Decision C.
+- **Nothing in this codebase deleted a file from `IFileStorage` until Phase 21b** — a grep for `DeleteAsync` found exactly one caller (`DeleteAttachmentCommandHandler`), so Phase 21a leaked every uploaded import workbook, permanently and silently. Any feature that writes a blob needs a deletion story decided *with* it, not after: for a full-tenant export the artifact's lifetime is a security posture, not housekeeping. The mechanism that exists now is `IQueuedJobProcessor.SweepAsync` (a default-no-op interface method the shared runner calls once per tick, before draining, in its own scope and its own try/catch) plus `JobArtifactRetention.Period` — reuse it rather than adding a background service for one DELETE. **Order matters: delete the blob first, stamp the row second.** A crash between the two re-sweeps the row and deletes an already-deleted file, which `IFileStorage` treats as a no-op; the reverse ordering strands the file forever. See `docs/phase-21b-status.md`'s Decision E.
+- A background job that **produces** a file must commit the storage key and the terminal status in **one** `SaveChangesAsync`, and build the file into a buffer before either. That single ordering is what makes "a run that died mid-write" indistinguishable from "still running" to every reader — the job simply has no key, so no UI can offer a half-written download. The residue is at worst one orphaned blob (saved, never committed), which is a cost rather than a correctness failure and is not worth a two-phase protocol. Note the UI must gate its Download control on *"an artifact exists"* (`StorageKey != null && ArtifactPurgedAt == null`), never on `Status == Completed` — the two diverge the moment retention runs, and a whole-page text search for "Download" in a component test passes vacuously if the same screen has any other download button. See `ExportJob.HasArtifact` and `import-page.spec.ts`.
+- ClosedXML's `AdjustToContents()` measures **every cell it is given**, so calling it on a 25,000-row sheet costs more than writing the sheet did; size columns over the header band plus a sample of the first rows instead (`worksheet.Columns(first, last).AdjustToContents(startRow, endRow)` — note there is no `AdjustToContents` overload on `IXLRangeColumns`, only on `IXLColumns`). The same buffering that makes this expensive is why the write side needs a stated row cap at all: `XLWorkbook` materialises every cell of every sheet before a byte is written, exactly as it materialises a whole sheet on read (phase-21a's 5,000-row read cap). State the cap and disclose truncation in the artifact itself; do not pretend to stream.
 - A singleton `BackgroundService` **cannot inject a scoped service** (`IAppDbContext` and `IEmailSender` are both `AddScoped` here) — injecting one either fails at startup or pins it for the process lifetime. Take `IServiceScopeFactory` and create a scope per tick. Two companions to the same rule: read options through `IOptionsMonitor`, not `IOptions` (see the caching gotcha below — a long-lived singleton is exactly what it bites), and never let a tick's exception escape `ExecuteAsync`, or the loop stops for the rest of the process's life while the app keeps serving HTTP perfectly happily. See `AlertSchedulerHostedService`.
 - `IOptions<T>` (unlike `IOptionsSnapshot<T>`/`IOptionsMonitor<T>`) caches its bound value at first resolution and does not observe a later `dotnet user-secrets set` — even though the user-secrets JSON file is a reloading config source, a singleton service holding `IOptions<T>` keeps serving the value it saw at startup. Changing a user-secret mid-session (e.g. to flip a verification service between pass/fail for manual E2E) requires restarting the Api process, not just re-running `dotnet user-secrets set`. See `docs/phase-20g-status.md`.
 
@@ -136,47 +149,49 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 > `docs/phase-N-status.md` and the roadmap's index table; never append essay-length phase
 > write-ups here, and never keep more than the latest one or two phases in this section.
 
-**Phase 21a (Async job foundation + bulk import, FR-2.9 / NFR-4.3) is complete.** Phase 21 was split
-into three independently shippable sub-phases (21a shipped; 21b full-tenant backup/export, 21c
-migrated tax-register import — see `docs/roadmap.md`). This is the codebase's **second** background
-job: `ImportJobRunnerHostedService` copies `AlertSchedulerHostedService`'s shape rather than
-extending it (**Decision A** — alerts and imports share a shape and nothing else, and a generic job
-framework for two consumers, one of which does not exist yet, was explicitly not built), adding only
-a drain-per-tick loop and a 5-second poll because a user is watching a progress bar.
+**Phase 21b (Full-tenant data export, FR-2.8 / NFR-4.3) is complete.** Phase 21's three sub-phases
+are now 21a and 21b shipped, 21c (migrated tax-register import) remaining. A tenant-scoped
+`ExportJob` produces one multi-sheet `.xlsx` — Summary plus FR-2.8's five named categories (products,
+contacts, chart of accounts, ledger transactions, stock movements) — downloaded through an
+authenticated, permission-checked endpoint. Admin-only `Configuration.ExportJob.View`/`.Manage`, with
+View gating the **download** and therefore controlling whether the file leaves the system at all.
 
-**Decision B is the phase, and it inverts 20e's central call.** An import *writes*, so "send no
-MediatR request" is not available: every rule about creating a Product or Contact correctly lives in
-the existing Create/Update handlers. The job therefore **reuses those commands** through the full
-six-behavior pipeline, acting as the user who enqueued it via a new scoped `IJobActingUser`.
-`CurrentUserService` consults it only when there is no `HttpContext`, so a job identity can never
-serve a request; and because the pipeline runs, **`AuthorizationBehavior` re-checks the permission on
-every row at execution time** and `AuditBehavior` attributes every imported record to that user.
-**Decision C** is at-most-once *per row*: an `ImportJobRow` is committed under a unique index on
-`(ImportJobId, RowNumber)` before the row's command is sent, so a crash at row 500 of 1,000 resumes
-at 501 and creates nothing twice — partial success is a **`Completed`** job, and `Failed` means only
-that the file could not be processed. **Decision D** moved ClosedXML into Infrastructure behind
-`IImportFileReader`, keeping all mapping/validation in Application over a plain
-headers-plus-strings `ImportSheet`; **Decision E** ships in-app polling *and* a completion email to
-the initiator's own registered address (no egress surface, unlike 20e's free-text recipients).
+**Decision A is the phase, and it is a product decision.** FR-2.8 says "backup/export"; this codebase
+has no restore path and none is planned, so shipping a *Backup* button would be a promise the product
+cannot keep. What ships is an honest **export** that says outright what it cannot do — on the screen,
+on the workbook's own first sheet, and in the completion email. **Decision D wins back Phase 20e's
+"no ambient identity" default that 21a had to abandon**: an export only *reads*, through hand-filtered
+org-scoped queries rather than permission-gated MediatR requests, so the job has no acting user at
+all; `IJobActingUser` exists and is deliberately unused, and the permission check plus the `Audit` row
+(a new `DocumentType.DataExport`) live on the enqueue command in a real HTTP request. **Decision C**
+answers the job-table question 21a deferred to "when there is a second consumer": separate tables
+(an import consumes a payload and is not idempotent; an export produces one and is), one shared
+timer host — `ImportJobRunnerHostedService` became
+`QueuedJobRunnerHostedService<TProcessor, TOptions>` over a new `IQueuedJobProcessor` seam, a shared
+**loop** and explicitly not the generic job framework 21a was right to decline, with one hosted
+service per processor so a long import cannot hold up an export. **Decision E** adds 7-day retention
+swept from that seam's `SweepAsync`, and fixes the blob leak 21a shipped — until this phase exactly
+one caller in the tree had ever deleted a file from `IFileStorage`. **Decision B** states a
+25,000-row-per-sheet cap (ClosedXML buffers whole workbooks) and discloses truncation in three places
+rather than hiding it in a status.
 
-Confirm-live read all seven of the reference product's templates and its client bundle, which
-corrected the brief on a point that would have produced the wrong importer — the product's "Contact"
-upload type is `ContactPersonnel`, not `Contact` — and established that update mode matches on the
-**Code** column and that its own wizard is a synchronous four-step dry-run/confirm flow that cannot
-satisfy NFR-4.3. Product, Customer and Supplier ship (create + update); Account, Product Category,
-Account Group and ContactPersonnel are deferred as mechanical follow-up. Permission keys
-`Configuration.ImportJob.View`/`.Manage` are Admin-only, View because the row-error report quotes
-uploaded PAN/phone/email back to the reader. Tests: Domain.UnitTests 185 (+8),
-Application.UnitTests 388 (+37), Angular 7 (unchanged); `dotnet build`/`ng build`/`ng test`/
-`tsc --noEmit` clean. Manual E2E against fresh Organizations with real SQL Server and real uploaded
-`.xlsx` files proved create/update/partial-success/tenant-isolation/resume/cancel, the unique index,
-and both 403s — and found two real bugs (a concurrency token that made the user's own Cancel wedge
-the running job; counts computed before they were committed). Full reasoning in
-`docs/phase-21a-status.md`.
+Confirm-live was **not** performed — this session was non-interactive and CLAUDE.md's rule is that the
+user signs in themselves — so `Organization > Developer Mode` / `> Documents` stay unopened and **the
+browser pass on the new screen is outstanding**; neither blocks the phase, since 21a had already
+established there is no backup screen to mirror. Tests: Domain.UnitTests 192 (+7),
+Application.UnitTests 415 (+27), Api.IntegrationTests +2 (a real ClosedXML round-trip, no Docker),
+Angular 14 (+7); `dotnet build`/`ng build`/`ng test`/`tsc --noEmit` clean. Manual E2E against two
+fresh Organizations on real SQL Server downloaded and opened the real file, proved tenant isolation
+both directions with a canary row, watched both blob kinds leave the disk on retention, reclaimed an
+abandoned run, and got four 403s each naming its exact key against nonexistent ids. Full reasoning in
+`docs/phase-21b-status.md`.
 
-**Next up: Phase 21b — full-tenant backup/export (FR-2.8).** It reuses 21a's runner, its
-`ImportTemplateDefinition`/`ImportTemplateWriter` pair and the existing ClosedXML export path, and
-must add an *output* payload plus a decision on whether it joins `ImportJobs` or gets its own table
-(deliberately not pre-decided). Note 21a's confirm-live finding that **the reference product has no
-backup screen at all** — 21b is designing, not mirroring. See `docs/phase-21a-status.md`'s handoff
-section and `docs/roadmap.md`'s Phase 21 briefs.
+**Next up: Phase 21c — migrated tax-register import + the migrated Sales/Purchase Register variants
+(FR-2.10, closing FR-9.4).** The deepest domain question of the three: historical register rows must
+appear in statutory reports **without existing as documents and without ever touching GL**, and
+nothing for it exists today. It inherits a queue-driven job as four small pieces (a table, an
+`IQueuedJobProcessor`, a `QueuedJobRunnerOptions` subclass, one `AddHostedService` line) — but it
+**writes**, so it takes 21a's side of the identity question (`IJobActingUser`, per-row claim under a
+unique index), not 21b's. Its home in the reference product is
+`Configurations > Organization > Migration`, a separate screen from Import / Export. See
+`docs/roadmap.md`'s Phase 21 briefs.

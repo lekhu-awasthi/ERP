@@ -6,6 +6,7 @@ using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Crm;
 using ErpApp.Domain.Identity;
+using ErpApp.Domain.Exports;
 using ErpApp.Domain.Imports;
 using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Payments;
@@ -102,6 +103,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<ImportJob> ImportJobs => Set<ImportJob>();
 
     public DbSet<ImportJobRow> ImportJobRows => Set<ImportJobRow>();
+    public DbSet<ExportJob> ExportJobs => Set<ExportJob>();
 
     // IAppDbContext.Set<TEntity>() -- satisfied implicitly by DbContext's own public
     // Set<TEntity>() (identical signature), needed by the generic

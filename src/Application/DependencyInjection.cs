@@ -4,6 +4,8 @@ using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Alerts;
 using ErpApp.Application.Common.Security;
 using ErpApp.Application.Common.Trees;
+using ErpApp.Application.Exports;
+using ErpApp.Application.Exports.Readers;
 using ErpApp.Application.Imports;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
@@ -163,6 +165,22 @@ public static class DependencyInjection
         services.AddScoped<IEntityImporter>(sp => ContactImporter.ForSuppliers(
             sp.GetRequiredService<Common.Persistence.IAppDbContext>(), sp.GetRequiredService<ISender>()));
         services.AddScoped<IImportJobProcessor, ImportJobProcessor>();
+
+        // Phase 21b (Full-tenant data export, FR-2.8) -- IExportCategoryReader is the same strategy
+        // set again, one implementation per ExportCategory member. Adding a sixth category to
+        // FR-2.8's five is a new class plus one line here plus one enum member.
+        //
+        // Note what is deliberately absent from this block, unlike the import one above: no
+        // IJobActingUser, and no ISender in any reader. An export only reads, and it reads through
+        // hand-filtered org-scoped queries rather than permission-gated MediatR requests, so Phase
+        // 20e's "a background job needs no ambient identity" default applies again. The permission
+        // check and the Audit row both live on CreateExportJobCommand, in a real HTTP request.
+        services.AddScoped<IExportCategoryReader, ProductExportReader>();
+        services.AddScoped<IExportCategoryReader, ContactExportReader>();
+        services.AddScoped<IExportCategoryReader, ChartOfAccountsExportReader>();
+        services.AddScoped<IExportCategoryReader, LedgerTransactionExportReader>();
+        services.AddScoped<IExportCategoryReader, StockMovementExportReader>();
+        services.AddScoped<IExportJobProcessor, ExportJobProcessor>();
 
         // The acting identity for background writes. Scoped and inert in every HTTP scope -- see
         // IJobActingUser for why an HTTP request can never be served by it.

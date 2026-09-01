@@ -2,6 +2,8 @@ import { Component, OnDestroy, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
+import { ExportJobStatus, ExportJobSummary } from '../../../core/exports/export.models';
+import { ExportService } from '../../../core/exports/export.service';
 import {
   ImportEntityType,
   ImportJobRow,
@@ -26,6 +28,13 @@ import { triggerBlobDownload } from '../../../shared/download-file';
  *
  * <p>Polling, not a socket: a job's status is a cheap indexed read, and adding a push channel for
  * one screen would be a deployment concern in exchange for a few seconds of latency.</p>
+ *
+ * <p><b>Phase 21b added the Export half to this same screen</b> rather than giving it its own. The
+ * reference product files both directions under one "Import / Export" nav entry, and it has no
+ * backup screen at all (confirmed live during Phase 21a), so a separate page would have invented a
+ * navigation item the product does not have. The word on the button is <b>Export</b>, not Backup:
+ * there is no restore path in this product, and see FR-2.8 / Decision A in
+ * docs/phase-21b-status.md for why saying so plainly was the whole first decision of the phase.</p>
  */
 @Component({
   selector: 'app-import-page',
@@ -37,6 +46,7 @@ export class ImportPage implements OnDestroy {
 
   private readonly route = inject(ActivatedRoute);
   private readonly importService = inject(ImportService);
+  private readonly exportService = inject(ExportService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -52,6 +62,10 @@ export class ImportPage implements OnDestroy {
   protected readonly entityType = signal<ImportEntityType>('Product');
   protected readonly mode = signal<ImportMode>('CreateNew');
   protected readonly selectedFileName = signal<string | null>(null);
+
+  protected readonly exportJobs = signal<ExportJobSummary[]>([]);
+  protected readonly exportStarting = signal(false);
+  protected readonly downloadingExportId = signal<string | null>(null);
 
   protected readonly expandedJobId = signal<string | null>(null);
   protected readonly expandedRows = signal<ImportJobRow[]>([]);
@@ -157,11 +171,12 @@ export class ImportPage implements OnDestroy {
     });
   }
 
-  protected isActive(status: ImportJobStatus): boolean {
+  /** Both job kinds use the same five status names, so the two badges share these helpers. */
+  protected isActive(status: ImportJobStatus | ExportJobStatus): boolean {
     return status === 'Queued' || status === 'Running';
   }
 
-  protected statusClass(status: ImportJobStatus): string {
+  protected statusClass(status: ImportJobStatus | ExportJobStatus): string {
     switch (status) {
       case 'Completed':
         return 'text-bg-success';
@@ -184,6 +199,69 @@ export class ImportPage implements OnDestroy {
     return Math.round((job.processedRowCount / job.totalRowCount) * 100);
   }
 
+  protected startExport(): void {
+    this.exportStarting.set(true);
+    this.errorMessage.set(null);
+
+    this.exportService.createExportJob(this.organizationId).subscribe({
+      next: () => {
+        this.exportStarting.set(false);
+        this.load();
+      },
+      error: (err: unknown) => {
+        this.exportStarting.set(false);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not start the export.');
+      },
+    });
+  }
+
+  protected cancelExport(job: ExportJobSummary): void {
+    this.exportService.cancelExportJob(this.organizationId, job.id).subscribe({
+      next: () => this.load(),
+      error: (err: unknown) =>
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not cancel the export.'),
+    });
+  }
+
+  /** Fetched as a Blob so the request carries the auth cookie and a 403 or an expired-file 404
+   * surfaces as a message rather than a broken download -- see ExportService.downloadExport. */
+  protected downloadExport(job: ExportJobSummary): void {
+    this.downloadingExportId.set(job.id);
+    this.errorMessage.set(null);
+
+    this.exportService.downloadExport(this.organizationId, job.id).subscribe({
+      next: (blob) => {
+        this.downloadingExportId.set(null);
+        triggerBlobDownload(blob, job.fileName ?? 'DataExport.xlsx');
+      },
+      error: (err: unknown) => {
+        this.downloadingExportId.set(null);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not download the export.');
+        // The file may have just expired, so re-read the history rather than leaving a stale
+        // Download button on screen.
+        this.load();
+      },
+    });
+  }
+
+  protected exportProgressPercent(job: ExportJobSummary): number {
+    if (job.totalCategoryCount <= 0) {
+      return 0;
+    }
+
+    return Math.round((job.processedCategoryCount / job.totalCategoryCount) * 100);
+  }
+
+  protected fileSizeLabel(bytes: number | null): string {
+    if (bytes === null) {
+      return '';
+    }
+
+    return bytes < 1024 * 1024
+      ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+      : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
   protected modeLabel(mode: ImportMode): string {
     return this.modes.find((option) => option.value === mode)?.label ?? mode;
   }
@@ -200,12 +278,26 @@ export class ImportPage implements OnDestroy {
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load import history.');
       },
     });
+
+    // Two independent calls rather than one combined endpoint: the two features have separate
+    // permission keys, so a user granted one and not the other still gets the half they may see
+    // instead of a whole page that 403s.
+    this.exportService.listExportJobs(this.organizationId).subscribe({
+      next: (result) => {
+        this.exportJobs.set(result.items);
+        this.syncPolling();
+      },
+      error: (err: unknown) =>
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load export history.'),
+    });
   }
 
   /** Polls only while something is actually running, and stops the moment nothing is -- an idle
    * Configurations tab must not sit hitting the API forever. */
   private syncPolling(): void {
-    const anyActive = this.jobs().some((job) => this.isActive(job.status));
+    const anyActive =
+      this.jobs().some((job) => this.isActive(job.status)) ||
+      this.exportJobs().some((job) => this.isActive(job.status));
 
     if (anyActive && this.pollHandle === null) {
       this.pollHandle = setInterval(() => this.load(), ImportPage.PollIntervalMs);

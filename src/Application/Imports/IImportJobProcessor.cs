@@ -1,3 +1,5 @@
+using ErpApp.Application.Common.Jobs;
+
 namespace ErpApp.Application.Imports;
 
 /// <summary>
@@ -6,17 +8,11 @@ namespace ErpApp.Application.Imports;
 /// established with <c>IAlertDispatcher</c>, and it is why this phase's tests need neither a real
 /// clock nor a <c>Task.Delay</c>: the whole thing is directly callable with a
 /// <c>FakeTimeProvider</c>.
+///
+/// <para>Phase 21b lifted the two members onto the shared <see cref="IQueuedJobProcessor"/> seam
+/// when the export job needed the identical loop. Nothing about the import's behaviour changed;
+/// this interface survives as the DI key that <c>QueuedJobRunnerHostedService</c> is closed over,
+/// so imports and exports keep separate timers, separate poll intervals and separate kill
+/// switches.</para>
 /// </summary>
-public interface IImportJobProcessor
-{
-    /// <summary>
-    /// Claims and runs at most one job, start to finish, then returns. Returns false when there was
-    /// nothing to do.
-    ///
-    /// <para>One job per call, run to completion synchronously, is deliberate: imports are
-    /// sequential by nature (row 40 may depend on a category row 3 created) and running two at once
-    /// would buy nothing but contention. A long import simply occupies the runner; the timer's next
-    /// tick finds it still busy and does nothing.</para>
-    /// </summary>
-    Task<bool> ProcessNextAsync(CancellationToken cancellationToken);
-}
+public interface IImportJobProcessor : IQueuedJobProcessor;

@@ -497,6 +497,14 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid MemberImportJobViewId = Guid.Parse("00000000-0000-0000-0002-00000000013b");
     private static readonly Guid MemberImportJobManageId = Guid.Parse("00000000-0000-0000-0002-00000000013c");
 
+    // Phase 21b (Full-tenant data export, FR-2.8). Admin-only for both -- see
+    // PermissionKeys.ExportJobView / ExportJobManage. The View key gates the download itself, which
+    // is what actually controls whether the tenant's whole data set leaves the system.
+    private static readonly Guid AdminExportJobViewId = Guid.Parse("00000000-0000-0000-0002-00000000013d");
+    private static readonly Guid AdminExportJobManageId = Guid.Parse("00000000-0000-0000-0002-00000000013e");
+    private static readonly Guid MemberExportJobViewId = Guid.Parse("00000000-0000-0000-0002-00000000013f");
+    private static readonly Guid MemberExportJobManageId = Guid.Parse("00000000-0000-0000-0002-000000000140");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -895,6 +903,11 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminImportJobViewId, Role.AdminId, PermissionKeys.ImportJobView, true),
             RolePermission.Create(AdminImportJobManageId, Role.AdminId, PermissionKeys.ImportJobManage, true),
             RolePermission.Create(MemberImportJobViewId, Role.MemberId, PermissionKeys.ImportJobView, false),
-            RolePermission.Create(MemberImportJobManageId, Role.MemberId, PermissionKeys.ImportJobManage, false));
+            RolePermission.Create(MemberImportJobManageId, Role.MemberId, PermissionKeys.ImportJobManage, false),
+
+            RolePermission.Create(AdminExportJobViewId, Role.AdminId, PermissionKeys.ExportJobView, true),
+            RolePermission.Create(AdminExportJobManageId, Role.AdminId, PermissionKeys.ExportJobManage, true),
+            RolePermission.Create(MemberExportJobViewId, Role.MemberId, PermissionKeys.ExportJobView, false),
+            RolePermission.Create(MemberExportJobManageId, Role.MemberId, PermissionKeys.ExportJobManage, false));
     }
 }

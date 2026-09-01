@@ -1688,6 +1688,83 @@ namespace ErpApp.Infrastructure.Migrations
                     b.ToTable("SmsTemplates", "crm");
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Exports.ExportJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("ArtifactPurgedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("CancellationRequested")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("ExpiresAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("FileName")
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<long?>("FileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("HeartbeatAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("InitiatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("ProcessedCategoryCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("StorageKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("TotalCategoryCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalRowCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TruncationNotice")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArtifactPurgedAt", "ExpiresAt");
+
+                    b.HasIndex("OrganizationId", "CreatedAt");
+
+                    b.HasIndex("Status", "HeartbeatAt", "CreatedAt");
+
+                    b.ToTable("ExportJobs", "exports");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Identity.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1775,6 +1852,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("ArtifactPurgedAt")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<bool>("CancellationRequested")
                         .HasColumnType("bit");
@@ -5734,6 +5814,34 @@ namespace ErpApp.Infrastructure.Migrations
                             Id = new Guid("00000000-0000-0000-0002-00000000013c"),
                             IsGranted = false,
                             PermissionKey = "Configuration.ImportJob.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000013d"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.ExportJob.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000013e"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.ExportJob.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000013f"),
+                            IsGranted = false,
+                            PermissionKey = "Configuration.ExportJob.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000140"),
+                            IsGranted = false,
+                            PermissionKey = "Configuration.ExportJob.Manage",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });

@@ -4,6 +4,7 @@ using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Crm;
 using ErpApp.Domain.Identity;
+using ErpApp.Domain.Exports;
 using ErpApp.Domain.Imports;
 using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Payments;
@@ -104,6 +105,7 @@ public interface IAppDbContext
     DbSet<AlertSendLog> AlertSendLogs { get; }
     DbSet<ImportJob> ImportJobs { get; }
     DbSet<ImportJobRow> ImportJobRows { get; }
+    DbSet<ExportJob> ExportJobs { get; }
 
     /// <summary>
     /// Generic accessor mirroring DbContext's own Set&lt;TEntity&gt;() -- lets the generic

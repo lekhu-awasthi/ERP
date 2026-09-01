@@ -80,6 +80,22 @@ public sealed class ImportJob
     /// </remarks>
     public DateTimeOffset? HeartbeatAt { get; private set; }
 
+    /// <summary>
+    /// When retention deleted the uploaded workbook this job's <see cref="StorageKey"/> points at.
+    ///
+    /// <para><b>Added in Phase 21b, fixing a leak this phase inherited.</b> Nothing in the tree ever
+    /// deleted an import's upload -- a grep for <c>IFileStorage.DeleteAsync</c> found exactly one
+    /// caller, <c>DeleteAttachmentCommandHandler</c> -- so every workbook ever uploaded stayed on
+    /// disk forever. 21b had to build a retention sweep for its own (much larger, and far more
+    /// casually regenerated) export artifacts anyway, so the same sweep covers this too rather than
+    /// leaving a known leak in place next to a new one that is fixed.</para>
+    ///
+    /// <para>Unlike <c>ExportJob</c>, the key itself is <i>not</i> cleared: it is non-nullable here
+    /// and nothing reads it once the job is terminal, so this timestamp alone is what stops the
+    /// sweep re-picking the same row.</para>
+    /// </summary>
+    public DateTimeOffset? ArtifactPurgedAt { get; private set; }
+
     private ImportJob()
     {
     }
@@ -155,6 +171,9 @@ public sealed class ImportJob
         Status = ImportJobStatus.Cancelled;
         CompletedAt = now;
     }
+
+    /// <summary>Retention deleted the uploaded workbook -- see <see cref="ArtifactPurgedAt"/>.</summary>
+    public void MarkArtifactPurged(DateTimeOffset now) => ArtifactPurgedAt = now;
 
     public bool IsTerminal =>
         Status is ImportJobStatus.Completed or ImportJobStatus.Failed or ImportJobStatus.Cancelled;

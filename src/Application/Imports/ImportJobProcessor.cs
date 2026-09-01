@@ -1,5 +1,6 @@
 ﻿using ErpApp.Application.Common.Email;
 using ErpApp.Application.Common.Exceptions;
+using ErpApp.Application.Common.Jobs;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Application.Common.Storage;
@@ -82,6 +83,57 @@ public sealed class ImportJobProcessor(
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Deletes the uploaded workbook of any import that finished more than
+    /// <c>JobArtifactRetention.Period</c> ago (Phase 21b, Decision E).
+    ///
+    /// <para><b>This fixes a leak Phase 21a shipped.</b> Nothing in the tree ever deleted an
+    /// import's upload -- one caller of <c>IFileStorage.DeleteAsync</c> existed, and it belonged to
+    /// attachments -- so every workbook ever uploaded stayed on disk forever. Phase 21b had to build
+    /// a sweep for its own export artifacts anyway; extending it to cover this cost one method and
+    /// one nullable column, and leaving a known leak next to a freshly-fixed one would have been
+    /// indefensible. The job row and its per-row results survive; only the blob goes.</para>
+    /// </summary>
+    public async Task SweepAsync(CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow();
+        var purgeBefore = now - JobArtifactRetention.Period;
+
+        var expired = await db.ImportJobs
+            .Where(j => j.ArtifactPurgedAt == null
+                        && j.CompletedAt != null
+                        && j.CompletedAt < purgeBefore)
+            .OrderBy(j => j.CompletedAt)
+            .Take(JobArtifactRetention.SweepBatchSize)
+            .ToListAsync(cancellationToken);
+
+        if (expired.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var job in expired)
+        {
+            // Blob first, stamp second: a crash between the two re-sweeps the row and deletes an
+            // already-deleted file, which IFileStorage treats as a no-op. The reverse ordering would
+            // strand the file forever.
+            try
+            {
+                await fileStorage.DeleteAsync(job.StorageKey, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "Could not delete the upload of expired import job {ImportJobId}.", job.Id);
+                continue;
+            }
+
+            job.MarkArtifactPurged(now);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Retention purged {PurgedCount} expired import upload(s).", expired.Count);
     }
 
     /// <summary>
