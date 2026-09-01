@@ -6,6 +6,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Phase 21a (Decision D): the bulk-import runner lives here, so the workbook reader must
+         too. Api's own ClosedXML reference (ReportSpreadsheetExporter) is write-only and out of
+         reach of a background service, which cannot depend on Api. Kept behind Application's
+         IImportFileReader so no spreadsheet type crosses into Application. -->
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
     <PackageReference Include="MailKit" Version="4.17.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />

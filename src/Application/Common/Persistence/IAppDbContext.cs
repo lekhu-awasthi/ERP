@@ -1,9 +1,10 @@
-using ErpApp.Domain.Accounting;
+﻿using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Crm;
 using ErpApp.Domain.Identity;
+using ErpApp.Domain.Imports;
 using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Payments;
 using ErpApp.Domain.Purchasing;
@@ -101,6 +102,8 @@ public interface IAppDbContext
     DbSet<SmsCreditLedgerEntry> SmsCreditLedgerEntries { get; }
     DbSet<AlertDefinition> AlertDefinitions { get; }
     DbSet<AlertSendLog> AlertSendLogs { get; }
+    DbSet<ImportJob> ImportJobs { get; }
+    DbSet<ImportJobRow> ImportJobRows { get; }
 
     /// <summary>
     /// Generic accessor mirroring DbContext's own Set&lt;TEntity&gt;() -- lets the generic

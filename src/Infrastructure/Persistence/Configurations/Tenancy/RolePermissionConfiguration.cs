@@ -1,4 +1,4 @@
-using ErpApp.Application.Common.Security;
+﻿using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -489,6 +489,14 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminAlertSendLogViewId = Guid.Parse("00000000-0000-0000-0002-000000000137");
     private static readonly Guid MemberAlertSendLogViewId = Guid.Parse("00000000-0000-0000-0002-000000000138");
 
+    // Phase 21a (Bulk import, FR-2.9). Admin-only for both -- see PermissionKeys.ImportJobManage /
+    // ImportJobView for the derivation (mass master-data mutation on one side, an error report that
+    // quotes uploaded PAN/phone/email back to the reader on the other).
+    private static readonly Guid AdminImportJobViewId = Guid.Parse("00000000-0000-0000-0002-000000000139");
+    private static readonly Guid AdminImportJobManageId = Guid.Parse("00000000-0000-0000-0002-00000000013a");
+    private static readonly Guid MemberImportJobViewId = Guid.Parse("00000000-0000-0000-0002-00000000013b");
+    private static readonly Guid MemberImportJobManageId = Guid.Parse("00000000-0000-0000-0002-00000000013c");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -883,6 +891,10 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(MemberAlertDefinitionViewId, Role.MemberId, PermissionKeys.AlertDefinitionView, false),
             RolePermission.Create(MemberAlertDefinitionManageId, Role.MemberId, PermissionKeys.AlertDefinitionManage, false),
             RolePermission.Create(AdminAlertSendLogViewId, Role.AdminId, PermissionKeys.AlertSendLogView, true),
-            RolePermission.Create(MemberAlertSendLogViewId, Role.MemberId, PermissionKeys.AlertSendLogView, false));
+            RolePermission.Create(MemberAlertSendLogViewId, Role.MemberId, PermissionKeys.AlertSendLogView, false),
+            RolePermission.Create(AdminImportJobViewId, Role.AdminId, PermissionKeys.ImportJobView, true),
+            RolePermission.Create(AdminImportJobManageId, Role.AdminId, PermissionKeys.ImportJobManage, true),
+            RolePermission.Create(MemberImportJobViewId, Role.MemberId, PermissionKeys.ImportJobView, false),
+            RolePermission.Create(MemberImportJobManageId, Role.MemberId, PermissionKeys.ImportJobManage, false));
     }
 }

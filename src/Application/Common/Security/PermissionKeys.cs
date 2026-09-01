@@ -1,4 +1,4 @@
-namespace ErpApp.Application.Common.Security;
+﻿namespace ErpApp.Application.Common.Security;
 
 /// <summary>
 /// Stable permission-key catalog (architecture-spec.md §3.7's "PermissionKey a stable string"),
@@ -464,4 +464,25 @@ public static class PermissionKeys
     public const string AlertDefinitionView = "Configuration.AlertDefinition.View";
     public const string AlertDefinitionManage = "Configuration.AlertDefinition.Manage";
     public const string AlertSendLogView = "Configuration.AlertSendLog.View";
+
+    // Phase 21a (Bulk import, FR-2.9 / NFR-4.3). Admin-only for both keys.
+    //
+    // Manage is the easier half of the derivation: enqueuing an import mutates master data at
+    // scale, in one action, under an identity the background runner re-assumes -- a strictly
+    // larger capability than the per-record Catalog.Product.Manage / Contacts.Contact.Manage keys
+    // it then exercises. It sits with Phase 20d/20e's control-plane keys, not with the
+    // Member-View-by-default lookup norm. Note this key does not *replace* the per-entity key:
+    // because the runner sends the ordinary Create/Update commands through the normal pipeline,
+    // AuthorizationBehavior still re-checks Catalog.Product.Manage (or Contacts.Contact.Manage) on
+    // every single row, at execution time. A user with ImportJobManage and nothing else imports
+    // nothing.
+    //
+    // View is Admin-only for a reason specific to this feature rather than by symmetry: a job's
+    // row-level error report quotes the uploaded file's own values back to the reader ("No record
+    // with code 'C0007' exists", "Contact group 'VIP' does not exist"), and a Customer/Supplier
+    // upload carries PAN, phone and email. The job list is therefore a partial view of whatever
+    // contact identity data was uploaded, which is the same exposure that makes the flat
+    // per-transaction registers Admin-only.
+    public const string ImportJobView = "Configuration.ImportJob.View";
+    public const string ImportJobManage = "Configuration.ImportJob.Manage";
 }

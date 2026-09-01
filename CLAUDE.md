@@ -1,4 +1,4 @@
-# ErpApp
+﻿# ErpApp
 
 A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQRS (MediatR) on .NET 10 (LTS), Angular 21 (LTS) frontend, SQL Server via EF Core.
 
@@ -37,6 +37,13 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
     than narrowed, by having the job read through a purpose-built service taking an explicit
     `OrganizationId` instead of sending a MediatR request
   - `phase-20f` — before gating anything behind a tenant feature flag: check whether a flag-*off* tenant can still function with the gate on. `MultipleWarehouses` had to become a **cap at one** rather than an on/off block, because nothing seeds a default Warehouse at Organization creation and Invoice/PurchaseBill both require a `WarehouseId` — blocking creation outright would have left such a tenant permanently unable to invoice. A conditional gate like that can't ride a marker-interface pipeline behavior and belongs in the handler. Also the precedent for sizing a "sweep" phase down to what actually exists: only 2 of 7 flags had a surface to gate, and *both* of the FR's own worked examples were unbuildable
+  - `phase-21a` — before adding a background job that **writes**, or a second one of any kind: 20e's
+    "send no MediatR request" escape hatch is unavailable to a write path, and the answer is the
+    scoped `IJobActingUser` (an `HttpContext` always wins, so a job identity can never serve a
+    request), which buys per-row permission re-checking at execution time for free. Also the
+    claim-then-act idiom applied at *row* granularity, why partial success must be a `Completed`
+    job rather than a `Failed` one, and — before putting a concurrency token on any row a background
+    job writes repeatedly — the cancel-versus-progress conflict that wedged a running import
   - `phase-7`'s addendum (bottom of the file) — before adding a new tenant-wide default GL account or changing which account a posting rule debits/credits: grep for the field name across every posting rule that's supposed to read it. `DefaultInventoryAccountId` sat completely unread by `PurchaseBillPostingRule` for 12 phases (Goods purchases debited Purchase Expense instead), silently double-counting Cost of Goods Sold in `IncomeStatementQueryHandler`'s Net Profit for any tenant whose Purchase account was Expense-typed — the obvious/default choice, caught only by a later phase's live E2E, not by any test or `dotnet build`
 
 ## Stack & conventions
@@ -113,6 +120,10 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `PurchaseBillPostingRule` debited the whole purchase to a Purchase (Expense) account, never an Inventory (Asset) account, until the post-Phase-19 fix (`docs/phase-7-status.md`'s addendum) made Goods lines debit `TenantSettings.DefaultInventoryAccountId` instead — Service lines still debit Purchase Expense. A report/ratio computation that wants a live Inventory *value* must still sum `StockLedgerEntry.QuantityRemaining × UnitCost` (the same FIFO-layer valuation Stock Ageing/Product Profitability use), not `TenantSettings.DefaultInventoryAccountId`'s GL balance — that balance is now a real perpetual-inventory asset balance post-fix, but nothing re-derived Ratio Analysis's Inventory figure to read it since the FIFO-sum approach already works and needs no further change. Caught only by a live Trial Balance cross-check against a freshly seeded org, not by a unit test that happened to avoid PurchaseBill activity. See `docs/phase-19-status.md`'s bug #1.
 - A third-party verification API's *test/dummy* credentials that "always pass" (e.g. Cloudflare Turnstile's documented `1x0000000000000000000000000000000AA` secret key) accept literally any input value, not just well-formed ones — hitting the real endpoint with a bogus token under that secret still returns `success: true`, so it cannot be used to prove a server-side check actually *rejects* a bad token. Proving the negative path needs the vendor's matching *always-fails* dummy credential (Turnstile: `2x0000000000000000000000000000000AA`) swapped in temporarily. See `docs/phase-20g-status.md`.
 - Anything scheduled or dated for a tenant must be computed on the **Nepal wall clock (UTC+05:45)**, never on UTC — this is a Nepal-only product and `Organization` has no timezone field, so `Domain/Common/NepalTime` is the single conversion point (a fixed offset, deliberately not `TimeZoneInfo`: Nepal has had no DST since 1986, and the tz id differs between Windows and Linux so a `FindSystemTimeZoneById` miss throws on whichever platform the code was not written on). The :45 offset makes the failure mode subtle: between 18:15 and 24:00 UTC the Nepal calendar date is already *tomorrow*, so a UTC-derived "today" silently keys the wrong day. A test that only asserts an evening-UTC case passes under a naive UTC implementation by luck — assert an after-local-midnight case too (see `AlertDispatcherTests.Uses_the_Nepal_local_day_and_time_not_UTC`). See `docs/phase-20e-status.md`.
+- **An optimistic-concurrency token (`IsRowVersion()`) on a row that a background job writes repeatedly is a trap whenever a *user* can also write that row.** SQL Server bumps a rowversion on any UPDATE, so a user action against a job row (Phase 21a: cancelling a running import) invalidates the runner's in-memory token and its very next progress write dies with `DbUpdateConcurrencyException` — leaving the job wedged mid-run until its lease expires, with the app still serving HTTP perfectly happily. **The InMemory provider does not enforce concurrency tokens at all**, so no unit test can reach this; it surfaced only in manual E2E. Before adding a token, ask who *else* writes the row. In `ImportJob`'s case the answer was to delete it: job-level claiming was never the correctness mechanism — `ImportJobRow`'s `(ImportJobId, RowNumber)` unique index is, exactly as `AlertSendLog`'s index (not any lock) is what makes a send happen once. Two runners on one job then merely duplicate *effort*, never a record. See `docs/phase-21a-status.md`'s Decision C, Bug 1.
+- A background job that **writes** cannot use Phase 20e's "send no MediatR request" escape hatch, because every rule about creating a record correctly (numbering, FK checks, validation, audit) lives in the Create/Update handlers. Phase 21a's answer: reuse the commands and re-establish the *initiating user's* identity through a scoped `IJobActingUser` that `CurrentUserService` consults **only when there is no `HttpContext` at all** — an HTTP request's JWT wins unconditionally, so a job identity can never serve a request even if something in that scope called `Assume`. The payoff is that `AuthorizationBehavior` then **re-checks the permission on every row at execution time** for free (a user whose grant was revoked between enqueue and run has the job stopped), and `AuditBehavior` attributes every imported record to them. Note the corollary: a feature-level `*.Manage` key does **not** replace the per-entity key the rows still exercise.
+- A handler that aggregates counts **in the database** (`GroupBy(...).Select(g => g.Count())`) must run *after* the `SaveChangesAsync` that persists the statuses it is counting — an outcome still sitting in the change tracker is invisible to a store-side aggregate, so the row is counted as neither. Bit Phase 21a's job finalisation, where an interrupted row was reported as neither succeeded nor failed. Caught by a unit test only because the test asserted the failed *count*, not just the row's own status.
+- ClosedXML silently returns **empty text for a hand-rolled `t="inlineStr"` cell**, and ignores `<si>` entries past a stale `uniqueCount` on `<sst>`. Both matter only when *generating* a test .xlsx by hand: the symptom is a file whose headers "aren't there" (or whose new values come back blank) with no error anywhere. Build import fixtures by filling the app's own generated template — parts written by ClosedXML round-trip through ClosedXML — rather than synthesising a package from scratch. See `docs/phase-21a-status.md`'s testing section.
 - A background job that needs to do something exactly once must **write its claim row and commit it before performing the external side effect**, under a unique index on the occurrence key — not after, and not "check then act". That one ordering is simultaneously the idempotency-across-process-restart mechanism, the multi-instance mechanism (the losing instance's insert violates the index; catch `DbUpdateException`, detach the entry, skip) and the at-most-once guarantee. Note the InMemory provider **does not enforce unique indexes**, so the race path is unreachable in unit tests and has to be verified against real SQL Server — the already-claimed pre-check is what the tests can cover. See `AlertSendLog`/`AlertDispatcher` and `docs/phase-20e-status.md`'s Decision C.
 - A singleton `BackgroundService` **cannot inject a scoped service** (`IAppDbContext` and `IEmailSender` are both `AddScoped` here) — injecting one either fails at startup or pins it for the process lifetime. Take `IServiceScopeFactory` and create a scope per tick. Two companions to the same rule: read options through `IOptionsMonitor`, not `IOptions` (see the caching gotcha below — a long-lived singleton is exactly what it bites), and never let a tick's exception escape `ExecuteAsync`, or the loop stops for the rest of the process's life while the app keeps serving HTTP perfectly happily. See `AlertSchedulerHostedService`.
 - `IOptions<T>` (unlike `IOptionsSnapshot<T>`/`IOptionsMonitor<T>`) caches its bound value at first resolution and does not observe a later `dotnet user-secrets set` — even though the user-secrets JSON file is a reloading config source, a singleton service holding `IOptions<T>` keeps serving the value it saw at startup. Changing a user-secret mid-session (e.g. to flip a verification service between pass/fail for manual E2E) requires restarting the Api process, not just re-running `dotnet user-secrets set`. See `docs/phase-20g-status.md`.
@@ -125,39 +136,47 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 > `docs/phase-N-status.md` and the roadmap's index table; never append essay-length phase
 > write-ups here, and never keep more than the latest one or two phases in this section.
 
-**Phase 20e (Alert Scheduler, FR-11.1) is complete — and with it, all of Phase 20.** This codebase
-now has **background-job infrastructure**: `AlertSchedulerHostedService` (Infrastructure) owns a
-`PeriodicTimer` built from `TimeProvider`, creates a **DI scope per tick** (`IAppDbContext` and
-`IEmailSender` are both scoped), reads its interval through `IOptionsMonitor`, and swallows tick
-failures so the loop survives — and holds **no business decision**, all of which live in
-`IAlertDispatcher` (Application) behind an injected clock. That split is why the suite runs on
-`FakeTimeProvider` with no `Task.Delay` anywhere. **Decision A** was to hand-roll rather than take
-Hangfire/Quartz/Coravel: durable schedule state is already tenant data, and catch-up plus
-multi-instance safety fall out of the `AlertSendLog` unique index the phase needs regardless.
-**Decision B is the one to carry forward — the anticipated authentication-bypass surface was not
-built, because it was not needed**: the dispatcher sends no MediatR request at all, reading through
-`IAlertContentBuilder` implementations that take an explicit `OrganizationId`, so
-`CurrentUserService` still throws outside HTTP and no system principal or ambient user exists
-anywhere. Access control sits entirely at definition time (Admin-only
-`Configuration.AlertDefinition.*`), because the real risk is **egress** to unvalidated free-text
-recipients — mitigated further by keeping alert bodies to bounded aggregates (no PAN, contact names,
-or per-transaction rows). **Decision C** is at-most-once, ledger-first: the send-log row is committed
-*before* SMTP, keyed `(definition, tenant-local occurrence date, recipient)`. Scheduling is on the
-Nepal wall clock (UTC+05:45), live-confirmed. Confirm-live closed every open question (Alert Type has
-exactly two options, Medium one, Schedule one plus an HH:mm picker), ruled out both
-`CustomTemplateType.Email` and a "Run now" action, and surfaced a screen the module scan had missed
-entirely — **Email Logs** — which turned the ledger from testing scaffolding into a real feature.
-Tests: Domain.UnitTests 177 (+18), Application.UnitTests 351 (+32), Angular 7 (unchanged);
-`dotnet build`/`ng build`/`tsc --noEmit` clean. Manual E2E against a fresh Organization with real
-SQL Server and real SMTP proved the local-minute fire, no double send, restart idempotency, the
-unique index rejecting a duplicate claim, and a real SMTP failure recorded and not retried. Full
-reasoning — including what Phase 21 inherits from the runner and what it still must add — in
-`docs/phase-20e-status.md`.
+**Phase 21a (Async job foundation + bulk import, FR-2.9 / NFR-4.3) is complete.** Phase 21 was split
+into three independently shippable sub-phases (21a shipped; 21b full-tenant backup/export, 21c
+migrated tax-register import — see `docs/roadmap.md`). This is the codebase's **second** background
+job: `ImportJobRunnerHostedService` copies `AlertSchedulerHostedService`'s shape rather than
+extending it (**Decision A** — alerts and imports share a shape and nothing else, and a generic job
+framework for two consumers, one of which does not exist yet, was explicitly not built), adding only
+a drain-per-tick loop and a 5-second poll because a user is watching a progress bar.
 
-**Next up: Phase 21 — Import/Export & backup (FR-2.8/2.9/2.10, NFR-4.3).** It reuses this phase's
-hosted-service shape, per-tick scoping and claim-under-unique-index idiom, but must add what an
-alert never needed: a work queue (import/export is on-demand, not scheduled), progress and
-cancellation, payload storage, and completion notification to the initiating user — which, unlike an
-alert, does have a specific user to notify, so Decision B's "no ambient identity" default gets
-re-examined for that narrow purpose. See `docs/phase-20e-status.md`'s handoff section and
-`docs/roadmap.md`'s Phase 21 brief.
+**Decision B is the phase, and it inverts 20e's central call.** An import *writes*, so "send no
+MediatR request" is not available: every rule about creating a Product or Contact correctly lives in
+the existing Create/Update handlers. The job therefore **reuses those commands** through the full
+six-behavior pipeline, acting as the user who enqueued it via a new scoped `IJobActingUser`.
+`CurrentUserService` consults it only when there is no `HttpContext`, so a job identity can never
+serve a request; and because the pipeline runs, **`AuthorizationBehavior` re-checks the permission on
+every row at execution time** and `AuditBehavior` attributes every imported record to that user.
+**Decision C** is at-most-once *per row*: an `ImportJobRow` is committed under a unique index on
+`(ImportJobId, RowNumber)` before the row's command is sent, so a crash at row 500 of 1,000 resumes
+at 501 and creates nothing twice — partial success is a **`Completed`** job, and `Failed` means only
+that the file could not be processed. **Decision D** moved ClosedXML into Infrastructure behind
+`IImportFileReader`, keeping all mapping/validation in Application over a plain
+headers-plus-strings `ImportSheet`; **Decision E** ships in-app polling *and* a completion email to
+the initiator's own registered address (no egress surface, unlike 20e's free-text recipients).
+
+Confirm-live read all seven of the reference product's templates and its client bundle, which
+corrected the brief on a point that would have produced the wrong importer — the product's "Contact"
+upload type is `ContactPersonnel`, not `Contact` — and established that update mode matches on the
+**Code** column and that its own wizard is a synchronous four-step dry-run/confirm flow that cannot
+satisfy NFR-4.3. Product, Customer and Supplier ship (create + update); Account, Product Category,
+Account Group and ContactPersonnel are deferred as mechanical follow-up. Permission keys
+`Configuration.ImportJob.View`/`.Manage` are Admin-only, View because the row-error report quotes
+uploaded PAN/phone/email back to the reader. Tests: Domain.UnitTests 185 (+8),
+Application.UnitTests 388 (+37), Angular 7 (unchanged); `dotnet build`/`ng build`/`ng test`/
+`tsc --noEmit` clean. Manual E2E against fresh Organizations with real SQL Server and real uploaded
+`.xlsx` files proved create/update/partial-success/tenant-isolation/resume/cancel, the unique index,
+and both 403s — and found two real bugs (a concurrency token that made the user's own Cancel wedge
+the running job; counts computed before they were committed). Full reasoning in
+`docs/phase-21a-status.md`.
+
+**Next up: Phase 21b — full-tenant backup/export (FR-2.8).** It reuses 21a's runner, its
+`ImportTemplateDefinition`/`ImportTemplateWriter` pair and the existing ClosedXML export path, and
+must add an *output* payload plus a decision on whether it joins `ImportJobs` or gets its own table
+(deliberately not pre-decided). Note 21a's confirm-live finding that **the reference product has no
+backup screen at all** — 21b is designing, not mirroring. See `docs/phase-21a-status.md`'s handoff
+section and `docs/roadmap.md`'s Phase 21 briefs.

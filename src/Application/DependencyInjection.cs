@@ -1,8 +1,10 @@
-using System.Reflection;
+﻿using System.Reflection;
 using ErpApp.Application.Accounting;
 using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Alerts;
+using ErpApp.Application.Common.Security;
 using ErpApp.Application.Common.Trees;
+using ErpApp.Application.Imports;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
 using ErpApp.Application.Inventory.Posting;
@@ -145,6 +147,26 @@ public static class DependencyInjection
         services.AddScoped<IAlertContentBuilder, DailyTransactionSummaryContentBuilder>();
         services.AddScoped<IAlertContentBuilder, CrmReportContentBuilder>();
         services.AddScoped<IAlertDispatcher, AlertDispatcher>();
+
+        // Phase 21a (Bulk import, FR-2.9) -- IEntityImporter is the same one-implementation-per-enum-
+        // member shape as IAlertContentBuilder and IGlPostingRule<T>: ImportJobProcessor resolves
+        // the right one from the injected IEnumerable, so adding an entity type is a new class plus
+        // one line here. ContactImporter is registered twice against the same class because Customer
+        // and Supplier are one Contact aggregate discriminated by ContactType (see its doc comment).
+        //
+        // Scoped, not singleton, and load-bearing for the same reason as the alert builders: the
+        // hosted service creates a scope per job, and a fresh scope per row inside it -- the row
+        // scope is where IJobActingUser assumes the initiating user (Decision B).
+        services.AddScoped<IEntityImporter, ProductImporter>();
+        services.AddScoped<IEntityImporter>(sp => ContactImporter.ForCustomers(
+            sp.GetRequiredService<Common.Persistence.IAppDbContext>(), sp.GetRequiredService<ISender>()));
+        services.AddScoped<IEntityImporter>(sp => ContactImporter.ForSuppliers(
+            sp.GetRequiredService<Common.Persistence.IAppDbContext>(), sp.GetRequiredService<ISender>()));
+        services.AddScoped<IImportJobProcessor, ImportJobProcessor>();
+
+        // The acting identity for background writes. Scoped and inert in every HTTP scope -- see
+        // IJobActingUser for why an HTTP request can never be served by it.
+        services.AddScoped<IJobActingUser, JobActingUser>();
 
         // Phase 7's real FIFO ledger engine (architecture-spec.md §3.5) and the stock-decrement
         // policy it backs -- replaces Phase 5's AlwaysOkStockAvailabilityPolicy stub.

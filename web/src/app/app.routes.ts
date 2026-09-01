@@ -1,4 +1,4 @@
-import { Routes } from '@angular/router';
+﻿import { Routes } from '@angular/router';
 
 import { authGuard } from './core/auth/auth.guard';
 
@@ -133,6 +133,12 @@ export const routes: Routes = [
     path: 'organizations/:id/configuration/alerts',
     loadComponent: () =>
       import('./features/configuration/alert-list-page/alert-list-page').then((m) => m.AlertListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/configuration/import',
+    loadComponent: () =>
+      import('./features/configuration/import-page/import-page').then((m) => m.ImportPage),
     canActivate: [authGuard],
   },
   {
