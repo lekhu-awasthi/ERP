@@ -43,4 +43,17 @@ public enum DocumentType
     /// layer (docs/phase-17-status.md). Same non-numbered shape as OpeningBalance above --
     /// OpeningStockLine is keyed by (OrganizationId, ProductId, WarehouseId).</summary>
     OpeningStock,
+
+    /// <summary>
+    /// Phase 21b (FR-2.8) -- <c>Audit.DocumentType</c> for a full-tenant data export. Not a
+    /// document in the accounting sense at all: nothing numbers it, nothing posts it, and no
+    /// GlJournalEntry or StockLedgerEntry ever carries it.
+    ///
+    /// <para>It exists solely so <c>AuditBehavior</c> can attribute the largest single data-egress
+    /// action in the product to the user who triggered it -- generating an export puts every
+    /// product, contact, account, ledger line and stock movement the tenant has into one
+    /// downloadable file, which is exactly the kind of action an audit trail is for. Appended last,
+    /// so no persisted ordinal moves.</para>
+    /// </summary>
+    DataExport,
 }

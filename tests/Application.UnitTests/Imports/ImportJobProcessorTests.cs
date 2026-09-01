@@ -547,6 +547,59 @@ public class ImportJobProcessorTests
         Assert.False(await host.NewProcessor().ProcessNextAsync(CancellationToken.None));
     }
 
+    /// <summary>
+    /// Phase 21b's retention sweep, applied to the leak Phase 21a shipped: nothing in the tree ever
+    /// deleted an import's uploaded workbook, so every one stayed on disk forever. The job row and
+    /// its per-row results survive the purge -- only the blob goes.
+    /// </summary>
+    [Fact]
+    public async Task Retention_deletes_a_finished_imports_uploaded_file()
+    {
+        using var host = new ImportTestHost(Now);
+        var db = host.NewDbContext();
+        var tenant = await ImportTestSeed.SeedAsync(db);
+        var jobId = await ImportTestSeed.QueueJobAsync(db, tenant, ImportEntityType.Product, ImportMode.CreateNew, Now, host.FileStorage);
+
+        host.FileReader.Returns(ImportTestSeed.ProductHeaders, ImportTestSeed.ProductRow("Salted Cashew"));
+        await host.NewProcessor().ProcessNextAsync(CancellationToken.None);
+
+        var storageKey = (await LoadJobAsync(host, jobId)).StorageKey;
+        Assert.True(host.FileStorage.Contains(storageKey));
+
+        // A day after the import finished, the upload is still there.
+        host.Clock.SetUtcNow(Now + TimeSpan.FromDays(1));
+        await host.NewProcessor().SweepAsync(CancellationToken.None);
+        Assert.True(host.FileStorage.Contains(storageKey));
+
+        host.Clock.SetUtcNow(Now + TimeSpan.FromDays(7) + TimeSpan.FromMinutes(1));
+        await host.NewProcessor().SweepAsync(CancellationToken.None);
+
+        Assert.False(host.FileStorage.Contains(storageKey));
+
+        var job = await LoadJobAsync(host, jobId);
+        Assert.NotNull(job.ArtifactPurgedAt);
+        Assert.Equal(ImportJobStatus.Completed, job.Status);
+        Assert.Single(await LoadRowsAsync(host, jobId));
+    }
+
+    /// <summary>A job that is still queued or running has an upload the runner has not read yet;
+    /// deleting it would be the one way this sweep could break an import.</summary>
+    [Fact]
+    public async Task Retention_leaves_an_unfinished_imports_upload_alone()
+    {
+        using var host = new ImportTestHost(Now);
+        var db = host.NewDbContext();
+        var tenant = await ImportTestSeed.SeedAsync(db);
+        var jobId = await ImportTestSeed.QueueJobAsync(db, tenant, ImportEntityType.Product, ImportMode.CreateNew, Now, host.FileStorage);
+
+        host.Clock.SetUtcNow(Now + TimeSpan.FromDays(30));
+        await host.NewProcessor().SweepAsync(CancellationToken.None);
+
+        var job = await LoadJobAsync(host, jobId);
+        Assert.Null(job.ArtifactPurgedAt);
+        Assert.True(host.FileStorage.Contains(job.StorageKey));
+    }
+
     private static async Task<ImportJob> LoadJobAsync(ImportTestHost host, Guid jobId) =>
         await host.NewDbContext().ImportJobs.SingleAsync(j => j.Id == jobId);
 

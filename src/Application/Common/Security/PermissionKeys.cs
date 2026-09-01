@@ -485,4 +485,32 @@ public static class PermissionKeys
     // per-transaction registers Admin-only.
     public const string ImportJobView = "Configuration.ImportJob.View";
     public const string ImportJobManage = "Configuration.ImportJob.Manage";
+
+    // Phase 21b (Full-tenant data export, FR-2.8 / NFR-4.3). Admin-only for both keys, and this is
+    // the least borderline derivation in the file.
+    //
+    // Manage generates an artifact containing every Product, Contact, Account, GL line and stock
+    // movement in the tenant, in one downloadable file -- the largest single data-egress action the
+    // product has. That is a strictly *higher* bar than ImportJobManage (already Admin-only), not a
+    // lower one: an import is bounded by what the uploader already knows, whereas an export hands
+    // out everything the tenant knows. Note there is no "report Export" key to follow as precedent
+    // -- every existing /reports/{x}/export endpoint rides its own report's View key, which works
+    // only because each covers one report. A full-tenant export spans many reports' worth of data
+    // at once, so there is no single report key it could ride, and it needs its own.
+    //
+    // View is Admin-only for two independent reasons, either of which would be sufficient. First,
+    // the same PAN/phone/email exposure that makes ImportJobView Admin-only: the Contacts sheet
+    // carries contact identity for the whole tenant. Second, and unlike the import case, View here
+    // is not merely a list -- it gates the *download*, so it is the key that actually controls
+    // whether the file leaves the system. Splitting download onto a third key was considered and
+    // rejected: a role that may generate a full-tenant dump but not read it is not a role anyone
+    // would configure, and the extra key would only make the grid's Download button unexplainable.
+    //
+    // Who may download (Decision F): any Admin of the *same organization*, not only the initiator.
+    // The artifact contains nothing an org Admin cannot already read screen by screen, and
+    // initiator-only would have meant a second Admin cannot retrieve a colleague's export while the
+    // colleague is on leave -- a support burden buying no real containment. Cross-organization is a
+    // hard no, and is what the negative tests prove.
+    public const string ExportJobView = "Configuration.ExportJob.View";
+    public const string ExportJobManage = "Configuration.ExportJob.Manage";
 }

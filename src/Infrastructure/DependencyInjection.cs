@@ -5,9 +5,12 @@ using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Application.Common.Sms;
 using ErpApp.Application.Common.Storage;
+using ErpApp.Application.Exports;
 using ErpApp.Application.Imports;
 using ErpApp.Infrastructure.Alerts;
+using ErpApp.Infrastructure.Exports;
 using ErpApp.Infrastructure.Imports;
+using ErpApp.Infrastructure.Jobs;
 using ErpApp.Infrastructure.BotProtection;
 using ErpApp.Infrastructure.Email;
 using ErpApp.Infrastructure.Identity;
@@ -78,13 +81,23 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(AlertSchedulerOptions.SectionName));
         services.AddHostedService<AlertSchedulerHostedService>();
 
-        // Phase 21a (Bulk import, FR-2.9 / NFR-4.3) -- this codebase's second background job. A
-        // separate hosted service from the alert scheduler on purpose; see
-        // ImportJobRunnerHostedService's own doc comment (Decision A).
+        // Phase 21a (Bulk import, FR-2.9 / NFR-4.3) -- this codebase's second background job, and
+        // Phase 21b (Full-tenant data export, FR-2.8) -- its third. Both are queue-driven and
+        // user-initiated, so unlike the alert scheduler above they share one loop implementation
+        // (QueuedJobRunnerHostedService) closed over their own processor and their own options.
+        // Separate hosted services rather than one loop over both, so a long import cannot hold up
+        // an export or the reverse; the alert scheduler is deliberately left alone, because a
+        // schedule-driven idempotent job is a genuinely different shape. See
+        // QueuedJobRunnerHostedService's doc comment and docs/phase-21b-status.md, Decision C.
         services.AddScoped<IImportFileReader, ClosedXmlImportFileReader>();
         services.AddOptions<ImportJobRunnerOptions>()
             .Bind(configuration.GetSection(ImportJobRunnerOptions.SectionName));
-        services.AddHostedService<ImportJobRunnerHostedService>();
+        services.AddHostedService<QueuedJobRunnerHostedService<IImportJobProcessor, ImportJobRunnerOptions>>();
+
+        services.AddScoped<IExportWorkbookWriter, ClosedXmlExportWorkbookWriter>();
+        services.AddOptions<ExportJobRunnerOptions>()
+            .Bind(configuration.GetSection(ExportJobRunnerOptions.SectionName));
+        services.AddHostedService<QueuedJobRunnerHostedService<IExportJobProcessor, ExportJobRunnerOptions>>();
 
         services.AddOptions<TurnstileOptions>()
             .Bind(configuration.GetSection(TurnstileOptions.SectionName))

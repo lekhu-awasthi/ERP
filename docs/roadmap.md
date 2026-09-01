@@ -45,6 +45,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 20f | Tenant feature-flag enforcement (FR-2.6): `IRequireFeature` + `FeatureGateBehavior` (4th pipeline behavior) make `TenantSubscription`'s flags a real gate, `FeatureNotEnabledException` → 403 naming the feature. Investigation found only 2 of 7 flags have a surface to gate (`TrackInventory`, `MultipleWarehouses`) — both of FR-2.6's own examples are unbuildable here; scope reduced accordingly. MultipleWarehouses is a **cap at one**, not a block (nothing seeds a default warehouse and Invoice requires one). Read-only Subscription & Features screen; flags stay immutable, live-confirmed as matching the reference product | `phase-20f-status.md` |
 | 20e | Alert Scheduler (FR-11.1) — this codebase's **first background-job infrastructure**: hand-rolled `AlertSchedulerHostedService` (`BackgroundService` + `PeriodicTimer` + `TimeProvider`, scope per tick, `IOptionsMonitor`) driving `IAlertDispatcher`; `AlertDefinition` + an `AlertSendLog` ledger whose unique index on (definition, local occurrence date, recipient) delivers idempotency, multi-instance safety and at-most-once delivery at once. **No authentication-bypass surface was introduced** — the job sends no MediatR request, reading through `IAlertContentBuilder` with an explicit `OrganizationId` instead, so `CurrentUserService` still throws outside HTTP. Nepal-local (UTC+05:45) scheduling. Confirm-live closed every open question and surfaced a screen the scan had missed (Email Logs) | `phase-20e-status.md` |
 | 21a | Async job foundation + bulk import (FR-2.9, NFR-4.3): durable `ImportJob`/`ImportJobRow` queue driven by a second `BackgroundService` (`ImportJobRunnerHostedService`), template-based .xlsx import for Product/Customer/Supplier in create and update modes with per-row error reporting, cancellation and completion notification. **The first background job that writes**, so it answers the identity question 20e sidestepped: it reuses the real Create/Update commands through the full pipeline under a scoped `IJobActingUser`, which means `AuthorizationBehavior` **re-checks permission on every row at execution time**; an `HttpContext` always wins, so a job identity can never serve a request. At-most-once **per row** via a `(ImportJobId, RowNumber)` unique index — partial success is a `Completed` job, `Failed` means the file could not be processed at all. E2E found and fixed a concurrency token that made the user's own Cancel wedge the running job | `phase-21a-status.md` |
+| 21b | Full-tenant data export (FR-2.8, NFR-4.3): tenant-scoped `ExportJob` producing one multi-sheet `.xlsx` over FR-2.8's five named categories, downloaded through an authenticated endpoint. **Decision A is the phase** — FR-2.8 says "backup" and this codebase has no restore path, so what ships is an honest **export** that says so on the button, on the workbook's own Summary sheet and in the completion email. **Decision D restores 20e's default that 21a had to abandon**: an export only reads, so it runs with *no ambient identity at all* — the permission check and the `Audit` row (new `DocumentType.DataExport`) live on the enqueue command in a real HTTP request. **Decision C** answers 21a's deferred job-table question: separate tables, shared loop — 21a's runner became `QueuedJobRunnerHostedService<TProcessor, TOptions>` over a new `IQueuedJobProcessor` seam (a shared timer host, not a job framework). **Decision E** adds 7-day retention via `SweepAsync` on that seam and fixes the blob leak 21a shipped. Stated 25,000-row-per-sheet cap, disclosed in three places when hit | `phase-21b-status.md` |
 
 ---
 
@@ -255,7 +256,7 @@ server-side check rejects a bad token).
 ## Phase 21 — Import/Export & backup
 **Goal:** FR-2.8/2.9/2.10 — the data-migration story, on Phase 20's async-job infrastructure.
 
-**Split into three independently shippable sub-phases; one sub-phase = one session. 21a is COMPLETE.**
+**Split into three independently shippable sub-phases; one sub-phase = one session. 21a and 21b are COMPLETE.**
 The original four numbered items are three deliverables, not one phase: 21b and 21c both need a job
 runner, and 21a is the only one that forces the identity decision — so it went first, alone, the same
 reasoning that put 20e last in Phase 20.
@@ -278,23 +279,46 @@ brief on one point that would have produced the wrong importer: the product's "C
 is `ContactPersonnel`, not `Contact`. Account / Product Category / Account Group / ContactPersonnel
 are deferred as mechanical follow-up (the two tree types additionally need intra-file parent ordering).
 
-### 21b. Full-tenant backup/export (FR-2.8)
-Smallest of the three; reuses 21a's runner, its `ImportTemplateDefinition`/`ImportTemplateWriter` pair
-and the existing ClosedXML export path. Must add an *output* payload and decide whether it joins
-`ImportJobs` or gets its own table — deliberately not pre-decided in 21a. **Note from 21a's
-confirm-live pass: the reference product has no backup screen at all**, so this is design work, not
-mirroring. A read-only job may not need `IJobActingUser`; 20e's "no ambient identity" default still
-applies to jobs that only read.
+### 21b. Full-tenant data export (FR-2.8) — **COMPLETE**, see `phase-21b-status.md`
+A tenant-scoped `ExportJob` produces one multi-sheet `.xlsx` — Summary plus FR-2.8's five named
+categories (products, contacts, chart of accounts, ledger transactions, stock movements) — downloaded
+through an authenticated, permission-checked endpoint. Admin-only `Configuration.ExportJob.View` /
+`.Manage`; View gates the download itself, so it is the key that controls whether the file leaves the
+system.
+
+**It is called an export, never a backup, and that was the phase's first and largest decision.**
+FR-2.8 says "backup/export"; this codebase has no restore path and none is planned, so the artifact
+says outright what it cannot do — on the screen, on the workbook's first sheet, and in the completion
+email. **Decision D got 20e's "no ambient identity" default back**: an export only reads, through
+hand-filtered org-scoped queries, so the job has no acting user; `IJobActingUser` exists and is
+deliberately unused, and the permission check plus the `Audit` row live on the enqueue command.
+**Decision C** answered 21a's deferred job-table question with separate tables and a shared loop:
+`ImportJobRunnerHostedService` became `QueuedJobRunnerHostedService<TProcessor, TOptions>` over a new
+`IQueuedJobProcessor` seam — a shared timer host, explicitly not the generic job framework 21a
+declined, with one hosted service per processor so a long import cannot hold up an export.
+**Decision E** is 7-day retention swept from that seam's `SweepAsync`, which also fixes the blob leak
+21a shipped (nothing had ever deleted an uploaded workbook). A stated 25,000-row-per-sheet cap,
+disclosed on the job row, the Summary sheet and the email when hit — not hidden in a status.
+
+Confirm-live was **not** performed (non-interactive session, and CLAUDE.md's rule is that the user
+signs in themselves): `Organization > Developer Mode` and `Organization > Documents` remain unopened,
+and the **browser pass on the new screen is outstanding**. Neither blocks the phase — 21a had already
+established the decisive fact that there is no backup screen to mirror.
 
 ### 21c. Migrated tax-register import + the migrated Sales/Purchase Register variants (FR-2.10, closing FR-9.4)
 Architecturally distinct and the deepest domain question of the three: historical register rows must
 appear in statutory reports **without existing as documents and without ever touching GL**. Nothing
-for this exists today (re-verified during 21a). **Its home in the reference product is
+for this exists today (re-verified during 21a). **It inherits a queue-driven job as four small
+pieces** after 21b: a table, a processor implementing `IQueuedJobProcessor`, an options class
+deriving from `QueuedJobRunnerOptions`, and one `AddHostedService<QueuedJobRunnerHostedService<...>>`
+line — plus the `SweepAsync` hook if its uploads need retention. Because it **writes**, it takes
+21a's side of the identity question (`IJobActingUser`, per-row claim under a unique index), not
+21b's. **Its home in the reference product is
 `Configurations > Organization > Migration`** — a "Migrated Reports" panel listing *Sales Register*
 and *Purchase Register* with an IMPORT button, a separate screen from Import / Export entirely.
 Deserves its own session.
 
-*Exit criteria: a template-based Product import creates and then updates rows correctly with per-row errors surfaced (**21a — done**); a migrated-register import shows up only in the migrated report variants, never in live GL; a backup export downloads and contains the seeded data.*
+*Exit criteria: a template-based Product import creates and then updates rows correctly with per-row errors surfaced (**21a — done**); a data export downloads and contains the seeded data, and no other tenant's (**21b — done**); a migrated-register import shows up only in the migrated report variants, never in live GL.*
 
 ---
 

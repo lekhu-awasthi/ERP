@@ -132,6 +132,7 @@ app.MapCrmEndpoints();
 app.MapAttachmentsEndpoints();
 app.MapPrintingEndpoints();
 app.MapImportsEndpoints();
+app.MapExportsEndpoints();
 
 app.Run();
 
