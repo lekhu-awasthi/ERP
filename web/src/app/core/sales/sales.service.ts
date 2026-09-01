@@ -333,4 +333,39 @@ export class SalesService {
       responseType: 'blob',
     });
   }
+
+  /**
+   * Phase 21c -- FR-9.4's migrated Sales Register variant. A separate route with its own permission
+   * key, reading only rows imported from a prior system at cutover: it never returns an Invoice or
+   * a Credit Note, and no live report ever returns a migrated row. The response reuses
+   * `SalesRegisterDto` because the two column sets are the same statutory form by construction.
+   */
+  getMigratedSalesRegister(
+    organizationId: string, fromDate: string, toDate: string, partySearch: string | null,
+    page = 1, pageSize = 50,
+  ): Observable<SalesRegisterDto> {
+    const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
+    if (partySearch) params['partySearch'] = partySearch;
+
+    return this.http.get<SalesRegisterDto>(
+      `${this.baseUrl(organizationId)}/reports/migrated-sales-register`,
+      { withCredentials: true, params },
+    );
+  }
+
+  exportMigratedSalesRegister(
+    organizationId: string, fromDate: string, toDate: string, partySearch: string | null,
+    full: boolean, page: number, pageSize: number,
+  ): Observable<Blob> {
+    const params: Record<string, string> = {
+      fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
+    };
+    if (partySearch) params['partySearch'] = partySearch;
+
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/migrated-sales-register/export`, {
+      withCredentials: true,
+      params,
+      responseType: 'blob',
+    });
+  }
 }

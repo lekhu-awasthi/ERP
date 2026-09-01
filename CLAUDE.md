@@ -44,6 +44,17 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
     claim-then-act idiom applied at *row* granularity, why partial success must be a `Completed`
     job rather than a `Failed` one, and — before putting a concurrency token on any row a background
     job writes repeatedly — the cancel-versus-progress conflict that wedged a running import
+  - `phase-21c` — before adding a **fourth** background job, and before modelling anything that must
+    appear in a report without being a document: the answer to "new job table or new
+    `ImportEntityType` member?" is 21b's own test run again (*would the new rows leave columns
+    permanently null, and is the loop genuinely a different loop?*), and here it came out the
+    **other** way — no new table, two enum members, two DI lines. Also the record of what a
+    lifecycle-free aggregate needs stated in prose (the invariant at the top of
+    `MigratedSalesRegisterEntry`), why `LockDateBehavior`'s "no marker interface, no gate" is used as
+    a *decision* rather than an omission, and the precedent for **deriving** a template's columns
+    from an earlier phase's live-confirmed reading when confirm-live is impossible — defensible only
+    because the migrated registers must match the statutory form by construction, which 21a's Product
+    template had no equivalent of
   - `phase-21b` — before adding a **third** background job, or any job that *produces* a file: 21a's
     deferred "one runner or many?" question is now answered (separate tables, one shared timer host
     `QueuedJobRunnerHostedService<TProcessor, TOptions>` over `IQueuedJobProcessor` — a shared
@@ -143,57 +154,53 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A singleton `BackgroundService` **cannot inject a scoped service** (`IAppDbContext` and `IEmailSender` are both `AddScoped` here) — injecting one either fails at startup or pins it for the process lifetime. Take `IServiceScopeFactory` and create a scope per tick. Two companions to the same rule: read options through `IOptionsMonitor`, not `IOptions` (see the caching gotcha below — a long-lived singleton is exactly what it bites), and never let a tick's exception escape `ExecuteAsync`, or the loop stops for the rest of the process's life while the app keeps serving HTTP perfectly happily. See `AlertSchedulerHostedService`.
 - `IOptions<T>` (unlike `IOptionsSnapshot<T>`/`IOptionsMonitor<T>`) caches its bound value at first resolution and does not observe a later `dotnet user-secrets set` — even though the user-secrets JSON file is a reloading config source, a singleton service holding `IOptions<T>` keeps serving the value it saw at startup. Changing a user-secret mid-session (e.g. to flip a verification service between pass/fail for manual E2E) requires restarting the Api process, not just re-running `dotnet user-secrets set`. See `docs/phase-20g-status.md`.
 
+- A date column in an import template needs an **explicit format list with day-first ahead of month-first**, never a bare `DateTime.TryParse`. `07/08/2024` is a real date under both readings, so the wrong default silently imports the wrong month — in statutory data, with no error anywhere and nothing to reconcile it against. See `ImportRowReader.GetOptionalDate` (Phase 21c) and assert the ambiguous case explicitly; a test that only uses ISO dates passes under either implementation.
+- `EF.Functions.Like` cannot be translated by the **InMemory provider at all**, so a `LIKE`-style search in a handler whose tests run on InMemory must be written as `String.Contains` — which SQL Server translates to the same `LIKE '%term%'` and InMemory evaluates directly. Case-insensitivity then comes from the database's collation, as it does for every other comparison in this tree.
+- Executing a file-download `IResult` (`Results.Stream`, and anything else built on `PushStreamHttpResult`) against a bare `DefaultHttpContext` throws `ArgumentNullException (Parameter 'provider')` before a single byte is written: it resolves an `ILoggerFactory` from `HttpContext.RequestServices`. Give the context a real `ServiceProvider` with `AddLogging()` — see `MigratedRegisterTemplateRoundTripTests` (Phase 21c), which is how the generated .xlsx template and the parser that reads it back are proven not to have drifted.
+
 ## Current status
 
-> **Update rule for this section (keep the file lean):** when a phase completes, *replace* this
-> section's contents — a short paragraph for the just-finished phase (what shipped, key decisions
-> by name only, test counts), one line for what's next. The full history goes in that phase's
-> `docs/phase-N-status.md` and the roadmap's index table; never append essay-length phase
-> write-ups here, and never keep more than the latest one or two phases in this section.
+**Phase 21 is complete.** 21c (migrated tax-register import + the migrated Sales/Purchase Register
+variants, FR-2.10) shipped, and with it **FR-9.4 is fully closed — Nepal's statutory report set is
+complete.** Two tenant-scoped aggregates hold a prior system's filed Sales/Purchase Book rows, read
+by two new Admin-only report screens and seeded from a template-based `.xlsx` on a new
+`Configurations > Migration` screen. Three Admin-only keys:
+`Reports.MigratedSalesRegister.View` / `Reports.MigratedPurchaseRegister.View` (their own keys, not
+the live registers') and `Configuration.MigratedRegister.Manage` (the per-row write key, on top of
+`ImportJob.Manage` for the upload).
 
-**Phase 21b (Full-tenant data export, FR-2.8 / NFR-4.3) is complete.** Phase 21's three sub-phases
-are now 21a and 21b shipped, 21c (migrated tax-register import) remaining. A tenant-scoped
-`ExportJob` produces one multi-sheet `.xlsx` — Summary plus FR-2.8's five named categories (products,
-contacts, chart of accounts, ledger transactions, stock movements) — downloaded through an
-authenticated, permission-checked endpoint. Admin-only `Configuration.ExportJob.View`/`.Manage`, with
-View gating the **download** and therefore controlling whether the file leaves the system at all.
+**Decision A is the phase, and it is a domain question nothing in this tree had answered.** A
+migrated register row is *real enough to appear in a tax report and deliberately not real enough to
+be anything else*: no `GlJournalEntry`, no `StockLedgerEntry`/`StockMovement`, no `Payment`, no
+document number, no Draft/Approve/Void lifecycle, no lock-date gate, and presence in exactly two
+reports. Two tables (the column sets share five fields then diverge completely — 21b's Decision C
+reasoning applied unchanged), a **free-text party** with an optional exact-PAN link that never mints
+a `Contact` (so both register row DTOs' `ContactId` widened to nullable), two appended `DocumentType`
+members, and a return modelled as a **negative row** exactly as the live registers render a
+CreditNote/DebitNote. **Decision C runs 21b's own test again and comes out the other way**: no new
+job table, because every `ImportJob` column applies and the loop is the same loop — the two migrated
+types are `ImportEntityType` members (create-only), with a new `ListImportJobsQuery.EntityTypes`
+filter keeping the two screens' histories apart. **Decision D re-argued 21a's identity rule from
+scratch** (21a's *reason* does not transfer when you are writing the Create handler yourself) and
+landed the same way for different reasons. **Decision F** gives migrated rows reach into the two
+register variants only, with VAT Summary / Annex 5 / Annex 13 / TDS each opened, each found
+structurally unable to consume a register-level row, and each given a test proving it is unaffected.
 
-**Decision A is the phase, and it is a product decision.** FR-2.8 says "backup/export"; this codebase
-has no restore path and none is planned, so shipping a *Backup* button would be a promise the product
-cannot keep. What ships is an honest **export** that says outright what it cannot do — on the screen,
-on the workbook's own first sheet, and in the completion email. **Decision D wins back Phase 20e's
-"no ambient identity" default that 21a had to abandon**: an export only *reads*, through hand-filtered
-org-scoped queries rather than permission-gated MediatR requests, so the job has no acting user at
-all; `IJobActingUser` exists and is deliberately unused, and the permission check plus the `Audit` row
-(a new `DocumentType.DataExport`) live on the enqueue command in a real HTTP request. **Decision C**
-answers the job-table question 21a deferred to "when there is a second consumer": separate tables
-(an import consumes a payload and is not idempotent; an export produces one and is), one shared
-timer host — `ImportJobRunnerHostedService` became
-`QueuedJobRunnerHostedService<TProcessor, TOptions>` over a new `IQueuedJobProcessor` seam, a shared
-**loop** and explicitly not the generic job framework 21a was right to decline, with one hosted
-service per processor so a long import cannot hold up an export. **Decision E** adds 7-day retention
-swept from that seam's `SweepAsync`, and fixes the blob leak 21a shipped — until this phase exactly
-one caller in the tree had ever deleted a file from `IFileStorage`. **Decision B** states a
-25,000-row-per-sheet cap (ClosedXML buffers whole workbooks) and discloses truncation in three places
-rather than hiding it in a status.
+Confirm-live was **not** possible (non-interactive session), so **Decision E derives the template
+columns from Phase 19's live-confirmed statutory registers** rather than guessing at an unseen
+screen; `Organization > Migration` / `> Developer Mode` / `> Documents` stay unopened and **the
+browser pass on this phase's three new screens is outstanding**. Tests: Domain 192 (unchanged),
+Application.UnitTests 452 (+37), Api.IntegrationTests 14 (+4), Angular 26 (+12); `dotnet build` /
+`ng build` / `ng test` / `dotnet test` clean. Manual E2E against two fresh Organizations on real SQL
+Server uploaded real filled templates through the real endpoint, opened both exported workbooks,
+proved zero GL/stock/payment rows with `sqlcmd`, proved tenant isolation both directions, proved the
+unique index is enforced by the database, ran the accidental second upload, and got four 403s each
+naming its exact key. Full reasoning in `docs/phase-21c-status.md`.
 
-Confirm-live was **not** performed — this session was non-interactive and CLAUDE.md's rule is that the
-user signs in themselves — so `Organization > Developer Mode` / `> Documents` stay unopened and **the
-browser pass on the new screen is outstanding**; neither blocks the phase, since 21a had already
-established there is no backup screen to mirror. Tests: Domain.UnitTests 192 (+7),
-Application.UnitTests 415 (+27), Api.IntegrationTests +2 (a real ClosedXML round-trip, no Docker),
-Angular 14 (+7); `dotnet build`/`ng build`/`ng test`/`tsc --noEmit` clean. Manual E2E against two
-fresh Organizations on real SQL Server downloaded and opened the real file, proved tenant isolation
-both directions with a canary row, watched both blob kinds leave the disk on retention, reclaimed an
-abandoned run, and got four 403s each naming its exact key against nonexistent ids. Full reasoning in
-`docs/phase-21b-status.md`.
-
-**Next up: Phase 21c — migrated tax-register import + the migrated Sales/Purchase Register variants
-(FR-2.10, closing FR-9.4).** The deepest domain question of the three: historical register rows must
-appear in statutory reports **without existing as documents and without ever touching GL**, and
-nothing for it exists today. It inherits a queue-driven job as four small pieces (a table, an
-`IQueuedJobProcessor`, a `QueuedJobRunnerOptions` subclass, one `AddHostedService` line) — but it
-**writes**, so it takes 21a's side of the identity question (`IJobActingUser`, per-row claim under a
-unique index), not 21b's. Its home in the reference product is
-`Configurations > Organization > Migration`, a separate screen from Import / Export. See
-`docs/roadmap.md`'s Phase 21 briefs.
+**Next up: Phase 22 — Document inbox (FR-10.3).** Upload scanned receipts/bills and convert them to
+structured transactions, reusing Phase 18's file storage; AI-assisted field extraction is an explicit
+stretch goal that does not block the phase. If it wants a background job, 21c is the evidence that
+joining `ImportJob` can be cheaper than a fifth table — but apply 21b's test rather than either
+precedent: *would the new job's rows leave columns permanently null, and is its loop genuinely a
+different loop?* An inbox document outlives its job and has no notion of rows, which argues for its
+own table. See `docs/roadmap.md`'s Phase 22 section.

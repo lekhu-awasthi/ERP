@@ -30,6 +30,7 @@ using ErpApp.Application.Purchasing.Queries.ListPurchaseOrders;
 using ErpApp.Application.Purchasing.Queries.PreviewExpenseGlPosting;
 using ErpApp.Application.Purchasing.Queries.PreviewPurchaseBillGlPosting;
 using ErpApp.Application.Purchasing.Queries.AnnexThirteenReport;
+using ErpApp.Application.Purchasing.Queries.MigratedPurchaseRegister;
 using ErpApp.Application.Purchasing.Queries.PurchaseRegister;
 using ErpApp.Application.Purchasing.Queries.PurchaseMasterReport;
 using ErpApp.Application.Purchasing.Queries.TdsReport;
@@ -370,6 +371,32 @@ public static class PurchasingEndpoints
                     page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
                 ct);
             return ReportSpreadsheetExporter.ExportPurchaseRegister(result);
+        });
+
+        // Phase 21c (FR-2.10 / FR-9.4) -- the migrated variant, reading only
+        // MigratedPurchaseRegisterEntries. The live route above is untouched.
+        group.MapGet("/reports/migrated-purchase-register", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, string? partySearch,
+            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new MigratedPurchaseRegisterQuery(
+                    organizationId, fromDate, toDate, partySearch,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/migrated-purchase-register/export", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, string? partySearch,
+            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new MigratedPurchaseRegisterQuery(
+                    organizationId, fromDate, toDate, partySearch,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                ct);
+            return ReportSpreadsheetExporter.ExportPurchaseRegister(result, migrated: true);
         });
 
         group.MapGet("/reports/tds-report", async (

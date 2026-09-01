@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
@@ -104,6 +104,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<ImportJobRow> ImportJobRows => Set<ImportJobRow>();
     public DbSet<ExportJob> ExportJobs => Set<ExportJob>();
+    public DbSet<MigratedSalesRegisterEntry> MigratedSalesRegisterEntries => Set<MigratedSalesRegisterEntry>();
+    public DbSet<MigratedPurchaseRegisterEntry> MigratedPurchaseRegisterEntries => Set<MigratedPurchaseRegisterEntry>();
 
     // IAppDbContext.Set<TEntity>() -- satisfied implicitly by DbContext's own public
     // Set<TEntity>() (identical signature), needed by the generic

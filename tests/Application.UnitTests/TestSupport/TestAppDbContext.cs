@@ -1,4 +1,4 @@
-﻿using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
@@ -184,6 +184,8 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<ImportJobRow> ImportJobRows => Set<ImportJobRow>();
 
     public DbSet<ExportJob> ExportJobs => Set<ExportJob>();
+    public DbSet<MigratedSalesRegisterEntry> MigratedSalesRegisterEntries => Set<MigratedSalesRegisterEntry>();
+    public DbSet<MigratedPurchaseRegisterEntry> MigratedPurchaseRegisterEntries => Set<MigratedPurchaseRegisterEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

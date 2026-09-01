@@ -8,7 +8,23 @@ import { PagedResult } from '../common/paged-result';
  * comment for why the product's "Contact" option is a different aggregate entirely and would have
  * produced the wrong importer).
  */
-export type ImportEntityType = 'Product' | 'Customer' | 'Supplier';
+export type ImportEntityType =
+  | 'Product'
+  | 'Customer'
+  | 'Supplier'
+  // Phase 21c (FR-2.10) -- migrated tax-register rows. Not in the reference product's Upload Type
+  // dropdown at all: they live on their own Migration screen there, and here too. They ride the
+  // same ImportJob because the job is the same job; only the screens differ.
+  | 'MigratedSalesRegister'
+  | 'MigratedPurchaseRegister';
+
+/** The two upload types the Migration screen owns; the Import / Export screen owns the other three. */
+export const MIGRATION_ENTITY_TYPES: readonly ImportEntityType[] = [
+  'MigratedSalesRegister',
+  'MigratedPurchaseRegister',
+];
+
+export const MASTER_DATA_ENTITY_TYPES: readonly ImportEntityType[] = ['Product', 'Customer', 'Supplier'];
 
 export type ImportMode = 'CreateNew' | 'UpdateExisting';
 

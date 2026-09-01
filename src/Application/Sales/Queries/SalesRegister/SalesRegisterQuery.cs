@@ -31,7 +31,10 @@ public sealed record SalesRegisterRowDto(
     DateOnly Date,
     DocumentType DocumentType,
     string DocumentCode,
-    Guid ContactId,
+    // Nullable since Phase 21c: a migrated register row's party is free text carried over from a
+    // prior system (see MigratedSalesRegisterEntry), so it has a name and a PAN but need not
+    // resolve to any Contact in this tenant. Every live document row still fills it.
+    Guid? ContactId,
     string ContactName,
     string? ContactPan,
     decimal TotalValue,

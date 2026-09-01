@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using ErpApp.Application.Accounting;
 using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Alerts;
@@ -164,6 +164,16 @@ public static class DependencyInjection
             sp.GetRequiredService<Common.Persistence.IAppDbContext>(), sp.GetRequiredService<ISender>()));
         services.AddScoped<IEntityImporter>(sp => ContactImporter.ForSuppliers(
             sp.GetRequiredService<Common.Persistence.IAppDbContext>(), sp.GetRequiredService<ISender>()));
+
+        // Phase 21c (Migrated tax-register import, FR-2.10) -- two more importers on the same seam,
+        // which is the whole of what Decision C costs. There is no new job table, no new processor,
+        // no new options class and no new hosted service: an uploaded workbook parsed row by row,
+        // each row claimed under a unique index, cancellable, with per-row errors and the same
+        // retention sweep, is the identical loop, and every ImportJob column applies to it. What is
+        // separate is the screen, not the machinery.
+        services.AddScoped<IEntityImporter, MigratedSalesRegisterImporter>();
+        services.AddScoped<IEntityImporter, MigratedPurchaseRegisterImporter>();
+
         services.AddScoped<IImportJobProcessor, ImportJobProcessor>();
 
         // Phase 21b (Full-tenant data export, FR-2.8) -- IExportCategoryReader is the same strategy

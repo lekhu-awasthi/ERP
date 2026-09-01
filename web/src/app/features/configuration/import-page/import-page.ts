@@ -10,6 +10,7 @@ import {
   ImportJobStatus,
   ImportJobSummary,
   ImportMode,
+  MASTER_DATA_ENTITY_TYPES,
 } from '../../../core/imports/import.models';
 import { ImportService } from '../../../core/imports/import.service';
 import { triggerBlobDownload } from '../../../shared/download-file';
@@ -267,7 +268,9 @@ export class ImportPage implements OnDestroy {
   }
 
   private load(): void {
-    this.importService.listImportJobs(this.organizationId).subscribe({
+    // Master-data types only: Phase 21c's migrated tax-register uploads have their own Migration
+    // screen and must not appear in this history (and vice versa).
+    this.importService.listImportJobs(this.organizationId, MASTER_DATA_ENTITY_TYPES).subscribe({
       next: (result) => {
         this.jobs.set(result.items);
         this.loading.set(false);

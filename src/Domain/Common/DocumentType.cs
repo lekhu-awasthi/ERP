@@ -56,4 +56,26 @@ public enum DocumentType
     /// so no persisted ordinal moves.</para>
     /// </summary>
     DataExport,
+
+    /// <summary>
+    /// Phase 21c (FR-2.10) -- <c>Audit.DocumentType</c> for one migrated Sales Book row imported
+    /// from a prior system at cutover, and the register classification
+    /// <c>MigratedSalesRegisterQuery</c> stamps on every row it returns.
+    ///
+    /// <para>Deliberately its own member rather than reusing <see cref="Invoice"/>: nothing here is
+    /// an Invoice, and labelling it one would invite a future reader to treat
+    /// (DocumentType, DocumentCode) as a pointer at a document that does not exist. Nothing numbers
+    /// it and no GlJournalEntry or StockLedgerEntry ever carries it -- see
+    /// <c>MigratedSalesRegisterEntry</c> for the full invariant. A migrated sales <i>return</i> is a
+    /// negative-valued row of this same type, matching how the live register already renders a
+    /// CreditNote. Appended, so no persisted ordinal moves.</para>
+    /// </summary>
+    MigratedSalesEntry,
+
+    /// <summary>
+    /// Phase 21c (FR-2.10) -- the Purchase Book counterpart of
+    /// <see cref="MigratedSalesEntry"/>, with the same reasoning throughout. A migrated purchase
+    /// return is a negative-valued row of this type.
+    /// </summary>
+    MigratedPurchaseEntry,
 }

@@ -46,6 +46,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 20e | Alert Scheduler (FR-11.1) — this codebase's **first background-job infrastructure**: hand-rolled `AlertSchedulerHostedService` (`BackgroundService` + `PeriodicTimer` + `TimeProvider`, scope per tick, `IOptionsMonitor`) driving `IAlertDispatcher`; `AlertDefinition` + an `AlertSendLog` ledger whose unique index on (definition, local occurrence date, recipient) delivers idempotency, multi-instance safety and at-most-once delivery at once. **No authentication-bypass surface was introduced** — the job sends no MediatR request, reading through `IAlertContentBuilder` with an explicit `OrganizationId` instead, so `CurrentUserService` still throws outside HTTP. Nepal-local (UTC+05:45) scheduling. Confirm-live closed every open question and surfaced a screen the scan had missed (Email Logs) | `phase-20e-status.md` |
 | 21a | Async job foundation + bulk import (FR-2.9, NFR-4.3): durable `ImportJob`/`ImportJobRow` queue driven by a second `BackgroundService` (`ImportJobRunnerHostedService`), template-based .xlsx import for Product/Customer/Supplier in create and update modes with per-row error reporting, cancellation and completion notification. **The first background job that writes**, so it answers the identity question 20e sidestepped: it reuses the real Create/Update commands through the full pipeline under a scoped `IJobActingUser`, which means `AuthorizationBehavior` **re-checks permission on every row at execution time**; an `HttpContext` always wins, so a job identity can never serve a request. At-most-once **per row** via a `(ImportJobId, RowNumber)` unique index — partial success is a `Completed` job, `Failed` means the file could not be processed at all. E2E found and fixed a concurrency token that made the user's own Cancel wedge the running job | `phase-21a-status.md` |
 | 21b | Full-tenant data export (FR-2.8, NFR-4.3): tenant-scoped `ExportJob` producing one multi-sheet `.xlsx` over FR-2.8's five named categories, downloaded through an authenticated endpoint. **Decision A is the phase** — FR-2.8 says "backup" and this codebase has no restore path, so what ships is an honest **export** that says so on the button, on the workbook's own Summary sheet and in the completion email. **Decision D restores 20e's default that 21a had to abandon**: an export only reads, so it runs with *no ambient identity at all* — the permission check and the `Audit` row (new `DocumentType.DataExport`) live on the enqueue command in a real HTTP request. **Decision C** answers 21a's deferred job-table question: separate tables, shared loop — 21a's runner became `QueuedJobRunnerHostedService<TProcessor, TOptions>` over a new `IQueuedJobProcessor` seam (a shared timer host, not a job framework). **Decision E** adds 7-day retention via `SweepAsync` on that seam and fixes the blob leak 21a shipped. Stated 25,000-row-per-sheet cap, disclosed in three places when hit | `phase-21b-status.md` |
+| 21c | Migrated tax-register import + the migrated Sales/Purchase Register variants (FR-2.10, **closing FR-9.4** — Nepal's statutory report set is now complete): two tenant-scoped aggregates hold a prior system's filed Sales/Purchase Book rows, surfaced by two new Admin-only report screens and seeded from a template-based .xlsx on a new `Configurations > Migration` screen. **Decision A is the phase** — a migrated row is *real enough for a tax report and deliberately not real enough to be anything else*: no `GlJournalEntry`, no stock movement, no payment, no document number, no Draft/Approve/Void lifecycle, no lock-date gate, and presence in exactly two reports. Two tables (the column sets diverge after five fields), a **free-text party** with an optional exact-PAN link that never mints a Contact (so both register row DTOs' `ContactId` widens to nullable), two appended `DocumentType` members, and a return modelled as a **negative row** exactly as the live registers render a CreditNote/DebitNote. **Decision C is 21b's Decision C run again and coming out the other way**: no new job table — every `ImportJob` column applies and the loop is the same loop, so the two migrated types are `ImportEntityType` members, create-only, with a new `EntityTypes` filter keeping the two screens' histories apart. **Decision D re-argues 21a's identity rule from scratch** (21a's *reason* does not transfer, since the create handler did not exist) and lands the same way for different reasons: per-row permission re-check, validation and audit. **Decision F** gives migrated rows reach into the two register variants only, with VAT Summary / Annex 5 / Annex 13 / TDS each opened, each found structurally unable to consume a register-level row, and each given a test proving it is unaffected. Confirm-live was not possible (non-interactive session), so **Decision E derives the template columns from Phase 19's live-confirmed statutory register** rather than guessing at an unseen screen | `phase-21c-status.md` |
 
 ---
 
@@ -115,7 +116,7 @@ seeded rows.*
 
 1. **Reporting Tags on transactions** (FR-9.9): attach `ReportingTagOption`s (lookups exist since Phase 2) at document-line or document level (confirm live), thread tag filters through existing GL reports.
 2. **Cash Flow Summary** (FR-9.1's fourth statement) — derived from GL like Phase 8a's three; same permission reasoning pass.
-3. **Sales Register / Purchase Register** (FR-9.4's non-migrated variants — migrated variants land with Phase 21's import).
+3. **Sales Register / Purchase Register** (FR-9.4's non-migrated variants — migrated variants landed with **Phase 21c**, closing FR-9.4).
 4. **Stock Ageing** + **Product Profitability** (FR-9.5) over the FIFO layers/`StockMovement` history.
 5. **Ratio Analysis** (FR-9.7) computed from the same statement data as 8a.
 6. Every new report ships with the established per-report permission-key derivation (rollup vs flat register, PAN exposure) written down, not defaulted.
@@ -253,10 +254,10 @@ server-side check rejects a bad token).
 
 ---
 
-## Phase 21 — Import/Export & backup
+## Phase 21 — Import/Export & backup — **COMPLETE**
 **Goal:** FR-2.8/2.9/2.10 — the data-migration story, on Phase 20's async-job infrastructure.
 
-**Split into three independently shippable sub-phases; one sub-phase = one session. 21a and 21b are COMPLETE.**
+**Split into three independently shippable sub-phases; one sub-phase = one session. All three are COMPLETE.**
 The original four numbered items are three deliverables, not one phase: 21b and 21c both need a job
 runner, and 21a is the only one that forces the identity decision — so it went first, alone, the same
 reasoning that put 20e last in Phase 20.
@@ -305,20 +306,42 @@ signs in themselves): `Organization > Developer Mode` and `Organization > Docume
 and the **browser pass on the new screen is outstanding**. Neither blocks the phase — 21a had already
 established the decisive fact that there is no backup screen to mirror.
 
-### 21c. Migrated tax-register import + the migrated Sales/Purchase Register variants (FR-2.10, closing FR-9.4)
-Architecturally distinct and the deepest domain question of the three: historical register rows must
-appear in statutory reports **without existing as documents and without ever touching GL**. Nothing
-for this exists today (re-verified during 21a). **It inherits a queue-driven job as four small
-pieces** after 21b: a table, a processor implementing `IQueuedJobProcessor`, an options class
-deriving from `QueuedJobRunnerOptions`, and one `AddHostedService<QueuedJobRunnerHostedService<...>>`
-line — plus the `SweepAsync` hook if its uploads need retention. Because it **writes**, it takes
-21a's side of the identity question (`IJobActingUser`, per-row claim under a unique index), not
-21b's. **Its home in the reference product is
-`Configurations > Organization > Migration`** — a "Migrated Reports" panel listing *Sales Register*
-and *Purchase Register* with an IMPORT button, a separate screen from Import / Export entirely.
-Deserves its own session.
+### 21c. Migrated tax-register import + the migrated Sales/Purchase Register variants (FR-2.10) — **COMPLETE**, see `phase-21c-status.md`
+**FR-9.4 is now fully closed: Nepal's statutory report set is complete.** Two tenant-scoped
+aggregates (`MigratedSalesRegisterEntry`, `MigratedPurchaseRegisterEntry`) hold a prior system's
+filed register rows, read by two new Admin-only report screens and seeded from a template-based .xlsx
+on a new `Configurations > Migration` screen, separate from Import / Export as the reference product
+files it.
 
-*Exit criteria: a template-based Product import creates and then updates rows correctly with per-row errors surfaced (**21a — done**); a data export downloads and contains the seeded data, and no other tenant's (**21b — done**); a migrated-register import shows up only in the migrated report variants, never in live GL.*
+**Decision A is the phase, and it is a domain question nothing in this tree had answered.** A
+migrated row is *real enough to appear in a tax report and deliberately not real enough to be
+anything else*: it posts no `GlJournalEntry`, creates no stock movement or payment, draws no document
+number, has no Draft/Approve/Void lifecycle, is not lock-date sensitive, and appears in exactly two
+reports. Two tables rather than one (the column sets share five fields and then diverge completely —
+21b's Decision C reasoning applied unchanged); a **free-text party** with an optional exact-PAN link
+that never mints a `Contact`, whose consequence is taken rather than dodged (both register row DTOs'
+`ContactId` widens to nullable); two appended `DocumentType` members rather than borrowing
+`Invoice`/`PurchaseBill`; and a return modelled as a **negative row**, exactly as the live registers
+already render a CreditNote/DebitNote.
+
+**Decision C is 21b's own test run again, coming out the other way: no new job table.** Every
+`ImportJob` column applies to a migrated upload and the loop is the same loop, so the two migrated
+types are simply `ImportEntityType` members — create-only, with a new `ListImportJobsQuery.EntityTypes`
+filter keeping the Migration and Import / Export histories apart. The cost was two classes and two DI
+lines. **Decision D re-argued 21a's identity rule from scratch**, since 21a's justification (the rules
+already live in the Create handler) does not transfer when you are writing that handler yourself, and
+landed the same way for different reasons: per-row permission re-check at execution time, validation,
+and audit attribution. **Decision F** gives migrated rows reach into the two register variants only —
+VAT Summary, Annex 5, Annex 13 and TDS were each opened, each found structurally unable to consume a
+register-level row, and each given a test proving it is unaffected rather than left implicit.
+
+Confirm-live was **not** possible (non-interactive session), so **Decision E derives the template
+columns from Phase 19's live-confirmed statutory registers** rather than guessing at an unseen screen
+— defensible here in a way it would not have been in 21a, because the migrated variants must match
+the statutory form by construction. `Organization > Migration`, `> Developer Mode` and `> Documents`
+stay unopened, and the browser pass on this phase's three new screens is outstanding.
+
+*Exit criteria: a template-based Product import creates and then updates rows correctly with per-row errors surfaced (**21a — done**); a data export downloads and contains the seeded data, and no other tenant's (**21b — done**); a migrated-register import shows up only in the migrated report variants, never in live GL (**21c — done**, verified live with `sqlcmd`: zero GL journal entries, stock ledger entries, stock movements and payments after a real import, and a Trial Balance still at 0/0).*
 
 ---
 
