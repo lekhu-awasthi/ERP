@@ -21,7 +21,9 @@ public sealed record UpdateProductCommand(
     Guid? SalesAccountId = null,
     Guid? SalesReturnAccountId = null,
     Guid? PurchaseAccountId = null,
-    Guid? PurchaseReturnAccountId = null)
+    Guid? PurchaseReturnAccountId = null,
+    string? Sku = null,
+    string? Barcode = null)
     : IRequest<UpdateProductResult>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.ProductManage;

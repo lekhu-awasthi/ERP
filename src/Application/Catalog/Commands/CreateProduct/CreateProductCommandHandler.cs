@@ -44,7 +44,9 @@ public sealed class CreateProductCommandHandler(IAppDbContext db, IDocumentNumbe
             request.PurchasePrice,
             request.VatRate,
             request.ReOrderLevel,
-            request.TrackInventory);
+            request.TrackInventory,
+            request.Sku,
+            request.Barcode);
 
         db.Products.Add(product);
         await db.SaveChangesAsync(cancellationToken);

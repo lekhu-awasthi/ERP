@@ -604,4 +604,24 @@ public static class PermissionKeys
     // system at all. Note the gate is genuinely two-sided: with this off, no InboxDocumentExtract
     // grant does anything.
     public const string AiDocumentExtractionManage = "Configuration.AiDocumentExtraction.Manage";
+
+    // Phase 24 (Variant Products & Attributes, FR-8.3). Exactly ONE new key pair, and the reason
+    // is Decision A: a variant IS a Product. Creating, editing and deleting a variant is creating,
+    // editing and deleting a product, so those ride Catalog.Product.Manage unchanged -- a second
+    // key would be a weaker gate standing in front of the real one, the same reasoning that left
+    // Phase 22's inbox conversion keyless.
+    //
+    // The attribute catalog is the one genuinely new thing, and it is taxonomy/control-plane of
+    // precisely the ProductCategory/UnitOfMeasurement shape: a tenant-wide named list, curated
+    // rarely, read constantly. So it takes that pair's exact split -- Member View (a Member
+    // building a variant must be able to see which attributes and options exist, or the variant
+    // form is unusable), Manage Admin-only.
+    //
+    // Note what is deliberately absent: there is no feature flag. Domain/Tenancy/TenantFeature's
+    // members are captured once at Organization creation and are immutable thereafter (Phase 22's
+    // Decision C), so a Variants flag could never be granted to an existing tenant. It would also
+    // be the wrong shape -- having variants is a property of one Product, not a tenant
+    // entitlement, and a tenant that never creates one already sees nothing.
+    public const string VariantAttributeView = "Catalog.VariantAttribute.View";
+    public const string VariantAttributeManage = "Catalog.VariantAttribute.Manage";
 }

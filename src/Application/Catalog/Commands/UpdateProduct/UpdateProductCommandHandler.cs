@@ -51,7 +51,9 @@ public sealed class UpdateProductCommandHandler(IAppDbContext db)
             request.VatRate,
             request.ReOrderLevel,
             request.TrackInventory,
-            request.IsActive);
+            request.IsActive,
+            request.Sku,
+            request.Barcode);
         product.SetAccounts(
             request.SalesAccountId, request.SalesReturnAccountId, request.PurchaseAccountId, request.PurchaseReturnAccountId);
         await db.SaveChangesAsync(cancellationToken);

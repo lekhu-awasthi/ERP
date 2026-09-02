@@ -17,6 +17,12 @@
         <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'products', 'units']">
           <i class="bi bi-rulers"></i> Units
         </a>
+        <a
+          class="btn btn-outline-secondary btn-sm fw-bold"
+          [routerLink]="['/organizations', organizationId, 'products', 'variant-attributes']"
+        >
+          <i class="bi bi-palette"></i> Variant Attributes
+        </a>
         <a class="btn btn-success btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'products', 'new']">
           <i class="bi bi-plus-lg"></i> Add New
         </a>
@@ -31,18 +37,34 @@
     </div>
   }
 
-  <div class="btn-group mb-4" role="group">
-    @for (type of types; track type) {
-      <button
-        type="button"
-        class="btn btn-sm"
-        [class.btn-primary]="typeFilter() === type"
-        [class.btn-outline-primary]="typeFilter() !== type"
-        (click)="selectType(type)"
-      >
-        {{ type }}
-      </button>
-    }
+  <div class="d-flex flex-wrap gap-3 mb-4">
+    <div class="btn-group" role="group" aria-label="Filter by product type">
+      @for (type of types; track type) {
+        <button
+          type="button"
+          class="btn btn-sm"
+          [class.btn-primary]="typeFilter() === type"
+          [class.btn-outline-primary]="typeFilter() !== type"
+          (click)="selectType(type)"
+        >
+          {{ type }}
+        </button>
+      }
+    </div>
+
+    <div class="btn-group" role="group" aria-label="Filter by variant role">
+      @for (filter of variantFilters; track filter.value) {
+        <button
+          type="button"
+          class="btn btn-sm"
+          [class.btn-secondary]="variantFilter() === filter.value"
+          [class.btn-outline-secondary]="variantFilter() !== filter.value"
+          (click)="selectVariantFilter(filter.value)"
+        >
+          {{ filter.label }}
+        </button>
+      }
+    </div>
   </div>
 
   <div class="card border-0 shadow-sm">
@@ -76,6 +98,15 @@
                   <span class="text-muted small">{{ item.code }} &middot; {{ item.type }}</span>
                   @if (!item.isActive) {
                     <span class="badge bg-secondary-subtle text-secondary ms-2">Inactive</span>
+                  }
+                  @if (item.hasVariants) {
+                    <span
+                      class="badge bg-info-subtle text-info-emphasis ms-2"
+                      title="Sold and stocked through its variants, not directly"
+                      >Variant Product</span
+                    >
+                  } @else if (item.parentProductId) {
+                    <span class="badge bg-light text-secondary border ms-2">Variant</span>
                   }
                 </div>
               </div>

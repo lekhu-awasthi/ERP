@@ -76,6 +76,10 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<Product> Products => Set<Product>();
 
     public DbSet<ProductSecondaryUnit> ProductSecondaryUnits => Set<ProductSecondaryUnit>();
+    public DbSet<VariantAttribute> VariantAttributes => Set<VariantAttribute>();
+    public DbSet<VariantAttributeOption> VariantAttributeOptions => Set<VariantAttributeOption>();
+    public DbSet<ProductVariantAttributeUsage> ProductVariantAttributeUsages => Set<ProductVariantAttributeUsage>();
+    public DbSet<ProductVariantValue> ProductVariantValues => Set<ProductVariantValue>();
 
     public DbSet<AccountGroup> AccountGroups => Set<AccountGroup>();
 
@@ -241,6 +245,34 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
             .HasForeignKey("ProductId");
         modelBuilder.Entity<Product>()
             .Metadata.FindNavigation(nameof(Product.SecondaryUnits))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        // Phase 24's three encapsulated collections, restated for the same reason as
+        // Product.SecondaryUnits above. Without these EF falls back to convention and mis-maps the
+        // navigations, which surfaces as DbUpdateConcurrencyException on the first save rather than
+        // as anything naming the real cause.
+        modelBuilder.Entity<Product>()
+            .HasMany(p => p.VariantAttributeUsages)
+            .WithOne()
+            .HasForeignKey(x => x.ProductId);
+        modelBuilder.Entity<Product>()
+            .Metadata.FindNavigation(nameof(Product.VariantAttributeUsages))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        modelBuilder.Entity<Product>()
+            .HasMany(p => p.VariantValues)
+            .WithOne()
+            .HasForeignKey(x => x.ProductId);
+        modelBuilder.Entity<Product>()
+            .Metadata.FindNavigation(nameof(Product.VariantValues))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        modelBuilder.Entity<VariantAttribute>()
+            .HasMany(a => a.Options)
+            .WithOne()
+            .HasForeignKey(x => x.VariantAttributeId);
+        modelBuilder.Entity<VariantAttribute>()
+            .Metadata.FindNavigation(nameof(VariantAttribute.Options))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
 
         // JournalVoucher.Lines/CashTransfer.Lines/GlJournalEntry.Lines are the same kind of

@@ -30,7 +30,29 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(x => x.IsActive).IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
 
+        // Phase 24 (FR-8.3). Sku/Barcode are plain nullable identifiers -- deliberately NOT unique
+        // indexed: the reference tenant shows duplicate/blank SKUs freely, and a tenant migrating
+        // real data must not be blocked by a uniqueness rule the source system never had.
+        builder.Property(x => x.Sku).HasMaxLength(60);
+        builder.Property(x => x.Barcode).HasMaxLength(60);
+        builder.Property(x => x.HasVariants).IsRequired();
+        builder.Property(x => x.CombinationKey).HasMaxLength(600);
+
         builder.HasIndex(x => new { x.OrganizationId, x.Code }).IsUnique();
+
+        // The duplicate guard that makes matrix generation idempotent. Filtered so it applies only
+        // to variant children -- without the filter every ordinary product (CombinationKey null)
+        // would collide, because SQL Server's unique indexes treat NULLs as equal to each other.
+        builder.HasIndex(x => new { x.OrganizationId, x.ParentProductId, x.CombinationKey })
+            .IsUnique()
+            .HasFilter("[ParentProductId] IS NOT NULL");
+
+        // Self-reference: a variant child points at its parent. Restrict, so a parent carrying
+        // variants cannot be deleted out from under them.
+        builder.HasOne<Product>()
+            .WithMany()
+            .HasForeignKey(x => x.ParentProductId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne<ProductCategory>()
             .WithMany()
@@ -60,6 +82,25 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.Metadata.FindNavigation(nameof(Product.SecondaryUnits))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        // Phase 24's two encapsulated child collections, same shape as SecondaryUnits above.
+        // A parent's offered option pool ...
+        builder.HasMany(x => x.VariantAttributeUsages)
+            .WithOne()
+            .HasForeignKey(x => x.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Metadata.FindNavigation(nameof(Product.VariantAttributeUsages))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        // ... and a child's own combination.
+        builder.HasMany(x => x.VariantValues)
+            .WithOne()
+            .HasForeignKey(x => x.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Metadata.FindNavigation(nameof(Product.VariantValues))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 }

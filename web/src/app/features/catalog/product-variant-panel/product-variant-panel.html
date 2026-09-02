@@ -1,0 +1,266 @@
+<div class="card border-0 shadow-sm mt-4">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <div>
+        <h6 class="fw-bold text-dark mb-0">Variants</h6>
+        <p class="text-muted small mb-0">
+          Size, colour and other combinations sold and stocked separately from one another.
+        </p>
+      </div>
+      <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" (click)="startEditAttributes()">
+        <i class="bi bi-sliders"></i> {{ attributesUsed().length === 0 ? 'Set Up Variants' : 'Edit Attributes' }}
+      </button>
+    </div>
+
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div>{{ errorMessage() }}</div>
+      </div>
+    }
+
+    @if (notice()) {
+      <div class="alert alert-success d-flex align-items-center gap-2" role="alert">
+        <i class="bi bi-check-circle-fill"></i>
+        <div>{{ notice() }}</div>
+      </div>
+    }
+
+    @if (loading()) {
+      <div class="py-4 text-center text-muted">
+        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+        Loading variants…
+      </div>
+    } @else {
+      <!-- ---- Attributes Used ---- -->
+      @if (editingAttributes()) {
+        <div class="border rounded-3 p-3 mb-4 bg-light-subtle">
+          <h6 class="fw-semibold small text-uppercase text-muted mb-3">Attributes Used</h6>
+
+          @if (catalog().length === 0) {
+            <p class="text-muted small mb-3">
+              No variant attributes exist yet. Create one under Products → Variant Attributes first.
+            </p>
+          }
+
+          @for (attribute of catalog(); track attribute.id) {
+            <div class="mb-3">
+              <div class="small fw-semibold mb-2">{{ attribute.name }}</div>
+              <div class="d-flex flex-wrap gap-3">
+                @for (option of attribute.options; track option.id) {
+                  <div class="form-check">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      [id]="'opt-' + option.id"
+                      [checked]="isOptionSelected(option.id)"
+                      (change)="toggleOption(option.id)"
+                    />
+                    <label class="form-check-label small" [for]="'opt-' + option.id">{{ option.value }}</label>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          <div class="d-flex gap-2 mt-3">
+            <button type="button" class="btn btn-primary btn-sm fw-bold" [disabled]="saving()" (click)="saveAttributes()">
+              @if (saving()) {
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              } @else {
+                Save Attributes
+              }
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelEditAttributes()">
+              Cancel
+            </button>
+          </div>
+          <p class="text-muted small mb-0 mt-3">
+            Ticking any option turns this into a variant product: it can no longer be put on a
+            document line itself — its variants are sold and stocked instead.
+          </p>
+        </div>
+      } @else if (attributesUsed().length > 0) {
+        <div class="mb-4">
+          @for (attribute of attributesUsed(); track attribute.attributeId) {
+            <div class="d-flex align-items-baseline gap-3 mb-2 flex-wrap">
+              <span class="small fw-semibold text-muted" style="min-width: 90px;">{{ attribute.attributeName }}</span>
+              <div class="d-flex flex-wrap gap-2">
+                @for (option of attribute.options; track option.optionId) {
+                  <span class="badge text-bg-light border fw-normal">{{ option.value }}</span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- ---- Variant Details ---- -->
+      @if (attributesUsed().length > 0) {
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+          <h6 class="fw-semibold small text-uppercase text-muted mb-0">Variant Details</h6>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-primary btn-sm" [disabled]="saving()" (click)="generate()">
+              <i class="bi bi-grid-3x3-gap"></i> Generate All ({{ matrixSize() }})
+            </button>
+            <button type="button" class="btn btn-primary btn-sm fw-bold" (click)="startAddVariant()">
+              <i class="bi bi-plus-lg"></i> Add
+            </button>
+          </div>
+        </div>
+
+        @if (addingVariant() || editingVariantId()) {
+          <form [formGroup]="variantForm" (ngSubmit)="saveVariant()" class="border rounded-3 p-3 mb-3 bg-light-subtle">
+            <div class="row g-3">
+              @if (addingVariant()) {
+                @for (attribute of attributesUsed(); track attribute.attributeId) {
+                  <div class="col-12 col-md-3">
+                    <label class="form-label small fw-semibold">{{ attribute.attributeName }}</label>
+                    <select class="form-select" (change)="chooseOption(attribute.attributeId, $event)">
+                      <option value="" [selected]="chosenOption(attribute.attributeId) === ''">Select…</option>
+                      @for (option of attribute.options; track option.optionId) {
+                        <option
+                          [value]="option.optionId"
+                          [selected]="option.optionId === chosenOption(attribute.attributeId)"
+                        >
+                          {{ option.value }}
+                        </option>
+                      }
+                    </select>
+                  </div>
+                }
+              }
+
+              <div class="col-12 col-md-4">
+                <label class="form-label small fw-semibold" for="variantName">Name</label>
+                <input
+                  id="variantName"
+                  type="text"
+                  class="form-control"
+                  formControlName="name"
+                  [placeholder]="addingVariant() ? 'Defaults to ' + productName() + ' + the options' : ''"
+                />
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small fw-semibold" for="variantSku">SKU</label>
+                <input id="variantSku" type="text" class="form-control" formControlName="sku" />
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small fw-semibold" for="variantBarcode">Barcode</label>
+                <input id="variantBarcode" type="text" class="form-control" formControlName="barcode" />
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small fw-semibold" for="variantSelling">Selling Price</label>
+                <input
+                  id="variantSelling"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  class="form-control text-end"
+                  formControlName="sellingPrice"
+                />
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small fw-semibold" for="variantPurchase">Purchase Price</label>
+                <input
+                  id="variantPurchase"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  class="form-control text-end"
+                  formControlName="purchasePrice"
+                />
+              </div>
+
+              @if (editingVariantId()) {
+                <div class="col-6 col-md-2 d-flex align-items-end">
+                  <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="variantActive" formControlName="isActive" />
+                    <label class="form-check-label small" for="variantActive">Active</label>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <div class="d-flex gap-2 mt-3">
+              <button type="submit" class="btn btn-primary btn-sm fw-bold" [disabled]="saving()">
+                @if (saving()) {
+                  <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                } @else {
+                  {{ editingVariantId() ? 'Update Variant' : 'Add Variant' }}
+                }
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelVariantForm()">Cancel</button>
+            </div>
+          </form>
+        }
+
+        @if (!hasVariants()) {
+          <p class="text-muted small mb-0">
+            No variants yet. Use <strong>Generate All</strong> for every combination, or
+            <strong>Add</strong> for one at a time.
+          </p>
+        } @else {
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr class="text-muted small">
+                  <th style="min-width: 200px;">Name</th>
+                  <th style="min-width: 160px;">Combination</th>
+                  <th>Code</th>
+                  <th>SKU / Barcode</th>
+                  <th class="text-end">Selling Price</th>
+                  <th class="text-end">Purchase Price</th>
+                  <th style="width: 150px;"></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (variant of panel()!.variants; track variant.id) {
+                  <tr>
+                    <td>
+                      <span class="fw-semibold">{{ variant.name }}</span>
+                      @if (!variant.isActive) {
+                        <span class="badge text-bg-secondary ms-2">Inactive</span>
+                      }
+                    </td>
+                    <td class="small text-muted">{{ combinationLabel(variant) }}</td>
+                    <td class="small">{{ variant.code }}</td>
+                    <td class="small">
+                      {{ variant.sku || '—' }}
+                      @if (variant.barcode) {
+                        <span class="text-muted"> / {{ variant.barcode }}</span>
+                      }
+                    </td>
+                    <td class="text-end">{{ variant.sellingPrice | amount }}</td>
+                    <td class="text-end">{{ variant.purchasePrice | amount }}</td>
+                    <td class="text-end">
+                      @if (confirmingDeleteId() === variant.id) {
+                        <button type="button" class="btn btn-danger btn-sm" [disabled]="saving()" (click)="confirmDelete(variant)">
+                          Delete
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm ms-1" (click)="cancelDelete()">
+                          Cancel
+                        </button>
+                      } @else {
+                        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="startEditVariant(variant)">
+                          <i class="bi bi-pencil"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm ms-1" (click)="requestDelete(variant)">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      } @else if (!editingAttributes()) {
+        <p class="text-muted small mb-0">
+          This product has no variants. Choose the attributes it varies by to start.
+        </p>
+      }
+    }
+  </div>
+</div>
