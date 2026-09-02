@@ -65,7 +65,7 @@
                 </div>
                 <div>
                   <h6 class="fw-bold mb-1 text-dark">{{ item.code }}</h6>
-                  <span class="text-muted small">{{ item.date }}{{ item.supplierInvoiceReference ? ' · ' + item.supplierInvoiceReference : '' }}</span>
+                  <span class="text-muted small">{{ item.date | nepaliDate }}{{ item.supplierInvoiceReference ? ' · ' + item.supplierInvoiceReference : '' }}</span>
                 </div>
               </div>
               <div class="d-flex align-items-center gap-3">

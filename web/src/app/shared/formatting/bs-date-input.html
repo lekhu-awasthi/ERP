@@ -1,0 +1,95 @@
+@if (isBs()) {
+  <div class="bs-date-input input-group">
+    <input
+      type="text"
+      [class]="inputClass()"
+      [class.is-invalid]="draftInvalid()"
+      [id]="inputId() ?? ''"
+      [value]="bsText()"
+      [disabled]="isDisabled()"
+      placeholder="DD-MM-YYYY (BS)"
+      autocomplete="off"
+      (input)="onBsInput($event)"
+      (blur)="onBsBlur()"
+    />
+    <button
+      type="button"
+      class="btn btn-outline-secondary"
+      [disabled]="isDisabled()"
+      aria-label="Open Bikram Sambat calendar"
+      (click)="togglePicker($event)"
+    >
+      <i class="bi bi-calendar3"></i>
+    </button>
+  </div>
+
+  @if (outOfRange()) {
+    <div class="form-text text-warning small">
+      This date is outside the supported Bikram Sambat range, so it is shown in AD.
+    </div>
+  }
+  @if (draftInvalid()) {
+    <div class="form-text text-danger small">Not a valid BS date.</div>
+  }
+
+  @if (open()) {
+    <!-- Backdrop: closes on an outside click. Bootstrap's JS is not loaded in this app, so the
+         open/close behaviour is ours to drive (Phase 22's gotcha). -->
+    <div class="bs-date-backdrop" (click)="close()"></div>
+
+    <!-- position: fixed, at coordinates captured from the trigger, so a .table-responsive wrapper
+         cannot clip it (Phase 22's gotcha). -->
+    <div class="bs-date-popup card shadow" [style.top.px]="popupTop()" [style.left.px]="popupLeft()">
+      <div class="bs-date-popup-header d-flex align-items-center justify-content-between">
+        <button type="button" class="btn btn-sm btn-link text-white" [disabled]="!canGoBack()" (click)="step(-12)" aria-label="Previous year">&laquo;</button>
+        <button type="button" class="btn btn-sm btn-link text-white" [disabled]="!canGoBack()" (click)="step(-1)" aria-label="Previous month">&lsaquo;</button>
+        <div class="text-center">
+          <div class="fw-semibold">{{ viewLabel() }}</div>
+          <div class="small opacity-75">{{ viewAdLabel() }}</div>
+        </div>
+        <button type="button" class="btn btn-sm btn-link text-white" [disabled]="!canGoForward()" (click)="step(1)" aria-label="Next month">&rsaquo;</button>
+        <button type="button" class="btn btn-sm btn-link text-white" [disabled]="!canGoForward()" (click)="step(12)" aria-label="Next year">&raquo;</button>
+      </div>
+
+      <div class="bs-date-grid">
+        @for (name of weekdays; track name) {
+          <div class="bs-date-weekday">{{ name }}</div>
+        }
+        @for (cell of cells(); track $index) {
+          @if (cell) {
+            <button
+              type="button"
+              class="bs-date-day"
+              [class.selected]="cell.isSelected"
+              [class.today]="cell.isToday"
+              (click)="pick(cell)"
+            >
+              <span class="bs-day">{{ cell.bsDay }}</span>
+              <span class="ad-day">{{ cell.adDay }}</span>
+            </button>
+          } @else {
+            <span class="bs-date-day empty"></span>
+          }
+        }
+      </div>
+
+      <div class="bs-date-popup-footer d-flex justify-content-between">
+        <button type="button" class="btn btn-sm btn-link" (click)="pickToday()">Today</button>
+        <button type="button" class="btn btn-sm btn-link" (click)="close()">Close</button>
+      </div>
+    </div>
+  }
+} @else {
+  <!-- AD mode keeps the real native control: the browser's own picker, keyboard handling and
+       mobile behaviour are all better than anything reimplemented here. This is the one template
+       the sweep guard allow-lists for a raw type="date". -->
+  <input
+    type="date"
+    [class]="inputClass()"
+    [id]="inputId() ?? ''"
+    [value]="current() ?? ''"
+    [disabled]="isDisabled()"
+    (change)="onAdChange($event)"
+    (blur)="onBsBlur()"
+  />
+}

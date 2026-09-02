@@ -13,6 +13,8 @@ import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-ta
 import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
 import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 interface EditableLine {
   key: number;
@@ -34,7 +36,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-quotation-detail-page',
-  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor],
+  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, AmountPipe, BsDateInput],
   templateUrl: './quotation-detail-page.html',
 })
 export class QuotationDetailPage {

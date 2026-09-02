@@ -49,11 +49,10 @@
         <div class="row g-3">
           <div class="col-12 col-sm-4">
             <label class="form-label small fw-semibold">Date</label>
-            <input
-              type="date"
-              class="form-control"
+            <app-bs-date-input
+              [inputClass]="'form-control'"
               [value]="date()"
-              (change)="date.set($any($event.target).value)"
+              (valueChange)="date.set($event)"
               [disabled]="!isDraft()"
             />
           </div>
@@ -134,7 +133,7 @@
                         (input)="onDebitChange(line.key, $event)"
                       />
                     } @else {
-                      {{ line.debit > 0 ? line.debit.toFixed(2) : '—' }}
+                      {{ line.debit > 0 ? (line.debit | amount) : '—' }}
                     }
                   </td>
                   <td class="text-end">
@@ -148,7 +147,7 @@
                         (input)="onCreditChange(line.key, $event)"
                       />
                     } @else {
-                      {{ line.credit > 0 ? line.credit.toFixed(2) : '—' }}
+                      {{ line.credit > 0 ? (line.credit | amount) : '—' }}
                     }
                   </td>
                   @if (isDraft()) {
@@ -164,8 +163,8 @@
             <tfoot>
               <tr class="fw-bold">
                 <td colspan="2">Total</td>
-                <td class="text-end">{{ totalDebit().toFixed(2) }}</td>
-                <td class="text-end">{{ totalCredit().toFixed(2) }}</td>
+                <td class="text-end">{{ (totalDebit() | amount) }}</td>
+                <td class="text-end">{{ (totalCredit() | amount) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -175,7 +174,7 @@
                   @if (difference() === 0) {
                     <span class="badge bg-success-subtle text-success">Difference: 0.00</span>
                   } @else {
-                    <span class="badge bg-danger-subtle text-danger">Difference: {{ difference().toFixed(2) }}</span>
+                    <span class="badge bg-danger-subtle text-danger">Difference: {{ (difference() | amount) }}</span>
                   }
                 </td>
               </tr>
@@ -229,8 +228,8 @@
                   @for (glLine of jv.glLines; track glLine.id) {
                     <tr>
                       <td>{{ accountLabel(glLine.accountId) }}</td>
-                      <td class="text-end">{{ glLine.debit > 0 ? glLine.debit.toFixed(2) : '—' }}</td>
-                      <td class="text-end">{{ glLine.credit > 0 ? glLine.credit.toFixed(2) : '—' }}</td>
+                      <td class="text-end">{{ glLine.debit > 0 ? (glLine.debit | amount) : '—' }}</td>
+                      <td class="text-end">{{ glLine.credit > 0 ? (glLine.credit | amount) : '—' }}</td>
                     </tr>
                   }
                 </tbody>

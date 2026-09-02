@@ -20,6 +20,22 @@ namespace ErpApp.Domain.Sales;
 /// Stock decrement is a deliberate no-op this phase (roadmap's own sequencing recommendation (a)):
 /// Approve calls IStockAvailabilityPolicy, which is a literal always-Ok stub until Phase 7's real
 /// FIFO ledger exists -- see Application.Sales.Stock.
+///
+/// <para><b>Export sales (FR-5.8, Phase 23).</b> IsExport + ExportCountry/ExportDeclarationNo/
+/// ExportDeclarationDate mirror PurchaseBill's existing IsImport block, and like it the detail
+/// fields are nullable regardless and only meaningful when the flag is set. Two differences from
+/// that block, both live-confirmed against the reference product rather than assumed:</para>
+/// <para>1. The detail fields are <b>optional even when the flag is set</b> -- the live form marks
+/// Customer/Date/Due Date/Warehouse with a required asterisk and pointedly does not mark Country,
+/// Date or Document No. PurchaseBill's import fields are required-when-flagged; this is not.</para>
+/// <para>2. <b>An export sale is zero-rated, and the aggregate enforces it.</b> On the live form,
+/// ticking "This is export sales" disables the per-line Tax selector outright and pins every line
+/// to "0 Vat" (verified in the DOM: the control carries ant-select-disabled). So SetExport and
+/// AddLine both coerce every line's VatRate to ZeroVat -- putting the rule in the aggregate rather
+/// than in a validator or the Angular form, because it is an invariant of the document and not a
+/// property of one entry path. Note ZeroVat (zero-rated) is deliberately not NoVat (exempt): both
+/// compute 0 VAT, but they are different statutory buckets and VAT Summary reports them separately.
+/// </para>
 /// </summary>
 public sealed class Invoice
 {
@@ -34,6 +50,10 @@ public sealed class Invoice
     public string Code { get; private set; } = null!;
     public DateOnly Date { get; private set; }
     public string? Reference { get; private set; }
+    public bool IsExport { get; private set; }
+    public string? ExportCountry { get; private set; }
+    public string? ExportDeclarationNo { get; private set; }
+    public DateOnly? ExportDeclarationDate { get; private set; }
     public InvoiceStatus Status { get; private set; }
     public Guid? ApprovedByUserId { get; private set; }
     public DateTimeOffset? ApprovedAt { get; private set; }
@@ -61,7 +81,11 @@ public sealed class Invoice
         string? reference,
         DocumentType? referrerType,
         Guid? referrerId,
-        decimal discountPct = 0)
+        decimal discountPct = 0,
+        bool isExport = false,
+        string? exportCountry = null,
+        string? exportDeclarationNo = null,
+        DateOnly? exportDeclarationDate = null)
     {
         EnsureValidDiscountPct(discountPct);
 
@@ -74,6 +98,10 @@ public sealed class Invoice
             Code = DraftCode,
             Date = date,
             Reference = reference,
+            IsExport = isExport,
+            ExportCountry = isExport ? exportCountry : null,
+            ExportDeclarationNo = isExport ? exportDeclarationNo : null,
+            ExportDeclarationDate = isExport ? exportDeclarationDate : null,
             Status = InvoiceStatus.Draft,
             CreatedAt = DateTimeOffset.UtcNow,
             ReferrerType = referrerType,
@@ -82,7 +110,16 @@ public sealed class Invoice
         };
     }
 
-    public void UpdateHeader(Guid contactId, Guid warehouseId, DateOnly date, string? reference, decimal discountPct)
+    public void UpdateHeader(
+        Guid contactId,
+        Guid warehouseId,
+        DateOnly date,
+        string? reference,
+        decimal discountPct,
+        bool isExport = false,
+        string? exportCountry = null,
+        string? exportDeclarationNo = null,
+        DateOnly? exportDeclarationDate = null)
     {
         EnsureDraft();
         EnsureValidDiscountPct(discountPct);
@@ -91,6 +128,34 @@ public sealed class Invoice
         Date = date;
         Reference = reference;
         DiscountPct = discountPct;
+        SetExport(isExport, exportCountry, exportDeclarationNo, exportDeclarationDate);
+    }
+
+    /// <summary>Turning the export flag on <b>re-rates every line already on the document</b> to
+    /// ZeroVat, and turning it off leaves them alone -- the user picks the rate again. Rebuilding
+    /// the lines is what keeps "an export invoice is zero-rated" true no matter which order the
+    /// user ticks the box and adds lines in; AddLine covers the other order.</summary>
+    public void SetExport(
+        bool isExport, string? exportCountry, string? exportDeclarationNo, DateOnly? exportDeclarationDate)
+    {
+        EnsureDraft();
+        IsExport = isExport;
+        ExportCountry = isExport ? exportCountry : null;
+        ExportDeclarationNo = isExport ? exportDeclarationNo : null;
+        ExportDeclarationDate = isExport ? exportDeclarationDate : null;
+
+        if (!isExport)
+        {
+            return;
+        }
+
+        var existing = _lines.ToList();
+        _lines.Clear();
+        foreach (var line in existing)
+        {
+            _lines.Add(InvoiceLine.Create(
+                Id, line.ProductId, line.Quantity, line.Rate, VatRate.ZeroVat, line.DiscountPct, DiscountPct));
+        }
     }
 
     public void AddLine(Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct)
@@ -104,7 +169,12 @@ public sealed class Invoice
 
         EnsureValidDiscountPct(discountPct);
 
-        _lines.Add(InvoiceLine.Create(Id, productId, quantity, rate, vatRate, discountPct, DiscountPct));
+        // An export sale is zero-rated: the live reference product disables the line's Tax selector
+        // entirely when the flag is set, so a caller's choice here is not merely overridden, it was
+        // never offered. Enforced in the aggregate so no entry path can bypass it.
+        var effectiveVatRate = IsExport ? VatRate.ZeroVat : vatRate;
+
+        _lines.Add(InvoiceLine.Create(Id, productId, quantity, rate, effectiveVatRate, discountPct, DiscountPct));
     }
 
     private static void EnsureValidDiscountPct(decimal discountPct)

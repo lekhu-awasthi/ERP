@@ -58,6 +58,17 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    // Phase 23 item 4. Deliberately a sibling of the launcher rather than replacing it: that page is
+    // a 55-link nav tray every module depends on, and this is the KPI screen the module scan's Home
+    // Tab describes. See HomeDashboardPage's doc comment for what it does and does not include.
+    path: 'organizations/:id/home',
+    loadComponent: () =>
+      import('./features/organizations/home-dashboard-page/home-dashboard-page').then(
+        (m) => m.HomeDashboardPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/configuration',
     loadComponent: () =>
       import('./features/configuration/configuration-shell/configuration-shell').then((m) => m.ConfigurationShell),

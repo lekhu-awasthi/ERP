@@ -36,11 +36,15 @@
       <div class="row g-3">
         <div class="col-12 col-sm-6">
           <label class="form-label small fw-semibold">From Date</label>
-          <input type="date" class="form-control" [value]="fromDate()" (change)="onFromDateChange($event)" />
+          <app-bs-date-input
+            [inputClass]="'form-control'"
+            [value]="fromDate()"
+            (valueChange)="onFromDateChange($event)"
+          />
         </div>
         <div class="col-12 col-sm-6">
           <label class="form-label small fw-semibold">To Date</label>
-          <input type="date" class="form-control" [value]="toDate()" (change)="onToDateChange($event)" />
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
       </div>
     </div>
@@ -78,7 +82,7 @@
               <tbody>
                 @for (row of r.rows; track row.entryNo + row.documentType) {
                   <tr>
-                    <td>{{ row.entryDate }}</td>
+                    <td>{{ row.entryDate | nepaliDate }}</td>
                     <td>
                       @if (row.documentType === 'PurchaseBill') {
                         <span class="badge bg-primary-subtle text-primary">Purchase Bill</span>
@@ -92,19 +96,19 @@
                     <td>{{ row.contactCode }} — {{ row.contactName }}</td>
                     <td>{{ row.contactPan || '—' }}</td>
                     <td>{{ row.tdsTypeCode }} — {{ row.tdsTypeName }}</td>
-                    <td class="text-end">{{ row.tdsRatePct.toFixed(2) }}</td>
-                    <td class="text-end">{{ row.grossAmount.toFixed(2) }}</td>
-                    <td class="text-end">{{ row.tdsAmount.toFixed(2) }}</td>
-                    <td class="text-end fw-bold">{{ row.netPayableAmount.toFixed(2) }}</td>
+                    <td class="text-end">{{ (row.tdsRatePct | amount) }}</td>
+                    <td class="text-end">{{ (row.grossAmount | amount) }}</td>
+                    <td class="text-end">{{ (row.tdsAmount | amount) }}</td>
+                    <td class="text-end fw-bold">{{ (row.netPayableAmount | amount) }}</td>
                   </tr>
                 }
               </tbody>
               <tfoot>
                 <tr class="fw-bold border-top">
                   <td colspan="7">Total</td>
-                  <td class="text-end">{{ r.totalGrossAmount.toFixed(2) }}</td>
-                  <td class="text-end">{{ r.totalTdsAmount.toFixed(2) }}</td>
-                  <td class="text-end">{{ (r.totalGrossAmount - r.totalTdsAmount).toFixed(2) }}</td>
+                  <td class="text-end">{{ (r.totalGrossAmount | amount) }}</td>
+                  <td class="text-end">{{ (r.totalTdsAmount | amount) }}</td>
+                  <td class="text-end">{{ ((r.totalGrossAmount - r.totalTdsAmount) | amount) }}</td>
                 </tr>
               </tfoot>
             </table>

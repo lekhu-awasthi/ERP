@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import {
   AlertDefinition,
   AlertSendLog,
@@ -23,7 +24,7 @@ import {
  */
 @Component({
   selector: 'app-alert-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, NepaliDatePipe],
   templateUrl: './alert-list-page.html',
 })
 export class AlertListPage {

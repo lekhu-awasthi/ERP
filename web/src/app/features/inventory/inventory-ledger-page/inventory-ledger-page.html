@@ -87,7 +87,7 @@
               <tbody>
                 @for (row of rows(); track row.id) {
                   <tr>
-                    <td>{{ row.transactionDate }}</td>
+                    <td>{{ row.transactionDate | nepaliDate }}</td>
                     <td>{{ row.sourceDocumentType }}</td>
                     <td>
                       @if (row.direction === 'In') {
@@ -96,9 +96,9 @@
                         <span class="badge bg-danger-subtle text-danger">Out</span>
                       }
                     </td>
-                    <td class="text-end">{{ row.quantity.toFixed(2) }}</td>
-                    <td class="text-end">{{ row.unitCost.toFixed(2) }}</td>
-                    <td class="text-end fw-bold">{{ row.runningBalance.toFixed(2) }}</td>
+                    <td class="text-end">{{ (row.quantity | amount) }}</td>
+                    <td class="text-end">{{ (row.unitCost | amount) }}</td>
+                    <td class="text-end fw-bold">{{ (row.runningBalance | amount) }}</td>
                   </tr>
                 }
               </tbody>

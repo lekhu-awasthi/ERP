@@ -12,6 +12,8 @@ import { Product, VatRate } from '../../../core/catalog/catalog.models';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
 import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 interface EditableLine {
   key: number;
@@ -29,7 +31,7 @@ let nextLineKey = 1;
  * Quotation. Approve posts CreditNotePostingRule's exact reverse of InvoicePostingRule. */
 @Component({
   selector: 'app-credit-note-detail-page',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput],
   templateUrl: './credit-note-detail-page.html',
 })
 export class CreditNoteDetailPage {

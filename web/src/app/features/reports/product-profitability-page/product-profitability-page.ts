@@ -9,6 +9,8 @@ import { Product, ProductCategory } from '../../../core/catalog/catalog.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { triggerBlobDownload } from '../../../shared/download-file';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 /**
  * Read-only report screen -- Phase 19's ProductProfitabilityQuery, a per-product-per-period
@@ -17,7 +19,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
  */
 @Component({
   selector: 'app-product-profitability-page',
-  imports: [RouterLink, PaginationControl],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput],
   templateUrl: './product-profitability-page.html',
 })
 export class ProductProfitabilityPage {
@@ -53,14 +55,14 @@ export class ProductProfitabilityPage {
     this.load();
   }
 
-  protected onFromDateChange(event: Event): void {
-    this.fromDate.set((event.target as HTMLInputElement).value);
+  protected onFromDateChange(value: string): void {
+    this.fromDate.set(value);
     this.page.set(1);
     this.load();
   }
 
-  protected onToDateChange(event: Event): void {
-    this.toDate.set((event.target as HTMLInputElement).value);
+  protected onToDateChange(value: string): void {
+    this.toDate.set(value);
     this.page.set(1);
     this.load();
   }

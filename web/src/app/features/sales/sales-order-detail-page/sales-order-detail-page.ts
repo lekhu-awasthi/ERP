@@ -10,6 +10,8 @@ import { CatalogService } from '../../../core/catalog/catalog.service';
 import { Product, VatRate } from '../../../core/catalog/catalog.models';
 import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 interface EditableLine {
   key: number;
@@ -36,7 +38,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-sales-order-detail-page',
-  imports: [RouterLink],
+  imports: [RouterLink, AmountPipe, BsDateInput],
   templateUrl: './sales-order-detail-page.html',
 })
 export class SalesOrderDetailPage {

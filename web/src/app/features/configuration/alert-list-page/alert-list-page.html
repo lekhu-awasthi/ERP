@@ -203,7 +203,7 @@
                     </td>
                     <td class="small text-break">{{ log.recipient }}</td>
                     <td class="small">{{ log.alertName }} &middot; {{ alertTypeLabel(log.alertType) }}</td>
-                    <td class="small text-nowrap">{{ log.occurrenceDate }}</td>
+                    <td class="small text-nowrap">{{ log.occurrenceDate | nepaliDate }}</td>
                     <td class="small text-nowrap">{{ log.completedAt ?? log.createdAt }}</td>
                   </tr>
                 }

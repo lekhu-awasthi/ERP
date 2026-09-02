@@ -6,13 +6,14 @@ import { AccountingService } from '../../../core/accounting/accounting.service';
 import { CashTransfer, CashTransferStatus } from '../../../core/accounting/accounting.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 type StatusFilter = CashTransferStatus | 'All';
 
 /** Same list-page chrome as journal-voucher-list-page. */
 @Component({
   selector: 'app-cash-transfer-list-page',
-  imports: [RouterLink, PaginationControl],
+  imports: [RouterLink, PaginationControl, NepaliDatePipe],
   templateUrl: './cash-transfer-list-page.html',
 })
 export class CashTransferListPage {

@@ -5,6 +5,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account, CashTransferDetail, CashTransferLineInput } from '../../../core/accounting/accounting.models';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 interface EditableLine {
   key: number;
@@ -22,7 +24,7 @@ let nextLineKey = 1;
  * credit). */
 @Component({
   selector: 'app-cash-transfer-detail-page',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput],
   templateUrl: './cash-transfer-detail-page.html',
 })
 export class CashTransferDetailPage {

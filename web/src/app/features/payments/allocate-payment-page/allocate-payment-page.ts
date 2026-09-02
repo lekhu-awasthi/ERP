@@ -11,6 +11,7 @@ import { SalesService } from '../../../core/sales/sales.service';
 import { PurchasingService } from '../../../core/purchasing/purchasing.service';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 interface TargetOption {
   id: string;
@@ -27,7 +28,7 @@ interface TargetOption {
  */
 @Component({
   selector: 'app-allocate-payment-page',
-  imports: [RouterLink, PaginationControl, DatePipe, DecimalPipe],
+  imports: [RouterLink, PaginationControl, DatePipe, DecimalPipe, NepaliDatePipe],
   templateUrl: './allocate-payment-page.html',
 })
 export class AllocatePaymentPage {

@@ -18,6 +18,12 @@ public sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Property(x => x.Code).HasMaxLength(30).IsRequired();
         builder.Property(x => x.Date).IsRequired();
         builder.Property(x => x.Reference).HasMaxLength(200);
+        // FR-5.8's export-sale block, mirroring PurchaseBillConfiguration's IsImport/ImportCountry/
+        // ImportDocumentNo lengths so the two read the same. Nullable detail fields: unlike the
+        // import block they stay optional even when the flag is set (live-confirmed).
+        builder.Property(x => x.IsExport).IsRequired();
+        builder.Property(x => x.ExportCountry).HasMaxLength(100);
+        builder.Property(x => x.ExportDeclarationNo).HasMaxLength(100);
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.RowVersion).IsRowVersion();

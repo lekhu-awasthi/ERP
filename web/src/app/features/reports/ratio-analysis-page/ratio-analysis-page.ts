@@ -5,6 +5,8 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { RatioAnalysisDto } from '../../../core/accounting/accounting.models';
 import { triggerBlobDownload } from '../../../shared/download-file';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 /**
  * Read-only report screen -- Phase 19's RatioAnalysisQuery, grouped by the 4 confirmed categories
@@ -12,7 +14,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
  */
 @Component({
   selector: 'app-ratio-analysis-page',
-  imports: [RouterLink],
+  imports: [RouterLink, AmountPipe, BsDateInput],
   templateUrl: './ratio-analysis-page.html',
 })
 export class RatioAnalysisPage {
@@ -34,13 +36,13 @@ export class RatioAnalysisPage {
     this.load();
   }
 
-  protected onFromDateChange(event: Event): void {
-    this.fromDate.set((event.target as HTMLInputElement).value);
+  protected onFromDateChange(value: string): void {
+    this.fromDate.set(value);
     this.load();
   }
 
-  protected onToDateChange(event: Event): void {
-    this.toDate.set((event.target as HTMLInputElement).value);
+  protected onToDateChange(value: string): void {
+    this.toDate.set(value);
     this.load();
   }
 

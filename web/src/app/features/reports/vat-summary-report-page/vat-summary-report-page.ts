@@ -5,6 +5,8 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { VatSummaryReportDto } from '../../../core/accounting/accounting.models';
 import { triggerBlobDownload } from '../../../shared/download-file';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 /**
  * Read-only report screen -- roadmap Phase 8c's VatSummaryReportQuery, a standard Nepal
@@ -15,7 +17,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
  */
 @Component({
   selector: 'app-vat-summary-report-page',
-  imports: [RouterLink],
+  imports: [RouterLink, AmountPipe, BsDateInput],
   templateUrl: './vat-summary-report-page.html',
 })
 export class VatSummaryReportPage {
@@ -36,13 +38,13 @@ export class VatSummaryReportPage {
     this.load();
   }
 
-  protected onFromDateChange(event: Event): void {
-    this.fromDate.set((event.target as HTMLInputElement).value);
+  protected onFromDateChange(value: string): void {
+    this.fromDate.set(value);
     this.load();
   }
 
-  protected onToDateChange(event: Event): void {
-    this.toDate.set((event.target as HTMLInputElement).value);
+  protected onToDateChange(value: string): void {
+    this.toDate.set(value);
     this.load();
   }
 

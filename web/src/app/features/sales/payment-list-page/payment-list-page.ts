@@ -6,12 +6,14 @@ import { PaymentsService } from '../../../core/payments/payments.service';
 import { Payment, PaymentStatus } from '../../../core/payments/payments.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 type StatusFilter = PaymentStatus | 'All';
 
 @Component({
   selector: 'app-payment-list-page',
-  imports: [RouterLink, PaginationControl],
+  imports: [RouterLink, PaginationControl, AmountPipe, NepaliDatePipe],
   templateUrl: './payment-list-page.html',
 })
 export class PaymentListPage {

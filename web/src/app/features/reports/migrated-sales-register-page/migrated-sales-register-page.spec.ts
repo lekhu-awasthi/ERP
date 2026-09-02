@@ -89,7 +89,9 @@ describe('MigratedSalesRegisterPage', () => {
   it('shows the server-computed totals over the full filtered set, not the page', () => {
     const { text } = page();
 
-    expect(text()).toContain('4520.00');
+    // Phase 23 (NFR-1.2): amounts now render through AmountPipe, so the footer total carries
+    // lakh/crore grouping. 4,520.00 is also the proof the pipe is wired into this page at all.
+    expect(text()).toContain('4,520.00');
     expect(text()).toContain('520.00');
     // The single loaded row's own value must not be the footer figure.
     expect(text()).not.toContain('Total113.00');

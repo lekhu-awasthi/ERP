@@ -23,6 +23,8 @@ import { InboxPrefill } from '../../../core/workflow/inbox.models';
 import { InboxService } from '../../../core/workflow/inbox.service';
 import { InboxConversionPanel } from '../../../shared/source-document/inbox-conversion-panel';
 import { SourceDocumentPanel } from '../../../shared/source-document/source-document-panel';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 interface EditableLine {
   key: number;
@@ -41,7 +43,7 @@ let nextLineKey = 1;
  * own lines the way JournalVoucher's is. */
 @Component({
   selector: 'app-invoice-detail-page',
-  imports: [RouterLink, DatePipe, ReportingTagsEditor, CustomFieldsEditor, InboxConversionPanel, SourceDocumentPanel],
+  imports: [RouterLink, DatePipe, ReportingTagsEditor, CustomFieldsEditor, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput],
   templateUrl: './invoice-detail-page.html',
 })
 export class InvoiceDetailPage {
@@ -84,6 +86,18 @@ export class InvoiceDetailPage {
   protected readonly reference = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
   protected readonly discountPct = signal(0);
+
+  /**
+   * FR-5.8. Ticking this zero-rates the whole invoice: the live reference product disables the
+   * per-line Tax selector outright and pins every line to "0 Vat", so this mirrors that rather than
+   * leaving a control the server would silently override. The three detail fields stay optional
+   * even when the flag is set -- also live-confirmed, and the one place this differs from
+   * PurchaseBill's import block, whose equivalents are required.
+   */
+  protected readonly isExport = signal(false);
+  protected readonly exportCountry = signal('');
+  protected readonly exportDeclarationNo = signal('');
+  protected readonly exportDeclarationDate = signal('');
   private referrerType: DocumentType | null = null;
   private referrerId: string | null = null;
 
@@ -283,6 +297,24 @@ export class InvoiceDetailPage {
     this.updateLine(key, { rate: Number.isFinite(rate) ? rate : 0 });
   }
 
+  /** Mirrors the aggregate: turning the flag on re-rates every line already entered, so the totals
+   * panel shows the same zero-rated figures the server will compute on Save. */
+  protected onExportToggle(event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    this.isExport.set(checked);
+    if (checked) {
+      this.lines.update((lines) => lines.map((l) => ({ ...l, vatRate: 'ZeroVat' as const })));
+    }
+  }
+
+  protected onExportCountryChange(event: Event): void {
+    this.exportCountry.set((event.target as HTMLInputElement).value);
+  }
+
+  protected onExportDeclarationNoChange(event: Event): void {
+    this.exportDeclarationNo.set((event.target as HTMLInputElement).value);
+  }
+
   protected onVatRateChange(key: number, event: Event): void {
     const vatRate = (event.target as HTMLSelectElement).value as VatRate;
     this.updateLine(key, { vatRate });
@@ -333,6 +365,10 @@ export class InvoiceDetailPage {
       referrerId: this.referrerId,
       lines,
       discountPct: this.discountPct(),
+      isExport: this.isExport(),
+      exportCountry: this.isExport() ? this.exportCountry() || null : null,
+      exportDeclarationNo: this.isExport() ? this.exportDeclarationNo() || null : null,
+      exportDeclarationDate: this.isExport() ? this.exportDeclarationDate() || null : null,
     };
 
     if (this.isNew()) {
@@ -522,6 +558,10 @@ export class InvoiceDetailPage {
         this.referrerType = invoice.referrerType;
         this.referrerId = invoice.referrerId;
         this.discountPct.set(invoice.discountPct);
+        this.isExport.set(invoice.isExport);
+        this.exportCountry.set(invoice.exportCountry ?? '');
+        this.exportDeclarationNo.set(invoice.exportDeclarationNo ?? '');
+        this.exportDeclarationDate.set(invoice.exportDeclarationDate ?? '');
         this.lines.set(
           invoice.lines.length > 0
             ? invoice.lines.map((l) => ({

@@ -31,7 +31,11 @@
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4">
       <label class="form-label small fw-semibold">As Of Date</label>
-      <input type="date" class="form-control" style="max-width: 220px;" [value]="asOfDate()" (change)="onAsOfDateChange($event)" />
+      <app-bs-date-input
+        [inputClass]="'form-control'"
+        [value]="asOfDate()"
+        (valueChange)="onAsOfDateChange($event)"
+      />
     </div>
   </div>
 
@@ -55,14 +59,14 @@
                 @for (group of bs.assetGroups; track group.groupId) {
                   <tr>
                     <td>{{ group.groupName }}</td>
-                    <td class="text-end">{{ group.balance.toFixed(2) }}</td>
+                    <td class="text-end">{{ (group.balance | amount) }}</td>
                   </tr>
                 }
               </tbody>
               <tfoot>
                 <tr class="fw-bold border-top">
                   <td>Total Assets</td>
-                  <td class="text-end">{{ bs.totalAssets.toFixed(2) }}</td>
+                  <td class="text-end">{{ (bs.totalAssets | amount) }}</td>
                 </tr>
               </tfoot>
             </table>
@@ -82,14 +86,14 @@
                 @for (group of bs.liabilityGroups; track group.groupId) {
                   <tr>
                     <td>{{ group.groupName }}</td>
-                    <td class="text-end">{{ group.balance.toFixed(2) }}</td>
+                    <td class="text-end">{{ (group.balance | amount) }}</td>
                   </tr>
                 }
               </tbody>
               <tfoot>
                 <tr class="fw-bold border-top">
                   <td>Total Liabilities</td>
-                  <td class="text-end">{{ bs.totalLiabilities.toFixed(2) }}</td>
+                  <td class="text-end">{{ (bs.totalLiabilities | amount) }}</td>
                 </tr>
               </tfoot>
             </table>
@@ -100,14 +104,14 @@
                 @for (group of bs.equityGroups; track group.groupId) {
                   <tr [class.text-muted]="group.groupId === '00000000-0000-0000-0000-000000000000'">
                     <td>{{ group.groupName }}</td>
-                    <td class="text-end">{{ group.balance.toFixed(2) }}</td>
+                    <td class="text-end">{{ (group.balance | amount) }}</td>
                   </tr>
                 }
               </tbody>
               <tfoot>
                 <tr class="fw-bold border-top">
                   <td>Total Equity</td>
-                  <td class="text-end">{{ bs.totalEquity.toFixed(2) }}</td>
+                  <td class="text-end">{{ (bs.totalEquity | amount) }}</td>
                 </tr>
               </tfoot>
             </table>
@@ -120,11 +124,11 @@
       <div class="card-body p-4 text-end">
         @if (bs.isBalanced) {
           <span class="badge bg-success-subtle text-success">
-            Balanced -- Assets {{ bs.totalAssets.toFixed(2) }} = Liabilities + Equity {{ (bs.totalLiabilities + bs.totalEquity).toFixed(2) }}
+            Balanced -- Assets {{ (bs.totalAssets | amount) }} = Liabilities + Equity {{ ((bs.totalLiabilities + bs.totalEquity) | amount) }}
           </span>
         } @else {
           <span class="badge bg-danger-subtle text-danger">
-            Out of balance -- Assets {{ bs.totalAssets.toFixed(2) }} vs Liabilities + Equity {{ (bs.totalLiabilities + bs.totalEquity).toFixed(2) }}
+            Out of balance -- Assets {{ (bs.totalAssets | amount) }} vs Liabilities + Equity {{ ((bs.totalLiabilities + bs.totalEquity) | amount) }}
           </span>
         }
       </div>

@@ -6,12 +6,13 @@ import { PurchasingService } from '../../../core/purchasing/purchasing.service';
 import { PurchaseBill, PurchaseBillStatus } from '../../../core/purchasing/purchasing.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 type StatusFilter = PurchaseBillStatus | 'All';
 
 @Component({
   selector: 'app-purchase-bill-list-page',
-  imports: [RouterLink, PaginationControl],
+  imports: [RouterLink, PaginationControl, NepaliDatePipe],
   templateUrl: './purchase-bill-list-page.html',
 })
 export class PurchaseBillListPage {

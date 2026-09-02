@@ -320,12 +320,12 @@
                 <div class="row g-3 mb-4">
                   <div class="col-6 col-sm-4">
                     <p class="text-muted small mb-1">Opening Balance</p>
-                    <p class="fw-bold mb-0">{{ o.openingBalance.toFixed(2) }} {{ o.openingBalanceType }}</p>
+                    <p class="fw-bold mb-0">{{ (o.openingBalance | amount) }} {{ o.openingBalanceType }}</p>
                   </div>
                   <div class="col-6 col-sm-4">
                     <p class="text-muted small mb-1">Closing Balance</p>
                     <p class="fw-bold mb-0">
-                      {{ o.closingBalance.toFixed(2) }}
+                      {{ (o.closingBalance | amount) }}
                       <span
                         class="badge ms-1"
                         [class.bg-danger-subtle]="o.closingBalanceType === 'DR'"
@@ -356,11 +356,11 @@
                       <tbody>
                         @for (row of o.recentTransactions; track row.code) {
                           <tr>
-                            <td>{{ row.date }}</td>
+                            <td>{{ row.date | nepaliDate }}</td>
                             <td>{{ row.documentType }}</td>
                             <td>{{ row.code }}</td>
-                            <td class="text-end">{{ row.debit > 0 ? row.debit.toFixed(2) : '—' }}</td>
-                            <td class="text-end">{{ row.credit > 0 ? row.credit.toFixed(2) : '—' }}</td>
+                            <td class="text-end">{{ row.debit > 0 ? (row.debit | amount) : '—' }}</td>
+                            <td class="text-end">{{ row.credit > 0 ? (row.credit | amount) : '—' }}</td>
                           </tr>
                         }
                       </tbody>

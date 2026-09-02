@@ -345,7 +345,7 @@
                 <dt class="col-5">PAN</dt>
                 <dd class="col-7">{{ extracted.partyPan ?? '—' }}</dd>
                 <dt class="col-5">Date</dt>
-                <dd class="col-7">{{ extracted.documentDate ?? '—' }}</dd>
+                <dd class="col-7">{{ (extracted.documentDate | nepaliDate) || '—' }}</dd>
                 <dt class="col-5">Reference</dt>
                 <dd class="col-7">{{ extracted.reference ?? '—' }}</dd>
                 <dt class="col-5">Total</dt>

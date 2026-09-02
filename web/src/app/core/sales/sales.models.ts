@@ -114,6 +114,11 @@ export interface Invoice {
   code: string;
   date: string;
   reference: string | null;
+  /** FR-5.8. When true the invoice is zero-rated and every line's VAT is pinned to 0 Vat. */
+  isExport: boolean;
+  exportCountry: string | null;
+  exportDeclarationNo: string | null;
+  exportDeclarationDate: string | null;
   status: InvoiceStatus;
   approvedByUserId: string | null;
   approvedAt: string | null;
@@ -151,6 +156,10 @@ export interface InvoiceRequest {
   referrerType?: DocumentType | null;
   referrerId?: string | null;
   discountPct: number;
+  isExport: boolean;
+  exportCountry: string | null;
+  exportDeclarationNo: string | null;
+  exportDeclarationDate: string | null;
 }
 
 export interface CreateInvoiceResult {

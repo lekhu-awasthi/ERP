@@ -11,6 +11,8 @@ import { TaskParentType, TaskRow, TaskStatus } from '../../../core/workflow/work
 import { WorkflowService } from '../../../core/workflow/workflow.service';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 /**
  * Shared Task list component (roadmap Phase 13) -- reused, not duplicated, across its two
@@ -22,7 +24,7 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
  */
 @Component({
   selector: 'app-task-list',
-  imports: [ReactiveFormsModule, LowerCasePipe, PaginationControl],
+  imports: [ReactiveFormsModule, LowerCasePipe, PaginationControl, BsDateInput, NepaliDatePipe],
   templateUrl: './task-list.html',
 })
 export class TaskList implements OnInit {

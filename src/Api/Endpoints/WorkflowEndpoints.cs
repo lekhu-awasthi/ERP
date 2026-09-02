@@ -4,6 +4,7 @@ using ErpApp.Application.Workflow.Commands.CreateTask;
 using ErpApp.Application.Workflow.Commands.UpdateTask;
 using ErpApp.Application.Workflow.Commands.UpdateTaskStatus;
 using ErpApp.Application.Workflow.Queries.ListTasks;
+using ErpApp.Application.Workflow.Queries.RecentTransactions;
 using ErpApp.Application.Workflow.Queries.SystemAuditReport;
 using ErpApp.Application.Workflow.Queries.TransactionApproval;
 using ErpApp.Domain.Common;
@@ -24,6 +25,30 @@ public static class WorkflowEndpoints
             Guid organizationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new TransactionApprovalQuery(organizationId), ct);
+            return Results.Ok(result);
+        });
+
+        // Phase 23: the Home dashboard's recent-activity feed. Paged; Filter maps to the live
+        // product's All/Sales/Purchase/Payment/Receipt tabs.
+        group.MapGet("/workflow/recent-transactions", async (
+            Guid organizationId,
+            DateOnly fromDate,
+            DateOnly toDate,
+            RecentTransactionFilter? filter,
+            int? page,
+            int? pageSize,
+            ISender sender,
+            CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new RecentTransactionsQuery(
+                    organizationId,
+                    fromDate,
+                    toDate,
+                    filter ?? RecentTransactionFilter.All,
+                    page ?? 1,
+                    pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
             return Results.Ok(result);
         });
 

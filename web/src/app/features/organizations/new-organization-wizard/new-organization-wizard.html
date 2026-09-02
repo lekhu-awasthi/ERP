@@ -115,12 +115,10 @@
                   <label for="accountingStartDate" class="form-label fw-bold text-dark small mb-1">
                     <span class="text-danger">*</span> Accounting Start Date
                   </label>
-                  <input
-                    id="accountingStartDate"
-                    type="date"
+                  <app-bs-date-input
+                    [inputId]="'accountingStartDate'"
+                    [inputClass]="'form-control'"
                     formControlName="accountingStartDate"
-                    class="form-control"
-                    style="border-radius: 4px;"
                   />
                 </div>
                 <div class="col-md-6">
@@ -373,7 +371,7 @@
             </div>
             <div class="col-sm-6 mb-3">
               <span class="text-muted small d-block">START DATE</span>
-              <span class="fw-bold text-dark">{{ form.controls.accountingStartDate.value }}</span>
+              <span class="fw-bold text-dark">{{ form.controls.accountingStartDate.value | nepaliDate }}</span>
             </div>
             <div class="col-sm-6 mb-3">
               <span class="text-muted small d-block">VAT REGISTERED</span>

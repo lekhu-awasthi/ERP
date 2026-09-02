@@ -6,12 +6,13 @@ import { SalesService } from '../../../core/sales/sales.service';
 import { Invoice, InvoiceStatus } from '../../../core/sales/sales.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 type StatusFilter = InvoiceStatus | 'All';
 
 @Component({
   selector: 'app-invoice-list-page',
-  imports: [RouterLink, PaginationControl],
+  imports: [RouterLink, PaginationControl, NepaliDatePipe],
   templateUrl: './invoice-list-page.html',
 })
 export class InvoiceListPage {

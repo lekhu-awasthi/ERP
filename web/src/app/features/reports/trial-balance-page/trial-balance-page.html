@@ -26,7 +26,11 @@
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4">
       <label class="form-label small fw-semibold">As Of Date</label>
-      <input type="date" class="form-control" style="max-width: 220px;" [value]="asOfDate()" (change)="onAsOfDateChange($event)" />
+      <app-bs-date-input
+        [inputClass]="'form-control'"
+        [value]="asOfDate()"
+        (valueChange)="onAsOfDateChange($event)"
+      />
     </div>
   </div>
 
@@ -62,16 +66,16 @@
                   <tr>
                     <td>{{ row.accountCode }}</td>
                     <td>{{ row.accountName }}</td>
-                    <td class="text-end">{{ row.debit ? row.debit.toFixed(2) : '' }}</td>
-                    <td class="text-end">{{ row.credit ? row.credit.toFixed(2) : '' }}</td>
+                    <td class="text-end">{{ row.debit ? (row.debit | amount) : '' }}</td>
+                    <td class="text-end">{{ row.credit ? (row.credit | amount) : '' }}</td>
                   </tr>
                 }
               </tbody>
               <tfoot>
                 <tr class="fw-bold border-top">
                   <td colspan="2" class="text-end">Total</td>
-                  <td class="text-end">{{ tb.totalDebit.toFixed(2) }}</td>
-                  <td class="text-end">{{ tb.totalCredit.toFixed(2) }}</td>
+                  <td class="text-end">{{ (tb.totalDebit | amount) }}</td>
+                  <td class="text-end">{{ (tb.totalCredit | amount) }}</td>
                 </tr>
                 <tr>
                   <td colspan="4" class="text-end">
@@ -79,7 +83,7 @@
                       <span class="badge bg-success-subtle text-success">Difference: 0.00</span>
                     } @else {
                       <span class="badge bg-danger-subtle text-danger">
-                        Difference: {{ (tb.totalDebit - tb.totalCredit).toFixed(2) }}
+                        Difference: {{ ((tb.totalDebit - tb.totalCredit) | amount) }}
                       </span>
                     }
                   </td>

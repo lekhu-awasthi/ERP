@@ -11,6 +11,8 @@ import { Product, VatRate } from '../../../core/catalog/catalog.models';
 import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
 import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 interface EditableLine {
   key: number;
@@ -27,7 +29,7 @@ let nextLineKey = 1;
  * "Convert to Bill" instead of "Convert to Invoice". */
 @Component({
   selector: 'app-purchase-order-detail-page',
-  imports: [RouterLink],
+  imports: [RouterLink, AmountPipe, BsDateInput],
   templateUrl: './purchase-order-detail-page.html',
 })
 export class PurchaseOrderDetailPage {

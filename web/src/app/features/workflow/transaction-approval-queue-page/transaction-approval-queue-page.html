@@ -52,7 +52,7 @@
                   <td>
                     {{ row.contactName ?? row.reference ?? '—' }}
                   </td>
-                  <td>{{ row.date }}</td>
+                  <td>{{ row.date | nepaliDate }}</td>
                   <td class="text-end">
                     @if (detailRoute(row); as link) {
                       <a [routerLink]="link" class="btn btn-outline-primary btn-sm fw-bold">

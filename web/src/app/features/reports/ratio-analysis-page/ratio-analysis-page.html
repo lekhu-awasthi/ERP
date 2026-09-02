@@ -33,11 +33,15 @@
       <div class="row g-3">
         <div class="col-12 col-sm-6">
           <label class="form-label small fw-semibold">From Date</label>
-          <input type="date" class="form-control" [value]="fromDate()" (change)="onFromDateChange($event)" />
+          <app-bs-date-input
+            [inputClass]="'form-control'"
+            [value]="fromDate()"
+            (valueChange)="onFromDateChange($event)"
+          />
         </div>
         <div class="col-12 col-sm-6">
           <label class="form-label small fw-semibold">To Date</label>
-          <input type="date" class="form-control" [value]="toDate()" (change)="onToDateChange($event)" />
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
       </div>
     </div>
@@ -55,9 +59,9 @@
           <h6 class="fw-bold text-dark mb-2">Liquidity</h6>
           <table class="table table-sm align-middle mb-0">
             <tbody>
-              <tr><td>Current Ratio</td><td class="text-end">{{ r.currentRatio.toFixed(2) }}</td></tr>
-              <tr><td>Quick Ratio</td><td class="text-end">{{ r.quickRatio.toFixed(2) }}</td></tr>
-              <tr><td>Cash Ratio</td><td class="text-end">{{ r.cashRatio.toFixed(2) }}</td></tr>
+              <tr><td>Current Ratio</td><td class="text-end">{{ (r.currentRatio | amount) }}</td></tr>
+              <tr><td>Quick Ratio</td><td class="text-end">{{ (r.quickRatio | amount) }}</td></tr>
+              <tr><td>Cash Ratio</td><td class="text-end">{{ (r.cashRatio | amount) }}</td></tr>
             </tbody>
           </table>
         </div>
@@ -66,8 +70,8 @@
           <h6 class="fw-bold text-dark mb-2">Solvency</h6>
           <table class="table table-sm align-middle mb-0">
             <tbody>
-              <tr><td>Debt-to-Equity Ratio</td><td class="text-end">{{ r.debtToEquityRatio.toFixed(2) }}</td></tr>
-              <tr><td>Debt Ratio</td><td class="text-end">{{ r.debtRatio.toFixed(2) }}</td></tr>
+              <tr><td>Debt-to-Equity Ratio</td><td class="text-end">{{ (r.debtToEquityRatio | amount) }}</td></tr>
+              <tr><td>Debt Ratio</td><td class="text-end">{{ (r.debtRatio | amount) }}</td></tr>
             </tbody>
           </table>
         </div>
@@ -76,9 +80,9 @@
           <h6 class="fw-bold text-dark mb-2">Efficiency</h6>
           <table class="table table-sm align-middle mb-0">
             <tbody>
-              <tr><td>Inventory Turnover</td><td class="text-end">{{ r.inventoryTurnover.toFixed(2) }}</td></tr>
-              <tr><td>Receivables Turnover</td><td class="text-end">{{ r.receivablesTurnover.toFixed(2) }}</td></tr>
-              <tr><td>Asset Turnover</td><td class="text-end">{{ r.assetTurnover.toFixed(2) }}</td></tr>
+              <tr><td>Inventory Turnover</td><td class="text-end">{{ (r.inventoryTurnover | amount) }}</td></tr>
+              <tr><td>Receivables Turnover</td><td class="text-end">{{ (r.receivablesTurnover | amount) }}</td></tr>
+              <tr><td>Asset Turnover</td><td class="text-end">{{ (r.assetTurnover | amount) }}</td></tr>
               <tr><td>Receivable Days</td><td class="text-end">{{ r.receivableDays.toFixed(1) }}</td></tr>
               <tr><td>Payable Days</td><td class="text-end">{{ r.payableDays.toFixed(1) }}</td></tr>
               <tr><td>Inventory Holding Period (Days)</td><td class="text-end">{{ r.inventoryHoldingPeriodDays.toFixed(1) }}</td></tr>
@@ -91,10 +95,10 @@
           <h6 class="fw-bold text-dark mb-2">Profitability</h6>
           <table class="table table-sm align-middle mb-0">
             <tbody>
-              <tr><td>Gross Profit Margin (%)</td><td class="text-end">{{ r.grossProfitMarginPct.toFixed(2) }}%</td></tr>
-              <tr><td>Net Profit Margin (%)</td><td class="text-end">{{ r.netProfitMarginPct.toFixed(2) }}%</td></tr>
-              <tr><td>Return On Assets (%)</td><td class="text-end">{{ r.returnOnAssetsPct.toFixed(2) }}%</td></tr>
-              <tr><td>Return On Equity (%)</td><td class="text-end">{{ r.returnOnEquityPct.toFixed(2) }}%</td></tr>
+              <tr><td>Gross Profit Margin (%)</td><td class="text-end">{{ (r.grossProfitMarginPct | amount) }}%</td></tr>
+              <tr><td>Net Profit Margin (%)</td><td class="text-end">{{ (r.netProfitMarginPct | amount) }}%</td></tr>
+              <tr><td>Return On Assets (%)</td><td class="text-end">{{ (r.returnOnAssetsPct | amount) }}%</td></tr>
+              <tr><td>Return On Equity (%)</td><td class="text-end">{{ (r.returnOnEquityPct | amount) }}%</td></tr>
             </tbody>
           </table>
         </div>

@@ -33,7 +33,11 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db) : IRequestHandle
             }
 
             var invoices = await invoiceQuery
-                .Select(x => new { x.Id, x.ContactId, x.Code, x.Date })
+                .Select(x => new
+                {
+                    x.Id, x.ContactId, x.Code, x.Date,
+                    x.IsExport, x.ExportCountry, x.ExportDeclarationNo, x.ExportDeclarationDate,
+                })
                 .ToListAsync(cancellationToken);
             var invoiceIds = invoices.Select(x => x.Id).ToList();
             var invoiceLines = await db.InvoiceLines
@@ -57,10 +61,22 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db) : IRequestHandle
             {
                 var totals = invoiceTotals.GetValueOrDefault(x.Id);
                 var contact = invoiceContacts[x.ContactId];
+                // FR-5.8 (Phase 23). These four columns existed from Phase 19 and were hardcoded to
+                // zero/null because Invoice had no export flag until now.
+                //
+                // ExportValue is the invoice's own total, reported in its own statutory column --
+                // and deliberately NOT added to TaxableValue. An export sale is zero-rated, so its
+                // lines are ZeroVat (Invoice.AddLine enforces that), which means the existing
+                // "VatAmount == 0 => tax-exempt" split already keeps it out of Taxable. Stating it
+                // here because the alternative -- letting an export sale inflate Taxable Sales --
+                // is exactly the kind of wrong-column error Phase 6's bug #3 is the reminder for.
                 return new SalesRegisterRowDto(
                     x.Date, DocumentType.Invoice, x.Code, x.ContactId, contact.Name, contact.Pan,
                     totals.Total, totals.TaxExempt, totals.Taxable, totals.Vat,
-                    ExportValue: 0, ExportCountry: null, ExportDeclarationNo: null, ExportDeclarationDate: null);
+                    ExportValue: x.IsExport ? totals.Total : 0,
+                    ExportCountry: x.IsExport ? x.ExportCountry : null,
+                    ExportDeclarationNo: x.IsExport ? x.ExportDeclarationNo : null,
+                    ExportDeclarationDate: x.IsExport ? x.ExportDeclarationDate : null);
             }));
         }
 
@@ -99,6 +115,9 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db) : IRequestHandle
             {
                 var totals = creditNoteTotals.GetValueOrDefault(x.Id);
                 var contact = creditNoteContacts[x.ContactId];
+                // A CreditNote carries no export block of its own -- there is no export flag on the
+                // aggregate and the live reference product does not offer one -- so these stay empty
+                // here rather than being derived from the Invoice it reverses.
                 return new SalesRegisterRowDto(
                     x.Date, DocumentType.CreditNote, x.Code, x.ContactId, contact.Name, contact.Pan,
                     -totals.Total, -totals.TaxExempt, -totals.Taxable, -totals.Vat,

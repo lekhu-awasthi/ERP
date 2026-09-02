@@ -11,6 +11,8 @@ import { Warehouse } from '../../../core/organizations/organizations.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { triggerBlobDownload } from '../../../shared/download-file';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 /**
  * Read-only report screen -- Phase 19's StockAgeingQuery, the same 1-30/31-60/61-90/91+ day
@@ -18,7 +20,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
  */
 @Component({
   selector: 'app-stock-ageing-page',
-  imports: [RouterLink, PaginationControl],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput],
   templateUrl: './stock-ageing-page.html',
 })
 export class StockAgeingPage {
@@ -59,8 +61,8 @@ export class StockAgeingPage {
     this.load();
   }
 
-  protected onAsOfDateChange(event: Event): void {
-    this.asOfDate.set((event.target as HTMLInputElement).value);
+  protected onAsOfDateChange(value: string): void {
+    this.asOfDate.set(value);
     this.page.set(1);
     this.load();
   }

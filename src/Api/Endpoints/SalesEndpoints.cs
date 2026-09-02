@@ -133,7 +133,8 @@ public static class SalesEndpoints
             var result = await sender.Send(
                 new CreateInvoiceCommand(
                     organizationId, request.ContactId, request.WarehouseId, request.Date, request.Reference, request.Lines,
-                    request.ReferrerType, request.ReferrerId, request.DiscountPct),
+                    request.ReferrerType, request.ReferrerId, request.DiscountPct,
+                    request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/invoices/{result.Id}", result);
         });
@@ -144,7 +145,8 @@ public static class SalesEndpoints
             var result = await sender.Send(
                 new UpdateInvoiceCommand(
                     organizationId, id, request.ContactId, request.WarehouseId, request.Date, request.Reference, request.Lines,
-                    request.DiscountPct),
+                    request.DiscountPct,
+                    request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate),
                 ct);
             return Results.Ok(result);
         });
@@ -397,7 +399,10 @@ public static class SalesEndpoints
 
     private sealed record InvoiceRequest(
         Guid ContactId, Guid WarehouseId, DateOnly Date, string? Reference, IReadOnlyList<InvoiceLineInput> Lines,
-        DocumentType? ReferrerType = null, Guid? ReferrerId = null, decimal DiscountPct = 0);
+        DocumentType? ReferrerType = null, Guid? ReferrerId = null, decimal DiscountPct = 0,
+        // FR-5.8. All optional, including when IsExport is true (live-confirmed).
+        bool IsExport = false, string? ExportCountry = null, string? ExportDeclarationNo = null,
+        DateOnly? ExportDeclarationDate = null);
 
     private sealed record ApproveInvoiceRequest(bool OverrideWarning = false);
 

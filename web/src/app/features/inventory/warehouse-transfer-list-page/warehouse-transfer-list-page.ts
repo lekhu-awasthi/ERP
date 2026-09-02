@@ -6,13 +6,14 @@ import { InventoryService } from '../../../core/inventory/inventory.service';
 import { WarehouseTransfer, WarehouseTransferStatus } from '../../../core/inventory/inventory.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 type StatusFilter = WarehouseTransferStatus | 'All';
 
 /** List-page chrome for WarehouseTransfer, same pattern as purchase-order-list-page. */
 @Component({
   selector: 'app-warehouse-transfer-list-page',
-  imports: [RouterLink, PaginationControl],
+  imports: [RouterLink, PaginationControl, NepaliDatePipe],
   templateUrl: './warehouse-transfer-list-page.html',
 })
 export class WarehouseTransferListPage {

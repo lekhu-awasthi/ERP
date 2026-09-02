@@ -39,11 +39,19 @@
     <div class="card-body p-3 d-flex flex-wrap gap-3 align-items-end">
       <div>
         <label class="form-label small fw-semibold mb-1">From</label>
-        <input type="date" class="form-control form-control-sm" [value]="fromDate()" (change)="fromDate.set($any($event.target).value); onFilterChange()" />
+        <app-bs-date-input
+          [inputClass]="'form-control form-control-sm'"
+          [value]="fromDate()"
+          (valueChange)="fromDate.set($event); onFilterChange()"
+        />
       </div>
       <div>
         <label class="form-label small fw-semibold mb-1">To</label>
-        <input type="date" class="form-control form-control-sm" [value]="toDate()" (change)="toDate.set($any($event.target).value); onFilterChange()" />
+        <app-bs-date-input
+          [inputClass]="'form-control form-control-sm'"
+          [value]="toDate()"
+          (valueChange)="toDate.set($event); onFilterChange()"
+        />
       </div>
       <div style="min-width: 220px;">
         <label class="form-label small fw-semibold mb-1">Customer / Supplier</label>
@@ -111,7 +119,7 @@
           <tbody>
             @for (item of items(); track item.id) {
               <tr>
-                <td>{{ item.chequeDate | date: 'mediumDate' }}</td>
+                <td>{{ item.chequeDate | nepaliDate }}</td>
                 <td>{{ item.chequeNo }}</td>
                 <td>{{ item.accountName }}</td>
                 <td>{{ item.contactName }}</td>

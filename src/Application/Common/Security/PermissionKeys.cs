@@ -262,6 +262,25 @@ public static class PermissionKeys
     // using the screen at all. See phase-12-status.md's scope decision.
     public const string TransactionApprovalView = "Workflow.TransactionApproval.View";
 
+    // Phase 23 (Home dashboard's recent-activity feed). Admin+Member, and a blanket key in the same
+    // sense TransactionApprovalView is: its primary job is that AuthorizationBehavior -- the only
+    // mechanism in this codebase that verifies the acting user belongs to OrganizationId at all --
+    // runs for the request. It is deliberately NOT the gate on what the feed shows.
+    //
+    // The real visibility gating lives inside RecentTransactionsQueryHandler, one concrete block per
+    // document type, against that type's own *.View grant: Invoice/CreditNote for the Sales tab,
+    // PurchaseBill/DebitNote/Expense for Purchase, Payment for both Payment and Receipt. A Member
+    // who may read Purchase Bills but not Invoices therefore gets a feed of Purchase Bills rather
+    // than a 403, and no combination of grants can make the feed disclose a document type the user
+    // could not open directly. Granting this key alone shows an empty feed, which is the correct
+    // and safe default.
+    //
+    // Member is granted because a recent-activity list is routine daily-use working data and every
+    // row in it is already Member-visible under its own key -- the flat-register argument for
+    // Admin-only (one screen exposing every party's PAN at once) does not transfer: this feed
+    // carries no PAN, and it is a rolling window rather than a register over tenant history.
+    public const string RecentTransactionView = "Workflow.RecentTransaction.View";
+
     // Phase 13 (Tasks, the second Workflow-context feature) -- a single View/Manage pair, not the
     // four-key {View,Create,Edit,Approve} maker-checker shape every ApprovableTransaction uses:
     // WorkTask has no Approve concept at all. Both granted to Member (not View-only) -- Task is

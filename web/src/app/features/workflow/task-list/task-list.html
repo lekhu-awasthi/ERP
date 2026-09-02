@@ -59,7 +59,7 @@
         </div>
         <div class="col-6 col-sm-4">
           <label class="form-label small fw-semibold">Due Date</label>
-          <input type="date" class="form-control form-control-sm" formControlName="dueDate" />
+          <app-bs-date-input [inputClass]="'form-control form-control-sm'" formControlName="dueDate" />
         </div>
         <div class="col-6 col-sm-5">
           <label class="form-label small fw-semibold">Assigned To</label>
@@ -133,7 +133,7 @@
                 <span class="text-muted small">Normal</span>
               }
             </td>
-            <td class="small">{{ row.dueDate ?? '—' }}</td>
+            <td class="small">{{ (row.dueDate | nepaliDate) || '—' }}</td>
             <td class="small">{{ row.createdByName }}</td>
             <td class="small">{{ row.assignedToName ?? '—' }}</td>
             <td class="text-end">

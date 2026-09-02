@@ -1,0 +1,103 @@
+:host {
+  display: block;
+}
+
+.bs-date-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+}
+
+/* Fixed, not absolute: an absolutely-positioned popup is clipped by an ancestor
+   .table-responsive, whose overflow-x: auto makes the browser compute overflow-y: auto too
+   (Phase 22's gotcha -- every item stays in the DOM, so nothing but a human notices). */
+.bs-date-popup {
+  position: fixed;
+  z-index: 1081;
+  width: 288px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.bs-date-popup-header {
+  background: var(--bs-primary, #0d6efd);
+  color: #fff;
+  padding: 0.35rem 0.5rem;
+
+  .btn-link {
+    text-decoration: none;
+    padding: 0 0.35rem;
+
+    &:disabled {
+      opacity: 0.4;
+    }
+  }
+}
+
+.bs-date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  padding: 0.5rem;
+}
+
+.bs-date-weekday {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--bs-secondary-color, #6c757d);
+  padding-bottom: 0.25rem;
+}
+
+.bs-date-day {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1px;
+  border: 0;
+  background: transparent;
+  border-radius: 4px;
+  padding: 0.2rem 0;
+  line-height: 1.1;
+
+  &.empty {
+    visibility: hidden;
+  }
+
+  &:hover:not(.empty) {
+    background: var(--bs-secondary-bg, #e9ecef);
+  }
+
+  /* The BS day is the value being chosen; the AD day rides alongside it in small type, the way the
+     live reference product's picker shows both. */
+  .bs-day {
+    font-size: 0.85rem;
+  }
+
+  .ad-day {
+    font-size: 0.6rem;
+    opacity: 0.6;
+  }
+
+  &.today {
+    outline: 1px solid var(--bs-primary, #0d6efd);
+  }
+
+  &.selected {
+    background: var(--bs-primary, #0d6efd);
+    color: #fff;
+
+    .ad-day {
+      opacity: 0.85;
+    }
+  }
+}
+
+.bs-date-popup-footer {
+  border-top: 1px solid var(--bs-border-color, #dee2e6);
+  padding: 0.15rem 0.35rem;
+
+  .btn-link {
+    text-decoration: none;
+  }
+}

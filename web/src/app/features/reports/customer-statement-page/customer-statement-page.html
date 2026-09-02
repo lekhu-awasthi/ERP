@@ -47,11 +47,15 @@
         </div>
         <div class="col-12 col-sm-6 col-lg-3">
           <label class="form-label small fw-semibold">From Date</label>
-          <input type="date" class="form-control" [value]="fromDate()" (change)="onFromDateChange($event)" />
+          <app-bs-date-input
+            [inputClass]="'form-control'"
+            [value]="fromDate()"
+            (valueChange)="onFromDateChange($event)"
+          />
         </div>
         <div class="col-12 col-sm-6 col-lg-3">
           <label class="form-label small fw-semibold">To Date</label>
-          <input type="date" class="form-control" [value]="toDate()" (change)="onToDateChange($event)" />
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
       </div>
     </div>
@@ -85,29 +89,29 @@
             </thead>
             <tbody>
               <tr class="table-light">
-                <td>{{ s.fromDate }}</td>
+                <td>{{ s.fromDate | nepaliDate }}</td>
                 <td colspan="3" class="fw-semibold">Opening Balance</td>
-                <td class="text-end">{{ s.openingBalanceType === 'CR' ? '—' : s.openingBalance.toFixed(2) }}</td>
-                <td class="text-end">{{ s.openingBalanceType === 'CR' ? s.openingBalance.toFixed(2) : '—' }}</td>
-                <td class="text-end fw-semibold">{{ s.openingBalance.toFixed(2) }} {{ s.openingBalanceType }}</td>
+                <td class="text-end">{{ s.openingBalanceType === 'CR' ? '—' : (s.openingBalance | amount) }}</td>
+                <td class="text-end">{{ s.openingBalanceType === 'CR' ? (s.openingBalance | amount) : '—' }}</td>
+                <td class="text-end fw-semibold">{{ (s.openingBalance | amount) }} {{ s.openingBalanceType }}</td>
               </tr>
               @for (row of s.rows; track row.date + row.code) {
                 <tr>
-                  <td>{{ row.date }}</td>
+                  <td>{{ row.date | nepaliDate }}</td>
                   <td>{{ row.documentType }}</td>
                   <td>{{ row.code }}</td>
                   <td>{{ row.reference || '—' }}</td>
-                  <td class="text-end">{{ row.debit > 0 ? row.debit.toFixed(2) : '—' }}</td>
-                  <td class="text-end">{{ row.credit > 0 ? row.credit.toFixed(2) : '—' }}</td>
-                  <td class="text-end">{{ row.balance.toFixed(2) }} {{ row.balanceType }}</td>
+                  <td class="text-end">{{ row.debit > 0 ? (row.debit | amount) : '—' }}</td>
+                  <td class="text-end">{{ row.credit > 0 ? (row.credit | amount) : '—' }}</td>
+                  <td class="text-end">{{ (row.balance | amount) }} {{ row.balanceType }}</td>
                 </tr>
               }
               <tr class="table-light fw-bold border-top">
-                <td>{{ s.toDate }}</td>
+                <td>{{ s.toDate | nepaliDate }}</td>
                 <td colspan="3">Closing Balance</td>
-                <td class="text-end">{{ s.closingBalanceType === 'CR' ? '—' : s.closingBalance.toFixed(2) }}</td>
-                <td class="text-end">{{ s.closingBalanceType === 'CR' ? s.closingBalance.toFixed(2) : '—' }}</td>
-                <td class="text-end">{{ s.closingBalance.toFixed(2) }} {{ s.closingBalanceType }}</td>
+                <td class="text-end">{{ s.closingBalanceType === 'CR' ? '—' : (s.closingBalance | amount) }}</td>
+                <td class="text-end">{{ s.closingBalanceType === 'CR' ? (s.closingBalance | amount) : '—' }}</td>
+                <td class="text-end">{{ (s.closingBalance | amount) }} {{ s.closingBalanceType }}</td>
               </tr>
             </tbody>
           </table>

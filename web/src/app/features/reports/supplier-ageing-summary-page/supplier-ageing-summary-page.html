@@ -36,7 +36,11 @@
       <div class="row g-3">
         <div class="col-12 col-sm-6 col-lg-3">
           <label class="form-label small fw-semibold">As Of Date</label>
-          <input type="date" class="form-control" [value]="asOfDate()" (change)="onAsOfDateChange($event)" />
+          <app-bs-date-input
+            [inputClass]="'form-control'"
+            [value]="asOfDate()"
+            (valueChange)="onAsOfDateChange($event)"
+          />
         </div>
         <div class="col-12 col-sm-6 col-lg-4">
           <label class="form-label small fw-semibold">Contact Group</label>
@@ -82,22 +86,22 @@
                   <tr>
                     <td>{{ row.contactCode }} — {{ row.contactName }}</td>
                     <td>{{ row.contactGroupName || '—' }}</td>
-                    <td class="text-end">{{ row.days1To30.toFixed(2) }}</td>
-                    <td class="text-end">{{ row.days31To60.toFixed(2) }}</td>
-                    <td class="text-end">{{ row.days61To90.toFixed(2) }}</td>
-                    <td class="text-end">{{ row.days91Plus.toFixed(2) }}</td>
-                    <td class="text-end fw-bold">{{ row.total.toFixed(2) }}</td>
+                    <td class="text-end">{{ (row.days1To30 | amount) }}</td>
+                    <td class="text-end">{{ (row.days31To60 | amount) }}</td>
+                    <td class="text-end">{{ (row.days61To90 | amount) }}</td>
+                    <td class="text-end">{{ (row.days91Plus | amount) }}</td>
+                    <td class="text-end fw-bold">{{ (row.total | amount) }}</td>
                   </tr>
                 }
               </tbody>
               <tfoot>
                 <tr class="fw-bold border-top">
                   <td colspan="2">Total</td>
-                  <td class="text-end">{{ r.totalDays1To30.toFixed(2) }}</td>
-                  <td class="text-end">{{ r.totalDays31To60.toFixed(2) }}</td>
-                  <td class="text-end">{{ r.totalDays61To90.toFixed(2) }}</td>
-                  <td class="text-end">{{ r.totalDays91Plus.toFixed(2) }}</td>
-                  <td class="text-end">{{ (r.totalDays1To30 + r.totalDays31To60 + r.totalDays61To90 + r.totalDays91Plus).toFixed(2) }}</td>
+                  <td class="text-end">{{ (r.totalDays1To30 | amount) }}</td>
+                  <td class="text-end">{{ (r.totalDays31To60 | amount) }}</td>
+                  <td class="text-end">{{ (r.totalDays61To90 | amount) }}</td>
+                  <td class="text-end">{{ (r.totalDays91Plus | amount) }}</td>
+                  <td class="text-end">{{ ((r.totalDays1To30 + r.totalDays31To60 + r.totalDays61To90 + r.totalDays91Plus) | amount) }}</td>
                 </tr>
               </tfoot>
             </table>

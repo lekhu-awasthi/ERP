@@ -36,11 +36,15 @@
       <div class="row g-3">
         <div class="col-12 col-sm-6 col-lg-2">
           <label class="form-label small fw-semibold">From Date</label>
-          <input type="date" class="form-control" [value]="fromDate()" (change)="onFromDateChange($event)" />
+          <app-bs-date-input
+            [inputClass]="'form-control'"
+            [value]="fromDate()"
+            (valueChange)="onFromDateChange($event)"
+          />
         </div>
         <div class="col-12 col-sm-6 col-lg-2">
           <label class="form-label small fw-semibold">To Date</label>
-          <input type="date" class="form-control" [value]="toDate()" (change)="onToDateChange($event)" />
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
         <div class="col-12 col-sm-6 col-lg-4">
           <label class="form-label small fw-semibold">Category</label>
@@ -96,22 +100,22 @@
                 <tr>
                   <td>{{ row.productCode }} — {{ row.productName }}</td>
                   <td>{{ row.categoryName }}</td>
-                  <td class="text-end">{{ row.openingBalance.toFixed(2) }}</td>
-                  <td class="text-end">{{ row.purchase.toFixed(2) }}</td>
-                  <td class="text-end">{{ row.closingBalance.toFixed(2) }}</td>
-                  <td class="text-end">{{ row.sales.toFixed(2) }}</td>
-                  <td class="text-end">{{ row.costOfSales.toFixed(2) }}</td>
-                  <td class="text-end fw-bold">{{ row.grossProfit.toFixed(2) }}</td>
-                  <td class="text-end">{{ row.grossMarginPct.toFixed(2) }}%</td>
+                  <td class="text-end">{{ (row.openingBalance | amount) }}</td>
+                  <td class="text-end">{{ (row.purchase | amount) }}</td>
+                  <td class="text-end">{{ (row.closingBalance | amount) }}</td>
+                  <td class="text-end">{{ (row.sales | amount) }}</td>
+                  <td class="text-end">{{ (row.costOfSales | amount) }}</td>
+                  <td class="text-end fw-bold">{{ (row.grossProfit | amount) }}</td>
+                  <td class="text-end">{{ (row.grossMarginPct | amount) }}%</td>
                 </tr>
               }
             </tbody>
             <tfoot>
               <tr class="fw-bold border-top">
                 <td colspan="5">Total</td>
-                <td class="text-end">{{ totalSales().toFixed(2) }}</td>
-                <td class="text-end">{{ totalCostOfSales().toFixed(2) }}</td>
-                <td class="text-end">{{ totalGrossProfit().toFixed(2) }}</td>
+                <td class="text-end">{{ (totalSales() | amount) }}</td>
+                <td class="text-end">{{ (totalCostOfSales() | amount) }}</td>
+                <td class="text-end">{{ (totalGrossProfit() | amount) }}</td>
                 <td></td>
               </tr>
             </tfoot>

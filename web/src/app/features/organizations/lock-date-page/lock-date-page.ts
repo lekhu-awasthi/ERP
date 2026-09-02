@@ -3,6 +3,8 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 /**
  * Admin-only view/set/clear of Organization.LockDate (roadmap Phase 16a, NFR-3.4) -- the seam
@@ -13,7 +15,7 @@ import { OrganizationsService } from '../../../core/organizations/organizations.
  */
 @Component({
   selector: 'app-lock-date-page',
-  imports: [RouterLink],
+  imports: [RouterLink, BsDateInput, NepaliDatePipe],
   templateUrl: './lock-date-page.html',
 })
 export class LockDatePage {
