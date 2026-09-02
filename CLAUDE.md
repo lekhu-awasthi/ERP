@@ -74,6 +74,17 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
     shape), so a "convert to X" flow can never become a side door around `AuthorizationBehavior` —
     read it before adding a fifth inbox target or any other cross-document prefill; and the reason
     Phase 6's `ReferrerType`/`ReferrerId` was **not** reused for the inbox link
+  - `phase-23` - before adding anything that renders a date or an amount, and before any future
+    app-wide sweep: the invariant is **dates are stored in AD, always** (BS is presentation/entry only,
+    converted in `web/src/app/shared/formatting/`), the **supported BS range is 2000-2092** and outside
+    it conversion returns null rather than guessing, and sweep completeness is enforced by
+    `sweep-guard.spec.ts` rather than by intent. Also the precedent for **cross-checking reference data
+    across four independent sources** and for distinguishing "sources disagree" from "this source
+    stopped having real data" (the 30/30/30 filler tell); Decision F's record of holding a dashboard to
+    the queries that already existed and then **overriding that rule once, deliberately**, for the one
+    thing a client-side merge cannot do (page a merged stream); and Decision G's blanket-key pattern,
+    where a single key exists only so `AuthorizationBehavior` runs while the real gating is per
+    document type inside the handler -- the key alone must show nothing, and there is a test saying so
   - `phase-7`'s addendum (bottom of the file) — before adding a new tenant-wide default GL account or changing which account a posting rule debits/credits: grep for the field name across every posting rule that's supposed to read it. `DefaultInventoryAccountId` sat completely unread by `PurchaseBillPostingRule` for 12 phases (Goods purchases debited Purchase Expense instead), silently double-counting Cost of Goods Sold in `IncomeStatementQueryHandler`'s Net Profit for any tenant whose Purchase account was Expense-typed — the obvious/default choice, caught only by a later phase's live E2E, not by any test or `dotnet build`
 
 ## Stack & conventions
@@ -170,78 +181,85 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A `MultipartFormDataContent` built under `using` in a helper that **returns** the `Task` instead of awaiting it is disposed before the send completes, and `WebApplicationFactory`'s `TestHost` then throws `ObjectDisposedException: Cannot access a closed Stream` from `MultipartContent.ContentReadStream.set_Position` — a stack trace naming nothing about the real cause. Await inside the helper. Bit three integration tests at once in Phase 22.
 - **Bootstrap's JavaScript is not loaded anywhere in this app** — `web/angular.json` registers `src/styles.scss` and has no `scripts` entry at all, so `data-bs-toggle="dropdown"` (and modal/tooltip/collapse likewise) renders a control that silently does nothing, with no error and a passing `ng build`. Drive such menus from a signal instead (see `document-inbox-page`'s "+ Add as").
 - A Bootstrap `.dropdown-menu` rendered inside a `.table-responsive` is **clipped**: `overflow-x: auto` makes the browser compute `overflow-y: auto` too, so an absolutely-positioned menu is cut at the wrapper's edge. Every item is still in the DOM, so `ng build`, `tsc` and a component test asserting the items exist are all green while the user can only reach the first one. Render such a menu `position: fixed` at coordinates captured from its trigger on open (see `document-inbox-page`'s "+ Add as"). Caught only in Phase 22's browser pass.
+- An Angular pipe that renders from a **global signal** while taking an argument that does not change must be **impure** (`pure: false`). A pure pipe caches on its argument, so a date interpolation would keep serving the AD rendering forever after the user flips the app-wide calendar toggle -- the same silently-stale shape as the zoneless-`computed()`-over-`FormControl` gotcha above, and equally invisible to `tsc` and `ng build`. Memoize inside the pipe to pay for the extra calls (see `NepaliDatePipe`).
+- Angular's expression parser accepts a pipe **inside parentheses** anywhere, including a ternary branch, because `parsePrimary` calls `parsePipe()` for a parenthesised primary -- but the same pipe bare in a ternary branch does not parse. That is what makes a scripted `EXPR.toFixed(2)` to `(EXPR | amount)` sweep safe across 324 call sites without hand-inspecting each ternary. Pipes remain illegal in event bindings (`(click)`/`(change)`) regardless.
+- A component test asserting an **uppercase label** fails when the uppercasing comes from CSS (`text-uppercase`) -- `textContent` carries the source casing, not the rendered casing. Assert what the template literally contains.
+- **A report page can gain real data in its DTO and still show the user nothing.** `SalesRegisterQuery` carried four Export columns from Phase 19 that the handler hardcoded to zero/null; when Phase 23 filled them, the Angular table had no header or cell for them, because nobody adds columns that are always empty. Every automated check was green and the feature was invisible. When a phase starts populating a previously-dead field, grep the templates that consume it before calling it shipped. See `docs/phase-23-status.md`'s bug #1.
 - Angular sanitizes an `<iframe [src]>` as a *resource* URL and blocks an interpolated string outright, while `<img [src]>` with the identical string is fine. An inline PDF preview therefore needs `DomSanitizer.bypassSecurityTrustResourceUrl`; nothing catches this until the element actually renders. See `SourceDocumentPanel`/`InboxConversionPanel` (Phase 22), where the URL is built only from the API base plus a route-parameter GUID, which is what makes the bypass safe.
 
 ## Current status
 
-**Phase 22 is complete.** The Document inbox (FR-10.3) ships all three of its items, including the
-stretch goal. `UploadedDocument` (`Domain/Workflow`) reuses Phase 18's `IFileStorage` and
-`AttachmentValidation` unchanged — exactly as `IFileStorage`'s own doc comment anticipated — behind a
-`Workflow > Document` screen with Pending/Done tabs beside the Transaction Approval queue, conversion
-into all four of FR-10.3's targets, and a permanent viewable link from the produced transaction back
-to the scan it was typed from.
+**Phase 23 is complete.** Nepali localization (NFR-1.1, NFR-1.2) plus four parity gaps: the SalesOrder
+queue links, a Home dashboard, and FR-5.8's export-sale flag on Invoice.
 
-**Decision A states the invariant in prose at the top of the aggregate**, because the next reader will
-otherwise assume an inbox document is an `Attachment` with extra columns: it is *evidence* — no
-document number, no Draft/Approve/Void lifecycle, no `GlJournalEntry`, no `StockLedgerEntry`, no
-`Payment`, no lock-date gate. The link to the transaction lives on the **document**
-(`LinkedTransactionType`/`LinkedTransactionId`), deliberately *not* on the transaction's
-`ReferrerType`/`ReferrerId` — Phase 6's bug #4 catalogues what that pair actually requires (a
-`Converted` status, quantity caps net of reversals, Contact/TDS consistency) and none of it applies to
-a scan; putting it here costs zero change to any transactional aggregate. One document, one
-transaction: a second link is refused, and so is the prefill.
+**The invariant, stated once: every date is stored in AD, always.** Bikram Sambat is a presentation and
+entry format converted at exactly one client edge (`web/src/app/shared/formatting/`) -- no column, DTO
+field, report window or migration gained a second meaning. Decision A also draws the line between
+*business dates* (`DateOnly` on the wire, swept -- 40 renders across 35 templates) and *audit instants*
+(`approvedAt`/`createdAt`/..., which keep Angular's `| date:` pipe and stay AD deliberately). **A
+calendar is not a time zone**: `Domain/Common/NepalTime` (UTC+05:45) is untouched and unrelated, though
+anything needing "today" still computes the Nepal wall-clock day.
 
-**Decision B is the phase's centre of gravity: prefill-and-submit.** Converting creates *nothing*. It
-opens the target's ordinary `new` route with the scan beside it, and the user's own Save runs the
-normal `CreateXCommand` through the full pipeline, so numbering, validation, lock-date, feature gates,
-posting rules and audit stay untouched by this phase. The document id rides the **URL query string**,
-not `PendingTemplateStore` — that store is read-once, does not survive a reload, and never covered
-Expense or Quick Payment.
+**Decision B is the phase's risk and was treated as data under test.** BS month lengths are not
+computable -- they come from the published Panchanga -- so `bs-date.ts`'s table was cross-checked across
+four independent implementations rather than transcribed from one. All four agree through BS 2083; two
+then emit filler rows whose last three months are always 30/30/30 (the tell that their real data ran
+out), and the two carrying genuine data agree through **BS 2092**. **Supported range: BS 2000-01-01 ..
+2092-12-31, i.e. AD 1943-04-14 .. 2036-04-13**; outside it every function returns null -- never a guess,
+never a clamp. Extend by appending BS 2093+ once two sources agree and bumping `LAST_BS_YEAR`. The
+suite asserts 12 AD/BS pairs read off the live product, all 14 New Year dates for BS 2070-2083, both
+boundaries, four out-of-range cases, and an **exhaustive round trip over all 33,969 days**.
 
-**One pre-existing behaviour was changed rather than warned about:** `QuickPaymentPage` used to create
-*and approve* in a single click, posting straight to the GL with no review step. Defensible for a
-hand-typed screen, indefensible once the inbox can pre-fill it from a scan a model read — so Quick
-Payment/Receipt is now **Save Draft, then Approve**, like every other document type, and the Draft
-lands in the Transaction Approval queue for a second person. Both steps stay on that page: navigating
-to `payment-detail-page` would strand it, because that page's `canApprove()` requires
-`allocations.length > 0 && remaining === 0` and a Quick Payment has none — the same gate that gave the
-screen its own component in Phase 17's decision #7. See `phase-17-status.md`'s addendum.
+**Decision D made sweep completeness mechanical, not asserted.** 324 inline `.toFixed(2)` money renders
+across 40 files and 66 native date inputs across 42 were replaced by the app's first shared pipes and
+`<app-bs-date-input>`; `sweep-guard.spec.ts` reads every template off disk at test time and fails the
+build on a new one, with a reasoned allow-list, a glob-matched-something guard, and a check that each
+exemption still points at a real file. Both sweeps are complete -- a half-converted app is worse than
+an unstarted one, because a user cannot tell which dates are which.
 
-**Decision C is this codebase's first egress of customer data to an LLM, and it is a product decision
-written for a non-engineer.** What leaves is the bytes of *the one file a user clicked Extract on* plus
-a fixed prompt — no contact list, no product catalogue, no organization name, no user identity, no
-other document. Two default-closed gates: a **withdrawable** tenant opt-in
-(`TenantSettings.AiDocumentExtractionEnabled`, default off, its own command so a routine settings save
-cannot re-enable egress — deliberately *not* a `TenantFeature`, which is immutable after Organization
-creation) plus an Admin-only `Workflow.InboxDocument.Extract`. Never automatic; synchronous with a 90s
-timeout and **no new job table** (21c's test again: not rows, not a loop); audited under a new
-`DocumentType.DocumentExtraction` plus `"Extract"` in `AuditBehavior`'s prefix list, because it is the
-only action in the product that sends a customer document outward and leaves no other trace. Failure is
-an **outcome, not an error** — timeout, 429, garbage or no credential all return 200 with a readable
-status and leave the document exactly as convertible by hand. Built on the official Anthropic C# SDK
-(`claude-opus-5`) behind an Application-layer `IDocumentExtractor`; `DocumentExtractionOptions`
-deliberately has **no `ValidateOnStart`**, so no integration suite needed a new key.
+**Known limitation, stated rather than discovered:** conversion is client-side, so Phase 20d's
+print/PDF pipeline and Phase 16c/21b's `.xlsx` exports **still render dates in AD** regardless of the
+user's setting. The preference itself lives in `localStorage` (Decision C -- no migration, but
+explicitly no cross-device sync).
 
-Four keys (Decision F): `Workflow.InboxDocument.View`/`.Manage` **Admin+Member** — the inbox is a
-working queue for whoever photographs the bills, and the flat-register PAN argument does not transfer
-when every transaction it produces is already Member-visible — with `.Extract` and
-`Configuration.AiDocumentExtraction.Manage` **Admin-only**. The *conversion* has no key of its own on
-purpose: `GetInboxDocumentPrefillQuery.PermissionKey` resolves to the **target type's own Create key**
-(`PrintDocumentQuery`'s shape), so the inbox can never be a side door around `AuthorizationBehavior`.
+**FR-5.8's tax treatment was live-confirmed in the DOM, not inferred:** ticking "This is export sales"
+disables the per-line Tax selector and pins every line to `0 Vat`. So `Invoice.AddLine` and
+`SetExport` enforce zero-rating **in the aggregate** -- both orderings, since a user who adds 13% lines
+then ticks the box must not bank VAT on an export sale. **`ZeroVat`, not `NoVat`**: both compute zero
+but file under different statutory headings. Detail fields stay **optional even when flagged** (the one
+place FR-5.8 diverges from `PurchaseBill`'s import block). The four Sales Register columns hardcoded
+empty since Phase 19 now carry real data, and neither that report nor VAT Summary needed new bucketing
+logic -- but both halves are asserted anyway, per Phase 6's bug #3.
 
-Tests: Domain 202 (+10), Application.UnitTests 477 (+25), Api.IntegrationTests 18 (+4), Angular 47
-(+21); `dotnet build` / `dotnet test` / `ng build` / `ng test` / `tsc --noEmit` all clean. Manual E2E
-against a fresh Organization on real SQL Server uploaded a real PNG through the real multipart endpoint,
-round-tripped the bytes and confirmed the blob on disk, converted it to a **Draft** Purchase Bill with
-`sqlcmd`-verified zero GL/stock/payment rows, found the scan again *from the transaction*, and got 409s
-for convert-twice/delete/reopen and 403s naming four exact keys. The **browser pass** was done and
-earned its keep: it found the "+ Add as" menu clipped by `.table-responsive`'s overflow (three of four
-targets unreachable, every automated check green), a row notice contradicting the consent switch, and
-`SourceDocumentPanel` missing from the two Payment detail pages — all three fixed and re-verified.
-**Still not verified:** the real Anthropic call against a live key, so the extraction path proven end
-to end is the *unconfigured* one. Full reasoning in `docs/phase-22-status.md`.
+**Decision F held the dashboard to queries that already existed** (`SalesRegister`,
+`PurchaseRegister`, `CashFlowSummary`, `ListBankAccounts`) -- and then overrode that rule once, on
+purpose. `RecentTransactionsQuery` is the phase's **only** new Application-layer aggregation: no
+existing query returns a mixed recent-transaction stream, and composing one client-side from five
+per-type endpoints cannot page a merged stream (page 2 of a date-ordered mix is not derivable from
+page 2 of each type). Note the reason first given for omitting it was wrong and is corrected in the
+status doc -- phase-16c's bug #1 is about a *footer total*, and a feed has no footer.
 
-**Next up: Phase 23 — Nepali localization & parity odds-and-ends.** BS calendar (NFR-1.1) as a shared
-dual AD/BS date component swept across every date field; lakh/crore digit grouping (NFR-1.2) in one
-shared currency pipe; the SalesOrder Angular UI gap; a Home dashboard over existing queries; and the
-export-sale flag on Invoice (FR-5.8) — confirm live first. See `docs/roadmap.md`'s Phase 23 section.
+**Decision G: one new key, `Workflow.RecentTransaction.View` (Admin+Member).** It is *blanket* in
+`TransactionApprovalQuery`'s exact sense -- its job is to make `AuthorizationBehavior` (the only
+mechanism verifying org membership) run at all -- while the real gating is **per document type inside
+the handler**, against that type's own `*.View` grant. So a user with `PurchaseBillView` but not
+`InvoiceView` gets a feed of Purchase Bills rather than a 403 or a leak, and **holding the blanket key
+alone shows an empty feed**, which is asserted. Everything else in the phase adds no key: each
+dashboard card rides the key of its own query, so a Member with few grants sees a smaller dashboard
+rather than a broken one.
+
+Tests: Domain 208 (+6), Application.UnitTests 495 (+18), Api.IntegrationTests 18 (unchanged), Angular
+105 (+58); `dotnet build` / `dotnet test` / `ng build` / `ng test` / `tsc --noEmit` all clean. Manual
+E2E against a fresh Organization on real SQL Server posted an invoice asking for 13% with
+`isExport: true` and `sqlcmd`-verified it stored as `ZeroVat`/`VatAmount 0`; the register showed
+`Export Value 10,00,000.00` with `Taxable 0.00` while the domestic control was untouched, and the Trial
+Balance balanced. **The browser pass earned its keep again:** it found that the live Sales Register page
+had **no columns at all** for the four export fields -- the data flowed end to end and was invisible to
+the user, with every automated check green. Fixed and re-verified. Full reasoning in
+`docs/phase-23-status.md`.
+
+**Next up: Phase 24 -- Variant Products & Attributes.** FR-8.3, deferred since Phase 3: tenant-defined
+attribute definitions and values, variant generation with per-variant SKU/barcode/pricing and stock
+tracked per variant per warehouse (the FIFO ledger keys extend from ProductId to variant identity --
+review that migration by hand), and variant-aware product pickers on document lines. See
+`docs/roadmap.md`'s Phase 24 section.

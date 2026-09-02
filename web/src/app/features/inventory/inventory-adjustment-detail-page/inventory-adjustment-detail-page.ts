@@ -15,6 +15,8 @@ import { OrganizationsService } from '../../../core/organizations/organizations.
 import { Warehouse } from '../../../core/organizations/organizations.models';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 interface EditableLine {
   key: number;
@@ -33,7 +35,7 @@ let nextLineKey = 1;
  * section once Approved, same as every GL-posting document type. */
 @Component({
   selector: 'app-inventory-adjustment-detail-page',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput],
   templateUrl: './inventory-adjustment-detail-page.html',
 })
 export class InventoryAdjustmentDetailPage {

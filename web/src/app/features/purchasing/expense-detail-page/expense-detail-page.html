@@ -67,11 +67,21 @@
           </div>
           <div class="col-6 col-sm-3">
             <label class="form-label small fw-semibold">Date</label>
-            <input type="date" class="form-control" [value]="date()" (change)="date.set($any($event.target).value)" [disabled]="!isDraft()" />
+            <app-bs-date-input
+              [inputClass]="'form-control'"
+              [value]="date()"
+              (valueChange)="date.set($event)"
+              [disabled]="!isDraft()"
+            />
           </div>
           <div class="col-6 col-sm-3">
             <label class="form-label small fw-semibold">Due Date</label>
-            <input type="date" class="form-control" [value]="dueDate()" (change)="dueDate.set($any($event.target).value)" [disabled]="!isDraft()" />
+            <app-bs-date-input
+              [inputClass]="'form-control'"
+              [value]="dueDate()"
+              (valueChange)="dueDate.set($event)"
+              [disabled]="!isDraft()"
+            />
           </div>
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold">Supplier Invoice Reference</label>
@@ -127,7 +137,7 @@
               @if (exp.tdsTypeId) {
                 <div class="col-12 col-sm-6">
                   <label class="form-label small fw-semibold">TDS Amount</label>
-                  <input type="text" class="form-control" [value]="exp.tdsAmount.toFixed(2)" disabled />
+                  <input type="text" class="form-control" [value]="(exp.tdsAmount | amount)" disabled />
                 </div>
               }
             }
@@ -185,7 +195,7 @@
                         (input)="onAmountChange(line.key, $event)"
                       />
                     } @else {
-                      {{ line.amount.toFixed(2) }}
+                      {{ (line.amount | amount) }}
                     }
                   </td>
                   <td>
@@ -213,7 +223,7 @@
               <tr>
                 <td></td>
                 <td class="text-end fw-semibold">Line Total</td>
-                <td class="text-end fw-bold">{{ lineTotal().toFixed(2) }}</td>
+                <td class="text-end fw-bold">{{ (lineTotal() | amount) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -221,7 +231,7 @@
               <tr>
                 <td></td>
                 <td class="text-end fw-semibold">VAT Total</td>
-                <td class="text-end fw-bold">{{ vatTotal().toFixed(2) }}</td>
+                <td class="text-end fw-bold">{{ (vatTotal() | amount) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -229,7 +239,7 @@
               <tr>
                 <td></td>
                 <td class="text-end fw-bold">Grand Total</td>
-                <td class="text-end fw-bold text-primary">{{ grandTotal().toFixed(2) }}</td>
+                <td class="text-end fw-bold text-primary">{{ (grandTotal() | amount) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -262,8 +272,8 @@
                   @for (line of preview; track line.accountId) {
                     <tr>
                       <td>{{ accountLabel(line.accountId) }}</td>
-                      <td class="text-end">{{ line.debit > 0 ? line.debit.toFixed(2) : '—' }}</td>
-                      <td class="text-end">{{ line.credit > 0 ? line.credit.toFixed(2) : '—' }}</td>
+                      <td class="text-end">{{ line.debit > 0 ? (line.debit | amount) : '—' }}</td>
+                      <td class="text-end">{{ line.credit > 0 ? (line.credit | amount) : '—' }}</td>
                     </tr>
                   }
                 </tbody>
@@ -318,8 +328,8 @@
                   @for (glLine of exp.glLines; track glLine.id) {
                     <tr>
                       <td>{{ accountLabel(glLine.accountId) }}</td>
-                      <td class="text-end">{{ glLine.debit > 0 ? glLine.debit.toFixed(2) : '—' }}</td>
-                      <td class="text-end">{{ glLine.credit > 0 ? glLine.credit.toFixed(2) : '—' }}</td>
+                      <td class="text-end">{{ glLine.debit > 0 ? (glLine.debit | amount) : '—' }}</td>
+                      <td class="text-end">{{ glLine.credit > 0 ? (glLine.credit | amount) : '—' }}</td>
                     </tr>
                   }
                 </tbody>

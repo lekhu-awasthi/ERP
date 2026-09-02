@@ -6,12 +6,13 @@ import { SalesService } from '../../../core/sales/sales.service';
 import { CreditNote, CreditNoteStatus } from '../../../core/sales/sales.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 type StatusFilter = CreditNoteStatus | 'All';
 
 @Component({
   selector: 'app-credit-note-list-page',
-  imports: [RouterLink, PaginationControl],
+  imports: [RouterLink, PaginationControl, NepaliDatePipe],
   templateUrl: './credit-note-list-page.html',
 })
 export class CreditNoteListPage {

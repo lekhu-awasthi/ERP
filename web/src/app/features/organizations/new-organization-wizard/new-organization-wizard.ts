@@ -6,6 +6,8 @@ import { EMPTY, catchError, debounceTime, distinctUntilChanged, of, switchMap } 
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 type WizardStep = 1 | 2 | 3;
 type WorkspaceStatus = 'idle' | 'checking' | 'available' | 'taken';
@@ -27,7 +29,7 @@ const INDUSTRY_SUGGESTIONS = [
  */
 @Component({
   selector: 'app-new-organization-wizard',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, BsDateInput, NepaliDatePipe],
   templateUrl: './new-organization-wizard.html',
 })
 export class NewOrganizationWizard {

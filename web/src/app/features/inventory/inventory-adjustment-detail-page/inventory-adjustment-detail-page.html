@@ -51,7 +51,12 @@
           </div>
           <div class="col-12 col-sm-3">
             <label class="form-label small fw-semibold">Date</label>
-            <input type="date" class="form-control" [value]="date()" (change)="date.set($any($event.target).value)" [disabled]="!isDraft()" />
+            <app-bs-date-input
+              [inputClass]="'form-control'"
+              [value]="date()"
+              (valueChange)="date.set($event)"
+              [disabled]="!isDraft()"
+            />
           </div>
           <div class="col-12 col-sm-3">
             <label class="form-label small fw-semibold">Reference</label>
@@ -145,13 +150,13 @@
                           (input)="onUnitCostChange(line.key, $event)"
                         />
                       } @else {
-                        {{ line.unitCost.toFixed(2) }}
+                        {{ (line.unitCost | amount) }}
                       }
                     } @else {
                       <span class="text-muted small">FIFO cost</span>
                     }
                   </td>
-                  <td class="text-end">{{ line.direction === 'Increase' ? (line.quantity * line.unitCost).toFixed(2) : '—' }}</td>
+                  <td class="text-end">{{ line.direction === 'Increase' ? ((line.quantity * line.unitCost) | amount) : '—' }}</td>
                   @if (isDraft()) {
                     <td>
                       <button type="button" class="btn btn-outline-danger btn-sm" (click)="removeLine(line.key)">
@@ -215,8 +220,8 @@
                   @for (glLine of doc.glLines; track glLine.id) {
                     <tr>
                       <td>{{ accountLabel(glLine.accountId) }}</td>
-                      <td class="text-end">{{ glLine.debit > 0 ? glLine.debit.toFixed(2) : '—' }}</td>
-                      <td class="text-end">{{ glLine.credit > 0 ? glLine.credit.toFixed(2) : '—' }}</td>
+                      <td class="text-end">{{ glLine.debit > 0 ? (glLine.debit | amount) : '—' }}</td>
+                      <td class="text-end">{{ glLine.credit > 0 ? (glLine.credit | amount) : '—' }}</td>
                     </tr>
                   }
                 </tbody>

@@ -33,11 +33,15 @@
       <div class="row g-3">
         <div class="col-12 col-sm-4">
           <label class="form-label small fw-semibold">From Date</label>
-          <input type="date" class="form-control" [value]="fromDate()" (change)="onFromDateChange($event)" />
+          <app-bs-date-input
+            [inputClass]="'form-control'"
+            [value]="fromDate()"
+            (valueChange)="onFromDateChange($event)"
+          />
         </div>
         <div class="col-12 col-sm-4">
           <label class="form-label small fw-semibold">To Date</label>
-          <input type="date" class="form-control" [value]="toDate()" (change)="onToDateChange($event)" />
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
         <div class="col-12 col-sm-4">
           <label class="form-label small fw-semibold">Bank Account</label>
@@ -75,31 +79,31 @@
                 <td>Starting Balance</td>
                 <td class="text-end">—</td>
                 <td class="text-end">—</td>
-                <td class="text-end">{{ cf.startingBalance.toFixed(2) }}</td>
+                <td class="text-end">{{ (cf.startingBalance | amount) }}</td>
               </tr>
               <tr>
                 <td>Received From Customer</td>
-                <td class="text-end">{{ cf.receivedFromCustomerCashIn.toFixed(2) }}</td>
-                <td class="text-end">{{ cf.receivedFromCustomerCashOut.toFixed(2) }}</td>
-                <td class="text-end">{{ cf.receivedFromCustomerBalance.toFixed(2) }}</td>
+                <td class="text-end">{{ (cf.receivedFromCustomerCashIn | amount) }}</td>
+                <td class="text-end">{{ (cf.receivedFromCustomerCashOut | amount) }}</td>
+                <td class="text-end">{{ (cf.receivedFromCustomerBalance | amount) }}</td>
               </tr>
               <tr>
                 <td>Other Receipts</td>
-                <td class="text-end">{{ cf.otherReceiptsCashIn.toFixed(2) }}</td>
-                <td class="text-end">{{ cf.otherReceiptsCashOut.toFixed(2) }}</td>
-                <td class="text-end">{{ cf.otherReceiptsBalance.toFixed(2) }}</td>
+                <td class="text-end">{{ (cf.otherReceiptsCashIn | amount) }}</td>
+                <td class="text-end">{{ (cf.otherReceiptsCashOut | amount) }}</td>
+                <td class="text-end">{{ (cf.otherReceiptsBalance | amount) }}</td>
               </tr>
               <tr>
                 <td>Paid To Supplier</td>
-                <td class="text-end">{{ cf.paidToSupplierCashIn.toFixed(2) }}</td>
-                <td class="text-end">{{ cf.paidToSupplierCashOut.toFixed(2) }}</td>
-                <td class="text-end">{{ cf.paidToSupplierBalance.toFixed(2) }}</td>
+                <td class="text-end">{{ (cf.paidToSupplierCashIn | amount) }}</td>
+                <td class="text-end">{{ (cf.paidToSupplierCashOut | amount) }}</td>
+                <td class="text-end">{{ (cf.paidToSupplierBalance | amount) }}</td>
               </tr>
               <tr>
                 <td>Other Payments</td>
-                <td class="text-end">{{ cf.otherPaymentsCashIn.toFixed(2) }}</td>
-                <td class="text-end">{{ cf.otherPaymentsCashOut.toFixed(2) }}</td>
-                <td class="text-end">{{ cf.otherPaymentsBalance.toFixed(2) }}</td>
+                <td class="text-end">{{ (cf.otherPaymentsCashIn | amount) }}</td>
+                <td class="text-end">{{ (cf.otherPaymentsCashOut | amount) }}</td>
+                <td class="text-end">{{ (cf.otherPaymentsBalance | amount) }}</td>
               </tr>
             </tbody>
             <tfoot>
@@ -107,7 +111,7 @@
                 <td>Ending Balance</td>
                 <td></td>
                 <td></td>
-                <td class="text-end">{{ cf.endingBalance.toFixed(2) }}</td>
+                <td class="text-end">{{ (cf.endingBalance | amount) }}</td>
               </tr>
             </tfoot>
           </table>

@@ -99,7 +99,12 @@
           </div>
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold">Date</label>
-            <input type="date" class="form-control" [value]="date()" (change)="date.set($any($event.target).value)" [disabled]="!isDraft()" />
+            <app-bs-date-input
+              [inputClass]="'form-control'"
+              [value]="date()"
+              (valueChange)="date.set($event)"
+              [disabled]="!isDraft()"
+            />
           </div>
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold">Reference</label>
@@ -112,6 +117,63 @@
               placeholder="Optional reference note"
             />
           </div>
+        </div>
+
+        <!-- FR-5.8, laid out as the live reference product does: a single checkbox below the header
+             row that reveals Country / Date / Document No. None of the three is required, even when
+             the flag is set. Ticking it zero-rates every line and disables the per-line Tax
+             selector, which is exactly what the live form does. -->
+        <div class="mt-3">
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="isExport"
+              [checked]="isExport()"
+              [disabled]="!isDraft()"
+              (change)="onExportToggle($event)"
+            />
+            <label class="form-check-label fw-semibold small" for="isExport">This is export sales</label>
+          </div>
+
+          @if (isExport()) {
+            <div class="row g-3 mt-1">
+              <div class="col-12 col-sm-4">
+                <label class="form-label small fw-semibold">Country</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  [value]="exportCountry()"
+                  (input)="onExportCountryChange($event)"
+                  [disabled]="!isDraft()"
+                  placeholder="Country"
+                />
+              </div>
+              <div class="col-12 col-sm-4">
+                <label class="form-label small fw-semibold">Date</label>
+                <app-bs-date-input
+                  [inputClass]="'form-control'"
+                  [value]="exportDeclarationDate()"
+                  (valueChange)="exportDeclarationDate.set($event)"
+                  [disabled]="!isDraft()"
+                />
+              </div>
+              <div class="col-12 col-sm-4">
+                <label class="form-label small fw-semibold">Document No</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  [value]="exportDeclarationNo()"
+                  (input)="onExportDeclarationNoChange($event)"
+                  [disabled]="!isDraft()"
+                  placeholder="Document No"
+                />
+              </div>
+            </div>
+            <div class="form-text small">
+              An export sale is zero-rated: every line is taxed at 0 Vat and the invoice carries no VAT.
+            </div>
+          }
         </div>
       </div>
     </div>
@@ -192,7 +254,7 @@
                         (input)="onRateChange(line.key, $event)"
                       />
                     } @else {
-                      {{ line.rate.toFixed(2) }}
+                      {{ (line.rate | amount) }}
                     }
                   </td>
                   <td class="text-end">
@@ -207,12 +269,18 @@
                         (input)="onDiscountPctChange(line.key, $event)"
                       />
                     } @else {
-                      {{ line.discountPct.toFixed(2) }}
+                      {{ (line.discountPct | amount) }}
                     }
                   </td>
                   <td>
                     @if (isDraft()) {
-                      <select class="form-select form-select-sm" (change)="onVatRateChange(line.key, $event)">
+                      <!-- Pinned to 0 Vat on an export sale: the choice is not merely overridden
+                           server-side, the live form does not offer it at all. -->
+                      <select
+                        class="form-select form-select-sm"
+                        [disabled]="isExport()"
+                        (change)="onVatRateChange(line.key, $event)"
+                      >
                         @for (rate of vatRates; track rate) {
                           <option [value]="rate" [selected]="rate === line.vatRate">{{ rate }}</option>
                         }
@@ -221,7 +289,7 @@
                       {{ line.vatRate }}
                     }
                   </td>
-                  <td class="text-end">{{ (line.quantity * line.rate * (1 - line.discountPct / 100)).toFixed(2) }}</td>
+                  <td class="text-end">{{ ((line.quantity * line.rate * (1 - line.discountPct / 100)) | amount) }}</td>
                   @if (isDraft()) {
                     <td>
                       <button type="button" class="btn btn-outline-danger btn-sm" (click)="removeLine(line.key)">
@@ -236,7 +304,7 @@
               <tr>
                 <td colspan="4"></td>
                 <td class="text-end fw-semibold">Sub Total</td>
-                <td class="text-end fw-bold">{{ subTotal().toFixed(2) }}</td>
+                <td class="text-end fw-bold">{{ (subTotal() | amount) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -258,7 +326,7 @@
                     />
                   }
                 </td>
-                <td class="text-end fw-bold">({{ discountAmount().toFixed(2) }})</td>
+                <td class="text-end fw-bold">({{ (discountAmount() | amount) }})</td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -266,7 +334,7 @@
               <tr>
                 <td colspan="4"></td>
                 <td class="text-end fw-semibold">Non-Taxable Total</td>
-                <td class="text-end fw-bold">{{ nonTaxableTotal().toFixed(2) }}</td>
+                <td class="text-end fw-bold">{{ (nonTaxableTotal() | amount) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -274,7 +342,7 @@
               <tr>
                 <td colspan="4"></td>
                 <td class="text-end fw-semibold">Taxable Total</td>
-                <td class="text-end fw-bold">{{ taxableTotal().toFixed(2) }}</td>
+                <td class="text-end fw-bold">{{ (taxableTotal() | amount) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -282,7 +350,7 @@
               <tr>
                 <td colspan="4"></td>
                 <td class="text-end fw-semibold">VAT</td>
-                <td class="text-end fw-bold">{{ vatTotal().toFixed(2) }}</td>
+                <td class="text-end fw-bold">{{ (vatTotal() | amount) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -290,7 +358,7 @@
               <tr>
                 <td colspan="4"></td>
                 <td class="text-end fw-bold">Grand Total</td>
-                <td class="text-end fw-bold text-primary">{{ grandTotal().toFixed(2) }}</td>
+                <td class="text-end fw-bold text-primary">{{ (grandTotal() | amount) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -345,8 +413,8 @@
                   @for (glLine of inv.glLines; track glLine.id) {
                     <tr>
                       <td>{{ accountLabel(glLine.accountId) }}</td>
-                      <td class="text-end">{{ glLine.debit > 0 ? glLine.debit.toFixed(2) : '—' }}</td>
-                      <td class="text-end">{{ glLine.credit > 0 ? glLine.credit.toFixed(2) : '—' }}</td>
+                      <td class="text-end">{{ glLine.debit > 0 ? (glLine.debit | amount) : '—' }}</td>
+                      <td class="text-end">{{ glLine.credit > 0 ? (glLine.credit | amount) : '—' }}</td>
                     </tr>
                   }
                 </tbody>

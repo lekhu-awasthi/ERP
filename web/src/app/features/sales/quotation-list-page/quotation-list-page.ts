@@ -9,13 +9,14 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
 import { CustomStatus } from '../../../core/configuration/configuration.models';
 import { CustomStatusPicker } from '../../../shared/custom-status/custom-status-picker';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 type StatusFilter = QuotationStatus | 'All';
 
 /** List-page chrome for Quotation, same pattern as journal-voucher-list-page. */
 @Component({
   selector: 'app-quotation-list-page',
-  imports: [RouterLink, PaginationControl, CustomStatusPicker],
+  imports: [RouterLink, PaginationControl, CustomStatusPicker, NepaliDatePipe],
   templateUrl: './quotation-list-page.html',
 })
 export class QuotationListPage {

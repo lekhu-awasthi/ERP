@@ -16,6 +16,8 @@ import { InboxPrefill } from '../../../core/workflow/inbox.models';
 import { InboxService } from '../../../core/workflow/inbox.service';
 import { InboxConversionPanel } from '../../../shared/source-document/inbox-conversion-panel';
 import { SourceDocumentPanel } from '../../../shared/source-document/source-document-panel';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 interface EditableLine {
   key: number;
@@ -36,7 +38,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-expense-detail-page',
-  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel],
+  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput],
   templateUrl: './expense-detail-page.html',
 })
 export class ExpenseDetailPage {

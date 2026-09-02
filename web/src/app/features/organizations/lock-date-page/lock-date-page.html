@@ -34,14 +34,9 @@
       <div class="card-body p-4">
         <div class="mb-4">
           <label class="form-label small fw-semibold">Lock Date</label>
-          <input
-            type="date"
-            class="form-control"
-            [value]="lockDate()"
-            (change)="lockDate.set($any($event.target).value)"
-          />
+          <app-bs-date-input [inputClass]="'form-control'" [value]="lockDate()" (valueChange)="lockDate.set($event)" />
           <p class="form-text">
-            Currently: {{ currentLockDate() ? currentLockDate() : 'not set' }}
+            Currently: {{ currentLockDate() ? (currentLockDate() | nepaliDate) : 'not set' }}
           </p>
         </div>
 

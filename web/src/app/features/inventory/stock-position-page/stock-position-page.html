@@ -82,10 +82,10 @@
                 <tr>
                   <td>{{ productLabel(position.productId) }}</td>
                   <td>{{ warehouseLabel(position.warehouseId) }}</td>
-                  <td class="text-end">{{ position.opening.toFixed(2) }}</td>
-                  <td class="text-end">{{ position.in.toFixed(2) }}</td>
-                  <td class="text-end">{{ position.out.toFixed(2) }}</td>
-                  <td class="text-end fw-bold">{{ position.balance.toFixed(2) }}</td>
+                  <td class="text-end">{{ (position.opening | amount) }}</td>
+                  <td class="text-end">{{ (position.in | amount) }}</td>
+                  <td class="text-end">{{ (position.out | amount) }}</td>
+                  <td class="text-end fw-bold">{{ (position.balance | amount) }}</td>
                   <td>
                     <a
                       class="btn btn-outline-secondary btn-sm"

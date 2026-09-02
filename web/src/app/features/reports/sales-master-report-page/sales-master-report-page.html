@@ -36,11 +36,15 @@
       <div class="row g-3">
         <div class="col-12 col-sm-6 col-lg-2">
           <label class="form-label small fw-semibold">From Date</label>
-          <input type="date" class="form-control" [value]="fromDate()" (change)="onFromDateChange($event)" />
+          <app-bs-date-input
+            [inputClass]="'form-control'"
+            [value]="fromDate()"
+            (valueChange)="onFromDateChange($event)"
+          />
         </div>
         <div class="col-12 col-sm-6 col-lg-2">
           <label class="form-label small fw-semibold">To Date</label>
-          <input type="date" class="form-control" [value]="toDate()" (change)="onToDateChange($event)" />
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
         <div class="col-12 col-sm-6 col-lg-3">
           <label class="form-label small fw-semibold">Customer</label>
@@ -111,7 +115,7 @@
             <tbody>
               @for (row of rows(); track row.entryNo + row.productId + row.quantity) {
                 <tr>
-                  <td>{{ row.entryDate }}</td>
+                  <td>{{ row.entryDate | nepaliDate }}</td>
                   <td>
                     @if (row.type === 'Invoice') {
                       <span class="badge bg-primary-subtle text-primary">Invoice</span>
@@ -125,22 +129,22 @@
                   <td>{{ row.contactGroupName || '—' }}</td>
                   <td>{{ row.warehouseName || '—' }}</td>
                   <td>{{ row.productCode }} — {{ row.productName }}</td>
-                  <td class="text-end">{{ row.quantity.toFixed(2) }}</td>
-                  <td class="text-end">{{ row.rate.toFixed(2) }}</td>
-                  <td class="text-end">{{ row.amount.toFixed(2) }}</td>
-                  <td class="text-end">{{ row.itemDiscount.toFixed(2) }}</td>
-                  <td class="text-end">{{ row.transactionDiscount.toFixed(2) }}</td>
-                  <td class="text-end">{{ row.netSales.toFixed(2) }}</td>
+                  <td class="text-end">{{ (row.quantity | amount) }}</td>
+                  <td class="text-end">{{ (row.rate | amount) }}</td>
+                  <td class="text-end">{{ (row.amount | amount) }}</td>
+                  <td class="text-end">{{ (row.itemDiscount | amount) }}</td>
+                  <td class="text-end">{{ (row.transactionDiscount | amount) }}</td>
+                  <td class="text-end">{{ (row.netSales | amount) }}</td>
                   <td>{{ row.vatType }}</td>
-                  <td class="text-end">{{ row.vatAmount.toFixed(2) }}</td>
-                  <td class="text-end fw-bold">{{ row.totalAmount.toFixed(2) }}</td>
+                  <td class="text-end">{{ (row.vatAmount | amount) }}</td>
+                  <td class="text-end fw-bold">{{ (row.totalAmount | amount) }}</td>
                 </tr>
               }
             </tbody>
             <tfoot>
               <tr class="fw-bold border-top">
                 <td colspan="16">Total</td>
-                <td class="text-end">{{ totalAmount().toFixed(2) }}</td>
+                <td class="text-end">{{ (totalAmount() | amount) }}</td>
               </tr>
             </tfoot>
           </table>

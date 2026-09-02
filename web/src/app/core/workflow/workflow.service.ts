@@ -8,6 +8,8 @@ import {
   AuditRowDto,
   CreateTaskRequest,
   CreateTaskResult,
+  RecentTransactionFilter,
+  RecentTransactionRowDto,
   SystemAuditAction,
   SystemAuditDocumentType,
   TaskListDto,
@@ -29,6 +31,29 @@ export class WorkflowService {
     return this.http.get<TransactionApprovalQueueDto>(`${this.baseUrl(organizationId)}/workflow/transaction-approval-queue`, {
       withCredentials: true,
     });
+  }
+
+  /** Phase 23: the Home dashboard's recent-activity feed. Server-paged over the merged stream --
+   * the ordering only works because the merge happens server-side. */
+  getRecentTransactions(
+    organizationId: string,
+    fromDate: string,
+    toDate: string,
+    filter: RecentTransactionFilter,
+    page = 1,
+    pageSize = 10,
+  ): Observable<PagedResult<RecentTransactionRowDto>> {
+    const params: Record<string, string> = {
+      fromDate,
+      toDate,
+      filter,
+      page: String(page),
+      pageSize: String(pageSize),
+    };
+    return this.http.get<PagedResult<RecentTransactionRowDto>>(
+      `${this.baseUrl(organizationId)}/workflow/recent-transactions`,
+      { withCredentials: true, params },
+    );
   }
 
   listTasks(

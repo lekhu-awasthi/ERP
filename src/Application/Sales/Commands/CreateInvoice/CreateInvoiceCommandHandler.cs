@@ -34,7 +34,8 @@ public sealed class CreateInvoiceCommandHandler(IAppDbContext db)
 
         var invoice = Invoice.Create(
             request.OrganizationId, request.ContactId, request.WarehouseId, request.Date, request.Reference,
-            request.ReferrerType, request.ReferrerId, request.DiscountPct);
+            request.ReferrerType, request.ReferrerId, request.DiscountPct,
+            request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate);
         foreach (var line in request.Lines)
         {
             invoice.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);

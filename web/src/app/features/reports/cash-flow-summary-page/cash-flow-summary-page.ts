@@ -6,6 +6,8 @@ import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
 import { CashFlowSummaryDto } from '../../../core/accounting/accounting.models';
 import { triggerBlobDownload } from '../../../shared/download-file';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 /**
  * Read-only report screen -- Phase 19's CashFlowSummaryQuery, a direct-method summary of actual
@@ -14,7 +16,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
  */
 @Component({
   selector: 'app-cash-flow-summary-page',
-  imports: [RouterLink],
+  imports: [RouterLink, AmountPipe, BsDateInput],
   templateUrl: './cash-flow-summary-page.html',
 })
 export class CashFlowSummaryPage {
@@ -41,13 +43,13 @@ export class CashFlowSummaryPage {
     this.load();
   }
 
-  protected onFromDateChange(event: Event): void {
-    this.fromDate.set((event.target as HTMLInputElement).value);
+  protected onFromDateChange(value: string): void {
+    this.fromDate.set(value);
     this.load();
   }
 
-  protected onToDateChange(event: Event): void {
-    this.toDate.set((event.target as HTMLInputElement).value);
+  protected onToDateChange(value: string): void {
+    this.toDate.set(value);
     this.load();
   }
 

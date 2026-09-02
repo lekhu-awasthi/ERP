@@ -7,6 +7,9 @@ import { Contact, ContactStatementDto } from '../../../core/contacts/contacts.mo
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { triggerBlobDownload } from '../../../shared/download-file';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 /**
  * Read-only report screen -- roadmap Phase 9's ContactStatementQuery (ContactType=Customer), the
@@ -22,7 +25,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
  */
 @Component({
   selector: 'app-customer-statement-page',
-  imports: [RouterLink, PaginationControl],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe],
   templateUrl: './customer-statement-page.html',
 })
 export class CustomerStatementPage {
@@ -60,14 +63,14 @@ export class CustomerStatementPage {
     this.load();
   }
 
-  protected onFromDateChange(event: Event): void {
-    this.fromDate.set((event.target as HTMLInputElement).value);
+  protected onFromDateChange(value: string): void {
+    this.fromDate.set(value);
     this.page.set(1);
     this.load();
   }
 
-  protected onToDateChange(event: Event): void {
-    this.toDate.set((event.target as HTMLInputElement).value);
+  protected onToDateChange(value: string): void {
+    this.toDate.set(value);
     this.page.set(1);
     this.load();
   }

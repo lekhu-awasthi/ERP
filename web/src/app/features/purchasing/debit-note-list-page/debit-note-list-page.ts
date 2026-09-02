@@ -6,12 +6,13 @@ import { PurchasingService } from '../../../core/purchasing/purchasing.service';
 import { DebitNote, DebitNoteStatus } from '../../../core/purchasing/purchasing.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 type StatusFilter = DebitNoteStatus | 'All';
 
 @Component({
   selector: 'app-debit-note-list-page',
-  imports: [RouterLink, PaginationControl],
+  imports: [RouterLink, PaginationControl, NepaliDatePipe],
   templateUrl: './debit-note-list-page.html',
 })
 export class DebitNoteListPage {

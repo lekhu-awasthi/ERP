@@ -9,6 +9,8 @@ import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact } from '../../../core/contacts/contacts.models';
 import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 interface EditableLine {
   key: number;
@@ -37,7 +39,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-journal-voucher-detail-page',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput],
   templateUrl: './journal-voucher-detail-page.html',
 })
 export class JournalVoucherDetailPage {

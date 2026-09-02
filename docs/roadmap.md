@@ -48,6 +48,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 21b | Full-tenant data export (FR-2.8, NFR-4.3): tenant-scoped `ExportJob` producing one multi-sheet `.xlsx` over FR-2.8's five named categories, downloaded through an authenticated endpoint. **Decision A is the phase** — FR-2.8 says "backup" and this codebase has no restore path, so what ships is an honest **export** that says so on the button, on the workbook's own Summary sheet and in the completion email. **Decision D restores 20e's default that 21a had to abandon**: an export only reads, so it runs with *no ambient identity at all* — the permission check and the `Audit` row (new `DocumentType.DataExport`) live on the enqueue command in a real HTTP request. **Decision C** answers 21a's deferred job-table question: separate tables, shared loop — 21a's runner became `QueuedJobRunnerHostedService<TProcessor, TOptions>` over a new `IQueuedJobProcessor` seam (a shared timer host, not a job framework). **Decision E** adds 7-day retention via `SweepAsync` on that seam and fixes the blob leak 21a shipped. Stated 25,000-row-per-sheet cap, disclosed in three places when hit | `phase-21b-status.md` |
 | 21c | Migrated tax-register import + the migrated Sales/Purchase Register variants (FR-2.10, **closing FR-9.4** — Nepal's statutory report set is now complete): two tenant-scoped aggregates hold a prior system's filed Sales/Purchase Book rows, surfaced by two new Admin-only report screens and seeded from a template-based .xlsx on a new `Configurations > Migration` screen. **Decision A is the phase** — a migrated row is *real enough for a tax report and deliberately not real enough to be anything else*: no `GlJournalEntry`, no stock movement, no payment, no document number, no Draft/Approve/Void lifecycle, no lock-date gate, and presence in exactly two reports. Two tables (the column sets diverge after five fields), a **free-text party** with an optional exact-PAN link that never mints a Contact (so both register row DTOs' `ContactId` widens to nullable), two appended `DocumentType` members, and a return modelled as a **negative row** exactly as the live registers render a CreditNote/DebitNote. **Decision C is 21b's Decision C run again and coming out the other way**: no new job table — every `ImportJob` column applies and the loop is the same loop, so the two migrated types are `ImportEntityType` members, create-only, with a new `EntityTypes` filter keeping the two screens' histories apart. **Decision D re-argues 21a's identity rule from scratch** (21a's *reason* does not transfer, since the create handler did not exist) and lands the same way for different reasons: per-row permission re-check, validation and audit. **Decision F** gives migrated rows reach into the two register variants only, with VAT Summary / Annex 5 / Annex 13 / TDS each opened, each found structurally unable to consume a register-level row, and each given a test proving it is unaffected. Confirm-live was not possible (non-interactive session), so **Decision E derives the template columns from Phase 19's live-confirmed statutory register** rather than guessing at an unseen screen | `phase-21c-status.md` |
 | 22 | Document inbox (FR-10.3): `UploadedDocument` in `Domain/Workflow` reusing Phase 18's `IFileStorage`/`AttachmentValidation` unchanged, a `Workflow > Document` screen with Pending/Done tabs beside the Approval queue, conversion into all four of FR-10.3's targets, and a permanent viewable link from the produced transaction back to the scan. **Decision A states the invariant**: an inbox document is *evidence* — no number, no Draft/Approve/Void lifecycle, no GL entry, no stock movement, no lock-date gate — and the link to the transaction lives on the **document**, not on the transaction's `ReferrerType`/`ReferrerId` (Phase 6's bug #4 catalogues what that pair actually requires, none of which applies here), costing zero change to any transactional aggregate. One document, one transaction: a second link is refused, and so is the prefill. **Decision B is prefill-and-submit** — converting creates *nothing*; it opens the target's ordinary `new` form with the scan beside it and the user's Save runs the normal `CreateXCommand` through the full pipeline, so numbering, validation, lock-date, posting rules and audit stay untouched. The document id rides the **URL**, not `PendingTemplateStore`, which is read-once, dies on reload and never covered two of the four targets. **Decision C is this codebase's first egress of customer data to an LLM and is a product decision**: what leaves is the bytes of the one clicked file plus a fixed prompt — no contacts, no catalogue, no identity, no other document — behind two default-closed gates (a withdrawable tenant opt-in on `TenantSettings`, **default off**, plus an Admin-only `.Extract` key), never automatic, synchronous with a timeout and **no new job table** (21c's test again: not rows, not a loop), audited via a new `DocumentType.DocumentExtraction`, and failing as an *outcome* that leaves the document exactly as convertible by hand. The **conversion has no key of its own** — the prefill query resolves to the target type's own Create key, so the inbox can never be a side door | `phase-22-status.md` |
+| 23 | Nepali localization & parity odds-and-ends (NFR-1.1, NFR-1.2, FR-5.8). **What is stored never changed: every date is AD, always** — BS is presentation and entry only, converted at one client edge (`web/src/app/shared/formatting/`), so no column, DTO, report window or migration gained a second meaning. **Decision B is the phase's risk and was treated as data under test**: BS month lengths are not computable, so the table was cross-checked across four independent implementations — all four agree through BS 2083, two of them then emit filler rows (`…,30,30,30`) where their real data ran out, and the two with genuine data agree through **BS 2092**, which is the supported range (AD 1943-04-14 … 2036-04-13). Outside it the functions return null: never a guess, never a clamp. **Decision D made completeness mechanical rather than asserted** — 324 inline `.toFixed(2)` money renders across 40 files and 66 native `<input type="date">` across 42 were swept, and `sweep-guard.spec.ts` reads every template off disk at test time and fails the build on a new one, with a reasoned allow-list. Both sweeps are complete, because a half-converted app is worse than an unstarted one. Preference lives in `localStorage` (**Decision C**: no migration, but explicitly no cross-device sync — and server-rendered PDFs/`.xlsx` stay AD, stated rather than discovered). **FR-5.8's tax treatment was live-confirmed in the DOM, not inferred**: ticking export disables the per-line Tax selector and pins every line to `0 Vat`, so `Invoice.AddLine`/`SetExport` enforce zero-rating in the aggregate — `ZeroVat`, not `NoVat`, since both compute zero but file under different statutory headings. **Decision F held the dashboard to queries that already existed** — the four KPI cards and the balance panel add no Application-layer aggregation — and then **overrode its own rule once, on purpose**: the recent-activity feed is the phase's only new query, because no existing one returns a mixed transaction stream and a client-side merge of five per-type endpoints cannot page a merged stream correctly (the first stated reason for omitting it, phase-16c's bug #1, did not actually apply — a feed has no footer total). **One new permission key (Decision G)**, `Workflow.RecentTransaction.View`, blanket in `TransactionApprovalQuery`'s exact sense: its job is to make `AuthorizationBehavior` verify org membership, while the real gating is per document type inside the handler against each type's own `*.View` grant — so a partial grant yields a partial feed rather than a 403 or a leak, and **the key alone shows nothing**, which is asserted. Every other surface in the phase adds no key: each dashboard card rides the key of its own query, so a Member sees a smaller dashboard rather than a broken one | `phase-23-status.md` |
 
 ---
 
@@ -369,16 +370,53 @@ run against a live key on this deployment, so the extraction path proven end-to-
 
 ---
 
-## Phase 23 — Nepali localization & parity odds-and-ends
+## Phase 23 — Nepali localization & parity odds-and-ends ✅ COMPLETE
 **Goal:** the cross-cutting Nepal-market NFRs plus small confirmed-parity gaps carried from earlier phases.
 
-1. **BS calendar** (NFR-1.1): shared dual AD/BS date component (entry + display, per-user preference), swept across every date field; fiscal-year display in BS where the reference product shows it.
-2. **Lakh/crore digit grouping** (NFR-1.2) in one shared currency-format pipe, swept across the UI.
-3. **SalesOrder Angular UI** — the Phase 5 backend-only gap (its Approval-queue rows have had no "Open" link since Phase 12).
-4. **Home dashboard** (`erp-module-scan.md` Home Tab): summary cards over existing queries.
-5. **Export-sale flag on Invoice** (FR-5.8) with its tax treatment — confirm live first.
+All five items shipped.
 
-*Exit criteria: a date entered in BS persists and reads back identically in both calendars; amounts show lakh/crore grouping everywhere; a SalesOrder is creatable/approvable through the UI and its queue row links correctly.*
+1. ✅ **BS calendar** (NFR-1.1) — a shared dual AD/BS date component swept across **every** date field
+   (66 inputs, 42 files) plus 40 business-date renders, behind a global per-user AD/BS toggle. Live
+   session confirmed the switch is a *global* profile setting showing **one** calendar at a time, not a
+   per-field toggle. Supported range **BS 2000–2092** (AD 1943-04-14 … 2036-04-13); outside it,
+   conversion returns null and the UI falls back to AD rather than guessing.
+2. ✅ **Lakh/crore digit grouping** (NFR-1.2) — the app's first shared pipe, replacing 324 inline
+   `.toFixed(2)` calls across 40 templates.
+3. ✅ **SalesOrder Angular UI** — the page itself already existed (Phase 18 built and routed it as a
+   mid-phase scope expansion); what was missing was the two `detailRoute` switches that still returned
+   `null` for SalesOrder behind a now-false comment. Both fixed, and both are now driven over every
+   member of their document-type union so the next added type cannot fall through.
+4. ✅ **Home dashboard** — four KPI cards with prior-period comparison, the Bank and Cash Balance panel
+   with its Total row, a date sub-filter, and the unified recent-activity feed with its five
+   All/Sales/Purchase/Payment/Receipt tabs, at `/organizations/:id/home`. Every KPI figure comes from an
+   existing query handler; the feed is the phase's **one** new Application-layer query, added
+   deliberately (see Decision F) because a merged, ordered, paged stream cannot be composed
+   client-side.
+5. ✅ **Export-sale flag on Invoice** (FR-5.8) with its tax treatment — `IsExport` plus optional
+   Country/Declaration No/Declaration Date, filling the four Sales Register columns that had been
+   hardcoded empty since Phase 19.
+
+**Fiscal-year note (grounded finding #8):** `ResetEveryFiscalYear`/`IncludeFiscalYearInCode` remain
+stored-but-inert. The live product's fiscal year is a **BS** year starting **Shrawan 1**, and it does
+appear in document codes (`JV0031/83-84`) — but implementing that would change document numbering,
+which is not a localization concern. **Deliberately not done**, and recorded so a future phase picks it
+up on purpose.
+
+*Exit criteria — met:* a date entered in BS persists and reads back identically in both calendars
+(asserted as a test through both binding shapes, and confirmed live); amounts show lakh/crore grouping
+everywhere, proven mechanically by a guard test rather than by inspection; a SalesOrder is
+creatable/approvable through the UI and its queue row links correctly.
+
+The browser pass was completed and found a real defect every automated check had passed: **the live
+Sales Register page had no columns for the four export fields** — the DTO carried them since Phase 19,
+the handler now fills them, and the table simply never rendered them, so FR-5.8 would have shipped with
+its data invisible. Fixed and re-verified live.
+
+**Carried forward, not blocking:** server-rendered output (Phase 20d print/PDF, Phase 16c/21b `.xlsx`)
+still renders dates in **AD** regardless of the user's calendar preference — conversion is client-side
+by Decision A, and closing that gap needs either a C# conversion table or sending the preference to the
+server. Also still open from 21b/21c/22: the browser passes on `Configurations > Import / Export`,
+`Organization > Developer Mode` and `Organization > Documents`.
 
 ---
 

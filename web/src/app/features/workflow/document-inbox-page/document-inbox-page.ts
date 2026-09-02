@@ -14,6 +14,7 @@ import {
 } from '../../../core/workflow/inbox.models';
 import { InboxService } from '../../../core/workflow/inbox.service';
 import { triggerBlobDownload } from '../../../shared/download-file';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 /**
  * Phase 22 (FR-10.3) -- Workflow > Document. Lives beside the Transaction Approval queue, matching
@@ -33,7 +34,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
  */
 @Component({
   selector: 'app-document-inbox-page',
-  imports: [RouterLink, DatePipe, DecimalPipe],
+  imports: [RouterLink, DatePipe, DecimalPipe, NepaliDatePipe],
   templateUrl: './document-inbox-page.html',
 })
 export class DocumentInboxPage {

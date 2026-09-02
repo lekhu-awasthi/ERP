@@ -65,7 +65,12 @@
           </div>
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold">Date</label>
-            <input type="date" class="form-control" [value]="date()" (change)="date.set($any($event.target).value)" [disabled]="!isDraft()" />
+            <app-bs-date-input
+              [inputClass]="'form-control'"
+              [value]="date()"
+              (valueChange)="date.set($event)"
+              [disabled]="!isDraft()"
+            />
           </div>
           <div class="col-12 col-sm-4">
             <label class="form-label small fw-semibold">Payment Mode</label>
@@ -142,8 +147,8 @@
                   @for (line of preview; track line.accountId) {
                     <tr>
                       <td>{{ accountLabel(line.accountId) }}</td>
-                      <td class="text-end">{{ line.debit > 0 ? line.debit.toFixed(2) : '—' }}</td>
-                      <td class="text-end">{{ line.credit > 0 ? line.credit.toFixed(2) : '—' }}</td>
+                      <td class="text-end">{{ line.debit > 0 ? (line.debit | amount) : '—' }}</td>
+                      <td class="text-end">{{ line.credit > 0 ? (line.credit | amount) : '—' }}</td>
                     </tr>
                   }
                 </tbody>
@@ -213,7 +218,7 @@
                         (input)="onAllocationAmountChange(row.key, $event)"
                       />
                     } @else {
-                      {{ row.amount.toFixed(2) }}
+                      {{ (row.amount | amount) }}
                     }
                   </td>
                   @if (isDraft()) {
@@ -229,7 +234,7 @@
             <tfoot>
               <tr class="fw-bold">
                 <td>Allocated</td>
-                <td class="text-end">{{ allocatedTotal().toFixed(2) }}</td>
+                <td class="text-end">{{ (allocatedTotal() | amount) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -239,7 +244,7 @@
                   @if (remaining() === 0) {
                     <span class="badge bg-success-subtle text-success">Fully allocated</span>
                   } @else {
-                    <span class="badge bg-danger-subtle text-danger">Remaining: {{ remaining().toFixed(2) }}</span>
+                    <span class="badge bg-danger-subtle text-danger">Remaining: {{ (remaining() | amount) }}</span>
                   }
                 </td>
               </tr>
@@ -293,8 +298,8 @@
                   @for (glLine of p.glLines; track glLine.id) {
                     <tr>
                       <td>{{ accountLabel(glLine.accountId) }}</td>
-                      <td class="text-end">{{ glLine.debit > 0 ? glLine.debit.toFixed(2) : '—' }}</td>
-                      <td class="text-end">{{ glLine.credit > 0 ? glLine.credit.toFixed(2) : '—' }}</td>
+                      <td class="text-end">{{ glLine.debit > 0 ? (glLine.debit | amount) : '—' }}</td>
+                      <td class="text-end">{{ glLine.credit > 0 ? (glLine.credit | amount) : '—' }}</td>
                     </tr>
                   }
                 </tbody>

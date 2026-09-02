@@ -13,6 +13,7 @@ import {
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { DealList } from '../../crm/deal-list/deal-list';
 import { TaskList } from '../../workflow/task-list/task-list';
+import { CalendarToggle } from '../../../shared/formatting/calendar-toggle';
 
 /**
  * The Organization dashboard shell (roadmap Phase 1b task 11) -- replaces Phase 1a's generic
@@ -28,7 +29,7 @@ import { TaskList } from '../../workflow/task-list/task-list';
  */
 @Component({
   selector: 'app-organization-dashboard-page',
-  imports: [ReactiveFormsModule, FormsModule, RouterLink, TaskList, DealList],
+  imports: [ReactiveFormsModule, FormsModule, RouterLink, TaskList, DealList, CalendarToggle],
   templateUrl: './organization-dashboard-page.html',
 })
 export class OrganizationDashboardPage {

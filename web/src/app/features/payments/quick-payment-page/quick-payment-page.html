@@ -50,7 +50,7 @@
         </div>
         <div class="col-12 col-sm-6">
           <label class="form-label small fw-semibold">Date</label>
-          <input type="date" class="form-control" formControlName="date" />
+          <app-bs-date-input [inputClass]="'form-control'" formControlName="date" />
         </div>
 
         <div class="col-12 col-sm-6">
@@ -94,11 +94,11 @@
           </div>
           <div class="col-12 col-sm-4">
             <label class="form-label small fw-semibold">Cheque Date</label>
-            <input type="date" class="form-control" formControlName="chequeDate" />
+            <app-bs-date-input [inputClass]="'form-control'" formControlName="chequeDate" />
           </div>
           <div class="col-12 col-sm-4">
             <label class="form-label small fw-semibold">Received Date</label>
-            <input type="date" class="form-control" formControlName="receivedDate" />
+            <app-bs-date-input [inputClass]="'form-control'" formControlName="receivedDate" />
           </div>
         }
 

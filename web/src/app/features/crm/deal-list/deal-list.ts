@@ -12,6 +12,9 @@ import { OrganizationMember } from '../../../core/organizations/organizations.mo
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 /**
  * Shared Deal list component (roadmap Phase 15) -- reused, not duplicated, across its two
@@ -27,7 +30,7 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
  */
 @Component({
   selector: 'app-deal-list',
-  imports: [ReactiveFormsModule, PaginationControl],
+  imports: [ReactiveFormsModule, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe],
   templateUrl: './deal-list.html',
 })
 export class DealList implements OnInit {

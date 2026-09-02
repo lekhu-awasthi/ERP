@@ -29,7 +29,11 @@ public sealed class UpdateInvoiceCommandHandler(IAppDbContext db)
 
         var oldLines = invoice.Lines.ToList();
 
-        invoice.UpdateHeader(request.ContactId, request.WarehouseId, request.Date, request.Reference, request.DiscountPct);
+        // UpdateHeader applies the export flag before the lines are re-added, so AddLine's own
+        // zero-rating sees the new flag rather than the previous save's.
+        invoice.UpdateHeader(
+            request.ContactId, request.WarehouseId, request.Date, request.Reference, request.DiscountPct,
+            request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate);
         invoice.ClearLines();
         foreach (var line in request.Lines)
         {

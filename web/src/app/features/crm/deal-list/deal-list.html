@@ -67,7 +67,7 @@
         </div>
         <div class="col-12 col-sm-4">
           <label class="form-label small fw-semibold">Expected Closing Date</label>
-          <input type="date" class="form-control form-control-sm" formControlName="expectedClosingDate" />
+          <app-bs-date-input [inputClass]="'form-control form-control-sm'" formControlName="expectedClosingDate" />
         </div>
         <div class="col-12">
           <label class="form-label small fw-semibold">Description</label>
@@ -154,8 +154,8 @@
                 <span class="badge" [style.background-color]="row.stageColor ?? '#6c757d'">{{ row.stageName ?? '—' }}</span>
               }
             </td>
-            <td class="small">{{ row.expectedRevenue.toFixed(2) }}</td>
-            <td class="small">{{ row.closingDate ?? row.expectedClosingDate ?? '—' }}</td>
+            <td class="small">{{ (row.expectedRevenue | amount) }}</td>
+            <td class="small">{{ ((row.closingDate ?? row.expectedClosingDate) | nepaliDate) || '—' }}</td>
             <td class="small">
               @if (row.assignees.length === 0) {
                 —

@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { WorkflowService } from '../../../core/workflow/workflow.service';
 import { TransactionApprovalRowDto } from '../../../core/workflow/workflow.models';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 /**
  * Read-only v1 (roadmap Phase 8+ Workflow bullet / product-requirements.md FR-10.2) -- lists every
@@ -14,7 +15,7 @@ import { TransactionApprovalRowDto } from '../../../core/workflow/workflow.model
  */
 @Component({
   selector: 'app-transaction-approval-queue-page',
-  imports: [RouterLink],
+  imports: [RouterLink, NepaliDatePipe],
   templateUrl: './transaction-approval-queue-page.html',
 })
 export class TransactionApprovalQueuePage {
@@ -48,10 +49,14 @@ export class TransactionApprovalQueuePage {
   }
 
   /**
-   * SalesOrder returns null -- no Angular detail page exists for it (Phase 5's "SalesOrder shipped
-   * backend-only" scope decision, never retrofitted). Payment resolves to one of two existing
-   * routes depending on Direction, since Customer and Supplier Payment share one aggregate but two
-   * separate Angular detail pages.
+   * Payment resolves to one of two existing routes depending on Direction, since Customer and
+   * Supplier Payment share one aggregate but two separate Angular detail pages.
+   *
+   * SalesOrder used to return null here, on the grounds that Phase 5 shipped it backend-only. Phase
+   * 18 built `sales-order-list-page`/`sales-order-detail-page` as a mid-phase scope expansion and
+   * routed both, but neither of the two screens that link into the queue was updated -- so the row
+   * kept rendering without an Open link for four phases while the page it needed existed. Fixed in
+   * Phase 23; `transaction-approval-queue-page.spec.ts` now asserts every document type resolves.
    */
   protected detailRoute(row: TransactionApprovalRowDto): (string)[] | null {
     const org = this.organizationId;
@@ -59,7 +64,7 @@ export class TransactionApprovalQueuePage {
       case 'Quotation':
         return ['/organizations', org, 'sales', 'quotations', row.documentId];
       case 'SalesOrder':
-        return null;
+        return ['/organizations', org, 'sales', 'sales-orders', row.documentId];
       case 'Invoice':
         return ['/organizations', org, 'sales', 'invoices', row.documentId];
       case 'CreditNote':

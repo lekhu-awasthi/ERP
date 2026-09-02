@@ -9,6 +9,8 @@ import { PaymentsService } from '../../../core/payments/payments.service';
 import { ChequeDashboardSummaryDto, ChequeDto, ChequeStatus, PaymentDirection } from '../../../core/payments/payments.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 type ChequeTab = 'dashboard' | 'received' | 'issued';
 
@@ -24,7 +26,7 @@ const NEXT_STATUSES: Record<ChequeStatus, ChequeStatus[]> = {
  * Cheque Received / Cheque Issued tabs (docs/phase-17-status.md decisions #4/#5). */
 @Component({
   selector: 'app-cheque-register-page',
-  imports: [RouterLink, PaginationControl, DatePipe, DecimalPipe],
+  imports: [RouterLink, PaginationControl, DatePipe, DecimalPipe, BsDateInput, NepaliDatePipe],
   templateUrl: './cheque-register-page.html',
 })
 export class ChequeRegisterPage {

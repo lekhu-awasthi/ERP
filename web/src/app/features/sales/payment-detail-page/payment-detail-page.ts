@@ -15,6 +15,8 @@ import { SalesService } from '../../../core/sales/sales.service';
 import { Invoice } from '../../../core/sales/sales.models';
 import { MAX_PAGE_SIZE } from '../../../core/common/paged-result';
 import { SourceDocumentPanel } from '../../../shared/source-document/source-document-panel';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 interface EditableAllocation {
   key: number;
@@ -30,7 +32,7 @@ let nextAllocationKey = 1;
  * confirmed in erp-module-scan.md's hands-on pass. */
 @Component({
   selector: 'app-payment-detail-page',
-  imports: [RouterLink, DatePipe, SourceDocumentPanel],
+  imports: [RouterLink, DatePipe, SourceDocumentPanel, AmountPipe, BsDateInput],
   templateUrl: './payment-detail-page.html',
 })
 export class PaymentDetailPage {

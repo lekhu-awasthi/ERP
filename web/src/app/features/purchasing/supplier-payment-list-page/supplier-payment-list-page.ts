@@ -6,6 +6,8 @@ import { PaymentsService } from '../../../core/payments/payments.service';
 import { Payment, PaymentStatus } from '../../../core/payments/payments.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 type StatusFilter = PaymentStatus | 'All';
 
@@ -13,7 +15,7 @@ type StatusFilter = PaymentStatus | 'All';
  * Payment aggregate/endpoint, see payments.models.ts's PaymentDirection doc comment. */
 @Component({
   selector: 'app-supplier-payment-list-page',
-  imports: [RouterLink, PaginationControl],
+  imports: [RouterLink, PaginationControl, AmountPipe, NepaliDatePipe],
   templateUrl: './supplier-payment-list-page.html',
 })
 export class SupplierPaymentListPage {

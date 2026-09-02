@@ -6,13 +6,14 @@ import { InventoryService } from '../../../core/inventory/inventory.service';
 import { InventoryAdjustment, InventoryAdjustmentStatus } from '../../../core/inventory/inventory.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 type StatusFilter = InventoryAdjustmentStatus | 'All';
 
 /** List-page chrome for InventoryAdjustment, same pattern as purchase-order-list-page. */
 @Component({
   selector: 'app-inventory-adjustment-list-page',
-  imports: [RouterLink, PaginationControl],
+  imports: [RouterLink, PaginationControl, NepaliDatePipe],
   templateUrl: './inventory-adjustment-list-page.html',
 })
 export class InventoryAdjustmentListPage {

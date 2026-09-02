@@ -3178,6 +3178,20 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<string>("ExportCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateOnly?>("ExportDeclarationDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ExportDeclarationNo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsExport")
+                        .HasColumnType("bit");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -6087,6 +6101,20 @@ namespace ErpApp.Infrastructure.Migrations
                             Id = new Guid("00000000-0000-0000-0002-00000000014e"),
                             IsGranted = false,
                             PermissionKey = "Configuration.AiDocumentExtraction.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000014f"),
+                            IsGranted = true,
+                            PermissionKey = "Workflow.RecentTransaction.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000150"),
+                            IsGranted = true,
+                            PermissionKey = "Workflow.RecentTransaction.View",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });

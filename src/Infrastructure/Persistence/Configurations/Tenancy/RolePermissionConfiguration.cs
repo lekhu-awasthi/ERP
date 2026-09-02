@@ -531,6 +531,14 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid MemberInboxDocumentExtractId = Guid.Parse("00000000-0000-0000-0002-00000000014d");
     private static readonly Guid MemberAiDocumentExtractionManageId = Guid.Parse("00000000-0000-0000-0002-00000000014e");
 
+    // Phase 23 (Home dashboard recent-activity feed). Admin+Member. This key only gets the request
+    // past AuthorizationBehavior's org-membership check -- what the feed actually shows is gated per
+    // document type inside RecentTransactionsQueryHandler against each type's own *.View grant, so
+    // granting this on its own shows an empty feed rather than anything new. See
+    // PermissionKeys.RecentTransactionView for the full derivation.
+    private static readonly Guid AdminRecentTransactionViewId = Guid.Parse("00000000-0000-0000-0002-00000000014f");
+    private static readonly Guid MemberRecentTransactionViewId = Guid.Parse("00000000-0000-0000-0002-000000000150");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -950,6 +958,9 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(MemberInboxDocumentViewId, Role.MemberId, PermissionKeys.InboxDocumentView, true),
             RolePermission.Create(MemberInboxDocumentManageId, Role.MemberId, PermissionKeys.InboxDocumentManage, true),
             RolePermission.Create(MemberInboxDocumentExtractId, Role.MemberId, PermissionKeys.InboxDocumentExtract, false),
-            RolePermission.Create(MemberAiDocumentExtractionManageId, Role.MemberId, PermissionKeys.AiDocumentExtractionManage, false));
+            RolePermission.Create(MemberAiDocumentExtractionManageId, Role.MemberId, PermissionKeys.AiDocumentExtractionManage, false),
+
+            RolePermission.Create(AdminRecentTransactionViewId, Role.AdminId, PermissionKeys.RecentTransactionView, true),
+            RolePermission.Create(MemberRecentTransactionViewId, Role.MemberId, PermissionKeys.RecentTransactionView, true));
     }
 }

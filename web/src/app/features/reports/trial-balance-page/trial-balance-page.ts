@@ -4,12 +4,14 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { TrialBalanceDto } from '../../../core/accounting/accounting.models';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 /** Read-only report screen -- roadmap Phase 8a's TrialBalanceQuery, every active Account's net
  * Debit/Credit balance as of a cutoff date. */
 @Component({
   selector: 'app-trial-balance-page',
-  imports: [RouterLink],
+  imports: [RouterLink, AmountPipe, BsDateInput],
   templateUrl: './trial-balance-page.html',
 })
 export class TrialBalancePage {
@@ -27,8 +29,8 @@ export class TrialBalancePage {
     this.load();
   }
 
-  protected onAsOfDateChange(event: Event): void {
-    this.asOfDate.set((event.target as HTMLInputElement).value);
+  protected onAsOfDateChange(value: string): void {
+    this.asOfDate.set(value);
     this.load();
   }
 

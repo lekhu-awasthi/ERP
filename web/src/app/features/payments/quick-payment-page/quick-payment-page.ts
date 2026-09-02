@@ -14,6 +14,7 @@ import { CreatePaymentResult, PaymentDirection } from '../../../core/payments/pa
 import { InboxPrefill } from '../../../core/workflow/inbox.models';
 import { InboxService } from '../../../core/workflow/inbox.service';
 import { InboxConversionPanel } from '../../../shared/source-document/inbox-conversion-panel';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 /**
  * Phase 17 -- Quick Payment/Quick Receipt (docs/phase-17-status.md decision #7): a thin variant of
@@ -37,7 +38,7 @@ import { InboxConversionPanel } from '../../../shared/source-document/inbox-conv
  */
 @Component({
   selector: 'app-quick-payment-page',
-  imports: [ReactiveFormsModule, RouterLink, InboxConversionPanel],
+  imports: [ReactiveFormsModule, RouterLink, InboxConversionPanel, BsDateInput],
   templateUrl: './quick-payment-page.html',
 })
 export class QuickPaymentPage {

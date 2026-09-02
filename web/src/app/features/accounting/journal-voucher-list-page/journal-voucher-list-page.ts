@@ -6,6 +6,7 @@ import { AccountingService } from '../../../core/accounting/accounting.service';
 import { JournalVoucher, JournalVoucherStatus } from '../../../core/accounting/accounting.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 type StatusFilter = JournalVoucherStatus | 'All';
 
@@ -15,7 +16,7 @@ type StatusFilter = JournalVoucherStatus | 'All';
  * document type. */
 @Component({
   selector: 'app-journal-voucher-list-page',
-  imports: [RouterLink, PaginationControl],
+  imports: [RouterLink, PaginationControl, NepaliDatePipe],
   templateUrl: './journal-voucher-list-page.html',
 })
 export class JournalVoucherListPage {

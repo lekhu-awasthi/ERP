@@ -123,6 +123,32 @@ export type SystemAuditAction = 'Create' | 'Update' | 'Approve' | 'Void' | 'Extr
  * route to open. */
 export type SystemAuditDocumentType = TransactionApprovalDocumentType | 'DocumentExtraction';
 
+/** Phase 23: the Home dashboard's recent-activity feed. The five tabs the live product shows. */
+export type RecentTransactionFilter = 'All' | 'Sales' | 'Purchase' | 'Payment' | 'Receipt';
+
+/** The six document types the feed can carry -- a subset of the approval queue's thirteen, because
+ * the tab list is the scope (no Journal Voucher / Cash Transfer / stock documents, and no
+ * pre-transaction Quotation / Sales Order / Purchase Order). */
+export type RecentTransactionDocumentType =
+  | 'Invoice'
+  | 'CreditNote'
+  | 'PurchaseBill'
+  | 'DebitNote'
+  | 'Expense'
+  | 'Payment';
+
+export interface RecentTransactionRowDto {
+  date: string;
+  documentType: RecentTransactionDocumentType;
+  documentId: string;
+  documentCode: string;
+  contactId: string | null;
+  contactName: string | null;
+  amount: number;
+  /** Non-null only for Payment rows; decides which of the two Payment detail routes the row opens. */
+  direction: PaymentDirection | null;
+}
+
 export interface AuditRowDto {
   id: string;
   createdAt: string;

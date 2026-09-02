@@ -42,11 +42,10 @@
         <div class="row g-3">
           <div class="col-12 col-sm-4">
             <label class="form-label small fw-semibold">Date</label>
-            <input
-              type="date"
-              class="form-control"
+            <app-bs-date-input
+              [inputClass]="'form-control'"
               [value]="date()"
-              (change)="date.set($any($event.target).value)"
+              (valueChange)="date.set($event)"
               [disabled]="!isDraft()"
             />
           </div>
@@ -129,7 +128,7 @@
                         (input)="onAmountChange(line.key, $event)"
                       />
                     } @else {
-                      {{ line.amount.toFixed(2) }}
+                      {{ (line.amount | amount) }}
                     }
                   </td>
                   @if (isDraft()) {
@@ -145,7 +144,7 @@
             <tfoot>
               <tr class="fw-bold">
                 <td>Total</td>
-                <td class="text-end">{{ totalAmount().toFixed(2) }}</td>
+                <td class="text-end">{{ (totalAmount() | amount) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -200,8 +199,8 @@
                   @for (glLine of ct.glLines; track glLine.id) {
                     <tr>
                       <td>{{ accountLabel(glLine.accountId) }}</td>
-                      <td class="text-end">{{ glLine.debit > 0 ? glLine.debit.toFixed(2) : '—' }}</td>
-                      <td class="text-end">{{ glLine.credit > 0 ? glLine.credit.toFixed(2) : '—' }}</td>
+                      <td class="text-end">{{ glLine.debit > 0 ? (glLine.debit | amount) : '—' }}</td>
+                      <td class="text-end">{{ glLine.credit > 0 ? (glLine.credit | amount) : '—' }}</td>
                     </tr>
                   }
                 </tbody>

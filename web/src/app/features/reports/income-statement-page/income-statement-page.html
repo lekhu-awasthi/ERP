@@ -28,11 +28,15 @@
       <div class="row g-3">
         <div class="col-12 col-sm-6">
           <label class="form-label small fw-semibold">From Date</label>
-          <input type="date" class="form-control" [value]="fromDate()" (change)="onFromDateChange($event)" />
+          <app-bs-date-input
+            [inputClass]="'form-control'"
+            [value]="fromDate()"
+            (valueChange)="onFromDateChange($event)"
+          />
         </div>
         <div class="col-12 col-sm-6">
           <label class="form-label small fw-semibold">To Date</label>
-          <input type="date" class="form-control" [value]="toDate()" (change)="onToDateChange($event)" />
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
       </div>
     </div>
@@ -57,14 +61,14 @@
               @for (row of is.incomeRows; track row.accountId) {
                 <tr>
                   <td>{{ row.accountCode }} — {{ row.accountName }}</td>
-                  <td class="text-end">{{ row.amount.toFixed(2) }}</td>
+                  <td class="text-end">{{ (row.amount | amount) }}</td>
                 </tr>
               }
             </tbody>
             <tfoot>
               <tr class="fw-bold border-top">
                 <td>Total Income</td>
-                <td class="text-end">{{ is.totalIncome.toFixed(2) }}</td>
+                <td class="text-end">{{ (is.totalIncome | amount) }}</td>
               </tr>
             </tfoot>
           </table>
@@ -79,14 +83,14 @@
               @for (row of is.expenseRows; track row.accountId) {
                 <tr>
                   <td>{{ row.accountCode }} — {{ row.accountName }}</td>
-                  <td class="text-end">{{ row.amount.toFixed(2) }}</td>
+                  <td class="text-end">{{ (row.amount | amount) }}</td>
                 </tr>
               }
             </tbody>
             <tfoot>
               <tr class="fw-bold border-top">
                 <td>Total Expense</td>
-                <td class="text-end">{{ is.totalExpense.toFixed(2) }}</td>
+                <td class="text-end">{{ (is.totalExpense | amount) }}</td>
               </tr>
             </tfoot>
           </table>
@@ -97,9 +101,9 @@
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4 text-end">
         @if (is.netIncome >= 0) {
-          <span class="badge bg-success-subtle text-success fs-6">Net Income: {{ is.netIncome.toFixed(2) }}</span>
+          <span class="badge bg-success-subtle text-success fs-6">Net Income: {{ (is.netIncome | amount) }}</span>
         } @else {
-          <span class="badge bg-danger-subtle text-danger fs-6">Net Loss: {{ (-is.netIncome).toFixed(2) }}</span>
+          <span class="badge bg-danger-subtle text-danger fs-6">Net Loss: {{ ((-is.netIncome) | amount) }}</span>
         }
       </div>
     </div>

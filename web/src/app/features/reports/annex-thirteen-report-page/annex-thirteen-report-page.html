@@ -36,11 +36,15 @@
       <div class="row g-3">
         <div class="col-12 col-sm-4">
           <label class="form-label small fw-semibold">From Date</label>
-          <input type="date" class="form-control" [value]="fromDate()" (change)="onFromDateChange($event)" />
+          <app-bs-date-input
+            [inputClass]="'form-control'"
+            [value]="fromDate()"
+            (valueChange)="onFromDateChange($event)"
+          />
         </div>
         <div class="col-12 col-sm-4">
           <label class="form-label small fw-semibold">To Date</label>
-          <input type="date" class="form-control" [value]="toDate()" (change)="onToDateChange($event)" />
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
         <div class="col-12 col-sm-4">
           <label class="form-label small fw-semibold">Threshold Amount</label>
@@ -94,14 +98,14 @@
                         <span class="badge bg-secondary-subtle text-secondary">Lead</span>
                       }
                     </td>
-                    <td class="text-end">{{ row.openingBalance.toFixed(2) }}</td>
-                    <td class="text-end">{{ row.servicePurchaseCapital.toFixed(2) }}</td>
-                    <td class="text-end">{{ row.servicePurchaseOthers.toFixed(2) }}</td>
-                    <td class="text-end">{{ row.goodsPurchaseCapital.toFixed(2) }}</td>
-                    <td class="text-end">{{ row.goodsPurchaseOthers.toFixed(2) }}</td>
-                    <td class="text-end">{{ row.serviceSales.toFixed(2) }}</td>
-                    <td class="text-end">{{ row.goodsSales.toFixed(2) }}</td>
-                    <td class="text-end fw-bold">{{ row.closingBalance.toFixed(2) }}</td>
+                    <td class="text-end">{{ (row.openingBalance | amount) }}</td>
+                    <td class="text-end">{{ (row.servicePurchaseCapital | amount) }}</td>
+                    <td class="text-end">{{ (row.servicePurchaseOthers | amount) }}</td>
+                    <td class="text-end">{{ (row.goodsPurchaseCapital | amount) }}</td>
+                    <td class="text-end">{{ (row.goodsPurchaseOthers | amount) }}</td>
+                    <td class="text-end">{{ (row.serviceSales | amount) }}</td>
+                    <td class="text-end">{{ (row.goodsSales | amount) }}</td>
+                    <td class="text-end fw-bold">{{ (row.closingBalance | amount) }}</td>
                   </tr>
                 }
               </tbody>

@@ -33,11 +33,15 @@
       <div class="row g-3">
         <div class="col-12 col-sm-6">
           <label class="form-label small fw-semibold">From Date</label>
-          <input type="date" class="form-control" [value]="fromDate()" (change)="onFromDateChange($event)" />
+          <app-bs-date-input
+            [inputClass]="'form-control'"
+            [value]="fromDate()"
+            (valueChange)="onFromDateChange($event)"
+          />
         </div>
         <div class="col-12 col-sm-6">
           <label class="form-label small fw-semibold">To Date</label>
-          <input type="date" class="form-control" [value]="toDate()" (change)="onToDateChange($event)" />
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
       </div>
     </div>
@@ -66,8 +70,8 @@
             @for (bucket of r.salesBuckets; track bucket.vatRate) {
               <tr>
                 <td>{{ bucket.vatRate }}</td>
-                <td class="text-end">{{ bucket.netSalesAmount.toFixed(2) }}</td>
-                <td class="text-end">{{ bucket.outputVatAmount.toFixed(2) }}</td>
+                <td class="text-end">{{ (bucket.netSalesAmount | amount) }}</td>
+                <td class="text-end">{{ (bucket.outputVatAmount | amount) }}</td>
               </tr>
             }
           </tbody>
@@ -75,7 +79,7 @@
             <tr class="fw-bold border-top">
               <td>Total Output VAT</td>
               <td></td>
-              <td class="text-end">{{ r.totalOutputVat.toFixed(2) }}</td>
+              <td class="text-end">{{ (r.totalOutputVat | amount) }}</td>
             </tr>
           </tfoot>
         </table>
@@ -97,8 +101,8 @@
             @for (bucket of r.purchaseBuckets; track bucket.vatRate) {
               <tr>
                 <td>{{ bucket.vatRate }}</td>
-                <td class="text-end">{{ bucket.netPurchaseAmount.toFixed(2) }}</td>
-                <td class="text-end">{{ bucket.inputVatAmount.toFixed(2) }}</td>
+                <td class="text-end">{{ (bucket.netPurchaseAmount | amount) }}</td>
+                <td class="text-end">{{ (bucket.inputVatAmount | amount) }}</td>
               </tr>
             }
           </tbody>
@@ -106,7 +110,7 @@
             <tr class="fw-bold border-top">
               <td>Total Input VAT</td>
               <td></td>
-              <td class="text-end">{{ r.totalInputVat.toFixed(2) }}</td>
+              <td class="text-end">{{ (r.totalInputVat | amount) }}</td>
             </tr>
           </tfoot>
         </table>
@@ -116,9 +120,9 @@
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4 text-end">
         @if (r.netVatPayable >= 0) {
-          <span class="badge bg-warning-subtle text-warning fs-6">Net VAT Payable: {{ r.netVatPayable.toFixed(2) }}</span>
+          <span class="badge bg-warning-subtle text-warning fs-6">Net VAT Payable: {{ (r.netVatPayable | amount) }}</span>
         } @else {
-          <span class="badge bg-success-subtle text-success fs-6">Net VAT Refundable: {{ (-r.netVatPayable).toFixed(2) }}</span>
+          <span class="badge bg-success-subtle text-success fs-6">Net VAT Refundable: {{ ((-r.netVatPayable) | amount) }}</span>
         }
       </div>
     </div>

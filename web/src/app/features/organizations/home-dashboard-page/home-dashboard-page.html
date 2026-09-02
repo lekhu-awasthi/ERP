@@ -1,0 +1,215 @@
+<div class="container py-4" style="max-width: 1100px;">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <h1 class="h4 fw-bold mb-0">Home</h1>
+      <p class="text-muted small mb-0">
+        {{ fromDate() | nepaliDate }} &ndash; {{ toDate() | nepaliDate }}
+      </p>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <div class="text-end">
+        <span class="d-block text-muted" style="font-size: 0.7rem;">Calendar</span>
+        <app-calendar-toggle />
+      </div>
+      <a class="btn btn-outline-secondary btn-sm" [routerLink]="['/organizations', organizationId]">
+        <i class="bi bi-grid"></i> All modules
+      </a>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger" role="alert">{{ errorMessage() }}</div>
+  }
+
+  <!-- Date sub-filter. The presets mirror the live product's own (Today / Last 7 / 15 / 30 days). -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-sm-3">
+          <label class="form-label small fw-semibold">From</label>
+          <app-bs-date-input
+            [inputClass]="'form-control form-control-sm'"
+            [value]="fromDate()"
+            (valueChange)="onFromDateChange($event)"
+          />
+        </div>
+        <div class="col-12 col-sm-3">
+          <label class="form-label small fw-semibold">To</label>
+          <app-bs-date-input
+            [inputClass]="'form-control form-control-sm'"
+            [value]="toDate()"
+            (valueChange)="onToDateChange($event)"
+          />
+        </div>
+        <div class="col-12 col-sm-6">
+          <div class="btn-group btn-group-sm flex-wrap" role="group">
+            <button type="button" class="btn btn-outline-secondary" (click)="selectRange(1)">Today</button>
+            <button type="button" class="btn btn-outline-secondary" (click)="selectRange(7)">Last 7 days</button>
+            <button type="button" class="btn btn-outline-secondary" (click)="selectRange(15)">Last 15 days</button>
+            <button type="button" class="btn btn-outline-secondary" (click)="selectRange(30)">Last 30 days</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <p class="text-muted">Loading&hellip;</p>
+  } @else {
+    <!-- KPI cards. Each rides the permission key of the query behind it, so a card the user cannot
+         populate says so instead of rendering a misleading zero (Decision G). -->
+    <div class="row g-3 mb-4">
+      @for (kpi of kpis(); track kpi.label) {
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+              <div class="text-muted small fw-semibold text-uppercase">{{ kpi.label }}</div>
+              @if (kpi.denied) {
+                <div class="fs-5 fw-bold text-muted mt-1">&mdash;</div>
+                <div class="small text-muted">No access</div>
+              } @else {
+                <div class="fs-5 fw-bold mt-1">{{ kpi.current | amount }}</div>
+                @if (changePct(kpi); as pct) {
+                  <div class="small" [class.text-success]="pct >= 0" [class.text-danger]="pct < 0">
+                    <i class="bi" [class.bi-arrow-up-right]="pct >= 0" [class.bi-arrow-down-right]="pct < 0"></i>
+                    {{ pct >= 0 ? '+' : '' }}{{ pct | amount }}% vs prior period
+                  </div>
+                } @else {
+                  <!-- A change from nothing is not a percentage, so it is not rendered as one. -->
+                  <div class="small text-muted">No prior-period data</div>
+                }
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Bank and Cash Balance, with the Total row the live product shows. -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h2 class="h6 fw-bold mb-3">Bank and Cash Balance</h2>
+
+        @if (accountsDenied()) {
+          <p class="text-muted small mb-0">You do not have access to bank and cash balances.</p>
+        } @else if (accounts().length === 0) {
+          <p class="text-muted small mb-0">No active bank or cash accounts yet.</p>
+        } @else {
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <tbody>
+                @for (account of accounts(); track account.id) {
+                  <tr>
+                    <td>
+                      <div class="fw-semibold">{{ account.name }}</div>
+                      <div class="text-muted small">
+                        {{ account.bankName || account.kind }}
+                        @if (account.accountNumber) {
+                          &middot; {{ account.accountNumber }}
+                        }
+                      </div>
+                    </td>
+                    <td class="text-end">
+                      <div class="text-muted" style="font-size: 0.7rem;">Balance</div>
+                      <div class="fw-semibold" [class.text-danger]="account.balance < 0">
+                        NPR {{ account.balance | amount }}
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+              @if (!accountsTruncated()) {
+                <tfoot>
+                  <tr class="fw-bold border-top">
+                    <td>Total Balance</td>
+                    <td class="text-end" [class.text-danger]="totalBalance() < 0">
+                      NPR {{ totalBalance() | amount }}
+                    </td>
+                  </tr>
+                </tfoot>
+              }
+            </table>
+          </div>
+
+          @if (accountsTruncated()) {
+            <!-- Suppressed rather than shown as a page subtotal: a footer total must cover the whole
+                 filtered set, never just what is loaded (phase-16c bug #1). -->
+            <p class="form-text text-warning small mb-0">
+              More accounts exist than are shown here, so no total is displayed. Open Bank Accounts for the
+              full list.
+            </p>
+          }
+        }
+      </div>
+    </div>
+
+    <!-- Recent activity feed. Tabs, ordering and paging are all server-side (RecentTransactionsQuery)
+         -- composing this client-side from five per-type endpoints could not page a merged stream
+         correctly. Rows the user may not view never arrive, because the query gates per document
+         type against that type's own View key. -->
+    <div class="card border-0 shadow-sm mt-4">
+      <div class="card-body">
+        <h2 class="h6 fw-bold mb-3">Transactions</h2>
+
+        <ul class="nav nav-pills nav-sm mb-3 gap-1">
+          @for (filter of feedFilters; track filter) {
+            <li class="nav-item">
+              <button
+                type="button"
+                class="nav-link py-1 px-3 small"
+                [class.active]="feedFilter() === filter"
+                (click)="selectFeedFilter(filter)"
+              >
+                {{ filter }}
+              </button>
+            </li>
+          }
+        </ul>
+
+        @if (feedDenied()) {
+          <p class="text-muted small mb-0">You do not have access to recent transactions.</p>
+        } @else if (feedLoading()) {
+          <p class="text-muted small mb-0">Loading&hellip;</p>
+        } @else if (feedRows().length === 0) {
+          <div class="text-center text-muted py-4">
+            <div class="fw-semibold">No Transactions Yet</div>
+            <div class="small">Create a new transaction to show up here.</div>
+          </div>
+        } @else {
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr class="text-muted small">
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Document No</th>
+                  <th>Contact</th>
+                  <th class="text-end">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of feedRows(); track row.documentId) {
+                  <tr>
+                    <td>{{ row.date | nepaliDate }}</td>
+                    <td><span class="badge bg-secondary-subtle text-secondary">{{ feedLabel(row) }}</span></td>
+                    <td><a [routerLink]="feedRoute(row)">{{ row.documentCode }}</a></td>
+                    <td>{{ row.contactName || '—' }}</td>
+                    <td class="text-end">{{ row.amount | amount }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <app-pagination-control
+            [page]="feedPage()"
+            [pageSize]="feedPageSize()"
+            [totalCount]="feedTotalCount()"
+            (pageChange)="feedPageChange($event)"
+            (pageSizeChange)="feedPageSizeChange($event)"
+          />
+        }
+      </div>
+    </div>
+  }
+</div>

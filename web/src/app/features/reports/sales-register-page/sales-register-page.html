@@ -36,11 +36,15 @@
       <div class="row g-3">
         <div class="col-12 col-sm-6 col-lg-2">
           <label class="form-label small fw-semibold">From Date</label>
-          <input type="date" class="form-control" [value]="fromDate()" (change)="onFromDateChange($event)" />
+          <app-bs-date-input
+            [inputClass]="'form-control'"
+            [value]="fromDate()"
+            (valueChange)="onFromDateChange($event)"
+          />
         </div>
         <div class="col-12 col-sm-6 col-lg-2">
           <label class="form-label small fw-semibold">To Date</label>
-          <input type="date" class="form-control" [value]="toDate()" (change)="onToDateChange($event)" />
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
         <div class="col-12 col-sm-6 col-lg-3">
           <label class="form-label small fw-semibold">Customer</label>
@@ -88,12 +92,19 @@
                 <th class="text-end">Tax-Exempt Value</th>
                 <th class="text-end">Taxable Value</th>
                 <th class="text-end">VAT Amount</th>
+                <!-- FR-5.8 (Phase 23). These four statutory columns have existed in the DTO since
+                     Phase 19 but were never rendered here, because Invoice had no export flag and
+                     they were hardcoded empty. They carry real data now. -->
+                <th class="text-end">Export Value</th>
+                <th>Export Country</th>
+                <th>Export Decl. No</th>
+                <th>Export Decl. Date</th>
               </tr>
             </thead>
             <tbody>
               @for (row of rows(); track row.documentCode) {
                 <tr>
-                  <td>{{ row.date }}</td>
+                  <td>{{ row.date | nepaliDate }}</td>
                   <td>
                     @if (row.documentType === 'Invoice') {
                       <span class="badge bg-primary-subtle text-primary">Invoice</span>
@@ -104,20 +115,25 @@
                   <td>{{ row.documentCode }}</td>
                   <td>{{ row.contactName }}</td>
                   <td>{{ row.contactPan || '—' }}</td>
-                  <td class="text-end">{{ row.totalValue.toFixed(2) }}</td>
-                  <td class="text-end">{{ row.taxExemptValue.toFixed(2) }}</td>
-                  <td class="text-end">{{ row.taxableValue.toFixed(2) }}</td>
-                  <td class="text-end fw-bold">{{ row.vatAmount.toFixed(2) }}</td>
+                  <td class="text-end">{{ (row.totalValue | amount) }}</td>
+                  <td class="text-end">{{ (row.taxExemptValue | amount) }}</td>
+                  <td class="text-end">{{ (row.taxableValue | amount) }}</td>
+                  <td class="text-end fw-bold">{{ (row.vatAmount | amount) }}</td>
+                  <td class="text-end">{{ (row.exportValue | amount) }}</td>
+                  <td>{{ row.exportCountry || '—' }}</td>
+                  <td>{{ row.exportDeclarationNo || '—' }}</td>
+                  <td>{{ (row.exportDeclarationDate | nepaliDate) || '—' }}</td>
                 </tr>
               }
             </tbody>
             <tfoot>
               <tr class="fw-bold border-top">
                 <td colspan="5">Total</td>
-                <td class="text-end">{{ totalValue().toFixed(2) }}</td>
-                <td class="text-end">{{ totalTaxExemptValue().toFixed(2) }}</td>
-                <td class="text-end">{{ totalTaxableValue().toFixed(2) }}</td>
-                <td class="text-end">{{ totalVatAmount().toFixed(2) }}</td>
+                <td class="text-end">{{ (totalValue() | amount) }}</td>
+                <td class="text-end">{{ (totalTaxExemptValue() | amount) }}</td>
+                <td class="text-end">{{ (totalTaxableValue() | amount) }}</td>
+                <td class="text-end">{{ (totalVatAmount() | amount) }}</td>
+                <td colspan="4"></td>
               </tr>
             </tfoot>
           </table>

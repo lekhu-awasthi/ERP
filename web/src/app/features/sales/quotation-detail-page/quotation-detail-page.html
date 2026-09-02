@@ -71,15 +71,19 @@
           </div>
           <div class="col-6 col-sm-3">
             <label class="form-label small fw-semibold">Date</label>
-            <input type="date" class="form-control" [value]="date()" (change)="date.set($any($event.target).value)" [disabled]="!isDraft()" />
+            <app-bs-date-input
+              [inputClass]="'form-control'"
+              [value]="date()"
+              (valueChange)="date.set($event)"
+              [disabled]="!isDraft()"
+            />
           </div>
           <div class="col-6 col-sm-3">
             <label class="form-label small fw-semibold">Expiry Date</label>
-            <input
-              type="date"
-              class="form-control"
+            <app-bs-date-input
+              [inputClass]="'form-control'"
               [value]="expiryDate()"
-              (change)="expiryDate.set($any($event.target).value)"
+              (valueChange)="expiryDate.set($event)"
               [disabled]="!isDraft()"
             />
           </div>
@@ -174,7 +178,7 @@
                         (input)="onRateChange(line.key, $event)"
                       />
                     } @else {
-                      {{ line.rate.toFixed(2) }}
+                      {{ (line.rate | amount) }}
                     }
                   </td>
                   <td class="text-end">
@@ -189,7 +193,7 @@
                         (input)="onDiscountPctChange(line.key, $event)"
                       />
                     } @else {
-                      {{ line.discountPct.toFixed(2) }}
+                      {{ (line.discountPct | amount) }}
                     }
                   </td>
                   <td>
@@ -203,7 +207,7 @@
                       {{ line.vatRate }}
                     }
                   </td>
-                  <td class="text-end">{{ (line.quantity * line.rate * (1 - line.discountPct / 100)).toFixed(2) }}</td>
+                  <td class="text-end">{{ ((line.quantity * line.rate * (1 - line.discountPct / 100)) | amount) }}</td>
                   @if (isDraft()) {
                     <td>
                       <button type="button" class="btn btn-outline-danger btn-sm" (click)="removeLine(line.key)">
@@ -218,7 +222,7 @@
               <tr>
                 <td colspan="4"></td>
                 <td class="text-end fw-semibold">Sub Total</td>
-                <td class="text-end fw-bold">{{ subTotal().toFixed(2) }}</td>
+                <td class="text-end fw-bold">{{ (subTotal() | amount) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -240,7 +244,7 @@
                     />
                   }
                 </td>
-                <td class="text-end fw-bold">({{ discountAmount().toFixed(2) }})</td>
+                <td class="text-end fw-bold">({{ (discountAmount() | amount) }})</td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -248,7 +252,7 @@
               <tr>
                 <td colspan="4"></td>
                 <td class="text-end fw-semibold">Non-Taxable Total</td>
-                <td class="text-end fw-bold">{{ nonTaxableTotal().toFixed(2) }}</td>
+                <td class="text-end fw-bold">{{ (nonTaxableTotal() | amount) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -256,7 +260,7 @@
               <tr>
                 <td colspan="4"></td>
                 <td class="text-end fw-semibold">Taxable Total</td>
-                <td class="text-end fw-bold">{{ taxableTotal().toFixed(2) }}</td>
+                <td class="text-end fw-bold">{{ (taxableTotal() | amount) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -264,7 +268,7 @@
               <tr>
                 <td colspan="4"></td>
                 <td class="text-end fw-semibold">VAT</td>
-                <td class="text-end fw-bold">{{ vatTotal().toFixed(2) }}</td>
+                <td class="text-end fw-bold">{{ (vatTotal() | amount) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -272,7 +276,7 @@
               <tr>
                 <td colspan="4"></td>
                 <td class="text-end fw-bold">Grand Total</td>
-                <td class="text-end fw-bold text-primary">{{ grandTotal().toFixed(2) }}</td>
+                <td class="text-end fw-bold text-primary">{{ (grandTotal() | amount) }}</td>
                 @if (isDraft()) {
                   <td></td>
                 }

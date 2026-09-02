@@ -12,6 +12,16 @@
         </div>
       </div>
       <div class="d-flex align-items-center gap-3">
+        <a class="btn btn-success btn-sm fw-bold d-flex align-items-center gap-1"
+           [routerLink]="['/organizations', organizationId(), 'home']">
+          <i class="bi bi-house-door"></i> Home dashboard
+        </a>
+        <!-- NFR-1.1: the global AD/BS calendar choice, in the user block -- the closest thing this
+             app has to the reference product's profile menu, where it lives there. -->
+        <div class="text-end">
+          <span class="d-block text-muted" style="font-size: 0.7rem;">Calendar</span>
+          <app-calendar-toggle />
+        </div>
         @if (currentUser(); as user) {
           <div class="text-end d-none d-sm-block">
             <span class="d-block fw-semibold text-dark small">{{ user.fullName || 'User' }}</span>

@@ -12,6 +12,8 @@ import { TaskList } from '../../workflow/task-list/task-list';
 import { ContactPersonnelList } from '../contact-personnel-list/contact-personnel-list';
 import { AttachmentList } from '../attachment-list/attachment-list';
 import { ActivityPanel } from '../activity-panel/activity-panel';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 /** Record-detail-page chrome: left mini-profile panel + vertical tab list + right content pane
  * -- new pattern for this codebase, established here per roadmap Phase 3's Angular deliverable.
@@ -31,16 +33,14 @@ import { ActivityPanel } from '../activity-panel/activity-panel';
  * doc comment for why Supplier is rejected server-side too). */
 @Component({
   selector: 'app-contact-detail-page',
-  imports: [
-    ReactiveFormsModule,
+  imports: [ReactiveFormsModule,
     RouterLink,
     TaskList,
     DealList,
     ContactPersonnelList,
     AttachmentList,
     ActivityPanel,
-    SendSmsForm,
-  ],
+    SendSmsForm, AmountPipe, NepaliDatePipe],
   templateUrl: './contact-detail-page.html',
 })
 export class ContactDetailPage {

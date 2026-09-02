@@ -6,6 +6,7 @@ import { SalesService } from '../../../core/sales/sales.service';
 import { SalesOrder, SalesOrderStatus } from '../../../core/sales/sales.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 type StatusFilter = SalesOrderStatus | 'All';
 
@@ -13,7 +14,7 @@ type StatusFilter = SalesOrderStatus | 'All';
  * Order had zero Angular UI through Phase 16b, confirmed gap, see CLAUDE.md's phase-18 brief). */
 @Component({
   selector: 'app-sales-order-list-page',
-  imports: [RouterLink, PaginationControl],
+  imports: [RouterLink, PaginationControl, NepaliDatePipe],
   templateUrl: './sales-order-list-page.html',
 })
 export class SalesOrderListPage {
