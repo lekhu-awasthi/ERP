@@ -182,9 +182,9 @@ decision and the conservation-law proof, is in `docs/phase-25-status.md`. No con
 browser-pass debt is outstanding (phase-25's Step 3 records how to run a browser pass in a
 non-interactive session).
 
-**What remains** is not unfinished roadmap work:
-- the deferred post-v1 list in `docs/roadmap.md` (multi-currency, Billing Locations + POS, IRD e-filing);
-- carried items: server-rendered PDFs and `.xlsx` still print dates in AD (phase-23 Decision A); the
+**What comes next** is the parity sequence, phases 26–35 in `docs/roadmap.md` (a 2026-09-02 gap analysis against the reference product: report catalog, cross-cutting rollout, Billing Locations, multi-currency, DO/GRN, landed cost, email, dead settings, chrome, hardening). Still recorded separately:
+- the deferred post-v1 list in `docs/roadmap.md` (POS, IRD e-filing, Marketplace);
+- carried items, now scheduled in phases 27 and 33: server-rendered PDFs and `.xlsx` still print dates in AD (phase-23 Decision A); the
   three manufacturing reports have no `.xlsx` export; Phase 25's named follow-ups (Custom Status on
   Production Order, multi-level BOM explosion, Reporting Tags / Custom Fields / print on production documents).
 
