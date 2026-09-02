@@ -20,7 +20,8 @@ public sealed record UpdateAccountingDefaultsCommand(
     Guid? DefaultTdsPayableAccountId,
     Guid? DefaultInventoryAccountId,
     Guid? DefaultCogsAccountId,
-    Guid? DefaultInventoryAdjustmentAccountId)
+    Guid? DefaultInventoryAdjustmentAccountId,
+    Guid? DefaultProductionCostAccountId)
     : IRequest<UpdateAccountingDefaultsResult>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.AccountingDefaultsManage;
@@ -36,4 +37,5 @@ public sealed record UpdateAccountingDefaultsResult(
     Guid? DefaultTdsPayableAccountId,
     Guid? DefaultInventoryAccountId,
     Guid? DefaultCogsAccountId,
-    Guid? DefaultInventoryAdjustmentAccountId);
+    Guid? DefaultInventoryAdjustmentAccountId,
+    Guid? DefaultProductionCostAccountId);

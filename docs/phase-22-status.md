@@ -47,8 +47,10 @@ against a fresh Organization on real SQL Server uploaded a real PNG through the 
 endpoint, proved the bytes round-trip and the blob genuinely exists on disk, converted it to a
 **Draft** Purchase Bill with `sqlcmd`-verified zero GL/stock/payment rows, found the scan again *from
 the transaction* and streamed it back byte-identical, and got 409s for convert-twice / delete / reopen
-and 403s naming four exact keys. **The browser pass on the new screens is outstanding** and the reason
-is stated plainly in "What was not verified" below.
+and 403s naming four exact keys. **The browser pass on the new screens was done** (the user signed in
+mid-session) and **found two genuine bugs every other check had missed** -- see "The browser pass"
+below. What remains unverified is listed under "What was not verified"; note it is *confirm-live
+against the reference product* that was impossible this phase, not the pass on our own screens.
 
 ---
 

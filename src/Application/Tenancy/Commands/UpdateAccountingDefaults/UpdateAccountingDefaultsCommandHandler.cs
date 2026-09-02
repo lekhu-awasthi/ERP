@@ -27,6 +27,7 @@ public sealed class UpdateAccountingDefaultsCommandHandler(IAppDbContext db)
                 request.DefaultInventoryAccountId,
                 request.DefaultCogsAccountId,
                 request.DefaultInventoryAdjustmentAccountId,
+                request.DefaultProductionCostAccountId,
             }
             .Where(x => x is not null)
             .Select(x => x!.Value)
@@ -53,7 +54,10 @@ public sealed class UpdateAccountingDefaultsCommandHandler(IAppDbContext db)
             request.DefaultVatReceivableAccountId,
             request.DefaultTdsPayableAccountId);
         settings.SetInventoryDefaults(
-            request.DefaultInventoryAccountId, request.DefaultCogsAccountId, request.DefaultInventoryAdjustmentAccountId);
+            request.DefaultInventoryAccountId,
+            request.DefaultCogsAccountId,
+            request.DefaultInventoryAdjustmentAccountId,
+            request.DefaultProductionCostAccountId);
         await db.SaveChangesAsync(cancellationToken);
 
         return new UpdateAccountingDefaultsResult(
@@ -66,6 +70,7 @@ public sealed class UpdateAccountingDefaultsCommandHandler(IAppDbContext db)
             settings.DefaultTdsPayableAccountId,
             settings.DefaultInventoryAccountId,
             settings.DefaultCogsAccountId,
-            settings.DefaultInventoryAdjustmentAccountId);
+            settings.DefaultInventoryAdjustmentAccountId,
+            settings.DefaultProductionCostAccountId);
     }
 }

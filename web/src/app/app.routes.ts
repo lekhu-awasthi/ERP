@@ -517,6 +517,72 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'organizations/:id/manufacturing/bills-of-materials',
+    loadComponent: () =>
+      import('./features/manufacturing/bom-list-page/bom-list-page').then((m) => m.BomListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/manufacturing/bills-of-materials/:bomId',
+    loadComponent: () =>
+      import('./features/manufacturing/bom-detail-page/bom-detail-page').then((m) => m.BomDetailPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/manufacturing/production-orders',
+    loadComponent: () =>
+      import('./features/manufacturing/production-order-list-page/production-order-list-page').then(
+        (m) => m.ProductionOrderListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/manufacturing/production-orders/:productionOrderId',
+    loadComponent: () =>
+      import('./features/manufacturing/production-order-detail-page/production-order-detail-page').then(
+        (m) => m.ProductionOrderDetailPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/manufacturing/production-journals',
+    loadComponent: () =>
+      import('./features/manufacturing/production-journal-list-page/production-journal-list-page').then(
+        (m) => m.ProductionJournalListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/manufacturing/production-journals/:productionJournalId',
+    loadComponent: () =>
+      import('./features/manufacturing/production-journal-detail-page/production-journal-detail-page').then(
+        (m) => m.ProductionJournalDetailPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/production-summary',
+    loadComponent: () =>
+      import('./features/reports/production-summary-page/production-summary-page').then((m) => m.ProductionSummaryPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/production-variance',
+    loadComponent: () =>
+      import('./features/reports/production-variance-page/production-variance-page').then(
+        (m) => m.ProductionVariancePage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/production-planning',
+    loadComponent: () =>
+      import('./features/reports/production-planning-page/production-planning-page').then(
+        (m) => m.ProductionPlanningPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/reports/trial-balance',
     loadComponent: () =>
       import('./features/reports/trial-balance-page/trial-balance-page').then((m) => m.TrialBalancePage),

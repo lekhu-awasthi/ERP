@@ -13,7 +13,11 @@ import { Pipe, PipeTransform } from '@angular/core';
  *   - Grouping is `en-IN`, which is the lakh/crore convention: 1,00,000.00 / 10,00,000.00 /
  *     1,00,00,000.00. A value below 100,000 groups identically under both conventions, which is why
  *     the spec asserts values above it.
- *   - Always exactly 2 decimal places, matching the `.toFixed(2)` it replaces.
+ *   - Always exactly 2 decimal places, matching the `.toFixed(2)` it replaces. Phase 25 added an
+ *     optional decimals argument, defaulting to 2 so none of those call sites changed: the
+ *     production cost roll-up's rounding residue is by definition smaller than a cent, so rendering
+ *     it at 2dp printed a row labelled "Rounding Adjustment" whose value read `0.00` -- worse than
+ *     omitting it, because it looks like a defect. Found in Phase 25's browser pass.
  *   - Rounding is `Intl`'s default half-expand (half away from zero). `.toFixed(2)` nominally does
  *     the same but is subject to binary-float artifacts -- `(1.005).toFixed(2)` is "1.00" while this
  *     pipe gives "1.01". That is a deliberate, small, strictly-more-correct behaviour change, taken
@@ -30,12 +34,21 @@ import { Pipe, PipeTransform } from '@angular/core';
  */
 @Pipe({ name: 'amount' })
 export class AmountPipe implements PipeTransform {
-  private static readonly formatter = new Intl.NumberFormat('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  private static readonly formatters = new Map<number, Intl.NumberFormat>();
 
-  transform(value: number | string | null | undefined): string {
+  private static formatter(decimals: number): Intl.NumberFormat {
+    let formatter = AmountPipe.formatters.get(decimals);
+    if (!formatter) {
+      formatter = new Intl.NumberFormat('en-IN', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      });
+      AmountPipe.formatters.set(decimals, formatter);
+    }
+    return formatter;
+  }
+
+  transform(value: number | string | null | undefined, decimals = 2): string {
     if (value === null || value === undefined || value === '') {
       return '';
     }
@@ -46,7 +59,9 @@ export class AmountPipe implements PipeTransform {
     // Any tiny negative (and -0 itself) formats as "-0.00", which reads as a real negative to an
     // accountant. Normalised on the formatted string rather than by pre-rounding the input, since
     // pre-rounding would quietly change the half-away-from-zero contract documented above.
-    const text = AmountPipe.formatter.format(numeric);
-    return text === '-0.00' ? '0.00' : text;
+    const text = AmountPipe.formatter(decimals).format(numeric);
+
+    // A negative that rounds to all zeros at this precision ("-0.00", and at 4dp "-0.0000").
+    return /^-0(\.0+)?$/.test(text) ? text.slice(1) : text;
   }
 }

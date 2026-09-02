@@ -205,7 +205,8 @@ public static class OrganizationEndpoints
                     request.DefaultTdsPayableAccountId,
                     request.DefaultInventoryAccountId,
                     request.DefaultCogsAccountId,
-                    request.DefaultInventoryAdjustmentAccountId),
+                    request.DefaultInventoryAdjustmentAccountId,
+                    request.DefaultProductionCostAccountId),
                 ct);
             return Results.Ok(result);
         });
@@ -251,7 +252,8 @@ public static class OrganizationEndpoints
         Guid? DefaultTdsPayableAccountId,
         Guid? DefaultInventoryAccountId,
         Guid? DefaultCogsAccountId,
-        Guid? DefaultInventoryAdjustmentAccountId);
+        Guid? DefaultInventoryAdjustmentAccountId,
+        Guid? DefaultProductionCostAccountId);
 
     private sealed record CreateOrganizationRequest(
         string Name,

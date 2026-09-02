@@ -624,4 +624,40 @@ public static class PermissionKeys
     // entitlement, and a tenant that never creates one already sees nothing.
     public const string VariantAttributeView = "Catalog.VariantAttribute.View";
     public const string VariantAttributeManage = "Catalog.VariantAttribute.Manage";
+
+    // Phase 25 (Manufacturing, FR-8.8/8.9). Three subjects, and each takes the shape its own
+    // nature dictates rather than one blanket set:
+    //
+    // - BillOfMaterials is master data -- a recipe, curated rarely and read constantly, with no
+    //   Draft/Approve lifecycle and no document number. That is the ProductCategory/
+    //   UnitOfMeasurement shape exactly, so it takes their View/Manage pair and their split:
+    //   Member View (loading a BOM into a production document is routine daily work and the form
+    //   is unusable without it), Manage Admin-only (a BOM defines what every future run costs).
+    //
+    // - ProductionOrder and ProductionJournal are transactional documents, so they take the full
+    //   maker-checker split every ApprovableTransaction here uses, Void included -- with the same
+    //   grants InventoryAdjustment has: Member creates and edits, only Admin approves or voids.
+    //   That matters more here than elsewhere: approving a Journal permanently consumes FIFO
+    //   layers and writes the cost every future sale of the finished good will read.
+    //
+    // - ProductionReportView is one shared View-only key for the three manufacturing reports,
+    //   the same reasoning as InventoryLedgerView: they are read-only views over documents whose
+    //   own View keys already exist, not documents with a lifecycle of their own. Granted to both
+    //   roles, like every other Inventory report.
+    public const string BillOfMaterialsView = "Manufacturing.BillOfMaterials.View";
+    public const string BillOfMaterialsManage = "Manufacturing.BillOfMaterials.Manage";
+
+    public const string ProductionOrderView = "Manufacturing.ProductionOrder.View";
+    public const string ProductionOrderCreate = "Manufacturing.ProductionOrder.Create";
+    public const string ProductionOrderEdit = "Manufacturing.ProductionOrder.Edit";
+    public const string ProductionOrderApprove = "Manufacturing.ProductionOrder.Approve";
+    public const string ProductionOrderVoid = "Manufacturing.ProductionOrder.Void";
+
+    public const string ProductionJournalView = "Manufacturing.ProductionJournal.View";
+    public const string ProductionJournalCreate = "Manufacturing.ProductionJournal.Create";
+    public const string ProductionJournalEdit = "Manufacturing.ProductionJournal.Edit";
+    public const string ProductionJournalApprove = "Manufacturing.ProductionJournal.Approve";
+    public const string ProductionJournalVoid = "Manufacturing.ProductionJournal.Void";
+
+    public const string ProductionReportView = "Manufacturing.ProductionReport.View";
 }

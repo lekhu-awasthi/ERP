@@ -7,6 +7,7 @@ using ErpApp.Domain.Identity;
 using ErpApp.Domain.Exports;
 using ErpApp.Domain.Imports;
 using ErpApp.Domain.Inventory;
+using ErpApp.Domain.Manufacturing;
 using ErpApp.Domain.Payments;
 using ErpApp.Domain.Purchasing;
 using ErpApp.Domain.Sales;
@@ -90,6 +91,18 @@ public interface IAppDbContext
     DbSet<WarehouseTransferLine> WarehouseTransferLines { get; }
     DbSet<InventoryAdjustment> InventoryAdjustments { get; }
     DbSet<InventoryAdjustmentLine> InventoryAdjustmentLines { get; }
+    DbSet<BillOfMaterials> BillsOfMaterials { get; }
+    DbSet<BomRawMaterialLine> BomRawMaterialLines { get; }
+    DbSet<BomByProductLine> BomByProductLines { get; }
+    DbSet<BomExpenseLine> BomExpenseLines { get; }
+    DbSet<ProductionOrder> ProductionOrders { get; }
+    DbSet<ProductionOrderRawMaterialLine> ProductionOrderRawMaterialLines { get; }
+    DbSet<ProductionOrderByProductLine> ProductionOrderByProductLines { get; }
+    DbSet<ProductionOrderExpenseLine> ProductionOrderExpenseLines { get; }
+    DbSet<ProductionJournal> ProductionJournals { get; }
+    DbSet<ProductionJournalRawMaterialLine> ProductionJournalRawMaterialLines { get; }
+    DbSet<ProductionJournalByProductLine> ProductionJournalByProductLines { get; }
+    DbSet<ProductionJournalExpenseLine> ProductionJournalExpenseLines { get; }
     DbSet<TaskType> TaskTypes { get; }
     DbSet<WorkTask> Tasks { get; }
     DbSet<LeadSource> LeadSources { get; }

@@ -1,0 +1,122 @@
+<div class="container py-5" style="max-width: 1100px;">
+  <a class="btn btn-link btn-sm text-decoration-none mb-3 ps-0" [routerLink]="['/organizations', organizationId]">
+    <i class="bi bi-arrow-left"></i> Back to Organization
+  </a>
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <h1 class="h3 fw-bold mb-1 text-dark">Production Variance Report</h1>
+      <p class="text-muted small mb-4">
+        What each run was planned to use, against what it actually used. The plan is the run's own bill of materials,
+        scaled to the quantity it produced.
+      </p>
+
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-sm-3">
+          <label class="form-label small fw-semibold">From</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="fromDate.set($event)" />
+        </div>
+        <div class="col-12 col-sm-3">
+          <label class="form-label small fw-semibold">To</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="toDate.set($event)" />
+        </div>
+        <div class="col-12 col-sm-4">
+          <label class="form-label small fw-semibold" for="pv-product">Product</label>
+          <select id="pv-product" class="form-select form-select-sm" (change)="onProduct($event)">
+            <option value="" [selected]="productId() === ''">All products</option>
+            @for (product of products(); track product.id) {
+              <option [value]="product.id" [selected]="product.id === productId()">
+                {{ product.code }} — {{ product.name }}
+              </option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-sm-2">
+          <button type="button" class="btn btn-success btn-sm fw-bold w-100" [disabled]="loading()" (click)="generate()">
+            {{ loading() ? 'Loading...' : 'Generate' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  @if (!generated()) {
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-5 text-center text-muted">
+        <i class="bi bi-graph-up-arrow fs-1 d-block mb-3"></i>
+        Select a period and click Generate to load the report.
+      </div>
+    </div>
+  } @else if (rows().length === 0) {
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-5 text-center text-muted">
+        No production runs with a bill of materials in this period.
+      </div>
+    </div>
+  } @else {
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Voucher No</th>
+                <th scope="col">Item Name</th>
+                <th scope="col" class="text-end">Quantity Produced</th>
+                <th scope="col">Item Name</th>
+                <th scope="col" class="text-end">Voucher Quantity</th>
+                <th scope="col" class="text-end">BOM Quantity</th>
+                <th scope="col" class="text-end">Variance Quantity</th>
+                <th scope="col" class="text-end">Variance %</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.id) {
+                @for (line of row.lines; track line.productId + '-' + line.isByProduct; let first = $first) {
+                  <tr>
+                    @if (first) {
+                      <td class="text-nowrap" [attr.rowspan]="row.lines.length">{{ row.date | nepaliDate }}</td>
+                      <td class="fw-semibold" [attr.rowspan]="row.lines.length">{{ row.code }}</td>
+                      <td [attr.rowspan]="row.lines.length">{{ row.productName }}</td>
+                      <td class="text-end" [attr.rowspan]="row.lines.length">{{ row.quantityProduced }}</td>
+                    }
+                    <td>
+                      {{ line.productName }}
+                      @if (line.isByProduct) {
+                        <span class="badge bg-info-subtle text-info-emphasis ms-1">By-product</span>
+                      }
+                    </td>
+                    <td class="text-end">{{ line.voucherQuantity }}</td>
+                    <td class="text-end">{{ line.bomQuantity }}</td>
+                    <td class="text-end" [class.text-danger]="line.varianceQuantity !== 0">
+                      {{ line.varianceQuantity }}
+                    </td>
+                    <td class="text-end" [class.text-danger]="line.varianceQuantity !== 0">
+                      {{ line.variancePct === null ? '—' : (line.variancePct | amount) + '%' }}
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <app-pagination-control
+          [page]="page()"
+          [pageSize]="pageSize()"
+          [totalCount]="totalCount()"
+          (pageChange)="onPageChange($event)"
+          (pageSizeChange)="onPageSizeChange($event)"
+        />
+      </div>
+    </div>
+  }
+</div>

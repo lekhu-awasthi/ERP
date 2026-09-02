@@ -1,0 +1,154 @@
+<div class="container py-5" style="max-width: 1200px;">
+  <a class="btn btn-link btn-sm text-decoration-none mb-3 ps-0" [routerLink]="['/organizations', organizationId]">
+    <i class="bi bi-arrow-left"></i> Back to Organization
+  </a>
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <h1 class="h3 fw-bold mb-1 text-dark">Production Summary Report</h1>
+      <p class="text-muted small mb-4">
+        Every approved production run in the period, with what it consumed, produced and cost.
+      </p>
+
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-sm-3">
+          <label class="form-label small fw-semibold">From</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="fromDate.set($event)" />
+        </div>
+        <div class="col-12 col-sm-3">
+          <label class="form-label small fw-semibold">To</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="toDate.set($event)" />
+        </div>
+        <div class="col-12 col-sm-4">
+          <label class="form-label small fw-semibold" for="ps-product">Product</label>
+          <select id="ps-product" class="form-select form-select-sm" (change)="onProduct($event)">
+            <option value="" [selected]="productId() === ''">All products</option>
+            @for (product of products(); track product.id) {
+              <option [value]="product.id" [selected]="product.id === productId()">
+                {{ product.code }} — {{ product.name }}
+              </option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-sm-2">
+          <button type="button" class="btn btn-success btn-sm fw-bold w-100" [disabled]="loading()" (click)="generate()">
+            {{ loading() ? 'Loading...' : 'Generate' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  @if (!generated()) {
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-5 text-center text-muted">
+        <i class="bi bi-clipboard-data fs-1 d-block mb-3"></i>
+        Select a period and click Generate to load the report.
+      </div>
+    </div>
+  } @else if (rows().length === 0) {
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-5 text-center text-muted">No production runs in this period.</div>
+    </div>
+  } @else {
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Voucher No</th>
+                <th scope="col">Reference</th>
+                <th scope="col">Finished Goods Produced</th>
+                <th scope="col">Raw Material Consumed</th>
+                <th scope="col">By Product Produced</th>
+                <th scope="col">Production Expenses</th>
+                <th scope="col" class="text-end">Finished Goods Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.id) {
+                <tr>
+                  <td class="text-nowrap">{{ row.date | nepaliDate }}</td>
+                  <td class="fw-semibold">{{ row.code }}</td>
+                  <td>{{ row.reference ?? '—' }}</td>
+                  <td>
+                    {{ row.finishedGood.productName }}
+                    <div class="text-muted small">
+                      {{ row.finishedGood.quantity }} {{ row.finishedGood.unitName ?? '' }} &times;
+                      {{ row.finishedGood.rate | amount }} = {{ row.finishedGood.amount | amount }}
+                    </div>
+                  </td>
+                  <td>
+                    @for (item of row.rawMaterials; track item.productId) {
+                      <div>
+                        {{ item.productName }}
+                        <span class="text-muted small">
+                          {{ item.quantity }} &times; {{ item.rate | amount }} = {{ item.amount | amount }}
+                        </span>
+                      </div>
+                    }
+                  </td>
+                  <td>
+                    @if (row.byProducts.length === 0) {
+                      <span class="text-muted">—</span>
+                    } @else {
+                      @for (item of row.byProducts; track item.productId) {
+                        <div>
+                          {{ item.productName }}
+                          <span class="text-muted small">
+                            {{ item.quantity }} &times; {{ item.rate | amount }} = {{ item.amount | amount }}
+                          </span>
+                        </div>
+                      }
+                    }
+                  </td>
+                  <td>
+                    @if (row.expenses.length === 0) {
+                      <span class="text-muted">—</span>
+                    } @else {
+                      @for (expense of row.expenses; track expense.costTermName) {
+                        <div>
+                          {{ expense.costTermName }}
+                          <span class="text-muted small">{{ expense.amount | amount }}</span>
+                        </div>
+                      }
+                    }
+                  </td>
+                  <td class="text-end fw-semibold">{{ row.finishedGoodsCost | amount }}</td>
+                </tr>
+              }
+            </tbody>
+            <tfoot class="table-light fw-bold">
+              @if (totals(); as t) {
+                <tr>
+                  <td colspan="4">Totals (all {{ totalCount() }} runs in the period)</td>
+                  <td>{{ t.rawMaterialCost | amount }}</td>
+                  <td>{{ t.costAllocatedToByProduct | amount }}</td>
+                  <td>{{ t.productionExpenseCost | amount }}</td>
+                  <td class="text-end">{{ t.finishedGoodsCost | amount }}</td>
+                </tr>
+              }
+            </tfoot>
+          </table>
+        </div>
+
+        <app-pagination-control
+          [page]="page()"
+          [pageSize]="pageSize()"
+          [totalCount]="totalCount()"
+          (pageChange)="onPageChange($event)"
+          (pageSizeChange)="onPageSizeChange($event)"
+        />
+      </div>
+    </div>
+  }
+</div>

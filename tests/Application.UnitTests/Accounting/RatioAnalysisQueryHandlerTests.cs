@@ -89,7 +89,7 @@ public class RatioAnalysisQueryHandlerTests
 
         var settings = TenantSettings.CreateDefault(organizationId);
         settings.SetAccountingDefaults(sales.Id, ar.Id, vatPayable.Id, null, ap.Id, null, null);
-        settings.SetInventoryDefaults(inventory.Id, null, null);
+        settings.SetInventoryDefaults(inventory.Id, null, null, null);
         db.TenantSettings.Add(settings);
         await db.SaveChangesAsync(CancellationToken.None);
 

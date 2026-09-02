@@ -546,6 +546,40 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid MemberVariantAttributeViewId = Guid.Parse("00000000-0000-0000-0002-000000000153");
     private static readonly Guid MemberVariantAttributeManageId = Guid.Parse("00000000-0000-0000-0002-000000000154");
 
+    // Phase 25 (Manufacturing) -- BillOfMaterials takes ProductCategory/UnitOfMeasurement's
+    // master-data split (Member reads it, only Admin curates it); ProductionOrder and
+    // ProductionJournal take InventoryAdjustment's transactional split exactly (Member creates and
+    // edits, only Admin approves or voids), which matters most for the Journal because approving
+    // one permanently consumes FIFO layers and writes the cost every future sale will read;
+    // ProductionReportView follows every other Inventory report and is granted to both.
+    // See PermissionKeys for the full derivation.
+    private static readonly Guid AdminBillOfMaterialsViewId = Guid.Parse("00000000-0000-0000-0002-000000000155");
+    private static readonly Guid MemberBillOfMaterialsViewId = Guid.Parse("00000000-0000-0000-0002-000000000156");
+    private static readonly Guid AdminBillOfMaterialsManageId = Guid.Parse("00000000-0000-0000-0002-000000000157");
+    private static readonly Guid MemberBillOfMaterialsManageId = Guid.Parse("00000000-0000-0000-0002-000000000158");
+    private static readonly Guid AdminProductionOrderViewId = Guid.Parse("00000000-0000-0000-0002-000000000159");
+    private static readonly Guid MemberProductionOrderViewId = Guid.Parse("00000000-0000-0000-0002-00000000015a");
+    private static readonly Guid AdminProductionOrderCreateId = Guid.Parse("00000000-0000-0000-0002-00000000015b");
+    private static readonly Guid MemberProductionOrderCreateId = Guid.Parse("00000000-0000-0000-0002-00000000015c");
+    private static readonly Guid AdminProductionOrderEditId = Guid.Parse("00000000-0000-0000-0002-00000000015d");
+    private static readonly Guid MemberProductionOrderEditId = Guid.Parse("00000000-0000-0000-0002-00000000015e");
+    private static readonly Guid AdminProductionOrderApproveId = Guid.Parse("00000000-0000-0000-0002-00000000015f");
+    private static readonly Guid MemberProductionOrderApproveId = Guid.Parse("00000000-0000-0000-0002-000000000160");
+    private static readonly Guid AdminProductionOrderVoidId = Guid.Parse("00000000-0000-0000-0002-000000000161");
+    private static readonly Guid MemberProductionOrderVoidId = Guid.Parse("00000000-0000-0000-0002-000000000162");
+    private static readonly Guid AdminProductionJournalViewId = Guid.Parse("00000000-0000-0000-0002-000000000163");
+    private static readonly Guid MemberProductionJournalViewId = Guid.Parse("00000000-0000-0000-0002-000000000164");
+    private static readonly Guid AdminProductionJournalCreateId = Guid.Parse("00000000-0000-0000-0002-000000000165");
+    private static readonly Guid MemberProductionJournalCreateId = Guid.Parse("00000000-0000-0000-0002-000000000166");
+    private static readonly Guid AdminProductionJournalEditId = Guid.Parse("00000000-0000-0000-0002-000000000167");
+    private static readonly Guid MemberProductionJournalEditId = Guid.Parse("00000000-0000-0000-0002-000000000168");
+    private static readonly Guid AdminProductionJournalApproveId = Guid.Parse("00000000-0000-0000-0002-000000000169");
+    private static readonly Guid MemberProductionJournalApproveId = Guid.Parse("00000000-0000-0000-0002-00000000016a");
+    private static readonly Guid AdminProductionJournalVoidId = Guid.Parse("00000000-0000-0000-0002-00000000016b");
+    private static readonly Guid MemberProductionJournalVoidId = Guid.Parse("00000000-0000-0000-0002-00000000016c");
+    private static readonly Guid AdminProductionReportViewId = Guid.Parse("00000000-0000-0000-0002-00000000016d");
+    private static readonly Guid MemberProductionReportViewId = Guid.Parse("00000000-0000-0000-0002-00000000016e");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -973,6 +1007,33 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminVariantAttributeViewId, Role.AdminId, PermissionKeys.VariantAttributeView, true),
             RolePermission.Create(AdminVariantAttributeManageId, Role.AdminId, PermissionKeys.VariantAttributeManage, true),
             RolePermission.Create(MemberVariantAttributeViewId, Role.MemberId, PermissionKeys.VariantAttributeView, true),
-            RolePermission.Create(MemberVariantAttributeManageId, Role.MemberId, PermissionKeys.VariantAttributeManage, false));
+            RolePermission.Create(MemberVariantAttributeManageId, Role.MemberId, PermissionKeys.VariantAttributeManage, false),
+
+            RolePermission.Create(AdminBillOfMaterialsViewId, Role.AdminId, PermissionKeys.BillOfMaterialsView, true),
+            RolePermission.Create(MemberBillOfMaterialsViewId, Role.MemberId, PermissionKeys.BillOfMaterialsView, true),
+            RolePermission.Create(AdminBillOfMaterialsManageId, Role.AdminId, PermissionKeys.BillOfMaterialsManage, true),
+            RolePermission.Create(MemberBillOfMaterialsManageId, Role.MemberId, PermissionKeys.BillOfMaterialsManage, false),
+            RolePermission.Create(AdminProductionOrderViewId, Role.AdminId, PermissionKeys.ProductionOrderView, true),
+            RolePermission.Create(MemberProductionOrderViewId, Role.MemberId, PermissionKeys.ProductionOrderView, true),
+            RolePermission.Create(AdminProductionOrderCreateId, Role.AdminId, PermissionKeys.ProductionOrderCreate, true),
+            RolePermission.Create(MemberProductionOrderCreateId, Role.MemberId, PermissionKeys.ProductionOrderCreate, true),
+            RolePermission.Create(AdminProductionOrderEditId, Role.AdminId, PermissionKeys.ProductionOrderEdit, true),
+            RolePermission.Create(MemberProductionOrderEditId, Role.MemberId, PermissionKeys.ProductionOrderEdit, true),
+            RolePermission.Create(AdminProductionOrderApproveId, Role.AdminId, PermissionKeys.ProductionOrderApprove, true),
+            RolePermission.Create(MemberProductionOrderApproveId, Role.MemberId, PermissionKeys.ProductionOrderApprove, false),
+            RolePermission.Create(AdminProductionOrderVoidId, Role.AdminId, PermissionKeys.ProductionOrderVoid, true),
+            RolePermission.Create(MemberProductionOrderVoidId, Role.MemberId, PermissionKeys.ProductionOrderVoid, false),
+            RolePermission.Create(AdminProductionJournalViewId, Role.AdminId, PermissionKeys.ProductionJournalView, true),
+            RolePermission.Create(MemberProductionJournalViewId, Role.MemberId, PermissionKeys.ProductionJournalView, true),
+            RolePermission.Create(AdminProductionJournalCreateId, Role.AdminId, PermissionKeys.ProductionJournalCreate, true),
+            RolePermission.Create(MemberProductionJournalCreateId, Role.MemberId, PermissionKeys.ProductionJournalCreate, true),
+            RolePermission.Create(AdminProductionJournalEditId, Role.AdminId, PermissionKeys.ProductionJournalEdit, true),
+            RolePermission.Create(MemberProductionJournalEditId, Role.MemberId, PermissionKeys.ProductionJournalEdit, true),
+            RolePermission.Create(AdminProductionJournalApproveId, Role.AdminId, PermissionKeys.ProductionJournalApprove, true),
+            RolePermission.Create(MemberProductionJournalApproveId, Role.MemberId, PermissionKeys.ProductionJournalApprove, false),
+            RolePermission.Create(AdminProductionJournalVoidId, Role.AdminId, PermissionKeys.ProductionJournalVoid, true),
+            RolePermission.Create(MemberProductionJournalVoidId, Role.MemberId, PermissionKeys.ProductionJournalVoid, false),
+            RolePermission.Create(AdminProductionReportViewId, Role.AdminId, PermissionKeys.ProductionReportView, true),
+            RolePermission.Create(MemberProductionReportViewId, Role.MemberId, PermissionKeys.ProductionReportView, true));
     }
 }

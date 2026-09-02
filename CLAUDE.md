@@ -94,6 +94,16 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
     guards, server- and client-side, are the working examples alongside phase-23's), and before
     appending a child to an already-tracked parent's encapsulated collection - see the new
     Modified-not-Added gotcha below
+  - `phase-25` - before writing any posting rule for a document that **transforms** value rather
+    than moving it, and before assuming the reference product's behaviour is the right behaviour
+    here: its Production Journal posts **no GL at all** (proved by approving one and finding it
+    absent from a 199-row Journal report covering that date), because that tenant runs *periodic*
+    inventory - and we post anyway, because we are *perpetual*, which is Decision A's whole
+    argument. Also the phase to read before adding a shared FluentValidation helper (a `Func`
+    selector cannot name its own property, so every endpoint 500s and no handler test can see it -
+    see Known Gotchas), before showing a figure smaller than the display precision, and before
+    running a browser pass in a non-interactive session - Step 3 records the dev-cert + cookie
+    transplant that finally made one possible, and closed four phases of debt
   - `phase-7`'s addendum (bottom of the file) — before adding a new tenant-wide default GL account or changing which account a posting rule debits/credits: grep for the field name across every posting rule that's supposed to read it. `DefaultInventoryAccountId` sat completely unread by `PurchaseBillPostingRule` for 12 phases (Goods purchases debited Purchase Expense instead), silently double-counting Cost of Goods Sold in `IncomeStatementQueryHandler`'s Net Profit for any tenant whose Purchase account was Expense-typed — the obvious/default choice, caught only by a later phase's live E2E, not by any test or `dotnet build`
 
 ## Stack & conventions
@@ -200,90 +210,96 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `UpdateRolePermissionsCommand.Grants` is an `IReadOnlyDictionary<string, bool>`, not a list of objects - posting an array yields a bare `400 Failed to read parameter ... as JSON` naming nothing useful. And **the built-in Admin/Member roles are system roles whose grants cannot be edited** (409), so a negative-permission E2E proof has to create a custom role and move the membership onto it, not revoke from Admin.
 - Angular sanitizes an `<iframe [src]>` as a *resource* URL and blocks an interpolated string outright, while `<img [src]>` with the identical string is fine. An inline PDF preview therefore needs `DomSanitizer.bypassSecurityTrustResourceUrl`; nothing catches this until the element actually renders. See `SourceDocumentPanel`/`InboxConversionPanel` (Phase 22), where the URL is built only from the API base plus a route-parameter GUID, which is what makes the bypass safe.
 
+- **A FluentValidation rule built from a captured `Func` cannot name its own property**, and the failure is a **500 on every endpoint that validator guards**, not a compile error and not a test failure. `RuleForEach(x => selector(x))` where `selector` is a `Func` parameter throws `InvalidOperationException: Could not infer property name for expression` the first time the rule *runs* -- FluentValidation walks an expression tree to derive the name, and a compiled delegate has none. **No handler unit test can catch this**: tests call handlers directly, so `ValidationBehavior` never executes; it surfaces only against the real API. Take `Expression<Func<T, IEnumerable<TElement>>>` instead (note `IEnumerable`, not `IReadOnlyList` -- `RuleForEach`'s type inference needs it). Same shape as phase-9 bug #1's captured-`Func`-in-`Where`, and the same remedy. A validator suite that actually calls `validator.Validate(command)` is the only thing that covers it -- see `ProductionValidatorTests` (Phase 25).
+- `AmountPipe` renders **exactly two decimals**, so any figure legitimately smaller than a cent renders as `0.00` -- a labelled row showing `0.00` reads as a defect rather than a disclosure. It takes an optional precision argument (`| amount: 4`), added in Phase 25 for the production cost roll-up's rounding residue; the default is unchanged, so phase-23's 324 call sites are unaffected. Caught only by the browser pass.
+- **A FIFO layer stores a unit cost, not a value**, so the value it represents is `Quantity x Round(cost, 4)`. Any document that computes a cost by division (a production run's cost per unit, an allocation across by-products) will leave a residue whenever the division is not exact at four decimals. Build the GL entry from **the values actually created** so it balances by construction, round every unit cost to `StockLedgerEntry.UnitCost`'s own scale (`ProductionJournal.UnitCostScale`) so the document and the ledger can never disagree, and **name the residue** rather than absorbing it silently. It is bounded by `OutputQuantity x 0.00005` and is zero for any ordinary whole-quantity run.
+- **A browser pass is possible in a non-interactive session, and here is how** (this is what kept four screens unlooked-at across phases 21b/21c/22): the auth cookie is `HttpOnly; Secure; SameSite=None`, so the SPA must be served over HTTPS with a certificate the pane already trusts -- a self-signed `ng serve --ssl` cert is refused, the ASP.NET dev cert is not. Export it (`dotnet dev-certs https --export-path .certs/dev.pem --format PEM --no-password`), start the `erp-web-ssl` launch profile, then transplant the session curl already established: `document.cookie = "erp_auth=<token>; path=/; secure; samesite=none"`. Cookies ignore port, both origins are HTTPS, so it is same-site and reaches the Api. No credentials are typed into any form.
+- **`nvm use` from a shell that cannot create the symlink silently breaks Node entirely.** nvm-windows reports "Now using node v24.11.0" and exits 0 while `C:
+vm4w
+odejs` is left deleted, so `node` vanishes from `PATH` for every subsequent command. Recreate it without elevation with a junction: `cmd /c 'mklink /J "C:
+vm4w
+odejs" "%LOCALAPPDATA%
+vm24.11.0"'`.
+- A `cat > file <<'EOF'` heredoc in the Bash tool is **silently truncated past roughly 8 KB**, and the symptom is `unexpected EOF while looking for matching ''` with the file never written. Use the Write tool for anything larger, or split it.
+
 ## Current status
 
-**Phase 24 is complete.** Variant Products & Attributes (FR-8.3), deferred since Phase 3.
+**Phase 25 is complete, and it is the last planned phase** — every row of `docs/roadmap.md`'s index
+table is now done. What remains is not unfinished roadmap work: it is the explicitly deferred post-v1
+list (multi-currency, Billing Locations + POS, IRD e-filing) plus the per-phase carried items each
+status doc records.
 
-**The live pass changed the phase's central decision, which is the phase.** `erp-module-scan.md`'s
-Inventory §2-§3 were two-line sketches, so Step 2 was mandatory - and it showed that **a variant IS
-a Product**: the reference tenant's "Iphone 16 Pro Max" and its four variants are **five rows in the
-same Products list**, each with its own Code, prices, tax and account mappings, and the invoice line
-picker lists them flat as siblings. So `ProductId` already means "the sellable, stockable thing",
-and the FIFO ledger, all twelve `ProductId`-bearing entities, both
-`{OrganizationId, ProductId, WarehouseId, TransactionDate}` composite indexes and every one of the
-25 report handlers are **untouched**. The roadmap's own framing - "the FIFO ledger keys extend from
-ProductId to variant identity" - described work the live model made unnecessary (**Decision A**).
-Two other live findings are worth carrying: the reference product has **no matrix generator at all**
-(variants are added one at a time; it offers 12 combinations and carries 4), and its attribute names
-are **not unique** (both `size`/`Size` and `Color`/`color` exist), so neither is enforced here.
+**Manufacturing (FR-8.8/8.9 + FR-9.5's manufacturing slice): BOM → Production Order → Production
+Journal, plus all three manufacturing reports.** The Production Journal is the first document in this
+system that **transforms** value rather than moving it — it consumes several stock items at their
+real FIFO cost, adds non-stock expense, and creates a different stock item at a cost it computes
+itself, which becomes the FIFO layer every future sale's COGS reads from.
 
-**Three roles, two fields, and a non-variant product is unchanged.** Ordinary product =
-`ParentProductId NULL`, `HasVariants false`; variant parent = `HasVariants true`, **not
-transactable**; variant child = `ParentProductId` set, transactable. Every one of the 1,089 products
-in the dev database is already row 1, reached with **no backfill**.
+**The confirm-live pass closed the scan's own open item, and the answer was "nothing" (Decision A).**
+`erp-module-scan.md` §10 said a Production Journal "likely emits GL Transactions (unconfirmed which
+accounts — open item)". It emits none: a journal was created and approved in the reference tenant and
+is absent from a **199-row Journal report covering that exact date**, while its stock moved; the
+Transaction list report's type set excludes production entirely; and the Production Summary Report's
+own DR/CR Account columns are empty on every row. That tenant runs **periodic** inventory, so
+production genuinely has nothing to post. **We post anyway** — this codebase is *perpetual* since the
+post-Phase-19 fix, so posting nothing would leave `DefaultInventoryAccountId` understating stock by
+the capitalised expenses, permanently and silently. The entry is Inventory-to-Inventory posted gross
+with one new tenant default (`DefaultProductionCostAccountId`, the eleventh) taking the difference;
+**Inventory's net movement is exactly the production expenses added**, traced per account before a
+line was written. A WIP account was considered and rejected: a Journal is atomic, so WIP would be
+debited and credited inside the same entry and always net to zero.
 
-**The one deliberate divergence from the reference product**: it lets you put the *parent* on an
-invoice line; we refuse (409). A parent stock bucket is one nothing ever receives into, so Stock
-Position would carry a balance reconciling against nothing while every total still added up - the
-exact failure the exit criterion exists to catch, so copying it would have been copying a defect.
+**The conservation law is the phase, and it is proven in the database.** `raw FIFO cost consumed +
+production expenses = finished value created + by-product value created (+ a named residue)`. Against
+real SQL Server: 15 units held in **two layers at different costs** consumed for a true weighted
+average of **133.3333** (not the latest rate, not the oldest, not the BOM's); value in `2300.0000`
+against stock created `2299.99990000` with the `0.0001` residue the document itself reports;
+Inventory net `+299.9999`, Production Cost Applied `-299.9999`, no other account touched, trial
+balance difference `.0000`. A clean-numbered run conserved **exactly, to the cent**.
 
-**Decision B - the migration is purely additive and was proven, not assumed.** Five nullable columns
-on `catalog.Products`, three tables, ten indexes, one self-FK, four permission rows. There is **not
-one `DropColumn`, `DropIndex` or `DropTable` in `Up`** (so the scaffold-ordering gotcha cannot
-apply) and **zero operations touch the stock tables** - both verified by grep, not by reading. Run
-against real SQL Server holding 1,089 products and 17 live FIFO cost layers, the SHA-256
-fingerprints of `StockLedgerEntries` and `StockMovements` are **byte-identical before and after**.
+**Three more decisions came from the live pass rather than from reasoning.** The by-product's "% of
+Cost" is a percentage **of the Total Cost of Production**, verified to the penny on two real journals
+(**C**). "LOAD BOM" is an explicit, user-invoked template load that scales by output ratio and leaves
+the percentage alone, so a BOM **defaults and never binds**, and `BillOfMaterialsId` is nullable on
+both documents (**D**). Production Order's native lifecycle **is** Draft → Approved — the scan's
+"Planned/InProgress/Completed" turned out to be Phase 20b's **Custom Status in the list grid**,
+orthogonal to the lifecycle, which is phase-20b's own orthogonality test coming out the opposite way
+from Cheque's (**E**). The reference product also lets one order convert **repeatedly** (phase-6
+bug #4 in the wild); we refuse, and `MarkConverted` — not `ReferrerType`/`ReferrerId` — is the gate.
 
-**Decision D - one rule, and both halves of the sweep are proven mechanically.** Server-side,
-`ProductVariantRules` is folded into the three module validation helpers plus
-`CreateOrUpdateOpeningStockLine`: four call sites covering every document line type.
-`ProductVariantSweepGuardTests` reads all 160 command handlers off disk, finds the 19 that take
-product ids from their request, and fails the build on a new bypass. Client-side it is **one line** -
-all fifteen pickers already shared `CatalogService.listAllProducts`, so defaulting it to
-`Transactable` made them all variant-aware at once; `catalog.service.spec.ts` pins the wire format
-and globs every feature file for a direct `listProducts`/`HttpClient` bypass. Both carry phase-23's
-two self-checks: the scan found files at all, and every exemption still names a real file.
+**Void unwinds both directions**, which no previous Void did: created layers reversed (refused with a
+409 if any has been consumed onward — verified after selling 4 finished units), consumed layers
+restocked at their recorded cost, GL mirrored by `PostReversalOf`. Order matters: the reversal check
+runs first, so a partly-consumed run fails before anything is mutated.
 
-**Decision E - the conversion cap needed no change, and that is a finding rather than an omission.**
-Phase 6's `(ProductId, Rate, VatRate, DiscountPct)` quadruple already discriminates two variants
-sharing a rate, because they are two `ProductId`s. Asserted rather than reasoned about: two variants
-at identical Rate/VatRate on one Invoice, and a CreditNote cannot over-return one by borrowing the
-other's quantity.
+**Two bugs, both found by things unit tests structurally cannot reach.** A shared FluentValidation
+helper took `Func` selectors instead of `Expression`, so **every one of the six manufacturing
+endpoints returned 500** on its first real API call while all 566 unit tests passed — handler tests
+never run `ValidationBehavior`. And the browser pass caught the cost roll-up's **"Rounding
+Adjustment" row rendering `0.00`**, because the residue is smaller than a cent; `AmountPipe` gained
+an optional precision argument with the default unchanged. Both are now in Known Gotchas.
 
-**Decisions C, F, G.** Generation ships despite the reference product having none, because FR-8.3
-and the roadmap's exit criterion both ask for it; re-running **skips** rather than duplicates (the
-`CombinationKey` unique index is the mechanism, not caller discipline), and overshooting the
-200-per-run cap is **refused with the number named, never truncated** - a silent partial matrix is
-the worst outcome available. Retiring a catalog option is always allowed and purely forward-looking;
-dropping one from a *product's* pool while a variant is built from it is refused. **No feature flag**
-(`TenantFeature` is immutable after Organization creation, and variants are a property of a Product,
-not an entitlement) and **no key for variants themselves** - creating one is creating a product, so
-it rides `Catalog.Product.Manage`. The only new pair is `Catalog.VariantAttribute.View`/`.Manage`,
-on `ProductCategory`'s exact split. **No report changed**: a variant is a Product row with its own
-Code, so every inventory and Master report shows one row per variant automatically and a
-non-variant tenant sees no change at all.
+**Found in passing and fixed:** `GetAccountingDefaultsQuery` implemented neither `IRequirePermission`
+nor `IOrganizationScoped`, so `AuthorizationBehavior` never ran for it — any authenticated user could
+read any tenant's accounting defaults by passing its id.
 
-Tests: Domain 230 (+22), Application.UnitTests 540 (+45), Api.IntegrationTests 18 (unchanged),
-Angular 119 (+14); `dotnet build` / `dotnet test` / `ng build` / `ng test` / `tsc --noEmit` all
-clean. Manual E2E on a fresh Organization against real SQL Server: the matrix generated 4 and
-re-generated 0/skipped 4; PurchaseBill 10 Blue-Large then Invoice 4 Blue-Large left **exactly 6** on
-the first FIFO layer at cost **600** (not the newer layer's 800, nor the sibling's 610), **zero
-movement** on Red-Large, nothing at all on the parent, kardex reconciling per variant and Trial
-Balance balancing at 26,690.60 - with a plain control product in the same documents behaving
-identically to before. Negative proof: `403 ... (Catalog.VariantAttribute.Manage)` against a
-nonexistent id, then `404` for the same id once the key is restored. **The browser pass found no
-defects this time**, and the honest reason is Decision A: with no new report columns, no new picker
-component and no new DTO fields flowing into unbuilt templates, the surface where phase-22's and
-phase-23's browser bugs lived did not exist. Full reasoning in `docs/phase-24-status.md`.
+**All carried debt is closed.** Step 3 browser-passed the four screens nobody had ever looked at
+(`Import / Export`'s Export half, `Organization > Migration`, and both Migrated Register reports) —
+**no defects found in any of them**, with the Export's Download control confirmed to gate on *an
+artifact exists* rather than on `Status == Completed`. The three reference-product screens
+(`Developer Mode`, `> Documents`, `> Migration`) were confirm-lived: Migration matches what Phase 21c
+built; the other two are thin platform/attachment features no FR asks for, and are recommended for
+dropping rather than carried further. `phase-25-status.md` records **how** a browser pass is run in a
+non-interactive session — the dev-cert + cookie transplant — so it never becomes debt again.
+
+Tests: Domain 249 (+19), Application.UnitTests 571 (+31), Api.IntegrationTests 18 (unchanged),
+Angular 128 (+9); `dotnet build` / `dotnet test` / `ng build` / `ng test` / `tsc --noEmit` all clean.
+The migration is purely additive — one `AddColumn`, one `EnsureSchema`, 12 `CreateTable`, 25
+`CreateIndex`, 26 seeded permission rows, and **no `Drop*`/`Alter*`/`Rename*` anywhere in `Up`**,
+with zero operations touching the stock or GL tables. Full reasoning in `docs/phase-25-status.md`.
 
 **Carried forward, not blocking:** server-rendered PDFs and `.xlsx` still print dates in AD
-(phase-23's Decision A limitation); multi-UOM x variants and variant bulk-import are explicitly out
-of scope; and the browser passes on `Configurations > Import / Export`, `Organization > Developer
-Mode` and `Organization > Documents` remain outstanding from 21b/21c/22.
-
-**Next up: Phase 25 - Manufacturing.** FR-8.8/8.9, behind the tenant's Manufacturing feature flag:
-Bill of Materials, Production Order, and the costed Production Journal (consume raw-material FIFO
-stock at cost, compute per-unit finished-good cost, create stock at it, post balanced GL), plus the
-manufacturing reports. It consumes variants as ordinary products, which Phase 24 is what makes
-possible. See `docs/roadmap.md`'s Phase 25 section - and work the net GL/stock effect out on paper
-first, per Phase 7's discipline and Phase 6's bug #3.
+(phase-23's Decision A limitation); the three manufacturing reports have no `.xlsx` export; and Phase
+25's own named follow-ups — Custom Status on Production Order (the machinery already exists),
+multi-level BOM explosion (single-level is parity: the live report says "Multiple Level: No"), and
+Reporting Tags / Custom Fields / print on production documents.

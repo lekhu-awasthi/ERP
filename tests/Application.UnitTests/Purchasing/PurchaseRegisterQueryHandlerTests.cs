@@ -153,7 +153,7 @@ public class PurchaseRegisterQueryHandlerTests
 
         var settings = TenantSettings.CreateDefault(organizationId);
         settings.SetAccountingDefaults(null, null, null, purchase.Id, ap.Id, vatReceivable.Id, null);
-        settings.SetInventoryDefaults(inventory.Id, cogs.Id, null);
+        settings.SetInventoryDefaults(inventory.Id, cogs.Id, null, null);
         db.TenantSettings.Add(settings);
         await db.SaveChangesAsync(CancellationToken.None);
 

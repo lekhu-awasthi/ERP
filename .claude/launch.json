@@ -4,15 +4,44 @@
     {
       "name": "erp-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "web", "run", "start"],
+      "runtimeArgs": [
+        "--prefix",
+        "web",
+        "run",
+        "start"
+      ],
       "port": 4200
     },
     {
       "name": "erp-api",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "src/Api", "--launch-profile", "https"],
+      "runtimeArgs": [
+        "run",
+        "--project",
+        "src/Api",
+        "--launch-profile",
+        "https"
+      ],
       "port": 7104,
       "url": "https://localhost:7104"
+    },
+    {
+      "name": "erp-web-ssl",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "web",
+        "run",
+        "start",
+        "--",
+        "--ssl",
+        "--ssl-cert",
+        ".certs/dev.pem",
+        "--ssl-key",
+        ".certs/dev.key"
+      ],
+      "port": 4200,
+      "url": "https://localhost:4200"
     }
   ]
 }

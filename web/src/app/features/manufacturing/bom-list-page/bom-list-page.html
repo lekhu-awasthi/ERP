@@ -1,0 +1,100 @@
+<div class="container py-5" style="max-width: 1000px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-diagram-3 fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Bills Of Materials</h1>
+          <p class="text-muted small mb-0">The recipe each manufactured product is built from</p>
+        </div>
+      </div>
+      <a
+        class="btn btn-success btn-sm fw-bold"
+        [routerLink]="['/organizations', organizationId, 'manufacturing', 'bills-of-materials', 'new']"
+      >
+        <i class="bi bi-plus-lg"></i> New Bill Of Materials
+      </a>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <input
+        type="search"
+        class="form-control form-control-sm mb-4"
+        placeholder="Search by product name or code..."
+        [value]="search()"
+        (change)="onSearch($event)"
+      />
+
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading bills of materials...</p>
+        </div>
+      } @else if (items().length === 0) {
+        <div class="text-center py-5">
+          <div class="bg-light d-inline-flex p-4 rounded-circle mb-3 text-muted">
+            <i class="bi bi-diagram-3 fs-1"></i>
+          </div>
+          <h5 class="fw-bold text-dark">No Bills Of Materials Yet</h5>
+          <p class="text-muted small mb-0">Click "New Bill Of Materials" to define your first recipe.</p>
+        </div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th scope="col">Product Name</th>
+                <th scope="col" class="text-end">Finished Goods</th>
+                <th scope="col" class="text-end">Raw Materials</th>
+                <th scope="col" class="text-end">By Products</th>
+                <th scope="col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of items(); track item.id) {
+                <tr>
+                  <td>
+                    <a
+                      class="fw-semibold text-decoration-none"
+                      [routerLink]="['/organizations', organizationId, 'manufacturing', 'bills-of-materials', item.id]"
+                    >
+                      {{ item.productName }}
+                    </a>
+                    <div class="text-muted small">{{ item.productCode }}</div>
+                  </td>
+                  <td class="text-end">{{ item.outputQuantity }} {{ item.unitName ?? '' }}</td>
+                  <td class="text-end">{{ item.rawMaterialCount }} items</td>
+                  <td class="text-end">{{ item.byProductCount }} items</td>
+                  <td class="text-end">
+                    @if (!item.isActive) {
+                      <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <app-pagination-control
+          [page]="page()"
+          [pageSize]="pageSize()"
+          [totalCount]="totalCount()"
+          (pageChange)="onPageChange($event)"
+          (pageSizeChange)="onPageSizeChange($event)"
+        />
+      }
+    </div>
+  </div>
+</div>
