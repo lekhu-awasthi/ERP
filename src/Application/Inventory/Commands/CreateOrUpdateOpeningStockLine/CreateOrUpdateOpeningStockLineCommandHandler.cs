@@ -1,3 +1,4 @@
+using ErpApp.Application.Catalog.Variants;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Inventory.Stock;
@@ -31,6 +32,10 @@ public sealed class CreateOrUpdateOpeningStockLineCommandHandler(IAppDbContext d
         {
             throw new ConflictException("This product does not track inventory.");
         }
+
+        // Phase 24: the fourth and last sweep call site -- this handler reads its single product
+        // directly rather than through an Ensure...Async helper. See ProductVariantRules.
+        ProductVariantRules.EnsureTransactable(product.Name, product.HasVariants);
 
         var warehouseExists = await db.Warehouses.AnyAsync(
             x => x.Id == request.WarehouseId && x.OrganizationId == request.OrganizationId, cancellationToken);

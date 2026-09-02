@@ -1,3 +1,4 @@
+using ErpApp.Application.Catalog.Variants;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Catalog;
@@ -27,15 +28,10 @@ internal static class PurchasingValidation
     public static async Task EnsureProductsExistAsync(
         IAppDbContext db, Guid organizationId, IEnumerable<Guid> productIds, CancellationToken cancellationToken)
     {
-        var distinctIds = productIds.Distinct().ToList();
-
-        var existingCount = await db.Products.CountAsync(
-            x => x.OrganizationId == organizationId && distinctIds.Contains(x.Id), cancellationToken);
-
-        if (existingCount != distinctIds.Count)
-        {
-            throw new NotFoundException("One or more products were not found.");
-        }
+        // Phase 24: also refuses a variant *parent*. See ProductVariantRules -- this helper is one
+        // of the four call sites that make up the whole sweep.
+        await ProductVariantRules.EnsureProductsExistAndAreTransactableAsync(
+            db, organizationId, productIds, cancellationToken);
     }
 
     public static async Task EnsureWarehouseExistsAsync(

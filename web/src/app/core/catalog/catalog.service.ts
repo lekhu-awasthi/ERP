@@ -11,18 +11,30 @@ import {
   CreateProductCategoryResult,
   CreateProductRequest,
   CreateProductResult,
+  CreateProductVariantRequest,
   CreateUnitOfMeasurementRequest,
   CreateUnitOfMeasurementResult,
+  CreateVariantAttributeRequest,
+  GenerateProductVariantsResult,
   Product,
   ProductCategory,
   ProductType,
+  ProductVariant,
+  ProductVariantAttributesResult,
+  ProductVariantFilter,
+  ProductVariantPanel,
   UnitOfMeasurement,
   UpdateProductCategoryRequest,
   UpdateProductCategoryResult,
   UpdateProductRequest,
   UpdateProductResult,
+  UpdateProductVariantRequest,
   UpdateUnitOfMeasurementRequest,
   UpdateUnitOfMeasurementResult,
+  UpdateVariantAttributeOptionRequest,
+  UpdateVariantAttributeRequest,
+  VariantAttribute,
+  VariantCombinationInput,
 } from './catalog.models';
 
 @Injectable({ providedIn: 'root' })
@@ -108,15 +120,144 @@ export class CatalogService {
     });
   }
 
-  listProducts(organizationId: string, type?: ProductType, page = 1, pageSize = 50): Observable<PagedResult<Product>> {
+  listProducts(
+    organizationId: string,
+    type?: ProductType,
+    page = 1,
+    pageSize = 50,
+    variantFilter: ProductVariantFilter = 'All',
+  ): Observable<PagedResult<Product>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
     if (type) params['type'] = type;
+    if (variantFilter !== 'All') params['variantFilter'] = variantFilter;
     return this.http.get<PagedResult<Product>>(`${this.baseUrl(organizationId)}/products`, { withCredentials: true, params });
   }
 
-  /** Picker use (e.g. an invoice line's Product dropdown) -- everything in one page, no pager. */
-  listAllProducts(organizationId: string, type?: ProductType): Observable<Product[]> {
-    return this.listProducts(organizationId, type, 1, MAX_PAGE_SIZE).pipe(map((result) => result.items));
+  /**
+   * Picker use (e.g. an invoice line's Product dropdown) -- everything in one page, no pager.
+   *
+   * **Phase 24's entire client-side sweep lives on this one line.** Every one of the fifteen
+   * product pickers and report filters in this app calls this method (asserted by
+   * `catalog.service.spec.ts`'s guard), so defaulting it to `Transactable` makes all of them
+   * variant-aware at once: variant children appear as ordinary selectable entries -- which is
+   * exactly how the live reference product presents them, confirmed in the browser -- and variant
+   * *parents* disappear, because a parent is not transactable (see ProductVariantRules server-side).
+   *
+   * Report filter pages want the same list for a different reason: a parent has no stock and no
+   * transactions, so offering one would only ever produce an empty report.
+   */
+  listAllProducts(
+    organizationId: string,
+    type?: ProductType,
+    variantFilter: ProductVariantFilter = 'Transactable',
+  ): Observable<Product[]> {
+    return this.listProducts(organizationId, type, 1, MAX_PAGE_SIZE, variantFilter).pipe(map((result) => result.items));
+  }
+
+  // ---- Phase 24: the tenant-global attribute catalog ----
+
+  listVariantAttributes(organizationId: string, activeOnly = false): Observable<PagedResult<VariantAttribute>> {
+    const params: Record<string, string> = { pageSize: String(MAX_PAGE_SIZE) };
+    if (activeOnly) params['activeOnly'] = 'true';
+    return this.http.get<PagedResult<VariantAttribute>>(`${this.baseUrl(organizationId)}/variant-attributes`, {
+      withCredentials: true,
+      params,
+    });
+  }
+
+  createVariantAttribute(organizationId: string, request: CreateVariantAttributeRequest): Observable<VariantAttribute> {
+    return this.http.post<VariantAttribute>(`${this.baseUrl(organizationId)}/variant-attributes`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updateVariantAttribute(
+    organizationId: string,
+    id: string,
+    request: UpdateVariantAttributeRequest,
+  ): Observable<VariantAttribute> {
+    return this.http.put<VariantAttribute>(`${this.baseUrl(organizationId)}/variant-attributes/${id}`, request, {
+      withCredentials: true,
+    });
+  }
+
+  addVariantAttributeOption(organizationId: string, id: string, value: string): Observable<VariantAttribute> {
+    return this.http.post<VariantAttribute>(
+      `${this.baseUrl(organizationId)}/variant-attributes/${id}/options`,
+      { value },
+      { withCredentials: true },
+    );
+  }
+
+  updateVariantAttributeOption(
+    organizationId: string,
+    id: string,
+    optionId: string,
+    request: UpdateVariantAttributeOptionRequest,
+  ): Observable<VariantAttribute> {
+    return this.http.put<VariantAttribute>(
+      `${this.baseUrl(organizationId)}/variant-attributes/${id}/options/${optionId}`,
+      request,
+      { withCredentials: true },
+    );
+  }
+
+  // ---- Phase 24: a product's own variants ----
+
+  getProductVariants(organizationId: string, productId: string): Observable<ProductVariantPanel> {
+    return this.http.get<ProductVariantPanel>(`${this.baseUrl(organizationId)}/products/${productId}/variants`, {
+      withCredentials: true,
+    });
+  }
+
+  setProductVariantAttributes(
+    organizationId: string,
+    productId: string,
+    usages: VariantCombinationInput[],
+  ): Observable<ProductVariantAttributesResult> {
+    return this.http.put<ProductVariantAttributesResult>(
+      `${this.baseUrl(organizationId)}/products/${productId}/variant-attributes`,
+      { usages },
+      { withCredentials: true },
+    );
+  }
+
+  createProductVariant(
+    organizationId: string,
+    productId: string,
+    request: CreateProductVariantRequest,
+  ): Observable<ProductVariant> {
+    return this.http.post<ProductVariant>(`${this.baseUrl(organizationId)}/products/${productId}/variants`, request, {
+      withCredentials: true,
+    });
+  }
+
+  generateProductVariants(organizationId: string, productId: string): Observable<GenerateProductVariantsResult> {
+    return this.http.post<GenerateProductVariantsResult>(
+      `${this.baseUrl(organizationId)}/products/${productId}/variants/generate`,
+      {},
+      { withCredentials: true },
+    );
+  }
+
+  updateProductVariant(
+    organizationId: string,
+    productId: string,
+    variantId: string,
+    request: UpdateProductVariantRequest,
+  ): Observable<ProductVariant> {
+    return this.http.put<ProductVariant>(
+      `${this.baseUrl(organizationId)}/products/${productId}/variants/${variantId}`,
+      request,
+      { withCredentials: true },
+    );
+  }
+
+  deleteProductVariant(organizationId: string, productId: string, variantId: string): Observable<void> {
+    return this.http.delete<void>(
+      `${this.baseUrl(organizationId)}/products/${productId}/variants/${variantId}`,
+      { withCredentials: true },
+    );
   }
 
   getProduct(organizationId: string, id: string): Observable<Product> {

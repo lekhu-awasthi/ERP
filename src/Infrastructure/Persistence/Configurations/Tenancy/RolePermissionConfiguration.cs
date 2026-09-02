@@ -539,6 +539,13 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminRecentTransactionViewId = Guid.Parse("00000000-0000-0000-0002-00000000014f");
     private static readonly Guid MemberRecentTransactionViewId = Guid.Parse("00000000-0000-0000-0002-000000000150");
 
+    // Phase 24 (Variant Attributes) -- ProductCategory/UnitOfMeasurement's exact split: Member
+    // reads the catalog (the variant form needs it), only Admin curates it.
+    private static readonly Guid AdminVariantAttributeViewId = Guid.Parse("00000000-0000-0000-0002-000000000151");
+    private static readonly Guid AdminVariantAttributeManageId = Guid.Parse("00000000-0000-0000-0002-000000000152");
+    private static readonly Guid MemberVariantAttributeViewId = Guid.Parse("00000000-0000-0000-0002-000000000153");
+    private static readonly Guid MemberVariantAttributeManageId = Guid.Parse("00000000-0000-0000-0002-000000000154");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -961,6 +968,11 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(MemberAiDocumentExtractionManageId, Role.MemberId, PermissionKeys.AiDocumentExtractionManage, false),
 
             RolePermission.Create(AdminRecentTransactionViewId, Role.AdminId, PermissionKeys.RecentTransactionView, true),
-            RolePermission.Create(MemberRecentTransactionViewId, Role.MemberId, PermissionKeys.RecentTransactionView, true));
+            RolePermission.Create(MemberRecentTransactionViewId, Role.MemberId, PermissionKeys.RecentTransactionView, true),
+
+            RolePermission.Create(AdminVariantAttributeViewId, Role.AdminId, PermissionKeys.VariantAttributeView, true),
+            RolePermission.Create(AdminVariantAttributeManageId, Role.AdminId, PermissionKeys.VariantAttributeManage, true),
+            RolePermission.Create(MemberVariantAttributeViewId, Role.MemberId, PermissionKeys.VariantAttributeView, true),
+            RolePermission.Create(MemberVariantAttributeManageId, Role.MemberId, PermissionKeys.VariantAttributeManage, false));
     }
 }

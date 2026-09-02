@@ -389,6 +389,10 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<bool>("AvailableForSale")
                         .HasColumnType("bit");
 
+                    b.Property<string>("Barcode")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
                     b.Property<Guid>("CategoryId")
                         .HasColumnType("uniqueidentifier");
 
@@ -397,8 +401,15 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<string>("CombinationKey")
+                        .HasMaxLength(600)
+                        .HasColumnType("nvarchar(600)");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("HasVariants")
+                        .HasColumnType("bit");
 
                     b.Property<string>("HsCode")
                         .HasMaxLength(30)
@@ -413,6 +424,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ParentProductId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("PrimaryUnitId")
@@ -441,6 +455,10 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<string>("Sku")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
                     b.Property<bool>("TrackInventory")
                         .HasColumnType("bit");
 
@@ -463,6 +481,8 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasIndex("CategoryId");
 
+                    b.HasIndex("ParentProductId");
+
                     b.HasIndex("PrimaryUnitId");
 
                     b.HasIndex("PurchaseAccountId");
@@ -475,6 +495,10 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasIndex("OrganizationId", "Code")
                         .IsUnique();
+
+                    b.HasIndex("OrganizationId", "ParentProductId", "CombinationKey")
+                        .IsUnique()
+                        .HasFilter("[ParentProductId] IS NOT NULL");
 
                     b.ToTable("Products", "catalog");
                 });
@@ -546,6 +570,60 @@ namespace ErpApp.Infrastructure.Migrations
                     b.ToTable("ProductSecondaryUnits", "catalog");
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Catalog.ProductVariantAttributeUsage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("VariantAttributeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("VariantAttributeOptionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VariantAttributeId");
+
+                    b.HasIndex("VariantAttributeOptionId");
+
+                    b.HasIndex("ProductId", "VariantAttributeOptionId")
+                        .IsUnique();
+
+                    b.ToTable("ProductVariantAttributeUsages", "catalog");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Catalog.ProductVariantValue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("VariantAttributeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("VariantAttributeOptionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VariantAttributeId");
+
+                    b.HasIndex("VariantAttributeOptionId");
+
+                    b.HasIndex("ProductId", "VariantAttributeId")
+                        .IsUnique();
+
+                    b.ToTable("ProductVariantValues", "catalog");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Catalog.UnitOfMeasurement", b =>
                 {
                     b.Property<Guid>("Id")
@@ -577,6 +655,60 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("UnitsOfMeasurement", "catalog");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Catalog.VariantAttribute", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "Name");
+
+                    b.ToTable("VariantAttributes", "catalog");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Catalog.VariantAttributeOption", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("VariantAttributeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VariantAttributeId");
+
+                    b.ToTable("VariantAttributeOptions", "catalog");
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Configuration.AlertDefinition", b =>
@@ -6116,6 +6248,34 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = true,
                             PermissionKey = "Workflow.RecentTransaction.View",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000151"),
+                            IsGranted = true,
+                            PermissionKey = "Catalog.VariantAttribute.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000152"),
+                            IsGranted = true,
+                            PermissionKey = "Catalog.VariantAttribute.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000153"),
+                            IsGranted = true,
+                            PermissionKey = "Catalog.VariantAttribute.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000154"),
+                            IsGranted = false,
+                            PermissionKey = "Catalog.VariantAttribute.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 
@@ -6638,6 +6798,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("ErpApp.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ParentProductId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Catalog.UnitOfMeasurement", null)
                         .WithMany()
                         .HasForeignKey("PrimaryUnitId")
@@ -6685,6 +6850,57 @@ namespace ErpApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("UnitId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Catalog.ProductVariantAttributeUsage", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Catalog.Product", null)
+                        .WithMany("VariantAttributeUsages")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Catalog.VariantAttribute", null)
+                        .WithMany()
+                        .HasForeignKey("VariantAttributeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Catalog.VariantAttributeOption", null)
+                        .WithMany()
+                        .HasForeignKey("VariantAttributeOptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Catalog.ProductVariantValue", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Catalog.Product", null)
+                        .WithMany("VariantValues")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Catalog.VariantAttribute", null)
+                        .WithMany()
+                        .HasForeignKey("VariantAttributeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Catalog.VariantAttributeOption", null)
+                        .WithMany()
+                        .HasForeignKey("VariantAttributeOptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Catalog.VariantAttributeOption", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Catalog.VariantAttribute", null)
+                        .WithMany("Options")
+                        .HasForeignKey("VariantAttributeId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
@@ -7357,6 +7573,15 @@ namespace ErpApp.Infrastructure.Migrations
             modelBuilder.Entity("ErpApp.Domain.Catalog.Product", b =>
                 {
                     b.Navigation("SecondaryUnits");
+
+                    b.Navigation("VariantAttributeUsages");
+
+                    b.Navigation("VariantValues");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Catalog.VariantAttribute", b =>
+                {
+                    b.Navigation("Options");
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Crm.Deal", b =>

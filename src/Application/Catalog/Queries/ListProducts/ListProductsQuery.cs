@@ -8,6 +8,7 @@ namespace ErpApp.Application.Catalog.Queries.ListProducts;
 public sealed record ListProductsQuery(
     Guid OrganizationId,
     ProductType? Type,
+    ProductVariantFilter VariantFilter = ProductVariantFilter.All,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize)
     : IRequest<PagedResult<Product>>, IRequirePermission, IOrganizationScoped

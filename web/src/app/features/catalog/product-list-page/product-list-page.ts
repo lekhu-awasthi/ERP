@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
+import { ProductVariantFilter } from '../../../core/catalog/catalog.models';
 import { CatalogService } from '../../../core/catalog/catalog.service';
 import { Product, ProductType } from '../../../core/catalog/catalog.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
@@ -32,12 +33,32 @@ export class ProductListPage {
 
   protected readonly types: ProductTypeFilter[] = ['All', 'Goods', 'Service'];
 
+  /**
+   * Phase 24. The live reference product carries "Variant Products" as its own sub-module; it is
+   * the same Products list under one filter, so it is a filter here rather than a second screen.
+   * Default stays 'All', which is what the live Products list shows -- a parent and its variants
+   * together.
+   */
+  protected readonly variantFilter = signal<ProductVariantFilter>('All');
+
+  protected readonly variantFilters: { value: ProductVariantFilter; label: string }[] = [
+    { value: 'All', label: 'All' },
+    { value: 'VariantParents', label: 'Variant Products' },
+    { value: 'Transactable', label: 'Sellable Only' },
+  ];
+
   constructor() {
     this.load();
   }
 
   protected selectType(type: ProductTypeFilter): void {
     this.typeFilter.set(type);
+    this.page.set(1);
+    this.load();
+  }
+
+  protected selectVariantFilter(filter: ProductVariantFilter): void {
+    this.variantFilter.set(filter);
     this.page.set(1);
     this.load();
   }
@@ -57,7 +78,13 @@ export class ProductListPage {
     this.loading.set(true);
     const type = this.typeFilter();
     this.catalogService
-      .listProducts(this.organizationId, type === 'All' ? undefined : type, this.page(), this.pageSize())
+      .listProducts(
+        this.organizationId,
+        type === 'All' ? undefined : type,
+        this.page(),
+        this.pageSize(),
+        this.variantFilter(),
+      )
       .subscribe({
         next: (result) => {
           this.items.set(result.items);

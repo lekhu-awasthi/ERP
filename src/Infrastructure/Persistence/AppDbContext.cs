@@ -48,6 +48,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<UnitOfMeasurement> UnitsOfMeasurement => Set<UnitOfMeasurement>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductSecondaryUnit> ProductSecondaryUnits => Set<ProductSecondaryUnit>();
+    public DbSet<VariantAttribute> VariantAttributes => Set<VariantAttribute>();
+    public DbSet<VariantAttributeOption> VariantAttributeOptions => Set<VariantAttributeOption>();
+    public DbSet<ProductVariantAttributeUsage> ProductVariantAttributeUsages => Set<ProductVariantAttributeUsage>();
+    public DbSet<ProductVariantValue> ProductVariantValues => Set<ProductVariantValue>();
     public DbSet<AccountGroup> AccountGroups => Set<AccountGroup>();
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<JournalVoucher> JournalVouchers => Set<JournalVoucher>();

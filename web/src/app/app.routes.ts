@@ -208,6 +208,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'organizations/:id/products/variant-attributes',
+    loadComponent: () =>
+      import('./features/catalog/variant-attribute-list-page/variant-attribute-list-page').then(
+        (m) => m.VariantAttributeListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/products/:productId',
     loadComponent: () =>
       import('./features/catalog/product-detail-page/product-detail-page').then((m) => m.ProductDetailPage),

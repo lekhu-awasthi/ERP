@@ -5,6 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { buildTreeRows, TreeRow } from '../../../core/common/tree';
 import { CatalogService } from '../../../core/catalog/catalog.service';
+import { ProductVariantPanelComponent } from '../product-variant-panel/product-variant-panel';
 import { Product, ProductCategory, ProductType, UnitOfMeasurement, VatRate } from '../../../core/catalog/catalog.models';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
@@ -15,7 +16,7 @@ import { Account } from '../../../core/accounting/accounting.models';
  * this subscribes to route.paramMap instead of reading route.snapshot once). */
 @Component({
   selector: 'app-product-detail-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, ProductVariantPanelComponent],
   templateUrl: './product-detail-page.html',
 })
 export class ProductDetailPage {

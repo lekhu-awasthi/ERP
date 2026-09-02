@@ -16,7 +16,9 @@ public sealed record CreateProductCommand(
     decimal PurchasePrice,
     VatRate VatRate,
     int ReOrderLevel,
-    bool TrackInventory)
+    bool TrackInventory,
+    string? Sku = null,
+    string? Barcode = null)
     : IRequest<CreateProductResult>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.ProductManage;

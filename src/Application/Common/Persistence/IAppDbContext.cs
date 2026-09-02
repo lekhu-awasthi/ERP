@@ -52,6 +52,10 @@ public interface IAppDbContext
     DbSet<UnitOfMeasurement> UnitsOfMeasurement { get; }
     DbSet<Product> Products { get; }
     DbSet<ProductSecondaryUnit> ProductSecondaryUnits { get; }
+    DbSet<VariantAttribute> VariantAttributes { get; }
+    DbSet<VariantAttributeOption> VariantAttributeOptions { get; }
+    DbSet<ProductVariantAttributeUsage> ProductVariantAttributeUsages { get; }
+    DbSet<ProductVariantValue> ProductVariantValues { get; }
     DbSet<AccountGroup> AccountGroups { get; }
     DbSet<Account> Accounts { get; }
     DbSet<JournalVoucher> JournalVouchers { get; }
