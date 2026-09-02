@@ -1,0 +1,468 @@
+<div class="container py-5" style="max-width: 1000px;">
+  <a
+    class="btn btn-link btn-sm text-decoration-none mb-3 ps-0"
+    [routerLink]="['/organizations', organizationId, 'manufacturing', 'production-orders']"
+  >
+    <i class="bi bi-arrow-left"></i> Back to Production Orders
+  </a>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  @if (warningMessage()) {
+    <div class="alert alert-warning d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-circle-fill"></i>
+      <div>{{ warningMessage() }}</div>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary mb-3" role="status"></div>
+      <p class="text-muted mb-0">Loading production order...</p>
+    </div>
+  } @else {
+    @if (canConvert()) {
+      <div class="alert alert-success d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <span>You can convert this transaction to a Production Journal.</span>
+        <button type="button" class="btn btn-success btn-sm fw-bold" (click)="convert()">
+          Convert to Production Journal
+        </button>
+      </div>
+    }
+
+    @if (order(); as doc) {
+      @if (doc.convertedToProductionJournalId) {
+        <div class="alert alert-info d-flex align-items-center gap-2 mb-4">
+          <i class="bi bi-arrow-right-circle"></i>
+          <div>
+            Converted to
+            <a
+              class="fw-semibold"
+              [routerLink]="[
+                '/organizations',
+                organizationId,
+                'manufacturing',
+                'production-journals',
+                doc.convertedToProductionJournalId
+              ]"
+              >{{ doc.convertedToProductionJournalCode }}</a
+            >. A production order converts once.
+          </div>
+        </div>
+      }
+    }
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+          <div>
+            <h1 class="h4 fw-bold mb-1 text-dark">
+              {{ isNew() ? 'New Production Order' : order()?.code }}
+            </h1>
+            @if (order(); as doc) {
+              <span class="text-muted small">Created {{ doc.createdAt | date: 'medium' }}</span>
+            }
+          </div>
+          @if (order(); as doc) {
+            @if (doc.status === 'Approved') {
+              <span class="badge bg-success-subtle text-success">Approved</span>
+            } @else if (doc.status === 'Converted') {
+              <span class="badge bg-info-subtle text-info-emphasis">Converted</span>
+            } @else if (doc.status === 'Void') {
+              <span class="badge bg-secondary-subtle text-secondary">Void</span>
+            } @else {
+              <span class="badge bg-warning-subtle text-warning-emphasis">Draft</span>
+            }
+          }
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12 col-sm-3">
+            <label class="form-label small fw-semibold">Date</label>
+            <app-bs-date-input
+              [inputClass]="'form-control'"
+              [value]="date()"
+              (valueChange)="onDate($event)"
+              [disabled]="!isDraft()"
+            />
+          </div>
+          <div class="col-12 col-sm-3">
+            <label class="form-label small fw-semibold" for="po-reference">Reference</label>
+            <input
+              id="po-reference"
+              type="text"
+              class="form-control form-control-sm"
+              [value]="reference()"
+              [disabled]="!isDraft()"
+              (input)="onReference($event)"
+            />
+          </div>
+          <div class="col-12 col-sm-6">
+            <label class="form-label small fw-semibold" for="po-product">Product</label>
+            <select
+              id="po-product"
+              class="form-select form-select-sm"
+              [disabled]="!isDraft()"
+              (change)="onProductId($event)"
+            >
+              <option value="" [selected]="productId() === ''">Select a product...</option>
+              @for (product of products(); track product.id) {
+                <option [value]="product.id" [selected]="product.id === productId()">
+                  {{ product.code }} — {{ product.name }}
+                </option>
+              }
+            </select>
+          </div>
+          <div class="col-12 col-sm-3">
+            <label class="form-label small fw-semibold" for="po-output">Output Quantity</label>
+            <input
+              id="po-output"
+              type="number"
+              min="0"
+              step="any"
+              class="form-control form-control-sm"
+              [value]="outputQuantity()"
+              [disabled]="!isDraft()"
+              (input)="onOutputQuantity($event)"
+            />
+          </div>
+          <div class="col-12 col-sm-4 d-flex align-items-end">
+            @if (isDraft()) {
+              <button
+                type="button"
+                class="btn btn-success btn-sm fw-bold"
+                [disabled]="!canLoadBom() || loadingBom()"
+                (click)="loadBom()"
+              >
+                <i class="bi bi-arrow-repeat"></i> {{ loadingBom() ? 'Loading...' : 'Load BOM' }}
+              </button>
+            }
+          </div>
+          <div class="col-12">
+            <label class="form-label small fw-semibold" for="po-notes">Notes</label>
+            <textarea
+              id="po-notes"
+              class="form-control form-control-sm"
+              rows="2"
+              [value]="notes()"
+              [disabled]="!isDraft()"
+              (input)="onNotes($event)"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 fw-bold mb-0 text-dark">Raw Materials (Input)</h2>
+          @if (isDraft()) {
+            <button type="button" class="btn btn-outline-primary btn-sm" (click)="addMaterial()">
+              <i class="bi bi-plus-lg"></i> Add
+            </button>
+          }
+        </div>
+
+        @if (isDraft()) {
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col">Product</th>
+                  <th scope="col" class="text-end" style="width: 160px;">Qty</th>
+                  <th scope="col" style="width: 48px;"></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of rawMaterials(); track line.key) {
+                  <tr>
+                    <td>
+                      <select class="form-select form-select-sm" (change)="onMaterialProduct(line.key, $event)">
+                        <option value="" [selected]="line.productId === ''">Select...</option>
+                        @for (product of products(); track product.id) {
+                          <option [value]="product.id" [selected]="product.id === line.productId">
+                            {{ product.code }} — {{ product.name }}
+                          </option>
+                        }
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        class="form-control form-control-sm text-end"
+                        [value]="line.quantity"
+                        (input)="onMaterialQuantity(line.key, $event)"
+                      />
+                    </td>
+                    <td class="text-end">
+                      <button
+                        type="button"
+                        class="btn btn-outline-danger btn-sm"
+                        aria-label="Remove raw material"
+                        (click)="removeMaterial(line.key)"
+                      >
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else if (order(); as doc) {
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col">Product</th>
+                  <th scope="col" class="text-end">Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of doc.rawMaterials; track line.id) {
+                  <tr>
+                    <td>
+                      {{ line.productName }}
+                      <div class="text-muted small">{{ line.productCode }}</div>
+                    </td>
+                    <td class="text-end">{{ line.quantity }} {{ line.unitName ?? '' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 fw-bold mb-0 text-dark">By Product (Output)</h2>
+          @if (isDraft()) {
+            <button type="button" class="btn btn-outline-primary btn-sm" (click)="addByProduct()">
+              <i class="bi bi-plus-lg"></i> Add
+            </button>
+          }
+        </div>
+
+        @if (isDraft()) {
+          @if (byProducts().length === 0) {
+            <p class="text-muted small mb-0">No by-products.</p>
+          } @else {
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th scope="col">Product</th>
+                    <th scope="col" class="text-end" style="width: 130px;">% of Cost</th>
+                    <th scope="col" class="text-end" style="width: 150px;">Qty</th>
+                    <th scope="col" style="width: 48px;"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of byProducts(); track line.key) {
+                    <tr>
+                      <td>
+                        <select class="form-select form-select-sm" (change)="onByProductProduct(line.key, $event)">
+                          <option value="" [selected]="line.productId === ''">Select...</option>
+                          @for (product of products(); track product.id) {
+                            <option [value]="product.id" [selected]="product.id === line.productId">
+                              {{ product.code }} — {{ product.name }}
+                            </option>
+                          }
+                        </select>
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="any"
+                          class="form-control form-control-sm text-end"
+                          [value]="line.costAllocationPct"
+                          (input)="onByProductPct(line.key, $event)"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          class="form-control form-control-sm text-end"
+                          [value]="line.quantity"
+                          (input)="onByProductQuantity(line.key, $event)"
+                        />
+                      </td>
+                      <td class="text-end">
+                        <button
+                          type="button"
+                          class="btn btn-outline-danger btn-sm"
+                          aria-label="Remove by-product"
+                          (click)="removeByProduct(line.key)"
+                        >
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            @if (!allocationIsSane()) {
+              <div class="alert alert-warning mt-3 mb-0 py-2 small">
+                By-products are allocated {{ allocationTotal() | amount }}% of the cost of production in total, which
+                leaves the finished goods nothing. The total must be less than 100%.
+              </div>
+            }
+          }
+        } @else if (order(); as doc) {
+          @if (doc.byProducts.length === 0) {
+            <p class="text-muted small mb-0">No by-products.</p>
+          } @else {
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th scope="col">Product</th>
+                    <th scope="col" class="text-end">% of Cost</th>
+                    <th scope="col" class="text-end">Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of doc.byProducts; track line.id) {
+                    <tr>
+                      <td>
+                        {{ line.productName }}
+                        <div class="text-muted small">{{ line.productCode }}</div>
+                      </td>
+                      <td class="text-end">{{ line.costAllocationPct }}%</td>
+                      <td class="text-end">{{ line.quantity }} {{ line.unitName ?? '' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        }
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 fw-bold mb-0 text-dark">Expense</h2>
+          @if (isDraft()) {
+            <button type="button" class="btn btn-outline-primary btn-sm" (click)="addExpense()">
+              <i class="bi bi-plus-lg"></i> Add
+            </button>
+          }
+        </div>
+
+        @if (isDraft()) {
+          @if (expenses().length === 0) {
+            <p class="text-muted small mb-0">No production expenses.</p>
+          } @else {
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th scope="col">Production Cost Term</th>
+                    <th scope="col" class="text-end" style="width: 180px;">Amount</th>
+                    <th scope="col" style="width: 48px;"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of expenses(); track line.key) {
+                    <tr>
+                      <td>
+                        <select class="form-select form-select-sm" (change)="onExpenseTerm(line.key, $event)">
+                          <option value="" [selected]="line.costTermId === ''">Select...</option>
+                          @for (term of costTerms(); track term.id) {
+                            <option [value]="term.id" [selected]="term.id === line.costTermId">{{ term.name }}</option>
+                          }
+                        </select>
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          class="form-control form-control-sm text-end"
+                          [value]="line.amount"
+                          (input)="onExpenseAmount(line.key, $event)"
+                        />
+                      </td>
+                      <td class="text-end">
+                        <button
+                          type="button"
+                          class="btn btn-outline-danger btn-sm"
+                          aria-label="Remove expense"
+                          (click)="removeExpense(line.key)"
+                        >
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        } @else if (order(); as doc) {
+          @if (doc.expenses.length === 0) {
+            <p class="text-muted small mb-0">No production expenses.</p>
+          } @else {
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th scope="col">Production Cost Term</th>
+                    <th scope="col" class="text-end">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of doc.expenses; track line.id) {
+                    <tr>
+                      <td>{{ line.costTermName }}</td>
+                      <td class="text-end">{{ line.amount | amount }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        }
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      @if (isDraft()) {
+        <button type="button" class="btn btn-primary fw-bold" [disabled]="!canSave() || saving()" (click)="save()">
+          {{ saving() ? 'Saving...' : isNew() ? 'Create Production Order' : 'Save Changes' }}
+        </button>
+      }
+      @if (canApprove()) {
+        <button type="button" class="btn btn-success fw-bold" [disabled]="approving()" (click)="approve()">
+          {{ approving() ? 'Approving...' : 'Approve' }}
+        </button>
+      }
+      @if (order(); as doc) {
+        @if (doc.status === 'Approved') {
+          <button type="button" class="btn btn-outline-danger" [disabled]="voiding()" (click)="voidDocument()">
+            {{ voiding() ? 'Voiding...' : 'Void this Production Order' }}
+          </button>
+        }
+      }
+    </div>
+  }
+</div>

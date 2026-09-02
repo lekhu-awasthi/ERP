@@ -9,6 +9,7 @@ using ErpApp.Domain.Identity;
 using ErpApp.Domain.Exports;
 using ErpApp.Domain.Imports;
 using ErpApp.Domain.Inventory;
+using ErpApp.Domain.Manufacturing;
 using ErpApp.Domain.Payments;
 using ErpApp.Domain.Purchasing;
 using ErpApp.Domain.Sales;
@@ -148,6 +149,18 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<InventoryAdjustment> InventoryAdjustments => Set<InventoryAdjustment>();
 
     public DbSet<InventoryAdjustmentLine> InventoryAdjustmentLines => Set<InventoryAdjustmentLine>();
+    public DbSet<BillOfMaterials> BillsOfMaterials => Set<BillOfMaterials>();
+    public DbSet<BomRawMaterialLine> BomRawMaterialLines => Set<BomRawMaterialLine>();
+    public DbSet<BomByProductLine> BomByProductLines => Set<BomByProductLine>();
+    public DbSet<BomExpenseLine> BomExpenseLines => Set<BomExpenseLine>();
+    public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
+    public DbSet<ProductionOrderRawMaterialLine> ProductionOrderRawMaterialLines => Set<ProductionOrderRawMaterialLine>();
+    public DbSet<ProductionOrderByProductLine> ProductionOrderByProductLines => Set<ProductionOrderByProductLine>();
+    public DbSet<ProductionOrderExpenseLine> ProductionOrderExpenseLines => Set<ProductionOrderExpenseLine>();
+    public DbSet<ProductionJournal> ProductionJournals => Set<ProductionJournal>();
+    public DbSet<ProductionJournalRawMaterialLine> ProductionJournalRawMaterialLines => Set<ProductionJournalRawMaterialLine>();
+    public DbSet<ProductionJournalByProductLine> ProductionJournalByProductLines => Set<ProductionJournalByProductLine>();
+    public DbSet<ProductionJournalExpenseLine> ProductionJournalExpenseLines => Set<ProductionJournalExpenseLine>();
 
     public DbSet<TaskType> TaskTypes => Set<TaskType>();
 
@@ -364,6 +377,55 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<Deal>()
             .Metadata.FindNavigation(nameof(Deal.Assignees))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        // Phase 25 (Manufacturing) -- THREE encapsulated child collections per aggregate, and this
+        // context has no ApplyConfigurationsFromAssembly, so every one has to be restated here or
+        // EF falls back to convention and mis-maps the navigation. The symptom is the identical
+        // DbUpdateConcurrencyException that phase-24 bug #1 produces for a different reason, which
+        // is exactly what makes the pair hard to tell apart -- see CLAUDE.md's Known Gotchas.
+        modelBuilder.Entity<ProductionJournal>().Ignore(x => x.TotalCostOfProduction);
+        modelBuilder.Entity<ProductionJournal>().Ignore(x => x.CostRoundingAdjustment);
+        modelBuilder.Entity<ProductionOrder>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<ProductionJournal>().Ignore(x => x.RowVersion);
+
+        modelBuilder.Entity<BillOfMaterials>()
+            .HasMany(x => x.RawMaterials).WithOne().HasForeignKey(x => x.BillOfMaterialsId);
+        modelBuilder.Entity<BillOfMaterials>()
+            .HasMany(x => x.ByProducts).WithOne().HasForeignKey(x => x.BillOfMaterialsId);
+        modelBuilder.Entity<BillOfMaterials>()
+            .HasMany(x => x.Expenses).WithOne().HasForeignKey(x => x.BillOfMaterialsId);
+        modelBuilder.Entity<BillOfMaterials>()
+            .Metadata.FindNavigation(nameof(BillOfMaterials.RawMaterials))!.SetPropertyAccessMode(PropertyAccessMode.Field);
+        modelBuilder.Entity<BillOfMaterials>()
+            .Metadata.FindNavigation(nameof(BillOfMaterials.ByProducts))!.SetPropertyAccessMode(PropertyAccessMode.Field);
+        modelBuilder.Entity<BillOfMaterials>()
+            .Metadata.FindNavigation(nameof(BillOfMaterials.Expenses))!.SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        modelBuilder.Entity<ProductionOrder>()
+            .HasMany(x => x.RawMaterials).WithOne().HasForeignKey(x => x.ProductionOrderId);
+        modelBuilder.Entity<ProductionOrder>()
+            .HasMany(x => x.ByProducts).WithOne().HasForeignKey(x => x.ProductionOrderId);
+        modelBuilder.Entity<ProductionOrder>()
+            .HasMany(x => x.Expenses).WithOne().HasForeignKey(x => x.ProductionOrderId);
+        modelBuilder.Entity<ProductionOrder>()
+            .Metadata.FindNavigation(nameof(ProductionOrder.RawMaterials))!.SetPropertyAccessMode(PropertyAccessMode.Field);
+        modelBuilder.Entity<ProductionOrder>()
+            .Metadata.FindNavigation(nameof(ProductionOrder.ByProducts))!.SetPropertyAccessMode(PropertyAccessMode.Field);
+        modelBuilder.Entity<ProductionOrder>()
+            .Metadata.FindNavigation(nameof(ProductionOrder.Expenses))!.SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        modelBuilder.Entity<ProductionJournal>()
+            .HasMany(x => x.RawMaterials).WithOne().HasForeignKey(x => x.ProductionJournalId);
+        modelBuilder.Entity<ProductionJournal>()
+            .HasMany(x => x.ByProducts).WithOne().HasForeignKey(x => x.ProductionJournalId);
+        modelBuilder.Entity<ProductionJournal>()
+            .HasMany(x => x.Expenses).WithOne().HasForeignKey(x => x.ProductionJournalId);
+        modelBuilder.Entity<ProductionJournal>()
+            .Metadata.FindNavigation(nameof(ProductionJournal.RawMaterials))!.SetPropertyAccessMode(PropertyAccessMode.Field);
+        modelBuilder.Entity<ProductionJournal>()
+            .Metadata.FindNavigation(nameof(ProductionJournal.ByProducts))!.SetPropertyAccessMode(PropertyAccessMode.Field);
+        modelBuilder.Entity<ProductionJournal>()
+            .Metadata.FindNavigation(nameof(ProductionJournal.Expenses))!.SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 
     public static IAppDbContext Create() => Create(Guid.NewGuid().ToString());

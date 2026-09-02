@@ -37,3 +37,8 @@ appsettings.*.local.json
 secrets.json
 testsprite_tests/tmp/
 testsprite_tests/tmp/config.json
+
+# Phase 25: the ASP.NET dev certificate, exported so `ng serve --ssl` can present one the
+# browser already trusts (see docs/phase-25-status.md's browser-pass note). Regenerate with:
+#   dotnet dev-certs https --export-path .certs/dev.pem --format PEM --no-password
+.certs/

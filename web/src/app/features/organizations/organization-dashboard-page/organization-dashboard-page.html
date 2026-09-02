@@ -153,6 +153,30 @@
                 <i class="bi bi-boxes"></i> Stock Position
               </a>
             }
+            <!-- Phase 25 (FR-8.8/8.9): Manufacturing needs both entitlements, exactly as every
+                 manufacturing command/query declares. A Manufacturing-off tenant sees no
+                 production surface at all -- unlike MultipleWarehouses, there is nothing it
+                 becomes unable to do, so a hard block is right here. -->
+            @if (hasFeature('TrackInventory') && hasFeature('Manufacturing')) {
+              <a [routerLink]="['/organizations', organizationId(), 'manufacturing', 'bills-of-materials']" class="btn btn-outline-secondary btn-sm fw-bold">
+                <i class="bi bi-diagram-3"></i> Bills Of Materials
+              </a>
+              <a [routerLink]="['/organizations', organizationId(), 'manufacturing', 'production-orders']" class="btn btn-outline-secondary btn-sm fw-bold">
+                <i class="bi bi-clipboard-check"></i> Production Orders
+              </a>
+              <a [routerLink]="['/organizations', organizationId(), 'manufacturing', 'production-journals']" class="btn btn-outline-secondary btn-sm fw-bold">
+                <i class="bi bi-gear-wide-connected"></i> Production Journals
+              </a>
+              <a [routerLink]="['/organizations', organizationId(), 'reports', 'production-summary']" class="btn btn-outline-secondary btn-sm fw-bold">
+                <i class="bi bi-clipboard-data"></i> Production Summary Report
+              </a>
+              <a [routerLink]="['/organizations', organizationId(), 'reports', 'production-variance']" class="btn btn-outline-secondary btn-sm fw-bold">
+                <i class="bi bi-graph-up-arrow"></i> Production Variance Report
+              </a>
+              <a [routerLink]="['/organizations', organizationId(), 'reports', 'production-planning']" class="btn btn-outline-secondary btn-sm fw-bold">
+                <i class="bi bi-calendar3-range"></i> Production Planning Report
+              </a>
+            }
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'trial-balance']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-journal-text"></i> Trial Balance
             </a>

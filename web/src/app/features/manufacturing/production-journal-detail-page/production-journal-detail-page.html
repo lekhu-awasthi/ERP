@@ -1,0 +1,553 @@
+<div class="container py-5" style="max-width: 1050px;">
+  <a
+    class="btn btn-link btn-sm text-decoration-none mb-3 ps-0"
+    [routerLink]="['/organizations', organizationId, 'manufacturing', 'production-journals']"
+  >
+    <i class="bi bi-arrow-left"></i> Back to Production Journals
+  </a>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  @if (warningMessage()) {
+    <div class="alert alert-warning d-flex justify-content-between align-items-center gap-2 mb-4" role="alert">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-exclamation-circle-fill"></i>
+        <div>{{ warningMessage() }}</div>
+      </div>
+      @if (!isNew() && isDraft()) {
+        <button type="button" class="btn btn-warning btn-sm fw-bold" [disabled]="approving()" (click)="approve(true)">
+          Approve anyway
+        </button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary mb-3" role="status"></div>
+      <p class="text-muted mb-0">Loading production journal...</p>
+    </div>
+  } @else {
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+          <div>
+            <h1 class="h4 fw-bold mb-1 text-dark">
+              {{ isNew() ? 'New Production Journal' : journal()?.code }}
+            </h1>
+            @if (journal(); as doc) {
+              <span class="text-muted small">
+                Created {{ doc.createdAt | date: 'medium' }}
+                @if (doc.referrerId) {
+                  · converted from a Production Order
+                }
+              </span>
+            }
+          </div>
+          @if (journal(); as doc) {
+            @if (doc.status === 'Approved') {
+              <span class="badge bg-success-subtle text-success">Approved</span>
+            } @else if (doc.status === 'Void') {
+              <span class="badge bg-secondary-subtle text-secondary">Void</span>
+            } @else {
+              <span class="badge bg-warning-subtle text-warning-emphasis">Draft</span>
+            }
+          }
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12 col-sm-3">
+            <label class="form-label small fw-semibold">Date</label>
+            <app-bs-date-input
+              [inputClass]="'form-control'"
+              [value]="date()"
+              (valueChange)="onDate($event)"
+              [disabled]="!isDraft()"
+            />
+          </div>
+          <div class="col-12 col-sm-3">
+            <label class="form-label small fw-semibold" for="pj-reference">Reference</label>
+            <input
+              id="pj-reference"
+              type="text"
+              class="form-control form-control-sm"
+              [value]="reference()"
+              [disabled]="!isDraft()"
+              (input)="onReference($event)"
+            />
+          </div>
+          <div class="col-12 col-sm-6">
+            <label class="form-label small fw-semibold" for="pj-product">Product</label>
+            <select
+              id="pj-product"
+              class="form-select form-select-sm"
+              [disabled]="!isDraft()"
+              (change)="onProductId($event)"
+            >
+              <option value="" [selected]="productId() === ''">Select a product...</option>
+              @for (product of products(); track product.id) {
+                <option [value]="product.id" [selected]="product.id === productId()">
+                  {{ product.code }} — {{ product.name }}
+                </option>
+              }
+            </select>
+          </div>
+          <div class="col-12 col-sm-3">
+            <label class="form-label small fw-semibold" for="pj-output">Output Quantity</label>
+            <input
+              id="pj-output"
+              type="number"
+              min="0"
+              step="any"
+              class="form-control form-control-sm"
+              [value]="outputQuantity()"
+              [disabled]="!isDraft()"
+              (input)="onOutputQuantity($event)"
+            />
+          </div>
+          <div class="col-12 col-sm-5">
+            <label class="form-label small fw-semibold" for="pj-warehouse">Warehouse</label>
+            <select
+              id="pj-warehouse"
+              class="form-select form-select-sm"
+              [disabled]="!isDraft()"
+              (change)="onWarehouse($event)"
+            >
+              <option value="" [selected]="warehouseId() === ''">Select a warehouse...</option>
+              @for (warehouse of warehouses(); track warehouse.id) {
+                <option [value]="warehouse.id" [selected]="warehouse.id === warehouseId()">{{ warehouse.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-12 col-sm-4 d-flex align-items-end">
+            @if (isDraft()) {
+              <button
+                type="button"
+                class="btn btn-success btn-sm fw-bold"
+                [disabled]="!canLoadBom() || loadingBom()"
+                (click)="loadBom()"
+              >
+                <i class="bi bi-arrow-repeat"></i> {{ loadingBom() ? 'Loading...' : 'Load BOM' }}
+              </button>
+            }
+          </div>
+          <div class="col-12">
+            <label class="form-label small fw-semibold" for="pj-notes">Notes</label>
+            <textarea
+              id="pj-notes"
+              class="form-control form-control-sm"
+              rows="2"
+              [value]="notes()"
+              [disabled]="!isDraft()"
+              (input)="onNotes($event)"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 fw-bold mb-0 text-dark">Raw Materials (Input)</h2>
+          @if (isDraft()) {
+            <button type="button" class="btn btn-outline-primary btn-sm" (click)="addMaterial()">
+              <i class="bi bi-plus-lg"></i> Add
+            </button>
+          }
+        </div>
+
+        @if (isDraft()) {
+          <p class="text-muted small">
+            Rates are resolved from the FIFO stock ledger when this journal is approved, so they are not entered here.
+          </p>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col">Product</th>
+                  <th scope="col" class="text-end" style="width: 160px;">Qty</th>
+                  <th scope="col" style="width: 48px;"></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of rawMaterials(); track line.key) {
+                  <tr>
+                    <td>
+                      <select class="form-select form-select-sm" (change)="onMaterialProduct(line.key, $event)">
+                        <option value="" [selected]="line.productId === ''">Select...</option>
+                        @for (product of products(); track product.id) {
+                          <option [value]="product.id" [selected]="product.id === line.productId">
+                            {{ product.code }} — {{ product.name }}
+                          </option>
+                        }
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        class="form-control form-control-sm text-end"
+                        [value]="line.quantity"
+                        (input)="onMaterialQuantity(line.key, $event)"
+                      />
+                    </td>
+                    <td class="text-end">
+                      <button
+                        type="button"
+                        class="btn btn-outline-danger btn-sm"
+                        aria-label="Remove raw material"
+                        (click)="removeMaterial(line.key)"
+                      >
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else if (journal(); as doc) {
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col">Product</th>
+                  <th scope="col" class="text-end">Qty</th>
+                  <th scope="col" class="text-end">Rate</th>
+                  <th scope="col" class="text-end">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of doc.rawMaterials; track line.id) {
+                  <tr>
+                    <td>
+                      {{ line.productName }}
+                      <div class="text-muted small">{{ line.productCode }}</div>
+                    </td>
+                    <td class="text-end">{{ line.quantity }} {{ line.unitName ?? '' }}</td>
+                    <td class="text-end">{{ line.rate === null ? '—' : (line.rate | amount) }}</td>
+                    <td class="text-end">{{ line.amount === null ? '—' : (line.amount | amount) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 fw-bold mb-0 text-dark">By Product (Output)</h2>
+          @if (isDraft()) {
+            <button type="button" class="btn btn-outline-primary btn-sm" (click)="addByProduct()">
+              <i class="bi bi-plus-lg"></i> Add
+            </button>
+          }
+        </div>
+
+        @if (isDraft()) {
+          @if (byProducts().length === 0) {
+            <p class="text-muted small mb-0">No by-products.</p>
+          } @else {
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th scope="col">Product</th>
+                    <th scope="col" class="text-end" style="width: 130px;">% of Cost</th>
+                    <th scope="col" class="text-end" style="width: 150px;">Qty</th>
+                    <th scope="col" style="width: 48px;"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of byProducts(); track line.key) {
+                    <tr>
+                      <td>
+                        <select class="form-select form-select-sm" (change)="onByProductProduct(line.key, $event)">
+                          <option value="" [selected]="line.productId === ''">Select...</option>
+                          @for (product of products(); track product.id) {
+                            <option [value]="product.id" [selected]="product.id === line.productId">
+                              {{ product.code }} — {{ product.name }}
+                            </option>
+                          }
+                        </select>
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="any"
+                          class="form-control form-control-sm text-end"
+                          [value]="line.costAllocationPct"
+                          (input)="onByProductPct(line.key, $event)"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          class="form-control form-control-sm text-end"
+                          [value]="line.quantity"
+                          (input)="onByProductQuantity(line.key, $event)"
+                        />
+                      </td>
+                      <td class="text-end">
+                        <button
+                          type="button"
+                          class="btn btn-outline-danger btn-sm"
+                          aria-label="Remove by-product"
+                          (click)="removeByProduct(line.key)"
+                        >
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            @if (!allocationIsSane()) {
+              <div class="alert alert-warning mt-3 mb-0 py-2 small">
+                By-products are allocated {{ allocationTotal() | amount }}% of the cost of production in total, which
+                leaves the finished goods nothing. The total must be less than 100%.
+              </div>
+            }
+          }
+        } @else if (journal(); as doc) {
+          @if (doc.byProducts.length === 0) {
+            <p class="text-muted small mb-0">No by-products.</p>
+          } @else {
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th scope="col">Product</th>
+                    <th scope="col" class="text-end">% of Cost</th>
+                    <th scope="col" class="text-end">Qty</th>
+                    <th scope="col" class="text-end">Rate</th>
+                    <th scope="col" class="text-end">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of doc.byProducts; track line.id) {
+                    <tr>
+                      <td>
+                        {{ line.productName }}
+                        <div class="text-muted small">{{ line.productCode }}</div>
+                      </td>
+                      <td class="text-end">{{ line.costAllocationPct }}%</td>
+                      <td class="text-end">{{ line.quantity }} {{ line.unitName ?? '' }}</td>
+                      <td class="text-end">{{ line.rate === null ? '—' : (line.rate | amount) }}</td>
+                      <td class="text-end">{{ line.amount === null ? '—' : (line.amount | amount) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        }
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 fw-bold mb-0 text-dark">Production Expenses</h2>
+          @if (isDraft()) {
+            <button type="button" class="btn btn-outline-primary btn-sm" (click)="addExpense()">
+              <i class="bi bi-plus-lg"></i> Add
+            </button>
+          }
+        </div>
+
+        @if (isDraft()) {
+          @if (expenses().length === 0) {
+            <p class="text-muted small mb-0">No production expenses.</p>
+          } @else {
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th scope="col">Production Cost Term</th>
+                    <th scope="col" class="text-end" style="width: 180px;">Amount</th>
+                    <th scope="col" style="width: 48px;"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of expenses(); track line.key) {
+                    <tr>
+                      <td>
+                        <select class="form-select form-select-sm" (change)="onExpenseTerm(line.key, $event)">
+                          <option value="" [selected]="line.costTermId === ''">Select...</option>
+                          @for (term of costTerms(); track term.id) {
+                            <option [value]="term.id" [selected]="term.id === line.costTermId">{{ term.name }}</option>
+                          }
+                        </select>
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          class="form-control form-control-sm text-end"
+                          [value]="line.amount"
+                          (input)="onExpenseAmount(line.key, $event)"
+                        />
+                      </td>
+                      <td class="text-end">
+                        <button
+                          type="button"
+                          class="btn btn-outline-danger btn-sm"
+                          aria-label="Remove expense"
+                          (click)="removeExpense(line.key)"
+                        >
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        } @else if (journal(); as doc) {
+          @if (doc.expenses.length === 0) {
+            <p class="text-muted small mb-0">No production expenses.</p>
+          } @else {
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th scope="col">Production Cost Term</th>
+                    <th scope="col" class="text-end">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of doc.expenses; track line.id) {
+                    <tr>
+                      <td>{{ line.costTermName }}</td>
+                      <td class="text-end">{{ line.amount | amount }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        }
+      </div>
+    </div>
+
+    @if (journal(); as doc) {
+      @if (doc.finishedGoodsCost !== null) {
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-body p-4">
+            <h2 class="h6 fw-bold mb-3 text-dark">Cost Roll-up</h2>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0" style="max-width: 480px;">
+                <tbody>
+                  <tr>
+                    <td>Raw Material Cost</td>
+                    <td class="text-end">{{ doc.rawMaterialCost | amount }}</td>
+                  </tr>
+                  <tr>
+                    <td>Production Expenses</td>
+                    <td class="text-end">{{ doc.productionExpenseCost | amount }}</td>
+                  </tr>
+                  <tr class="fw-semibold">
+                    <td>Total Cost of Production</td>
+                    <td class="text-end">{{ doc.totalCostOfProduction | amount }}</td>
+                  </tr>
+                  <tr>
+                    <td>Cost Allocated to By-product</td>
+                    <td class="text-end">{{ doc.costAllocatedToByProduct | amount }}</td>
+                  </tr>
+                  @if (doc.costRoundingAdjustment !== null && doc.costRoundingAdjustment !== 0) {
+                    <tr class="text-muted">
+                      <td>
+                        Rounding Adjustment
+                        <div class="small">
+                          The unit cost is stored to four decimals, so the stock created is worth this much more or
+                          less than the cost that went in. It is smaller than a cent by construction, which is why it
+                          is shown to four places.
+                        </div>
+                      </td>
+                      <td class="text-end">{{ doc.costRoundingAdjustment | amount: 4 }}</td>
+                    </tr>
+                  }
+                  <tr class="fw-bold border-top">
+                    <td>Finished Goods Cost</td>
+                    <td class="text-end">{{ doc.finishedGoodsCost | amount }}</td>
+                  </tr>
+                  <tr class="fw-bold">
+                    <td>Cost Per Unit</td>
+                    <td class="text-end">{{ doc.finishedGoodsUnitCost | amount }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (doc.glLines; as glLines) {
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-body p-4">
+            <h2 class="h6 fw-bold mb-3 text-dark">GL Transactions</h2>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th scope="col">Account</th>
+                    <th scope="col" class="text-end">Debit</th>
+                    <th scope="col" class="text-end">Credit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of glLines; track line.id) {
+                    <tr>
+                      <td>{{ accountLabel(line.accountId) }}</td>
+                      <td class="text-end">{{ line.debit === 0 ? '—' : (line.debit | amount) }}</td>
+                      <td class="text-end">{{ line.credit === 0 ? '—' : (line.credit | amount) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      }
+    }
+
+    <div class="d-flex gap-2 flex-wrap">
+      @if (isDraft()) {
+        <button type="button" class="btn btn-primary fw-bold" [disabled]="!canSave() || saving()" (click)="save()">
+          {{ saving() ? 'Saving...' : isNew() ? 'Create Production Journal' : 'Save Changes' }}
+        </button>
+      }
+      @if (canApprove()) {
+        <button type="button" class="btn btn-success fw-bold" [disabled]="approving()" (click)="approve()">
+          {{ approving() ? 'Approving...' : 'Approve' }}
+        </button>
+      }
+      @if (journal(); as doc) {
+        @if (doc.status === 'Approved') {
+          <button type="button" class="btn btn-outline-danger" [disabled]="voiding()" (click)="voidDocument()">
+            {{ voiding() ? 'Voiding...' : 'Void this Production Journal' }}
+          </button>
+        }
+      }
+    </div>
+  }
+</div>

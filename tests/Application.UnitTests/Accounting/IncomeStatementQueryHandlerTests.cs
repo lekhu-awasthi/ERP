@@ -91,7 +91,7 @@ public class IncomeStatementQueryHandlerTests
 
         var settings = TenantSettings.CreateDefault(organizationId);
         settings.SetAccountingDefaults(sales.Id, ar.Id, vatPayable.Id, purchase.Id, ap.Id, null, null);
-        settings.SetInventoryDefaults(inventory.Id, cogs.Id, null);
+        settings.SetInventoryDefaults(inventory.Id, cogs.Id, null, null);
         db.TenantSettings.Add(settings);
         await db.SaveChangesAsync(CancellationToken.None);
 

@@ -10,6 +10,7 @@ using ErpApp.Application.Imports;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
 using ErpApp.Application.Inventory.Posting;
+using ErpApp.Application.Manufacturing.Posting;
 using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Payments.Posting;
 using ErpApp.Application.Purchasing.Posting;
@@ -136,6 +137,9 @@ public static class DependencyInjection
         // InventoryAdjustment is the one Inventory document type that posts GL (WarehouseTransfer
         // deliberately doesn't -- see that aggregate's doc comment).
         services.AddTransient<IGlPostingRule<InventoryAdjustmentPostingInput>, InventoryAdjustmentPostingRule>();
+        // Phase 25 (Manufacturing, FR-8.9). Posts because this codebase is perpetual-inventory,
+        // unlike the reference tenant -- see ProductionJournalPostingRule for the whole argument.
+        services.AddTransient<IGlPostingRule<ProductionJournalPostingInput>, ProductionJournalPostingRule>();
 
         // Phase 20e (Alert Scheduler, FR-11.1) -- IAlertContentBuilder is the IGlPostingRule<T>
         // shape applied to alert bodies: one implementation per AlertType enum member, resolved by

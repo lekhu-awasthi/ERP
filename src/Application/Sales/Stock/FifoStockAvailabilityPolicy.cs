@@ -14,8 +14,12 @@ namespace ErpApp.Application.Sales.Stock;
 /// nothing to check). For each remaining line, sums requested Quantity per ProductId (a line-split
 /// product could appear more than once) and compares against
 /// IStockLedgerService.GetAvailableQuantityAsync for (ProductId, Invoice.WarehouseId). The first
-/// product with a shortfall decides the whole invoice's status -- once any shortfall exists, this
+/// product with a shortfall decides the whole document's status -- once any shortfall exists, this
 /// stops checking further lines and asks TenantSettings.NegativeStockBalanceAction what to do.
+///
+/// <para>Phase 25 split the Invoice-specific part (which lines count, and where the warehouse
+/// comes from) from the part that is the same for every stock-consuming document, so a Production
+/// Journal reaches the identical branch on that setting.</para>
 /// </summary>
 public sealed class FifoStockAvailabilityPolicy(IAppDbContext db, IStockLedgerService stockLedgerService)
     : IStockAvailabilityPolicy
@@ -29,18 +33,29 @@ public sealed class FifoStockAvailabilityPolicy(IAppDbContext db, IStockLedgerSe
             .Select(x => new { x.Id, x.Type })
             .ToDictionaryAsync(x => x.Id, x => x.Type, cancellationToken);
 
-        var requestedByProduct = invoice.Lines
+        var requirements = invoice.Lines
             .Where(x => productTypes.TryGetValue(x.ProductId, out var type) && type == ProductType.Goods)
             .GroupBy(x => x.ProductId)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
+            .Select(g => new StockRequirement(g.Key, g.Sum(x => x.Quantity)))
+            .ToList();
 
+        return await CheckRequirementsAsync(
+            invoice.OrganizationId, invoice.WarehouseId, requirements, cancellationToken);
+    }
+
+    public async Task<StockAvailabilityStatus> CheckRequirementsAsync(
+        Guid organizationId,
+        Guid warehouseId,
+        IReadOnlyCollection<StockRequirement> requirements,
+        CancellationToken cancellationToken)
+    {
         var hasShortfall = false;
-        foreach (var (productId, requestedQuantity) in requestedByProduct)
+        foreach (var requirement in requirements)
         {
             var available = await stockLedgerService.GetAvailableQuantityAsync(
-                invoice.OrganizationId, productId, invoice.WarehouseId, cancellationToken);
+                organizationId, requirement.ProductId, warehouseId, cancellationToken);
 
-            if (requestedQuantity > available)
+            if (requirement.Quantity > available)
             {
                 hasShortfall = true;
                 break;
@@ -53,7 +68,7 @@ public sealed class FifoStockAvailabilityPolicy(IAppDbContext db, IStockLedgerSe
         }
 
         var settings = await db.TenantSettings.SingleOrDefaultAsync(
-            x => x.OrganizationId == invoice.OrganizationId, cancellationToken)
+            x => x.OrganizationId == organizationId, cancellationToken)
             ?? throw new NotFoundException("Tenant settings not found.");
 
         return settings.NegativeStockBalanceAction switch

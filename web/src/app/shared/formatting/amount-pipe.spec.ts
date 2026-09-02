@@ -57,4 +57,22 @@ describe('AmountPipe', () => {
     expect(pipe.transform(1.005)).toBe('1.01');
     expect(pipe.transform(2.675)).toBe('2.68');
   });
+
+  it('takes an optional precision, defaulting to two (Phase 25)', () => {
+    // The production cost roll-up's rounding residue is smaller than a cent by construction, so at
+    // the default precision it renders as "0.00" -- a row that looks like a defect rather than a
+    // disclosure. Found in Phase 25's browser pass.
+    expect(pipe.transform(0.0001)).toBe('0.00');
+    expect(pipe.transform(0.0001, 4)).toBe('0.0001');
+    expect(pipe.transform(-0.008, 4)).toBe('-0.0080');
+
+    // The default is unchanged, which is what keeps all 324 existing call sites correct.
+    expect(pipe.transform(1234567.891)).toBe('12,34,567.89');
+    expect(pipe.transform(1234567.891, 4)).toBe('12,34,567.8910');
+  });
+
+  it('never renders a negative that rounds to all zeros as "-0", at any precision', () => {
+    expect(pipe.transform(-0.001)).toBe('0.00');
+    expect(pipe.transform(-0.000001, 4)).toBe('0.0000');
+  });
 });

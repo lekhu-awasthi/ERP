@@ -94,6 +94,25 @@ public sealed class TenantSettings
     public Guid? DefaultInventoryAdjustmentAccountId { get; private set; }
 
     /// <summary>
+    /// Phase 25 addition (FR-8.9) -- the eleventh and only new default account, read solely by
+    /// ProductionJournalPostingRule. It is the contra-expense (absorption) account a production
+    /// run credits when it capitalises labour/overhead into finished-goods stock: Inventory is
+    /// debited with the new layers and credited with the consumed ones, and this account takes the
+    /// difference, which is exactly the production expenses added.
+    ///
+    /// <para>Deliberately <b>not</b> a reuse of DefaultInventoryAdjustmentAccountId: production is
+    /// not an adjustment, and folding the two together would make the Inventory Adjustment
+    /// account's balance unreadable as either. Deliberately not a WIP control account either --
+    /// a Production Journal is atomic, so a WIP account would be debited and credited within the
+    /// same entry and always net to zero, adding an eleventh account for no information.</para>
+    ///
+    /// <para>Required at Approve, unconditionally, exactly as DefaultInventoryAccountId is: the
+    /// posting leg can be non-zero even with no expense lines, because the finished unit cost is
+    /// rounded to the stock ledger's own scale. See ApproveProductionJournalCommandHandler.</para>
+    /// </summary>
+    public Guid? DefaultProductionCostAccountId { get; private set; }
+
+    /// <summary>
     /// Phase 22 addition (FR-10.3) -- the tenant's opt-in to AI-assisted extraction on Document
     /// inbox uploads. <b>Default false, and deliberately so:</b> this is the first feature in the
     /// product that sends tenant business documents to a third party, and an opt-out default would
@@ -164,11 +183,13 @@ public sealed class TenantSettings
     public void SetInventoryDefaults(
         Guid? defaultInventoryAccountId,
         Guid? defaultCogsAccountId,
-        Guid? defaultInventoryAdjustmentAccountId)
+        Guid? defaultInventoryAdjustmentAccountId,
+        Guid? defaultProductionCostAccountId)
     {
         DefaultInventoryAccountId = defaultInventoryAccountId;
         DefaultCogsAccountId = defaultCogsAccountId;
         DefaultInventoryAdjustmentAccountId = defaultInventoryAdjustmentAccountId;
+        DefaultProductionCostAccountId = defaultProductionCostAccountId;
     }
 
     /// <summary>Phase 22 -- turns AI-assisted extraction on or off for this tenant. Its own

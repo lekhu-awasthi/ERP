@@ -195,7 +195,7 @@ public class GetDefaultPaymentAllocationsQueryHandlerTests
 
         var settings = TenantSettings.CreateDefault(organizationId);
         settings.SetAccountingDefaults(sales.Id, ar.Id, vatPayable.Id, purchase.Id, ap.Id, vatReceivable.Id, tdsPayable.Id);
-        settings.SetInventoryDefaults(inventory.Id, cogs.Id, null);
+        settings.SetInventoryDefaults(inventory.Id, cogs.Id, null, null);
         db.TenantSettings.Add(settings);
         await db.SaveChangesAsync(CancellationToken.None);
 
