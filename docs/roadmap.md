@@ -51,6 +51,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 23 | Nepali localization & parity odds-and-ends (NFR-1.1/1.2, FR-5.8): dates stored AD, BS is presentation/entry only (`web/src/app/shared/formatting/`, range 2000–2092), `sweep-guard.spec.ts` enforces sweep completeness, dashboard (Decision F) | `phase-23-status.md` |
 | 24 | Variant Products & Attributes (FR-8.3): live pass showed a variant is a Product with a parent pointer, so five nullable columns plus one rule instead of a stock-key change | `phase-24-status.md` |
 | 25 | Manufacturing (FR-8.8/8.9, FR-9.5's slice), behind the Manufacturing flag: BOM → Production Order → costed Production Journal (Inventory-to-Inventory posting, perpetual; conservation law proven in SQL), Void unwinds both directions, three reports | `phase-25-status.md` |
+| 26a | Report catalog completion, Accounting group (FR-9.1/9.6): Transaction list, Journal report, General Ledger Summary, Detail General Ledger, GL Master Report, plus FR-9.1's **Compare** column on Trial Balance / Balance Sheet / Income Statement. All read `GlJournalEntry`; nothing new stored, the only migration is ten permission-seed rows | `phase-26a-status.md` |
 
 ---
 
@@ -64,157 +65,190 @@ in a non-interactive session). What follows is the second sequence: parity with 
 
 ---
 
-## Parity phases (26–35) — from a gap analysis against the reference product (2026-09-02)
+## Parity phases (26–34) — from a gap analysis against the reference product (2026-09-02, confirm-lived the same day)
 
 **Method.** `erp-module-scan.md`'s module-by-module inventory of Tigg was diffed against what the
 codebase now has (report pages, endpoint groups, Domain aggregates, the wiring of each cross-cutting
-editor, and which `TenantSettings` are actually *read* by a handler). Three kinds of gap came out:
+editor, and which `TenantSettings` are actually *read* by a handler). Every screen the plan depends
+on that the scan had never opened was then read live on the Moonbeam UAT tenant — the findings are
+in `erp-module-scan.md` under "Confirm-live pass for the parity plan (2026-09-02)" and are cited
+below as **(live)**. Three kinds of gap came out:
 
 1. **Catalog gaps** — Tigg lists 40 reports; 24 exist here (plus 3 manufacturing). 27 are missing,
    and two PRD requirements are only partly met by them (FR-9.2's receivable/payable summaries,
-   FR-9.3's by-customer/by-item/monthly analytics).
+   FR-9.3's by-customer/by-item/monthly analytics). All 27 were opened live; none is a surprise
+   of the Annex 5 kind, two need data this codebase does not store (below).
 2. **Rollout gaps** — mechanisms that exist but reach a fraction of their surface: Custom Fields on
    2 of 17 document types, Custom Status on 2 of ~5, Reporting Tags on 2, print/PDF on 6 of 15,
-   Custom Templates with **no consumer at all**, import on 3 of 7 entity types. Four `TenantSettings`
-   (`SuggestSellingPriceMode`, `ProductPriceBasis`, `NegativeCashBalanceAction`,
-   `InventoryTrackingMode`) are stored and edited but **read by nothing**; `TrialEndsAt` likewise.
-3. **Structural gaps** — Tigg-core features the v1 roadmap deferred or never named: Billing
-   Locations, multi-currency, physical-movement inventory (Delivery Note / GRN), landed cost, outbound
-   email, per-location permission scope, global search.
+   Custom Templates with **no consumer at all**, import on 3 of 7 entity types. Three
+   `TenantSettings` (`SuggestSellingPriceMode`, `ProductPriceBasis`, `NegativeCashBalanceAction`)
+   are stored and edited but **read by nothing**; `TrialEndsAt` likewise.
+3. **Structural gaps** — Tigg-core features the v1 roadmap deferred or never named: multi-currency,
+   landed cost, outbound email, customer credit control, Billing Locations, global search.
+
+**What the live pass changed.** Multi-currency and landed cost moved *up* (both fully observable
+here, shapes recorded); Billing Locations moved *down* (the feature is an entitlement that is off on
+this tenant, so its screens cannot be read); Delivery Note / GRN moved to the deferred list (the
+"Mode of Inventory Tracking" setting the scan recorded is gone from the General page, though the DO
+and GRN numbering rules remain at next-number 1); and a **Credit Limit** feature the scan missed
+entirely was added (contact-level limit plus a Reject/Warn/Do-Nothing policy).
 
 **Ordering rule.** Cheapest-per-parity first, and nothing that changes a stored shape before the
-reports that will read it exist. Catalog and rollout (26–27) reuse machinery and touch no schema of
-consequence; the structural phases (28–31) each add a column to many documents, so they follow and
-are ordered by how many later phases depend on them (Location before Currency, because per-location
-numbering, opening balances, permission scope and reports all wait on it). Every phase keeps the v1
-exit bar (build/test green, curl-seeded E2E, one proven negative path, a status doc) and the
-confirm-live rule: **a screen the scan never opened is read live before a line is written**.
+reports that will read it exist. Every phase keeps the v1 exit bar (build/test green, curl-seeded
+E2E, one proven negative path, a status doc) and the confirm-live rule.
 
 ### 26. Report catalog completion (FR-9.1/9.2/9.3/9.5/9.6, three sub-phases)
-- **26a — Accounting.** Transaction list, Journal report, General Ledger Summary, Detail General
-  Ledger, GL Master Report; and the **Compare** (period-over-period) column on Trial Balance / Balance
-  Sheet / Income Statement that FR-9.1 names and Phase 8a never built. All read `GlJournalEntry`;
-  nothing new is stored.
+- **26a — Accounting. DONE (`docs/phase-26a-status.md`).** Transaction list (live: Txn Type + Status filters; Created/Approved By/At
+  columns), Journal report, General Ledger Summary, Detail General Ledger, GL Master Report; and the
+  **Compare** (period-over-period) column on Trial Balance / Balance Sheet / Income Statement that
+  FR-9.1 names and Phase 8a never built. All read `GlJournalEntry`; nothing new is stored.
 - **26b — Receivable/Payable and analytics.** Customer Receivable Summary, Supplier Payable Summary,
-  Invoice Age, Purchase Bill Age (closing FR-9.2); Sales/Purchase By Customer/Supplier, By Item,
-  their Monthly variants, Sales Summary Report (closing FR-9.3). Reuse `ContactLedgerReader` and the
-  Master-report handlers' line projections.
+  Invoice Age, Purchase Bill Age (closing FR-9.2; live: a JV posted to a customer is an ageable
+  document, Status is Overdue/Current, Age in days); Sales/Purchase By Customer/Supplier, By Item,
+  their Monthly variants, Sales Summary Report (closing FR-9.3; live: keyed by BS fiscal year and
+  month, not a date range — the first report to need phase-23's BS calendar on the *server*; carries
+  a Service Charge column this codebase has no flag for — omit it with a note, do not fake it).
 - **26c — Inventory, tax, system, analytics.** Inventory Position / Movement / Ledger / Master as
-  *report* pages (the queries exist behind the Product detail), Sales Return Register and Purchase
-  Return Register (phase-19 chose to fold returns into the main registers — confirm live whether the
-  Return variants differ by more than a filter), User Log, Net Trading Assets, Exceptional Report.
-  The last two were **never opened in the scan** — confirm live first; expect an 8f-style surprise.
-- Each report gets its own `Reports.*` key (Admin-only where it exposes per-transaction rows, per
-  the standing rule), `.xlsx` export via `ReportSpreadsheetExporter`, and the manufacturing reports
-  get the export they still lack. Exit: every card on Tigg's Reports landing page has a counterpart
-  here or a recorded reason not to.
+  *report* pages (live: Movement is Opening/In/Out/Balance × Qty/Rate/Value with Category, Product,
+  Warehouse filters); **Sales Return Register and Purchase Return Register** (live: real separate
+  statutory registers with their own Devanagari column set, one row per Credit/Debit Note — so
+  phase-19's "returns are negative rows in the main register" must be revisited: confirm whether the
+  main registers exclude notes once the return registers exist); Net Trading Assets and Exceptional
+  Report (live: both are fixed-row balance reports — twelve named exception rows, and
+  Receivables/Payables/Inventory with Compare and Exclude-Advance switches); **User Log** (live: a
+  login/logout/failed-login event log with device, browser and IP — needs a new `UserLoginEvent`
+  row written by the auth endpoints, including failures keyed by the attempted email; not derivable
+  from `Audit`).
+- Each report gets its own `Reports.*` key (Admin-only where it exposes per-transaction rows or
+  identity, per the standing rule — User Log is Admin-only), `.xlsx` export via
+  `ReportSpreadsheetExporter`, and the manufacturing reports get the export they still lack. Exit:
+  every card on Tigg's Reports landing page has a counterpart here or a recorded reason not to.
 
 ### 27. Cross-cutting rollout sweep (two sub-phases; mechanical, guarded by sweep tests)
 - **27a — Document-level mechanisms.** Custom Fields to the remaining 15 applicable document types
   (Phase 20a's editor, per type); Custom Status to Production Order and Sales Order (20b's
   machinery); Reporting Tags to every transactional type plus Opening Balances (Phase 19's
-  `TransactionReportingTag`); Tasks / Documents / Comments / Activity tabs on transactional
-  document detail pages (Tigg's Invoice detail has them; ours are Contact-scoped — extend
-  `WorkTask`/`Attachment` parent types rather than a new polymorphic entity, per phase-18 Decision #2).
-  A phase-23-style guard spec must prove each sweep complete.
+  `TransactionReportingTag`; live: the opening-balance row form carries the tag control); Tasks /
+  Documents / Comments / Activity tabs on transactional document detail pages (live: the Invoice
+  detail has exactly those four tabs; ours are Contact-scoped — extend `WorkTask`/`Attachment`
+  parent types rather than add a new polymorphic entity, per phase-18 Decision #2). A phase-23-style
+  guard spec must prove each sweep complete.
 - **27b — Output.** Print/PDF for the 9 unwired `DocumentType`s and both production documents
-  (20d's pipeline); **BS dates in server-rendered PDFs and `.xlsx`** (phase-23 Decision A's carried
-  limitation — port `web/src/app/shared/formatting/` to a Domain `BsDate` converter, same 2000–2092
-  range, same null-outside-range rule); the three missing pagers (Email Logs, import history, export
-  history); Turnstile on the New Organization wizard (20g); a feature-flag route guard (20f).
+  (20d's pipeline; live: "View Print Preview" on the detail page); **BS dates in server-rendered
+  PDFs and `.xlsx`** (phase-23 Decision A's carried limitation — port `web/src/app/shared/formatting/`
+  to a Domain `BsDate` converter, same 2000–2092 range; 26b's Sales Summary needs it first, so
+  build the converter there and consume it here); the three missing pagers (Email Logs, import
+  history, export history); Turnstile on the New Organization wizard (20g); a feature-flag route
+  guard (20f).
 - **Custom Templates get their first consumers here:** the `TermsAndConditions` type pre-fills the
-  Quotation/Invoice terms field; `CustomerBalanceConfirmation`/`SupplierBalanceConfirmation` render
-  as a PDF from the Contact statement. The `Email` type waits for Phase 32.
+  "+ Add Terms and Conditions" block on Quotation/Invoice (live: a Terms and conditions section on
+  the detail page); `CustomerBalanceConfirmation`/`SupplierBalanceConfirmation` render as a PDF
+  from the Contact statement. The `Email` type waits for Phase 30.
 
-### 28. Billing Locations (FR-2.3, FR-3.3 — the PRD's v1 item the roadmap parked with POS)
-- **Why now, and why it is not POS.** Tigg's HeadOffice is itself a Billing Location; `Location`
-  appears on Opening Balances, Document Numbering ("Enable Location-wise Next Number" — the flag is
-  already on `DocumentNumberingRule` and read by nothing), the Sales Master report, and the
-  permission matrix (Phase 14 scoped the HeadOffice section out for exactly this reason).
-- **Scope.** `BillingLocation { Code, Name, Address, WarehouseId, LocationType }` under `Tenancy`;
-  **seed a HeadOffice location at Organization creation** and make `MultipleLocations` a *cap at one*
-  (the phase-20f lesson: nothing may block a flag-off tenant); nullable-then-backfilled `LocationId`
-  on every `ApprovableTransaction`, Payment and opening-balance line; location-wise numbering pools;
-  location filter on registers and Master reports; per-location permission scope
-  (`scope ∈ {default, HeadOffice, …}` per `architecture-spec.md` §3.7) as a second matrix in the
-  role editor. POS location *types* are modelled, not built.
-- **Confirm live:** whether a document's location defaults from the user, the warehouse, or the
-  last-used value; whether stock is location- or warehouse-keyed (the scan pairs each location with
-  one warehouse — if that is a hard 1:1, the FIFO key does not change, which is the phase-24 style
-  outcome to hope for).
-
-### 29. Multi-currency (FR-2.5, NFR-1.3)
-- Tigg puts **Currency + Exchange Rate to NPR** on Quotation, Expense, Journal Voucher, Cash
-  Transfer and Opening Balances; NPR stays the functional currency and the GL posts in NPR.
+### 28. Multi-currency (FR-2.5, NFR-1.3) — confirm-lived, shapes known
+- Live: **Currency (default Nepalese Rupee) + Exchange Rate To NPR\*** sit on the Invoice and
+  Purchase Bill add forms even on an NPR-only tenant; the Opening Balances row form carries
+  **Currency + Conversion Rate**; `Organization > Features > Multiple Currency` lists NPR with an
+  ADD NEW CURRENCY action; the Chart of Accounts has a **"Forex Gain"** account (Income, group
+  "Foreign Exchange Gain") — the product realises exchange differences.
 - **Scope.** `Currency` list seeded from the standard catalog with NPR fixed active; `MultiCurrency`
-  flag as a cap (NPR only when off); `CurrencyCode` + `ExchangeRate` on the document, `Amount` stored
-  in transaction currency with the NPR-converted figure carried onto `GlLine` at Approve (fold the
-  conversion into the posted lines exactly as phase-16b folded discounts — reports need zero change).
-- **Confirm live before any posting code:** whether Tigg realises FX gain/loss on settlement at all
-  (a Payment in USD against an invoice booked at a different rate). If it posts nothing, Decision
-  A of this phase is whether *we* do — phase-25's perpetual-vs-periodic argument is the template.
+  flag as a cap (NPR only when off, exactly the 20f pattern); `CurrencyCode` + `ExchangeRate` on
+  every document that shows them live (Quotation, Sales Order, Invoice, Credit Note, Purchase Order,
+  Purchase Bill, Expense, Debit Note, Journal Voucher, Cash Transfer, Payment, opening-balance
+  line); amounts stored in transaction currency with the NPR figure folded onto `GlLine` at Approve
+  (the phase-16b discount pattern — reports need zero change); two new tenant defaults, Forex Gain
+  and Forex Loss accounts, and a posting rule on **Payment allocation** that books the difference
+  between the invoice's booked NPR value and the payment's NPR value. Decision A of the phase is
+  whether unrealised revaluation at period end is in scope (recommend no: Tigg shows no revaluation
+  document, only the realised account).
+- **Confirm live before the allocation rule:** add a currency on the UAT tenant (a config write —
+  ask first), book a USD invoice and a USD receipt at different rates, and read the GL Transactions
+  panel on the receipt. That is the phase-25 experiment shape, and it decides the rule.
 
-### 30. Physical-movement inventory — Delivery Note and Goods Received Note
-- `TenantSettings.InventoryTrackingMode` exists with `PhysicalMovement`/`AccountingMovement` and
-  **no handler reads it**; the scan called this "the single most architecturally important setting".
-  Tigg's numbering prefixes DO and GRN confirm the two document types exist.
-- **Scope.** `DeliveryNote` (Invoice → DO moves stock; the Invoice then posts value only) and
-  `GoodsReceivedNote` (PO → GRN receives stock; the Bill posts value), both `ApprovableTransaction`s
-  with conversion enforcement (phase-6 bug #4's four-part fix), FIFO consumption moved from
-  Invoice/Bill Approve to DO/GRN Approve **only when the mode is PhysicalMovement** — a handler-level
-  gate, not a marker interface (phase-20f). GL rule for goods received-not-billed needs a new
-  tenant default (the twelfth).
-- **Risk:** the UAT tenant runs Accounting Movement, so the DO/GRN screens may be unobservable
-  there. If no PhysicalMovement tenant is available the phase is built to the scan plus the
-  document-numbering evidence and says so, the phase-21c "derive when confirm-live is impossible"
-  precedent — or is descoped by explicit decision, the 20d precedent.
+### 29. Landed cost (FR-6.15, Cost Terms' other half) — confirm-lived, shape known
+- Live, on the Purchase Bill itself: an **Additional Cost** section with an "Add product-wise"
+  toggle and rows of *Cost Term × Product ("All Product" or one product) × Method (Value |
+  Quantity) × Amount (NPR)*. `CostTerm.AdditionalCost` (20c) is the lookup; Phase 25 consumed only
+  the `ProductionCost` half.
+- **Scope.** `PurchaseBillAdditionalCost` lines; at Approve, allocate each amount across the bill's
+  goods lines by value or by quantity (or to the one named product), and capitalise the allocation
+  into the received FIFO layers' unit cost — the phase-25 conservation law again
+  (`bill goods value + additional cost = layer value created + residue`) with the same
+  `UnitCostScale` rounding and a named residue. GL: the additional cost debits Inventory and credits
+  the supplier (same bill) or a separate payee — confirm live which, by approving one bill with a
+  Freight row and reading its GL Transactions. Debit Note / Void must unwind the capitalised cost
+  (phase-16a mirror rule).
 
-### 31. Landed cost and import completeness (FR-6.15, Cost Terms' other half)
-- `CostTerm.AdditionalCost` (Freight, Insurance, Customs Duty) was built in 20c for a consumer that
-  never came; Phase 25 consumed only the `ProductionCost` half. An **Additional Cost** section on the
-  Purchase Bill that capitalises those amounts into the received FIFO layers' unit cost — the
-  phase-25 conservation law again (`bill value + additional cost = layer value created + residue`),
-  with the same `UnitCostScale` rounding and named residue.
-- **Confirm live first:** the scan never saw the section on a Purchase Bill; if it lives elsewhere
-  (a separate Landed Cost document) the shape changes entirely.
+### 30. Communications — outbound email, SMS medium, email logs (FR-11.1, FR-4.5's Email Logs)
+- Live: the Invoice detail's **Send Email** opens a dialog — Template\* (an Email-type Custom
+  Template), To\* with More / CC / BCC, Reply To\* defaulting to the user, Subject\*, an "Attach
+  Invoice PDF" checkbox (on) and a drop zone for extra files.
+- **Scope.** That dialog on every printable document and on the Contact statement; merge fields
+  from the `Email` Custom Template; the PDF from 20d's pipeline attached by default; `EmailLog`
+  rows under the Contact Activity tab (the tab exists, the data does not); `AlertMedium.Sms` through
+  the existing `ISmsSender` (20e listed it as one enum member and a branch). Every send goes through
+  phase-20e's claim-then-act ledger — a resend is a new row, never a retry of the same one.
 
-### 32. Communications — outbound email, SMS medium, email logs (FR-11.1, FR-4.5's Email Logs)
-- Send a document PDF (20d) or Contact statement by email using the `Email` Custom Template's
-  merge fields; `EmailLog` under the Contact Activity tab (the tab exists, the data does not);
-  `AlertMedium.Sms` through the existing `ISmsSender` (20e listed it as one enum member and a
-  branch). Every send goes through phase-20e's claim-then-act ledger — a resend is a new row, never
-  a retry of the same one.
-
-### 33. Settings that exist but do nothing, and small carried items
-- **Enforce the four dead `TenantSettings`:** Suggest Selling Price (recent vs fixed, on the line
+### 31. Credit control, dead settings, and the small carried items
+- **Credit control (live, missed by the scan):** `Contact.CreditLimit` and `CreditTermId` (the
+  New Contact modal's "Add More Details" block, alongside an **Accept Purchase** toggle and Email),
+  plus a tenant policy **Credit Limit Exceeds = Reject / Warn / Do Nothing** on Configurations >
+  General, applied at Invoice Approve against the customer's ledger balance — the same
+  `BalanceAction` shape phase-7 built for stock, so reuse the Warn-and-override flow.
+- **Enforce the three dead `TenantSettings`:** Suggest Selling Price (recent vs fixed, on the line
   picker), Product Price Basis (VAT-inclusive rates — a display and back-calculation rule, stored
   amounts stay exclusive), Negative Cash Balance (mirror of the stock policy, on any document
-  crediting a Bank/Cash account), and `TrialEndsAt` (read-only past expiry, plus the
-  `TenantSubscription` mutator 20f deliberately left out).
+  crediting a Bank/Cash account); and `TrialEndsAt` (read-only past expiry, plus the
+  `TenantSubscription` mutator 20f deliberately left out; live: the Subscriptions screen shows
+  "will expire in N days").
 - Cheque **Bounced** reverses the receipt's GL via `PostReversalOf` (Phase 17 recorded "no automatic
-  reversal" as a gap); early-payment discount on `CreditTerm` (the scan's `earlyPaymentDiscountPct`,
-  never modelled); import for Account / Product Category / Account Group / Contact Personnel and
+  reversal" as a gap); import for Account / Product Category / Account Group / Contact Personnel and
   for variants (21a and 24's deferred lists); export date range and extra categories (21b).
 
-### 34. Platform chrome — global search, history, Quick Links
-- Tigg's top bar: global search across contacts, products and document numbers; a History/Browse
-  list of recently opened records; the per-user **Quick Links** tray on Home (phase-23 declined
-  per-user server storage for one boolean — this is the phase that decides the per-user store, once,
-  for all three). Also the Tigg Subscriptions read-only screen and the User Log if 26c did not take it.
+### 32. Billing Locations (FR-2.3, FR-3.3) — not observable on the UAT tenant
+- Live: `Organization > Features` shows Billing Location **Disabled** with "reach out to Tigg
+  Support" — an entitlement, not a toggle — and, consistently, no Location field on any form,
+  no Location column on Opening Balances, and Location Enabled = No on the Subscriptions screen.
+  So the location-enabled screens cannot be read here, which is why this phase now follows the
+  observable ones rather than leading them.
+- **Scope (to the scan, stated as such).** `BillingLocation { Code, Name, Address, WarehouseId,
+  LocationType }` under `Tenancy`; **seed a HeadOffice location at Organization creation** and make
+  `MultipleLocations` a *cap at one* (the phase-20f lesson); nullable-then-backfilled `LocationId`
+  on every `ApprovableTransaction`, Payment and opening-balance line; location-wise numbering pools
+  (`DocumentNumberingRule.LocationWiseNumbering` already exists and is read by nothing); location
+  filter on registers and Master reports; per-location permission scope (`scope ∈ {default,
+  HeadOffice, …}` per `architecture-spec.md` §3.7) as a second matrix in the role editor. POS
+  location *types* are modelled, not built. If a location-enabled tenant becomes available, read
+  it first; otherwise the phase-21c "derive when confirm-live is impossible" precedent applies and
+  the status doc says so.
 
-### 35. Hardening — accessibility, consistency, scale
+### 33. Platform chrome — global search, history, Quick Links
+- Tigg's top bar: global search (Ctrl + /) across contacts, products and document numbers; a
+  History/Browse list of recently opened records; the per-user **Quick Links** tray on Home
+  (phase-23 declined per-user server storage for one boolean — this is the phase that decides the
+  per-user store, once, for all three). Also the Tigg Subscriptions read-only screen (live: plan,
+  amount, expiry, four entitlement flags).
+
+### 34. Hardening — accessibility, consistency, scale
 - NFR-6.2 (WCAG 2.1 AA) and NFR-6.1 (one interaction model across every list, detail and entry
   screen) have never had a phase; NFR-5.1/5.2 get a measured pass on a tenant-sized dataset. The
   streaming export writer (OpenXml SAX) replaces the 25,000-row cap if any tenant has hit it.
 
 **Recommended drop list (decided, not silently omitted):** `Organization > Developer Mode` and
-`> Documents` (phase-25's recommendation), `Product.PrintProfileId` (20d), the Marketplace flag.
+`> Documents` (phase-25's recommendation), `Product.PrintProfileId` (20d), the Marketplace flag,
+and the Service Charge column (no product flag to drive it; revisit only with POS).
 
 ---
 
 ## Deferred beyond this roadmap (post-v1 — seams kept, no phases planned)
-Explicit decisions (2026-08-18, re-affirmed 2026-09-02), not omissions:
-- **POS Retail / POS Restaurant** front-ends (PRD non-goal): Phase 28 models the location *types*
+Explicit decisions (2026-08-18, revised 2026-09-02), not omissions:
+- **Delivery Note / Goods Received Note (physical-movement inventory).** The scan recorded a
+  "Mode of Inventory Tracking" setting; the live General page no longer has it, while Document
+  Numbering still carries DO and GRN rules at next-number 1. `TenantSettings.InventoryTrackingMode`
+  stays as the seam. **Re-entry condition:** a tenant on which a Delivery Note can actually be
+  created; then it is a phase of its own (FIFO consumption moves from Invoice/Bill Approve to
+  DO/GRN Approve under a handler-level gate, plus a goods-received-not-billed default account).
+- **POS Retail / POS Restaurant** front-ends (PRD non-goal): Phase 32 models the location *types*
   so a POS phase is additive later.
 - **IRD e-filing integration** (Annex 5's Sync-with-IRD columns): aspirational until committed; the
   Annex reports omit rather than fake those columns (Phase 8f precedent).

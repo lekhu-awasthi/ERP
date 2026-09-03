@@ -679,6 +679,47 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    // Phase 26a -- Reports > Accounting. Journal report / Detail GL / GL Master are Admin-only;
+    // General Ledger Summary is the one of the four granted to Member as well.
+    path: 'organizations/:id/reports/journal-report',
+    loadComponent: () =>
+      import('./features/reports/journal-report-page/journal-report-page').then((m) => m.JournalReportPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/general-ledger-summary',
+    loadComponent: () =>
+      import('./features/reports/general-ledger-summary-page/general-ledger-summary-page').then(
+        (m) => m.GeneralLedgerSummaryPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/detail-general-ledger',
+    loadComponent: () =>
+      import('./features/reports/detail-general-ledger-page/detail-general-ledger-page').then(
+        (m) => m.DetailGeneralLedgerPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/general-ledger-master',
+    loadComponent: () =>
+      import('./features/reports/general-ledger-master-page/general-ledger-master-page').then(
+        (m) => m.GeneralLedgerMasterPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    // Phase 26a -- Reports > Accounting > Transaction list, Admin-only.
+    path: 'organizations/:id/reports/transaction-list',
+    loadComponent: () =>
+      import('./features/reports/transaction-list-page/transaction-list-page').then(
+        (m) => m.TransactionListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/reports/system-audit',
     loadComponent: () =>
       import('./features/reports/system-audit-report-page/system-audit-report-page').then(

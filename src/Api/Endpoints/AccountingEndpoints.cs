@@ -1,4 +1,4 @@
-using ErpApp.Application.Accounting;
+﻿using ErpApp.Api.Reports;
 using ErpApp.Application.Accounting.Commands.ApproveCashTransfer;
 using ErpApp.Application.Accounting.Commands.ApproveJournalVoucher;
 using ErpApp.Application.Accounting.Commands.CreateAccount;
@@ -14,10 +14,14 @@ using ErpApp.Application.Accounting.Commands.VoidCashTransfer;
 using ErpApp.Application.Accounting.Commands.VoidJournalVoucher;
 using ErpApp.Application.Accounting.Queries.BalanceSheet;
 using ErpApp.Application.Accounting.Queries.CashFlowSummary;
+using ErpApp.Application.Accounting.Queries.DetailGeneralLedger;
+using ErpApp.Application.Accounting.Queries.GeneralLedgerMaster;
+using ErpApp.Application.Accounting.Queries.GeneralLedgerSummary;
 using ErpApp.Application.Accounting.Queries.GetAccount;
 using ErpApp.Application.Accounting.Queries.GetCashTransfer;
 using ErpApp.Application.Accounting.Queries.GetJournalVoucher;
 using ErpApp.Application.Accounting.Queries.IncomeStatement;
+using ErpApp.Application.Accounting.Queries.JournalReport;
 using ErpApp.Application.Accounting.Queries.ListAccounts;
 using ErpApp.Application.Accounting.Queries.ListBankAccounts;
 using ErpApp.Application.Accounting.Queries.ListCashTransfers;
@@ -27,11 +31,12 @@ using ErpApp.Application.Accounting.Queries.PreviewGlPosting;
 using ErpApp.Application.Accounting.Queries.RatioAnalysis;
 using ErpApp.Application.Accounting.Queries.TrialBalance;
 using ErpApp.Application.Accounting.Queries.VatSummaryReport;
-using ErpApp.Api.Reports;
+using ErpApp.Application.Accounting;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
 using ErpApp.Domain.Accounting;
+using ErpApp.Domain.Common;
 using MediatR;
 
 namespace ErpApp.Api.Endpoints;
@@ -265,25 +270,149 @@ public static class AccountingEndpoints
 
     private static void MapReportEndpoints(RouteGroupBuilder group)
     {
+        // compare (Phase 26a, FR-9.1) is an optional bool -- absent means the exact Phase 8a
+        // response, so every pre-existing caller is unaffected. The comparison window itself is
+        // never a request parameter: it is derived server-side by ComparePeriod and echoed back on
+        // the response, so the screen and the .xlsx label the extra columns with real dates.
         group.MapGet("/reports/trial-balance", async (
-            Guid organizationId, DateOnly asOfDate, ISender sender, CancellationToken ct) =>
+            Guid organizationId, DateOnly asOfDate, bool? compare, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new TrialBalanceQuery(organizationId, asOfDate), ct);
+            var result = await sender.Send(new TrialBalanceQuery(organizationId, asOfDate, compare ?? false), ct);
             return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/trial-balance/export", async (
+            Guid organizationId, DateOnly asOfDate, bool? compare, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new TrialBalanceQuery(organizationId, asOfDate, compare ?? false), ct);
+            return ReportSpreadsheetExporter.ExportTrialBalance(result);
         });
 
         group.MapGet("/reports/balance-sheet", async (
-            Guid organizationId, DateOnly asOfDate, ISender sender, CancellationToken ct) =>
+            Guid organizationId, DateOnly asOfDate, bool? compare, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new BalanceSheetQuery(organizationId, asOfDate), ct);
+            var result = await sender.Send(new BalanceSheetQuery(organizationId, asOfDate, compare ?? false), ct);
             return Results.Ok(result);
         });
 
-        group.MapGet("/reports/income-statement", async (
-            Guid organizationId, DateOnly fromDate, DateOnly toDate, ISender sender, CancellationToken ct) =>
+        group.MapGet("/reports/balance-sheet/export", async (
+            Guid organizationId, DateOnly asOfDate, bool? compare, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new IncomeStatementQuery(organizationId, fromDate, toDate), ct);
+            var result = await sender.Send(new BalanceSheetQuery(organizationId, asOfDate, compare ?? false), ct);
+            return ReportSpreadsheetExporter.ExportBalanceSheet(result);
+        });
+
+        group.MapGet("/reports/income-statement", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, bool? compare, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new IncomeStatementQuery(organizationId, fromDate, toDate, compare ?? false), ct);
             return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/income-statement/export", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, bool? compare, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new IncomeStatementQuery(organizationId, fromDate, toDate, compare ?? false), ct);
+            return ReportSpreadsheetExporter.ExportIncomeStatement(result);
+        });
+
+        // Phase 26a -- the four line-level/rollup GL reports the catalog was missing. Every one is
+        // Period-filtered and paged; each has a matching /export route taking full=true|false, the
+        // Current-View-vs-Full-List split phase-16c established.
+        group.MapGet("/reports/journal-report", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, DocumentType? documentType,
+            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new JournalReportQuery(
+                    organizationId, fromDate, toDate, documentType,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/journal-report/export", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, DocumentType? documentType,
+            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new JournalReportQuery(
+                    organizationId, fromDate, toDate, documentType,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                ct);
+            return ReportSpreadsheetExporter.ExportJournalReport(result, fromDate, toDate);
+        });
+
+        group.MapGet("/reports/general-ledger-summary", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? groupId, Guid? accountId,
+            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new GeneralLedgerSummaryQuery(
+                    organizationId, fromDate, toDate, groupId, accountId,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/general-ledger-summary/export", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? groupId, Guid? accountId,
+            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new GeneralLedgerSummaryQuery(
+                    organizationId, fromDate, toDate, groupId, accountId,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                ct);
+            return ReportSpreadsheetExporter.ExportGeneralLedgerSummary(result, fromDate, toDate);
+        });
+
+        group.MapGet("/reports/detail-general-ledger", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? accountId,
+            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new DetailGeneralLedgerQuery(
+                    organizationId, fromDate, toDate, accountId,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/detail-general-ledger/export", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? accountId,
+            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new DetailGeneralLedgerQuery(
+                    organizationId, fromDate, toDate, accountId,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                ct);
+            return ReportSpreadsheetExporter.ExportDetailGeneralLedger(result, fromDate, toDate);
+        });
+
+        group.MapGet("/reports/general-ledger-master", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, DocumentType? documentType,
+            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new GeneralLedgerMasterQuery(
+                    organizationId, fromDate, toDate, documentType,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/general-ledger-master/export", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, DocumentType? documentType,
+            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new GeneralLedgerMasterQuery(
+                    organizationId, fromDate, toDate, documentType,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                ct);
+            return ReportSpreadsheetExporter.ExportGeneralLedgerMaster(result, fromDate, toDate);
         });
 
         group.MapGet("/reports/cash-flow-summary", async (

@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
@@ -15,7 +15,10 @@ import {
   TaskListDto,
   TaskParentType,
   TaskStatus,
+  TransactionApprovalDocumentType,
   TransactionApprovalQueueDto,
+  TransactionListRowDto,
+  TransactionListStatus,
   UpdateTaskRequest,
 } from './workflow.models';
 
@@ -121,6 +124,72 @@ export class WorkflowService {
       params: { ...this.systemAuditParams(userId, action, documentType, fromDate, toDate, page, pageSize), full: String(full) },
       responseType: 'blob',
     });
+  }
+
+  /**
+   * Phase 26a -- the Transaction list. documentType and status are repeated query params, so this
+   * builds an HttpParams rather than the Record<string, string> the other report methods use:
+   * a plain object cannot express a repeated key, and typing the params as a union that includes
+   * `{}` is what silently selects HttpClient's arraybuffer overload (phase-3 bug #4).
+   */
+  getTransactionList(
+    organizationId: string,
+    documentTypes: TransactionApprovalDocumentType[],
+    statuses: TransactionListStatus[],
+    fromDate: string | null,
+    toDate: string | null,
+    page = 1,
+    pageSize = 50,
+  ): Observable<PagedResult<TransactionListRowDto>> {
+    return this.http.get<PagedResult<TransactionListRowDto>>(
+      `${this.baseUrl(organizationId)}/reports/transaction-list`,
+      {
+        withCredentials: true,
+        params: this.transactionListParams(documentTypes, statuses, fromDate, toDate, page, pageSize),
+      },
+    );
+  }
+
+  exportTransactionList(
+    organizationId: string,
+    documentTypes: TransactionApprovalDocumentType[],
+    statuses: TransactionListStatus[],
+    fromDate: string | null,
+    toDate: string | null,
+    full: boolean,
+    page: number,
+    pageSize: number,
+  ): Observable<Blob> {
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/transaction-list/export`, {
+      withCredentials: true,
+      params: this.transactionListParams(documentTypes, statuses, fromDate, toDate, page, pageSize)
+        .set('full', String(full)),
+      responseType: 'blob',
+    });
+  }
+
+  private transactionListParams(
+    documentTypes: TransactionApprovalDocumentType[],
+    statuses: TransactionListStatus[],
+    fromDate: string | null,
+    toDate: string | null,
+    page: number,
+    pageSize: number,
+  ): HttpParams {
+    let params = new HttpParams().set('page', String(page)).set('pageSize', String(pageSize));
+    for (const documentType of documentTypes) {
+      params = params.append('documentType', documentType);
+    }
+    for (const status of statuses) {
+      params = params.append('status', status);
+    }
+    if (fromDate) {
+      params = params.set('fromDate', fromDate);
+    }
+    if (toDate) {
+      params = params.set('toDate', toDate);
+    }
+    return params;
   }
 
   private systemAuditParams(

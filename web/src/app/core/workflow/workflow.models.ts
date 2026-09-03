@@ -159,3 +159,33 @@ export interface AuditRowDto {
   documentId: string;
   direction: PaymentDirection | null;
 }
+
+// Phase 26a -- the Transaction list report (Reports > Accounting).
+
+/** Every lifecycle state across the thirteen transaction types. All thirteen have
+ * Draft/Approved/Void; only Quotation and Purchase Order also have Converted. */
+export type TransactionListStatus = 'Draft' | 'Approved' | 'Void' | 'Converted';
+
+/**
+ * One transaction of any type. `amount` is each document's own headline figure in its own terms
+ * (gross total, payment amount, journal debit side, adjustment value) -- which is exactly why the
+ * screen has no footer total: the column is not additive across types. `createdByName` is derived
+ * from the audit trail and is null for documents created before Phase 16d began writing one.
+ */
+export interface TransactionListRowDto {
+  date: string;
+  documentType: TransactionApprovalDocumentType;
+  documentId: string;
+  code: string;
+  reference: string | null;
+  status: TransactionListStatus;
+  amount: number;
+  createdByUserId: string | null;
+  createdByName: string | null;
+  approvedByUserId: string | null;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  createdAt: string;
+  description: string | null;
+  direction: PaymentDirection | null;
+}

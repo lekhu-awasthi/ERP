@@ -50,6 +50,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 23: Nepali localization (dates stored AD, BS is presentation only, range 2000–2092). Before rendering any date/amount or any app-wide sweep — `docs/phase-23-status.md`
 - Phase 24: variants are Products with a parent pointer. Before a second "child of a Product" concept or appending to a tracked parent's collection — `docs/phase-24-status.md`
 - Phase 25: manufacturing (BOM → Production Order → Production Journal, perpetual-inventory posting). Before a value-transforming posting rule, a shared FluentValidation helper, or a browser pass in a non-interactive session — `docs/phase-25-status.md`
+- Phase 26a: the five missing Accounting reports + FR-9.1's Compare column on the three financial statements. Before adding a period-over-period comparison, or any report that reads `GlLine` back to its source document — `docs/phase-26a-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -89,7 +90,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - **Unconfirmed screen shape → confirm live before coding.** If `erp-module-scan.md` never opened the screen in its hands-on pass, read the live Tigg UAT tenant through the Browser pane first (the user logs in themselves — never enter credentials, never commit them). The Phase 8f Annex 5 lesson: the speculative design and the real screen had nothing in common.
 - **Permission keys are derived per feature, not defaulted.** Flat per-transaction registers and anything exposing PAN/contact identity → Admin-only; bounded rollups and routine daily-use working data → Admin+Member. Record the reasoning in the status doc. New `PermissionKeys.cs` constants are auto-discovered by `PermissionKeyCatalog` (reflection), but the permission-seed migration must go through `RolePermissionConfiguration.HasData` first or the scaffold is silently empty.
 - **Manual E2E bar:** seed master data via direct API calls (curl + cookie jar), reserve browser clicks for the phase's own new UI; prove at least one negative path (a 403 naming the exact key — against a nonexistent id, so 403-not-404 proves the behavior fired before the handler); verify persisted data via `sqlcmd` when a UI value could lie (see the select-race gotcha). A reusable Admin test login (email/password) persists across phases in local `dotnet user-secrets` under the `Testing:*` keys (never committed) — reuse that identity, but still create a **fresh Organization per phase** so seeded data doesn't accumulate across phases' baselines; run `dotnet user-secrets list --project src/Api` to see the key names (not values).
-- **Context discipline:** one phase = one session (start from `docs/roadmap.md` and the relevant `docs/phase-N-status.md`; don't continue a finished phase's thread). Start each `phase-N-status.md` with a short TL;DR block so future sessions can read just the header unless the task needs a specific section; consult docs via targeted search (Grep/section reads), not full-file reads.
+- **Context discipline:** one phase = one session (start from `docs/roadmap.md` and the relevant `docs/phase-N-status.md`; don't continue a finished phase's thread). Each session ends by generating the **next session's kickoff prompt** (the user pastes it into a fresh session): name the phase from `docs/roadmap.md`, list what to read (roadmap entry, scan sections incl. the 2026-09-02 confirm-live appendix, `phase-lessons.md` paragraphs, `known-gotchas.md` headings, prior status-doc TL;DRs), the open confirm-live questions, the scope decisions to make, and the exit bar — without restating this file, which every session loads anyway. Start each `phase-N-status.md` with a short TL;DR block so future sessions can read just the header unless the task needs a specific section; consult docs via targeted search (Grep/section reads), not full-file reads.
 
 ## Known gotchas (one line each — the full story for every entry is in `docs/known-gotchas.md`, under the same headings)
 
@@ -122,6 +123,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A store-side aggregate (`GroupBy...Count()`) must run after the `SaveChangesAsync` that persists what it counts; tracked-but-unsaved rows are invisible to it (phase-21a).
 - A Domain factory/mutator can stay `internal` only while its sole caller is in the Domain assembly (phase-7 bug #1).
 - Never name a Domain type after a common BCL word (`Task` → `WorkTask`) (phase-13).
+- A filter over a tree of tenant-defined groups must match on group **id**, never group name — names are not unique across a chart of accounts (phase-26a bug #1).
 
 **GL posting, documents and domain invariants**
 - A "reverse of X" posting rule can balance its own entry while leaving a paired control account (AP net of TDS) permanently off; trace the net effect on every account across original + reversal (phase-6 bug #3).
@@ -131,6 +133,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - GL-report tests must bracket `DateOnly.FromDateTime(DateTime.UtcNow)`, because `PostedAt` is stamped at Approve time, not from the document date (phase-19 bug #2).
 - Anything scheduled or dated for a tenant uses the Nepal wall clock via `Domain/Common/NepalTime` (fixed UTC+05:45, not `TimeZoneInfo`); test an after-local-midnight case, not just an evening-UTC one (phase-20e).
 - A FIFO layer stores a unit cost rounded to `ProductionJournal.UnitCostScale`; build a value-transforming GL entry from the values actually created and name the rounding residue (phase-25).
+- `GlJournalEntry` stores no copy of its document's number, reference or business date — only `SourceDocumentType`/`SourceDocumentId`/`PostedAt`; any report showing those must join back across the 11 GL-posting types, and must show the same date field it filters on (phase-26a).
 
 **Background jobs**
 - A singleton `BackgroundService` cannot inject scoped services; take `IServiceScopeFactory`, read options via `IOptionsMonitor`, and never let a tick's exception escape `ExecuteAsync` (`AlertSchedulerHostedService`).
@@ -169,26 +172,34 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A vendor's always-pass dummy credential (Turnstile `1x000…AA`) accepts any input; proving the negative path needs the always-fail one (`2x000…AA`) swapped in (phase-20g).
 - `UpdateRolePermissionsCommand.Grants` is a dictionary, not a list, and system Admin/Member roles cannot be edited (409) — a negative-permission proof needs a custom role.
 - A browser pass in a non-interactive session works by exporting the ASP.NET dev cert, starting the `erp-web-ssl` profile, and transplanting curl's `erp_auth` cookie via `document.cookie` (phase-25 Step 3).
+- Map one enum onto another **by name** (`Enum.TryParse`), never by ordinal, and add a test asserting every member has a counterpart — an ordinal cast compiles, works today, and silently reports the wrong value the first time a member is inserted (phase-26a).
 
 **Tooling and shell**
 - `nvm use` from a shell that cannot create the symlink deletes `C:\nvm4w\nodejs` and reports success; recreate it with `cmd /c 'mklink /J "C:\nvm4w\nodejs" "%LOCALAPPDATA%\nvm\v24.11.0"'`.
-- A `cat > file <<'EOF'` heredoc in the Bash tool is silently truncated past roughly 8 KB; use the Write tool or split it.
+- A `cat > file <<'EOF'` heredoc in the Bash tool is silently truncated or mis-parsed well below the ~8 KB figure; use the Write tool, or write a small patch script and run it (phase-26a).
 
 ## Current status
 
-**Every planned phase (0–25) is complete.** Phase 25 (Manufacturing) was the last row of
-`docs/roadmap.md`'s index table; its full write-up, including the perpetual-vs-periodic posting
-decision and the conservation-law proof, is in `docs/phase-25-status.md`. No confirm-live or
-browser-pass debt is outstanding (phase-25's Step 3 records how to run a browser pass in a
-non-interactive session).
+**Phases 0–25 (v1) are complete, and the parity sequence has started: Phase 26a is done.** It
+built the five missing Accounting reports — Transaction list, Journal report, General Ledger
+Summary, Detail General Ledger, GL Master Report — and FR-9.1's **Compare** (period-over-period)
+column on Trial Balance, Balance Sheet and Income Statement, which Phase 8a never built. All four GL
+reports were confirm-lived on the Moonbeam UAT tenant before their DTOs were designed; nothing new
+is stored, and the only migration is ten permission-seed rows. Full write-up, including the
+Compare-window decision and the posting-date-versus-document-date reasoning, is in
+`docs/phase-26a-status.md`. No confirm-live or browser-pass debt is outstanding.
 
-**What comes next** is the parity sequence, phases 26–35 in `docs/roadmap.md` (a 2026-09-02 gap analysis against the reference product: report catalog, cross-cutting rollout, Billing Locations, multi-currency, DO/GRN, landed cost, email, dead settings, chrome, hardening). Still recorded separately:
+**What comes next** is the rest of the parity sequence in `docs/roadmap.md`: **26b**
+(receivable/payable + analytics), then 26c, then phases 27–34. Still recorded separately:
 - the deferred post-v1 list in `docs/roadmap.md` (POS, IRD e-filing, Marketplace);
-- carried items, now scheduled in phases 27 and 33: server-rendered PDFs and `.xlsx` still print dates in AD (phase-23 Decision A); the
-  three manufacturing reports have no `.xlsx` export; Phase 25's named follow-ups (Custom Status on
-  Production Order, multi-level BOM explosion, Reporting Tags / Custom Fields / print on production documents).
+- carried items, scheduled in phases 27 and 33: server-rendered PDFs and `.xlsx` still print dates
+  in AD (phase-23 Decision A — now inherited by phase-26a's eight new export routes); the three
+  manufacturing reports have no `.xlsx` export; Phase 25's named follow-ups (Custom Status on
+  Production Order, multi-level BOM explosion, Reporting Tags / Custom Fields / print on production
+  documents); and phase-26a's own two: an explicit compare-date picker on the two as-of statements,
+  and Reporting Tags filtering on the Journal report (belongs with 27a).
 
-Tests at last count: Domain 249, Application.UnitTests 571, Api.IntegrationTests 18, Angular 128;
+Tests at last count: Domain 249, Application.UnitTests 598, Api.IntegrationTests 18, Angular 128;
 `dotnet build` / `dotnet test` / `ng build` / `ng test` / `tsc --noEmit` all clean.
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,

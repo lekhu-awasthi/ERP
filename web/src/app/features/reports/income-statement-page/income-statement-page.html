@@ -10,9 +10,14 @@
           <p class="text-muted small mb-0">Income & Expense for a date range</p>
         </div>
       </div>
-      <a [routerLink]="['/organizations', organizationId, 'reports', 'balance-sheet']" class="btn btn-outline-secondary btn-sm fw-bold">
-        <i class="bi bi-bank"></i> Balance Sheet
-      </a>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" (click)="exportReport()" [disabled]="exporting()">
+          <i class="bi bi-file-earmark-spreadsheet"></i> {{ exporting() ? 'Exporting...' : 'Export' }}
+        </button>
+        <a [routerLink]="['/organizations', organizationId, 'reports', 'balance-sheet']" class="btn btn-outline-secondary btn-sm fw-bold">
+          <i class="bi bi-bank"></i> Balance Sheet
+        </a>
+      </div>
     </div>
   </div>
 
@@ -38,6 +43,20 @@
           <label class="form-label small fw-semibold">To Date</label>
           <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
+        <div class="col-12">
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="is-compare"
+              [checked]="compare()"
+              (change)="onCompareChange($event)"
+            />
+            <label class="form-check-label small fw-semibold" for="is-compare">
+              Compare with the same-length period immediately before
+            </label>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -57,11 +76,25 @@
           <p class="text-muted small mb-3">No income posted in this period.</p>
         } @else {
           <table class="table align-middle mb-3">
+            @if (is.compareFromDate; as compareFromDate) {
+              <thead>
+                <tr class="text-muted small">
+                  <th></th>
+                  <th class="text-end">{{ is.fromDate | nepaliDate }} – {{ is.toDate | nepaliDate }}</th>
+                  <th class="text-end border-start">
+                    {{ compareFromDate | nepaliDate }} – {{ is.compareToDate | nepaliDate }}
+                  </th>
+                </tr>
+              </thead>
+            }
             <tbody>
               @for (row of is.incomeRows; track row.accountId) {
                 <tr>
                   <td>{{ row.accountCode }} — {{ row.accountName }}</td>
                   <td class="text-end">{{ (row.amount | amount) }}</td>
+                  @if (is.compareFromDate) {
+                    <td class="text-end border-start">{{ ((row.compareAmount ?? 0) | amount) }}</td>
+                  }
                 </tr>
               }
             </tbody>
@@ -69,6 +102,9 @@
               <tr class="fw-bold border-top">
                 <td>Total Income</td>
                 <td class="text-end">{{ (is.totalIncome | amount) }}</td>
+                @if (is.compareFromDate) {
+                  <td class="text-end border-start">{{ ((is.compareTotalIncome ?? 0) | amount) }}</td>
+                }
               </tr>
             </tfoot>
           </table>
@@ -79,11 +115,25 @@
           <p class="text-muted small mb-3">No expense posted in this period.</p>
         } @else {
           <table class="table align-middle mb-0">
+            @if (is.compareFromDate; as compareFromDate) {
+              <thead>
+                <tr class="text-muted small">
+                  <th></th>
+                  <th class="text-end">{{ is.fromDate | nepaliDate }} – {{ is.toDate | nepaliDate }}</th>
+                  <th class="text-end border-start">
+                    {{ compareFromDate | nepaliDate }} – {{ is.compareToDate | nepaliDate }}
+                  </th>
+                </tr>
+              </thead>
+            }
             <tbody>
               @for (row of is.expenseRows; track row.accountId) {
                 <tr>
                   <td>{{ row.accountCode }} — {{ row.accountName }}</td>
                   <td class="text-end">{{ (row.amount | amount) }}</td>
+                  @if (is.compareFromDate) {
+                    <td class="text-end border-start">{{ ((row.compareAmount ?? 0) | amount) }}</td>
+                  }
                 </tr>
               }
             </tbody>
@@ -91,6 +141,9 @@
               <tr class="fw-bold border-top">
                 <td>Total Expense</td>
                 <td class="text-end">{{ (is.totalExpense | amount) }}</td>
+                @if (is.compareFromDate) {
+                  <td class="text-end border-start">{{ ((is.compareTotalExpense ?? 0) | amount) }}</td>
+                }
               </tr>
             </tfoot>
           </table>
@@ -100,6 +153,12 @@
 
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4 text-end">
+        @if (is.compareNetIncome !== null) {
+          <span class="badge bg-secondary-subtle text-secondary fs-6 me-2">
+            {{ is.compareFromDate | nepaliDate }} – {{ is.compareToDate | nepaliDate }}:
+            {{ (is.compareNetIncome | amount) }}
+          </span>
+        }
         @if (is.netIncome >= 0) {
           <span class="badge bg-success-subtle text-success fs-6">Net Income: {{ (is.netIncome | amount) }}</span>
         } @else {

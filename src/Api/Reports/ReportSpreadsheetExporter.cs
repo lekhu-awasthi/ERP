@@ -1,6 +1,13 @@
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
+using ErpApp.Application.Accounting.Queries.BalanceSheet;
 using ErpApp.Application.Accounting.Queries.CashFlowSummary;
+using ErpApp.Application.Accounting.Queries.DetailGeneralLedger;
+using ErpApp.Application.Accounting.Queries.GeneralLedgerMaster;
+using ErpApp.Application.Accounting.Queries.GeneralLedgerSummary;
+using ErpApp.Application.Accounting.Queries.IncomeStatement;
+using ErpApp.Application.Accounting.Queries.JournalReport;
 using ErpApp.Application.Accounting.Queries.RatioAnalysis;
+using ErpApp.Application.Accounting.Queries.TrialBalance;
 using ErpApp.Application.Accounting.Queries.VatSummaryReport;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Contacts.Queries.ContactAgeingSummary;
@@ -15,6 +22,10 @@ using ErpApp.Application.Sales.Queries.AnnexFiveReport;
 using ErpApp.Application.Sales.Queries.SalesMasterReport;
 using ErpApp.Application.Sales.Queries.SalesRegister;
 using ErpApp.Application.Workflow.Queries.SystemAuditReport;
+using ErpApp.Application.Workflow.Queries.TransactionList;
+using ErpApp.Domain.Common;
+using ErpApp.Domain.Payments;
+using System.Globalization;
 
 namespace ErpApp.Api.Reports;
 
@@ -502,6 +513,314 @@ public static class ReportSpreadsheetExporter
             XlsxContentType,
             FileName("RatioAnalysis", report.FromDate, report.ToDate));
 
+    /// <summary>
+    /// Phase 26a. Phase 8a's three financial statements had no export at all; adding Compare
+    /// columns to a screen whose figures cannot leave it would have shipped half a feature, so
+    /// they get one here alongside the Compare work.
+    ///
+    /// <para>The column set is built conditionally: with Compare off the sheet is exactly the four
+    /// columns the screen has always shown, and with it on the two extra columns carry the compared
+    /// date in their own headers rather than the word "prior" -- a downloaded spreadsheet outlives
+    /// the screen it came from, and a comparison column whose period is not written down anywhere
+    /// is worse than no comparison at all (the same reasoning that gives the migrated registers
+    /// their own file stem).</para>
+    ///
+    /// <para><b>Dates are AD here, as in every other export in this class.</b> phase-23 Decision A
+    /// carried BS dates in server-rendered output as a known limitation, scheduled for phase 27b;
+    /// this export inherits that limitation rather than solving it locally.</para>
+    /// </summary>
+    public static IResult ExportTrialBalance(TrialBalanceDto report)
+    {
+        List<(string Header, Func<TrialBalanceRowDto, object?> Value)> columns =
+        [
+            ("Code", r => r.AccountCode),
+            ("Account", r => r.AccountName),
+            ("Debit", r => r.Debit),
+            ("Credit", r => r.Credit),
+        ];
+
+        if (report.CompareAsOfDate is { } compareAsOf)
+        {
+            columns.Add(($"Debit ({compareAsOf:yyyy-MM-dd})", r => r.CompareDebit));
+            columns.Add(($"Credit ({compareAsOf:yyyy-MM-dd})", r => r.CompareCredit));
+        }
+
+        return ExportTable(
+            "Trial Balance",
+            AsOfFileName("TrialBalance", report.AsOfDate),
+            [.. columns],
+            report.Rows,
+            sheet =>
+            {
+                var row = report.Rows.Count + 2;
+                sheet.Cell(row, 2).Value = "Total";
+                sheet.Cell(row, 2).Style.Font.Bold = true;
+                WriteNumericCell(sheet, row, 3, report.TotalDebit);
+                WriteNumericCell(sheet, row, 4, report.TotalCredit);
+                sheet.Cell(row, 3).Style.Font.Bold = true;
+                sheet.Cell(row, 4).Style.Font.Bold = true;
+
+                if (report.CompareTotalDebit is { } compareDebit && report.CompareTotalCredit is { } compareCredit)
+                {
+                    WriteNumericCell(sheet, row, 5, compareDebit);
+                    WriteNumericCell(sheet, row, 6, compareCredit);
+                    sheet.Cell(row, 5).Style.Font.Bold = true;
+                    sheet.Cell(row, 6).Style.Font.Bold = true;
+                }
+            });
+    }
+
+    /// <summary>Phase 26a -- see <see cref="ExportTrialBalance"/> for the shared reasoning. The
+    /// three sections are written into one sheet behind a Section column rather than three sheets,
+    /// so a reader can sort or pivot the whole statement in one place.</summary>
+    public static IResult ExportBalanceSheet(BalanceSheetDto report)
+    {
+        var rows = new List<BalanceSheetExportRow>();
+        foreach (var section in new[]
+                 {
+                     ("Assets", report.AssetGroups, report.TotalAssets, report.CompareTotalAssets),
+                     ("Liabilities", report.LiabilityGroups, report.TotalLiabilities, report.CompareTotalLiabilities),
+                     ("Equity", report.EquityGroups, report.TotalEquity, report.CompareTotalEquity),
+                 })
+        {
+            var (name, groups, total, compareTotal) = section;
+            rows.AddRange(groups.Select(g => new BalanceSheetExportRow(name, g.GroupName, g.Balance, g.CompareBalance)));
+            rows.Add(new BalanceSheetExportRow(name, $"Total {name}", total, compareTotal));
+        }
+
+        List<(string Header, Func<BalanceSheetExportRow, object?> Value)> columns =
+        [
+            ("Section", r => r.Section),
+            ("Particulars", r => r.Particulars),
+            ("Amount", r => r.Amount),
+        ];
+
+        if (report.CompareAsOfDate is { } compareAsOf)
+        {
+            columns.Add(($"Amount ({compareAsOf:yyyy-MM-dd})", r => r.CompareAmount));
+        }
+
+        return ExportTable(
+            "Balance Sheet",
+            AsOfFileName("BalanceSheet", report.AsOfDate),
+            [.. columns],
+            rows,
+            // IsBalanced is a property of the main window only -- the DTO carries no compare-window
+            // equivalent, so nothing is written in the compare column here rather than implying one.
+            sheet =>
+            {
+                var row = rows.Count + 2;
+                sheet.Cell(row, 2).Value = report.IsBalanced ? "Balanced" : "Out of balance";
+                sheet.Cell(row, 2).Style.Font.Bold = true;
+            });
+    }
+
+    /// <summary>Phase 26a -- see <see cref="ExportTrialBalance"/> for the shared reasoning.</summary>
+    public static IResult ExportIncomeStatement(IncomeStatementDto report)
+    {
+        var rows = new List<IncomeStatementExportRow>();
+        rows.AddRange(report.IncomeRows.Select(r =>
+            new IncomeStatementExportRow("Income", r.AccountCode, r.AccountName, r.Amount, r.CompareAmount)));
+        rows.Add(new IncomeStatementExportRow("Income", string.Empty, "Total Income", report.TotalIncome, report.CompareTotalIncome));
+        rows.AddRange(report.ExpenseRows.Select(r =>
+            new IncomeStatementExportRow("Expense", r.AccountCode, r.AccountName, r.Amount, r.CompareAmount)));
+        rows.Add(new IncomeStatementExportRow("Expense", string.Empty, "Total Expense", report.TotalExpense, report.CompareTotalExpense));
+        rows.Add(new IncomeStatementExportRow(string.Empty, string.Empty, "Net Income", report.NetIncome, report.CompareNetIncome));
+
+        List<(string Header, Func<IncomeStatementExportRow, object?> Value)> columns =
+        [
+            ("Section", r => r.Section),
+            ("Code", r => r.AccountCode),
+            ("Account", r => r.AccountName),
+            ("Amount", r => r.Amount),
+        ];
+
+        if (report.CompareFromDate is { } compareFrom && report.CompareToDate is { } compareTo)
+        {
+            columns.Add(($"Amount ({compareFrom:yyyy-MM-dd} to {compareTo:yyyy-MM-dd})", r => r.CompareAmount));
+        }
+
+        return ExportTable(
+            "Income Statement",
+            FileName("IncomeStatement", report.FromDate, report.ToDate),
+            [.. columns],
+            rows);
+    }
+
+    private sealed record BalanceSheetExportRow(string Section, string Particulars, decimal Amount, decimal? CompareAmount);
+
+    private sealed record IncomeStatementExportRow(
+        string Section, string AccountCode, string AccountName, decimal Amount, decimal? CompareAmount);
+
+    /// <summary>
+    /// Phase 26a -- the Transaction list. Columns follow the live report's own order, read on
+    /// 2026-09-02. No total row: the amounts are heterogeneous across document types and summing
+    /// them would produce a number with no meaning (see TransactionListQuery).
+    ///
+    /// <para>Dates are AD here, as in every other export in this class -- phase-23 Decision A's
+    /// carried limitation, scheduled for phase 27b.</para>
+    /// </summary>
+    public static IResult ExportTransactionList(PagedResult<TransactionListRowDto> report) =>
+        ExportTable(
+            "Transaction List",
+            $"TransactionList_{DateOnly.FromDateTime(DateTime.UtcNow):yyyy-MM-dd}.xlsx",
+            [
+                ("Transaction Date", (TransactionListRowDto r) => (object?)r.Date),
+                ("Txn Type", r => r.DocumentType.ToString()),
+                ("Transaction No", r => r.Code),
+                ("Reference No", r => r.Reference),
+                ("Status", r => r.Status.ToString()),
+                ("Amount", r => r.Amount),
+                ("Created By", r => r.CreatedByName),
+                ("Approved By", r => r.ApprovedByName),
+                ("Approved At", r => r.ApprovedAt?.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)),
+                ("Created At", r => r.CreatedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)),
+                ("Description", r => r.Description),
+            ],
+            report.Items);
+
+    /// <summary>
+    /// Phase 26a -- the Journal report. The screen renders one block per posted document; a
+    /// spreadsheet cannot nest, so each block is flattened into its own line rows followed by a
+    /// bold Total row, with the document's identity repeated in a leading column group. That keeps
+    /// the sheet sortable and filterable, which is the whole reason someone exports it.
+    ///
+    /// <para>Dates are AD, as in every export in this class -- phase-23 Decision A's carried
+    /// limitation, scheduled for phase 27b.</para>
+    /// </summary>
+    public static IResult ExportJournalReport(PagedResult<JournalReportEntryDto> report, DateOnly fromDate, DateOnly toDate)
+    {
+        var rows = new List<JournalExportRow>();
+        foreach (var entry in report.Items)
+        {
+            rows.AddRange(entry.Lines.Select(line => new JournalExportRow(
+                entry.Date, TxnTypeLabel(entry.DocumentType, entry.Direction), entry.DocumentCode, entry.Reference,
+                $"{line.AccountName} ({line.AccountCode})", line.Debit, line.Credit, false)));
+            rows.Add(new JournalExportRow(
+                entry.Date, TxnTypeLabel(entry.DocumentType, entry.Direction), entry.DocumentCode, entry.Reference,
+                "Total", entry.TotalDebit, entry.TotalCredit, true));
+        }
+
+        return ExportTable(
+            "Journal Report",
+            FileName("JournalReport", fromDate, toDate),
+            [
+                ("Date", (JournalExportRow r) => (object?)r.Date),
+                ("Txn Type", r => r.TxnType),
+                ("Txn No", r => r.Code),
+                ("Reference No", r => r.Reference),
+                ("Accounts", r => r.Account),
+                ("Debit", r => r.Debit),
+                ("Credit", r => r.Credit),
+            ],
+            rows);
+    }
+
+    /// <summary>Phase 26a -- General Ledger Summary. Balances carry their DR/CR marker in their own
+    /// column rather than as a suffix on the number, so the figures stay numeric in the sheet.</summary>
+    public static IResult ExportGeneralLedgerSummary(
+        PagedResult<GeneralLedgerSummaryRowDto> report, DateOnly fromDate, DateOnly toDate) =>
+        ExportTable(
+            "General Ledger Summary",
+            FileName("GeneralLedgerSummary", fromDate, toDate),
+            [
+                ("Code", (GeneralLedgerSummaryRowDto r) => (object?)r.AccountCode),
+                ("Account", r => r.AccountName),
+                ("Parent", r => r.ParentGroupName),
+                ("Group Type", r => r.GroupTypeName),
+                ("Account Class", r => r.RootType.ToString()),
+                ("Opening Balance", r => r.OpeningBalance),
+                ("Opening DR/CR", r => r.OpeningBalanceType),
+                ("Transaction Debit", r => r.TransactionDebit),
+                ("Transaction Credit", r => r.TransactionCredit),
+                ("Closing Balance", r => r.ClosingBalance),
+                ("Closing DR/CR", r => r.ClosingBalanceType),
+            ],
+            report.Items);
+
+    /// <summary>
+    /// Phase 26a -- Detail General Ledger. Same flattening as the Journal report: each account
+    /// section becomes an Opening Balance row, its postings, and a Closing Balance row whose Debit
+    /// and Credit cells hold the section's period totals -- exactly what the live screen prints in
+    /// that row.
+    /// </summary>
+    public static IResult ExportDetailGeneralLedger(
+        PagedResult<DetailGeneralLedgerAccountDto> report, DateOnly fromDate, DateOnly toDate)
+    {
+        var rows = new List<DetailLedgerExportRow>();
+        foreach (var account in report.Items)
+        {
+            var label = $"{account.AccountName} ({account.AccountCode})";
+            rows.Add(new DetailLedgerExportRow(
+                label, fromDate, "Opening Balance", null, null, null, null, null,
+                account.OpeningBalance, account.OpeningBalanceType));
+            rows.AddRange(account.Rows.Select(row => new DetailLedgerExportRow(
+                label, row.Date, TxnTypeLabel(row.DocumentType, row.Direction), row.DocumentCode, row.Reference,
+                row.Description, row.Debit, row.Credit, row.Balance, row.BalanceType)));
+            rows.Add(new DetailLedgerExportRow(
+                label, toDate, "Closing Balance", null, null, null,
+                account.PeriodDebit, account.PeriodCredit, account.ClosingBalance, account.ClosingBalanceType));
+        }
+
+        return ExportTable(
+            "Detail General Ledger",
+            FileName("DetailGeneralLedger", fromDate, toDate),
+            [
+                ("Account", (DetailLedgerExportRow r) => (object?)r.Account),
+                ("Txn Date", r => r.Date),
+                ("Txn Type", r => r.TxnType),
+                ("Txn No", r => r.Code),
+                ("Reference No", r => r.Reference),
+                ("Description", r => r.Description),
+                ("Debit", r => r.Debit),
+                ("Credit", r => r.Credit),
+                ("Balance", r => r.Balance),
+                ("DR/CR", r => r.BalanceType),
+            ],
+            rows);
+    }
+
+    /// <summary>Phase 26a -- GL Master Report, the denormalised fact table. One row per posted line,
+    /// the live column order minus SubAccount (see GeneralLedgerMasterQuery for why that column is
+    /// omitted rather than left permanently blank).</summary>
+    public static IResult ExportGeneralLedgerMaster(
+        PagedResult<GeneralLedgerMasterRowDto> report, DateOnly fromDate, DateOnly toDate) =>
+        ExportTable(
+            "GL Master Report",
+            FileName("GeneralLedgerMaster", fromDate, toDate),
+            [
+                ("Date", (GeneralLedgerMasterRowDto r) => (object?)r.Date),
+                ("Txn Type", r => TxnTypeLabel(r.DocumentType, r.Direction)),
+                ("Txn No", r => r.DocumentCode),
+                ("Reference No", r => r.Reference),
+                ("Account Code", r => r.AccountCode),
+                ("Account", r => r.AccountName),
+                ("Parent", r => r.ParentGroupName),
+                ("Group Type", r => r.GroupTypeName),
+                ("Account Class", r => r.RootType.ToString()),
+                ("Debit", r => r.Debit),
+                ("Credit", r => r.Credit),
+            ],
+            report.Items);
+
+    /// <summary>
+    /// Phase 26a -- the Txn Type label the GL reports print. One Payment aggregate renders as two
+    /// labels, "Customer Payment" and "Supplier Payment", because that is what the live reports show
+    /// and because a reader has no other way to tell the two apart in a flat ledger.
+    /// </summary>
+    private static string TxnTypeLabel(DocumentType documentType, PaymentDirection? direction) =>
+        documentType == DocumentType.Payment
+            ? direction == PaymentDirection.Paid ? "Supplier Payment" : "Customer Payment"
+            : documentType.ToString();
+
+    private sealed record JournalExportRow(
+        DateOnly Date, string TxnType, string? Code, string? Reference, string Account,
+        decimal Debit, decimal Credit, bool IsTotal);
+
+    private sealed record DetailLedgerExportRow(
+        string Account, DateOnly Date, string TxnType, string? Code, string? Reference, string? Description,
+        decimal? Debit, decimal? Credit, decimal Balance, string BalanceType);
+
     private static IResult ExportTable<T>(
         string sheetName,
         string fileName,
@@ -581,4 +900,9 @@ public static class ReportSpreadsheetExporter
 
     private static string FileName(string reportName, DateOnly fromDate, DateOnly toDate) =>
         $"{reportName}_{fromDate:yyyy-MM-dd}_{toDate:yyyy-MM-dd}.xlsx";
+
+    /// <summary>Phase 26a -- the as-of counterpart of <see cref="FileName"/>, for reports cut off
+    /// at a single date rather than run over a range (Trial Balance, Balance Sheet).</summary>
+    private static string AsOfFileName(string reportName, DateOnly asOfDate) =>
+        $"{reportName}_{asOfDate:yyyy-MM-dd}.xlsx";
 }

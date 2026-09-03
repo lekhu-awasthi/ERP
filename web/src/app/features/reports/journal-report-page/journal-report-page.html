@@ -1,0 +1,116 @@
+<div class="container py-5" style="max-width: 1100px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-journal-bookmark fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Journal Report</h1>
+          <p class="text-muted small mb-0">Every posted document's own journal entry, with its balancing total</p>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportCurrentView()">
+          <i class="bi bi-download"></i> Export Current View
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
+          <i class="bi bi-download"></i> Export Full Dataset
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3">
+        <div class="col-12 col-sm-4">
+          <label class="form-label small fw-semibold">From Date</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-4">
+          <label class="form-label small fw-semibold">To Date</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-4">
+          <label class="form-label small fw-semibold">Txn Type</label>
+          <select class="form-select" (change)="onDocumentTypeChange($event)">
+            <option value="">All Txn Types</option>
+            @for (dt of documentTypes; track dt) {
+              <option [value]="dt" [selected]="dt === documentType()">{{ txnTypeLabel(dt, null) }}</option>
+            }
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading Journal report...</p>
+        </div>
+      } @else if (report(); as r) {
+        @if (r.items.length === 0) {
+          <div class="text-center py-4">
+            <p class="text-muted small mb-0">Nothing was posted in this period.</p>
+          </div>
+        } @else {
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr class="text-muted small">
+                  <th>Accounts</th>
+                  <th class="text-end">Debit</th>
+                  <th class="text-end">Credit</th>
+                </tr>
+              </thead>
+              @for (entry of r.items; track entry.glJournalEntryId) {
+                <tbody class="border-top">
+                  <tr class="table-light">
+                    <td colspan="3">
+                      <span class="fw-bold">{{ txnTypeLabel(entry.documentType, entry.direction) }}</span>
+                      <span class="ms-2">{{ entry.documentCode ?? '—' }}</span>
+                      <span class="text-muted ms-2">{{ entry.date | nepaliDate }}</span>
+                      @if (entry.reference) {
+                        <span class="text-muted ms-2">Ref: {{ entry.reference }}</span>
+                      }
+                    </td>
+                  </tr>
+                  @for (line of entry.lines; track $index) {
+                    <tr>
+                      <td class="ps-4">{{ line.accountName }} ({{ line.accountCode }})</td>
+                      <td class="text-end">{{ line.debit ? (line.debit | amount) : '—' }}</td>
+                      <td class="text-end">{{ line.credit ? (line.credit | amount) : '—' }}</td>
+                    </tr>
+                  }
+                  <tr class="fw-bold">
+                    <td class="text-end">Total</td>
+                    <td class="text-end">{{ (entry.totalDebit | amount) }}</td>
+                    <td class="text-end">{{ (entry.totalCredit | amount) }}</td>
+                  </tr>
+                </tbody>
+              }
+            </table>
+          </div>
+          <app-pagination-control
+            [page]="page()"
+            [pageSize]="pageSize()"
+            [totalCount]="r.totalCount"
+            (pageChange)="onPageChange($event)"
+            (pageSizeChange)="onPageSizeChange($event)"
+          />
+        }
+      }
+    </div>
+  </div>
+</div>

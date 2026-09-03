@@ -1,4 +1,4 @@
-using ErpApp.Api.Reports;
+﻿using ErpApp.Api.Reports;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Workflow.Commands.CreateTask;
 using ErpApp.Application.Workflow.Commands.UpdateTask;
@@ -6,6 +6,7 @@ using ErpApp.Application.Workflow.Commands.UpdateTaskStatus;
 using ErpApp.Application.Workflow.Queries.ListTasks;
 using ErpApp.Application.Workflow.Queries.RecentTransactions;
 using ErpApp.Application.Workflow.Queries.SystemAuditReport;
+using ErpApp.Application.Workflow.Queries.TransactionList;
 using ErpApp.Application.Workflow.Queries.TransactionApproval;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Workflow;
@@ -76,6 +77,36 @@ public static class WorkflowEndpoints
                     page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
                 ct);
             return ReportSpreadsheetExporter.ExportSystemAuditReport(result);
+        });
+
+        // Phase 26a -- the Transaction list report. documentType and status are repeated query
+        // params (?documentType=Invoice&documentType=CreditNote), matching the live product's own
+        // transaction_type[]/status[] deep links from its dashboard; Minimal API binds a repeated
+        // primitive query param straight into an array.
+        group.MapGet("/reports/transaction-list", async (
+            Guid organizationId, DocumentType[]? documentType, TransactionListStatus[]? status,
+            DateOnly? fromDate, DateOnly? toDate, int? page, int? pageSize,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new TransactionListQuery(
+                    organizationId, documentType, status, fromDate, toDate,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/transaction-list/export", async (
+            Guid organizationId, DocumentType[]? documentType, TransactionListStatus[]? status,
+            DateOnly? fromDate, DateOnly? toDate, bool full, int? page, int? pageSize,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new TransactionListQuery(
+                    organizationId, documentType, status, fromDate, toDate,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                ct);
+            return ReportSpreadsheetExporter.ExportTransactionList(result);
         });
 
         MapTaskEndpoints(group);

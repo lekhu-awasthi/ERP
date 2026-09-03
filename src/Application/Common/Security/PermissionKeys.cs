@@ -1,4 +1,4 @@
-namespace ErpApp.Application.Common.Security;
+﻿namespace ErpApp.Application.Common.Security;
 
 /// <summary>
 /// Stable permission-key catalog (architecture-spec.md §3.7's "PermissionKey a stable string"),
@@ -660,4 +660,37 @@ public static class PermissionKeys
     public const string ProductionJournalVoid = "Manufacturing.ProductionJournal.Void";
 
     public const string ProductionReportView = "Manufacturing.ProductionReport.View";
+
+    // Phase 26a (Report catalog completion, Accounting group). Five new report keys, split by the
+    // standing rule -- "flat per-transaction registers and anything exposing PAN/contact identity
+    // go Admin-only; bounded rollups and routine daily-use working data go Admin+Member" -- applied
+    // one report at a time rather than defaulted across the group:
+    //
+    // - TransactionListView: Admin-only. A flat register of every document in the tenant, of every
+    //   type and every status, carrying who created and who approved each one. That is the System
+    //   Audit report's own exposure ("who did what across the whole org") widened to every
+    //   transaction, so it takes SystemAuditView's answer.
+    //
+    // - JournalReportView: Admin-only. Every posted GL line in the period with its document and
+    //   account, which is to say the tenant's complete books at line granularity -- strictly more
+    //   than any single document type's View key discloses.
+    //
+    // - DetailGeneralLedgerView: Admin-only. The per-account running-balance ledger: the same
+    //   per-transaction granularity as the Journal report, sliced by account.
+    //
+    // - GeneralLedgerMasterView: Admin-only. The denormalised fact table over the same lines,
+    //   which is the Sales/Purchase Master Report shape -- and both of those are Admin-only.
+    //
+    // - GeneralLedgerSummaryView: Admin+Member. This one is a bounded rollup, one row per account
+    //   with opening/movement/closing and no per-transaction detail at all -- the same shape as
+    //   TrialBalanceView/BalanceSheetView/IncomeStatementView, which are all granted to both.
+    //
+    // The Compare columns added to Trial Balance / Balance Sheet / Income Statement need no key of
+    // their own: they are a second window over data those three keys already disclose, computed
+    // inside handlers those keys already gate.
+    public const string TransactionListView = "Reports.TransactionList.View";
+    public const string JournalReportView = "Reports.JournalReport.View";
+    public const string GeneralLedgerSummaryView = "Reports.GeneralLedgerSummary.View";
+    public const string DetailGeneralLedgerView = "Reports.DetailGeneralLedger.View";
+    public const string GeneralLedgerMasterView = "Reports.GeneralLedgerMaster.View";
 }

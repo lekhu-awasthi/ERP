@@ -1,4 +1,4 @@
-using ErpApp.Application.Common.Security;
+﻿using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -580,6 +580,23 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminProductionReportViewId = Guid.Parse("00000000-0000-0000-0002-00000000016d");
     private static readonly Guid MemberProductionReportViewId = Guid.Parse("00000000-0000-0000-0002-00000000016e");
 
+    // Phase 26a (Report catalog completion, Accounting group) -- four Admin-only reports and one
+    // granted to both, per PermissionKeys' own derivation: Transaction list / Journal report /
+    // Detail General Ledger / GL Master Report all expose per-transaction rows across every
+    // document type in the tenant (the System Audit and Sales/Purchase Master exposure), while
+    // General Ledger Summary is a bounded per-account rollup with no transaction detail at all --
+    // the Trial Balance / Balance Sheet / Income Statement shape, which Member already has.
+    private static readonly Guid AdminTransactionListViewId = Guid.Parse("00000000-0000-0000-0002-00000000016f");
+    private static readonly Guid MemberTransactionListViewId = Guid.Parse("00000000-0000-0000-0002-000000000170");
+    private static readonly Guid AdminJournalReportViewId = Guid.Parse("00000000-0000-0000-0002-000000000171");
+    private static readonly Guid MemberJournalReportViewId = Guid.Parse("00000000-0000-0000-0002-000000000172");
+    private static readonly Guid AdminGeneralLedgerSummaryViewId = Guid.Parse("00000000-0000-0000-0002-000000000173");
+    private static readonly Guid MemberGeneralLedgerSummaryViewId = Guid.Parse("00000000-0000-0000-0002-000000000174");
+    private static readonly Guid AdminDetailGeneralLedgerViewId = Guid.Parse("00000000-0000-0000-0002-000000000175");
+    private static readonly Guid MemberDetailGeneralLedgerViewId = Guid.Parse("00000000-0000-0000-0002-000000000176");
+    private static readonly Guid AdminGeneralLedgerMasterViewId = Guid.Parse("00000000-0000-0000-0002-000000000177");
+    private static readonly Guid MemberGeneralLedgerMasterViewId = Guid.Parse("00000000-0000-0000-0002-000000000178");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1034,6 +1051,17 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminProductionJournalVoidId, Role.AdminId, PermissionKeys.ProductionJournalVoid, true),
             RolePermission.Create(MemberProductionJournalVoidId, Role.MemberId, PermissionKeys.ProductionJournalVoid, false),
             RolePermission.Create(AdminProductionReportViewId, Role.AdminId, PermissionKeys.ProductionReportView, true),
-            RolePermission.Create(MemberProductionReportViewId, Role.MemberId, PermissionKeys.ProductionReportView, true));
+            RolePermission.Create(MemberProductionReportViewId, Role.MemberId, PermissionKeys.ProductionReportView, true),
+
+            RolePermission.Create(AdminTransactionListViewId, Role.AdminId, PermissionKeys.TransactionListView, true),
+            RolePermission.Create(MemberTransactionListViewId, Role.MemberId, PermissionKeys.TransactionListView, false),
+            RolePermission.Create(AdminJournalReportViewId, Role.AdminId, PermissionKeys.JournalReportView, true),
+            RolePermission.Create(MemberJournalReportViewId, Role.MemberId, PermissionKeys.JournalReportView, false),
+            RolePermission.Create(AdminGeneralLedgerSummaryViewId, Role.AdminId, PermissionKeys.GeneralLedgerSummaryView, true),
+            RolePermission.Create(MemberGeneralLedgerSummaryViewId, Role.MemberId, PermissionKeys.GeneralLedgerSummaryView, true),
+            RolePermission.Create(AdminDetailGeneralLedgerViewId, Role.AdminId, PermissionKeys.DetailGeneralLedgerView, true),
+            RolePermission.Create(MemberDetailGeneralLedgerViewId, Role.MemberId, PermissionKeys.DetailGeneralLedgerView, false),
+            RolePermission.Create(AdminGeneralLedgerMasterViewId, Role.AdminId, PermissionKeys.GeneralLedgerMasterView, true),
+            RolePermission.Create(MemberGeneralLedgerMasterViewId, Role.MemberId, PermissionKeys.GeneralLedgerMasterView, false));
     }
 }

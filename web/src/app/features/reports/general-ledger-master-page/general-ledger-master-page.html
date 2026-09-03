@@ -1,0 +1,119 @@
+<div class="container py-5" style="max-width: 1500px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-grid-3x3 fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">GL Master Report</h1>
+          <p class="text-muted small mb-0">One row per posted GL line, with its document and account classification</p>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportCurrentView()">
+          <i class="bi bi-download"></i> Export Current View
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
+          <i class="bi bi-download"></i> Export Full Dataset
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3">
+        <div class="col-12 col-sm-4">
+          <label class="form-label small fw-semibold">From Date</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-4">
+          <label class="form-label small fw-semibold">To Date</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-4">
+          <label class="form-label small fw-semibold">Txn Type</label>
+          <select class="form-select" (change)="onDocumentTypeChange($event)">
+            <option value="">All Txn Types</option>
+            @for (dt of documentTypes; track dt) {
+              <option [value]="dt" [selected]="dt === documentType()">{{ txnTypeLabel(dt, null) }}</option>
+            }
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading GL Master Report...</p>
+        </div>
+      } @else if (report(); as r) {
+        @if (r.items.length === 0) {
+          <div class="text-center py-4">
+            <p class="text-muted small mb-0">Nothing was posted in this period.</p>
+          </div>
+        } @else {
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr class="text-muted small">
+                  <th>Date</th>
+                  <th>Txn Type</th>
+                  <th>Txn No</th>
+                  <th>Reference No</th>
+                  <th>Account</th>
+                  <th>Parent</th>
+                  <th>Group Type</th>
+                  <th>Account Class</th>
+                  <th class="text-end">Debit</th>
+                  <th class="text-end">Credit</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of r.items; track $index) {
+                  <tr>
+                    <td>{{ row.date | nepaliDate }}</td>
+                    <td>{{ txnTypeLabel(row.documentType, row.direction) }}</td>
+                    <td>
+                      @if (detailRoute(row); as routeLink) {
+                        <a [routerLink]="routeLink" class="link-primary fw-semibold">{{ row.documentCode ?? '—' }}</a>
+                      } @else {
+                        <span>{{ row.documentCode ?? '—' }}</span>
+                      }
+                    </td>
+                    <td>{{ row.reference ?? '—' }}</td>
+                    <td>{{ row.accountName }} ({{ row.accountCode }})</td>
+                    <td>{{ row.parentGroupName }}</td>
+                    <td>{{ row.groupTypeName }}</td>
+                    <td>{{ row.rootType }}</td>
+                    <td class="text-end">{{ row.debit ? (row.debit | amount) : '—' }}</td>
+                    <td class="text-end">{{ row.credit ? (row.credit | amount) : '—' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <app-pagination-control
+            [page]="page()"
+            [pageSize]="pageSize()"
+            [totalCount]="r.totalCount"
+            (pageChange)="onPageChange($event)"
+            (pageSizeChange)="onPageSizeChange($event)"
+          />
+        }
+      }
+    </div>
+  </div>
+</div>

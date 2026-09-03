@@ -6922,6 +6922,76 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = true,
                             PermissionKey = "Manufacturing.ProductionReport.View",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000016f"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.TransactionList.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000170"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.TransactionList.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000171"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.JournalReport.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000172"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.JournalReport.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000173"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.GeneralLedgerSummary.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000174"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.GeneralLedgerSummary.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000175"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.DetailGeneralLedger.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000176"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.DetailGeneralLedger.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000177"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.GeneralLedgerMaster.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000178"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.GeneralLedgerMaster.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 

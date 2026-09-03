@@ -97,7 +97,10 @@ describe('bs-date conversion', () => {
     }
   });
 
-  it('round-trips every single day of the supported range', () => {
+  // 30s, not the 5s default. This one test makes ~136,000 assertions and was already close enough
+  // to the default that it started timing out on a loaded machine (found in Phase 26a). Sampling it
+  // down would defeat its purpose -- see the comment below -- so it gets the time it needs instead.
+  it('round-trips every single day of the supported range', { timeout: 30_000 }, () => {
     // 33,969 days. Exhaustive rather than sampled: a table typo affects one month of one year, and
     // sampling is exactly how such a typo survives a test suite.
     let checked = 0;

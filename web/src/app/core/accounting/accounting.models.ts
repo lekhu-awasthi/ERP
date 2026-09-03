@@ -1,4 +1,5 @@
 import { VatRate } from '../catalog/catalog.models';
+import { PaymentDirection } from '../payments/payments.models';
 
 export type AccountRootType = 'Asset' | 'Liability' | 'Equity' | 'Income' | 'Expense';
 
@@ -294,12 +295,22 @@ export interface VoidCashTransferResult {
 
 // --- Reports (Phase 8a) ---
 
+/**
+ * Phase 26a adds FR-9.1's Compare (period-over-period) columns to all three financial statements.
+ * Every `compare*` field is `null` when Compare is off -- not zero -- so a template can tell
+ * "not compared" from "compared, and the figure was nil". The comparison window is chosen on the
+ * server (ComparePeriod: prior-year same date for the as-of reports, same-length preceding period
+ * for the range one) and echoed back on the response, so the screen labels the extra columns with
+ * the real dates instead of the word "prior".
+ */
 export interface TrialBalanceRowDto {
   accountId: string;
   accountCode: string;
   accountName: string;
   debit: number;
   credit: number;
+  compareDebit: number | null;
+  compareCredit: number | null;
 }
 
 export interface TrialBalanceDto {
@@ -308,12 +319,16 @@ export interface TrialBalanceDto {
   totalDebit: number;
   totalCredit: number;
   isBalanced: boolean;
+  compareAsOfDate: string | null;
+  compareTotalDebit: number | null;
+  compareTotalCredit: number | null;
 }
 
 export interface AccountGroupBalanceDto {
   groupId: string;
   groupName: string;
   balance: number;
+  compareBalance: number | null;
 }
 
 export interface BalanceSheetDto {
@@ -326,6 +341,11 @@ export interface BalanceSheetDto {
   totalLiabilities: number;
   totalEquity: number;
   isBalanced: boolean;
+  compareAsOfDate: string | null;
+  compareNetIncome: number | null;
+  compareTotalAssets: number | null;
+  compareTotalLiabilities: number | null;
+  compareTotalEquity: number | null;
 }
 
 export interface IncomeStatementRowDto {
@@ -334,6 +354,7 @@ export interface IncomeStatementRowDto {
   accountName: string;
   rootType: AccountRootType;
   amount: number;
+  compareAmount: number | null;
 }
 
 export interface IncomeStatementDto {
@@ -344,6 +365,11 @@ export interface IncomeStatementDto {
   totalIncome: number;
   totalExpense: number;
   netIncome: number;
+  compareFromDate: string | null;
+  compareToDate: string | null;
+  compareTotalIncome: number | null;
+  compareTotalExpense: number | null;
+  compareNetIncome: number | null;
 }
 
 // --- Reports (Phase 8c) ---
@@ -410,4 +436,113 @@ export interface RatioAnalysisDto {
   netProfitMarginPct: number;
   returnOnAssetsPct: number;
   returnOnEquityPct: number;
+}
+
+// --- Reports (Phase 26a): the four GL reports the catalog was missing ---
+
+/**
+ * The eleven document types that can post a GlJournalEntry -- grep-confirmed against every
+ * GlJournalEntry.Post call site, not assumed from the DocumentType enum, which also contains four
+ * transaction types that post nothing (Quotation, SalesOrder, PurchaseOrder, WarehouseTransfer)
+ * and several non-document entries.
+ */
+export type GlSourceDocumentType =
+  | 'Invoice'
+  | 'CreditNote'
+  | 'PurchaseBill'
+  | 'Expense'
+  | 'DebitNote'
+  | 'JournalVoucher'
+  | 'CashTransfer'
+  | 'InventoryAdjustment'
+  | 'Payment'
+  | 'ProductionJournal'
+  | 'OpeningBalance';
+
+/** Balances travel as a non-negative magnitude plus this marker, never a signed number, so no
+ * template has to know which side is normal for which account. */
+export type GlBalanceType = 'DR' | 'CR';
+
+export interface JournalReportLineDto {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  debit: number;
+  credit: number;
+}
+
+/** One posted document's journal entry. totalDebit and totalCredit always match -- the domain
+ * enforces it on every posting -- and are shown anyway, the way the live report prints them. */
+export interface JournalReportEntryDto {
+  glJournalEntryId: string;
+  date: string;
+  documentType: GlSourceDocumentType;
+  documentId: string;
+  documentCode: string | null;
+  reference: string | null;
+  direction: PaymentDirection | null;
+  lines: JournalReportLineDto[];
+  totalDebit: number;
+  totalCredit: number;
+}
+
+export interface GeneralLedgerSummaryRowDto {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  parentGroupName: string;
+  groupTypeName: string;
+  rootType: AccountRootType;
+  openingBalance: number;
+  openingBalanceType: GlBalanceType;
+  transactionDebit: number;
+  transactionCredit: number;
+  closingBalance: number;
+  closingBalanceType: GlBalanceType;
+}
+
+export interface DetailGeneralLedgerRowDto {
+  date: string;
+  documentType: GlSourceDocumentType;
+  documentId: string;
+  documentCode: string | null;
+  reference: string | null;
+  description: string | null;
+  debit: number;
+  credit: number;
+  balance: number;
+  balanceType: GlBalanceType;
+  direction: PaymentDirection | null;
+}
+
+/** One account section. periodDebit/periodCredit are what the live Closing Balance row prints in
+ * its Debit and Credit cells -- the section's totals, not that row's own movement. */
+export interface DetailGeneralLedgerAccountDto {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  openingBalance: number;
+  openingBalanceType: GlBalanceType;
+  rows: DetailGeneralLedgerRowDto[];
+  periodDebit: number;
+  periodCredit: number;
+  closingBalance: number;
+  closingBalanceType: GlBalanceType;
+}
+
+export interface GeneralLedgerMasterRowDto {
+  date: string;
+  documentType: GlSourceDocumentType;
+  documentId: string;
+  documentCode: string | null;
+  reference: string | null;
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  parentGroupName: string;
+  groupTypeName: string;
+  rootType: AccountRootType;
+  debit: number;
+  credit: number;
+  direction: PaymentDirection | null;
 }

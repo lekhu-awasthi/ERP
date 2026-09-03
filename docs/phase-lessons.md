@@ -104,3 +104,18 @@ these are in `CLAUDE.md`'s Known gotchas section. When a phase completes, append
   running a browser pass in a non-interactive session - Step 3 records the dev-cert + cookie
   transplant that finally made one possible, and closed four phases of debt
 - `phase-7`'s addendum (bottom of the file) — before adding a new tenant-wide default GL account or changing which account a posting rule debits/credits: grep for the field name across every posting rule that's supposed to read it. `DefaultInventoryAccountId` sat completely unread by `PurchaseBillPostingRule` for 12 phases (Goods purchases debited Purchase Expense instead), silently double-counting Cost of Goods Sold in `IncomeStatementQueryHandler`'s Net Profit for any tenant whose Purchase account was Expense-typed — the obvious/default choice, caught only by a later phase's live E2E, not by any test or `dotnet build`
+- `phase-26a` - before building any **period-over-period comparison**, and before any report that
+  reads `GlLine` back to the document that posted it. Compare is **one request, not two**: the second
+  window is computed inside the same handler and merged into the same response, because lining two
+  responses up in the browser means re-deriving the row set, the ordering and the group rollups
+  client-side - phase-16c's bug in a new costume. `ComparePeriod` is deliberately **two rules, not
+  one**: a range report compares against the same-length preceding period, but an as-of report has no
+  length to reuse, so it compares against the same date one year earlier - and the window it actually
+  used is echoed on the response so the screen and the `.xlsx` can label the columns with real dates.
+  Read it too before assuming a GL report can show a document's own date: `GlJournalEntry` stores
+  only `SourceDocumentType`/`SourceDocumentId`/`PostedAt`, so every such report joins back across the
+  eleven GL-posting types (`GlSourceDocumentResolver`) and shows the same date field it filters on,
+  because a row that appears outside its own printed range is worse than an approximate one. Also
+  the precedent for **deriving an attribute from the audit trail** when no aggregate stores it
+  (Created By), for **refusing to total a column** whose values are not the same unit of account, and
+  for mapping one enum onto another **by name with a test that says so** rather than by ordinal

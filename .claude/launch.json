@@ -36,9 +36,9 @@
         "--",
         "--ssl",
         "--ssl-cert",
-        ".certs/dev.pem",
+        "../.certs/dev.pem",
         "--ssl-key",
-        ".certs/dev.key"
+        "../.certs/dev.key"
       ],
       "port": 4200,
       "url": "https://localhost:4200"
