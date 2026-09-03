@@ -1,0 +1,155 @@
+<div class="container py-5" style="max-width: 1600px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-info bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-list-columns fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Inventory Ledger</h1>
+          <p class="text-muted small mb-0">Every movement of one product, with a running balance</p>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting() || !productId()" (click)="exportCurrentView()">
+          <i class="bi bi-download"></i> Export Current View
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting() || !productId()" (click)="exportFullDataset()">
+          <i class="bi bi-download"></i> Export Full Dataset
+        </button>
+        <a [routerLink]="['/organizations', organizationId, 'reports', 'inventory-movement']" class="btn btn-outline-secondary btn-sm fw-bold">
+          <i class="bi bi-arrow-left-right"></i> Inventory Movement
+        </a>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3">
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold">From Date</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold">To Date</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+          <label class="form-label small fw-semibold">Product <span class="text-danger">*</span></label>
+          <select class="form-select" (change)="onProductChange($event)">
+            <option value="" [selected]="!productId()">Select a product…</option>
+            @for (product of products(); track product.id) {
+              <option [value]="product.id" [selected]="product.id === productId()">{{ product.code }} — {{ product.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+          <label class="form-label small fw-semibold">Warehouse</label>
+          <select class="form-select" (change)="onWarehouseChange($event)">
+            <option value="" [selected]="!warehouseId()">All</option>
+            @for (warehouse of warehouses(); track warehouse.id) {
+              <option [value]="warehouse.id" [selected]="warehouse.id === warehouseId()">{{ warehouse.name }}</option>
+            }
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      @if (!productId()) {
+        <div class="p-5 text-center text-muted">
+          <i class="bi bi-box-seam fs-1 d-block mb-3 opacity-50"></i>
+          Select a product to see its ledger.
+        </div>
+      } @else if (loading()) {
+        <div class="p-5 text-center text-muted">
+          <div class="spinner-border spinner-border-sm me-2"></div> Loading…
+        </div>
+      } @else if (report(); as ledger) {
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 small">
+            <thead class="table-light">
+              <tr>
+                <th rowspan="2" class="align-bottom">Date</th>
+                <th rowspan="2" class="align-bottom">Type</th>
+                <th rowspan="2" class="align-bottom">Contact</th>
+                <th rowspan="2" class="align-bottom">Warehouse</th>
+                <th rowspan="2" class="align-bottom">#No</th>
+                <th colspan="3" class="text-center border-start">In</th>
+                <th colspan="3" class="text-center border-start">Out</th>
+                <th colspan="3" class="text-center border-start">Balance</th>
+              </tr>
+              <tr>
+                <th class="text-end border-start">Qty</th>
+                <th class="text-end">Rate</th>
+                <th class="text-end">Amount</th>
+                <th class="text-end border-start">Qty</th>
+                <th class="text-end">Rate</th>
+                <th class="text-end">Amount</th>
+                <th class="text-end border-start">Qty</th>
+                <th class="text-end">Rate</th>
+                <th class="text-end">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="table-light fw-bold">
+                <td>{{ ledger.fromDate | nepaliDate }}</td>
+                <td colspan="4">Opening Balance</td>
+                <td colspan="6" class="border-start"></td>
+                <td class="text-end border-start">{{ (ledger.openingQuantity | amount: 3) }}</td>
+                <td class="text-end">{{ (ledger.openingRate | amount: 3) }}</td>
+                <td class="text-end">{{ (ledger.openingValue | amount) }}</td>
+              </tr>
+              @for (row of rows(); track row.id) {
+                <tr>
+                  <td>{{ row.date | nepaliDate }}</td>
+                  <td>{{ row.documentType }}</td>
+                  <td>{{ row.contact || '—' }}</td>
+                  <td>{{ row.warehouse || '—' }}</td>
+                  <td>{{ row.documentCode }}</td>
+                  <td class="text-end border-start">{{ row.inQuantity ? (row.inQuantity | amount: 3) : '—' }}</td>
+                  <td class="text-end">{{ row.inQuantity ? (row.inRate | amount: 3) : '—' }}</td>
+                  <td class="text-end">{{ row.inQuantity ? (row.inValue | amount) : '—' }}</td>
+                  <td class="text-end border-start">{{ row.outQuantity ? (row.outQuantity | amount: 3) : '—' }}</td>
+                  <td class="text-end">{{ row.outQuantity ? (row.outRate | amount: 3) : '—' }}</td>
+                  <td class="text-end">{{ row.outQuantity ? (row.outValue | amount) : '—' }}</td>
+                  <td class="text-end border-start fw-bold">{{ (row.balanceQuantity | amount: 3) }}</td>
+                  <td class="text-end">{{ (row.balanceRate | amount: 3) }}</td>
+                  <td class="text-end">{{ (row.balanceValue | amount) }}</td>
+                </tr>
+              }
+              <tr class="table-light fw-bold border-top">
+                <td>{{ ledger.toDate | nepaliDate }}</td>
+                <td colspan="4">Closing Balance</td>
+                <td colspan="6" class="border-start"></td>
+                <td class="text-end border-start">{{ (ledger.closingQuantity | amount: 3) }}</td>
+                <td class="text-end">{{ (ledger.closingRate | amount: 3) }}</td>
+                <td class="text-end">{{ (ledger.closingValue | amount) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        @if (totalCount() === 0) {
+          <div class="p-4 text-center text-muted small">No movements in this period — the opening and closing balances are unchanged.</div>
+        }
+        <app-pagination-control
+          [page]="page()"
+          [pageSize]="pageSize()"
+          [totalCount]="totalCount()"
+          (pageChange)="onPageChange($event)"
+          (pageSizeChange)="onPageSizeChange($event)"
+        />
+      }
+    </div>
+  </div>
+</div>

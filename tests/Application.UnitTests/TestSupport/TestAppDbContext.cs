@@ -204,6 +204,7 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<MigratedSalesRegisterEntry> MigratedSalesRegisterEntries => Set<MigratedSalesRegisterEntry>();
     public DbSet<MigratedPurchaseRegisterEntry> MigratedPurchaseRegisterEntries => Set<MigratedPurchaseRegisterEntry>();
     public DbSet<UploadedDocument> UploadedDocuments => Set<UploadedDocument>();
+    public DbSet<UserLoginEvent> UserLoginEvents => Set<UserLoginEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -1,0 +1,108 @@
+<div class="container py-5" style="max-width: 1100px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-success bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-clipboard-data fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Net Trading Assets</h1>
+          <p class="text-muted small mb-0">Receivables less Payables plus Inventory, as at the period end</p>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportReport()">
+          <i class="bi bi-download"></i> Export
+        </button>
+        <a [routerLink]="['/organizations', organizationId, 'reports', 'exceptional-report']" class="btn btn-outline-secondary btn-sm fw-bold">
+          <i class="bi bi-exclamation-diamond"></i> Exceptional Report
+        </a>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold">From Date</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold">To Date</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="ntaCompare" [checked]="compare()" (change)="onCompareChange($event)" />
+            <label class="form-check-label small fw-semibold" for="ntaCompare">Compare</label>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="ntaExcludeAdvance" [checked]="excludeAdvance()" (change)="onExcludeAdvanceChange($event)" />
+            <label class="form-check-label small fw-semibold" for="ntaExcludeAdvance">Exclude Advance</label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      @if (loading()) {
+        <div class="p-5 text-center text-muted">
+          <div class="spinner-border spinner-border-sm me-2"></div> Loading…
+        </div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Particulars</th>
+                <th class="text-end">Balance</th>
+                @if (compareAsOfDate(); as compareDate) {
+                  <th class="text-end">Balance as at {{ compareDate | nepaliDate }}</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.particulars) {
+                <tr class="fw-bold">
+                  <td>{{ row.particulars }}</td>
+                  <td class="text-end">{{ (row.balance | amount) }}</td>
+                  @if (compareAsOfDate()) {
+                    <td class="text-end">{{ (row.compareBalance ?? 0 | amount) }}</td>
+                  }
+                </tr>
+                @for (child of row.children; track child.particulars) {
+                  <tr>
+                    <td class="ps-5 text-muted">{{ child.particulars }}</td>
+                    <td class="text-end">{{ (child.balance | amount) }}</td>
+                    @if (compareAsOfDate()) {
+                      <td class="text-end">{{ (child.compareBalance ?? 0 | amount) }}</td>
+                    }
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="p-3 border-top small text-muted">
+          Per-contact and per-item detail behind these totals lives in
+          <a [routerLink]="['/organizations', organizationId, 'reports', 'customer-receivable-summary']">Customer Receivable Summary</a>,
+          <a [routerLink]="['/organizations', organizationId, 'reports', 'supplier-payable-summary']">Supplier Payable Summary</a> and
+          <a [routerLink]="['/organizations', organizationId, 'reports', 'inventory-position']">Inventory Position</a>,
+          which read the same figures.
+        </div>
+      }
+    </div>
+  </div>
+</div>

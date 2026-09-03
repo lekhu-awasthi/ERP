@@ -1,4 +1,4 @@
-using ErpApp.Application.Common.Pagination;
+﻿using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using MediatR;
@@ -7,8 +7,10 @@ namespace ErpApp.Application.Purchasing.Queries.PurchaseRegister;
 
 /// <summary>
 /// Nepal IRD statutory Purchase Book (Phase 19 decision #3, live-confirmed column-by-column). One
-/// row per Approved PurchaseBill (positive) or DebitNote (negative) -- both in the same register,
-/// no separate "Purchase Return Register" (out of FR-9.4's scope, same reasoning as Sales Register).
+/// row per Approved PurchaseBill (positive) or DebitNote (negative) -- both in the same register.
+/// Phase 26c added a separate Purchase Return Register and confirmed live that this one keeps its
+/// debit-note rows: the same notes appear in both, negative here and positive there. Both read the
+/// shared <c>PurchaseReturnReader</c>, so the magnitudes cannot drift apart.
 /// Unlike Sales Register, no domain gap: PurchaseBill already carries IsImport/ExpenditureClassification
 /// (Phase 6/8e) -- the exact split this register's 4 value/tax column-pairs need. No Reporting Tag
 /// filter -- decision #1 confirmed tags attach only to Quotation/Invoice (Sales side), so there is

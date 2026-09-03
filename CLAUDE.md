@@ -52,6 +52,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 25: manufacturing (BOM → Production Order → Production Journal, perpetual-inventory posting). Before a value-transforming posting rule, a shared FluentValidation helper, or a browser pass in a non-interactive session — `docs/phase-25-status.md`
 - Phase 26a: the five missing Accounting reports + FR-9.1's Compare column on the three financial statements. Before adding a period-over-period comparison, or any report that reads `GlLine` back to its source document — `docs/phase-26a-status.md`
 - Phase 26b: Receivable/Payable + Sales/Purchase analytics (13 reports, 7 shared handlers) and the server-side BS calendar. Before ageing anything, or any report keyed by a fiscal year — `docs/phase-26b-status.md`
+- Phase 26c: the Reports catalogue completed — 4 inventory reports, both return registers, Net Trading Assets, Exceptional Report, User Log. Before a report over stock, a second report that must agree with a register, or anything written on an unauthenticated path — `docs/phase-26c-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -125,6 +126,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A Domain factory/mutator can stay `internal` only while its sole caller is in the Domain assembly (phase-7 bug #1).
 - Never name a Domain type after a common BCL word (`Task` → `WorkTask`) (phase-13).
 - A filter over a tree of tenant-defined groups must match on group **id**, never group name — names are not unique across a chart of accounts (phase-26a bug #1).
+- `decimal` has a signed zero: `-0m` keeps its sign bit and surfaces as `-0` / `-0.00` once cast to `double` for a spreadsheet cell. Accumulate a magnitude only when the value is strictly non-zero — no test catches this, because `-0m == 0m` (phase-26c bug #1).
 
 **GL posting, documents and domain invariants**
 - A "reverse of X" posting rule can balance its own entry while leaving a paired control account (AP net of TDS) permanently off; trace the net effect on every account across original + reversal (phase-6 bug #3).
@@ -135,6 +137,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Anything scheduled or dated for a tenant uses the Nepal wall clock via `Domain/Common/NepalTime` (fixed UTC+05:45, not `TimeZoneInfo`); test an after-local-midnight case, not just an evening-UTC one (phase-20e).
 - A FIFO layer stores a unit cost rounded to `ProductionJournal.UnitCostScale`; build a value-transforming GL entry from the values actually created and name the rounding residue (phase-25).
 - `GlJournalEntry` stores no copy of its document's number, reference or business date — only `SourceDocumentType`/`SourceDocumentId`/`PostedAt`; any report showing those must join back across the 11 GL-posting types, and must show the same date field it filters on (phase-26a).
+- A dated stock report must derive from `StockMovement`, never from `StockLedgerEntry`: `QuantityRemaining` is decremented **in place**, so the FIFO table only ever answers "as of now" and a report for a closed period would silently answer today's question. Opening+In-Out over the append-only movements reconstructs both quantity and value at any date, and equals the FIFO figure today (phase-26c).
+- `StockLedgerService.ConsumeAsync` **throws** on an oversell, so no path in this codebase can drive a stock balance negative — the reference product's Negative Item Balance setting (Reject/Warn/Do Nothing) is unbuilt. Don't write a test for a negative-balance branch; pin the throw instead (phase-26c).
+- A Debit Note line carries no `ExpenditureClassification` or `IsImport` of its own; both are resolved from the source Purchase Bill's matching line by (PurchaseBillId, ProductId, Rate, VatRate) (phase-19, phase-26c's `PurchaseReturnReader`).
 
 **Background jobs**
 - A singleton `BackgroundService` cannot inject scoped services; take `IServiceScopeFactory`, read options via `IOptionsMonitor`, and never let a tick's exception escape `ExecuteAsync` (`AlertSchedulerHostedService`).
@@ -176,6 +181,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A browser pass in a non-interactive session works by exporting the ASP.NET dev cert, starting the `erp-web-ssl` profile, and transplanting curl's `erp_auth` cookie via `document.cookie` (phase-25 Step 3).
 - Map one enum onto another **by name** (`Enum.TryParse`), never by ordinal, and add a test asserting every member has a counterpart — an ordinal cast compiles, works today, and silently reports the wrong value the first time a member is inserted (phase-26a).
 - A shared reader that several reports agree through is worth more than each report deriving its own figure: Invoice Age's total balance equals Customer Receivable Summary's closing balance *by construction* because both read `ContactLedgerReader` (phase-26b).
+- A curl seed script that pipes approvals to `/dev/null` hides its own failures — the first report just comes back empty. Print every approval's status code. Two live traps: `POST /api/organizations` returns `organizationId`, not `id`, and the GL defaults are **one** `PUT /accounting-defaults` taking all eleven accounts (phase-26c).
+- Driving the reference product's Browser pane needs coordinates from `getBoundingClientRect`: its accessibility tree is nearly empty and `find` matches nothing. Its GENERATE control's DOM text is "Generate" — the capitals are CSS `text-transform` (phase-26c).
 
 **Tooling and shell**
 - `nvm use` from a shell that cannot create the symlink deletes `C:\nvm4w\nodejs` and reports success; recreate it with `cmd /c 'mklink /J "C:\nvm4w\nodejs" "%LOCALAPPDATA%\nvm\v24.11.0"'`.
@@ -184,37 +191,43 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-25 (v1) are complete, and the parity sequence is two sub-phases in: 26a and 26b are
-done.** Phase 26b closed FR-9.2 and FR-9.3 with thirteen reports over **seven** handlers -- each
-mirrored pair answered once and discriminated by a side the route hardcodes: Customer Receivable
-Summary / Supplier Payable Summary, Invoice Age / Purchase Bill Age, Sales/Purchase By
-Customer/Supplier, By Item, their four BS-fiscal-year Monthly crosstabs, and the Sales Summary
-Report. Nothing new is stored; the only migration is twenty-six permission-seed rows.
+**Phases 0-25 (v1) are complete, and phase 26 is finished: 26a, 26b and 26c are all done, which
+closes the Reports catalogue.** Every card on the reference product's Reports landing page now has a
+counterpart here or a recorded reason not to. Phase 26c added the four inventory reports (Position,
+Movement, Ledger, Master), both statutory return registers, Net Trading Assets, the Exceptional
+Report and the User Log, plus the `.xlsx` export the three manufacturing reports had lacked since
+phase 25.
 
-Two things from that phase outlive it. **`Domain/Common/BsCalendar`** is the server-side Bikram
-Sambat calendar (a verbatim port of phase-23's client table, same 2000-2092 range), built because
-five of these reports are keyed by a BS *fiscal year* rather than a date range -- phase 27b consumes
-it next for BS dates in PDFs and `.xlsx`. And **`ContactLedgerReader` now counts contact-tagged
-Journal Vouchers**, which corrects Contact Statement and Contact Overview as a side effect and is
-what makes Invoice Age and Customer Receivable Summary agree by construction. Both are written up in
-`docs/phase-26b-status.md`, along with the two live options deliberately not built (Quick
-Payment/Receipt as an ageable document, and Sales Summary's Service Charge column).
+Three things from 26c outlive it. **`Inventory.Reports.StockFactReader`** is the shared
+Opening/In/Out/Balance reader that Inventory Position, Inventory Movement, the Inventory Ledger's
+bracket rows and Net Trading Assets' Inventory Items row all read, so those four agree by
+construction; it derives everything from the append-only `StockMovement` rather than from the FIFO
+layer table, because `QuantityRemaining` mutates in place and cannot answer a dated question.
+**`UserLoginEvent`** is the phase's only new table -- deliberately carrying no `OrganizationId`,
+written from `AuthEndpoints` (including the failed attempt, on a path that throws), and scoped into a
+tenant report by joining `OrganizationMembership`. And the phase's **key correctness finding went the
+opposite way from the plan**: the main Sales/Purchase Registers *keep* their credit/debit notes --
+the same notes appear in both registers, negative in the main one and positive in the return one --
+so phase 19's folding was parity, not a simplification, and the new `SalesReturnReader` /
+`PurchaseReturnReader` now feed both sides so they cannot drift.
 
-**What comes next** is **26c** (inventory, tax, system, analytics -- including the two return
-registers and the new `UserLoginEvent` the User Log needs), then phases 27-34 in
+**What comes next** is **phase 27** (the cross-cutting rollout sweep: 27a document-level mechanisms,
+27b output including BS dates in server-rendered PDFs and `.xlsx`), then phases 28-34 in
 `docs/roadmap.md`. Still recorded separately:
 - the deferred post-v1 list in `docs/roadmap.md` (POS, IRD e-filing, Marketplace);
-- carried items, scheduled in phases 27 and 33: server-rendered PDFs and `.xlsx` still print dates
-  in AD (phase-23 Decision A -- now inherited by 26a's eight and 26b's thirteen new export routes,
-  and `BsCalendar` is the tool that closes it); the three manufacturing reports have no `.xlsx`
-  export; Phase 25's named follow-ups (Custom Status on Production Order, multi-level BOM explosion,
-  Reporting Tags / Custom Fields / print on production documents); phase-26a's two (an explicit
-  compare-date picker on the two as-of statements, Reporting Tags on the Journal report); and
-  phase-26b's four -- a stored `DueDate` on Invoice/PurchaseBill (belongs with Credit Terms),
-  aligning phase-9's `ContactAgeingSummaryQueryHandler` with 26b's allocation and due-date rules, a
-  product-level service-charge flag, and Quick Payment/Receipt as a document type.
+- carried items, scheduled in phases 27 and 33: server-rendered PDFs and `.xlsx` still print dates in
+  AD (phase-23 Decision A -- now inherited by 26a's eight, 26b's thirteen and 26c's twelve export
+  routes, and `BsCalendar` is the tool that closes it); Phase 25's named follow-ups (Custom Status on
+  Production Order, multi-level BOM explosion, Reporting Tags / Custom Fields / print on production
+  documents); phase-26a's two (an explicit compare-date picker on the two as-of statements, Reporting
+  Tags on the Journal report); phase-26b's four (a stored `DueDate` on Invoice/PurchaseBill, aligning
+  phase-9's `ContactAgeingSummaryQueryHandler` with 26b's rules, a product-level service-charge flag,
+  Quick Payment/Receipt as a document type); and phase-26c's five (WarehouseTransfer/OpeningStock in
+  Inventory Master, the Sales Register's inert "Include Credit Note In Calculation" toggle, Additional
+  Cost allocation, the Negative Item Balance setting that would make negative stock reachable, and
+  Inventory Position's Reporting Tags / group-by-warehouse display options).
 
-Tests at last count: Domain 311, Application.UnitTests 629, Api.IntegrationTests 18, Angular 135;
+Tests at last count: Domain 316, Application.UnitTests 678, Api.IntegrationTests 18, Angular 155;
 `dotnet build` / `dotnet test` / `ng build` / `ng test` / `tsc --noEmit` all clean.
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,

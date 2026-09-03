@@ -629,6 +629,34 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminSalesSummaryReportViewId = Guid.Parse("00000000-0000-0000-0002-000000000191");
     private static readonly Guid MemberSalesSummaryReportViewId = Guid.Parse("00000000-0000-0000-0002-000000000192");
 
+
+    // Phase 26c (Report catalog completion: inventory, tax, system, analytics) -- nine reports,
+    // three Admin-only and six granted to both, per PermissionKeys' own derivation. The two return
+    // registers take their parent register's Admin+Member class because each is a strict subset of
+    // that register's rows (confirmed live 2026-09-03: the same notes appear in both); the four
+    // stock reports follow phase-19's Stock Ageing except Inventory Master, which is the flat
+    // per-line fact table across every stock document and so follows the Master Reports; and User
+    // Log is Admin-only on the strongest ground in the codebase -- per-person IP, device and
+    // failed-attempt data.
+    private static readonly Guid AdminInventoryPositionViewId = Guid.Parse("00000000-0000-0000-0002-000000000193");
+    private static readonly Guid MemberInventoryPositionViewId = Guid.Parse("00000000-0000-0000-0002-000000000194");
+    private static readonly Guid AdminInventoryMovementViewId = Guid.Parse("00000000-0000-0000-0002-000000000195");
+    private static readonly Guid MemberInventoryMovementViewId = Guid.Parse("00000000-0000-0000-0002-000000000196");
+    private static readonly Guid AdminInventoryLedgerReportViewId = Guid.Parse("00000000-0000-0000-0002-000000000197");
+    private static readonly Guid MemberInventoryLedgerReportViewId = Guid.Parse("00000000-0000-0000-0002-000000000198");
+    private static readonly Guid AdminInventoryMasterViewId = Guid.Parse("00000000-0000-0000-0002-000000000199");
+    private static readonly Guid MemberInventoryMasterViewId = Guid.Parse("00000000-0000-0000-0002-00000000019a");
+    private static readonly Guid AdminSalesReturnRegisterViewId = Guid.Parse("00000000-0000-0000-0002-00000000019b");
+    private static readonly Guid MemberSalesReturnRegisterViewId = Guid.Parse("00000000-0000-0000-0002-00000000019c");
+    private static readonly Guid AdminPurchaseReturnRegisterViewId = Guid.Parse("00000000-0000-0000-0002-00000000019d");
+    private static readonly Guid MemberPurchaseReturnRegisterViewId = Guid.Parse("00000000-0000-0000-0002-00000000019e");
+    private static readonly Guid AdminNetTradingAssetsViewId = Guid.Parse("00000000-0000-0000-0002-00000000019f");
+    private static readonly Guid MemberNetTradingAssetsViewId = Guid.Parse("00000000-0000-0000-0002-0000000001a0");
+    private static readonly Guid AdminExceptionalReportViewId = Guid.Parse("00000000-0000-0000-0002-0000000001a1");
+    private static readonly Guid MemberExceptionalReportViewId = Guid.Parse("00000000-0000-0000-0002-0000000001a2");
+    private static readonly Guid AdminUserLogViewId = Guid.Parse("00000000-0000-0000-0002-0000000001a3");
+    private static readonly Guid MemberUserLogViewId = Guid.Parse("00000000-0000-0000-0002-0000000001a4");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1121,6 +1149,24 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminPurchaseByItemMonthlyViewId, Role.AdminId, PermissionKeys.PurchaseByItemMonthlyView, true),
             RolePermission.Create(MemberPurchaseByItemMonthlyViewId, Role.MemberId, PermissionKeys.PurchaseByItemMonthlyView, true),
             RolePermission.Create(AdminSalesSummaryReportViewId, Role.AdminId, PermissionKeys.SalesSummaryReportView, true),
-            RolePermission.Create(MemberSalesSummaryReportViewId, Role.MemberId, PermissionKeys.SalesSummaryReportView, true));
+            RolePermission.Create(MemberSalesSummaryReportViewId, Role.MemberId, PermissionKeys.SalesSummaryReportView, true),
+            RolePermission.Create(AdminInventoryPositionViewId, Role.AdminId, PermissionKeys.InventoryPositionView, true),
+            RolePermission.Create(MemberInventoryPositionViewId, Role.MemberId, PermissionKeys.InventoryPositionView, true),
+            RolePermission.Create(AdminInventoryMovementViewId, Role.AdminId, PermissionKeys.InventoryMovementView, true),
+            RolePermission.Create(MemberInventoryMovementViewId, Role.MemberId, PermissionKeys.InventoryMovementView, true),
+            RolePermission.Create(AdminInventoryLedgerReportViewId, Role.AdminId, PermissionKeys.InventoryLedgerReportView, true),
+            RolePermission.Create(MemberInventoryLedgerReportViewId, Role.MemberId, PermissionKeys.InventoryLedgerReportView, true),
+            RolePermission.Create(AdminInventoryMasterViewId, Role.AdminId, PermissionKeys.InventoryMasterView, true),
+            RolePermission.Create(MemberInventoryMasterViewId, Role.MemberId, PermissionKeys.InventoryMasterView, false),
+            RolePermission.Create(AdminSalesReturnRegisterViewId, Role.AdminId, PermissionKeys.SalesReturnRegisterView, true),
+            RolePermission.Create(MemberSalesReturnRegisterViewId, Role.MemberId, PermissionKeys.SalesReturnRegisterView, true),
+            RolePermission.Create(AdminPurchaseReturnRegisterViewId, Role.AdminId, PermissionKeys.PurchaseReturnRegisterView, true),
+            RolePermission.Create(MemberPurchaseReturnRegisterViewId, Role.MemberId, PermissionKeys.PurchaseReturnRegisterView, true),
+            RolePermission.Create(AdminNetTradingAssetsViewId, Role.AdminId, PermissionKeys.NetTradingAssetsView, true),
+            RolePermission.Create(MemberNetTradingAssetsViewId, Role.MemberId, PermissionKeys.NetTradingAssetsView, true),
+            RolePermission.Create(AdminExceptionalReportViewId, Role.AdminId, PermissionKeys.ExceptionalReportView, true),
+            RolePermission.Create(MemberExceptionalReportViewId, Role.MemberId, PermissionKeys.ExceptionalReportView, true),
+            RolePermission.Create(AdminUserLogViewId, Role.AdminId, PermissionKeys.UserLogView, true),
+            RolePermission.Create(MemberUserLogViewId, Role.MemberId, PermissionKeys.UserLogView, false));
     }
 }

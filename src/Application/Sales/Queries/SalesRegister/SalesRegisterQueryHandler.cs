@@ -1,6 +1,7 @@
-using ErpApp.Application.Common.Pagination;
+﻿using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Configuration;
+using ErpApp.Application.Sales.Reports;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
 using MediatR;
@@ -82,28 +83,13 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db) : IRequestHandle
 
         if (!tagFilterActive)
         {
-            var creditNoteQuery = db.CreditNotes.Where(x =>
-                x.OrganizationId == request.OrganizationId && x.Status == CreditNoteStatus.Approved
-                && x.Date >= request.FromDate && x.Date <= request.ToDate);
-            if (request.ContactId is { } creditNoteContactId)
-            {
-                creditNoteQuery = creditNoteQuery.Where(x => x.ContactId == creditNoteContactId);
-            }
-
-            var creditNotes = await creditNoteQuery
-                .Select(x => new { x.Id, x.ContactId, x.Code, x.Date })
-                .ToListAsync(cancellationToken);
-            var creditNoteIds = creditNotes.Select(x => x.Id).ToList();
-            var creditNoteLines = await db.CreditNoteLines
-                .Where(x => creditNoteIds.Contains(x.CreditNoteId))
-                .Select(x => new { x.CreditNoteId, x.Amount, x.VatAmount })
-                .ToListAsync(cancellationToken);
-            var creditNoteTotals = creditNoteLines.GroupBy(x => x.CreditNoteId)
-                .ToDictionary(g => g.Key, g => (
-                    Total: g.Sum(x => x.Amount + x.VatAmount),
-                    TaxExempt: g.Where(x => x.VatAmount == 0).Sum(x => x.Amount),
-                    Taxable: g.Where(x => x.VatAmount != 0).Sum(x => x.Amount),
-                    Vat: g.Sum(x => x.VatAmount)));
+            // Phase 26c: the credit-note half now comes from SalesReturnReader, which the new Sales
+            // Return Register also reads -- so the two registers show the same magnitudes for the
+            // same notes by construction. This register renders them negative (confirmed live: the
+            // Sales Register prints them parenthesised and nets its Total of them); the return
+            // register renders them positive.
+            var creditNotes = await SalesReturnReader.LoadAsync(
+                db, request.OrganizationId, request.FromDate, request.ToDate, request.ContactId, cancellationToken);
 
             var creditNoteContactIds = creditNotes.Select(x => x.ContactId).Distinct().ToList();
             var creditNoteContacts = await db.Contacts
@@ -113,14 +99,13 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db) : IRequestHandle
 
             rows.AddRange(creditNotes.Select(x =>
             {
-                var totals = creditNoteTotals.GetValueOrDefault(x.Id);
                 var contact = creditNoteContacts[x.ContactId];
                 // A CreditNote carries no export block of its own -- there is no export flag on the
                 // aggregate and the live reference product does not offer one -- so these stay empty
                 // here rather than being derived from the Invoice it reverses.
                 return new SalesRegisterRowDto(
                     x.Date, DocumentType.CreditNote, x.Code, x.ContactId, contact.Name, contact.Pan,
-                    -totals.Total, -totals.TaxExempt, -totals.Taxable, -totals.Vat,
+                    -x.Buckets.Total, -x.Buckets.TaxExempt, -x.Buckets.Taxable, -x.Buckets.Vat,
                     ExportValue: 0, ExportCountry: null, ExportDeclarationNo: null, ExportDeclarationDate: null);
             }));
         }

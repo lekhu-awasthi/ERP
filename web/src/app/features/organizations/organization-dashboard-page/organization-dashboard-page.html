@@ -1,4 +1,4 @@
-<div class="container py-5" style="max-width: 800px;">
+﻿<div class="container py-5" style="max-width: 800px;">
   <!-- Dashboard Top Header -->
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
@@ -296,6 +296,33 @@
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'ratio-analysis']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-calculator"></i> Ratio Analysis
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'reports', 'sales-return-register']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-arrow-return-left"></i> Sales Return Register
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'reports', 'purchase-return-register']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-arrow-return-right"></i> Purchase Return Register
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'reports', 'inventory-position']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-boxes"></i> Inventory Position
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'reports', 'inventory-movement']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-arrow-left-right"></i> Inventory Movement
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'reports', 'inventory-ledger']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-list-columns"></i> Inventory Ledger
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'reports', 'inventory-master']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-table"></i> Inventory Master Report
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'reports', 'net-trading-assets']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-clipboard-data"></i> Net Trading Assets
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'reports', 'exceptional-report']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-exclamation-diamond"></i> Exceptional Report
+            </a>
+            <a [routerLink]="['/organizations', organizationId(), 'reports', 'user-log']" class="btn btn-outline-secondary btn-sm fw-bold">
+              <i class="bi bi-person-check"></i> User Log
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'warehouses']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-building"></i> Warehouses

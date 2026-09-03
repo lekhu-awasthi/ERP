@@ -1,4 +1,4 @@
-import { Routes } from '@angular/router';
+﻿import { Routes } from '@angular/router';
 
 import { authGuard } from './core/auth/auth.guard';
 
@@ -866,6 +866,62 @@ export const routes: Routes = [
     path: 'organizations/:id/reports/ratio-analysis',
     loadComponent: () =>
       import('./features/reports/ratio-analysis-page/ratio-analysis-page').then((m) => m.RatioAnalysisPage),
+    canActivate: [authGuard],
+  },
+
+  // ---- Phase 26c: Inventory, Tax, System and Analytics report catalogue ----
+  {
+    path: 'organizations/:id/reports/sales-return-register',
+    loadComponent: () =>
+      import('./features/reports/sales-return-register-page/sales-return-register-page').then((m) => m.SalesReturnRegisterPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/purchase-return-register',
+    loadComponent: () =>
+      import('./features/reports/purchase-return-register-page/purchase-return-register-page').then((m) => m.PurchaseReturnRegisterPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/inventory-position',
+    loadComponent: () =>
+      import('./features/reports/inventory-position-page/inventory-position-page').then((m) => m.InventoryPositionPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/inventory-movement',
+    loadComponent: () =>
+      import('./features/reports/inventory-movement-page/inventory-movement-page').then((m) => m.InventoryMovementPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/inventory-ledger',
+    loadComponent: () =>
+      import('./features/reports/inventory-ledger-report-page/inventory-ledger-report-page').then((m) => m.InventoryLedgerReportPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/inventory-master',
+    loadComponent: () =>
+      import('./features/reports/inventory-master-report-page/inventory-master-report-page').then((m) => m.InventoryMasterReportPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/net-trading-assets',
+    loadComponent: () =>
+      import('./features/reports/net-trading-assets-page/net-trading-assets-page').then((m) => m.NetTradingAssetsPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/exceptional-report',
+    loadComponent: () =>
+      import('./features/reports/exceptional-report-page/exceptional-report-page').then((m) => m.ExceptionalReportPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/user-log',
+    loadComponent: () =>
+      import('./features/reports/user-log-page/user-log-page').then((m) => m.UserLogPage),
     canActivate: [authGuard],
   },
   {

@@ -53,6 +53,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 25 | Manufacturing (FR-8.8/8.9, FR-9.5's slice), behind the Manufacturing flag: BOM → Production Order → costed Production Journal (Inventory-to-Inventory posting, perpetual; conservation law proven in SQL), Void unwinds both directions, three reports | `phase-25-status.md` |
 | 26a | Report catalog completion, Accounting group (FR-9.1/9.6): Transaction list, Journal report, General Ledger Summary, Detail General Ledger, GL Master Report, plus FR-9.1's **Compare** column on Trial Balance / Balance Sheet / Income Statement. All read `GlJournalEntry`; nothing new stored, the only migration is ten permission-seed rows | `phase-26a-status.md` |
 | 26b | Report catalog completion, Receivable/Payable and analytics (closing FR-9.2/9.3): Customer Receivable Summary, Supplier Payable Summary, Invoice Age, Purchase Bill Age, Sales/Purchase By Customer/Supplier and By Item, their four BS-fiscal-year Monthly crosstabs, Sales Summary Report — 13 reports over 7 shared handlers, plus the server-side `Domain/Common/BsCalendar` five of them are keyed by | `phase-26b-status.md` |
+| 26c | Report catalog completion: inventory, tax, system, analytics (closing FR-9.4/9.5/9.7): Inventory Position / Movement / Ledger / Master, Sales & Purchase Return Registers, Net Trading Assets, Exceptional Report, User Log — 9 reports plus the `.xlsx` export the 3 manufacturing reports lacked. One new table (`UserLoginEvent`, written by the auth endpoints); the shared `StockFactReader` the four inventory reports agree through | `phase-26c-status.md` |
 
 ---
 
@@ -111,17 +112,15 @@ E2E, one proven negative path, a status doc) and the confirm-live rule.
   rather than the one predicted here. Service Charge omitted with a note, as directed; Quick
   Payment/Receipt omitted too (phase-17 made it a `Payment`, not a document type). Twenty-six
   permission-seed rows are the only migration.
-- **26c — Inventory, tax, system, analytics.** Inventory Position / Movement / Ledger / Master as
-  *report* pages (live: Movement is Opening/In/Out/Balance × Qty/Rate/Value with Category, Product,
-  Warehouse filters); **Sales Return Register and Purchase Return Register** (live: real separate
-  statutory registers with their own Devanagari column set, one row per Credit/Debit Note — so
-  phase-19's "returns are negative rows in the main register" must be revisited: confirm whether the
-  main registers exclude notes once the return registers exist); Net Trading Assets and Exceptional
-  Report (live: both are fixed-row balance reports — twelve named exception rows, and
-  Receivables/Payables/Inventory with Compare and Exclude-Advance switches); **User Log** (live: a
-  login/logout/failed-login event log with device, browser and IP — needs a new `UserLoginEvent`
-  row written by the auth endpoints, including failures keyed by the attempted email; not derivable
-  from `Audit`).
+- **26c — Inventory, tax, system, analytics. DONE (`docs/phase-26c-status.md`).** All nine built,
+  plus the manufacturing exports. Two live findings reversed this bullet's own predictions:
+  the main Sales/Purchase Registers **keep** their credit/debit notes (the same notes appear in both
+  registers, negative in the main one and positive in the return one, with the main footer net of
+  them — phase 19's folding was parity, not a simplification), and the Purchase Return Register is
+  **not** the Sales Return Register's mirror but the *Purchase* Register's, with seven money columns
+  to the sales side's four. `Inventory.Reports.StockFactReader` is the shared reader the four
+  inventory reports and Net Trading Assets' Inventory Items row agree through; `UserLoginEvent` is
+  the only new table, deliberately carrying no `OrganizationId`.
 - Each report gets its own `Reports.*` key (Admin-only where it exposes per-transaction rows or
   identity, per the standing rule — User Log is Admin-only), `.xlsx` export via
   `ReportSpreadsheetExporter`, and the manufacturing reports get the export they still lack. Exit:

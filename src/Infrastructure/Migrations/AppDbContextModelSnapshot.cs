@@ -1944,6 +1944,53 @@ namespace ErpApp.Infrastructure.Migrations
                     b.ToTable("Users", "identity");
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Identity.UserLoginEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Browser")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("DeviceOs")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAt", "Email");
+
+                    b.HasIndex("OccurredAt", "UserId");
+
+                    b.ToTable("UserLoginEvents", "identity");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Identity.VerificationCode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -7173,6 +7220,132 @@ namespace ErpApp.Infrastructure.Migrations
                             Id = new Guid("00000000-0000-0000-0002-000000000192"),
                             IsGranted = true,
                             PermissionKey = "Reports.SalesSummaryReport.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000193"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.InventoryPosition.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000194"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.InventoryPosition.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000195"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.InventoryMovement.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000196"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.InventoryMovement.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000197"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.InventoryLedgerReport.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000198"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.InventoryLedgerReport.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000199"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.InventoryMaster.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000019a"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.InventoryMaster.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000019b"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.SalesReturnRegister.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000019c"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.SalesReturnRegister.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000019d"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.PurchaseReturnRegister.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000019e"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.PurchaseReturnRegister.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000019f"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.NetTradingAssets.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001a0"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.NetTradingAssets.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001a1"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.ExceptionalReport.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001a2"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.ExceptionalReport.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001a3"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.UserLog.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001a4"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.UserLog.View",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });

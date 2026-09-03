@@ -121,6 +121,32 @@ these are in `CLAUDE.md`'s Known gotchas section. When a phase completes, append
   to age, and Sales Summary's Service Charge is a product flag this codebase lacks, so the column is
   absent with a note on the screen rather than zero-filled. Also: age runs from the **Due Date**, and
   only `Expense` stores one, which is phase-9's credit-term wall reached from the other side.
+- `phase-26c` - before building any report over **stock**, before adding a report that has to agree
+  with a register that already exists, and before writing anything on an **unauthenticated** path.
+  Four things it settled. (1) The confirm-live rule earned its keep twice in one phase, both times by
+  contradicting the plan: the roadmap said the main registers must now *exclude* credit and debit
+  notes and they must not (the same notes appear in both registers, negative in the main one and
+  positive in the return one, footer net of them - phase 19's folding was parity), and it said the
+  Purchase Return Register was the sales one's mirror when it is the *Purchase* Register's, seven
+  money columns to four. Both would have shipped wrong from the doc alone. (2) **A dated stock report
+  cannot read the FIFO layer table.** `StockLedgerEntry.QuantityRemaining` is decremented in place, so
+  it only ever answers "as of now"; `StockFactReader` derives Opening/In/Out/Balance from the
+  append-only `StockMovement` instead, which is correct at any date and equals the FIFO figure today -
+  proved three ways by `sqlcmd` in the E2E. Its one deliberate exception (a negative balance carries
+  no value) is **unreachable today**, because `ConsumeAsync` throws on an oversell rather than warning
+  as the reference product does; the test pins the throw and says so in its name, so the guard is not
+  deleted as dead code before the setting that needs it exists. (3) The shared-reader rule extended
+  from one reader to three - `StockFactReader` for the four inventory reports plus Net Trading Assets,
+  `SalesReturnReader`/`PurchaseReturnReader` for the four register screens - and the second pair was
+  extracted from *shipped* handlers, so the discipline now costs a refactor rather than only shaping
+  new code. (4) `UserLoginEvent` is the precedent for storing something that is **not tenant-scoped**:
+  signing in happens before an organization is chosen and a failed attempt has none even in principle,
+  so the row carries no `OrganizationId` and the *report* does the scoping by joining
+  `OrganizationMembership` - plus the attempted email, which is the only way an attack on a
+  colleague's address becomes visible. Read Decision F before writing on any unauthenticated path: the
+  write is swallowed on failure, deliberately the opposite of `AuditBehavior`, because an audit row
+  must never become a way to deny someone their session. Also: `decimal` has a signed zero, and no
+  test can see it.
 - `phase-7`'s addendum (bottom of the file) — before adding a new tenant-wide default GL account or changing which account a posting rule debits/credits: grep for the field name across every posting rule that's supposed to read it. `DefaultInventoryAccountId` sat completely unread by `PurchaseBillPostingRule` for 12 phases (Goods purchases debited Purchase Expense instead), silently double-counting Cost of Goods Sold in `IncomeStatementQueryHandler`'s Net Profit for any tenant whose Purchase account was Expense-typed — the obvious/default choice, caught only by a later phase's live E2E, not by any test or `dotnet build`
 - `phase-26a` - before building any **period-over-period comparison**, and before any report that
   reads `GlLine` back to the document that posted it. Compare is **one request, not two**: the second

@@ -1,0 +1,90 @@
+<div class="container py-5" style="max-width: 1000px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-danger bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-exclamation-diamond fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Exceptional Report</h1>
+          <p class="text-muted small mb-0">Twelve balance anomalies worth a second look, as at the period end</p>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportReport()">
+          <i class="bi bi-download"></i> Export
+        </button>
+        <a [routerLink]="['/organizations', organizationId, 'reports', 'net-trading-assets']" class="btn btn-outline-secondary btn-sm fw-bold">
+          <i class="bi bi-clipboard-data"></i> Net Trading Assets
+        </a>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3">
+        <div class="col-12 col-sm-6 col-lg-4">
+          <label class="form-label small fw-semibold">From Date</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+          <label class="form-label small fw-semibold">To Date</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      @if (loading()) {
+        <div class="p-5 text-center text-muted">
+          <div class="spinner-border spinner-border-sm me-2"></div> Loading…
+        </div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Particulars</th>
+                <th class="text-end">Balance</th>
+                <th class="text-center" style="width: 6rem;">DR/CR</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.particulars) {
+                <tr [class.text-muted]="!row.isModelled">
+                  <td>
+                    {{ row.particulars }}
+                    @if (!row.isModelled) {
+                      <span class="badge bg-secondary-subtle text-secondary ms-2">not modelled</span>
+                    }
+                  </td>
+                  <td class="text-end fw-semibold" [class.text-danger]="row.isModelled && row.balance !== 0">
+                    {{ (row.balance | amount) }}
+                  </td>
+                  <!-- Blank on the two inventory rows: a quantity and a stock valuation do not sit
+                       on a side of the ledger, and the live report leaves these cells empty too. -->
+                  <td class="text-center">{{ row.balanceType || '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="p-3 border-top small text-muted">
+          "Non-actionable Account Balances" is always zero: every account in this chart of accounts is
+          postable, so the concept the reference product reports there does not exist here. The row is
+          kept so the twelve-row shape stays complete.
+        </div>
+      }
+    </div>
+  </div>
+</div>

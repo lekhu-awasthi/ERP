@@ -750,4 +750,59 @@ public static class PermissionKeys
     public const string SalesByItemMonthlyView = "Reports.SalesByItemMonthly.View";
     public const string PurchaseByItemMonthlyView = "Reports.PurchaseByItemMonthly.View";
     public const string SalesSummaryReportView = "Reports.SalesSummaryReport.View";
+
+    // ---- Phase 26c: Inventory, Tax, System and Analytics reports (FR-9.4/9.5/9.6/9.7) ----
+    //
+    // **Nine new keys, three Admin-only and six Admin+Member.** The split follows the standing rule
+    // -- flat per-transaction registers and anything exposing identity are Admin-only; bounded
+    // rollups and routine daily working data are Admin+Member -- and the line lands in a different
+    // place here than it did in 26b, because most of this phase's reports are about *stock*, which
+    // names no person at all.
+    //
+    // Admin-only:
+    //
+    // - UserLogView: the strongest case in the codebase, and not for the usual reason. This report
+    //   discloses, per colleague, the IP address they signed in from, the device and browser they
+    //   used, and the minute they did it -- plus the addresses that tried and failed. That is
+    //   surveillance-grade data about people rather than commercial data about the business.
+    //   SystemAuditView is the nearest precedent and is Admin-only on weaker grounds.
+    //
+    // - InventoryMasterView: the flat per-line fact table across every stock-affecting document
+    //   type, carrying the contact on each row beside its rate, discounts and margin-revealing
+    //   cost. Strictly more disclosure than SalesMasterReportView and PurchaseMasterReportView put
+    //   together, both of which are already Admin-only; it cannot be less restricted than either.
+    //
+    // - SalesReturnRegisterView / PurchaseReturnRegisterView share the classification of the
+    //   registers they belong to -- see below.
+    //
+    // Admin+Member:
+    //
+    // - InventoryPositionView / InventoryMovementView / InventoryLedgerReportView: quantity, rate
+    //   and value per product, with no contact anywhere. This is exactly the StockAgeingView shape,
+    //   Admin+Member since phase 19, and it is the working data a stock operator needs hourly --
+    //   the Inventory Ledger is the same kardex the product detail page already links to under
+    //   InventoryLedgerView, so restricting the report form of it would be an arbitrary line.
+    //
+    // - NetTradingAssetsView / ExceptionalReportView: four-row and twelve-row rollups over the
+    //   whole tenant. No contact, no product, no document number -- the single most bounded shape
+    //   in the phase, and the Trial Balance's own (TrialBalanceView is Admin+Member).
+    //
+    // **The two return registers take their parent register's class, which is Admin+Member.**
+    // SalesRegisterView and PurchaseRegisterView have been Admin+Member since phase 19, and each
+    // return register is a strict *subset* of its parent's rows -- confirmed live on 2026-09-03,
+    // where the same twelve credit notes appear in both, negative in the Sales Register and
+    // positive in the Sales Return Register. A subset cannot warrant more protection than the
+    // superset a Member already holds; making them Admin-only would restrict data those users can
+    // already read, which is the sort of inconsistency phase 14's matrix editor makes visible.
+    // (They do expose a counterparty PAN -- but so does the parent register, and that is where the
+    // decision was already taken.)
+    public const string InventoryPositionView = "Reports.InventoryPosition.View";
+    public const string InventoryMovementView = "Reports.InventoryMovement.View";
+    public const string InventoryLedgerReportView = "Reports.InventoryLedgerReport.View";
+    public const string InventoryMasterView = "Reports.InventoryMaster.View";
+    public const string SalesReturnRegisterView = "Reports.SalesReturnRegister.View";
+    public const string PurchaseReturnRegisterView = "Reports.PurchaseReturnRegister.View";
+    public const string NetTradingAssetsView = "Reports.NetTradingAssets.View";
+    public const string ExceptionalReportView = "Reports.ExceptionalReport.View";
+    public const string UserLogView = "Reports.UserLog.View";
 }

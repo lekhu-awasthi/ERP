@@ -1,0 +1,128 @@
+<div class="container py-5" style="max-width: 1400px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-warning bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-arrow-return-left fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Sales Return Register</h1>
+          <p class="text-muted small mb-0">Nepal IRD Sales Return Book — one row per approved Credit Note</p>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportCurrentView()">
+          <i class="bi bi-download"></i> Export Current View
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
+          <i class="bi bi-download"></i> Export Full Dataset
+        </button>
+        <a [routerLink]="['/organizations', organizationId, 'reports', 'sales-register']" class="btn btn-outline-secondary btn-sm fw-bold">
+          <i class="bi bi-journal-text"></i> Sales Register
+        </a>
+        <a [routerLink]="['/organizations', organizationId, 'reports', 'purchase-return-register']" class="btn btn-outline-secondary btn-sm fw-bold">
+          <i class="bi bi-arrow-return-right"></i> Purchase Return Register
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-info d-flex align-items-start gap-2 mb-4" role="alert">
+    <i class="bi bi-info-circle-fill mt-1"></i>
+    <div class="small">
+      These credit notes also appear in the <strong>Sales Register</strong> as negative rows, where they
+      reduce that register's totals. Both readings are correct: this register states the returns on
+      their own, and the Sales Register states sales net of them.
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3">
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold">From Date</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold">To Date</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+          <label class="form-label small fw-semibold">Customer</label>
+          <select class="form-select" (change)="onContactChange($event)">
+            <option value="" [selected]="!contactId()">All Customers</option>
+            @for (customer of customers(); track customer.id) {
+              <option [value]="customer.id" [selected]="customer.id === contactId()">{{ customer.code }} — {{ customer.name }}</option>
+            }
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      @if (loading()) {
+        <div class="p-5 text-center text-muted">
+          <div class="spinner-border spinner-border-sm me-2"></div> Loading…
+        </div>
+      } @else if (rows().length === 0) {
+        <div class="p-5 text-center text-muted">No sales returns in this period.</div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Date</th>
+                <th>Credit Note No</th>
+                <th>Buyer Name</th>
+                <th>Buyer PAN</th>
+                <th class="text-end">Total Return</th>
+                <th class="text-end">Tax-Exempt Return Value</th>
+                <th class="text-end">Taxable Return Value</th>
+                <th class="text-end">Tax</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.documentCode) {
+                <tr>
+                  <td>{{ row.date | nepaliDate }}</td>
+                  <td>{{ row.documentCode }}</td>
+                  <td>{{ row.contactName }}</td>
+                  <td>{{ row.contactPan || '—' }}</td>
+                  <td class="text-end">{{ (row.totalReturnValue | amount) }}</td>
+                  <td class="text-end">{{ (row.taxExemptReturnValue | amount) }}</td>
+                  <td class="text-end">{{ (row.taxableReturnValue | amount) }}</td>
+                  <td class="text-end fw-bold">{{ (row.vatAmount | amount) }}</td>
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr class="fw-bold border-top">
+                <td colspan="4">Total</td>
+                <td class="text-end">{{ (totalReturnValue() | amount) }}</td>
+                <td class="text-end">{{ (totalTaxExemptReturnValue() | amount) }}</td>
+                <td class="text-end">{{ (totalTaxableReturnValue() | amount) }}</td>
+                <td class="text-end">{{ (totalVatAmount() | amount) }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <app-pagination-control
+          [page]="page()"
+          [pageSize]="pageSize()"
+          [totalCount]="totalCount()"
+          (pageChange)="onPageChange($event)"
+          (pageSizeChange)="onPageSizeChange($event)"
+        />
+      }
+    </div>
+  </div>
+</div>

@@ -1,0 +1,137 @@
+<div class="container py-5" style="max-width: 1400px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-info bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-boxes fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Inventory Position</h1>
+          <p class="text-muted small mb-0">Quantity, rate and value per product as at the period end</p>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportCurrentView()">
+          <i class="bi bi-download"></i> Export Current View
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
+          <i class="bi bi-download"></i> Export Full Dataset
+        </button>
+        <a [routerLink]="['/organizations', organizationId, 'reports', 'inventory-movement']" class="btn btn-outline-secondary btn-sm fw-bold">
+          <i class="bi bi-arrow-left-right"></i> Inventory Movement
+        </a>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3">
+        <div class="col-12 col-sm-6 col-lg-2">
+          <label class="form-label small fw-semibold">From Date</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+          <label class="form-label small fw-semibold">To Date</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+          <label class="form-label small fw-semibold">Product Category</label>
+          <select class="form-select" (change)="onCategoryChange($event)">
+            <option value="" [selected]="!categoryId()">All</option>
+            @for (category of categories(); track category.id) {
+              <option [value]="category.id" [selected]="category.id === categoryId()">{{ category.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+          <label class="form-label small fw-semibold">Product</label>
+          <select class="form-select" (change)="onProductChange($event)">
+            <option value="" [selected]="!productId()">All</option>
+            @for (product of products(); track product.id) {
+              <option [value]="product.id" [selected]="product.id === productId()">{{ product.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+          <label class="form-label small fw-semibold">Warehouse</label>
+          <select class="form-select" (change)="onWarehouseChange($event)">
+            <option value="" [selected]="!warehouseId()">All</option>
+            @for (warehouse of warehouses(); track warehouse.id) {
+              <option [value]="warehouse.id" [selected]="warehouse.id === warehouseId()">{{ warehouse.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+          <label class="form-label small fw-semibold">Balance</label>
+          <select class="form-select" (change)="onBalanceFilterChange($event)">
+            <option value="All" [selected]="balanceFilter() === 'All'">Show All</option>
+            <option value="PositiveOnly" [selected]="balanceFilter() === 'PositiveOnly'">Positive Balance Only</option>
+            <option value="NegativeOnly" [selected]="balanceFilter() === 'NegativeOnly'">Negative Balance Only</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      @if (loading()) {
+        <div class="p-5 text-center text-muted">
+          <div class="spinner-border spinner-border-sm me-2"></div> Loading…
+        </div>
+      } @else if (rows().length === 0) {
+        <div class="p-5 text-center text-muted">No stock matches these filters.</div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Code/Goods</th>
+                <th>Category</th>
+                <th class="text-end">Qty</th>
+                <th>UOM</th>
+                <th class="text-end">Rate</th>
+                <th class="text-end">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.productId) {
+                <tr>
+                  <td>{{ row.product }}</td>
+                  <td>{{ row.category || '—' }}</td>
+                  <td class="text-end" [class.text-danger]="row.quantity < 0">{{ (row.quantity | amount: 3) }}</td>
+                  <td>{{ row.unit || '—' }}</td>
+                  <td class="text-end">{{ row.quantity > 0 ? (row.rate | amount: 3) : '—' }}</td>
+                  <td class="text-end fw-bold">{{ row.quantity > 0 ? (row.amount | amount) : '—' }}</td>
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr class="fw-bold border-top">
+                <td colspan="2">Total</td>
+                <td class="text-end">{{ (totalQuantity() | amount: 3) }}</td>
+                <td colspan="2"></td>
+                <td class="text-end">{{ (totalAmount() | amount) }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <app-pagination-control
+          [page]="page()"
+          [pageSize]="pageSize()"
+          [totalCount]="totalCount()"
+          (pageChange)="onPageChange($event)"
+          (pageSizeChange)="onPageSizeChange($event)"
+        />
+      }
+    </div>
+  </div>
+</div>

@@ -40,6 +40,14 @@ gotcha is found, add the one-liner to `CLAUDE.md` and the narrative here, under 
 
 - **A filter over a tree of tenant-defined groups must match on group id, never group name.** `GeneralLedgerSummaryQueryHandler`'s first cut resolved the filtered `AccountGroup`'s subtree with `ITreeQuery`, projected it to a set of *names*, and compared each account's own group name against it. Group names are not unique across a chart of accounts and nothing in the schema makes them so, so two unrelated groups both called "Other" would have silently merged into one filter result — a wrong report that looks entirely plausible. The fix was to carry `GroupId` on the projection (`GlAccountClassification.AccountFacts`) and match on the id. The general form: any time a tree helper hands you ids and you convert them to labels to do the comparison, you have thrown away the only unique key you had (phase-26a bug #1).
 
+**`decimal` has a signed zero, and no test will catch it (phase-26c bug #1).** `-0m` keeps its sign
+bit. `decimal.Equals` treats it as equal to `0m`, so every assertion passes -- but the cast to
+`double` that a spreadsheet cell needs preserves the sign, and ClosedXML writes `-0`, which renders
+`-0.00` on screen. The shape that produced it was an unguarded `else { credit += -balance; }` over
+contacts whose balance was exactly zero. Accumulate a magnitude only when the value is *strictly*
+non-zero. Found by reading a generated workbook's raw cell XML during a manual E2E, which is the only
+place it was visible.
+
 ## GL posting, documents and domain invariants
 
 - A posting rule for a "reverse of X" document type can satisfy `GlJournalEntry.Post`'s own `sum(Debit)==sum(Credit)` invariant while leaving a *paired* account permanently unbalanced across the original + reversal combined (e.g. DebitNote debiting AP gross while PurchaseBill credited AP net of TDS — AP off by the TDS amount, TDS Payable stuck forever, every test green). Trace the *net* effect on every account the original touched, across both postings, especially control accounts the reversal doesn't obviously need to know about. See `docs/phase-6-status.md`'s bug #3.
@@ -59,6 +67,33 @@ gotcha is found, add the one-liner to `CLAUDE.md` and the narrative here, under 
   The mirror-image rule: an ageing report's **age runs from the Due Date**, but only `Expense` stores one in this codebase and no Contact carries a credit term, so Due Date equals the document date on Invoice and PurchaseBill rows. That is phase-9's dropped "Credit Term" column reached from the other side, and it is stated on the screen rather than papered over (phase-26b Decision C).
 
 - **A report column that is not additive must not have a footer total.** phase-16c's rule is that a footer total covers the whole filtered set rather than the current page — but the Transaction list's Amount column crosses document types, where an Invoice's gross, a Journal Voucher's debit side and an Inventory Adjustment's value are not the same unit of account. Summing them produces a number with no meaning that a reader will nonetheless believe. Both the Transaction list and `RecentTransactionsQuery` therefore have no footer at all, which is stated in their doc comments so a later phase does not "fix" the omission (phase-26a Decision D).
+
+**A dated stock report must derive from `StockMovement`, not from `StockLedgerEntry` (phase-26c).**
+`StockLedgerEntry.QuantityRemaining` is decremented **in place** as later documents consume a layer,
+so the FIFO table only ever describes stock as it stands right now. A report whose header says "for
+the period ... to 30 Bhadra" and whose Balance column silently answered "as of today" is wrong in the
+one case a reader most needs it -- reopening a closed period. `StockMovement` is append-only and
+carries the consuming document's own weighted-average unit cost, so Opening + In - Out reconstructs
+both quantity and value at any date, and equals the FIFO remaining value at today's date. That last
+equality is what CLAUDE.md's older "a live inventory value comes from `QuantityRemaining x UnitCost`"
+gotcha is really asserting; phase-26c's E2E proved all three figures identical (123 units / 1,330.00)
+against the real database. `Inventory.Reports.StockFactReader` is the one place this is implemented.
+
+**Stock cannot go negative in this codebase, so don't test the branch that handles it (phase-26c).**
+`StockLedgerService.ConsumeAsync` *throws* a 409 when a document would consume more than the layers
+hold. The reference product instead offers a "Negative Item Balance" setting (Reject / Warn / Do
+Nothing) and its own tenant runs warn-and-allow, which is why its Inventory Position has hundreds of
+negative rows and ours can have none. `StockFactReader` still guards the case -- a negative balance
+reports zero value, because there is no cost to carry for goods that are not there -- and a test pins
+the *throw*, naming in the test's own title that this is why the guard is unreachable. Otherwise the
+guard reads as dead code and gets deleted before the setting that needs it is built.
+
+**A Debit Note line carries no `ExpenditureClassification` and no `IsImport` of its own
+(phase-19, phase-26c).** Both are resolved from the source Purchase Bill's matching line, keyed by
+`(PurchaseBillId, ProductId, Rate, VatRate)` -- the same join `AnnexThirteenReportQueryHandler` uses.
+A standalone debit note with no referrer falls back to Others/local. `PurchaseReturnReader` owns this
+now, and both the Purchase Register and the Purchase Return Register read it, so the two cannot
+report a return in different statutory columns.
 
 ## Background jobs
 
@@ -106,6 +141,23 @@ gotcha is found, add the one-liner to `CLAUDE.md` and the narrative here, under 
 - **A browser pass is possible in a non-interactive session, and here is how** (this is what kept four screens unlooked-at across phases 21b/21c/22): the auth cookie is `HttpOnly; Secure; SameSite=None`, so the SPA must be served over HTTPS with a certificate the pane already trusts -- a self-signed `ng serve --ssl` cert is refused, the ASP.NET dev cert is not. Export it (`dotnet dev-certs https --export-path .certs/dev.pem --format PEM --no-password`), start the `erp-web-ssl` launch profile, then transplant the session curl already established: `document.cookie = "erp_auth=<token>; path=/; secure; samesite=none"`. Cookies ignore port, both origins are HTTPS, so it is same-site and reaches the Api. No credentials are typed into any form.
 
 - **Map one enum onto another by name, never by ordinal, and add a test that says so.** The Transaction list unifies thirteen per-document status enums into one `TransactionListStatus`. They are *not* identical — only Quotation and PurchaseOrder have `Converted` — but all thirteen happen to share ordinals today, so `(TransactionListStatus)(int)x.Status` compiles and works. It would start reporting the wrong status the first time anyone *inserts* a member into one of those enums, with nothing to catch it. The handler uses `Enum.Parse`/`Enum.TryParse` on the name instead, and `TransactionListQueryHandlerTests` asserts every member of all thirteen enums has a counterpart in the shared one, so the failure mode is a red test rather than a wrong number (phase-26a Decision E).
+
+**A seed script that pipes approvals to `/dev/null` hides its own failures (phase-26c bug #2).** Two
+real traps cost a full seed run each, both invisible: `POST /api/organizations` returns
+`organizationId`, not `id`; and the accounting *and* inventory GL defaults are **one**
+`PUT /api/organizations/{id}/accounting-defaults` taking all eleven accounts, not two endpoints. The
+approvals came back 409 ("Default Inventory account is not configured") and the first report simply
+returned an empty list, which reads exactly like a handler bug. Print every approval's status code:
+`-w " pb1:%{http_code}
+" -o /dev/null`.
+
+**Driving the reference product's UI needs coordinates, not refs (phase-26c).** Its accessibility
+tree is nearly empty -- custom `div`s with no roles -- so `find` matches nothing and `read_page`
+returns three anonymous generics. Read `getBoundingClientRect()` through `javascript_tool` and click
+by coordinate, converting with the screenshot's own scale factor. And its **GENERATE control's DOM
+text is "Generate"**: the capitals come from CSS `text-transform`, so a case-sensitive query for
+"GENERATE" finds zero elements. That is phase-23's component-test casing gotcha met from the other
+side.
 
 ## Tooling and shell
 

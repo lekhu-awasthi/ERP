@@ -1,0 +1,142 @@
+<div class="container py-5" style="max-width: 1600px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-warning bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-arrow-return-right fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Purchase Return Register</h1>
+          <p class="text-muted small mb-0">Nepal IRD Purchase Return Book — one row per approved Debit Note</p>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportCurrentView()">
+          <i class="bi bi-download"></i> Export Current View
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
+          <i class="bi bi-download"></i> Export Full Dataset
+        </button>
+        <a [routerLink]="['/organizations', organizationId, 'reports', 'purchase-register']" class="btn btn-outline-secondary btn-sm fw-bold">
+          <i class="bi bi-journal-text"></i> Purchase Register
+        </a>
+        <a [routerLink]="['/organizations', organizationId, 'reports', 'sales-return-register']" class="btn btn-outline-secondary btn-sm fw-bold">
+          <i class="bi bi-arrow-return-left"></i> Sales Return Register
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-info d-flex align-items-start gap-2 mb-4" role="alert">
+    <i class="bi bi-info-circle-fill mt-1"></i>
+    <div class="small">
+      These debit notes also appear in the <strong>Purchase Register</strong> as negative rows. The
+      Capital and Import classification of each return is inherited from the Purchase Bill it
+      reverses; a standalone debit note with no source bill is treated as local and non-capital.
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3">
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold">From Date</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold">To Date</label>
+          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+          <label class="form-label small fw-semibold">Supplier</label>
+          <select class="form-select" (change)="onContactChange($event)">
+            <option value="" [selected]="!contactId()">All Suppliers</option>
+            @for (supplier of suppliers(); track supplier.id) {
+              <option [value]="supplier.id" [selected]="supplier.id === contactId()">{{ supplier.code }} — {{ supplier.name }}</option>
+            }
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      @if (loading()) {
+        <div class="p-5 text-center text-muted">
+          <div class="spinner-border spinner-border-sm me-2"></div> Loading…
+        </div>
+      } @else if (rows().length === 0) {
+        <div class="p-5 text-center text-muted">No purchase returns in this period.</div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Date</th>
+                <th>Debit Note No</th>
+                <th>Declaration No</th>
+                <th>Supplier Name</th>
+                <th>Supplier PAN</th>
+                <th class="text-end">Total Return Value</th>
+                <th class="text-end">Tax-Exempt Return / Import</th>
+                <th class="text-end">Taxable Return Value</th>
+                <th class="text-end">Taxable Return Tax</th>
+                <th class="text-end">Taxable Import Return Value</th>
+                <th class="text-end">Taxable Import Return Tax</th>
+                <th class="text-end">Capital Return Value</th>
+                <th class="text-end">Capital Return Tax</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.documentCode) {
+                <tr>
+                  <td>{{ row.date | nepaliDate }}</td>
+                  <td>{{ row.documentCode }}</td>
+                  <td>{{ row.importDeclarationNo || '—' }}</td>
+                  <td>{{ row.contactName }}</td>
+                  <td>{{ row.contactPan || '—' }}</td>
+                  <td class="text-end fw-bold">{{ (row.totalReturnValue | amount) }}</td>
+                  <td class="text-end">{{ (row.taxExemptValue | amount) }}</td>
+                  <td class="text-end">{{ (row.taxableNonCapitalLocalValue | amount) }}</td>
+                  <td class="text-end">{{ (row.taxableNonCapitalLocalVat | amount) }}</td>
+                  <td class="text-end">{{ (row.taxableNonCapitalImportValue | amount) }}</td>
+                  <td class="text-end">{{ (row.taxableNonCapitalImportVat | amount) }}</td>
+                  <td class="text-end">{{ (row.taxableCapitalValue | amount) }}</td>
+                  <td class="text-end">{{ (row.taxableCapitalVat | amount) }}</td>
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr class="fw-bold border-top">
+                <td colspan="5">Total</td>
+                <td class="text-end">{{ (totalReturnValue() | amount) }}</td>
+                <td class="text-end">{{ (totalTaxExemptValue() | amount) }}</td>
+                <td class="text-end">{{ (totalTaxableNonCapitalLocalValue() | amount) }}</td>
+                <td class="text-end">{{ (totalTaxableNonCapitalLocalVat() | amount) }}</td>
+                <td class="text-end">{{ (totalTaxableNonCapitalImportValue() | amount) }}</td>
+                <td class="text-end">{{ (totalTaxableNonCapitalImportVat() | amount) }}</td>
+                <td class="text-end">{{ (totalTaxableCapitalValue() | amount) }}</td>
+                <td class="text-end">{{ (totalTaxableCapitalVat() | amount) }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <app-pagination-control
+          [page]="page()"
+          [pageSize]="pageSize()"
+          [totalCount]="totalCount()"
+          (pageChange)="onPageChange($event)"
+          (pageSizeChange)="onPageSizeChange($event)"
+        />
+      }
+    </div>
+  </div>
+</div>

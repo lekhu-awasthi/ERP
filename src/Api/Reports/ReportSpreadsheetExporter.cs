@@ -55,7 +55,7 @@ namespace ErpApp.Api.Reports;
 /// worth of buffering is unavoidable with this library, not a choice this phase is making for
 /// convenience.
 /// </summary>
-public static class ReportSpreadsheetExporter
+public static partial class ReportSpreadsheetExporter
 {
     private const string XlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
