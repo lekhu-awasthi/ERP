@@ -1,17 +1,20 @@
-import { Component, OnInit, inject, input, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { ActivityRowDto, CommentRowDto } from '../../../core/contacts/contacts.models';
 import { SmsLogRowDto } from '../../../core/crm/crm.models';
+import { TabParent, hasSmsHistory } from '../../../core/contacts/tab-parent';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 
 type ActivitySubTab = 'Comments' | 'Activities' | 'SmsHistory' | 'EmailLogs';
 
-/** Contact Activity tab (roadmap Phase 18) -- live-confirmed Tigg shape: 4 sub-tabs (Comments /
- * Activities / SMS History / Email Logs). Email Logs has no backend capability at all (no entity,
- * no endpoint) so it renders an empty-state message only -- not a faked working tab. */
+/** The Activity tab (roadmap Phase 18; parameterised by TabParent in Phase 27a). Live-confirmed
+ * Tigg shape: a Contact gets 4 sub-tabs (Comments / Activities / SMS History / Email Logs), a
+ * transactional document gets 3 -- the same minus SMS History, which is what showsSmsHistory
+ * encodes. Email Logs has no backend capability on either (no entity, no endpoint) so it renders an
+ * empty-state message only -- not a faked working tab. */
 @Component({
   selector: 'app-activity-panel',
   imports: [PaginationControl],
@@ -21,7 +24,12 @@ export class ActivityPanel implements OnInit {
   private readonly contactsService = inject(ContactsService);
 
   readonly organizationId = input.required<string>();
-  readonly contactId = input.required<string>();
+  readonly parent = input.required<TabParent>();
+
+  /** Phase 27a: a Contact has an SMS History sub-tab, a document does not -- live-confirmed, the
+   * document Activity tab shows three sub-tabs where the Contact tab shows four. Driven off the
+   * parent rather than an extra flag, so a caller cannot get the pair inconsistent. */
+  protected readonly showsSmsHistory = computed(() => hasSmsHistory(this.parent()));
 
   protected readonly subTab = signal<ActivitySubTab>('Comments');
   protected readonly errorMessage = signal<string | null>(null);
@@ -74,7 +82,7 @@ export class ActivityPanel implements OnInit {
     }
     this.postingComment.set(true);
     this.errorMessage.set(null);
-    this.contactsService.addComment(this.organizationId(), this.contactId(), content).subscribe({
+    this.contactsService.addComment(this.organizationId(), this.parent(), content).subscribe({
       next: () => {
         this.postingComment.set(false);
         this.newComment.set('');
@@ -124,7 +132,7 @@ export class ActivityPanel implements OnInit {
   private loadComments(): void {
     this.commentsLoading.set(true);
     this.contactsService
-      .listComments(this.organizationId(), this.contactId(), this.commentPage(), this.commentPageSize())
+      .listComments(this.organizationId(), this.parent(), this.commentPage(), this.commentPageSize())
       .subscribe({
         next: (result) => {
           this.commentRows.set(result.rows);
@@ -141,7 +149,7 @@ export class ActivityPanel implements OnInit {
   private loadActivities(): void {
     this.activitiesLoading.set(true);
     this.contactsService
-      .listActivities(this.organizationId(), this.contactId(), this.activityPage(), this.activityPageSize())
+      .listActivities(this.organizationId(), this.parent(), this.activityPage(), this.activityPageSize())
       .subscribe({
         next: (result) => {
           this.activityRows.set(result.rows);
@@ -156,9 +164,17 @@ export class ActivityPanel implements OnInit {
   }
 
   private loadSmsHistory(): void {
+    // SMS history stays Contact-only -- a document has no phone number, and the live document
+    // Activity tab has no such sub-tab. Narrowing off the union here means the compiler, not a
+    // comment, is what stops a document parent reaching this call.
+    const parent = this.parent();
+    if (parent.kind !== 'Contact') {
+      return;
+    }
+
     this.smsLoading.set(true);
     this.contactsService
-      .listContactSmsHistory(this.organizationId(), this.contactId(), this.smsPage(), this.smsPageSize())
+      .listContactSmsHistory(this.organizationId(), parent.contactId, this.smsPage(), this.smsPageSize())
       .subscribe({
         next: (result) => {
           this.smsRows.set(result.rows);

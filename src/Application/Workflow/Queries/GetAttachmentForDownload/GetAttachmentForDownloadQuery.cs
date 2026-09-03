@@ -16,7 +16,10 @@ namespace ErpApp.Application.Workflow.Queries.GetAttachmentForDownload;
 public sealed record GetAttachmentForDownloadQuery(Guid OrganizationId, Guid Id)
     : IRequest<AttachmentDownloadDto>, IRequirePermission, IOrganizationScoped
 {
-    public string PermissionKey => PermissionKeys.ContactView;
+    // Phase 27a: blanket, for the same reason DeleteAttachmentCommand's is -- the parent whose
+    // View grant decides this is a column on the row the handler is about to read. The real gate is
+    // in the handler; see PermissionKeys.AttachmentAccess.
+    public string PermissionKey => PermissionKeys.AttachmentAccess;
 }
 
 public sealed record AttachmentDownloadDto(string FileName, string ContentType, string StorageKey);

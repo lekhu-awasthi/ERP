@@ -17,7 +17,7 @@ public sealed class WorkTaskConfiguration : IEntityTypeConfiguration<WorkTask>
         builder.Property(x => x.OrganizationId).IsRequired();
         // ParentType/ParentId are a polymorphic (ParentType, ParentId) pair, not a real FK -- see
         // WorkTask's own doc comment -- so no HasOne/HasForeignKey against Contacts/Organizations.
-        builder.Property(x => x.ParentType).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(x => x.ParentType).HasConversion<string>().HasMaxLength(40).IsRequired();
         builder.Property(x => x.ParentId).IsRequired();
         builder.Property(x => x.Title).HasMaxLength(200).IsRequired();
         builder.Property(x => x.Description).HasMaxLength(2000);

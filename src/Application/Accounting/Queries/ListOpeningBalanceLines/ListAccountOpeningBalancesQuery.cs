@@ -16,5 +16,10 @@ public sealed record ListAccountOpeningBalancesQuery(
     public string PermissionKey => PermissionKeys.OpeningBalanceView;
 }
 
+/// <summary>LineId (Phase 27a) is the OpeningBalanceLine's own Id, null until a balance has actually
+/// been set for this account. Reporting tags are keyed by it -- both Opening Balances tabs carry an
+/// inline "Add Reporting Tags" link in their row form -- and it is the same identity
+/// GlJournalEntry.SourceDocumentId already uses for an opening-balance posting.</summary>
 public sealed record AccountOpeningBalanceDto(
-    Guid AccountId, string AccountCode, string AccountName, string RootType, string GroupName, decimal Debit, decimal Credit);
+    Guid AccountId, string AccountCode, string AccountName, string RootType, string GroupName, decimal Debit,
+    decimal Credit, Guid? LineId);

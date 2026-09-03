@@ -163,3 +163,20 @@ these are in `CLAUDE.md`'s Known gotchas section. When a phase completes, append
   the precedent for **deriving an attribute from the audit trail** when no aggregate stores it
   (Created By), for **refusing to total a column** whose values are not the same unit of account, and
   for mapping one enum onto another **by name with a test that says so** rather than by ordinal
+- `phase-27a` - before adding a new `DocumentType` member, or building any future cross-cutting
+  sweep across every document type. The confirm-live pass corrected the roadmap's own scope twice:
+  Custom Fields applies to 13 document types, not 15 (Warehouse Transfer and Inventory Adjustment
+  carry no such section live at all), and Reporting Tags is wider than the roadmap said (all 15
+  transactional types **plus** OpeningBalance/OpeningStock, each tagged by its own row's line id).
+  One classification table (`DocumentMechanisms`) plus one server guard test
+  (`DocumentMechanismSweepGuardTests`) and one client guard spec
+  (`document-mechanism-sweep-guard.spec.ts`) are what make "sweep complete" a build failure rather
+  than a claim - modelled directly on phase-23's `sweep-guard.spec.ts` and phase-24's
+  `ProductVariantSweepGuardTests`. `Comment` went polymorphic here, on the exact trigger phase-18
+  decision #3 set for it ("generalize only if/when a second parent type is actually needed") - read
+  phase-18 first if extending `Comment` further. Also the precedent for a permission check that
+  cannot be a declared `PermissionKey` at all: when the real key depends on a column of the row the
+  handler is about to load, declare a blanket key to clear `AuthorizationBehavior` and re-check the
+  real one inside the handler once the row is loaded (`AttachmentAccess`, third use of the
+  `TransactionApprovalView` pattern) - read this before adding any other id-only mutation whose
+  permission depends on what the id points at.

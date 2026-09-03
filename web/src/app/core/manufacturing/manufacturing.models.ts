@@ -110,6 +110,10 @@ export interface ProductionOrderListItem {
   productName: string;
   outputQuantity: number;
   status: ProductionOrderStatus;
+  // Phase 27a: the tenant-defined pipeline value the list grid's STATUS column shows, orthogonal to
+  // `status` above. The reference product labels this column STATUS on Production Order and STAGE on
+  // Sales Order/Quotation, but it is the same control over the same CustomStatus lookup.
+  customStatusId: string | null;
 }
 
 export interface ProductionOrderRawMaterialLine {

@@ -31,6 +31,15 @@ public sealed class SalesOrder
     public byte[] RowVersion { get; private set; } = null!;
     public decimal DiscountPct { get; private set; }
 
+    /// <summary>Phase 27a -- tenant-defined status pipeline (CustomStatus), orthogonal to the
+    /// native Draft/Approved/Void lifecycle above. Live-confirmed on this type's own LIST grid:
+    /// a "STAGE" column whose picker offers the tenant's
+    /// Sales Order pipeline (Pending/Confirmed/Packaged/Delivered/Cancelled on the UAT tenant),
+    /// settable on Draft and Approved rows alike. Deliberately not gated by EnsureDraft -- it
+    /// carries no GL or stock weight, the same reasoning Phase 20b used for Quotation and Purchase
+    /// Order, and 20a used for Custom Fields.</summary>
+    public Guid? CustomStatusId { get; private set; }
+
     public IReadOnlyList<SalesOrderLine> Lines => _lines;
 
     private SalesOrder()
@@ -117,6 +126,13 @@ public sealed class SalesOrder
         Status = SalesOrderStatus.Void;
         VoidedByUserId = voidedByUserId;
         VoidedAt = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>Phase 27a -- see <see cref="CustomStatusId"/>. Setting or clearing (null) a pipeline
+    /// value has no GL, stock or lifecycle side effect.</summary>
+    public void SetCustomStatus(Guid? customStatusId)
+    {
+        CustomStatusId = customStatusId;
     }
 
     private void EnsureDraft()

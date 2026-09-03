@@ -73,8 +73,43 @@ public class SetTransactionReportingTagsCommandHandlerTests
         var invoiceCommand = new SetTransactionReportingTagsCommand(Guid.NewGuid(), DocumentType.Invoice, Guid.NewGuid(), []);
         Assert.Equal("Sales.Invoice.Edit", invoiceCommand.PermissionKey);
 
-        var unsupported = new SetTransactionReportingTagsCommand(Guid.NewGuid(), DocumentType.JournalVoucher, Guid.NewGuid(), []);
-        Assert.Throws<ArgumentOutOfRangeException>(() => unsupported.PermissionKey);
+        var journalVoucherCommand = new SetTransactionReportingTagsCommand(
+            Guid.NewGuid(), DocumentType.JournalVoucher, Guid.NewGuid(), []);
+        Assert.Equal("Accounting.JournalVoucher.Edit", journalVoucherCommand.PermissionKey);
+    }
+
+    /// <summary>
+    /// Phase 27a: both Opening Balances tabs carry an inline "Add Reporting Tags" link in their row
+    /// form, so an opening balance and an opening stock line are taggable even though neither is a
+    /// transactional document. Both ride the single OpeningBalance.Edit key, matching
+    /// CreateOrUpdateOpeningStockLineCommand, which has always done the same.
+    /// </summary>
+    [Fact]
+    public void Both_opening_balance_kinds_are_taggable_and_share_one_key()
+    {
+        Assert.Equal(
+            "Accounting.OpeningBalance.Edit",
+            new SetTransactionReportingTagsCommand(
+                Guid.NewGuid(), DocumentType.OpeningBalance, Guid.NewGuid(), []).PermissionKey);
+
+        Assert.Equal(
+            "Accounting.OpeningBalance.Edit",
+            new SetTransactionReportingTagsCommand(
+                Guid.NewGuid(), DocumentType.OpeningStock, Guid.NewGuid(), []).PermissionKey);
+    }
+
+    /// <summary>Phase 27a: a DocumentType that is not a document at all is still refused -- the
+    /// sweep widened the list, it did not remove the floor.</summary>
+    [Fact]
+    public void Command_refuses_a_document_type_that_is_not_a_document()
+    {
+        var dataExport = new SetTransactionReportingTagsCommand(
+            Guid.NewGuid(), DocumentType.DataExport, Guid.NewGuid(), []);
+        Assert.Throws<ArgumentOutOfRangeException>(() => dataExport.PermissionKey);
+
+        var migrated = new SetTransactionReportingTagsCommand(
+            Guid.NewGuid(), DocumentType.MigratedSalesEntry, Guid.NewGuid(), []);
+        Assert.Throws<ArgumentOutOfRangeException>(() => migrated.PermissionKey);
     }
 
     private sealed record Seed(Guid OrganizationId, Guid QuotationId, Guid TagOptionAId, Guid TagOptionBId);

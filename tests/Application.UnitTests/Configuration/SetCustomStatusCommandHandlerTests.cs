@@ -2,11 +2,14 @@ using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Configuration.Commands.SetCustomStatus;
 using ErpApp.Application.Contacts.Commands.CreateContact;
+using ErpApp.Application.Manufacturing.Commands.CreateProductionOrder;
 using ErpApp.Application.Purchasing.Commands.CreatePurchaseOrder;
 using ErpApp.Application.Sales.Commands.CreateQuotation;
+using ErpApp.Application.Sales.Commands.CreateSalesOrder;
 using ErpApp.Application.UnitTests.TestSupport;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
+using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Contacts;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -142,8 +145,74 @@ public class SetCustomStatusCommandHandlerTests
         Assert.Throws<ArgumentOutOfRangeException>(() => unsupported.PermissionKey);
     }
 
+    /// <summary>
+    /// Phase 27a: Sales Order was 20b's named "mechanical follow-up" and is now wired. Live-confirmed
+    /// on the Sales Orders list grid's STAGE column, on Draft rows as well as Approved ones.
+    /// </summary>
+    [Fact]
+    public async Task Handle_assigns_a_custom_status_to_a_sales_order()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        var handler = new SetCustomStatusCommandHandler(db);
+        await handler.Handle(
+            new SetCustomStatusCommand(seed.OrganizationId, DocumentType.SalesOrder, seed.SalesOrderId, seed.SalesOrderStatusId),
+            CancellationToken.None);
+
+        var salesOrder = await db.SalesOrders.SingleAsync(x => x.Id == seed.SalesOrderId);
+        Assert.Equal(seed.SalesOrderStatusId, salesOrder.CustomStatusId);
+    }
+
+    /// <summary>
+    /// Phase 27a: Production Order, the fourth and last type with a live picker. Its list column is
+    /// labelled STATUS rather than STAGE, but it is the same control over the same lookup.
+    /// </summary>
+    [Fact]
+    public async Task Handle_assigns_a_custom_status_to_a_production_order()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        var handler = new SetCustomStatusCommandHandler(db);
+        await handler.Handle(
+            new SetCustomStatusCommand(
+                seed.OrganizationId, DocumentType.ProductionOrder, seed.ProductionOrderId, seed.ProductionOrderStatusId),
+            CancellationToken.None);
+
+        var productionOrder = await db.ProductionOrders.SingleAsync(x => x.Id == seed.ProductionOrderId);
+        Assert.Equal(seed.ProductionOrderStatusId, productionOrder.CustomStatusId);
+    }
+
+    /// <summary>
+    /// Phase 27a: a status defined for a different document type is still refused. Worth restating
+    /// now that four types share one command -- the cross-type check is the only thing stopping a
+    /// Sales Order from being stamped with a Production Order's pipeline value.
+    /// </summary>
+    [Fact]
+    public async Task Handle_refuses_a_status_defined_for_a_different_document_type()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        var handler = new SetCustomStatusCommandHandler(db);
+
+        await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(
+            new SetCustomStatusCommand(
+                seed.OrganizationId, DocumentType.SalesOrder, seed.SalesOrderId, seed.ProductionOrderStatusId),
+            CancellationToken.None));
+    }
+
     private sealed record Seed(
-        Guid OrganizationId, Guid QuotationId, Guid PurchaseOrderId, Guid QuotationStatusId, Guid PurchaseOrderStatusId);
+        Guid OrganizationId,
+        Guid QuotationId,
+        Guid PurchaseOrderId,
+        Guid SalesOrderId,
+        Guid ProductionOrderId,
+        Guid QuotationStatusId,
+        Guid PurchaseOrderStatusId,
+        Guid SalesOrderStatusId,
+        Guid ProductionOrderStatusId);
 
     private static async Task<Seed> SeedAsync(IAppDbContext db)
     {
@@ -165,11 +234,39 @@ public class SetCustomStatusCommandHandlerTests
             new CreatePurchaseOrderCommand(organizationId, supplier.Id, new DateOnly(2026, 1, 1), null, []),
             CancellationToken.None);
 
-        var quotationStatus = CustomStatus.Create(organizationId, "Accepted", DocumentType.Quotation);
-        var purchaseOrderStatus = CustomStatus.Create(organizationId, "Confirmed", DocumentType.PurchaseOrder);
-        db.CustomStatuses.AddRange(quotationStatus, purchaseOrderStatus);
+        var salesOrder = await new CreateSalesOrderCommandHandler(db).Handle(
+            new CreateSalesOrderCommand(organizationId, customer.Id, new DateOnly(2026, 1, 1), null, null, []),
+            CancellationToken.None);
+
+        // A Production Order needs a real output Product; nothing here exercises the catalog, so it
+        // is built directly rather than through CreateProductCommand's own validation chain.
+        var product = Product.Create(
+            organizationId, ProductType.Goods, "Widget", "P0001", Guid.NewGuid(), Guid.NewGuid(), null,
+            availableForSale: true, 0m, 0m, VatRate.NoVat, 0, trackInventory: true);
+        db.Products.Add(product);
         await db.SaveChangesAsync(CancellationToken.None);
 
-        return new Seed(organizationId, quotation.Id, purchaseOrder.Id, quotationStatus.Id, purchaseOrderStatus.Id);
+        var productionOrder = await new CreateProductionOrderCommandHandler(db).Handle(
+            new CreateProductionOrderCommand(
+                organizationId, new DateOnly(2026, 1, 1), null, product.Id, 10m, null, null, [], [], []),
+            CancellationToken.None);
+
+        var quotationStatus = CustomStatus.Create(organizationId, "Accepted", DocumentType.Quotation);
+        var purchaseOrderStatus = CustomStatus.Create(organizationId, "Confirmed", DocumentType.PurchaseOrder);
+        var salesOrderStatus = CustomStatus.Create(organizationId, "Packaged", DocumentType.SalesOrder);
+        var productionOrderStatus = CustomStatus.Create(organizationId, "Completed", DocumentType.ProductionOrder);
+        db.CustomStatuses.AddRange(quotationStatus, purchaseOrderStatus, salesOrderStatus, productionOrderStatus);
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        return new Seed(
+            organizationId,
+            quotation.Id,
+            purchaseOrder.Id,
+            salesOrder.Id,
+            productionOrder.Id,
+            quotationStatus.Id,
+            purchaseOrderStatus.Id,
+            salesOrderStatus.Id,
+            productionOrderStatus.Id);
     }
 }

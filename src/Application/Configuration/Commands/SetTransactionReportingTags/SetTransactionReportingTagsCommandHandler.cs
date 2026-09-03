@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Documents;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Common;
@@ -12,7 +13,8 @@ public sealed class SetTransactionReportingTagsCommandHandler(IAppDbContext db)
 {
     public async Task<Unit> Handle(SetTransactionReportingTagsCommand request, CancellationToken cancellationToken)
     {
-        await EnsureDocumentExistsAsync(db, request.OrganizationId, request.DocumentType, request.DocumentId, cancellationToken);
+        await DocumentExistenceReader.EnsureExistsAsync(
+            db, request.OrganizationId, request.DocumentType, request.DocumentId, cancellationToken);
 
         var distinctTagOptionIds = request.TagOptionIds.Distinct().ToList();
         if (distinctTagOptionIds.Count > 0)
@@ -39,21 +41,5 @@ public sealed class SetTransactionReportingTagsCommandHandler(IAppDbContext db)
 
         await db.SaveChangesAsync(cancellationToken);
         return Unit.Value;
-    }
-
-    private static async Task EnsureDocumentExistsAsync(
-        IAppDbContext db, Guid organizationId, DocumentType documentType, Guid documentId, CancellationToken cancellationToken)
-    {
-        var exists = documentType switch
-        {
-            DocumentType.Quotation => await db.Quotations.AnyAsync(x => x.Id == documentId && x.OrganizationId == organizationId, cancellationToken),
-            DocumentType.Invoice => await db.Invoices.AnyAsync(x => x.Id == documentId && x.OrganizationId == organizationId, cancellationToken),
-            _ => throw new ArgumentOutOfRangeException(nameof(documentType), documentType, "Reporting tags are not supported on this document type."),
-        };
-
-        if (!exists)
-        {
-            throw new NotFoundException($"{documentType} not found.");
-        }
     }
 }

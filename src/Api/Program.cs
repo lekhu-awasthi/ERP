@@ -133,6 +133,7 @@ app.MapManufacturingEndpoints();
 app.MapWorkflowEndpoints();
 app.MapCrmEndpoints();
 app.MapAttachmentsEndpoints();
+app.MapDocumentTabsEndpoints();
 app.MapPrintingEndpoints();
 app.MapImportsEndpoints();
 app.MapExportsEndpoints();

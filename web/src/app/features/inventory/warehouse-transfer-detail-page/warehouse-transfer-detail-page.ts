@@ -10,6 +10,8 @@ import { Product } from '../../../core/catalog/catalog.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { Warehouse } from '../../../core/organizations/organizations.models';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
+import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 
 interface EditableLine {
   key: number;
@@ -24,7 +26,7 @@ let nextLineKey = 1;
  * or GL Transactions section here, unlike every other transactional detail page. */
 @Component({
   selector: 'app-warehouse-transfer-detail-page',
-  imports: [RouterLink, DatePipe, BsDateInput],
+  imports: [RouterLink, DatePipe, BsDateInput, DocumentTabs, ReportingTagsEditor],
   templateUrl: './warehouse-transfer-detail-page.html',
 })
 export class WarehouseTransferDetailPage {
@@ -52,7 +54,7 @@ export class WarehouseTransferDetailPage {
   protected readonly reference = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
 
-  private routeWarehouseTransferId = '';
+  protected routeWarehouseTransferId = '';
 
   protected readonly isDraft = computed(() => {
     const doc = this.warehouseTransfer();

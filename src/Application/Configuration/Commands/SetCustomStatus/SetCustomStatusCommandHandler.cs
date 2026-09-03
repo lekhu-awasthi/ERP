@@ -49,9 +49,25 @@ public sealed class SetCustomStatusCommandHandler(IAppDbContext db) : IRequestHa
                 purchaseOrder.SetCustomStatus(request.CustomStatusId);
                 break;
 
+            case DocumentType.SalesOrder:
+                var salesOrder = await db.SalesOrders.SingleOrDefaultAsync(
+                    x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, cancellationToken)
+                    ?? throw new NotFoundException("Sales order not found.");
+                salesOrder.SetCustomStatus(request.CustomStatusId);
+                break;
+
+            case DocumentType.ProductionOrder:
+                var productionOrder = await db.ProductionOrders.SingleOrDefaultAsync(
+                    x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, cancellationToken)
+                    ?? throw new NotFoundException("Production order not found.");
+                productionOrder.SetCustomStatus(request.CustomStatusId);
+                break;
+
             default:
                 throw new ArgumentOutOfRangeException(
-                    nameof(request.DocumentType), request.DocumentType, "Custom status is not wired up for this document type yet.");
+                    nameof(request.DocumentType),
+                    request.DocumentType,
+                    "Custom status does not apply to this document type -- see DocumentMechanisms.CustomStatus.");
         }
 
         await db.SaveChangesAsync(cancellationToken);

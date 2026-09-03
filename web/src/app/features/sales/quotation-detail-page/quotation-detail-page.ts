@@ -15,6 +15,7 @@ import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
 
 interface EditableLine {
   key: number;
@@ -36,7 +37,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-quotation-detail-page',
-  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, AmountPipe, BsDateInput],
+  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, AmountPipe, BsDateInput, DocumentTabs],
   templateUrl: './quotation-detail-page.html',
 })
 export class QuotationDetailPage {
@@ -73,7 +74,7 @@ export class QuotationDetailPage {
 
   protected readonly vatRates: VatRate[] = ['NoVat', 'ZeroVat', 'ThirteenPercentVat'];
 
-  private routeQuotationId = '';
+  protected routeQuotationId = '';
 
   /** See invoice-detail-page's identical Totals-panel doc comment. */
   protected readonly subTotal = computed(() =>

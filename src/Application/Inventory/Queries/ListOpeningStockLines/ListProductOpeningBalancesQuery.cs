@@ -25,5 +25,9 @@ public sealed record ListProductOpeningBalancesQuery(
     public IReadOnlyCollection<TenantFeature> RequiredFeatures => [TenantFeature.TrackInventory];
 }
 
+/// <summary>LineId (Phase 27a) is the OpeningStockLine's own Id, null until opening stock has been
+/// set for this product in this warehouse. See AccountOpeningBalanceDto for why reporting tags need
+/// it.</summary>
 public sealed record ProductOpeningBalanceDto(
-    Guid ProductId, string ProductCode, string ProductName, string CategoryName, decimal Quantity, decimal Rate, decimal Amount);
+    Guid ProductId, string ProductCode, string ProductName, string CategoryName, decimal Quantity, decimal Rate,
+    decimal Amount, Guid? LineId);

@@ -18,7 +18,7 @@ public sealed record UploadAttachmentCommand(
     Stream Content)
     : IRequest<AttachmentResult>, IRequirePermission, IOrganizationScoped
 {
-    public string PermissionKey => PermissionKeys.ContactManage;
+    public string PermissionKey => ParentPermissions.EditPermissionFor(ParentType);
 }
 
 public sealed record AttachmentResult(

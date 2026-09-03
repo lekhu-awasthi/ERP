@@ -21,7 +21,8 @@ public sealed class ListAccountOpeningBalancesQueryHandler(IAppDbContext db)
             orderby account.Code
             select new AccountOpeningBalanceDto(
                 account.Id, account.Code, account.Name, account.RootType.ToString(), group_.Name,
-                line == null ? 0m : line.Debit, line == null ? 0m : line.Credit);
+                line == null ? 0m : line.Debit, line == null ? 0m : line.Credit,
+                line == null ? (Guid?)null : line.Id);
 
         return await query.ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
     }

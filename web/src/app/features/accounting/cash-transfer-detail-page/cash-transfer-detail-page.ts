@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
@@ -7,6 +7,10 @@ import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account, CashTransferDetail, CashTransferLineInput } from '../../../core/accounting/accounting.models';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
+import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
+import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
+import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
 
 interface EditableLine {
   key: number;
@@ -24,10 +28,15 @@ let nextLineKey = 1;
  * credit). */
 @Component({
   selector: 'app-cash-transfer-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor],
   templateUrl: './cash-transfer-detail-page.html',
 })
 export class CashTransferDetailPage {
+  /** Phase 27a: custom field values ride the document's own Save. See
+   * commitCustomFieldsThen for why the commit is an rxjs operator rather than a
+   * nested subscribe, and why a failed commit does not report the save as failed. */
+  private readonly customFieldsEditor = viewChild(CustomFieldsEditor);
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly accountingService = inject(AccountingService);
@@ -48,7 +57,7 @@ export class CashTransferDetailPage {
   protected readonly fromAccountId = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
 
-  private routeCashTransferId = '';
+  protected routeCashTransferId = '';
 
   protected readonly totalAmount = computed(() => this.round(this.lines().reduce((sum, l) => sum + (l.amount || 0), 0)));
 
@@ -135,7 +144,9 @@ export class CashTransferDetailPage {
       ? this.accountingService.createCashTransfer(this.organizationId, request)
       : this.accountingService.updateCashTransfer(this.organizationId, this.routeCashTransferId, request);
 
-    request$.subscribe({
+    request$
+      .pipe(commitCustomFieldsThen(this.customFieldsEditor(), (r) => r.id, (m) => this.errorMessage.set(m)))
+      .subscribe({
       next: (result) => {
         this.saving.set(false);
         if (this.isNew()) {

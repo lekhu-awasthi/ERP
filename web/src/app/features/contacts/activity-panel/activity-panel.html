@@ -9,7 +9,9 @@
   <div class="btn-group mb-3" role="group">
     <button type="button" class="btn btn-sm" [class.btn-primary]="subTab() === 'Comments'" [class.btn-outline-primary]="subTab() !== 'Comments'" (click)="switchSubTab('Comments')">Comments</button>
     <button type="button" class="btn btn-sm" [class.btn-primary]="subTab() === 'Activities'" [class.btn-outline-primary]="subTab() !== 'Activities'" (click)="switchSubTab('Activities')">Activities</button>
-    <button type="button" class="btn btn-sm" [class.btn-primary]="subTab() === 'SmsHistory'" [class.btn-outline-primary]="subTab() !== 'SmsHistory'" (click)="switchSubTab('SmsHistory')">SMS History</button>
+    @if (showsSmsHistory()) {
+      <button type="button" class="btn btn-sm" [class.btn-primary]="subTab() === 'SmsHistory'" [class.btn-outline-primary]="subTab() !== 'SmsHistory'" (click)="switchSubTab('SmsHistory')">SMS History</button>
+    }
     <button type="button" class="btn btn-sm" [class.btn-primary]="subTab() === 'EmailLogs'" [class.btn-outline-primary]="subTab() !== 'EmailLogs'" (click)="switchSubTab('EmailLogs')">Email Logs</button>
   </div>
 
@@ -82,7 +84,7 @@
     }
   }
 
-  @if (subTab() === 'SmsHistory') {
+  @if (showsSmsHistory() && subTab() === 'SmsHistory') {
     @if (smsLoading()) {
       <div class="text-center py-3">
         <div class="spinner-border spinner-border-sm text-primary" role="status"></div>

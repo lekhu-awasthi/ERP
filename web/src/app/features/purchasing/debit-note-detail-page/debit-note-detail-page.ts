@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
@@ -17,6 +17,10 @@ import { TdsType } from '../../../core/configuration/configuration.models';
 import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
+import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
+import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
+import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
 
 interface EditableLine {
   key: number;
@@ -37,10 +41,15 @@ let nextLineKey = 1;
  * so a full reversal nets Accounts Payable and TDS Payable back to zero. */
 @Component({
   selector: 'app-debit-note-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor],
   templateUrl: './debit-note-detail-page.html',
 })
 export class DebitNoteDetailPage {
+  /** Phase 27a: custom field values ride the document's own Save. See
+   * commitCustomFieldsThen for why the commit is an rxjs operator rather than a
+   * nested subscribe, and why a failed commit does not report the save as failed. */
+  private readonly customFieldsEditor = viewChild(CustomFieldsEditor);
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly purchasingService = inject(PurchasingService);
@@ -76,7 +85,7 @@ export class DebitNoteDetailPage {
 
   protected readonly vatRates: VatRate[] = ['NoVat', 'ZeroVat', 'ThirteenPercentVat'];
 
-  private routeDebitNoteId = '';
+  protected routeDebitNoteId = '';
 
   /** See Sales' invoice-detail-page identical Totals-panel doc comment. */
   protected readonly subTotal = computed(() =>
@@ -237,27 +246,31 @@ export class DebitNoteDetailPage {
     };
 
     if (this.isNew()) {
-      this.purchasingService.createDebitNote(this.organizationId, request).subscribe({
-        next: (result) => {
-          this.saving.set(false);
-          this.router.navigate(['/organizations', this.organizationId, 'purchasing', 'debit-notes', result.id]);
-        },
-        error: (err: unknown) => {
-          this.saving.set(false);
-          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save debit note. Please try again.');
-        },
-      });
+      this.purchasingService.createDebitNote(this.organizationId, request)
+        .pipe(commitCustomFieldsThen(this.customFieldsEditor(), (r) => r.id, (m) => this.errorMessage.set(m)))
+        .subscribe({
+          next: (result) => {
+            this.saving.set(false);
+            this.router.navigate(['/organizations', this.organizationId, 'purchasing', 'debit-notes', result.id]);
+          },
+          error: (err: unknown) => {
+            this.saving.set(false);
+            this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save debit note. Please try again.');
+          },
+        });
     } else {
-      this.purchasingService.updateDebitNote(this.organizationId, this.routeDebitNoteId, request).subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.load();
-        },
-        error: (err: unknown) => {
-          this.saving.set(false);
-          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save debit note. Please try again.');
-        },
-      });
+      this.purchasingService.updateDebitNote(this.organizationId, this.routeDebitNoteId, request)
+        .pipe(commitCustomFieldsThen(this.customFieldsEditor(), () => this.routeDebitNoteId, (m) => this.errorMessage.set(m)))
+        .subscribe({
+          next: () => {
+            this.saving.set(false);
+            this.load();
+          },
+          error: (err: unknown) => {
+            this.saving.set(false);
+            this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save debit note. Please try again.');
+          },
+        });
     }
   }
 

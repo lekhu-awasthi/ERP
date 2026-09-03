@@ -5,6 +5,7 @@ import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
 import { SmsLogListDto } from '../crm/crm.models';
+import { TabParent, tabParentPath } from './tab-parent';
 import {
   ActivityListDto,
   AttachmentListDto,
@@ -260,21 +261,30 @@ export class ContactsService {
     });
   }
 
-  // --- Attachments (Phase 18) -- "Documents" tab ---
+  // --- Attachments (Phase 18, generalised to any tab parent in Phase 27a) -- "Documents" tab ---
+  //
+  // The parent decides the route prefix (contacts/{id} or documents/{type}/{id}) and nothing else;
+  // download and delete stay addressed by attachment id alone, because an attachment id is globally
+  // unique and the server resolves the real permission from the row's own parent.
 
-  listAttachments(organizationId: string, contactId: string, page = 1, pageSize = 50): Observable<AttachmentListDto> {
-    return this.http.get<AttachmentListDto>(`${this.baseUrl(organizationId)}/contacts/${contactId}/attachments`, {
-      withCredentials: true,
-      params: { page: String(page), pageSize: String(pageSize) },
-    });
+  listAttachments(organizationId: string, parent: TabParent, page = 1, pageSize = 50): Observable<AttachmentListDto> {
+    return this.http.get<AttachmentListDto>(
+      `${this.baseUrl(organizationId)}/${tabParentPath(parent)}/attachments`,
+      {
+        withCredentials: true,
+        params: { page: String(page), pageSize: String(pageSize) },
+      },
+    );
   }
 
-  uploadAttachment(organizationId: string, contactId: string, file: File): Observable<AttachmentResult> {
+  uploadAttachment(organizationId: string, parent: TabParent, file: File): Observable<AttachmentResult> {
     const formData = new FormData();
     formData.append('file', file);
-    return this.http.post<AttachmentResult>(`${this.baseUrl(organizationId)}/contacts/${contactId}/attachments`, formData, {
-      withCredentials: true,
-    });
+    return this.http.post<AttachmentResult>(
+      `${this.baseUrl(organizationId)}/${tabParentPath(parent)}/attachments`,
+      formData,
+      { withCredentials: true },
+    );
   }
 
   downloadAttachment(organizationId: string, id: string): Observable<Blob> {
@@ -288,27 +298,35 @@ export class ContactsService {
     return this.http.delete<void>(`${this.baseUrl(organizationId)}/attachments/${id}`, { withCredentials: true });
   }
 
-  // --- Comments, Activities, per-contact SMS history (Phase 18) -- the "Activity" tab's 3 sub-tabs
-  // (Email Logs has no backend capability at all, see contact-detail-page's own comment) ---
+  // --- Comments and Activities (Phase 18, generalised in Phase 27a) -- the Activity tab's sub-tabs.
+  // A Contact has four (Comments / Activities / SMS History / Email Logs); a document has three,
+  // with no SMS History -- live-confirmed, see hasSmsHistory. Email Logs still has no backend
+  // capability on either. ---
 
-  listComments(organizationId: string, contactId: string, page = 1, pageSize = 50): Observable<CommentListDto> {
-    return this.http.get<CommentListDto>(`${this.baseUrl(organizationId)}/contacts/${contactId}/comments`, {
-      withCredentials: true,
-      params: { page: String(page), pageSize: String(pageSize) },
-    });
-  }
-
-  addComment(organizationId: string, contactId: string, content: string): Observable<CommentRowDto> {
-    return this.http.post<CommentRowDto>(
-      `${this.baseUrl(organizationId)}/contacts/${contactId}/comments`, { content }, { withCredentials: true },
+  listComments(organizationId: string, parent: TabParent, page = 1, pageSize = 50): Observable<CommentListDto> {
+    return this.http.get<CommentListDto>(
+      `${this.baseUrl(organizationId)}/${tabParentPath(parent)}/comments`,
+      {
+        withCredentials: true,
+        params: { page: String(page), pageSize: String(pageSize) },
+      },
     );
   }
 
-  listActivities(organizationId: string, contactId: string, page = 1, pageSize = 50): Observable<ActivityListDto> {
-    return this.http.get<ActivityListDto>(`${this.baseUrl(organizationId)}/contacts/${contactId}/activities`, {
-      withCredentials: true,
-      params: { page: String(page), pageSize: String(pageSize) },
-    });
+  addComment(organizationId: string, parent: TabParent, content: string): Observable<CommentRowDto> {
+    return this.http.post<CommentRowDto>(
+      `${this.baseUrl(organizationId)}/${tabParentPath(parent)}/comments`, { content }, { withCredentials: true },
+    );
+  }
+
+  listActivities(organizationId: string, parent: TabParent, page = 1, pageSize = 50): Observable<ActivityListDto> {
+    return this.http.get<ActivityListDto>(
+      `${this.baseUrl(organizationId)}/${tabParentPath(parent)}/activities`,
+      {
+        withCredentials: true,
+        params: { page: String(page), pageSize: String(pageSize) },
+      },
+    );
   }
 
   listContactSmsHistory(organizationId: string, contactId: string, page = 1, pageSize = 50): Observable<SmsLogListDto> {

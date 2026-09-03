@@ -1,5 +1,7 @@
+using ErpApp.Application.Common.Documents;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Tenancy;
 using ErpApp.Domain.Workflow;
 using Microsoft.EntityFrameworkCore;
@@ -8,21 +10,38 @@ namespace ErpApp.Application.Workflow;
 
 /// <summary>Shared existence checks reused by CreateTask/UpdateTask -- mirrors Sales.SalesValidation's
 /// precedent.</summary>
-internal static class WorkflowValidation
+public static class WorkflowValidation
 {
-    /// <summary>Confirms ParentId actually resolves to an existing row of the given ParentType
-    /// within this Organization -- a WorkTask must not silently attach to a nonexistent Contact or
-    /// (in principle, though OrganizationId is already the caller's own) a different Organization.</summary>
-    public static async Task EnsureParentExistsAsync(
-        IAppDbContext db, Guid organizationId, TaskParentType parentType, Guid parentId, CancellationToken cancellationToken)
+    /// <summary>
+    /// Confirms ParentId actually resolves to an existing row of the given ParentType within this
+    /// Organization -- nothing must silently attach to a nonexistent parent or one in a different
+    /// tenant.
+    ///
+    /// <para>Generic over the parent enum since Phase 27a, so WorkTask, Attachment and Comment share
+    /// one implementation across all three of theirs. A document parent delegates to
+    /// <see cref="DocumentExistenceReader"/> -- the single 17-arm switch every document-attached
+    /// mechanism goes through -- resolved by member <i>name</i> via
+    /// <see cref="DocumentParentTypes"/>, never by ordinal. The two non-document parents are handled
+    /// here, and <c>DocumentMechanismSweepGuardTests</c> pins that Contact and Organization are the
+    /// only two there will ever be without someone noticing.</para>
+    /// </summary>
+    public static async Task EnsureParentExistsAsync<TParentType>(
+        IAppDbContext db, Guid organizationId, TParentType parentType, Guid parentId, CancellationToken cancellationToken)
+        where TParentType : struct, Enum
     {
+        if (DocumentParentTypes.TryToDocumentType(parentType) is { } documentType)
+        {
+            await DocumentExistenceReader.EnsureExistsAsync(db, organizationId, documentType, parentId, cancellationToken);
+            return;
+        }
+
         // Organization has no separate lookup -- its only valid ParentId is the command's own
         // (already-membership-checked) OrganizationId, so this is a comparison, not a query.
-        var exists = parentType switch
+        var exists = parentType.ToString() switch
         {
-            TaskParentType.Contact => await db.Contacts.AnyAsync(
+            nameof(TaskParentType.Contact) => await db.Contacts.AnyAsync(
                 x => x.Id == parentId && x.OrganizationId == organizationId, cancellationToken),
-            TaskParentType.Organization => parentId == organizationId,
+            nameof(TaskParentType.Organization) => parentId == organizationId,
             _ => throw new ArgumentOutOfRangeException(nameof(parentType), parentType, null),
         };
 

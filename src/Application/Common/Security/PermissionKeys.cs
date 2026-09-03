@@ -805,4 +805,26 @@ public static class PermissionKeys
     public const string NetTradingAssetsView = "Reports.NetTradingAssets.View";
     public const string ExceptionalReportView = "Reports.ExceptionalReport.View";
     public const string UserLogView = "Reports.UserLog.View";
+
+    // Phase 27a (cross-cutting rollout sweep) -- a single blanket key for the two attachment
+    // operations that are addressed by attachment id alone: download and delete. Every other
+    // document-attached mechanism (custom fields, reporting tags, custom status, task lists, the
+    // attachment LIST and UPLOAD) names its parent in the request and therefore derives the real
+    // key declaratively from it via DocumentPermissions/ParentPermissions -- no blanket key needed.
+    // These two cannot: the parent is a column on the row they are about to read, and
+    // IRequirePermission.PermissionKey is a property evaluated before the handler runs.
+    //
+    // So this is the TransactionApprovalView / RecentActivityView pattern for the third time, with
+    // the same contract: its job is that AuthorizationBehavior runs at all -- the only mechanism in
+    // this codebase that verifies the caller belongs to OrganizationId (NFR-2.1) -- and it is
+    // explicitly NOT the gate on what may be downloaded or deleted. That gate is inside
+    // GetAttachmentForDownloadQueryHandler/DeleteAttachmentCommandHandler, which load the row,
+    // resolve its (ParentType, ParentId) through ParentPermissions, and re-check that key against
+    // the caller's own grants. Holding this key alone therefore reaches no file at all, and there
+    // is a test saying so.
+    //
+    // Admin+Member, for the same reason TransactionApprovalView is: it gates nothing on its own, and
+    // making it Admin-only would block a Member who legitimately holds Sales.Invoice.Edit from
+    // deleting a file they just attached to their own invoice.
+    public const string AttachmentAccess = "Workflow.Attachment.Access";
 }

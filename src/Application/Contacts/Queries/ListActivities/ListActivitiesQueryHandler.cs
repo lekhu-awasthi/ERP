@@ -1,5 +1,4 @@
 using ErpApp.Application.Common.Persistence;
-using ErpApp.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,8 +10,8 @@ public sealed class ListActivitiesQueryHandler(IAppDbContext db) : IRequestHandl
     {
         var query = db.Audits.Where(x =>
             x.OrganizationId == request.OrganizationId
-            && x.DocumentType == DocumentType.Contact
-            && x.DocumentId == request.ContactId);
+            && x.DocumentType == request.DocumentType
+            && x.DocumentId == request.DocumentId);
 
         var totalCount = await query.CountAsync(cancellationToken);
 

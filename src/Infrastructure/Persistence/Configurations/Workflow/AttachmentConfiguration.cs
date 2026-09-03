@@ -16,7 +16,7 @@ public sealed class AttachmentConfiguration : IEntityTypeConfiguration<Attachmen
         builder.Property(x => x.OrganizationId).IsRequired();
         // ParentType/ParentId are a polymorphic pair, not a real FK -- see Attachment's own doc
         // comment, mirroring WorkTaskConfiguration.
-        builder.Property(x => x.ParentType).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(x => x.ParentType).HasConversion<string>().HasMaxLength(40).IsRequired();
         builder.Property(x => x.ParentId).IsRequired();
         builder.Property(x => x.FileName).HasMaxLength(260).IsRequired();
         builder.Property(x => x.SizeBytes).IsRequired();

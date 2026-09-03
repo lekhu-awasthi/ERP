@@ -1,12 +1,14 @@
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Application.Common.Storage;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Workflow.Commands.DeleteAttachment;
 
-public sealed class DeleteAttachmentCommandHandler(IAppDbContext db, IFileStorage fileStorage)
+public sealed class DeleteAttachmentCommandHandler(
+    IAppDbContext db, IFileStorage fileStorage, ICurrentUserService currentUser)
     : IRequestHandler<DeleteAttachmentCommand, Unit>
 {
     public async Task<Unit> Handle(DeleteAttachmentCommand request, CancellationToken cancellationToken)
@@ -14,6 +16,18 @@ public sealed class DeleteAttachmentCommandHandler(IAppDbContext db, IFileStorag
         var attachment = await db.Attachments.SingleOrDefaultAsync(
             x => x.Id == request.Id && x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Attachment not found.");
+
+        // Phase 27a: the real permission check, now that the parent is known. Deleting a file
+        // attached to an Invoice requires Sales.Invoice.Edit; the blanket AttachmentAccess key this
+        // request declares only got us past AuthorizationBehavior's org-membership check.
+        // Deliberately after the NotFound above, so an id from another organization stays a 404 and
+        // does not become a probe that distinguishes "exists elsewhere" from "does not exist".
+        await GrantedPermissionReader.EnsureGrantedAsync(
+            db,
+            request.OrganizationId,
+            currentUser.UserId,
+            ParentPermissions.EditPermissionFor(attachment.ParentType),
+            cancellationToken);
 
         var storageKey = attachment.StorageKey;
 

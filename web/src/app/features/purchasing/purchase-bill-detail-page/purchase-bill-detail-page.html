@@ -38,6 +38,28 @@
     }
   </div>
 
+  <!-- Phase 27a: the Tasks / Documents / Activity tabs every transactional detail page
+       carries in the reference product. Renders nothing until the document exists, and
+       reports Overview while it does not, so the body below needs no second condition. -->
+  <app-document-tabs
+    #docTabs
+    [organizationId]="organizationId"
+    documentType="PurchaseBill"
+    [documentId]="isNew() ? null : routePurchaseBillId"
+  />
+
+  @if (docTabs.isOverview()) {
+    @if (!isNew()) {
+      <app-reporting-tags-editor [organizationId]="organizationId" documentType="PurchaseBill" [documentId]="routePurchaseBillId" />
+    }
+
+    <app-custom-fields-editor
+      [organizationId]="organizationId"
+      documentType="PurchaseBill"
+      [documentId]="isNew() ? null : routePurchaseBillId"
+    />
+
+
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
       <i class="bi bi-exclamation-triangle-fill"></i>
@@ -481,5 +503,6 @@
         </div>
       }
     }
+  }
   }
 </div>

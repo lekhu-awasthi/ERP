@@ -53,6 +53,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 26a: the five missing Accounting reports + FR-9.1's Compare column on the three financial statements. Before adding a period-over-period comparison, or any report that reads `GlLine` back to its source document — `docs/phase-26a-status.md`
 - Phase 26b: Receivable/Payable + Sales/Purchase analytics (13 reports, 7 shared handlers) and the server-side BS calendar. Before ageing anything, or any report keyed by a fiscal year — `docs/phase-26b-status.md`
 - Phase 26c: the Reports catalogue completed — 4 inventory reports, both return registers, Net Trading Assets, Exceptional Report, User Log. Before a report over stock, a second report that must agree with a register, or anything written on an unauthenticated path — `docs/phase-26c-status.md`
+- Phase 27a: swept Custom Fields/Custom Status/Reporting Tags/Tasks-Documents-Activity across every document type, generalized `Comment` to a polymorphic parent. Before adding a `DocumentType` member, or building a second cross-cutting mechanism sweep — `docs/phase-27a-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -175,6 +176,10 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `<iframe [src]>` needs `DomSanitizer.bypassSecurityTrustResourceUrl` (safe only because the URL is API base + route GUID), while `<img [src]>` with the same string is fine (phase-22).
 - `AmountPipe` renders two decimals by default; pass `| amount: 4` for figures legitimately smaller than a cent (phase-25).
 
+**Multi-way switches on a document-attached mechanism**
+- When a request's real permission key depends on a column of the row the handler is about to load (not on the request itself), `IRequirePermission.PermissionKey` cannot express it — that property is evaluated before the handler runs. Declare a blanket key (Admin+Member, seeded, gates nothing on its own — same shape as `TransactionApprovalView`/`RecentTransactionsQuery`'s pattern) to get through `AuthorizationBehavior`, then re-check the real key inside the handler once the row is loaded, throwing the identical `ForbiddenException` shape so a caller can't tell the layers apart (phase-27a, `AttachmentAccess`).
+- Three enums that each name an overlapping-but-distinct vocabulary (a `DocumentType`, and two or three "what can this attach to" parent enums) must never be bridged by ordinal cast — they cannot share an ordinal order once one of them starts with non-document members. Bridge by member *name* (`Enum.TryParse`) and add a guard test picking a member with deliberately divergent ordinals across the enums (phase-27a, `DocumentParentTypes`, restating phase-26a's lesson structurally).
+
 **Testing and manual E2E**
 - A vendor's always-pass dummy credential (Turnstile `1x000…AA`) accepts any input; proving the negative path needs the always-fail one (`2x000…AA`) swapped in (phase-20g).
 - `UpdateRolePermissionsCommand.Grants` is a dictionary, not a list, and system Admin/Member roles cannot be edited (409) — a negative-permission proof needs a custom role.
@@ -183,6 +188,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A shared reader that several reports agree through is worth more than each report deriving its own figure: Invoice Age's total balance equals Customer Receivable Summary's closing balance *by construction* because both read `ContactLedgerReader` (phase-26b).
 - A curl seed script that pipes approvals to `/dev/null` hides its own failures — the first report just comes back empty. Print every approval's status code. Two live traps: `POST /api/organizations` returns `organizationId`, not `id`, and the GL defaults are **one** `PUT /accounting-defaults` taking all eleven accounts (phase-26c).
 - Driving the reference product's Browser pane needs coordinates from `getBoundingClientRect`: its accessibility tree is nearly empty and `find` matches nothing. Its GENERATE control's DOM text is "Generate" — the capitals are CSS `text-transform` (phase-26c).
+- A fresh Organization has zero Accounts and zero Account Groups — nothing seeds a chart of accounts — so any E2E needing a Journal Voucher, Cash Transfer, Payment or Expense line must `POST` its own account groups (one per `AccountRootType`, spelled `Asset`/`Liability`/`Equity`/`Income`/`Expense` — singular, unlike the plural `rootType` groupings a list response returns them under) before it can create an account (phase-27a).
 
 **Tooling and shell**
 - `nvm use` from a shell that cannot create the symlink deletes `C:\nvm4w\nodejs` and reports success; recreate it with `cmd /c 'mklink /J "C:\nvm4w\nodejs" "%LOCALAPPDATA%\nvm\v24.11.0"'`.
@@ -191,43 +197,34 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-25 (v1) are complete, and phase 26 is finished: 26a, 26b and 26c are all done, which
-closes the Reports catalogue.** Every card on the reference product's Reports landing page now has a
-counterpart here or a recorded reason not to. Phase 26c added the four inventory reports (Position,
-Movement, Ledger, Master), both statutory return registers, Net Trading Assets, the Exceptional
-Report and the User Log, plus the `.xlsx` export the three manufacturing reports had lacked since
-phase 25.
+**Phases 0-26 (v1 plus the Reports catalogue) are complete, and phase 27a is done.** 27a swept
+Custom Fields, Custom Status, Reporting Tags, and the Tasks/Documents/Activity detail-page tabs
+across the document types that previously lacked them, correcting two of the roadmap's own scope
+numbers along the way (Custom Fields is 13 types, not 15; Reporting Tags also covers both Opening
+Balances kinds, which the roadmap didn't specify the shape of). `Comment` became polymorphic
+(`CommentParentType`), resolving phase-18 decision #3's deferred trigger. All four sweeps are backed
+by one shared classification table (`DocumentMechanisms`) and a server + client guard test pair that
+fail the build if a document type is left unswept. Full story in `docs/phase-27a-status.md`.
 
-Three things from 26c outlive it. **`Inventory.Reports.StockFactReader`** is the shared
-Opening/In/Out/Balance reader that Inventory Position, Inventory Movement, the Inventory Ledger's
-bracket rows and Net Trading Assets' Inventory Items row all read, so those four agree by
-construction; it derives everything from the append-only `StockMovement` rather than from the FIFO
-layer table, because `QuantityRemaining` mutates in place and cannot answer a dated question.
-**`UserLoginEvent`** is the phase's only new table -- deliberately carrying no `OrganizationId`,
-written from `AuthEndpoints` (including the failed attempt, on a path that throws), and scoped into a
-tenant report by joining `OrganizationMembership`. And the phase's **key correctness finding went the
-opposite way from the plan**: the main Sales/Purchase Registers *keep* their credit/debit notes --
-the same notes appear in both registers, negative in the main one and positive in the return one --
-so phase 19's folding was parity, not a simplification, and the new `SalesReturnReader` /
-`PurchaseReturnReader` now feed both sides so they cannot drift.
-
-**What comes next** is **phase 27** (the cross-cutting rollout sweep: 27a document-level mechanisms,
-27b output including BS dates in server-rendered PDFs and `.xlsx`), then phases 28-34 in
+**What comes next** is **phase 27b** (Output: print/PDF for the 9 unwired `DocumentType`s and both
+production documents, BS dates in server-rendered PDFs and `.xlsx`, the three missing pagers,
+Turnstile on the New Organization wizard, a feature-flag route guard), then phases 28-34 in
 `docs/roadmap.md`. Still recorded separately:
 - the deferred post-v1 list in `docs/roadmap.md` (POS, IRD e-filing, Marketplace);
-- carried items, scheduled in phases 27 and 33: server-rendered PDFs and `.xlsx` still print dates in
-  AD (phase-23 Decision A -- now inherited by 26a's eight, 26b's thirteen and 26c's twelve export
-  routes, and `BsCalendar` is the tool that closes it); Phase 25's named follow-ups (Custom Status on
-  Production Order, multi-level BOM explosion, Reporting Tags / Custom Fields / print on production
-  documents); phase-26a's two (an explicit compare-date picker on the two as-of statements, Reporting
-  Tags on the Journal report); phase-26b's four (a stored `DueDate` on Invoice/PurchaseBill, aligning
-  phase-9's `ContactAgeingSummaryQueryHandler` with 26b's rules, a product-level service-charge flag,
-  Quick Payment/Receipt as a document type); and phase-26c's five (WarehouseTransfer/OpeningStock in
-  Inventory Master, the Sales Register's inert "Include Credit Note In Calculation" toggle, Additional
-  Cost allocation, the Negative Item Balance setting that would make negative stock reachable, and
-  Inventory Position's Reporting Tags / group-by-warehouse display options).
+- carried items, scheduled in phases 27b and 33: server-rendered PDFs and `.xlsx` still print dates
+  in AD (phase-23 Decision A -- now inherited by every report's export routes, and `BsCalendar` is
+  the tool that closes it); Phase 25's remaining named follow-ups (multi-level BOM explosion, print
+  on production documents -- Custom Status/Reporting Tags/Custom Fields on Production Order are now
+  resolved by 27a); phase-26a's two (an explicit compare-date picker on the two as-of statements,
+  Reporting Tags on the Journal report); phase-26b's four (a stored `DueDate` on
+  Invoice/PurchaseBill, aligning phase-9's `ContactAgeingSummaryQueryHandler` with 26b's rules, a
+  product-level service-charge flag, Quick Payment/Receipt as a document type); phase-26c's five
+  (WarehouseTransfer/OpeningStock in Inventory Master, the Sales Register's inert "Include Credit
+  Note In Calculation" toggle, Additional Cost allocation, the Negative Item Balance setting that
+  would make negative stock reachable, and Inventory Position's Reporting Tags / group-by-warehouse
+  display options).
 
-Tests at last count: Domain 316, Application.UnitTests 678, Api.IntegrationTests 18, Angular 155;
+Tests at last count: Domain 323, Application.UnitTests 706, Api.IntegrationTests 18, Angular 165;
 `dotnet build` / `dotnet test` / `ng build` / `ng test` / `tsc --noEmit` all clean.
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,

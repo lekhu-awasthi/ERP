@@ -4,6 +4,7 @@ import { Component, OnInit, inject, input, signal } from '@angular/core';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { AttachmentRowDto } from '../../../core/contacts/contacts.models';
+import { TabParent } from '../../../core/contacts/tab-parent';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { triggerBlobDownload } from '../../../shared/download-file';
@@ -11,7 +12,8 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 const ALLOWED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt'];
 const MAX_SIZE_BYTES = 10 * 1024 * 1024;
 
-/** Contact Documents tab (roadmap Phase 18) -- live-confirmed Tigg shape: a drag-and-drop zone
+/** The Documents tab (roadmap Phase 18; parameterised by TabParent in Phase 27a, so the same
+ * component serves a Contact and all 15 transactional detail pages) -- live-confirmed Tigg shape: a drag-and-drop zone
  * ("Drop your files or Click to upload new document") over a plain flat list (no folders/
  * thumbnails needed for MVP). Client-side extension/size checks mirror the server's real gate
  * (10MB, the same allowed-extension list) purely for immediate feedback -- the server is the
@@ -25,7 +27,7 @@ export class AttachmentList implements OnInit {
   private readonly contactsService = inject(ContactsService);
 
   readonly organizationId = input.required<string>();
-  readonly contactId = input.required<string>();
+  readonly parent = input.required<TabParent>();
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -126,7 +128,7 @@ export class AttachmentList implements OnInit {
     }
 
     this.uploading.set(true);
-    this.contactsService.uploadAttachment(this.organizationId(), this.contactId(), file).subscribe({
+    this.contactsService.uploadAttachment(this.organizationId(), this.parent(), file).subscribe({
       next: () => {
         this.uploading.set(false);
         this.page.set(1);
@@ -141,7 +143,7 @@ export class AttachmentList implements OnInit {
 
   private load(): void {
     this.loading.set(true);
-    this.contactsService.listAttachments(this.organizationId(), this.contactId(), this.page(), this.pageSize()).subscribe({
+    this.contactsService.listAttachments(this.organizationId(), this.parent(), this.page(), this.pageSize()).subscribe({
       next: (result) => {
         this.rows.set(result.rows);
         this.totalCount.set(result.totalCount);

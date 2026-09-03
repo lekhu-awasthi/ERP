@@ -22,7 +22,9 @@ using ErpApp.Application.Contacts.Queries.ListComments;
 using ErpApp.Application.Contacts.Queries.ListContactPersonnel;
 using ErpApp.Application.Contacts.Queries.ListContacts;
 using ErpApp.Application.Crm.Queries.ListSmsLogs;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
+using ErpApp.Domain.Workflow;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -175,18 +177,25 @@ public static class ContactsEndpoints
 
     private static void MapCommentAndActivityEndpoints(RouteGroupBuilder group)
     {
+        // The Contact routes keep their shape -- the parent kind is hardcoded at the route, the same
+        // "don't accept the discriminator from the client" choice the Ageing/Statement routes below
+        // make. Phase 27a's document equivalents live in DocumentTabsEndpoints, which takes its
+        // parent from its own route segments for exactly the same reason.
         group.MapGet("/contacts/{contactId:guid}/comments", async (
             Guid organizationId, Guid contactId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListCommentsQuery(organizationId, contactId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+                new ListCommentsQuery(
+                    organizationId, CommentParentType.Contact, contactId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize),
+                ct);
             return Results.Ok(result);
         });
 
         group.MapPost("/contacts/{contactId:guid}/comments", async (
             Guid organizationId, Guid contactId, AddCommentRequest request, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new AddCommentCommand(organizationId, contactId, request.Content), ct);
+            var result = await sender.Send(
+                new AddCommentCommand(organizationId, CommentParentType.Contact, contactId, request.Content), ct);
             return Results.Created($"/api/organizations/{organizationId}/contacts/{contactId}/comments/{result.Id}", result);
         });
 
@@ -194,7 +203,9 @@ public static class ContactsEndpoints
             Guid organizationId, Guid contactId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListActivitiesQuery(organizationId, contactId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+                new ListActivitiesQuery(
+                    organizationId, DocumentType.Contact, contactId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize),
+                ct);
             return Results.Ok(result);
         });
 

@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
@@ -25,6 +25,10 @@ import { SourceDocumentPanel } from '../../../shared/source-document/source-docu
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
+import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
+import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
+import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
 
 interface EditableLine {
   key: number;
@@ -45,10 +49,15 @@ let nextLineKey = 1;
  * "Convert to Credit Note". */
 @Component({
   selector: 'app-purchase-bill-detail-page',
-  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput],
+  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor],
   templateUrl: './purchase-bill-detail-page.html',
 })
 export class PurchaseBillDetailPage {
+  /** Phase 27a: custom field values ride the document's own Save. See
+   * commitCustomFieldsThen for why the commit is an rxjs operator rather than a
+   * nested subscribe, and why a failed commit does not report the save as failed. */
+  private readonly customFieldsEditor = viewChild(CustomFieldsEditor);
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly purchasingService = inject(PurchasingService);
@@ -104,7 +113,7 @@ export class PurchaseBillDetailPage {
   protected readonly vatRates: VatRate[] = ['NoVat', 'ZeroVat', 'ThirteenPercentVat'];
   protected readonly expenditureClassifications: ExpenditureClassification[] = ['Others', 'Capital'];
 
-  private routePurchaseBillId = '';
+  protected routePurchaseBillId = '';
 
   /** See Sales' invoice-detail-page identical Totals-panel doc comment. */
   protected readonly subTotal = computed(() =>
@@ -326,27 +335,31 @@ export class PurchaseBillDetailPage {
     };
 
     if (this.isNew()) {
-      this.purchasingService.createPurchaseBill(this.organizationId, request).subscribe({
-        next: (result) => {
-          this.saving.set(false);
-          this.linkInboxDocumentThenOpen(result.id);
-        },
-        error: (err: unknown) => {
-          this.saving.set(false);
-          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save purchase bill. Please try again.');
-        },
-      });
+      this.purchasingService.createPurchaseBill(this.organizationId, request)
+        .pipe(commitCustomFieldsThen(this.customFieldsEditor(), (r) => r.id, (m) => this.errorMessage.set(m)))
+        .subscribe({
+          next: (result) => {
+            this.saving.set(false);
+            this.linkInboxDocumentThenOpen(result.id);
+          },
+          error: (err: unknown) => {
+            this.saving.set(false);
+            this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save purchase bill. Please try again.');
+          },
+        });
     } else {
-      this.purchasingService.updatePurchaseBill(this.organizationId, this.routePurchaseBillId, request).subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.load();
-        },
-        error: (err: unknown) => {
-          this.saving.set(false);
-          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save purchase bill. Please try again.');
-        },
-      });
+      this.purchasingService.updatePurchaseBill(this.organizationId, this.routePurchaseBillId, request)
+        .pipe(commitCustomFieldsThen(this.customFieldsEditor(), () => this.routePurchaseBillId, (m) => this.errorMessage.set(m)))
+        .subscribe({
+          next: () => {
+            this.saving.set(false);
+            this.load();
+          },
+          error: (err: unknown) => {
+            this.saving.set(false);
+            this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save purchase bill. Please try again.');
+          },
+        });
     }
   }
 

@@ -98,7 +98,20 @@ describe('ProductionJournalDetailPage', () => {
         { provide: CatalogService, useValue: { listAllProducts: () => of([]) } },
         { provide: OrganizationsService, useValue: { listWarehouses: () => of([]) } },
         { provide: AccountingService, useValue: { listAllAccounts: () => of([{ id: 'acc-inventory', code: '1200', name: 'Inventory' }]) } },
-        { provide: ConfigurationService, useValue: { listCostTerms: () => of([]) } },
+        {
+          // Phase 27a put a custom-fields editor and a reporting-tags editor on this page, and both
+          // read their definitions from ConfigurationService the moment they render.
+          provide: ConfigurationService,
+          useValue: {
+            listCostTerms: () => of([]),
+            listCustomFieldDefinitions: () => of([]),
+            getCustomFieldValues: () => of([]),
+            setCustomFieldValues: () => of(undefined),
+            listReportingTagCategories: () => of([]),
+            listReportingTagOptions: () => of([]),
+            getTransactionReportingTags: () => of([]),
+          },
+        },
         {
           provide: ActivatedRoute,
           useValue: {

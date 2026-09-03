@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
@@ -18,6 +18,10 @@ import { InboxConversionPanel } from '../../../shared/source-document/inbox-conv
 import { SourceDocumentPanel } from '../../../shared/source-document/source-document-panel';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
+import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
+import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
+import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
 
 interface EditableLine {
   key: number;
@@ -38,10 +42,15 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-expense-detail-page',
-  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput],
+  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor],
   templateUrl: './expense-detail-page.html',
 })
 export class ExpenseDetailPage {
+  /** Phase 27a: custom field values ride the document's own Save. See
+   * commitCustomFieldsThen for why the commit is an rxjs operator rather than a
+   * nested subscribe, and why a failed commit does not report the save as failed. */
+  private readonly customFieldsEditor = viewChild(CustomFieldsEditor);
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly purchasingService = inject(PurchasingService);
@@ -80,7 +89,7 @@ export class ExpenseDetailPage {
 
   protected readonly vatRates: VatRate[] = ['NoVat', 'ZeroVat', 'ThirteenPercentVat'];
 
-  private routeExpenseId = '';
+  protected routeExpenseId = '';
 
   protected readonly sortedAccounts = computed(() => [...this.accounts()].sort((a, b) => a.code.localeCompare(b.code)));
 
@@ -263,27 +272,31 @@ export class ExpenseDetailPage {
     };
 
     if (this.isNew()) {
-      this.purchasingService.createExpense(this.organizationId, request).subscribe({
-        next: (result) => {
-          this.saving.set(false);
-          this.linkInboxDocumentThenOpen(result.id);
-        },
-        error: (err: unknown) => {
-          this.saving.set(false);
-          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save expense. Please try again.');
-        },
-      });
+      this.purchasingService.createExpense(this.organizationId, request)
+        .pipe(commitCustomFieldsThen(this.customFieldsEditor(), (r) => r.id, (m) => this.errorMessage.set(m)))
+        .subscribe({
+          next: (result) => {
+            this.saving.set(false);
+            this.linkInboxDocumentThenOpen(result.id);
+          },
+          error: (err: unknown) => {
+            this.saving.set(false);
+            this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save expense. Please try again.');
+          },
+        });
     } else {
-      this.purchasingService.updateExpense(this.organizationId, this.routeExpenseId, request).subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.load();
-        },
-        error: (err: unknown) => {
-          this.saving.set(false);
-          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save expense. Please try again.');
-        },
-      });
+      this.purchasingService.updateExpense(this.organizationId, this.routeExpenseId, request)
+        .pipe(commitCustomFieldsThen(this.customFieldsEditor(), () => this.routeExpenseId, (m) => this.errorMessage.set(m)))
+        .subscribe({
+          next: () => {
+            this.saving.set(false);
+            this.load();
+          },
+          error: (err: unknown) => {
+            this.saving.set(false);
+            this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save expense. Please try again.');
+          },
+        });
     }
   }
 

@@ -657,6 +657,12 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminUserLogViewId = Guid.Parse("00000000-0000-0000-0002-0000000001a3");
     private static readonly Guid MemberUserLogViewId = Guid.Parse("00000000-0000-0000-0002-0000000001a4");
 
+    // Phase 27a -- the blanket AttachmentAccess key (see PermissionKeys.AttachmentAccess for why it
+    // is blanket and where the real per-parent gate lives). Admin+Member both granted: it opens
+    // nothing on its own.
+    private static readonly Guid AdminAttachmentAccessId = Guid.Parse("00000000-0000-0000-0002-0000000001a5");
+    private static readonly Guid MemberAttachmentAccessId = Guid.Parse("00000000-0000-0000-0002-0000000001a6");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1167,6 +1173,9 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminExceptionalReportViewId, Role.AdminId, PermissionKeys.ExceptionalReportView, true),
             RolePermission.Create(MemberExceptionalReportViewId, Role.MemberId, PermissionKeys.ExceptionalReportView, true),
             RolePermission.Create(AdminUserLogViewId, Role.AdminId, PermissionKeys.UserLogView, true),
-            RolePermission.Create(MemberUserLogViewId, Role.MemberId, PermissionKeys.UserLogView, false));
+            RolePermission.Create(MemberUserLogViewId, Role.MemberId, PermissionKeys.UserLogView, false),
+
+            RolePermission.Create(AdminAttachmentAccessId, Role.AdminId, PermissionKeys.AttachmentAccess, true),
+            RolePermission.Create(MemberAttachmentAccessId, Role.MemberId, PermissionKeys.AttachmentAccess, true));
     }
 }

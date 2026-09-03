@@ -1,9 +1,10 @@
+using ErpApp.Application.Common.Documents;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
-using FluentValidation;
 using FluentValidation.Results;
+using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,7 +15,8 @@ public sealed class SetCustomFieldValuesCommandHandler(IAppDbContext db)
 {
     public async Task<Unit> Handle(SetCustomFieldValuesCommand request, CancellationToken cancellationToken)
     {
-        await EnsureDocumentExistsAsync(db, request.OrganizationId, request.DocumentType, request.DocumentId, cancellationToken);
+        await DocumentExistenceReader.EnsureExistsAsync(
+            db, request.OrganizationId, request.DocumentType, request.DocumentId, cancellationToken);
 
         var fieldDefinitionIds = request.Values.Select(v => v.FieldDefinitionId).Distinct().ToList();
         var definitions = await db.CustomFieldDefinitions
@@ -60,21 +62,5 @@ public sealed class SetCustomFieldValuesCommandHandler(IAppDbContext db)
 
         await db.SaveChangesAsync(cancellationToken);
         return Unit.Value;
-    }
-
-    private static async Task EnsureDocumentExistsAsync(
-        IAppDbContext db, Guid organizationId, DocumentType documentType, Guid documentId, CancellationToken cancellationToken)
-    {
-        var exists = documentType switch
-        {
-            DocumentType.Quotation => await db.Quotations.AnyAsync(x => x.Id == documentId && x.OrganizationId == organizationId, cancellationToken),
-            DocumentType.Invoice => await db.Invoices.AnyAsync(x => x.Id == documentId && x.OrganizationId == organizationId, cancellationToken),
-            _ => throw new ArgumentOutOfRangeException(nameof(documentType), documentType, "Custom field values are not wired up for this document type yet."),
-        };
-
-        if (!exists)
-        {
-            throw new NotFoundException($"{documentType} not found.");
-        }
     }
 }

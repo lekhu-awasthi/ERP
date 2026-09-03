@@ -13,7 +13,7 @@ public sealed class UploadAttachmentCommandHandler(IAppDbContext db, IFileStorag
     public async Task<AttachmentResult> Handle(UploadAttachmentCommand request, CancellationToken cancellationToken)
     {
         await WorkflowValidation.EnsureParentExistsAsync(
-            db, request.OrganizationId, MapParentType(request.ParentType), request.ParentId, cancellationToken);
+            db, request.OrganizationId, request.ParentType, request.ParentId, cancellationToken);
 
         var storageKey = await fileStorage.SaveAsync(request.Content, request.FileName, cancellationToken);
 
@@ -33,16 +33,4 @@ public sealed class UploadAttachmentCommandHandler(IAppDbContext db, IFileStorag
             attachment.Id, attachment.ParentType, attachment.ParentId, attachment.FileName, attachment.SizeBytes,
             attachment.ContentType, attachment.UploadedByUserId, uploaderName, attachment.UploadedAt);
     }
-
-    // AttachmentParentType currently only has Contact (see its own doc comment) -- this maps into
-    // WorkflowValidation's existing TaskParentType-shaped existence check rather than duplicating
-    // it, since both enums resolve identically today (Contact -> a Contacts row). A second
-    // AttachmentParentType value would need its own branch here, not a shared switch with
-    // TaskParentType -- the two enums are deliberately not unified (AttachmentParentType's own doc
-    // comment).
-    private static TaskParentType MapParentType(AttachmentParentType parentType) => parentType switch
-    {
-        AttachmentParentType.Contact => TaskParentType.Contact,
-        _ => throw new ArgumentOutOfRangeException(nameof(parentType), parentType, null),
-    };
 }

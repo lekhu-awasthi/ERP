@@ -69,6 +69,14 @@
                 </div>
               </div>
               <div class="d-flex align-items-center gap-3">
+                <app-custom-status-picker
+                  [organizationId]="organizationId"
+                  documentType="SalesOrder"
+                  [documentId]="item.id"
+                  [customStatusId]="item.customStatusId"
+                  [options]="customStatusOptions()"
+                  (statusChange)="onCustomStatusChange(item.id, $event)"
+                />
                 @if (item.status === 'Approved') {
                   <span class="badge bg-success-subtle text-success">Approved</span>
                 } @else if (item.status === 'Void') {

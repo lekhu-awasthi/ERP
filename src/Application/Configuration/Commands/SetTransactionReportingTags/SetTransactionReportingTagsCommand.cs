@@ -18,25 +18,22 @@ public sealed record SetTransactionReportingTagsCommand(
     public string PermissionKey => TransactionReportingTagPermissions.EditPermissionFor(DocumentType);
 }
 
-/// <summary>Only the document types live-confirmed to carry a Reporting Tags control (decision #1)
-/// are supported -- Quotation (confirmed directly) and Invoice (confirmed via the scan's field list
-/// and the live "This is export sales" create-form pass). Any other DocumentType is a validation
-/// error, not silently accepted.</summary>
+/// <summary>
+/// Applicability comes from <see cref="DocumentMechanisms.ReportingTags"/> -- all 15 transactional
+/// types plus OpeningBalance and OpeningStock, the widest of the four sweeps. The key comes from
+/// <see cref="DocumentPermissions"/>, shared with every other document-attached mechanism.
+/// </summary>
 public static class TransactionReportingTagPermissions
 {
-    public static string EditPermissionFor(DocumentType documentType) => documentType switch
-    {
-        DocumentType.Quotation => PermissionKeys.QuotationEdit,
-        DocumentType.Invoice => PermissionKeys.InvoiceEdit,
-        _ => throw new ArgumentOutOfRangeException(
-            nameof(documentType), documentType, "Reporting tags are not supported on this document type."),
-    };
+    public static string EditPermissionFor(DocumentType documentType) =>
+        DocumentPermissions.EditPermissionFor(Applicable(documentType));
 
-    public static string ViewPermissionFor(DocumentType documentType) => documentType switch
-    {
-        DocumentType.Quotation => PermissionKeys.QuotationView,
-        DocumentType.Invoice => PermissionKeys.InvoiceView,
-        _ => throw new ArgumentOutOfRangeException(
-            nameof(documentType), documentType, "Reporting tags are not supported on this document type."),
-    };
+    public static string ViewPermissionFor(DocumentType documentType) =>
+        DocumentPermissions.ViewPermissionFor(Applicable(documentType));
+
+    private static DocumentType Applicable(DocumentType documentType) =>
+        DocumentMechanisms.ReportingTags.Contains(documentType)
+            ? documentType
+            : throw new ArgumentOutOfRangeException(
+                nameof(documentType), documentType, "Reporting tags do not apply to this document type.");
 }

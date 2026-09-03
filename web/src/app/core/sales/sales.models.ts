@@ -27,7 +27,13 @@ export type DocumentType =
   // Phase 21c -- the register classification the two migrated register queries stamp on every row.
   // Not a document: nothing numbers it, nothing posts it. See the backing enum.
   | 'MigratedSalesEntry'
-  | 'MigratedPurchaseEntry';
+  | 'MigratedPurchaseEntry'
+  // Phase 27a -- the two opening-balance kinds. Not transactional, but taggable: both Opening
+  // Balances tabs carry an inline "Add Reporting Tags" link in their row form (live-confirmed), and
+  // each row is identified by its own OpeningBalanceLine / OpeningStockLine id. See the backend's
+  // DocumentMechanisms.ReportingTags, which is the list these two widen.
+  | 'OpeningBalance'
+  | 'OpeningStock';
 
 export interface QuotationLineInput {
   productId: string;
@@ -225,6 +231,9 @@ export interface SalesOrder {
   approvedAt: string | null;
   createdAt: string;
   discountPct: number;
+  // Phase 27a: the tenant-defined pipeline value shown in the list grid's STAGE column, orthogonal
+  // to `status` above. Same shape Quotation has carried since Phase 20b.
+  customStatusId: string | null;
 }
 
 export interface SalesOrderLineDto extends SalesOrderLineInput {

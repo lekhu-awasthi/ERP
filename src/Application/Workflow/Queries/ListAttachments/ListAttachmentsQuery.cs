@@ -9,7 +9,7 @@ public sealed record ListAttachmentsQuery(
     Guid OrganizationId, AttachmentParentType ParentType, Guid ParentId, int Page = 1, int PageSize = PagingDefaults.MaxPageSize)
     : IRequest<AttachmentListDto>, IRequirePermission, IOrganizationScoped
 {
-    public string PermissionKey => PermissionKeys.ContactView;
+    public string PermissionKey => ParentPermissions.ViewPermissionFor(ParentType);
 }
 
 public sealed record AttachmentRowDto(

@@ -99,6 +99,19 @@
                         </button>
                         <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelEditAccount()">Cancel</button>
                       </div>
+                      @if (row.lineId; as lineId) {
+                        <!-- Phase 27a: live-confirmed, both Opening Balances tabs carry an inline
+                             "Add Reporting Tags" link in the row form. Keyed by the line's own id,
+                             so it only appears once the row exists -- there is nothing to tag until
+                             a balance has been saved. -->
+                        <div class="mt-3">
+                          <app-reporting-tags-editor
+                            [organizationId]="organizationId"
+                            documentType="OpeningBalance"
+                            [documentId]="lineId"
+                          />
+                        </div>
+                      }
                     </td>
                   </tr>
                 }
@@ -198,6 +211,19 @@
                         </button>
                         <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelEditProduct()">Cancel</button>
                       </div>
+                      @if (row.lineId; as lineId) {
+                        <!-- Phase 27a: live-confirmed, both Opening Balances tabs carry an inline
+                             "Add Reporting Tags" link in the row form. Keyed by the line's own id,
+                             so it only appears once the row exists -- there is nothing to tag until
+                             a balance has been saved. -->
+                        <div class="mt-3">
+                          <app-reporting-tags-editor
+                            [organizationId]="organizationId"
+                            documentType="OpeningStock"
+                            [documentId]="lineId"
+                          />
+                        </div>
+                      }
                     </td>
                   </tr>
                 }

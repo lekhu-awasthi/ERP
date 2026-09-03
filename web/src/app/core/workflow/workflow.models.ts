@@ -39,7 +39,29 @@ export interface TransactionApprovalQueueDto {
 
 // Phase 13 (Tasks, the second Workflow-context feature).
 
-export type TaskParentType = 'Contact' | 'Organization';
+// Phase 27a widened this to the 15 transactional document types: every transactional detail page
+// carries a Tasks tab, and /tasks has taken parentType/parentId as ordinary parameters since Phase
+// 13, so nothing but this union had to change. The document members are spelled exactly as the
+// backend's DocumentType, which is what lets a detail page pass its own documentType straight
+// through -- see DocumentTabs.
+export type TaskParentType =
+  | 'Contact'
+  | 'Organization'
+  | 'Quotation'
+  | 'SalesOrder'
+  | 'Invoice'
+  | 'CreditNote'
+  | 'Payment'
+  | 'PurchaseOrder'
+  | 'PurchaseBill'
+  | 'Expense'
+  | 'DebitNote'
+  | 'JournalVoucher'
+  | 'CashTransfer'
+  | 'WarehouseTransfer'
+  | 'InventoryAdjustment'
+  | 'ProductionOrder'
+  | 'ProductionJournal';
 
 export type TaskPriority = 'Normal' | 'Urgent';
 

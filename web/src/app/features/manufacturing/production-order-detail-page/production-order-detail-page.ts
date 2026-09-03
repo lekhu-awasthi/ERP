@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
@@ -11,6 +11,10 @@ import { ProductionOrderDetail, ProductionOrderRequest } from '../../../core/man
 import { ManufacturingService } from '../../../core/manufacturing/manufacturing.service';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
+import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
+import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
+import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
 
 interface EditableMaterial {
   key: number;
@@ -41,10 +45,15 @@ let nextKey = 1;
  */
 @Component({
   selector: 'app-production-order-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor],
   templateUrl: './production-order-detail-page.html',
 })
 export class ProductionOrderDetailPage {
+  /** Phase 27a: custom field values ride the document's own Save. See
+   * commitCustomFieldsThen for why the commit is an rxjs operator rather than a
+   * nested subscribe, and why a failed commit does not report the save as failed. */
+  private readonly customFieldsEditor = viewChild(CustomFieldsEditor);
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly manufacturingService = inject(ManufacturingService);
@@ -75,7 +84,7 @@ export class ProductionOrderDetailPage {
   protected readonly expenses = signal<EditableExpense[]>([]);
 
   private billOfMaterialsId: string | null = null;
-  private routeOrderId = '';
+  protected routeOrderId = '';
 
   protected readonly isDraft = computed(() => {
     const doc = this.order();
@@ -282,27 +291,31 @@ export class ProductionOrderDetailPage {
     };
 
     if (this.isNew()) {
-      this.manufacturingService.createProductionOrder(this.organizationId, request).subscribe({
-        next: (result) => {
-          this.saving.set(false);
-          void this.router.navigate([
-            '/organizations',
-            this.organizationId,
-            'manufacturing',
-            'production-orders',
-            result.id,
-          ]);
-        },
-        error: (err: unknown) => this.fail(err, 'Could not create the production order.'),
-      });
+      this.manufacturingService.createProductionOrder(this.organizationId, request)
+        .pipe(commitCustomFieldsThen(this.customFieldsEditor(), (r) => r.id, (m) => this.errorMessage.set(m)))
+        .subscribe({
+          next: (result) => {
+            this.saving.set(false);
+            void this.router.navigate([
+              '/organizations',
+              this.organizationId,
+              'manufacturing',
+              'production-orders',
+              result.id,
+            ]);
+          },
+          error: (err: unknown) => this.fail(err, 'Could not create the production order.'),
+        });
     } else {
-      this.manufacturingService.updateProductionOrder(this.organizationId, this.routeOrderId, request).subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.load();
-        },
-        error: (err: unknown) => this.fail(err, 'Could not save the production order.'),
-      });
+      this.manufacturingService.updateProductionOrder(this.organizationId, this.routeOrderId, request)
+        .pipe(commitCustomFieldsThen(this.customFieldsEditor(), () => this.routeOrderId, (m) => this.errorMessage.set(m)))
+        .subscribe({
+          next: () => {
+            this.saving.set(false);
+            this.load();
+          },
+          error: (err: unknown) => this.fail(err, 'Could not save the production order.'),
+        });
     }
   }
 

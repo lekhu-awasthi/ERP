@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
@@ -16,6 +16,10 @@ import { PurchaseBill } from '../../../core/purchasing/purchasing.models';
 import { SourceDocumentPanel } from '../../../shared/source-document/source-document-panel';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
+import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
+import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
+import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
 
 interface EditableAllocation {
   key: number;
@@ -32,10 +36,15 @@ let nextAllocationKey = 1;
  * -- exact mirror of Customer Payment's posting"). */
 @Component({
   selector: 'app-supplier-payment-detail-page',
-  imports: [RouterLink, DatePipe, SourceDocumentPanel, AmountPipe, BsDateInput],
+  imports: [RouterLink, DatePipe, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor],
   templateUrl: './supplier-payment-detail-page.html',
 })
 export class SupplierPaymentDetailPage {
+  /** Phase 27a: custom field values ride the document's own Save. See
+   * commitCustomFieldsThen for why the commit is an rxjs operator rather than a
+   * nested subscribe, and why a failed commit does not report the save as failed. */
+  private readonly customFieldsEditor = viewChild(CustomFieldsEditor);
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly paymentsService = inject(PaymentsService);
@@ -69,7 +78,7 @@ export class SupplierPaymentDetailPage {
   protected readonly reference = signal('');
   protected readonly allocations = signal<EditableAllocation[]>([]);
 
-  private routePaymentId = '';
+  protected routePaymentId = '';
 
   protected readonly sortedAccounts = computed(() => [...this.accounts()].sort((a, b) => a.code.localeCompare(b.code)));
 
@@ -243,27 +252,31 @@ export class SupplierPaymentDetailPage {
     };
 
     if (this.isNew()) {
-      this.paymentsService.createPayment(this.organizationId, request).subscribe({
-        next: (result) => {
-          this.saving.set(false);
-          this.router.navigate(['/organizations', this.organizationId, 'purchasing', 'supplier-payments', result.id]);
-        },
-        error: (err: unknown) => {
-          this.saving.set(false);
-          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save payment. Please try again.');
-        },
-      });
+      this.paymentsService.createPayment(this.organizationId, request)
+        .pipe(commitCustomFieldsThen(this.customFieldsEditor(), (r) => r.id, (m) => this.errorMessage.set(m)))
+        .subscribe({
+          next: (result) => {
+            this.saving.set(false);
+            this.router.navigate(['/organizations', this.organizationId, 'purchasing', 'supplier-payments', result.id]);
+          },
+          error: (err: unknown) => {
+            this.saving.set(false);
+            this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save payment. Please try again.');
+          },
+        });
     } else {
-      this.paymentsService.updatePayment(this.organizationId, this.routePaymentId, request).subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.load();
-        },
-        error: (err: unknown) => {
-          this.saving.set(false);
-          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save payment. Please try again.');
-        },
-      });
+      this.paymentsService.updatePayment(this.organizationId, this.routePaymentId, request)
+        .pipe(commitCustomFieldsThen(this.customFieldsEditor(), () => this.routePaymentId, (m) => this.errorMessage.set(m)))
+        .subscribe({
+          next: () => {
+            this.saving.set(false);
+            this.load();
+          },
+          error: (err: unknown) => {
+            this.saving.set(false);
+            this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save payment. Please try again.');
+          },
+        });
     }
   }
 

@@ -6,6 +6,9 @@ import { SalesService } from '../../../core/sales/sales.service';
 import { SalesOrder, SalesOrderStatus } from '../../../core/sales/sales.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { CustomStatusPicker } from '../../../shared/custom-status/custom-status-picker';
+import { ConfigurationService } from '../../../core/configuration/configuration.service';
+import { CustomStatus } from '../../../core/configuration/configuration.models';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 type StatusFilter = SalesOrderStatus | 'All';
@@ -14,12 +17,14 @@ type StatusFilter = SalesOrderStatus | 'All';
  * Order had zero Angular UI through Phase 16b, confirmed gap, see CLAUDE.md's phase-18 brief). */
 @Component({
   selector: 'app-sales-order-list-page',
-  imports: [RouterLink, PaginationControl, NepaliDatePipe],
+  imports: [RouterLink, PaginationControl, CustomStatusPicker, NepaliDatePipe],
   templateUrl: './sales-order-list-page.html',
 })
 export class SalesOrderListPage {
   private readonly route = inject(ActivatedRoute);
   private readonly salesService = inject(SalesService);
+
+  private readonly configurationService = inject(ConfigurationService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -27,6 +32,10 @@ export class SalesOrderListPage {
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly items = signal<SalesOrder[]>([]);
   protected readonly statusFilter = signal<StatusFilter>('All');
+
+  /** Phase 27a: the tenant's pipeline for this document type, loaded once. Filtered to
+   * active definitions of this type only -- an inactive status is refused server-side. */
+  protected readonly customStatusOptions = signal<CustomStatus[]>([]);
 
   protected readonly page = signal(1);
   protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
@@ -36,6 +45,15 @@ export class SalesOrderListPage {
 
   constructor() {
     this.load();
+    this.configurationService.listCustomStatuses(this.organizationId).subscribe({
+      next: (all) => this.customStatusOptions.set(all.filter((c) => c.isActive && c.documentType === 'SalesOrder')),
+    });
+  }
+
+  /** The picker saves itself; this only keeps the in-memory row in step so the control
+   * does not snap back to its old value before the next reload. */
+  protected onCustomStatusChange(itemId: string, customStatusId: string | null): void {
+    this.items.update((items) => items.map((item) => (item.id === itemId ? { ...item, customStatusId } : item)));
   }
 
   protected selectStatus(status: StatusFilter): void {

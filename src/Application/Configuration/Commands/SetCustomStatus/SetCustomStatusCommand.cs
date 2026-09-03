@@ -25,25 +25,18 @@ public sealed record SetCustomStatusCommand(Guid OrganizationId, DocumentType Do
     public string PermissionKey => CustomStatusPermissions.EditPermissionFor(DocumentType);
 }
 
-/// <summary>Only Quotation and PurchaseOrder are wired up (roadmap Phase 20b scope guard) --
-/// live-confirmed to be the only two of the four candidate types (Quotation, SalesOrder,
-/// PurchaseOrder, Cheque) this sub-phase builds end-to-end. SalesOrder has the identical shape
-/// (aggregate + DocumentType member + Edit key) and is deferred as mechanical follow-up, same as
-/// CustomFieldValuePermissions deferred the other 15 document types in Phase 20a. Cheque is
-/// deliberately excluded, not deferred -- see phase-20b-status.md's Cheque decision: its
-/// "Custom Status" definitions are the exact same 5 values as the native ChequeStatus enum, and
-/// the live tenant's Cheque list STATUS column appears to actually drive that lifecycle, not sit
-/// orthogonal to it -- wiring it properly is a materially larger task than this sub-phase's scope.
-/// Invoice was never a candidate: Configurations > Custom Status has no Invoice section in the
-/// live tenant at all, contradicting the kickoff prompt's assumption that it would mirror 20a's
-/// Quotation+Invoice duo.</summary>
+/// <summary>
+/// Applicability comes from <see cref="DocumentMechanisms.CustomStatus"/> -- Quotation, Sales Order,
+/// Purchase Order and Production Order, the four of the five live Custom Status sections whose
+/// pipeline is genuinely orthogonal to the native lifecycle. Cheque remains excluded rather than
+/// deferred (phase-20b's finding: its five custom values are the five members of ChequeStatus).
+/// The key comes from <see cref="DocumentPermissions"/>.
+/// </summary>
 public static class CustomStatusPermissions
 {
-    public static string EditPermissionFor(DocumentType documentType) => documentType switch
-    {
-        DocumentType.Quotation => PermissionKeys.QuotationEdit,
-        DocumentType.PurchaseOrder => PermissionKeys.PurchaseOrderEdit,
-        _ => throw new ArgumentOutOfRangeException(
-            nameof(documentType), documentType, "Custom status is not wired up for this document type yet."),
-    };
+    public static string EditPermissionFor(DocumentType documentType) =>
+        DocumentMechanisms.CustomStatus.Contains(documentType)
+            ? DocumentPermissions.EditPermissionFor(documentType)
+            : throw new ArgumentOutOfRangeException(
+                nameof(documentType), documentType, "Custom status does not apply to this document type.");
 }

@@ -6,6 +6,7 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { buildTreeRows, TreeRow } from '../../../core/common/tree';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact, ContactGroup, ContactOverviewDto, ContactType } from '../../../core/contacts/contacts.models';
+import { TabParent } from '../../../core/contacts/tab-parent';
 import { DealList } from '../../crm/deal-list/deal-list';
 import { SendSmsForm } from '../../crm/send-sms-form/send-sms-form';
 import { TaskList } from '../../workflow/task-list/task-list';
@@ -68,6 +69,12 @@ export class ContactDetailPage {
 
   protected routeContactId = '';
 
+  /** Phase 27a: AttachmentList and ActivityPanel now take a TabParent so one copy of each serves
+   * both a Contact and all 15 transactional detail pages. Held as a signal, not derived from the
+   * plain routeContactId field, so the input gets one stable object per contact rather than a fresh
+   * identity on every change-detection pass. */
+  protected readonly tabParent = signal<TabParent>({ kind: 'Contact', contactId: '' });
+
   protected readonly groupRows = computed<TreeRow<ContactGroup>[]>(() =>
     buildTreeRows(
       this.groups(),
@@ -97,6 +104,7 @@ export class ContactDetailPage {
 
     this.route.paramMap.subscribe((params) => {
       this.routeContactId = params.get('contactId')!;
+      this.tabParent.set({ kind: 'Contact', contactId: this.routeContactId });
       const isNew = this.routeContactId === 'new';
       this.isNew.set(isNew);
       this.editing.set(isNew);

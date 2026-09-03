@@ -23,7 +23,8 @@ public sealed class ListProductOpeningBalancesQueryHandler(IAppDbContext db)
             select new ProductOpeningBalanceDto(
                 product.Id, product.Code, product.Name, category.Name,
                 line == null ? 0m : line.Quantity, line == null ? 0m : line.Rate,
-                line == null ? 0m : line.Quantity * line.Rate);
+                line == null ? 0m : line.Quantity * line.Rate,
+                line == null ? (Guid?)null : line.Id);
 
         return await query.ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
     }

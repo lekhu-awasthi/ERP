@@ -24,25 +24,25 @@ public sealed record SetCustomFieldValuesCommand(
 
 public sealed record CustomFieldValueInput(Guid FieldDefinitionId, string Value);
 
-/// <summary>Only the document types wired up so far (Quotation, Invoice -- Phase 20a's scope guard)
-/// are supported. CustomFieldDefinition itself applies to all 17 document types (confirmed live in
-/// the "+ADD NEW FIELD" checkboxes), but rolling every type's UI out is explicitly deferred as
-/// mechanical follow-up work, same split as TransactionReportingTagPermissions.</summary>
+/// <summary>
+/// Applicability comes from <see cref="DocumentMechanisms.CustomFields"/> -- 13 document types,
+/// live-confirmed as the 16 sections Configurations &gt; Custom Fields renders (the four live
+/// payment kinds collapse onto this codebase's single Payment). Notably <b>not</b> Warehouse
+/// Transfer or Inventory Adjustment, which carry Reporting Tags but no Custom Fields section.
+/// The key itself comes from <see cref="DocumentPermissions"/>, shared with every other
+/// document-attached mechanism.
+/// </summary>
 public static class CustomFieldValuePermissions
 {
-    public static string EditPermissionFor(DocumentType documentType) => documentType switch
-    {
-        DocumentType.Quotation => PermissionKeys.QuotationEdit,
-        DocumentType.Invoice => PermissionKeys.InvoiceEdit,
-        _ => throw new ArgumentOutOfRangeException(
-            nameof(documentType), documentType, "Custom field values are not wired up for this document type yet."),
-    };
+    public static string EditPermissionFor(DocumentType documentType) =>
+        DocumentPermissions.EditPermissionFor(Applicable(documentType));
 
-    public static string ViewPermissionFor(DocumentType documentType) => documentType switch
-    {
-        DocumentType.Quotation => PermissionKeys.QuotationView,
-        DocumentType.Invoice => PermissionKeys.InvoiceView,
-        _ => throw new ArgumentOutOfRangeException(
-            nameof(documentType), documentType, "Custom field values are not wired up for this document type yet."),
-    };
+    public static string ViewPermissionFor(DocumentType documentType) =>
+        DocumentPermissions.ViewPermissionFor(Applicable(documentType));
+
+    private static DocumentType Applicable(DocumentType documentType) =>
+        DocumentMechanisms.CustomFields.Contains(documentType)
+            ? documentType
+            : throw new ArgumentOutOfRangeException(
+                nameof(documentType), documentType, "Custom fields do not apply to this document type.");
 }

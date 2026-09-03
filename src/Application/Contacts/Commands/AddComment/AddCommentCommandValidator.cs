@@ -7,7 +7,8 @@ public sealed class AddCommentCommandValidator : AbstractValidator<AddCommentCom
     public AddCommentCommandValidator()
     {
         RuleFor(x => x.OrganizationId).NotEmpty();
-        RuleFor(x => x.ContactId).NotEmpty();
+        RuleFor(x => x.ParentType).IsInEnum();
+        RuleFor(x => x.ParentId).NotEmpty();
         RuleFor(x => x.Content).NotEmpty().MaximumLength(2000);
     }
 }

@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
@@ -11,6 +11,10 @@ import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
+import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
+import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
+import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
 
 interface EditableLine {
   key: number;
@@ -39,10 +43,15 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-journal-voucher-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor],
   templateUrl: './journal-voucher-detail-page.html',
 })
 export class JournalVoucherDetailPage {
+  /** Phase 27a: custom field values ride the document's own Save. See
+   * commitCustomFieldsThen for why the commit is an rxjs operator rather than a
+   * nested subscribe, and why a failed commit does not report the save as failed. */
+  private readonly customFieldsEditor = viewChild(CustomFieldsEditor);
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly accountingService = inject(AccountingService);
@@ -66,7 +75,7 @@ export class JournalVoucherDetailPage {
   protected readonly reference = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
 
-  private routeJournalVoucherId = '';
+  protected routeJournalVoucherId = '';
 
   protected readonly totalDebit = computed(() => this.round(this.lines().reduce((sum, l) => sum + (l.debit || 0), 0)));
   protected readonly totalCredit = computed(() => this.round(this.lines().reduce((sum, l) => sum + (l.credit || 0), 0)));
@@ -167,7 +176,9 @@ export class JournalVoucherDetailPage {
       ? this.accountingService.createJournalVoucher(this.organizationId, request)
       : this.accountingService.updateJournalVoucher(this.organizationId, this.routeJournalVoucherId, request);
 
-    request$.subscribe({
+    request$
+      .pipe(commitCustomFieldsThen(this.customFieldsEditor(), (r) => r.id, (m) => this.errorMessage.set(m)))
+      .subscribe({
       next: (result) => {
         this.saving.set(false);
         if (this.isNew()) {

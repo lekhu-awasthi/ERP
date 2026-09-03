@@ -54,6 +54,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 26a | Report catalog completion, Accounting group (FR-9.1/9.6): Transaction list, Journal report, General Ledger Summary, Detail General Ledger, GL Master Report, plus FR-9.1's **Compare** column on Trial Balance / Balance Sheet / Income Statement. All read `GlJournalEntry`; nothing new stored, the only migration is ten permission-seed rows | `phase-26a-status.md` |
 | 26b | Report catalog completion, Receivable/Payable and analytics (closing FR-9.2/9.3): Customer Receivable Summary, Supplier Payable Summary, Invoice Age, Purchase Bill Age, Sales/Purchase By Customer/Supplier and By Item, their four BS-fiscal-year Monthly crosstabs, Sales Summary Report — 13 reports over 7 shared handlers, plus the server-side `Domain/Common/BsCalendar` five of them are keyed by | `phase-26b-status.md` |
 | 26c | Report catalog completion: inventory, tax, system, analytics (closing FR-9.4/9.5/9.7): Inventory Position / Movement / Ledger / Master, Sales & Purchase Return Registers, Net Trading Assets, Exceptional Report, User Log — 9 reports plus the `.xlsx` export the 3 manufacturing reports lacked. One new table (`UserLoginEvent`, written by the auth endpoints); the shared `StockFactReader` the four inventory reports agree through | `phase-26c-status.md` |
+| 27a | Cross-cutting rollout sweep, document-level mechanisms: Custom Fields to 11 more types (13 total, not the assumed 15), Custom Status to Sales Order + Production Order, Reporting Tags to every transactional type plus Opening Balances, Tasks/Documents/Activity tabs on all 15 transactional detail pages. `Comment` generalized to a polymorphic `CommentParentType` (phase-18 decision #3's deferred trigger). One shared `DocumentMechanisms` classification table plus a server guard test and a client guard spec prove the sweep complete | `phase-27a-status.md` |
 
 ---
 
@@ -127,14 +128,18 @@ E2E, one proven negative path, a status doc) and the confirm-live rule.
   every card on Tigg's Reports landing page has a counterpart here or a recorded reason not to.
 
 ### 27. Cross-cutting rollout sweep (two sub-phases; mechanical, guarded by sweep tests)
-- **27a — Document-level mechanisms.** Custom Fields to the remaining 15 applicable document types
-  (Phase 20a's editor, per type); Custom Status to Production Order and Sales Order (20b's
-  machinery); Reporting Tags to every transactional type plus Opening Balances (Phase 19's
-  `TransactionReportingTag`; live: the opening-balance row form carries the tag control); Tasks /
-  Documents / Comments / Activity tabs on transactional document detail pages (live: the Invoice
-  detail has exactly those four tabs; ours are Contact-scoped — extend `WorkTask`/`Attachment`
-  parent types rather than add a new polymorphic entity, per phase-18 Decision #2). A phase-23-style
-  guard spec must prove each sweep complete.
+- **27a — Document-level mechanisms. Done, `phase-27a-status.md`.** Custom Fields to 11 more
+  document types (13 total, not the assumed 15 — Configurations > Custom Fields live-confirmed 16
+  sections, four payment kinds collapsing onto this codebase's one `Payment`; Warehouse Transfer and
+  Inventory Adjustment carry no such section at all); Custom Status to Sales Order and Production
+  Order (20b's machinery, unchanged); Reporting Tags to every transactional type plus both Opening
+  Balances kinds, tagged by each row's own line id; Overview/Tasks/Documents/Activity tabs on all 15
+  transactional detail pages via one shared `app-document-tabs` component (Comments lives as an
+  Activity sub-tab, not a top-level tab — the roadmap's tab list here was wrong). `Comment` went
+  polymorphic (`CommentParentType`), the trigger phase-18 Decision #2/#3 deferred that generalization
+  to. One shared `DocumentMechanisms` classification table plus a server guard test
+  (`DocumentMechanismSweepGuardTests`) and a client guard spec
+  (`document-mechanism-sweep-guard.spec.ts`) prove all four sweeps complete.
 - **27b — Output.** Print/PDF for the 9 unwired `DocumentType`s and both production documents
   (20d's pipeline; live: "View Print Preview" on the detail page); **BS dates in server-rendered
   PDFs and `.xlsx`** (phase-23 Decision A's carried limitation — port `web/src/app/shared/formatting/`

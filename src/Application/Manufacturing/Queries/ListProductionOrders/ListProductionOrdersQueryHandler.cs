@@ -18,7 +18,7 @@ public sealed class ListProductionOrdersQueryHandler(IAppDbContext db)
             orderby order.CreatedAt descending
             select new ProductionOrderListItemDto(
                 order.Id, order.Code, order.Date, order.Reference, order.ProductId, product.Name,
-                order.OutputQuantity, order.Status);
+                order.OutputQuantity, order.Status, order.CustomStatusId);
 
         return await query.ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
     }

@@ -40,6 +40,18 @@
     }
   </div>
 
+  <!-- Phase 27a: the Tasks / Documents / Activity tabs every transactional detail page
+       carries in the reference product. Renders nothing until the document exists, and
+       reports Overview while it does not, so the body below needs no second condition. -->
+  <app-document-tabs
+    #docTabs
+    [organizationId]="organizationId"
+    documentType="Quotation"
+    [documentId]="isNew() ? null : routeQuotationId"
+  />
+
+  @if (docTabs.isOverview()) {
+
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
       <i class="bi bi-exclamation-triangle-fill"></i>
@@ -310,5 +322,6 @@
         }
       </div>
     </div>
+  }
   }
 </div>

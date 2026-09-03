@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
@@ -12,6 +12,10 @@ import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
+import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
+import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
+import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
 
 interface EditableLine {
   key: number;
@@ -38,10 +42,15 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-sales-order-detail-page',
-  imports: [RouterLink, AmountPipe, BsDateInput],
+  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor],
   templateUrl: './sales-order-detail-page.html',
 })
 export class SalesOrderDetailPage {
+  /** Phase 27a: custom field values ride the document's own Save. See
+   * commitCustomFieldsThen for why the commit is an rxjs operator rather than a
+   * nested subscribe, and why a failed commit does not report the save as failed. */
+  private readonly customFieldsEditor = viewChild(CustomFieldsEditor);
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly salesService = inject(SalesService);
@@ -71,7 +80,7 @@ export class SalesOrderDetailPage {
 
   protected readonly vatRates: VatRate[] = ['NoVat', 'ZeroVat', 'ThirteenPercentVat'];
 
-  private routeSalesOrderId = '';
+  protected routeSalesOrderId = '';
 
   /** See invoice-detail-page's identical Totals-panel doc comment. */
   protected readonly subTotal = computed(() =>
@@ -218,27 +227,31 @@ export class SalesOrderDetailPage {
     };
 
     if (this.isNew()) {
-      this.salesService.createSalesOrder(this.organizationId, request).subscribe({
-        next: (result) => {
-          this.saving.set(false);
-          this.router.navigate(['/organizations', this.organizationId, 'sales', 'sales-orders', result.id]);
-        },
-        error: (err: unknown) => {
-          this.saving.set(false);
-          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save sales order. Please try again.');
-        },
-      });
+      this.salesService.createSalesOrder(this.organizationId, request)
+        .pipe(commitCustomFieldsThen(this.customFieldsEditor(), (r) => r.id, (m) => this.errorMessage.set(m)))
+        .subscribe({
+          next: (result) => {
+            this.saving.set(false);
+            this.router.navigate(['/organizations', this.organizationId, 'sales', 'sales-orders', result.id]);
+          },
+          error: (err: unknown) => {
+            this.saving.set(false);
+            this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save sales order. Please try again.');
+          },
+        });
     } else {
-      this.salesService.updateSalesOrder(this.organizationId, this.routeSalesOrderId, request).subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.load();
-        },
-        error: (err: unknown) => {
-          this.saving.set(false);
-          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save sales order. Please try again.');
-        },
-      });
+      this.salesService.updateSalesOrder(this.organizationId, this.routeSalesOrderId, request)
+        .pipe(commitCustomFieldsThen(this.customFieldsEditor(), () => this.routeSalesOrderId, (m) => this.errorMessage.set(m)))
+        .subscribe({
+          next: () => {
+            this.saving.set(false);
+            this.load();
+          },
+          error: (err: unknown) => {
+            this.saving.set(false);
+            this.errorMessage.set(extractErrorMessage(err) ?? 'Could not save sales order. Please try again.');
+          },
+        });
     }
   }
 

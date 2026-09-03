@@ -171,6 +171,8 @@ export interface ProductOpeningBalanceDto {
   quantity: number;
   rate: number;
   amount: number;
+  // Phase 27a: the OpeningStockLine's own id -- see AccountOpeningBalanceDto.lineId.
+  lineId: string | null;
 }
 
 export interface OpeningStockLineRequest {

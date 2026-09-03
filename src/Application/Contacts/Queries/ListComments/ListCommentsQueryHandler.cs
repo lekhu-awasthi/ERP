@@ -8,7 +8,10 @@ public sealed class ListCommentsQueryHandler(IAppDbContext db) : IRequestHandler
 {
     public async Task<CommentListDto> Handle(ListCommentsQuery request, CancellationToken cancellationToken)
     {
-        var query = db.Comments.Where(x => x.OrganizationId == request.OrganizationId && x.ContactId == request.ContactId);
+        var query = db.Comments.Where(x =>
+            x.OrganizationId == request.OrganizationId
+            && x.ParentType == request.ParentType
+            && x.ParentId == request.ParentId);
 
         var totalCount = await query.CountAsync(cancellationToken);
 

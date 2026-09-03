@@ -1432,9 +1432,6 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid>("AuthorUserId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("ContactId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasMaxLength(2000)
@@ -1446,13 +1443,19 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid>("ParentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ParentType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AuthorUserId");
 
-                    b.HasIndex("ContactId");
-
-                    b.HasIndex("OrganizationId", "ContactId");
+                    b.HasIndex("OrganizationId", "ParentType", "ParentId");
 
                     b.ToTable("Comments", "contacts");
                 });
@@ -2813,6 +2816,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<Guid?>("CustomStatusId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
 
@@ -4138,6 +4144,9 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CustomStatusId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
@@ -7347,6 +7356,20 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = false,
                             PermissionKey = "Reports.UserLog.View",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001a5"),
+                            IsGranted = true,
+                            PermissionKey = "Workflow.Attachment.Access",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001a6"),
+                            IsGranted = true,
+                            PermissionKey = "Workflow.Attachment.Access",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 
@@ -7554,8 +7577,8 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.Property<string>("ParentType")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint");
@@ -7740,8 +7763,8 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.Property<string>("ParentType")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<string>("Priority")
                         .IsRequired()
@@ -8011,12 +8034,6 @@ namespace ErpApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("AuthorUserId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("ErpApp.Domain.Contacts.Contact", null)
-                        .WithMany()
-                        .HasForeignKey("ContactId")
-                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

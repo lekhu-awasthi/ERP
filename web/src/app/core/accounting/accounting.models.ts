@@ -121,6 +121,10 @@ export interface AccountOpeningBalanceDto {
   groupName: string;
   debit: number;
   credit: number;
+  // Phase 27a: the OpeningBalanceLine's own id, null until a balance has been set for this account.
+  // Reporting tags are keyed by it -- both Opening Balances tabs carry a tag control in their row
+  // form -- so the tag editor only appears once the row exists.
+  lineId: string | null;
 }
 
 export interface OpeningBalanceLineRequest {

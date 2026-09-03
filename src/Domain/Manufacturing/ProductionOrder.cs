@@ -41,6 +41,15 @@ public sealed class ProductionOrder
     public DateTimeOffset CreatedAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
 
+    /// <summary>Phase 27a -- tenant-defined status pipeline (CustomStatus), orthogonal to the
+    /// native Draft/Approved/Void lifecycle above. Live-confirmed on this type's own LIST grid:
+    /// a "STATUS" column -- Production Order labels it
+    /// STATUS where Sales Order says STAGE, but it is the same control over the same lookup, and
+    /// live rows carry real assigned values. Deliberately not gated by EnsureDraft -- it
+    /// carries no GL or stock weight, the same reasoning Phase 20b used for Quotation and Purchase
+    /// Order, and 20a used for Custom Fields.</summary>
+    public Guid? CustomStatusId { get; private set; }
+
     public IReadOnlyList<ProductionOrderRawMaterialLine> RawMaterials => _rawMaterials;
     public IReadOnlyList<ProductionOrderByProductLine> ByProducts => _byProducts;
     public IReadOnlyList<ProductionOrderExpenseLine> Expenses => _expenses;
@@ -174,6 +183,13 @@ public sealed class ProductionOrder
         Status = ProductionOrderStatus.Void;
         VoidedByUserId = voidedByUserId;
         VoidedAt = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>Phase 27a -- see <see cref="CustomStatusId"/>. Setting or clearing (null) a pipeline
+    /// value has no GL, stock or lifecycle side effect.</summary>
+    public void SetCustomStatus(Guid? customStatusId)
+    {
+        CustomStatusId = customStatusId;
     }
 
     private void EnsureDraft()

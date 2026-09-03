@@ -2,6 +2,7 @@ using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Configuration.Commands.CreateCustomFieldDefinition;
 using ErpApp.Application.Configuration.Commands.SetCustomFieldValues;
+using ErpApp.Application.Configuration.Commands.SetTransactionReportingTags;
 using ErpApp.Application.Configuration.Queries.GetCustomFieldValues;
 using ErpApp.Application.Contacts.Commands.CreateContact;
 using ErpApp.Application.Sales.Commands.CreateQuotation;
@@ -126,8 +127,36 @@ public class SetCustomFieldValuesCommandHandlerTests
         var invoiceCommand = new SetCustomFieldValuesCommand(Guid.NewGuid(), DocumentType.Invoice, Guid.NewGuid(), []);
         Assert.Equal("Sales.Invoice.Edit", invoiceCommand.PermissionKey);
 
-        var unsupported = new SetCustomFieldValuesCommand(Guid.NewGuid(), DocumentType.JournalVoucher, Guid.NewGuid(), []);
-        Assert.Throws<ArgumentOutOfRangeException>(() => unsupported.PermissionKey);
+        // Phase 27a swept the other eleven; a type from a different bounded context proves the key
+        // is derived per type rather than hardcoded to Sales.
+        var journalVoucherCommand = new SetCustomFieldValuesCommand(
+            Guid.NewGuid(), DocumentType.JournalVoucher, Guid.NewGuid(), []);
+        Assert.Equal("Accounting.JournalVoucher.Edit", journalVoucherCommand.PermissionKey);
+    }
+
+    /// <summary>
+    /// Phase 27a: Custom Fields is the <i>narrower</i> of the two document-wide sweeps -- Warehouse
+    /// Transfer and Inventory Adjustment carry Reporting Tags but have no Custom Fields section in
+    /// the reference product at all (live-confirmed: Configurations &gt; Custom Fields renders 16
+    /// sections and neither is among them). Without this test the two lists would look like a
+    /// copy-paste slip rather than a confirmed difference.
+    /// </summary>
+    [Fact]
+    public void Command_refuses_a_document_type_that_carries_no_custom_fields_block()
+    {
+        var warehouseTransfer = new SetCustomFieldValuesCommand(
+            Guid.NewGuid(), DocumentType.WarehouseTransfer, Guid.NewGuid(), []);
+        Assert.Throws<ArgumentOutOfRangeException>(() => warehouseTransfer.PermissionKey);
+
+        var inventoryAdjustment = new SetCustomFieldValuesCommand(
+            Guid.NewGuid(), DocumentType.InventoryAdjustment, Guid.NewGuid(), []);
+        Assert.Throws<ArgumentOutOfRangeException>(() => inventoryAdjustment.PermissionKey);
+
+        // ...but reporting tags accept both, which is the whole point of keeping the lists apart.
+        Assert.Equal(
+            "Inventory.WarehouseTransfer.Edit",
+            new SetTransactionReportingTagsCommand(
+                Guid.NewGuid(), DocumentType.WarehouseTransfer, Guid.NewGuid(), []).PermissionKey);
     }
 
     private sealed record Seed(Guid OrganizationId, Guid QuotationId, Guid TextFieldId, Guid ChoiceFieldId);

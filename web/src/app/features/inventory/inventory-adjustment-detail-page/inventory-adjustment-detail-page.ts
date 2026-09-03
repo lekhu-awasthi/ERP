@@ -17,6 +17,8 @@ import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
+import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 
 interface EditableLine {
   key: number;
@@ -35,7 +37,7 @@ let nextLineKey = 1;
  * section once Approved, same as every GL-posting document type. */
 @Component({
   selector: 'app-inventory-adjustment-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor],
   templateUrl: './inventory-adjustment-detail-page.html',
 })
 export class InventoryAdjustmentDetailPage {
@@ -66,7 +68,7 @@ export class InventoryAdjustmentDetailPage {
 
   protected readonly directions: InventoryAdjustmentDirection[] = ['Increase', 'Decrease'];
 
-  private routeInventoryAdjustmentId = '';
+  protected routeInventoryAdjustmentId = '';
 
   protected readonly isDraft = computed(() => {
     const doc = this.inventoryAdjustment();
