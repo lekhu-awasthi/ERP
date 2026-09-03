@@ -126,6 +126,7 @@ app.MapAccountingEndpoints();
 app.MapSalesEndpoints();
 app.MapPaymentsEndpoints();
 app.MapPurchasingEndpoints();
+app.MapTradeReportEndpoints();
 app.MapInventoryEndpoints();
 app.MapManufacturingEndpoints();
 app.MapWorkflowEndpoints();

@@ -103,6 +103,24 @@ these are in `CLAUDE.md`'s Known gotchas section. When a phase completes, append
   see CLAUDE.md's Known gotchas), before showing a figure smaller than the display precision, and before
   running a browser pass in a non-interactive session - Step 3 records the dev-cert + cookie
   transplant that finally made one possible, and closed four phases of debt
+- `phase-26b` - before ageing anything, before any report keyed by a **fiscal year**, and before
+  adding a second report that has to agree with an existing one. Three things it settled. (1) The
+  live pass is what found that **all four Monthly variants take a BS fiscal-year picker, not a date
+  range** - the roadmap had predicted the server-side BS calendar would have one consumer and it
+  arrived with five - so `Domain/Common/BsCalendar` exists, is a *verbatim port* of phase-23's
+  client table rather than a retyping, and is tested against that file's own live-confirmed anchors
+  plus a 33,969-day round trip; a fiscal year runs Shrawan 1 to the last day of Asar and is named by
+  its first BS year. (2) **Agreement between reports is a design property, not a coincidence**:
+  Invoice Age's total balance equals Customer Receivable Summary's closing balance because both read
+  `ContactLedgerReader`, and that is why the phase extended that reader with contact-tagged
+  **Journal Vouchers** - a `JournalVoucherLine.ContactId` had existed unread since phase 17, so a JV
+  posted to a customer moved the general ledger without moving that customer's Statement. Read
+  Decision B before touching it: the fix deliberately changes two shipped screens (Contact Statement,
+  Contact Overview). (3) The precedent for **refusing to build two live options** rather than faking
+  them - Quick Payment/Receipt is not a document type here (phase-17 Decision #7) so there is nothing
+  to age, and Sales Summary's Service Charge is a product flag this codebase lacks, so the column is
+  absent with a note on the screen rather than zero-filled. Also: age runs from the **Due Date**, and
+  only `Expense` stores one, which is phase-9's credit-term wall reached from the other side.
 - `phase-7`'s addendum (bottom of the file) — before adding a new tenant-wide default GL account or changing which account a posting rule debits/credits: grep for the field name across every posting rule that's supposed to read it. `DefaultInventoryAccountId` sat completely unread by `PurchaseBillPostingRule` for 12 phases (Goods purchases debited Purchase Expense instead), silently double-counting Cost of Goods Sold in `IncomeStatementQueryHandler`'s Net Profit for any tenant whose Purchase account was Expense-typed — the obvious/default choice, caught only by a later phase's live E2E, not by any test or `dotnet build`
 - `phase-26a` - before building any **period-over-period comparison**, and before any report that
   reads `GlLine` back to the document that posted it. Compare is **one request, not two**: the second

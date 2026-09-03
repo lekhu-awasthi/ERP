@@ -679,6 +679,87 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    // Phase 26b -- Reports > Receivable / Payable / Sales Report / Purchase Report. The five
+    // fiscal-year-keyed screens (the four Monthly variants and Sales Summary) take a BS fiscal year
+    // rather than a date range, which is why they have no date params in the route either.
+    path: 'organizations/:id/reports/customer-receivable-summary',
+    loadComponent: () =>
+      import('./features/reports/customer-receivable-summary-page/customer-receivable-summary-page').then((m) => m.CustomerReceivableSummaryPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/supplier-payable-summary',
+    loadComponent: () =>
+      import('./features/reports/supplier-payable-summary-page/supplier-payable-summary-page').then((m) => m.SupplierPayableSummaryPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/invoice-age',
+    loadComponent: () =>
+      import('./features/reports/invoice-age-page/invoice-age-page').then((m) => m.InvoiceAgePage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/purchase-bill-age',
+    loadComponent: () =>
+      import('./features/reports/purchase-bill-age-page/purchase-bill-age-page').then((m) => m.PurchaseBillAgePage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/sales-by-customer',
+    loadComponent: () =>
+      import('./features/reports/sales-by-customer-page/sales-by-customer-page').then((m) => m.SalesByCustomerPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/purchase-by-supplier',
+    loadComponent: () =>
+      import('./features/reports/purchase-by-supplier-page/purchase-by-supplier-page').then((m) => m.PurchaseBySupplierPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/sales-by-item',
+    loadComponent: () =>
+      import('./features/reports/sales-by-item-page/sales-by-item-page').then((m) => m.SalesByItemPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/purchase-by-item',
+    loadComponent: () =>
+      import('./features/reports/purchase-by-item-page/purchase-by-item-page').then((m) => m.PurchaseByItemPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/sales-by-customer-monthly',
+    loadComponent: () =>
+      import('./features/reports/sales-by-customer-monthly-page/sales-by-customer-monthly-page').then((m) => m.SalesByCustomerMonthlyPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/purchase-by-supplier-monthly',
+    loadComponent: () =>
+      import('./features/reports/purchase-by-supplier-monthly-page/purchase-by-supplier-monthly-page').then((m) => m.PurchaseBySupplierMonthlyPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/sales-by-item-monthly',
+    loadComponent: () =>
+      import('./features/reports/sales-by-item-monthly-page/sales-by-item-monthly-page').then((m) => m.SalesByItemMonthlyPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/purchase-by-item-monthly',
+    loadComponent: () =>
+      import('./features/reports/purchase-by-item-monthly-page/purchase-by-item-monthly-page').then((m) => m.PurchaseByItemMonthlyPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/sales-summary',
+    loadComponent: () =>
+      import('./features/reports/sales-summary-report-page/sales-summary-report-page').then((m) => m.SalesSummaryReportPage),
+    canActivate: [authGuard],
+  },
+  {
     // Phase 26a -- Reports > Accounting. Journal report / Detail GL / GL Master are Admin-only;
     // General Ledger Summary is the one of the four granted to Member as well.
     path: 'organizations/:id/reports/journal-report',

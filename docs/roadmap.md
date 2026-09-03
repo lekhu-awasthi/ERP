@@ -52,6 +52,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 24 | Variant Products & Attributes (FR-8.3): live pass showed a variant is a Product with a parent pointer, so five nullable columns plus one rule instead of a stock-key change | `phase-24-status.md` |
 | 25 | Manufacturing (FR-8.8/8.9, FR-9.5's slice), behind the Manufacturing flag: BOM → Production Order → costed Production Journal (Inventory-to-Inventory posting, perpetual; conservation law proven in SQL), Void unwinds both directions, three reports | `phase-25-status.md` |
 | 26a | Report catalog completion, Accounting group (FR-9.1/9.6): Transaction list, Journal report, General Ledger Summary, Detail General Ledger, GL Master Report, plus FR-9.1's **Compare** column on Trial Balance / Balance Sheet / Income Statement. All read `GlJournalEntry`; nothing new stored, the only migration is ten permission-seed rows | `phase-26a-status.md` |
+| 26b | Report catalog completion, Receivable/Payable and analytics (closing FR-9.2/9.3): Customer Receivable Summary, Supplier Payable Summary, Invoice Age, Purchase Bill Age, Sales/Purchase By Customer/Supplier and By Item, their four BS-fiscal-year Monthly crosstabs, Sales Summary Report — 13 reports over 7 shared handlers, plus the server-side `Domain/Common/BsCalendar` five of them are keyed by | `phase-26b-status.md` |
 
 ---
 
@@ -102,12 +103,14 @@ E2E, one proven negative path, a status doc) and the confirm-live rule.
   columns), Journal report, General Ledger Summary, Detail General Ledger, GL Master Report; and the
   **Compare** (period-over-period) column on Trial Balance / Balance Sheet / Income Statement that
   FR-9.1 names and Phase 8a never built. All read `GlJournalEntry`; nothing new is stored.
-- **26b — Receivable/Payable and analytics.** Customer Receivable Summary, Supplier Payable Summary,
-  Invoice Age, Purchase Bill Age (closing FR-9.2; live: a JV posted to a customer is an ageable
-  document, Status is Overdue/Current, Age in days); Sales/Purchase By Customer/Supplier, By Item,
-  their Monthly variants, Sales Summary Report (closing FR-9.3; live: keyed by BS fiscal year and
-  month, not a date range — the first report to need phase-23's BS calendar on the *server*; carries
-  a Service Charge column this codebase has no flag for — omit it with a note, do not fake it).
+- **26b — Receivable/Payable and analytics. DONE (`docs/phase-26b-status.md`).** All thirteen
+  built, over **seven** handlers (each mirrored pair answered once, discriminated by a side the
+  route hardcodes). Confirmed live 2026-09-03: age runs from the **Due Date**; a contact-tagged
+  Journal Voucher really is an ageable document; and **all four Monthly variants are keyed by a BS
+  fiscal-year picker**, not a date range — so `Domain/Common/BsCalendar` arrived with five consumers
+  rather than the one predicted here. Service Charge omitted with a note, as directed; Quick
+  Payment/Receipt omitted too (phase-17 made it a `Payment`, not a document type). Twenty-six
+  permission-seed rows are the only migration.
 - **26c — Inventory, tax, system, analytics.** Inventory Position / Movement / Ledger / Master as
   *report* pages (live: Movement is Opening/In/Out/Balance × Qty/Rate/Value with Category, Product,
   Warehouse filters); **Sales Return Register and Purchase Return Register** (live: real separate

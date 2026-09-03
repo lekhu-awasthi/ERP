@@ -693,4 +693,61 @@ public static class PermissionKeys
     public const string GeneralLedgerSummaryView = "Reports.GeneralLedgerSummary.View";
     public const string DetailGeneralLedgerView = "Reports.DetailGeneralLedger.View";
     public const string GeneralLedgerMasterView = "Reports.GeneralLedgerMaster.View";
+
+    // Phase 26b (Report catalog completion, Receivable/Payable and analytics). Thirteen new report
+    // keys, again split one report at a time by the standing rule rather than defaulted across the
+    // group. The line this phase's split falls on is simple and worth naming: **eight of these
+    // reports put a named contact next to a money figure, and five do not.**
+    //
+    // Admin-only, because they name contacts:
+    //
+    // - CustomerReceivableSummaryView / SupplierPayableSummaryView: one row per contact with their
+    //   closing balance. That is precisely the factor phase-9 used to make
+    //   CustomerAgeingSummaryView Admin-only ("lists every Contact's identity next to their
+    //   outstanding balance"), and these two sit in the same Receivable/Payable report groups as
+    //   those. Granting the less-detailed sibling more widely than the more-detailed one would be
+    //   an arbitrary line.
+    //
+    // - InvoiceAgeView / PurchaseBillAgeView: a flat per-transaction register -- every unpaid
+    //   document with its number, reference, contact and balance. Strictly more disclosure than
+    //   the Ageing Summary above, so it cannot be less restricted.
+    //
+    // - SalesByCustomerView / PurchaseBySupplierView: contact identity beside period turnover.
+    //   This is the Sales/Purchase Master Report rolled up over exactly the same rows, and both of
+    //   those are Admin-only; the rollup discloses the customer list and what each one is worth,
+    //   which is the commercially sensitive half of the fact table rather than the incidental half.
+    //
+    // - SalesByCustomerMonthlyView / PurchaseBySupplierMonthlyView: the same, per BS month -- and
+    //   the sales-side screen carries a **PAN column** (confirmed live 2026-09-03), which is the
+    //   single strongest Admin-only factor in this codebase (TdsReportView, AnnexThirteenView). The
+    //   purchase mirror takes the same class so an Admin reasons about the pair together.
+    //
+    // Admin+Member, because they name no one:
+    //
+    // - SalesByItemView / PurchaseByItemView and their two Monthly variants: one row per product
+    //   (or product category) with quantity and value, no contact anywhere. That is the
+    //   InventoryPosition/StockAgeing shape, Admin+Member since phase-19, and it is the working
+    //   data a sales or stock operator needs to do the job daily.
+    //
+    // - SalesSummaryReportView: the tenant's own totals per BS month or day -- no contact, no
+    //   product, no document number. The most bounded rollup in this phase, and the VAT Summary
+    //   Report's shape, which phase-8c granted to both roles for the same reason.
+    //
+    // Customer and Supplier (resp. Sales and Purchase) each keep their own key even where one
+    // shared handler answers both, so Sales-side visibility can be granted independently of
+    // Purchase-side -- SalesMasterReportView/PurchaseMasterReportView's precedent, which phase-9
+    // already applied to a shared handler.
+    public const string CustomerReceivableSummaryView = "Reports.CustomerReceivableSummary.View";
+    public const string SupplierPayableSummaryView = "Reports.SupplierPayableSummary.View";
+    public const string InvoiceAgeView = "Reports.InvoiceAge.View";
+    public const string PurchaseBillAgeView = "Reports.PurchaseBillAge.View";
+    public const string SalesByCustomerView = "Reports.SalesByCustomer.View";
+    public const string PurchaseBySupplierView = "Reports.PurchaseBySupplier.View";
+    public const string SalesByItemView = "Reports.SalesByItem.View";
+    public const string PurchaseByItemView = "Reports.PurchaseByItem.View";
+    public const string SalesByCustomerMonthlyView = "Reports.SalesByCustomerMonthly.View";
+    public const string PurchaseBySupplierMonthlyView = "Reports.PurchaseBySupplierMonthly.View";
+    public const string SalesByItemMonthlyView = "Reports.SalesByItemMonthly.View";
+    public const string PurchaseByItemMonthlyView = "Reports.PurchaseByItemMonthly.View";
+    public const string SalesSummaryReportView = "Reports.SalesSummaryReport.View";
 }

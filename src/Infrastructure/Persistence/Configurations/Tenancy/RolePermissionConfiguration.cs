@@ -597,6 +597,38 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminGeneralLedgerMasterViewId = Guid.Parse("00000000-0000-0000-0002-000000000177");
     private static readonly Guid MemberGeneralLedgerMasterViewId = Guid.Parse("00000000-0000-0000-0002-000000000178");
 
+    // Phase 26b (Report catalog completion, Receivable/Payable and analytics) -- thirteen reports,
+    // eight Admin-only and five granted to both, per PermissionKeys' own derivation: the eight that
+    // put a named contact next to a money figure follow phase-9's Ageing Summary, and the five that
+    // name only a product or nothing at all follow phase-19's Inventory Position and phase-8c's VAT
+    // Summary Report.
+    private static readonly Guid AdminCustomerReceivableSummaryViewId = Guid.Parse("00000000-0000-0000-0002-000000000179");
+    private static readonly Guid MemberCustomerReceivableSummaryViewId = Guid.Parse("00000000-0000-0000-0002-00000000017a");
+    private static readonly Guid AdminSupplierPayableSummaryViewId = Guid.Parse("00000000-0000-0000-0002-00000000017b");
+    private static readonly Guid MemberSupplierPayableSummaryViewId = Guid.Parse("00000000-0000-0000-0002-00000000017c");
+    private static readonly Guid AdminInvoiceAgeViewId = Guid.Parse("00000000-0000-0000-0002-00000000017d");
+    private static readonly Guid MemberInvoiceAgeViewId = Guid.Parse("00000000-0000-0000-0002-00000000017e");
+    private static readonly Guid AdminPurchaseBillAgeViewId = Guid.Parse("00000000-0000-0000-0002-00000000017f");
+    private static readonly Guid MemberPurchaseBillAgeViewId = Guid.Parse("00000000-0000-0000-0002-000000000180");
+    private static readonly Guid AdminSalesByCustomerViewId = Guid.Parse("00000000-0000-0000-0002-000000000181");
+    private static readonly Guid MemberSalesByCustomerViewId = Guid.Parse("00000000-0000-0000-0002-000000000182");
+    private static readonly Guid AdminPurchaseBySupplierViewId = Guid.Parse("00000000-0000-0000-0002-000000000183");
+    private static readonly Guid MemberPurchaseBySupplierViewId = Guid.Parse("00000000-0000-0000-0002-000000000184");
+    private static readonly Guid AdminSalesByItemViewId = Guid.Parse("00000000-0000-0000-0002-000000000185");
+    private static readonly Guid MemberSalesByItemViewId = Guid.Parse("00000000-0000-0000-0002-000000000186");
+    private static readonly Guid AdminPurchaseByItemViewId = Guid.Parse("00000000-0000-0000-0002-000000000187");
+    private static readonly Guid MemberPurchaseByItemViewId = Guid.Parse("00000000-0000-0000-0002-000000000188");
+    private static readonly Guid AdminSalesByCustomerMonthlyViewId = Guid.Parse("00000000-0000-0000-0002-000000000189");
+    private static readonly Guid MemberSalesByCustomerMonthlyViewId = Guid.Parse("00000000-0000-0000-0002-00000000018a");
+    private static readonly Guid AdminPurchaseBySupplierMonthlyViewId = Guid.Parse("00000000-0000-0000-0002-00000000018b");
+    private static readonly Guid MemberPurchaseBySupplierMonthlyViewId = Guid.Parse("00000000-0000-0000-0002-00000000018c");
+    private static readonly Guid AdminSalesByItemMonthlyViewId = Guid.Parse("00000000-0000-0000-0002-00000000018d");
+    private static readonly Guid MemberSalesByItemMonthlyViewId = Guid.Parse("00000000-0000-0000-0002-00000000018e");
+    private static readonly Guid AdminPurchaseByItemMonthlyViewId = Guid.Parse("00000000-0000-0000-0002-00000000018f");
+    private static readonly Guid MemberPurchaseByItemMonthlyViewId = Guid.Parse("00000000-0000-0000-0002-000000000190");
+    private static readonly Guid AdminSalesSummaryReportViewId = Guid.Parse("00000000-0000-0000-0002-000000000191");
+    private static readonly Guid MemberSalesSummaryReportViewId = Guid.Parse("00000000-0000-0000-0002-000000000192");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1062,6 +1094,33 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminDetailGeneralLedgerViewId, Role.AdminId, PermissionKeys.DetailGeneralLedgerView, true),
             RolePermission.Create(MemberDetailGeneralLedgerViewId, Role.MemberId, PermissionKeys.DetailGeneralLedgerView, false),
             RolePermission.Create(AdminGeneralLedgerMasterViewId, Role.AdminId, PermissionKeys.GeneralLedgerMasterView, true),
-            RolePermission.Create(MemberGeneralLedgerMasterViewId, Role.MemberId, PermissionKeys.GeneralLedgerMasterView, false));
+            RolePermission.Create(MemberGeneralLedgerMasterViewId, Role.MemberId, PermissionKeys.GeneralLedgerMasterView, false),
+
+            RolePermission.Create(AdminCustomerReceivableSummaryViewId, Role.AdminId, PermissionKeys.CustomerReceivableSummaryView, true),
+            RolePermission.Create(MemberCustomerReceivableSummaryViewId, Role.MemberId, PermissionKeys.CustomerReceivableSummaryView, false),
+            RolePermission.Create(AdminSupplierPayableSummaryViewId, Role.AdminId, PermissionKeys.SupplierPayableSummaryView, true),
+            RolePermission.Create(MemberSupplierPayableSummaryViewId, Role.MemberId, PermissionKeys.SupplierPayableSummaryView, false),
+            RolePermission.Create(AdminInvoiceAgeViewId, Role.AdminId, PermissionKeys.InvoiceAgeView, true),
+            RolePermission.Create(MemberInvoiceAgeViewId, Role.MemberId, PermissionKeys.InvoiceAgeView, false),
+            RolePermission.Create(AdminPurchaseBillAgeViewId, Role.AdminId, PermissionKeys.PurchaseBillAgeView, true),
+            RolePermission.Create(MemberPurchaseBillAgeViewId, Role.MemberId, PermissionKeys.PurchaseBillAgeView, false),
+            RolePermission.Create(AdminSalesByCustomerViewId, Role.AdminId, PermissionKeys.SalesByCustomerView, true),
+            RolePermission.Create(MemberSalesByCustomerViewId, Role.MemberId, PermissionKeys.SalesByCustomerView, false),
+            RolePermission.Create(AdminPurchaseBySupplierViewId, Role.AdminId, PermissionKeys.PurchaseBySupplierView, true),
+            RolePermission.Create(MemberPurchaseBySupplierViewId, Role.MemberId, PermissionKeys.PurchaseBySupplierView, false),
+            RolePermission.Create(AdminSalesByItemViewId, Role.AdminId, PermissionKeys.SalesByItemView, true),
+            RolePermission.Create(MemberSalesByItemViewId, Role.MemberId, PermissionKeys.SalesByItemView, true),
+            RolePermission.Create(AdminPurchaseByItemViewId, Role.AdminId, PermissionKeys.PurchaseByItemView, true),
+            RolePermission.Create(MemberPurchaseByItemViewId, Role.MemberId, PermissionKeys.PurchaseByItemView, true),
+            RolePermission.Create(AdminSalesByCustomerMonthlyViewId, Role.AdminId, PermissionKeys.SalesByCustomerMonthlyView, true),
+            RolePermission.Create(MemberSalesByCustomerMonthlyViewId, Role.MemberId, PermissionKeys.SalesByCustomerMonthlyView, false),
+            RolePermission.Create(AdminPurchaseBySupplierMonthlyViewId, Role.AdminId, PermissionKeys.PurchaseBySupplierMonthlyView, true),
+            RolePermission.Create(MemberPurchaseBySupplierMonthlyViewId, Role.MemberId, PermissionKeys.PurchaseBySupplierMonthlyView, false),
+            RolePermission.Create(AdminSalesByItemMonthlyViewId, Role.AdminId, PermissionKeys.SalesByItemMonthlyView, true),
+            RolePermission.Create(MemberSalesByItemMonthlyViewId, Role.MemberId, PermissionKeys.SalesByItemMonthlyView, true),
+            RolePermission.Create(AdminPurchaseByItemMonthlyViewId, Role.AdminId, PermissionKeys.PurchaseByItemMonthlyView, true),
+            RolePermission.Create(MemberPurchaseByItemMonthlyViewId, Role.MemberId, PermissionKeys.PurchaseByItemMonthlyView, true),
+            RolePermission.Create(AdminSalesSummaryReportViewId, Role.AdminId, PermissionKeys.SalesSummaryReportView, true),
+            RolePermission.Create(MemberSalesSummaryReportViewId, Role.MemberId, PermissionKeys.SalesSummaryReportView, true));
     }
 }

@@ -1,0 +1,103 @@
+<div class="container py-5" style="max-width: 1600px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-calendar-range fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Sales By Item (Monthly)</h1>
+          <p class="text-muted small mb-0">Net Sales per Bikram Sambat month of one fiscal year, with quarter subtotals</p>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportCurrentView()">
+          <i class="bi bi-download"></i> Export Current View
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
+          <i class="bi bi-download"></i> Export Full Dataset
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3">
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold">Fiscal Year</label>
+          <select class="form-select" (change)="onFiscalYearChange($event)">
+            @for (year of fiscalYears; track year) {
+              <option [value]="year" [selected]="year === fiscalYear()">{{ fiscalYearLabel(year) }}</option>
+            }
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading Sales By Item (Monthly)...</p>
+        </div>
+      } @else if (report(); as r) {
+        @if (r.rows.length === 0) {
+          <div class="text-center py-4">
+            <p class="text-muted small mb-0">Nothing was traded in this fiscal year.</p>
+          </div>
+        } @else {
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr class="text-muted small">
+                  <th>Item</th>
+                  @for (cell of headerCells(); track $index) {
+                    <th class="text-end" [class.fw-bold]="cell.isQuarter">{{ cell.label }}</th>
+                  }
+                  <th class="text-end">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of r.rows; track row.productId) {
+                  <tr>
+                    <td>{{ row.productName }} <span class="text-muted small">({{ row.productCode }})</span></td>
+                    @for (cell of cells(row.monthly, row.quarters); track $index) {
+                      <td class="text-end" [class.fw-bold]="cell.isQuarter">{{ (cell.value | amount) }}</td>
+                    }
+                    <td class="text-end fw-bold">{{ (row.total | amount) }}</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr class="fw-bold border-top">
+                  <td [attr.colspan]="1">Total</td>
+                  @for (cell of cells(r.totalMonthly, r.totalQuarters); track $index) {
+                    <td class="text-end">{{ (cell.value | amount) }}</td>
+                  }
+                  <td class="text-end">{{ (r.total | amount) }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <app-pagination-control
+            [page]="page()"
+            [pageSize]="pageSize()"
+            [totalCount]="r.totalCount"
+            (pageChange)="onPageChange($event)"
+            (pageSizeChange)="onPageSizeChange($event)"
+          />
+        }
+      }
+    </div>
+  </div>
+</div>

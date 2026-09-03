@@ -6992,6 +6992,188 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = false,
                             PermissionKey = "Reports.GeneralLedgerMaster.View",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000179"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.CustomerReceivableSummary.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000017a"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.CustomerReceivableSummary.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000017b"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.SupplierPayableSummary.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000017c"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.SupplierPayableSummary.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000017d"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.InvoiceAge.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000017e"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.InvoiceAge.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000017f"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.PurchaseBillAge.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000180"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.PurchaseBillAge.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000181"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.SalesByCustomer.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000182"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.SalesByCustomer.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000183"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.PurchaseBySupplier.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000184"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.PurchaseBySupplier.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000185"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.SalesByItem.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000186"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.SalesByItem.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000187"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.PurchaseByItem.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000188"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.PurchaseByItem.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000189"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.SalesByCustomerMonthly.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000018a"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.SalesByCustomerMonthly.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000018b"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.PurchaseBySupplierMonthly.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000018c"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.PurchaseBySupplierMonthly.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000018d"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.SalesByItemMonthly.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000018e"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.SalesByItemMonthly.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-00000000018f"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.PurchaseByItemMonthly.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000190"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.PurchaseByItemMonthly.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000191"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.SalesSummaryReport.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000192"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.SalesSummaryReport.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 

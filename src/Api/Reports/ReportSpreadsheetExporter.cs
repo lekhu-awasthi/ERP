@@ -11,6 +11,8 @@ using ErpApp.Application.Accounting.Queries.TrialBalance;
 using ErpApp.Application.Accounting.Queries.VatSummaryReport;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Contacts.Queries.ContactAgeingSummary;
+using ErpApp.Application.Contacts.Queries.ContactBalanceSummary;
+using ErpApp.Application.Contacts.Queries.DocumentAge;
 using ErpApp.Application.Contacts.Queries.ContactStatement;
 using ErpApp.Application.Inventory.Queries.ProductProfitability;
 using ErpApp.Application.Inventory.Queries.StockAgeing;
@@ -21,6 +23,12 @@ using ErpApp.Application.Purchasing.Queries.TdsReport;
 using ErpApp.Application.Sales.Queries.AnnexFiveReport;
 using ErpApp.Application.Sales.Queries.SalesMasterReport;
 using ErpApp.Application.Sales.Queries.SalesRegister;
+using ErpApp.Application.Trade;
+using ErpApp.Application.Trade.Queries.SalesSummaryReport;
+using ErpApp.Application.Trade.Queries.TradeByContact;
+using ErpApp.Application.Trade.Queries.TradeByContactMonthly;
+using ErpApp.Application.Trade.Queries.TradeByItem;
+using ErpApp.Application.Trade.Queries.TradeByItemMonthly;
 using ErpApp.Application.Workflow.Queries.SystemAuditReport;
 using ErpApp.Application.Workflow.Queries.TransactionList;
 using ErpApp.Domain.Common;
@@ -820,6 +828,264 @@ public static class ReportSpreadsheetExporter
     private sealed record DetailLedgerExportRow(
         string Account, DateOnly Date, string TxnType, string? Code, string? Reference, string? Description,
         decimal? Debit, decimal? Credit, decimal Balance, string BalanceType);
+
+    // ---- Phase 26b: Receivable/Payable and analytics -------------------------------------------
+
+    public static IResult ExportContactBalanceSummary(
+        ContactBalanceSummaryDto report, string contactTypeLabel, string reportName) =>
+        ExportTable(
+            reportName,
+            FileName(Compact(reportName), report.FromDate, report.ToDate),
+            [
+                ("Contact Code", (ContactBalanceSummaryRowDto r) => (object?)r.ContactCode),
+                (contactTypeLabel, r => r.ContactName),
+                ("Contact Group", r => r.ContactGroupName),
+                ("Closing Balance", r => r.ClosingBalance),
+                ("Dr/Cr", r => r.BalanceType),
+            ],
+            report.Rows,
+            sheet => WriteTotalRow(sheet, report.Rows.Count, "Total", 4, report.TotalClosingBalance));
+
+    public static IResult ExportDocumentAge(DocumentAgeDto report, string contactTypeLabel, string reportName) =>
+        ExportTable(
+            reportName,
+            FileName(Compact(reportName), report.FromDate, report.AsOfDate),
+            [
+                ("Date", (DocumentAgeRowDto r) => (object?)r.Date),
+                ("Due Date", r => r.DueDate),
+                ("Txn Type", r => r.DocumentType.ToString()),
+                ("#No", r => r.Number),
+                ("Reference No", r => r.ReferenceNo),
+                ("Contact Code", r => r.ContactCode),
+                (contactTypeLabel, r => r.ContactName),
+                ("Contact Group", r => r.ContactGroupName),
+                ("Amount", r => r.Amount),
+                ("Paid", r => r.Paid),
+                ("Balance", r => r.Balance),
+                ("Status", r => r.Status),
+                ("Age Days", r => r.AgeDays),
+            ],
+            report.Rows,
+            sheet =>
+            {
+                var row = report.Rows.Count + 2;
+                sheet.Cell(row, 1).Value = "Total";
+                sheet.Cell(row, 1).Style.Font.Bold = true;
+                WriteNumericCell(sheet, row, 9, report.TotalAmount);
+                WriteNumericCell(sheet, row, 10, report.TotalPaid);
+                WriteNumericCell(sheet, row, 11, report.TotalBalance);
+            });
+
+    public static IResult ExportTradeByContact(TradeByContactDto report, string contactTypeLabel, string reportName) =>
+        ExportTable(
+            reportName,
+            FileName(Compact(reportName), report.FromDate, report.ToDate),
+            [
+                ("Contact Code", (TradeByContactRowDto r) => (object?)r.ContactCode),
+                (contactTypeLabel, r => r.ContactName),
+                ("Contact Group", r => r.ContactGroupName),
+                ("Amount", r => r.Amount),
+                ("Discount", r => r.Discount),
+                (NetLabel(report.Side), r => r.NetAmount),
+                ("Vat Amount", r => r.VatAmount),
+                ("Total Amount", r => r.TotalAmount),
+            ],
+            report.Rows,
+            sheet =>
+            {
+                var row = report.Rows.Count + 2;
+                sheet.Cell(row, 1).Value = "Total";
+                sheet.Cell(row, 1).Style.Font.Bold = true;
+                WriteNumericCell(sheet, row, 4, report.TotalAmount);
+                WriteNumericCell(sheet, row, 5, report.TotalDiscount);
+                WriteNumericCell(sheet, row, 6, report.TotalNetAmount);
+                WriteNumericCell(sheet, row, 7, report.TotalVatAmount);
+                WriteNumericCell(sheet, row, 8, report.TotalTotalAmount);
+            });
+
+    /// <summary>The Quantity column is deliberately absent from the total row -- see
+    /// <see cref="TradeByItemDto"/>: its rows are products in different units of measure, so their
+    /// quantities are not the same unit of account.</summary>
+    public static IResult ExportTradeByItem(TradeByItemDto report, string reportName) =>
+        ExportTable(
+            reportName,
+            FileName(Compact(reportName), report.FromDate, report.ToDate),
+            [
+                ("Code", (TradeByItemRowDto r) => (object?)r.Code),
+                (report.GroupBy == TradeItemGrouping.Category ? "Category" : "Product", r => r.Name),
+                ("Quantity", r => r.Quantity),
+                ("Amount", r => r.Amount),
+                ("Discount", r => r.Discount),
+                (NetLabel(report.Side), r => r.NetAmount),
+                ("Vat Amount", r => r.VatAmount),
+                ("Total Amount", r => r.TotalAmount),
+            ],
+            report.Rows,
+            sheet =>
+            {
+                var row = report.Rows.Count + 2;
+                sheet.Cell(row, 1).Value = "Total";
+                sheet.Cell(row, 1).Style.Font.Bold = true;
+                WriteNumericCell(sheet, row, 4, report.TotalAmount);
+                WriteNumericCell(sheet, row, 5, report.TotalDiscount);
+                WriteNumericCell(sheet, row, 6, report.TotalNetAmount);
+                WriteNumericCell(sheet, row, 7, report.TotalVatAmount);
+                WriteNumericCell(sheet, row, 8, report.TotalTotalAmount);
+            });
+
+    public static IResult ExportTradeByContactMonthly(
+        TradeByContactMonthlyDto report, string contactTypeLabel, string reportName) =>
+        ExportMonthlyCrosstab(
+            reportName,
+            FiscalYearFileName(Compact(reportName), report.FiscalYear),
+            ["Contact Code", contactTypeLabel, "PAN", "Contact Group"],
+            report.Columns,
+            [.. report.Rows.Select(r => (
+                Labels: (IReadOnlyList<string?>)[r.ContactCode, r.ContactName, r.Pan, r.ContactGroupName],
+                r.Monthly,
+                r.Quarters,
+                r.Total))],
+            report.TotalMonthly,
+            report.TotalQuarters,
+            report.Total);
+
+    public static IResult ExportTradeByItemMonthly(TradeByItemMonthlyDto report, string reportName) =>
+        ExportMonthlyCrosstab(
+            reportName,
+            FiscalYearFileName(Compact(reportName), report.FiscalYear),
+            ["Code", "Item"],
+            report.Columns,
+            [.. report.Rows.Select(r => (
+                Labels: (IReadOnlyList<string?>)[r.ProductCode, r.ProductName],
+                r.Monthly,
+                r.Quarters,
+                r.Total))],
+            report.TotalMonthly,
+            report.TotalQuarters,
+            report.Total);
+
+    /// <summary>No total row -- the live report has none, and a sum over "one row per month" and
+    /// "one row per day" would mean different things in the two modes.</summary>
+    public static IResult ExportSalesSummaryReport(SalesSummaryReportDto report) =>
+        ExportTable(
+            "Sales Summary Report",
+            FiscalYearFileName("SalesSummaryReport", report.FiscalYear),
+            [
+                ("Date", (SalesSummaryRowDto r) => (object?)(r.Label ?? r.Date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))),
+                ("Sub Total", r => r.SubTotal),
+                ("Discount", r => r.Discount),
+                ("Non Taxable Sales", r => r.NonTaxableSales),
+                ("Taxable Sales", r => r.TaxableSales),
+                ("VAT", r => r.Vat),
+                ("Total", r => r.Total),
+            ],
+            report.Rows);
+
+    /// <summary>"Net Sales" or "Net Purchase" -- the one column header that differs between a
+    /// trade report and its mirror.</summary>
+    private static string NetLabel(TradeSide side) => side == TradeSide.Sales ? "Net Sales" : "Net Purchase";
+
+    private static string Compact(string reportName) =>
+        reportName.Replace(" ", string.Empty, StringComparison.Ordinal)
+            .Replace("(", string.Empty, StringComparison.Ordinal)
+            .Replace(")", string.Empty, StringComparison.Ordinal);
+
+    /// <summary>
+    /// The shared writer for phase-26b's four BS fiscal-year crosstabs: a run of label columns,
+    /// then twelve month columns with a quarter subtotal after every third, then a row Total, then
+    /// a bold Total row over every numeric column. The quarter columns are interleaved rather than
+    /// appended because that is the live layout.
+    /// </summary>
+    private static IResult ExportMonthlyCrosstab(
+        string sheetName,
+        string fileName,
+        IReadOnlyList<string> labelHeaders,
+        IReadOnlyList<TradeMonthlyColumnDto> columns,
+        IReadOnlyList<(IReadOnlyList<string?> Labels, IReadOnlyList<decimal> Monthly, IReadOnlyList<decimal> Quarters, decimal Total)> rows,
+        IReadOnlyList<decimal> totalMonthly,
+        IReadOnlyList<decimal> totalQuarters,
+        decimal total) =>
+        Results.Stream(
+            async stream =>
+            {
+                using var workbook = new XLWorkbook();
+                var sheet = workbook.Worksheets.Add(sheetName);
+
+                var headers = new List<string>(labelHeaders);
+                for (var i = 0; i < columns.Count; i++)
+                {
+                    headers.Add(columns[i].Label);
+                    if ((i + 1) % TradeMonthlyCrosstab.MonthsPerQuarter == 0)
+                    {
+                        headers.Add(QuarterLabel((i + 1) / TradeMonthlyCrosstab.MonthsPerQuarter));
+                    }
+                }
+
+                headers.Add("Total");
+
+                for (var c = 0; c < headers.Count; c++)
+                {
+                    sheet.Cell(1, c + 1).Value = headers[c];
+                    sheet.Cell(1, c + 1).Style.Font.Bold = true;
+                }
+
+                for (var r = 0; r < rows.Count; r++)
+                {
+                    WriteCrosstabRow(
+                        sheet, r + 2, rows[r].Labels, rows[r].Monthly, rows[r].Quarters, rows[r].Total, labelHeaders.Count);
+                }
+
+                var totalRow = rows.Count + 2;
+                var totalLabels = new string?[labelHeaders.Count];
+                totalLabels[0] = "Total";
+                WriteCrosstabRow(sheet, totalRow, totalLabels, totalMonthly, totalQuarters, total, labelHeaders.Count);
+                sheet.Row(totalRow).Style.Font.Bold = true;
+
+                sheet.Columns().AdjustToContents();
+                await WriteWorkbookAsync(workbook, stream);
+            },
+            XlsxContentType,
+            fileName);
+
+    private static void WriteCrosstabRow(
+        IXLWorksheet sheet,
+        int row,
+        IReadOnlyList<string?> labels,
+        IReadOnlyList<decimal> monthly,
+        IReadOnlyList<decimal> quarters,
+        decimal total,
+        int labelColumnCount)
+    {
+        for (var c = 0; c < labelColumnCount; c++)
+        {
+            SetCellValue(sheet.Cell(row, c + 1), labels[c]);
+        }
+
+        var column = labelColumnCount + 1;
+        for (var i = 0; i < monthly.Count; i++)
+        {
+            WriteNumericCell(sheet, row, column++, monthly[i]);
+            if ((i + 1) % TradeMonthlyCrosstab.MonthsPerQuarter == 0)
+            {
+                WriteNumericCell(sheet, row, column++, quarters[((i + 1) / TradeMonthlyCrosstab.MonthsPerQuarter) - 1]);
+            }
+        }
+
+        WriteNumericCell(sheet, row, column, total);
+    }
+
+    private static string QuarterLabel(int quarter) => quarter switch
+    {
+        1 => "1st Quarter",
+        2 => "2nd Quarter",
+        3 => "3rd Quarter",
+        _ => "4th Quarter",
+    };
+
+    /// <summary>Phase 26b -- the fiscal-year counterpart of <see cref="FileName"/>, for the five
+    /// reports keyed by a BS fiscal year rather than a date range.</summary>
+    private static string FiscalYearFileName(string reportName, int fiscalYear) =>
+        $"{reportName}_BS{fiscalYear}-{fiscalYear + 1}.xlsx";
 
     private static IResult ExportTable<T>(
         string sheetName,

@@ -51,6 +51,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 24: variants are Products with a parent pointer. Before a second "child of a Product" concept or appending to a tracked parent's collection — `docs/phase-24-status.md`
 - Phase 25: manufacturing (BOM → Production Order → Production Journal, perpetual-inventory posting). Before a value-transforming posting rule, a shared FluentValidation helper, or a browser pass in a non-interactive session — `docs/phase-25-status.md`
 - Phase 26a: the five missing Accounting reports + FR-9.1's Compare column on the three financial statements. Before adding a period-over-period comparison, or any report that reads `GlLine` back to its source document — `docs/phase-26a-status.md`
+- Phase 26b: Receivable/Payable + Sales/Purchase analytics (13 reports, 7 shared handlers) and the server-side BS calendar. Before ageing anything, or any report keyed by a fiscal year — `docs/phase-26b-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -162,6 +163,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Bootstrap's JavaScript is not loaded anywhere (`angular.json` has no `scripts`), so `data-bs-toggle` does nothing; drive menus from a signal (phase-22).
 - A `.dropdown-menu` inside `.table-responsive` is clipped by the implied `overflow-y`; render it `position: fixed` at coordinates captured on open (phase-22).
 - A pipe rendering from a global signal with an unchanging argument must be `pure: false` and memoize internally (`NepaliDatePipe`, phase-23).
+- `Domain/Common/BsCalendar` is a verbatim port of the client `bs-date.ts` table; port it, never retype it, and keep both boundaries pinned — a fiscal year runs Shrawan 1 to the last day of Asar and is named by its first BS year (phase-26b).
 - A pipe inside parentheses parses anywhere, including a ternary branch, but a bare pipe in a ternary branch does not; pipes stay illegal in event bindings (phase-23).
 - A component test asserting an uppercase label fails when the casing comes from CSS `text-uppercase`; assert the source casing (phase-23).
 - When a phase starts populating a previously-dead DTO field, grep the templates that consume it — `SalesRegisterQuery`'s export columns were filled and invisible (phase-23 bug #1).
@@ -173,33 +175,46 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `UpdateRolePermissionsCommand.Grants` is a dictionary, not a list, and system Admin/Member roles cannot be edited (409) — a negative-permission proof needs a custom role.
 - A browser pass in a non-interactive session works by exporting the ASP.NET dev cert, starting the `erp-web-ssl` profile, and transplanting curl's `erp_auth` cookie via `document.cookie` (phase-25 Step 3).
 - Map one enum onto another **by name** (`Enum.TryParse`), never by ordinal, and add a test asserting every member has a counterpart — an ordinal cast compiles, works today, and silently reports the wrong value the first time a member is inserted (phase-26a).
+- A shared reader that several reports agree through is worth more than each report deriving its own figure: Invoice Age's total balance equals Customer Receivable Summary's closing balance *by construction* because both read `ContactLedgerReader` (phase-26b).
 
 **Tooling and shell**
 - `nvm use` from a shell that cannot create the symlink deletes `C:\nvm4w\nodejs` and reports success; recreate it with `cmd /c 'mklink /J "C:\nvm4w\nodejs" "%LOCALAPPDATA%\nvm\v24.11.0"'`.
 - A `cat > file <<'EOF'` heredoc in the Bash tool is silently truncated or mis-parsed well below the ~8 KB figure; use the Write tool, or write a small patch script and run it (phase-26a).
+- When a generator script emits Angular templates through `str.format`, interpolation braces need escaping in the *format string* but not in a substituted value — `{{{{ x }}}}` in a value ships literally and fails as NG5002 (phase-26b).
 
 ## Current status
 
-**Phases 0–25 (v1) are complete, and the parity sequence has started: Phase 26a is done.** It
-built the five missing Accounting reports — Transaction list, Journal report, General Ledger
-Summary, Detail General Ledger, GL Master Report — and FR-9.1's **Compare** (period-over-period)
-column on Trial Balance, Balance Sheet and Income Statement, which Phase 8a never built. All four GL
-reports were confirm-lived on the Moonbeam UAT tenant before their DTOs were designed; nothing new
-is stored, and the only migration is ten permission-seed rows. Full write-up, including the
-Compare-window decision and the posting-date-versus-document-date reasoning, is in
-`docs/phase-26a-status.md`. No confirm-live or browser-pass debt is outstanding.
+**Phases 0-25 (v1) are complete, and the parity sequence is two sub-phases in: 26a and 26b are
+done.** Phase 26b closed FR-9.2 and FR-9.3 with thirteen reports over **seven** handlers -- each
+mirrored pair answered once and discriminated by a side the route hardcodes: Customer Receivable
+Summary / Supplier Payable Summary, Invoice Age / Purchase Bill Age, Sales/Purchase By
+Customer/Supplier, By Item, their four BS-fiscal-year Monthly crosstabs, and the Sales Summary
+Report. Nothing new is stored; the only migration is twenty-six permission-seed rows.
 
-**What comes next** is the rest of the parity sequence in `docs/roadmap.md`: **26b**
-(receivable/payable + analytics), then 26c, then phases 27–34. Still recorded separately:
+Two things from that phase outlive it. **`Domain/Common/BsCalendar`** is the server-side Bikram
+Sambat calendar (a verbatim port of phase-23's client table, same 2000-2092 range), built because
+five of these reports are keyed by a BS *fiscal year* rather than a date range -- phase 27b consumes
+it next for BS dates in PDFs and `.xlsx`. And **`ContactLedgerReader` now counts contact-tagged
+Journal Vouchers**, which corrects Contact Statement and Contact Overview as a side effect and is
+what makes Invoice Age and Customer Receivable Summary agree by construction. Both are written up in
+`docs/phase-26b-status.md`, along with the two live options deliberately not built (Quick
+Payment/Receipt as an ageable document, and Sales Summary's Service Charge column).
+
+**What comes next** is **26c** (inventory, tax, system, analytics -- including the two return
+registers and the new `UserLoginEvent` the User Log needs), then phases 27-34 in
+`docs/roadmap.md`. Still recorded separately:
 - the deferred post-v1 list in `docs/roadmap.md` (POS, IRD e-filing, Marketplace);
 - carried items, scheduled in phases 27 and 33: server-rendered PDFs and `.xlsx` still print dates
-  in AD (phase-23 Decision A — now inherited by phase-26a's eight new export routes); the three
-  manufacturing reports have no `.xlsx` export; Phase 25's named follow-ups (Custom Status on
-  Production Order, multi-level BOM explosion, Reporting Tags / Custom Fields / print on production
-  documents); and phase-26a's own two: an explicit compare-date picker on the two as-of statements,
-  and Reporting Tags filtering on the Journal report (belongs with 27a).
+  in AD (phase-23 Decision A -- now inherited by 26a's eight and 26b's thirteen new export routes,
+  and `BsCalendar` is the tool that closes it); the three manufacturing reports have no `.xlsx`
+  export; Phase 25's named follow-ups (Custom Status on Production Order, multi-level BOM explosion,
+  Reporting Tags / Custom Fields / print on production documents); phase-26a's two (an explicit
+  compare-date picker on the two as-of statements, Reporting Tags on the Journal report); and
+  phase-26b's four -- a stored `DueDate` on Invoice/PurchaseBill (belongs with Credit Terms),
+  aligning phase-9's `ContactAgeingSummaryQueryHandler` with 26b's allocation and due-date rules, a
+  product-level service-charge flag, and Quick Payment/Receipt as a document type.
 
-Tests at last count: Domain 249, Application.UnitTests 598, Api.IntegrationTests 18, Angular 128;
+Tests at last count: Domain 311, Application.UnitTests 629, Api.IntegrationTests 18, Angular 135;
 `dotnet build` / `dotnet test` / `ng build` / `ng test` / `tsc --noEmit` all clean.
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
