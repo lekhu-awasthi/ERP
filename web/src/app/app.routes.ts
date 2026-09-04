@@ -1,6 +1,7 @@
 ﻿import { Routes } from '@angular/router';
 
 import { authGuard } from './core/auth/auth.guard';
+import { featureGuard } from './core/organizations/feature.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'login' },
@@ -308,7 +309,7 @@ export const routes: Routes = [
     path: 'organizations/:id/warehouses',
     loadComponent: () =>
       import('./features/organizations/warehouse-list-page/warehouse-list-page').then((m) => m.WarehouseListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, featureGuard('MultipleWarehouses')],
   },
   {
     path: 'organizations/:id/sales/quotations',
@@ -478,7 +479,7 @@ export const routes: Routes = [
       import('./features/inventory/warehouse-transfer-list-page/warehouse-transfer-list-page').then(
         (m) => m.WarehouseTransferListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, featureGuard('TrackInventory'), featureGuard('MultipleWarehouses')],
   },
   {
     path: 'organizations/:id/inventory/warehouse-transfers/:warehouseTransferId',
@@ -486,7 +487,7 @@ export const routes: Routes = [
       import('./features/inventory/warehouse-transfer-detail-page/warehouse-transfer-detail-page').then(
         (m) => m.WarehouseTransferDetailPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, featureGuard('TrackInventory'), featureGuard('MultipleWarehouses')],
   },
   {
     path: 'organizations/:id/inventory/inventory-adjustments',
@@ -494,7 +495,7 @@ export const routes: Routes = [
       import('./features/inventory/inventory-adjustment-list-page/inventory-adjustment-list-page').then(
         (m) => m.InventoryAdjustmentListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, featureGuard('TrackInventory')],
   },
   {
     path: 'organizations/:id/inventory/inventory-adjustments/:inventoryAdjustmentId',
@@ -502,31 +503,31 @@ export const routes: Routes = [
       import('./features/inventory/inventory-adjustment-detail-page/inventory-adjustment-detail-page').then(
         (m) => m.InventoryAdjustmentDetailPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, featureGuard('TrackInventory')],
   },
   {
     path: 'organizations/:id/inventory/stock-position',
     loadComponent: () =>
       import('./features/inventory/stock-position-page/stock-position-page').then((m) => m.StockPositionPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, featureGuard('TrackInventory')],
   },
   {
     path: 'organizations/:id/inventory/ledger',
     loadComponent: () =>
       import('./features/inventory/inventory-ledger-page/inventory-ledger-page').then((m) => m.InventoryLedgerPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, featureGuard('TrackInventory')],
   },
   {
     path: 'organizations/:id/manufacturing/bills-of-materials',
     loadComponent: () =>
       import('./features/manufacturing/bom-list-page/bom-list-page').then((m) => m.BomListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, featureGuard('Manufacturing')],
   },
   {
     path: 'organizations/:id/manufacturing/bills-of-materials/:bomId',
     loadComponent: () =>
       import('./features/manufacturing/bom-detail-page/bom-detail-page').then((m) => m.BomDetailPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, featureGuard('Manufacturing')],
   },
   {
     path: 'organizations/:id/manufacturing/production-orders',
@@ -534,7 +535,7 @@ export const routes: Routes = [
       import('./features/manufacturing/production-order-list-page/production-order-list-page').then(
         (m) => m.ProductionOrderListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, featureGuard('Manufacturing')],
   },
   {
     path: 'organizations/:id/manufacturing/production-orders/:productionOrderId',
@@ -542,7 +543,7 @@ export const routes: Routes = [
       import('./features/manufacturing/production-order-detail-page/production-order-detail-page').then(
         (m) => m.ProductionOrderDetailPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, featureGuard('Manufacturing')],
   },
   {
     path: 'organizations/:id/manufacturing/production-journals',
@@ -550,7 +551,7 @@ export const routes: Routes = [
       import('./features/manufacturing/production-journal-list-page/production-journal-list-page').then(
         (m) => m.ProductionJournalListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, featureGuard('Manufacturing')],
   },
   {
     path: 'organizations/:id/manufacturing/production-journals/:productionJournalId',
@@ -558,7 +559,7 @@ export const routes: Routes = [
       import('./features/manufacturing/production-journal-detail-page/production-journal-detail-page').then(
         (m) => m.ProductionJournalDetailPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, featureGuard('Manufacturing')],
   },
   {
     path: 'organizations/:id/reports/production-summary',

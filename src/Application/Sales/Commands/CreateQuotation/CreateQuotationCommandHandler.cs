@@ -16,6 +16,8 @@ public sealed class CreateQuotationCommandHandler(IAppDbContext db)
 
         var quotation = Quotation.Create(
             request.OrganizationId, request.ContactId, request.Date, request.ExpiryDate, request.Reference, request.DiscountPct);
+        quotation.SetTerms(request.Terms);
+
         foreach (var line in request.Lines)
         {
             quotation.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);

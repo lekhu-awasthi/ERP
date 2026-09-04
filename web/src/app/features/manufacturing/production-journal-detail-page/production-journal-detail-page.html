@@ -565,6 +565,9 @@
       }
       @if (journal(); as doc) {
         @if (doc.status === 'Approved') {
+          <button type="button" class="btn btn-outline-secondary" [disabled]="printing()" (click)="print()">
+            {{ printing() ? 'Preparing...' : 'Print' }}
+          </button>
           <button type="button" class="btn btn-outline-danger" [disabled]="voiding()" (click)="voidDocument()">
             {{ voiding() ? 'Voiding...' : 'Void this Production Journal' }}
           </button>

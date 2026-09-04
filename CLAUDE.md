@@ -1,4 +1,4 @@
-# ErpApp
+﻿# ErpApp
 
 A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQRS (MediatR) on .NET 10 (LTS), Angular 21 (LTS) frontend, SQL Server via EF Core.
 
@@ -54,6 +54,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 26b: Receivable/Payable + Sales/Purchase analytics (13 reports, 7 shared handlers) and the server-side BS calendar. Before ageing anything, or any report keyed by a fiscal year — `docs/phase-26b-status.md`
 - Phase 26c: the Reports catalogue completed — 4 inventory reports, both return registers, Net Trading Assets, Exceptional Report, User Log. Before a report over stock, a second report that must agree with a register, or anything written on an unauthenticated path — `docs/phase-26c-status.md`
 - Phase 27a: swept Custom Fields/Custom Status/Reporting Tags/Tasks-Documents-Activity across every document type, generalized `Comment` to a polymorphic parent. Before adding a `DocumentType` member, or building a second cross-cutting mechanism sweep — `docs/phase-27a-status.md`
+- Phase 27b: print/PDF for all 15 document types on one generic section layout, BS dates in server-rendered PDFs/`.xlsx`, the last three pagers, wizard Turnstile, a feature-flag route guard, and `CustomTemplate`'s first two consumers. Before adding a type to the print pipeline, rendering a date in server-produced output, or giving a `CustomTemplate` type a consumer — `docs/phase-27b-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -101,6 +102,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Never read configuration as a top-level statement in `Program.cs` before `.Build()` if the value is captured into a later-running closure; bind lazily (`AddOptions<T>().Bind(...)`) — user-secrets mask the bug locally (phase-1a #8).
 - Every new `AddOptions<T>()...ValidateOnStart()` needs its test-only keys added to all four host-booting `Api.IntegrationTests` suites' `AddInMemoryCollection` in the same commit, or CI alone goes red (currently `Jwt`, `Email`, `Turnstile`).
 - Don't reproduce that CI failure with `ASPNETCORE_ENVIRONMENT=Production` — it also flips `ThrowOnBadRequest`, breaking `ExceptionHandlingTests` spuriously; delete the key from one suite's in-memory collection instead.
+- `dotnet run --no-launch-profile` starts in **Production**, so user-secrets don't load and any `ValidateOnStart` option sourced from them kills start-up; pass `ASPNETCORE_ENVIRONMENT=Development` too (phase-27b).
+- `RequestCalendar` is the codebase's one ambient (`AsyncLocal`) request value, and only because its consumers are ~40 static export methods with no `HttpContext`; treat it as `CultureInfo.CurrentCulture`, not a precedent (phase-27b).
 - Set `options.MapInboundClaims = false` on JWT bearer, or `FindFirstValue(JwtRegisteredClaimNames.Sub)` silently returns null.
 - The auth cookie must be `SameSite=None` (not `Lax`) plus `Secure` for `http://localhost:4200` to receive it from `https://localhost:7104`.
 - `Response.Cookies.Delete` only clears a cookie when its `Path`/`Secure`/`SameSite` options match the ones used to set it.
@@ -159,6 +162,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `AdjustToContents()` measures every cell it is given — size columns over the header plus a sample of rows, state the row cap, and disclose truncation in the artifact (phase-21b).
 - Import-template date columns need an explicit day-first-before-month-first format list, never bare `DateTime.TryParse`; assert the ambiguous case (`ImportRowReader.GetOptionalDate`, phase-21c).
 
+- A trailing optional parameter added to a command reaches nothing until the Api's own request record carries it too — it compiles, every test passes, and the field binds silently to `null` (phase-27b's `Terms`).
+
 **Angular**
 - A component serving both `.../new` and `.../:id` must read the id from `route.paramMap` (an Observable) and re-derive "is new" on every emission (phase-3 bug #1).
 - Annotate `HttpClient.get` `params` as `Record<string, string>`; a union including `{}` silently resolves to the `arraybuffer` overload (phase-3 bug #4).
@@ -184,6 +189,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A vendor's always-pass dummy credential (Turnstile `1x000…AA`) accepts any input; proving the negative path needs the always-fail one (`2x000…AA`) swapped in (phase-20g).
 - `UpdateRolePermissionsCommand.Grants` is a dictionary, not a list, and system Admin/Member roles cannot be edited (409) — a negative-permission proof needs a custom role.
 - A browser pass in a non-interactive session works by exporting the ASP.NET dev cert, starting the `erp-web-ssl` profile, and transplanting curl's `erp_auth` cookie via `document.cookie` (phase-25 Step 3).
+- A registered user has no verification code until `POST /api/auth/request-verification-code`; a Member-role user is the only way to prove a document-scoped 403, since Admin is seeded with every key (phase-27b).
+- A test suite that passes with **fewer** tests than the previous run is a failure — check what a rewriting script produced by counting it, not by whether the build is green (phase-27b).
 - Map one enum onto another **by name** (`Enum.TryParse`), never by ordinal, and add a test asserting every member has a counterpart — an ordinal cast compiles, works today, and silently reports the wrong value the first time a member is inserted (phase-26a).
 - A shared reader that several reports agree through is worth more than each report deriving its own figure: Invoice Age's total balance equals Customer Receivable Summary's closing balance *by construction* because both read `ContactLedgerReader` (phase-26b).
 - A curl seed script that pipes approvals to `/dev/null` hides its own failures — the first report just comes back empty. Print every approval's status code. Two live traps: `POST /api/organizations` returns `organizationId`, not `id`, and the GL defaults are **one** `PUT /accounting-defaults` taking all eleven accounts (phase-26c).
@@ -197,34 +204,35 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-26 (v1 plus the Reports catalogue) are complete, and phase 27a is done.** 27a swept
-Custom Fields, Custom Status, Reporting Tags, and the Tasks/Documents/Activity detail-page tabs
-across the document types that previously lacked them, correcting two of the roadmap's own scope
-numbers along the way (Custom Fields is 13 types, not 15; Reporting Tags also covers both Opening
-Balances kinds, which the roadmap didn't specify the shape of). `Comment` became polymorphic
-(`CommentParentType`), resolving phase-18 decision #3's deferred trigger. All four sweeps are backed
-by one shared classification table (`DocumentMechanisms`) and a server + client guard test pair that
-fail the build if a document type is left unswept. Full story in `docs/phase-27a-status.md`.
+**Phases 0-26 (v1 plus the Reports catalogue) are complete, and phase 27 is done — 27a and 27b both.**
+27b closed the output half: **print/PDF is wired for all 15 transactional document types**, on one
+generic section-based layout that switches on no `DocumentType` at all (the confirm-live pass found
+the reference product prints one page frame with a *varying number of titled tables*, which
+phase-20d's two fixed layouts could not express). **Phase-23 Decision A's carried limitation is
+closed** — an `X-Calendar` header plus an ambient `RequestCalendar` put Bikram Sambat business dates
+into server-rendered PDFs and every `.xlsx` export, while audit timestamps and file-name dates
+deliberately stay AD. Also shipped: the three missing pagers, Turnstile on the New Organization
+wizard, a feature-flag route guard (three real flags, 13 routes — buildable only because Phase 25
+gave `Manufacturing` a surface 20f could not gate), and `CustomTemplate`'s first two consumers.
+Terms and Conditions turned out to be **5 document types, not the roadmap's 2**. Full story in
+`docs/phase-27b-status.md`.
 
-**What comes next** is **phase 27b** (Output: print/PDF for the 9 unwired `DocumentType`s and both
-production documents, BS dates in server-rendered PDFs and `.xlsx`, the three missing pagers,
-Turnstile on the New Organization wizard, a feature-flag route guard), then phases 28-34 in
-`docs/roadmap.md`. Still recorded separately:
+**What comes next** is **phase 28** (multi-currency, FR-2.5/NFR-1.3 — confirm-lived, shapes known),
+then 29-34 in `docs/roadmap.md`. Still recorded separately:
 - the deferred post-v1 list in `docs/roadmap.md` (POS, IRD e-filing, Marketplace);
-- carried items, scheduled in phases 27b and 33: server-rendered PDFs and `.xlsx` still print dates
-  in AD (phase-23 Decision A -- now inherited by every report's export routes, and `BsCalendar` is
-  the tool that closes it); Phase 25's remaining named follow-ups (multi-level BOM explosion, print
-  on production documents -- Custom Status/Reporting Tags/Custom Fields on Production Order are now
-  resolved by 27a); phase-26a's two (an explicit compare-date picker on the two as-of statements,
-  Reporting Tags on the Journal report); phase-26b's four (a stored `DueDate` on
-  Invoice/PurchaseBill, aligning phase-9's `ContactAgeingSummaryQueryHandler` with 26b's rules, a
-  product-level service-charge flag, Quick Payment/Receipt as a document type); phase-26c's five
-  (WarehouseTransfer/OpeningStock in Inventory Master, the Sales Register's inert "Include Credit
-  Note In Calculation" toggle, Additional Cost allocation, the Negative Item Balance setting that
-  would make negative stock reachable, and Inventory Position's Reporting Tags / group-by-warehouse
-  display options).
+- carried items, now shorter by three: server-rendered PDFs and `.xlsx` print BS dates as of 27b, and
+  Custom Fields/Status/Tags on production documents were resolved by 27a. What remains, scheduled in
+  phase 30 and 33: Phase 25's multi-level BOM explosion; phase-26a's two (an explicit compare-date
+  picker on the two as-of statements, Reporting Tags on the Journal report); phase-26b's four (a
+  stored `DueDate` on Invoice/PurchaseBill, aligning phase-9's `ContactAgeingSummaryQueryHandler`
+  with 26b's rules, a product-level service-charge flag, Quick Payment/Receipt as a document type);
+  phase-26c's five (WarehouseTransfer/OpeningStock in Inventory Master, the Sales Register's inert
+  "Include Credit Note In Calculation" toggle, Additional Cost allocation, the Negative Item Balance
+  setting that would make negative stock reachable, and Inventory Position's Reporting Tags /
+  group-by-warehouse display options); and phase-27b's own (a rich-text terms editor, terms carried
+  through conversions, `Send Email` + the `Email` template type — all three belong with Phase 30).
 
-Tests at last count: Domain 323, Application.UnitTests 706, Api.IntegrationTests 18, Angular 165;
+Tests at last count: Domain 323, Application.UnitTests 722, Api.IntegrationTests 18, Angular 174;
 `dotnet build` / `dotnet test` / `ng build` / `ng test` / `tsc --noEmit` all clean.
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,

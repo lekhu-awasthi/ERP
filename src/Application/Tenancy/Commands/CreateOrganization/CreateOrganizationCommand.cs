@@ -8,6 +8,11 @@ namespace ErpApp.Application.Tenancy.Commands.CreateOrganization;
 /// architecture-spec.md §4.1) -- the wizard is client-side pagination over this single input,
 /// not three separate commands per step.
 ///
+/// <b>Phase 27b added the Turnstile check.</b> The wizard shows a Turnstile widget on step 1 and
+/// again on step 3 (confirm-live), but there is exactly one server call behind all three steps --
+/// this command -- so there is exactly one token to verify. Two widgets guarding one write would be
+/// two chances to fail and no extra protection; the check sits on the step that actually submits.
+///
 /// Implements IRequirePermission but not IOrganizationScoped/ITargetsMembership -- creating an
 /// Organization is, by definition, the one action that predates any membership (and thus any
 /// role) in it, so PermissionKeys.OrganizationCreate is a global permission AuthorizationBehavior
@@ -32,7 +37,12 @@ public sealed record CreateOrganizationCommand(
     bool MultiCurrency,
     bool Manufacturing,
     bool PosRetail,
-    bool PosRestaurant) : IRequest<CreateOrganizationResult>, IRequirePermission
+    bool PosRestaurant,
+    // Phase 27b -- the wizard's Cloudflare Turnstile check (FR-1.1, extending Phase 20g's
+    // registration bot-check). Optional and trailing so the shape of the wizard's own payload is
+    // unchanged for every existing caller; the handler decides whether a missing token is fatal,
+    // and it is -- see CreateOrganizationCommandHandler.
+    string? TurnstileToken = null) : IRequest<CreateOrganizationResult>, IRequirePermission
 {
     public string PermissionKey => PermissionKeys.OrganizationCreate;
 }

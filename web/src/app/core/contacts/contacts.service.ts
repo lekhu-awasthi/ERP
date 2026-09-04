@@ -215,6 +215,25 @@ export class ContactsService {
     return this.exportStatement(organizationId, 'supplier-statement', contactId, fromDate, toDate, full, page, pageSize);
   }
 
+  /**
+   * Phase 27b -- the balance-confirmation letter as a PDF (FR-11.3). Fetched as a Blob so the
+   * request carries the auth cookie and a 403 surfaces as a message rather than a broken download,
+   * the same reasoning every other file route in this app uses.
+   */
+  printBalanceConfirmation(
+    organizationId: string,
+    contactType: 'Customer' | 'Supplier',
+    contactId: string,
+    asOfDate: string,
+  ): Observable<Blob> {
+    const route = contactType === 'Customer' ? 'customer-statement' : 'supplier-statement';
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/${route}/confirmation`, {
+      withCredentials: true,
+      responseType: 'blob',
+      params: { contactId, asOfDate },
+    });
+  }
+
   private getStatement(
     organizationId: string,
     route: 'customer-statement' | 'supplier-statement',

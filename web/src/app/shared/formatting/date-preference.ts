@@ -19,12 +19,13 @@ const STORAGE_KEY = 'erp.calendarFormat';
  *   - The preference does <b>not</b> follow the user to another device or browser. NFR-1.1 asks for
  *     "per user preference" and does not ask for it to be synchronised; if that is wanted later,
  *     this service is the single seam to move behind an endpoint.
- *   - Server-rendered output cannot read it. Phase 20d's print/PDF pipeline and Phase 16c/21b's
- *     .xlsx exports both format dates on the server, so <b>they stay AD regardless of this
- *     setting</b>. That is a real gap, stated rather than hidden -- see Decision A.
+ *   - <s>Server-rendered output cannot read it.</s> <b>Closed in Phase 27b.</b> The preference is
+ *     still stored here, but `calendarInterceptor` now sends it to the API as an `X-Calendar`
+ *     header, so print/PDF and every `.xlsx` export render business dates in the chosen calendar.
+ *     Audit timestamps and download file names deliberately stay AD -- see phase-27b Decision B.
  *
  * The value is a signal, so every date on screen re-renders the moment it flips, with no reload and
- * no per-page subscription.
+ * no per-page subscription -- and since Phase 27b the next API request carries it too.
  */
 @Injectable({ providedIn: 'root' })
 export class DatePreferenceService {

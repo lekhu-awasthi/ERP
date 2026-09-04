@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
+import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import {
   AlertDefinition,
@@ -24,7 +25,7 @@ import {
  */
 @Component({
   selector: 'app-alert-list-page',
-  imports: [ReactiveFormsModule, RouterLink, NepaliDatePipe],
+  imports: [ReactiveFormsModule, RouterLink, NepaliDatePipe, PaginationControl],
   templateUrl: './alert-list-page.html',
 })
 export class AlertListPage {
@@ -45,6 +46,12 @@ export class AlertListPage {
   protected readonly logsOpen = signal(false);
   protected readonly logsLoading = signal(false);
   protected readonly logs = signal<AlertSendLog[]>([]);
+
+  // Phase 27b -- the pager phase 20e left as "UI work": the query and the endpoint were paginated
+  // from the start, this screen just rendered page 1 and never said so.
+  protected readonly logsPage = signal(1);
+  protected readonly logsPageSize = signal(25);
+  protected readonly logsTotalCount = signal(0);
 
   protected readonly alertTypes: readonly { value: AlertType; label: string }[] = [
     { value: 'DailyTransactionSummary', label: 'Daily Transaction Summary' },
@@ -184,11 +191,23 @@ export class AlertListPage {
     }
   }
 
+  protected onLogsPageChange(page: number): void {
+    this.logsPage.set(page);
+    this.loadLogs();
+  }
+
+  protected onLogsPageSizeChange(pageSize: number): void {
+    this.logsPageSize.set(pageSize);
+    this.logsPage.set(1);
+    this.loadLogs();
+  }
+
   private loadLogs(): void {
     this.logsLoading.set(true);
-    this.configurationService.listAlertSendLogs(this.organizationId).subscribe({
+    this.configurationService.listAlertSendLogs(this.organizationId, this.logsPage(), this.logsPageSize()).subscribe({
       next: (result) => {
         this.logs.set(result.items);
+        this.logsTotalCount.set(result.totalCount);
         this.logsLoading.set(false);
       },
       error: (err: unknown) => {

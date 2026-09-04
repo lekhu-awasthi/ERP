@@ -1,5 +1,6 @@
 using ErpApp.Application.Common.Documents;
 using ErpApp.Application.Common.Security;
+using ErpApp.Application.Printing.Queries.PrintDocument;
 using ErpApp.Application.Configuration.Commands.SetCustomFieldValues;
 using ErpApp.Application.Configuration.Commands.SetCustomStatus;
 using ErpApp.Application.Configuration.Commands.SetTransactionReportingTags;
@@ -285,6 +286,112 @@ public class DocumentMechanismSweepGuardTests
             AttachmentParentType.ProductionJournal,
             DocumentParentTypes.For<AttachmentParentType>(DocumentType.ProductionJournal));
         Assert.NotEqual((int)DocumentType.ProductionJournal, (int)AttachmentParentType.ProductionJournal);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Phase 27b -- print, and Terms and Conditions. Same guard shape as 27a's four: the roadmap
+    // said "the 9 unwired types", the live pass said all 15, and this is what keeps that true.
+    // ---------------------------------------------------------------------------------------
+
+    [Fact]
+    public void Every_transactional_type_is_printable()
+    {
+        Assert.Equal(
+            DocumentMechanisms.Transactional.OrderBy(x => x).ToList(),
+            DocumentMechanisms.Printable.OrderBy(x => x).ToList());
+    }
+
+    [Fact]
+    public void Every_printable_type_resolves_its_own_view_permission()
+    {
+        foreach (var documentType in DocumentMechanisms.Printable)
+        {
+            var key = PrintDocumentPermissions.ViewPermissionFor(documentType);
+
+            Assert.False(
+                string.IsNullOrWhiteSpace(key),
+                $"{documentType} is printable but resolves no View permission key.");
+
+            Assert.Contains(
+                key,
+                PermissionKeyCatalog.AllKeys);
+        }
+    }
+
+    /// <summary>Printing must never invent a wider permission than viewing the document itself --
+    /// the whole reason PrintDocumentQuery declares no key of its own.</summary>
+    [Fact]
+    public void The_print_permission_map_refuses_every_non_document_type()
+    {
+        foreach (var documentType in DocumentMechanisms.NotApplicableReasons.Keys)
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(
+                () => PrintDocumentPermissions.ViewPermissionFor(documentType));
+        }
+    }
+
+    /// <summary>The live count, pinned. Confirm-live 2026-09-03 opened all eight line-item add
+    /// forms: five carry the block, three do not. If a later phase widens this list it must have
+    /// re-read the real screen, not reasoned from symmetry.</summary>
+    [Fact]
+    public void Terms_and_conditions_is_the_five_confirmed_types_and_not_the_three_confirmed_absent()
+    {
+        Assert.Equal(
+            new[]
+            {
+                DocumentType.Quotation,
+                DocumentType.SalesOrder,
+                DocumentType.Invoice,
+                DocumentType.CreditNote,
+                DocumentType.PurchaseOrder,
+            }.OrderBy(x => x).ToList(),
+            DocumentMechanisms.TermsAndConditions.OrderBy(x => x).ToList());
+
+        foreach (var absent in new[] { DocumentType.PurchaseBill, DocumentType.Expense, DocumentType.DebitNote })
+        {
+            Assert.DoesNotContain(absent, DocumentMechanisms.TermsAndConditions);
+        }
+
+        Assert.All(DocumentMechanisms.TermsAndConditions, x => Assert.Contains(x, DocumentMechanisms.Transactional));
+    }
+
+    /// <summary>The list is only worth anything if the aggregates behind it can actually store the
+    /// text. Reflection rather than fifteen hand-written asserts, so adding a type to the list
+    /// without adding the field fails here instead of at runtime.</summary>
+    [Fact]
+    public void Every_terms_type_has_a_Terms_property_and_a_SetTerms_mutator_on_its_aggregate()
+    {
+        var domainAssembly = typeof(DocumentType).Assembly;
+
+        foreach (var documentType in DocumentMechanisms.TermsAndConditions)
+        {
+            var aggregate = domainAssembly.GetTypes().SingleOrDefault(t => t.Name == documentType.ToString() && t.IsClass);
+
+            Assert.True(aggregate is not null, $"No Domain aggregate named {documentType}.");
+            Assert.True(
+                aggregate!.GetProperty("Terms")?.PropertyType == typeof(string),
+                $"{documentType} carries Terms and Conditions but its aggregate has no string Terms property.");
+            Assert.True(
+                aggregate.GetMethod("SetTerms") is not null,
+                $"{documentType} carries Terms and Conditions but its aggregate has no SetTerms mutator.");
+        }
+    }
+
+    /// <summary>The mirror: nothing outside the list quietly grew the field. A stray Terms property
+    /// on Purchase Bill would mean a form field nobody decided to add.</summary>
+    [Fact]
+    public void No_type_outside_the_terms_list_has_a_Terms_property()
+    {
+        var domainAssembly = typeof(DocumentType).Assembly;
+
+        foreach (var documentType in DocumentMechanisms.Transactional.Except(DocumentMechanisms.TermsAndConditions))
+        {
+            var aggregate = domainAssembly.GetTypes().SingleOrDefault(t => t.Name == documentType.ToString() && t.IsClass);
+
+            Assert.True(
+                aggregate?.GetProperty("Terms") is null,
+                $"{documentType} has a Terms property but is not in DocumentMechanisms.TermsAndConditions.");
+        }
     }
 
     /// <summary>

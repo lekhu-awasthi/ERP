@@ -15,6 +15,8 @@ public sealed class CreatePurchaseOrderCommandHandler(IAppDbContext db)
 
         var purchaseOrder = PurchaseOrder.Create(
             request.OrganizationId, request.ContactId, request.Date, request.Reference, request.DiscountPct);
+        purchaseOrder.SetTerms(request.Terms);
+
         foreach (var line in request.Lines)
         {
             purchaseOrder.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);

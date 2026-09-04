@@ -13,7 +13,10 @@ public sealed record CreateCreditNoteCommand(
     IReadOnlyList<CreditNoteLineInput> Lines,
     DocumentType? ReferrerType = null,
     Guid? ReferrerId = null,
-    decimal DiscountPct = 0)
+    decimal DiscountPct = 0,
+    // Phase 27b -- the "+ Add Terms and Conditions" block's text, pre-filled client-side from a
+    // CustomTemplate and editable from there. Optional and trailing so no existing caller changes.
+    string? Terms = null)
     : IRequest<CreateCreditNoteResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequest
 {
     public string PermissionKey => PermissionKeys.CreditNoteCreate;

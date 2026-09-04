@@ -108,6 +108,8 @@ app.UseHttpsRedirection();
 
 app.UseCors(CorsPolicyName);
 
+app.UseCalendarPreference();
+
 app.UseAuthentication();
 app.UseAuthorization();
 

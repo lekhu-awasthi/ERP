@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.BotProtection;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
@@ -7,11 +8,22 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Tenancy.Commands.CreateOrganization;
 
-public sealed class CreateOrganizationCommandHandler(IAppDbContext db, ICurrentUserService currentUser)
+public sealed class CreateOrganizationCommandHandler(
+    IAppDbContext db, ICurrentUserService currentUser, ITurnstileVerifier turnstileVerifier)
     : IRequestHandler<CreateOrganizationCommand, CreateOrganizationResult>
 {
     public async Task<CreateOrganizationResult> Handle(CreateOrganizationCommand request, CancellationToken cancellationToken)
     {
+        // Phase 27b -- same shape as RegisterUserCommandHandler's check, and first, before any read:
+        // a bot must not be able to probe workspace-name availability through the failure mode of
+        // this command. A null token fails here exactly as a bad one does; the parameter is optional
+        // only so existing callers compile, never so the check can be skipped.
+        if (string.IsNullOrWhiteSpace(request.TurnstileToken)
+            || !await turnstileVerifier.VerifyAsync(request.TurnstileToken, cancellationToken))
+        {
+            throw new TurnstileVerificationFailedException("Bot verification failed. Please try again.");
+        }
+
         var normalizedWorkspaceName = request.WorkspaceName.Trim().ToLowerInvariant();
 
         var workspaceTaken = await db.Organizations

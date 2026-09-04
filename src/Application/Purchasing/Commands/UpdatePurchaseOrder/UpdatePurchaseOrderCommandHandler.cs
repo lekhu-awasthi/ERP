@@ -28,6 +28,8 @@ public sealed class UpdatePurchaseOrderCommandHandler(IAppDbContext db)
         var oldLines = purchaseOrder.Lines.ToList();
 
         purchaseOrder.UpdateHeader(request.ContactId, request.Date, request.Reference, request.DiscountPct);
+        purchaseOrder.SetTerms(request.Terms);
+
         purchaseOrder.ClearLines();
         foreach (var line in request.Lines)
         {

@@ -77,7 +77,8 @@ public static class PurchasingEndpoints
         {
             var result = await sender.Send(
                 new CreatePurchaseOrderCommand(
-                    organizationId, request.ContactId, request.Date, request.Reference, request.Lines, request.DiscountPct),
+                    organizationId, request.ContactId, request.Date, request.Reference, request.Lines, request.DiscountPct,
+                    request.Terms),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/purchase-orders/{result.Id}", result);
         });
@@ -87,7 +88,8 @@ public static class PurchasingEndpoints
         {
             var result = await sender.Send(
                 new UpdatePurchaseOrderCommand(
-                    organizationId, id, request.ContactId, request.Date, request.Reference, request.Lines, request.DiscountPct),
+                    organizationId, id, request.ContactId, request.Date, request.Reference, request.Lines, request.DiscountPct,
+                    request.Terms),
                 ct);
             return Results.Ok(result);
         });
@@ -445,7 +447,9 @@ public static class PurchasingEndpoints
     }
 
     private sealed record PurchaseOrderRequest(
-        Guid ContactId, DateOnly Date, string? Reference, IReadOnlyList<PurchaseOrderLineInput> Lines, decimal DiscountPct = 0);
+        Guid ContactId, DateOnly Date, string? Reference, IReadOnlyList<PurchaseOrderLineInput> Lines, decimal DiscountPct = 0,
+        // Phase 27b -- the "+ Add Terms and Conditions" block's text.
+        string? Terms = null);
 
     private sealed record PurchaseBillRequest(
         Guid ContactId,

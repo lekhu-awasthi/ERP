@@ -16,6 +16,8 @@ public sealed class CreateSalesOrderCommandHandler(IAppDbContext db)
 
         var salesOrder = SalesOrder.Create(
             request.OrganizationId, request.ContactId, request.Date, request.DeliveryDate, request.Reference, request.DiscountPct);
+        salesOrder.SetTerms(request.Terms);
+
         foreach (var line in request.Lines)
         {
             salesOrder.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);

@@ -31,5 +31,6 @@ public sealed record CreditNoteDetailDto(
     DocumentType? ReferrerType,
     Guid? ReferrerId,
     decimal DiscountPct,
+    string? Terms,
     IReadOnlyList<CreditNoteLineDto> Lines,
     IReadOnlyList<PostedGlLineDto>? GlLines);

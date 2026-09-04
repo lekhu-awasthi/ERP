@@ -18,6 +18,9 @@ import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
+import { PrintingService } from '../../../core/printing/printing.service';
+import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
+import { TermsEditor } from '../../../shared/terms/terms-editor';
 
 interface EditableLine {
   key: number;
@@ -35,7 +38,7 @@ let nextLineKey = 1;
  * Quotation. Approve posts CreditNotePostingRule's exact reverse of InvoicePostingRule. */
 @Component({
   selector: 'app-credit-note-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor],
   templateUrl: './credit-note-detail-page.html',
 })
 export class CreditNoteDetailPage {
@@ -45,6 +48,7 @@ export class CreditNoteDetailPage {
   private readonly customFieldsEditor = viewChild(CustomFieldsEditor);
 
   private readonly route = inject(ActivatedRoute);
+  private readonly printingService = inject(PrintingService);
   private readonly router = inject(Router);
   private readonly salesService = inject(SalesService);
   private readonly contactsService = inject(ContactsService);
@@ -68,6 +72,7 @@ export class CreditNoteDetailPage {
   protected readonly contactId = signal('');
   protected readonly date = signal(this.today());
   protected readonly reference = signal('');
+  protected readonly terms = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
   protected readonly discountPct = signal(0);
   protected readonly isLinkedToSource = signal(false);
@@ -76,6 +81,7 @@ export class CreditNoteDetailPage {
 
   protected readonly vatRates: VatRate[] = ['NoVat', 'ZeroVat', 'ThirteenPercentVat'];
 
+  protected readonly printing = signal(false);
   protected routeCreditNoteId = '';
 
   /** See invoice-detail-page's identical Totals-panel doc comment. */
@@ -145,6 +151,8 @@ export class CreditNoteDetailPage {
           this.contactId.set('');
           this.date.set(this.today());
           this.reference.set('');
+          this.terms.set('');
+        this.terms.set('');
           this.discountPct.set(0);
           this.lines.set([this.newLine()]);
         }
@@ -221,6 +229,7 @@ export class CreditNoteDetailPage {
       contactId: this.contactId(),
       date: this.date(),
       reference: this.reference() || null,
+      terms: this.terms() || null,
       referrerType: this.referrerType,
       referrerId: this.referrerId,
       lines,
@@ -341,6 +350,7 @@ export class CreditNoteDetailPage {
         this.contactId.set(creditNote.contactId);
         this.date.set(creditNote.date);
         this.reference.set(creditNote.reference ?? '');
+        this.terms.set(creditNote.terms ?? '');
         this.referrerType = creditNote.referrerType;
         this.referrerId = creditNote.referrerId;
         this.isLinkedToSource.set(creditNote.referrerId !== null);
@@ -362,6 +372,27 @@ export class CreditNoteDetailPage {
       error: (err: unknown) => {
         this.loading.set(false);
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load credit note.');
+      },
+    });
+  }
+
+  /** Phase 27b -- print/PDF, wired for this document type alongside the other eight the phase
+   * added. Opens the tab synchronously before the request so the browser attributes it to the
+   * click rather than blocking it as a popup. */
+  protected print(): void {
+    this.printing.set(true);
+    this.errorMessage.set(null);
+    const tab = openBlankTabForPrint();
+
+    this.printingService.printDocument(this.organizationId, 'CreditNote', this.routeCreditNoteId).subscribe({
+      next: (blob) => {
+        this.printing.set(false);
+        openBlobInNewTab(blob, tab);
+      },
+      error: (err: unknown) => {
+        this.printing.set(false);
+        tab?.close();
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not print credit note. Please try again.');
       },
     });
   }

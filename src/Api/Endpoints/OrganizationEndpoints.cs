@@ -65,7 +65,8 @@ public static class OrganizationEndpoints
                     request.MultiCurrency,
                     request.Manufacturing,
                     request.PosRetail,
-                    request.PosRestaurant),
+                    request.PosRestaurant,
+                    request.TurnstileToken),
                 ct);
             return Results.Created($"/api/organizations/{result.OrganizationId}", result);
         });
@@ -272,7 +273,8 @@ public static class OrganizationEndpoints
         bool MultiCurrency,
         bool Manufacturing,
         bool PosRetail,
-        bool PosRestaurant);
+        bool PosRestaurant,
+        string? TurnstileToken);
 
     private sealed record InviteUserRequest(string Email, Guid RoleId);
 

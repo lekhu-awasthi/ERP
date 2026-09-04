@@ -9,7 +9,10 @@ public sealed record UpdateInvoiceCommand(
     Guid OrganizationId, Guid Id, Guid ContactId, Guid WarehouseId, DateOnly Date, string? Reference,
     IReadOnlyList<InvoiceLineInput> Lines, decimal DiscountPct = 0,
     bool IsExport = false, string? ExportCountry = null, string? ExportDeclarationNo = null,
-    DateOnly? ExportDeclarationDate = null)
+    DateOnly? ExportDeclarationDate = null,
+    // Phase 27b -- the "+ Add Terms and Conditions" block's text, pre-filled client-side from a
+    // CustomTemplate and editable from there. Optional and trailing so no existing caller changes.
+    string? Terms = null)
     : IRequest<UpdateInvoiceResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId
 {
     public string PermissionKey => PermissionKeys.InvoiceEdit;

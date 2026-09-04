@@ -25,14 +25,15 @@ public class CreateOrganizationCommandHandlerTests
         MultiCurrency: false,
         Manufacturing: false,
         PosRetail: false,
-        PosRestaurant: false);
+        PosRestaurant: false,
+        TurnstileToken: "turnstile-token");
 
     [Fact]
     public async Task Handle_creates_organization_with_seeded_settings_subscription_and_admin_membership()
     {
         var db = TestAppDbContext.Create();
         var creatorId = Guid.NewGuid();
-        var handler = new CreateOrganizationCommandHandler(db, new FakeCurrentUserService(creatorId));
+        var handler = new CreateOrganizationCommandHandler(db, new FakeCurrentUserService(creatorId), new FakeTurnstileVerifier());
 
         var result = await handler.Handle(ValidCommand(), CancellationToken.None);
 
@@ -62,8 +63,38 @@ public class CreateOrganizationCommandHandlerTests
             "acme-traders", null, null, null, null, Guid.NewGuid()));
         await db.SaveChangesAsync();
 
-        var handler = new CreateOrganizationCommandHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
+        var handler = new CreateOrganizationCommandHandler(db, new FakeCurrentUserService(Guid.NewGuid()), new FakeTurnstileVerifier());
 
         await Assert.ThrowsAsync<ConflictException>(() => handler.Handle(ValidCommand(), CancellationToken.None));
+    }
+
+    /// <summary>Phase 27b -- the New Organization wizard's bot check (FR-1.1). Same negative proof
+    /// RegisterUserCommandHandlerTests carries for registration.</summary>
+    [Fact]
+    public async Task Handle_throws_when_turnstile_verification_fails()
+    {
+        var db = TestAppDbContext.Create();
+        var handler = new CreateOrganizationCommandHandler(
+            db, new FakeCurrentUserService(Guid.NewGuid()), new FakeTurnstileVerifier(shouldSucceed: false));
+
+        await Assert.ThrowsAsync<TurnstileVerificationFailedException>(
+            () => handler.Handle(ValidCommand(), CancellationToken.None));
+
+        Assert.Empty(db.Organizations);
+    }
+
+    /// <summary>A missing token is rejected before anything is read, not treated as "no check
+    /// requested" -- the parameter is optional only so existing callers compile.</summary>
+    [Fact]
+    public async Task Handle_throws_when_no_turnstile_token_was_sent_at_all()
+    {
+        var db = TestAppDbContext.Create();
+        var handler = new CreateOrganizationCommandHandler(
+            db, new FakeCurrentUserService(Guid.NewGuid()), new FakeTurnstileVerifier());
+
+        await Assert.ThrowsAsync<TurnstileVerificationFailedException>(
+            () => handler.Handle(ValidCommand() with { TurnstileToken = null }, CancellationToken.None));
+
+        Assert.Empty(db.Organizations);
     }
 }

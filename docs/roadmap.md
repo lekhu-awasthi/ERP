@@ -55,6 +55,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 26b | Report catalog completion, Receivable/Payable and analytics (closing FR-9.2/9.3): Customer Receivable Summary, Supplier Payable Summary, Invoice Age, Purchase Bill Age, Sales/Purchase By Customer/Supplier and By Item, their four BS-fiscal-year Monthly crosstabs, Sales Summary Report — 13 reports over 7 shared handlers, plus the server-side `Domain/Common/BsCalendar` five of them are keyed by | `phase-26b-status.md` |
 | 26c | Report catalog completion: inventory, tax, system, analytics (closing FR-9.4/9.5/9.7): Inventory Position / Movement / Ledger / Master, Sales & Purchase Return Registers, Net Trading Assets, Exceptional Report, User Log — 9 reports plus the `.xlsx` export the 3 manufacturing reports lacked. One new table (`UserLoginEvent`, written by the auth endpoints); the shared `StockFactReader` the four inventory reports agree through | `phase-26c-status.md` |
 | 27a | Cross-cutting rollout sweep, document-level mechanisms: Custom Fields to 11 more types (13 total, not the assumed 15), Custom Status to Sales Order + Production Order, Reporting Tags to every transactional type plus Opening Balances, Tasks/Documents/Activity tabs on all 15 transactional detail pages. `Comment` generalized to a polymorphic `CommentParentType` (phase-18 decision #3's deferred trigger). One shared `DocumentMechanisms` classification table plus a server guard test and a client guard spec prove the sweep complete | `phase-27a-status.md` |
+| 27b | Cross-cutting rollout sweep, output: print/PDF for the 9 unwired document types (all 15 now, live-confirmed universal) on **one generic section-based layout** replacing phase-20d's two; **Bikram Sambat in server-rendered PDFs and `.xlsx`** via an `X-Calendar` header + ambient `RequestCalendar`, closing phase-23 Decision A; pagers on Email Logs / import history / export history; Turnstile on the New Organization wizard; a feature-flag route guard (3 real flags, 13 routes). `CustomTemplate`'s first two consumers: Terms and Conditions on 5 document types (not the 2 assumed) and the Customer/Supplier Balance Confirmation letter | `phase-27b-status.md` |
 
 ---
 
@@ -140,17 +141,22 @@ E2E, one proven negative path, a status doc) and the confirm-live rule.
   to. One shared `DocumentMechanisms` classification table plus a server guard test
   (`DocumentMechanismSweepGuardTests`) and a client guard spec
   (`document-mechanism-sweep-guard.spec.ts`) prove all four sweeps complete.
-- **27b — Output.** Print/PDF for the 9 unwired `DocumentType`s and both production documents
-  (20d's pipeline; live: "View Print Preview" on the detail page); **BS dates in server-rendered
-  PDFs and `.xlsx`** (phase-23 Decision A's carried limitation — port `web/src/app/shared/formatting/`
-  to a Domain `BsDate` converter, same 2000–2092 range; 26b's Sales Summary needs it first, so
-  build the converter there and consume it here); the three missing pagers (Email Logs, import
-  history, export history); Turnstile on the New Organization wizard (20g); a feature-flag route
-  guard (20f).
-- **Custom Templates get their first consumers here:** the `TermsAndConditions` type pre-fills the
-  "+ Add Terms and Conditions" block on Quotation/Invoice (live: a Terms and conditions section on
-  the detail page); `CustomerBalanceConfirmation`/`SupplierBalanceConfirmation` render as a PDF
-  from the Contact statement. The `Email` type waits for Phase 30.
+- **27b — Output. Done, `phase-27b-status.md`.** Print/PDF for the 9 unwired `DocumentType`s (all 15
+  now; live-confirmed present on every one, including both production documents) — and the live pass
+  reshaped it: the reference product prints one frame with a *varying number of titled tables*, so
+  `PrintableDocumentDto` became a section list and the renderer went from two layouts to one that
+  switches on no `DocumentType` at all. BS dates in server-rendered PDFs and `.xlsx` (phase-23
+  Decision A closed, via an `X-Calendar` header and an ambient `RequestCalendar`, `Domain/Common/BsCalendar`
+  reused as 26b left it). The three pagers, Turnstile on the wizard (one server call behind three
+  steps, so one check), and a feature-flag route guard — buildable after all, because Phase 25 gave
+  `Manufacturing` a real surface 20f could not gate. **Terms and Conditions is 5 document types, not
+  2** (Quotation, Sales Order, Invoice, Credit Note, Purchase Order; absent from Purchase Bill,
+  Expense, Debit Note).
+- **Custom Templates got their first consumers here (done).** `TermsAndConditions` seeds an editable
+  terms block on the five document types that carry one live;
+  `CustomerBalanceConfirmation`/`SupplierBalanceConfirmation` render as a PDF letter from the Contact
+  statement, agreeing with it by construction (both read `ContactLedgerReader`). The `Email` type
+  waits for Phase 30, alongside the `Send Email` action live-confirmed on Invoice/Credit Note/Payment.
 
 ### 28. Multi-currency (FR-2.5, NFR-1.3) — confirm-lived, shapes known
 - Live: **Currency (default Nepalese Rupee) + Exchange Rate To NPR\*** sit on the Invoice and

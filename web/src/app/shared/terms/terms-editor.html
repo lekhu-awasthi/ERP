@@ -1,0 +1,30 @@
+<div class="mt-4">
+  @if (!isOpen()) {
+    <button type="button" class="btn btn-link btn-sm text-decoration-none ps-0" [disabled]="disabled()" (click)="open()">
+      + Add Terms and Conditions
+    </button>
+  } @else {
+    <h6 class="fw-bold text-dark mb-2">Terms and Conditions</h6>
+
+    @if (templates().length > 0) {
+      <div class="mb-2" style="max-width: 320px;">
+        <label class="form-label small text-muted mb-1" for="terms-template">Select Template</label>
+        <select id="terms-template" class="form-select form-select-sm" [disabled]="disabled()" (change)="onTemplateChange($event)">
+          <option value="" [selected]="true">Select Template</option>
+          @for (template of templates(); track template.id) {
+            <option [value]="template.id">{{ template.name }}{{ template.isDefault ? ' (default)' : '' }}</option>
+          }
+        </select>
+      </div>
+    }
+
+    <textarea
+      class="form-control"
+      rows="5"
+      placeholder="Terms and conditions printed on this document"
+      [disabled]="disabled()"
+      [value]="terms()"
+      (input)="onTermsInput($event)"
+    ></textarea>
+  }
+</div>

@@ -126,7 +126,7 @@ public class AuthorizationBehaviorTests
             db, new FakeCurrentUserService(Guid.NewGuid()));
         var command = new CreateOrganizationCommand(
             "Acme Traders", "Retail", null, new DateOnly(2026, 1, 1), true, "acme-traders",
-            null, null, null, null, false, false, false, false, false, false, false);
+            null, null, null, null, false, false, false, false, false, false, false, "turnstile-token");
         var expected = new CreateOrganizationResult(Guid.NewGuid(), "Acme Traders", "acme-traders");
 
         var result = await behavior.Handle(command, () => Task.FromResult(expected), CancellationToken.None);

@@ -21,5 +21,10 @@ public sealed class CreateOrganizationCommandValidator : AbstractValidator<Creat
         RuleFor(x => x.Phone).MaximumLength(20);
         RuleFor(x => x.PanNumber).MaximumLength(50);
         RuleFor(x => x.Website).MaximumLength(256);
+
+        // Phase 27b -- matches RegisterUserCommandValidator's rule. The handler re-checks for blank
+        // as well: this turns a missing token into a 400 with a field name, and the handler's own
+        // guard is what makes the check impossible to bypass by any other caller.
+        RuleFor(x => x.TurnstileToken).NotEmpty();
     }
 }

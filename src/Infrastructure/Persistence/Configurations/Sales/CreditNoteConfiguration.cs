@@ -20,6 +20,10 @@ public sealed class CreditNoteConfiguration : IEntityTypeConfiguration<CreditNot
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.RowVersion).IsRowVersion();
+        // Phase 27b -- no HasMaxLength: the reference product's terms editor is a rich-text
+        // box with no visible cap, and a truncated legal clause is a worse failure than a
+        // wide column. nvarchar(max), same call this codebase already makes for Notes.
+        builder.Property(x => x.Terms);
         builder.Property(x => x.ReferrerType).HasConversion<string>().HasMaxLength(30);
         builder.Property(x => x.ReferrerId);
         builder.Property(x => x.DiscountPct).HasPrecision(18, 4).IsRequired();

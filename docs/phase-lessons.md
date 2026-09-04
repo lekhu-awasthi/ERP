@@ -1,4 +1,4 @@
-# Phase lessons — the "read this before touching X" index
+﻿# Phase lessons — the "read this before touching X" index
 
 One paragraph per phase, moved verbatim out of `CLAUDE.md` (2026-09-02) so the root file stays small.
 Each bullet names the situation in which a future session must open that phase's status doc first,
@@ -180,3 +180,19 @@ these are in `CLAUDE.md`'s Known gotchas section. When a phase completes, append
   real one inside the handler once the row is loaded (`AttachmentAccess`, third use of the
   `TransactionApprovalView` pattern) - read this before adding any other id-only mutation whose
   permission depends on what the id points at.
+- `phase-27b` - before adding a document type to the print pipeline, before rendering any date in
+  server-produced output (a PDF, an `.xlsx`, a file name), and before giving a `CustomTemplate` type
+  a consumer. The confirm-live pass reshaped the phase: the reference product prints **one page frame
+  with a varying number of titled tables** (Production Journal 3, Cash Transfer 2, Payment 2), so
+  phase-20d's "`Lines` XOR `GlLines`" DTO was replaced by a section list and `DocumentPdfRenderer`
+  now switches on **no `DocumentType` at all** - adding a type is a case in a handler, never a new
+  layout. Print itself is universal across all 15 transactional types (`DocumentMechanisms.Printable`),
+  and rides each type's own `View` key rather than a key of its own. This is also where phase-23
+  Decision A's stated limitation was closed: the client sends `X-Calendar`, one middleware parks it in
+  `RequestCalendar` (an `AsyncLocal` - the codebase's one deliberate exception to constructor
+  injection, and its reasoning is written down), and business dates convert while audit timestamps and
+  file-name dates stay AD. Terms and Conditions corrected the roadmap's scope again, 27a-style: 5
+  document types, not 2, and it stores the document's **own text** seeded from a template, never a
+  template reference. Read before wiring `Send Email` or the `Email` template type in Phase 30 - the
+  same three types carry both actions.
+

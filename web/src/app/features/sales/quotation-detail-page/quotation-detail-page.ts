@@ -16,6 +16,7 @@ import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
+import { TermsEditor } from '../../../shared/terms/terms-editor';
 
 interface EditableLine {
   key: number;
@@ -37,7 +38,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-quotation-detail-page',
-  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, AmountPipe, BsDateInput, DocumentTabs],
+  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, AmountPipe, BsDateInput, DocumentTabs, TermsEditor],
   templateUrl: './quotation-detail-page.html',
 })
 export class QuotationDetailPage {
@@ -69,6 +70,7 @@ export class QuotationDetailPage {
   protected readonly date = signal(this.today());
   protected readonly expiryDate = signal('');
   protected readonly reference = signal('');
+  protected readonly terms = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
   protected readonly discountPct = signal(0);
 
@@ -127,6 +129,7 @@ export class QuotationDetailPage {
         this.date.set(this.today());
         this.expiryDate.set('');
         this.reference.set('');
+        this.terms.set('');
         this.discountPct.set(0);
         this.lines.set([this.newLine()]);
       } else {
@@ -217,6 +220,7 @@ export class QuotationDetailPage {
       date: this.date(),
       expiryDate: this.expiryDate() || null,
       reference: this.reference() || null,
+      terms: this.terms() || null,
       lines,
       discountPct: this.discountPct(),
     };
@@ -389,6 +393,7 @@ export class QuotationDetailPage {
         this.date.set(quotation.date);
         this.expiryDate.set(quotation.expiryDate ?? '');
         this.reference.set(quotation.reference ?? '');
+        this.terms.set(quotation.terms ?? '');
         this.discountPct.set(quotation.discountPct);
         this.lines.set(
           quotation.lines.length > 0

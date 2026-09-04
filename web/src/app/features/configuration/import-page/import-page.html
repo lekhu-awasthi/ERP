@@ -97,8 +97,8 @@
         <button
           type="button"
           class="btn btn-primary fw-bold"
-          [disabled]="exportStarting()"
-          (click)="startExport()"
+        [disabled]="exportStarting()"
+        (click)="startExport()"
         >
           @if (exportStarting()) {
             <span class="spinner-border spinner-border-sm me-1"></span> Starting&hellip;
@@ -220,6 +220,13 @@
             </tbody>
           </table>
         </div>
+        <app-pagination-control
+          [page]="exportPage()"
+          [pageSize]="exportPageSize()"
+          [totalCount]="exportTotalCount()"
+          (pageChange)="onExportPageChange($event)"
+          (pageSizeChange)="onExportPageSizeChange($event)"
+        ></app-pagination-control>
       }
     </div>
   </div>
@@ -325,6 +332,13 @@
             </tbody>
           </table>
         </div>
+        <app-pagination-control
+          [page]="importPage()"
+          [pageSize]="importPageSize()"
+          [totalCount]="importTotalCount()"
+          (pageChange)="onImportPageChange($event)"
+          (pageSizeChange)="onImportPageSizeChange($event)"
+        ></app-pagination-control>
       }
     </div>
   </div>

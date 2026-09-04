@@ -37,5 +37,6 @@ public sealed record InvoiceDetailDto(
     Guid? ReferrerId,
     decimal DiscountPct,
     decimal GrandTotal,
+    string? Terms,
     IReadOnlyList<InvoiceLineDto> Lines,
     IReadOnlyList<PostedGlLineDto>? GlLines);

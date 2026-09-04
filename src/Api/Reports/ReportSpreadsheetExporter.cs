@@ -9,6 +9,7 @@ using ErpApp.Application.Accounting.Queries.JournalReport;
 using ErpApp.Application.Accounting.Queries.RatioAnalysis;
 using ErpApp.Application.Accounting.Queries.TrialBalance;
 using ErpApp.Application.Accounting.Queries.VatSummaryReport;
+using ErpApp.Application.Common.Formatting;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Contacts.Queries.ContactAgeingSummary;
 using ErpApp.Application.Contacts.Queries.ContactBalanceSummary;
@@ -245,7 +246,7 @@ public static partial class ReportSpreadsheetExporter
                 sheet.Cell(1, 1).Value = "Contact";
                 sheet.Cell(1, 2).Value = $"{report.ContactCode} - {report.ContactName}";
                 sheet.Cell(2, 1).Value = "Period";
-                sheet.Cell(2, 2).Value = $"{report.FromDate:yyyy-MM-dd} to {report.ToDate:yyyy-MM-dd}";
+                sheet.Cell(2, 2).Value = $"{RequestCalendar.Format(report.FromDate)} to {RequestCalendar.Format(report.ToDate)}";
                 sheet.Cell(3, 1).Value = "Opening Balance";
                 sheet.Cell(3, 2).Value = (double)report.OpeningBalance;
                 sheet.Cell(3, 3).Value = report.OpeningBalanceType;
@@ -263,7 +264,7 @@ public static partial class ReportSpreadsheetExporter
                 {
                     var row = report.Rows[r];
                     var xlRow = headerRow + 1 + r;
-                    sheet.Cell(xlRow, 1).Value = row.Date.ToString("yyyy-MM-dd");
+                    sheet.Cell(xlRow, 1).Value = RequestCalendar.Format(row.Date);
                     sheet.Cell(xlRow, 2).Value = row.DocumentType.ToString();
                     sheet.Cell(xlRow, 3).Value = row.Code;
                     sheet.Cell(xlRow, 4).Value = row.Reference ?? string.Empty;
@@ -549,8 +550,8 @@ public static partial class ReportSpreadsheetExporter
 
         if (report.CompareAsOfDate is { } compareAsOf)
         {
-            columns.Add(($"Debit ({compareAsOf:yyyy-MM-dd})", r => r.CompareDebit));
-            columns.Add(($"Credit ({compareAsOf:yyyy-MM-dd})", r => r.CompareCredit));
+            columns.Add(($"Debit ({RequestCalendar.Format(compareAsOf)})", r => r.CompareDebit));
+            columns.Add(($"Credit ({RequestCalendar.Format(compareAsOf)})", r => r.CompareCredit));
         }
 
         return ExportTable(
@@ -605,7 +606,7 @@ public static partial class ReportSpreadsheetExporter
 
         if (report.CompareAsOfDate is { } compareAsOf)
         {
-            columns.Add(($"Amount ({compareAsOf:yyyy-MM-dd})", r => r.CompareAmount));
+            columns.Add(($"Amount ({RequestCalendar.Format(compareAsOf)})", r => r.CompareAmount));
         }
 
         return ExportTable(
@@ -645,7 +646,7 @@ public static partial class ReportSpreadsheetExporter
 
         if (report.CompareFromDate is { } compareFrom && report.CompareToDate is { } compareTo)
         {
-            columns.Add(($"Amount ({compareFrom:yyyy-MM-dd} to {compareTo:yyyy-MM-dd})", r => r.CompareAmount));
+            columns.Add(($"Amount ({RequestCalendar.Format(compareFrom)} to {RequestCalendar.Format(compareTo)})", r => r.CompareAmount));
         }
 
         return ExportTable(
@@ -971,7 +972,7 @@ public static partial class ReportSpreadsheetExporter
             "Sales Summary Report",
             FiscalYearFileName("SalesSummaryReport", report.FiscalYear),
             [
-                ("Date", (SalesSummaryRowDto r) => (object?)(r.Label ?? r.Date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))),
+                ("Date", (SalesSummaryRowDto r) => (object?)(r.Label ?? RequestCalendar.Format(r.Date))),
                 ("Sub Total", r => r.SubTotal),
                 ("Discount", r => r.Discount),
                 ("Non Taxable Sales", r => r.NonTaxableSales),
@@ -1085,7 +1086,7 @@ public static partial class ReportSpreadsheetExporter
     /// <summary>Phase 26b -- the fiscal-year counterpart of <see cref="FileName"/>, for the five
     /// reports keyed by a BS fiscal year rather than a date range.</summary>
     private static string FiscalYearFileName(string reportName, int fiscalYear) =>
-        $"{reportName}_BS{fiscalYear}-{fiscalYear + 1}.xlsx";
+        $"{reportName}_BS{fiscalYear}-{fiscalYear + 1}{RequestCalendar.FileNameMarker}.xlsx";
 
     private static IResult ExportTable<T>(
         string sheetName,
@@ -1149,7 +1150,7 @@ public static partial class ReportSpreadsheetExporter
                 cell.Value = b;
                 break;
             case DateOnly d:
-                cell.Value = d.ToString("yyyy-MM-dd");
+                cell.Value = RequestCalendar.Format(d);
                 break;
             case decimal dec:
                 cell.Value = (double)dec;
@@ -1165,10 +1166,10 @@ public static partial class ReportSpreadsheetExporter
     }
 
     private static string FileName(string reportName, DateOnly fromDate, DateOnly toDate) =>
-        $"{reportName}_{fromDate:yyyy-MM-dd}_{toDate:yyyy-MM-dd}.xlsx";
+        $"{reportName}_{fromDate:yyyy-MM-dd}_{toDate:yyyy-MM-dd}{RequestCalendar.FileNameMarker}.xlsx";
 
     /// <summary>Phase 26a -- the as-of counterpart of <see cref="FileName"/>, for reports cut off
     /// at a single date rather than run over a range (Trial Balance, Balance Sheet).</summary>
     private static string AsOfFileName(string reportName, DateOnly asOfDate) =>
-        $"{reportName}_{asOfDate:yyyy-MM-dd}.xlsx";
+        $"{reportName}_{asOfDate:yyyy-MM-dd}{RequestCalendar.FileNameMarker}.xlsx";
 }

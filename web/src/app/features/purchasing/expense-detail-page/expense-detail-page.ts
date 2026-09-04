@@ -22,6 +22,8 @@ import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
+import { PrintingService } from '../../../core/printing/printing.service';
+import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 
 interface EditableLine {
   key: number;
@@ -52,6 +54,7 @@ export class ExpenseDetailPage {
   private readonly customFieldsEditor = viewChild(CustomFieldsEditor);
 
   private readonly route = inject(ActivatedRoute);
+  private readonly printingService = inject(PrintingService);
   private readonly router = inject(Router);
   private readonly purchasingService = inject(PurchasingService);
   private readonly contactsService = inject(ContactsService);
@@ -89,6 +92,7 @@ export class ExpenseDetailPage {
 
   protected readonly vatRates: VatRate[] = ['NoVat', 'ZeroVat', 'ThirteenPercentVat'];
 
+  protected readonly printing = signal(false);
   protected routeExpenseId = '';
 
   protected readonly sortedAccounts = computed(() => [...this.accounts()].sort((a, b) => a.code.localeCompare(b.code)));
@@ -391,6 +395,27 @@ export class ExpenseDetailPage {
       error: (err: unknown) => {
         this.loading.set(false);
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load expense.');
+      },
+    });
+  }
+
+  /** Phase 27b -- print/PDF, wired for this document type alongside the other eight the phase
+   * added. Opens the tab synchronously before the request so the browser attributes it to the
+   * click rather than blocking it as a popup. */
+  protected print(): void {
+    this.printing.set(true);
+    this.errorMessage.set(null);
+    const tab = openBlankTabForPrint();
+
+    this.printingService.printDocument(this.organizationId, 'Expense', this.routeExpenseId).subscribe({
+      next: (blob) => {
+        this.printing.set(false);
+        openBlobInNewTab(blob, tab);
+      },
+      error: (err: unknown) => {
+        this.printing.set(false);
+        tab?.close();
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not print expense. Please try again.');
       },
     });
   }

@@ -34,6 +34,7 @@ public sealed class UpdateInvoiceCommandHandler(IAppDbContext db)
         invoice.UpdateHeader(
             request.ContactId, request.WarehouseId, request.Date, request.Reference, request.DiscountPct,
             request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate);
+        invoice.SetTerms(request.Terms);
         invoice.ClearLines();
         foreach (var line in request.Lines)
         {

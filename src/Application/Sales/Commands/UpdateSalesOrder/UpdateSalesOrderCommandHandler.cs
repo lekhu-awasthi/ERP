@@ -29,6 +29,8 @@ public sealed class UpdateSalesOrderCommandHandler(IAppDbContext db)
         var oldLines = salesOrder.Lines.ToList();
 
         salesOrder.UpdateHeader(request.ContactId, request.Date, request.DeliveryDate, request.Reference, request.DiscountPct);
+        salesOrder.SetTerms(request.Terms);
+
         salesOrder.ClearLines();
         foreach (var line in request.Lines)
         {

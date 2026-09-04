@@ -19,6 +19,8 @@ import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
+import { PrintingService } from '../../../core/printing/printing.service';
+import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 
 interface EditableMaterial {
   key: number;
@@ -63,6 +65,7 @@ export class ProductionJournalDetailPage {
   private readonly customFieldsEditor = viewChild(CustomFieldsEditor);
 
   private readonly route = inject(ActivatedRoute);
+  private readonly printingService = inject(PrintingService);
   private readonly router = inject(Router);
   private readonly manufacturingService = inject(ManufacturingService);
   private readonly catalogService = inject(CatalogService);
@@ -99,6 +102,7 @@ export class ProductionJournalDetailPage {
   private billOfMaterialsId: string | null = null;
   private referrerType: string | null = null;
   private referrerId: string | null = null;
+  protected readonly printing = signal(false);
   protected routeJournalId = '';
 
   protected readonly isDraft = computed(() => {
@@ -479,5 +483,26 @@ export class ProductionJournalDetailPage {
 
   private today(): string {
     return new Date().toISOString().slice(0, 10);
+  }
+
+  /** Phase 27b -- print/PDF, wired for this document type alongside the other eight the phase
+   * added. Opens the tab synchronously before the request so the browser attributes it to the
+   * click rather than blocking it as a popup. */
+  protected print(): void {
+    this.printing.set(true);
+    this.errorMessage.set(null);
+    const tab = openBlankTabForPrint();
+
+    this.printingService.printDocument(this.organizationId, 'ProductionJournal', this.routeJournalId).subscribe({
+      next: (blob) => {
+        this.printing.set(false);
+        openBlobInNewTab(blob, tab);
+      },
+      error: (err: unknown) => {
+        this.printing.set(false);
+        tab?.close();
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not print production journal. Please try again.');
+      },
+    });
   }
 }

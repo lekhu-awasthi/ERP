@@ -21,6 +21,8 @@ import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
+import { PrintingService } from '../../../core/printing/printing.service';
+import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 
 interface EditableLine {
   key: number;
@@ -51,6 +53,7 @@ export class DebitNoteDetailPage {
   private readonly customFieldsEditor = viewChild(CustomFieldsEditor);
 
   private readonly route = inject(ActivatedRoute);
+  private readonly printingService = inject(PrintingService);
   private readonly router = inject(Router);
   private readonly purchasingService = inject(PurchasingService);
   private readonly contactsService = inject(ContactsService);
@@ -85,6 +88,7 @@ export class DebitNoteDetailPage {
 
   protected readonly vatRates: VatRate[] = ['NoVat', 'ZeroVat', 'ThirteenPercentVat'];
 
+  protected readonly printing = signal(false);
   protected routeDebitNoteId = '';
 
   /** See Sales' invoice-detail-page identical Totals-panel doc comment. */
@@ -381,6 +385,27 @@ export class DebitNoteDetailPage {
       error: (err: unknown) => {
         this.loading.set(false);
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load debit note.');
+      },
+    });
+  }
+
+  /** Phase 27b -- print/PDF, wired for this document type alongside the other eight the phase
+   * added. Opens the tab synchronously before the request so the browser attributes it to the
+   * click rather than blocking it as a popup. */
+  protected print(): void {
+    this.printing.set(true);
+    this.errorMessage.set(null);
+    const tab = openBlankTabForPrint();
+
+    this.printingService.printDocument(this.organizationId, 'DebitNote', this.routeDebitNoteId).subscribe({
+      next: (blob) => {
+        this.printing.set(false);
+        openBlobInNewTab(blob, tab);
+      },
+      error: (err: unknown) => {
+        this.printing.set(false);
+        tab?.close();
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not print debit note. Please try again.');
       },
     });
   }

@@ -69,6 +69,20 @@ const CUSTOM_STATUS_PAGES: readonly { documentType: string; template: string }[]
   { documentType: 'ProductionOrder', template: '/src/app/features/manufacturing/production-order-list-page/production-order-list-page.html' },
 ];
 
+/**
+ * Phase 27b -- the five types whose form carries the "+ Add Terms and Conditions" block. Live-
+ * confirmed 2026-09-03 across all eight line-item add forms: Purchase Bill, Expense and Debit Note
+ * do not have it, so this list is deliberately narrower than SWEPT_PAGES and must stay that way
+ * unless someone re-reads the real screen.
+ */
+const TERMS_TEMPLATES: readonly string[] = [
+  '/src/app/features/sales/quotation-detail-page/quotation-detail-page.html',
+  '/src/app/features/sales/sales-order-detail-page/sales-order-detail-page.html',
+  '/src/app/features/sales/invoice-detail-page/invoice-detail-page.html',
+  '/src/app/features/sales/credit-note-detail-page/credit-note-detail-page.html',
+  '/src/app/features/purchasing/purchase-order-detail-page/purchase-order-detail-page.html',
+];
+
 /** The Opening Balances screen tags per row, one document type per tab. */
 const OPENING_BALANCE_TEMPLATE = '/src/app/features/configuration/opening-balances-page/opening-balances-page.html';
 
@@ -180,5 +194,34 @@ describe('Phase 27a document-mechanism sweep completeness', () => {
     const html = source(OPENING_BALANCE_TEMPLATE);
     expect(declares(html, 'app-reporting-tags-editor', 'OpeningBalance')).toBe(true);
     expect(declares(html, 'app-reporting-tags-editor', 'OpeningStock')).toBe(true);
+  });
+
+  // -------------------------------------------------------------------------------------------
+  // Phase 27b -- print, and Terms and Conditions.
+  // -------------------------------------------------------------------------------------------
+
+  it('gives every transactional detail page a print action', () => {
+    // Confirm-live 2026-09-03: "View Print Preview" is present on all 15 types, including both
+    // production documents and Warehouse Transfer, which carries no money at all. A page without a
+    // print button is a gap, not a design choice.
+    const missing = SWEPT_PAGES.filter((page) => !/\(click\)="print\(\)"/.test(source(page.template))).map(
+      (page) => `${page.documentType} — ${page.template}`,
+    );
+    expect(missing, `Add a Print action to:\n  ${missing.join('\n  ')}`).toEqual([]);
+  });
+
+  it('gives every terms-and-conditions type the terms editor, and no other type', () => {
+    const missing = TERMS_TEMPLATES.filter((template) => !source(template).includes('<app-terms-editor'));
+    expect(missing, `Add <app-terms-editor> to:\n  ${missing.join('\n  ')}`).toEqual([]);
+
+    // The inverse matters as much: three line-item forms were live-confirmed NOT to carry the
+    // block, and "sweep everything" must not quietly widen the list.
+    const unexpected = SWEPT_PAGES.filter(
+      (page) => !TERMS_TEMPLATES.includes(page.template) && source(page.template).includes('<app-terms-editor'),
+    ).map((page) => `${page.documentType} — ${page.template}`);
+    expect(
+      unexpected,
+      `These pages have a terms editor but were live-confirmed not to carry one:\n  ${unexpected.join('\n  ')}`,
+    ).toEqual([]);
   });
 });

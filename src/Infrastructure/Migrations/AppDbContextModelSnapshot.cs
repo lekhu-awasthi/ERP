@@ -3622,6 +3622,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("Terms")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTimeOffset?>("VoidedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -3737,6 +3740,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Terms")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTimeOffset?>("VoidedAt")
                         .HasColumnType("datetimeoffset");
@@ -3865,6 +3871,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Terms")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTimeOffset?>("VoidedAt")
                         .HasColumnType("datetimeoffset");
@@ -4061,6 +4070,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("Terms")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTimeOffset?>("VoidedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -4175,6 +4187,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Terms")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTimeOffset?>("VoidedAt")
                         .HasColumnType("datetimeoffset");

@@ -16,6 +16,7 @@ import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
+import { TermsEditor } from '../../../shared/terms/terms-editor';
 
 interface EditableLine {
   key: number;
@@ -42,7 +43,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-sales-order-detail-page',
-  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor],
+  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor],
   templateUrl: './sales-order-detail-page.html',
 })
 export class SalesOrderDetailPage {
@@ -75,6 +76,7 @@ export class SalesOrderDetailPage {
   protected readonly date = signal(this.today());
   protected readonly deliveryDate = signal('');
   protected readonly reference = signal('');
+  protected readonly terms = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
   protected readonly discountPct = signal(0);
 
@@ -133,6 +135,7 @@ export class SalesOrderDetailPage {
         this.date.set(this.today());
         this.deliveryDate.set('');
         this.reference.set('');
+        this.terms.set('');
         this.discountPct.set(0);
         this.lines.set([this.newLine()]);
       } else {
@@ -222,6 +225,7 @@ export class SalesOrderDetailPage {
       date: this.date(),
       deliveryDate: this.deliveryDate() || null,
       reference: this.reference() || null,
+      terms: this.terms() || null,
       lines,
       discountPct: this.discountPct(),
     };
@@ -359,6 +363,7 @@ export class SalesOrderDetailPage {
         this.date.set(salesOrder.date);
         this.deliveryDate.set(salesOrder.deliveryDate ?? '');
         this.reference.set(salesOrder.reference ?? '');
+        this.terms.set(salesOrder.terms ?? '');
         this.discountPct.set(salesOrder.discountPct);
         this.lines.set(
           salesOrder.lines.length > 0

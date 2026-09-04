@@ -28,6 +28,7 @@ public sealed class GetQuotationQueryHandler(IAppDbContext db) : IRequestHandler
             quotation.CreatedAt,
             quotation.DiscountPct,
             quotation.CustomStatusId,
+            quotation.Terms,
             quotation.Lines.Select(x => new QuotationLineDto(
                 x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount)).ToList());
     }

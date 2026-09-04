@@ -44,6 +44,8 @@ export interface PurchaseOrder {
   createdAt: string;
   discountPct: number;
   customStatusId: string | null;
+  /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
+  terms: string | null;
 }
 
 export interface PurchaseOrderLineDto extends PurchaseOrderLineInput {
@@ -62,6 +64,8 @@ export interface PurchaseOrderRequest {
   reference: string | null;
   lines: PurchaseOrderLineInput[];
   discountPct: number;
+  /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
+  terms: string | null;
 }
 
 export interface CreatePurchaseOrderResult {

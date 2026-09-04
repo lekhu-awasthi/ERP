@@ -29,6 +29,8 @@ public sealed class UpdateCreditNoteCommandHandler(IAppDbContext db)
         var oldLines = creditNote.Lines.ToList();
 
         creditNote.UpdateHeader(request.ContactId, request.Date, request.Reference, request.DiscountPct);
+        creditNote.SetTerms(request.Terms);
+
         creditNote.ClearLines();
         foreach (var line in request.Lines)
         {

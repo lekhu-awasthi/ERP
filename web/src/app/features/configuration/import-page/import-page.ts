@@ -14,6 +14,7 @@ import {
 } from '../../../core/imports/import.models';
 import { ImportService } from '../../../core/imports/import.service';
 import { triggerBlobDownload } from '../../../shared/download-file';
+import { PaginationControl } from '../../../shared/pagination/pagination-control';
 
 /**
  * Roadmap Phase 21a / FR-2.9 -- Configurations > Import / Export.
@@ -39,7 +40,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
  */
 @Component({
   selector: 'app-import-page',
-  imports: [RouterLink],
+  imports: [RouterLink, PaginationControl],
   templateUrl: './import-page.html',
 })
 export class ImportPage implements OnDestroy {
@@ -56,6 +57,12 @@ export class ImportPage implements OnDestroy {
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly jobs = signal<ImportJobSummary[]>([]);
 
+  // Phase 27b -- the two pagers phases 21a and 21b each left as "UI work". Both endpoints have
+  // taken page/pageSize since the day they shipped; only the screen was stuck on page 1.
+  protected readonly importPage = signal(1);
+  protected readonly importPageSize = signal(25);
+  protected readonly importTotalCount = signal(0);
+
   // Plain signals written by the (change) handlers rather than a FormGroup read inside computed():
   // this app is zoneless, and a computed() over a FormControl caches its first value forever
   // (phase-17's bug). These drive both the template download and the upload, so a stale read here
@@ -65,6 +72,9 @@ export class ImportPage implements OnDestroy {
   protected readonly selectedFileName = signal<string | null>(null);
 
   protected readonly exportJobs = signal<ExportJobSummary[]>([]);
+  protected readonly exportPage = signal(1);
+  protected readonly exportPageSize = signal(25);
+  protected readonly exportTotalCount = signal(0);
   protected readonly exportStarting = signal(false);
   protected readonly downloadingExportId = signal<string | null>(null);
 
@@ -267,27 +277,53 @@ export class ImportPage implements OnDestroy {
     return this.modes.find((option) => option.value === mode)?.label ?? mode;
   }
 
+  protected onImportPageChange(page: number): void {
+    this.importPage.set(page);
+    this.load();
+  }
+
+  protected onImportPageSizeChange(pageSize: number): void {
+    this.importPageSize.set(pageSize);
+    this.importPage.set(1);
+    this.load();
+  }
+
+  protected onExportPageChange(page: number): void {
+    this.exportPage.set(page);
+    this.load();
+  }
+
+  protected onExportPageSizeChange(pageSize: number): void {
+    this.exportPageSize.set(pageSize);
+    this.exportPage.set(1);
+    this.load();
+  }
+
   private load(): void {
     // Master-data types only: Phase 21c's migrated tax-register uploads have their own Migration
     // screen and must not appear in this history (and vice versa).
-    this.importService.listImportJobs(this.organizationId, MASTER_DATA_ENTITY_TYPES).subscribe({
-      next: (result) => {
-        this.jobs.set(result.items);
-        this.loading.set(false);
-        this.syncPolling();
-      },
-      error: (err: unknown) => {
-        this.loading.set(false);
-        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load import history.');
-      },
-    });
+    this.importService
+      .listImportJobs(this.organizationId, MASTER_DATA_ENTITY_TYPES, this.importPage(), this.importPageSize())
+      .subscribe({
+        next: (result) => {
+          this.jobs.set(result.items);
+          this.importTotalCount.set(result.totalCount);
+          this.loading.set(false);
+          this.syncPolling();
+        },
+        error: (err: unknown) => {
+          this.loading.set(false);
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load import history.');
+        },
+      });
 
     // Two independent calls rather than one combined endpoint: the two features have separate
     // permission keys, so a user granted one and not the other still gets the half they may see
     // instead of a whole page that 403s.
-    this.exportService.listExportJobs(this.organizationId).subscribe({
+    this.exportService.listExportJobs(this.organizationId, this.exportPage(), this.exportPageSize()).subscribe({
       next: (result) => {
         this.exportJobs.set(result.items);
+        this.exportTotalCount.set(result.totalCount);
         this.syncPolling();
       },
       error: (err: unknown) =>

@@ -26,6 +26,7 @@ import { SourceDocumentPanel } from '../../../shared/source-document/source-docu
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
+import { TermsEditor } from '../../../shared/terms/terms-editor';
 
 interface EditableLine {
   key: number;
@@ -44,7 +45,7 @@ let nextLineKey = 1;
  * own lines the way JournalVoucher's is. */
 @Component({
   selector: 'app-invoice-detail-page',
-  imports: [RouterLink, DatePipe, ReportingTagsEditor, CustomFieldsEditor, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs],
+  imports: [RouterLink, DatePipe, ReportingTagsEditor, CustomFieldsEditor, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, TermsEditor],
   templateUrl: './invoice-detail-page.html',
 })
 export class InvoiceDetailPage {
@@ -85,6 +86,7 @@ export class InvoiceDetailPage {
   protected readonly warehouseId = signal('');
   protected readonly date = signal(this.today());
   protected readonly reference = signal('');
+  protected readonly terms = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
   protected readonly discountPct = signal(0);
 
@@ -177,6 +179,8 @@ export class InvoiceDetailPage {
           this.contactId.set('');
           this.date.set(this.today());
           this.reference.set('');
+          this.terms.set('');
+        this.terms.set('');
           this.discountPct.set(0);
           this.lines.set([this.newLine()]);
         }
@@ -362,6 +366,7 @@ export class InvoiceDetailPage {
       warehouseId: this.warehouseId(),
       date: this.date(),
       reference: this.reference() || null,
+      terms: this.terms() || null,
       referrerType: this.referrerType,
       referrerId: this.referrerId,
       lines,
@@ -556,6 +561,7 @@ export class InvoiceDetailPage {
         this.warehouseId.set(invoice.warehouseId);
         this.date.set(invoice.date);
         this.reference.set(invoice.reference ?? '');
+        this.terms.set(invoice.terms ?? '');
         this.referrerType = invoice.referrerType;
         this.referrerId = invoice.referrerId;
         this.discountPct.set(invoice.discountPct);

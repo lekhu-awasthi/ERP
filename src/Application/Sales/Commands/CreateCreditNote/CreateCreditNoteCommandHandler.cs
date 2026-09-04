@@ -24,6 +24,8 @@ public sealed class CreateCreditNoteCommandHandler(IAppDbContext db)
         var creditNote = CreditNote.Create(
             request.OrganizationId, request.ContactId, request.Date, request.Reference, request.ReferrerType, request.ReferrerId,
             request.DiscountPct);
+        creditNote.SetTerms(request.Terms);
+
         foreach (var line in request.Lines)
         {
             creditNote.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);

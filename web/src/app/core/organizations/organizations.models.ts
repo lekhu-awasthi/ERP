@@ -24,6 +24,8 @@ export interface CreateOrganizationRequest {
   manufacturing: boolean;
   posRetail: boolean;
   posRestaurant: boolean;
+  /** Phase 27b -- Cloudflare Turnstile token from the wizard's final step (FR-1.1). */
+  turnstileToken: string;
 }
 
 export interface CreateOrganizationResponse {

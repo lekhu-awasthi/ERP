@@ -20,6 +20,8 @@ import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
+import { PrintingService } from '../../../core/printing/printing.service';
+import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 
 interface EditableAllocation {
   key: number;
@@ -46,6 +48,7 @@ export class SupplierPaymentDetailPage {
   private readonly customFieldsEditor = viewChild(CustomFieldsEditor);
 
   private readonly route = inject(ActivatedRoute);
+  private readonly printingService = inject(PrintingService);
   private readonly router = inject(Router);
   private readonly paymentsService = inject(PaymentsService);
   private readonly contactsService = inject(ContactsService);
@@ -78,6 +81,7 @@ export class SupplierPaymentDetailPage {
   protected readonly reference = signal('');
   protected readonly allocations = signal<EditableAllocation[]>([]);
 
+  protected readonly printing = signal(false);
   protected routePaymentId = '';
 
   protected readonly sortedAccounts = computed(() => [...this.accounts()].sort((a, b) => a.code.localeCompare(b.code)));
@@ -347,6 +351,27 @@ export class SupplierPaymentDetailPage {
       error: (err: unknown) => {
         this.loading.set(false);
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load payment.');
+      },
+    });
+  }
+
+  /** Phase 27b -- print/PDF, wired for this document type alongside the other eight the phase
+   * added. Opens the tab synchronously before the request so the browser attributes it to the
+   * click rather than blocking it as a popup. */
+  protected print(): void {
+    this.printing.set(true);
+    this.errorMessage.set(null);
+    const tab = openBlankTabForPrint();
+
+    this.printingService.printDocument(this.organizationId, 'Payment', this.routePaymentId).subscribe({
+      next: (blob) => {
+        this.printing.set(false);
+        openBlobInNewTab(blob, tab);
+      },
+      error: (err: unknown) => {
+        this.printing.set(false);
+        tab?.close();
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not print payment. Please try again.');
       },
     });
   }

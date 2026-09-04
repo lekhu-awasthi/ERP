@@ -379,6 +379,9 @@
           </table>
         </div>
 
+        <!-- Phase 27b: the "+ Add Terms and Conditions" block, seeded from a CustomTemplate. -->
+        <app-terms-editor [organizationId]="organizationId" [(terms)]="terms" [disabled]="!isDraft()" />
+
         @if (isDraft()) {
           <div class="d-flex gap-2 mt-3">
             <button type="button" class="btn btn-primary fw-bold" [disabled]="saving()" (click)="saveDraft()">

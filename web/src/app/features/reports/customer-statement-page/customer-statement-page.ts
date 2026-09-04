@@ -6,7 +6,7 @@ import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact, ContactStatementDto } from '../../../core/contacts/contacts.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
-import { triggerBlobDownload } from '../../../shared/download-file';
+import { openBlankTabForPrint, openBlobInNewTab, triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
@@ -46,6 +46,7 @@ export class CustomerStatementPage {
   protected readonly page = signal(1);
   protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
   protected readonly exporting = signal(false);
+  protected readonly confirming = signal(false);
 
   constructor() {
     this.contactsService.listAllContacts(this.organizationId, 'Customer').subscribe({ next: (c) => this.customers.set(c) });
@@ -92,6 +93,35 @@ export class CustomerStatementPage {
 
   protected exportFullDataset(): void {
     this.runExport(true, 1, this.pageSize());
+  }
+
+  /**
+   * Phase 27b -- the balance-confirmation letter (FR-11.3), CustomTemplate's second real consumer.
+   * It confirms the closing balance of exactly the period on screen, so it takes the To date rather
+   * than asking for another one.
+   */
+  protected printConfirmation(): void {
+    if (!this.contactId()) {
+      return;
+    }
+
+    this.confirming.set(true);
+    this.errorMessage.set(null);
+    const tab = openBlankTabForPrint();
+
+    this.contactsService
+      .printBalanceConfirmation(this.organizationId, 'Customer', this.contactId(), this.toDate())
+      .subscribe({
+        next: (blob) => {
+          this.confirming.set(false);
+          openBlobInNewTab(blob, tab);
+        },
+        error: (err: unknown) => {
+          this.confirming.set(false);
+          tab?.close();
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not build the balance confirmation.');
+        },
+      });
   }
 
   private runExport(full: boolean, page: number, pageSize: number): void {

@@ -21,6 +21,10 @@ public sealed class PurchaseOrderConfiguration : IEntityTypeConfiguration<Purcha
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.RowVersion).IsRowVersion();
+        // Phase 27b -- no HasMaxLength: the reference product's terms editor is a rich-text
+        // box with no visible cap, and a truncated legal clause is a worse failure than a
+        // wide column. nvarchar(max), same call this codebase already makes for Notes.
+        builder.Property(x => x.Terms);
         builder.Property(x => x.DiscountPct).HasPrecision(18, 4).IsRequired();
 
         builder.HasOne<Contact>().WithMany().HasForeignKey(x => x.ContactId).OnDelete(DeleteBehavior.Restrict);

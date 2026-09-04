@@ -15,6 +15,9 @@
           <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportCurrentView()">
             <i class="bi bi-download"></i> Export Current View
           </button>
+          <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" [disabled]="confirming()" (click)="printConfirmation()">
+            <i class="bi bi-envelope-paper"></i> Balance Confirmation
+          </button>
           <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
             <i class="bi bi-download"></i> Export Full Dataset
           </button>

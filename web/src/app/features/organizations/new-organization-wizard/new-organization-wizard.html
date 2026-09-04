@@ -418,6 +418,18 @@
         </div>
       </div>
 
+      <!-- Bot check (Phase 27b): the wizard's three steps are one server call, so one token. -->
+      <div class="mt-4">
+        <app-turnstile-widget
+          (verified)="onTurnstileVerified($event)"
+          (expired)="onTurnstileExpiredOrFailed()"
+          (failed)="onTurnstileExpiredOrFailed()"
+        ></app-turnstile-widget>
+        @if (turnstileTouched() && !turnstileToken()) {
+          <div class="text-danger small mt-2">Please complete the bot check before launching.</div>
+        }
+      </div>
+
       <!-- Actions -->
       <div class="d-flex justify-content-between align-items-center mt-4">
         <button type="button" class="btn btn-outline-secondary fw-bold px-4 py-2" (click)="back()" style="border-radius: 4px;">

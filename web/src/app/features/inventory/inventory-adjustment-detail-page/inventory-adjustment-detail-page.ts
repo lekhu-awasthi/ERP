@@ -19,6 +19,8 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
+import { PrintingService } from '../../../core/printing/printing.service';
+import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 
 interface EditableLine {
   key: number;
@@ -42,6 +44,7 @@ let nextLineKey = 1;
 })
 export class InventoryAdjustmentDetailPage {
   private readonly route = inject(ActivatedRoute);
+  private readonly printingService = inject(PrintingService);
   private readonly router = inject(Router);
   private readonly inventoryService = inject(InventoryService);
   private readonly catalogService = inject(CatalogService);
@@ -68,6 +71,7 @@ export class InventoryAdjustmentDetailPage {
 
   protected readonly directions: InventoryAdjustmentDirection[] = ['Increase', 'Decrease'];
 
+  protected readonly printing = signal(false);
   protected routeInventoryAdjustmentId = '';
 
   protected readonly isDraft = computed(() => {
@@ -276,6 +280,27 @@ export class InventoryAdjustmentDetailPage {
       error: (err: unknown) => {
         this.loading.set(false);
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load inventory adjustment.');
+      },
+    });
+  }
+
+  /** Phase 27b -- print/PDF, wired for this document type alongside the other eight the phase
+   * added. Opens the tab synchronously before the request so the browser attributes it to the
+   * click rather than blocking it as a popup. */
+  protected print(): void {
+    this.printing.set(true);
+    this.errorMessage.set(null);
+    const tab = openBlankTabForPrint();
+
+    this.printingService.printDocument(this.organizationId, 'InventoryAdjustment', this.routeInventoryAdjustmentId).subscribe({
+      next: (blob) => {
+        this.printing.set(false);
+        openBlobInNewTab(blob, tab);
+      },
+      error: (err: unknown) => {
+        this.printing.set(false);
+        tab?.close();
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not print inventory adjustment. Please try again.');
       },
     });
   }

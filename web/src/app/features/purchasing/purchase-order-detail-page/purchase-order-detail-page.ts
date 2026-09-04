@@ -17,6 +17,7 @@ import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
+import { TermsEditor } from '../../../shared/terms/terms-editor';
 
 interface EditableLine {
   key: number;
@@ -33,7 +34,7 @@ let nextLineKey = 1;
  * "Convert to Bill" instead of "Convert to Invoice". */
 @Component({
   selector: 'app-purchase-order-detail-page',
-  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor],
+  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor],
   templateUrl: './purchase-order-detail-page.html',
 })
 export class PurchaseOrderDetailPage {
@@ -67,6 +68,7 @@ export class PurchaseOrderDetailPage {
   protected readonly contactId = signal('');
   protected readonly date = signal(this.today());
   protected readonly reference = signal('');
+  protected readonly terms = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
   protected readonly discountPct = signal(0);
 
@@ -124,6 +126,7 @@ export class PurchaseOrderDetailPage {
         this.contactId.set('');
         this.date.set(this.today());
         this.reference.set('');
+        this.terms.set('');
         this.discountPct.set(0);
         this.lines.set([this.newLine()]);
       } else {
@@ -203,6 +206,7 @@ export class PurchaseOrderDetailPage {
       contactId: this.contactId(),
       date: this.date(),
       reference: this.reference() || null,
+      terms: this.terms() || null,
       lines,
       discountPct: this.discountPct(),
     };
@@ -356,6 +360,7 @@ export class PurchaseOrderDetailPage {
         this.contactId.set(purchaseOrder.contactId);
         this.date.set(purchaseOrder.date);
         this.reference.set(purchaseOrder.reference ?? '');
+        this.terms.set(purchaseOrder.terms ?? '');
         this.discountPct.set(purchaseOrder.discountPct);
         this.lines.set(
           purchaseOrder.lines.length > 0

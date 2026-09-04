@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -8,6 +8,7 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { TurnstileWidget } from '../../../shared/turnstile/turnstile-widget';
 
 type WizardStep = 1 | 2 | 3;
 type WorkspaceStatus = 'idle' | 'checking' | 'available' | 'taken';
@@ -29,7 +30,7 @@ const INDUSTRY_SUGGESTIONS = [
  */
 @Component({
   selector: 'app-new-organization-wizard',
-  imports: [ReactiveFormsModule, BsDateInput, NepaliDatePipe],
+  imports: [ReactiveFormsModule, BsDateInput, NepaliDatePipe, TurnstileWidget],
   templateUrl: './new-organization-wizard.html',
 })
 export class NewOrganizationWizard {
@@ -42,6 +43,13 @@ export class NewOrganizationWizard {
   protected readonly workspaceStatus = signal<WorkspaceStatus>('idle');
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
+
+  // Phase 27b -- the wizard's Cloudflare Turnstile check (FR-1.1), same wiring the register page
+  // has carried since 20g. Live shows a widget on step 1 and again on step 3; there is one server
+  // call behind all three steps, so the token that matters is the one on the step that submits.
+  private readonly turnstileWidget = viewChild(TurnstileWidget);
+  protected readonly turnstileToken = signal<string | null>(null);
+  protected readonly turnstileTouched = signal(false);
 
   protected readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(200)]],
@@ -108,8 +116,19 @@ export class NewOrganizationWizard {
     this.step.update((current) => (current > 1 ? ((current - 1) as WizardStep) : current));
   }
 
+  protected onTurnstileVerified(token: string): void {
+    this.turnstileToken.set(token);
+  }
+
+  protected onTurnstileExpiredOrFailed(): void {
+    this.turnstileToken.set(null);
+  }
+
   protected submit(): void {
-    if (this.form.invalid) {
+    this.turnstileTouched.set(true);
+
+    const turnstileToken = this.turnstileToken();
+    if (this.form.invalid || !turnstileToken) {
       return;
     }
 
@@ -137,6 +156,7 @@ export class NewOrganizationWizard {
         manufacturing: value.manufacturing,
         posRetail: value.posRetail,
         posRestaurant: value.posRestaurant,
+        turnstileToken,
       })
       .subscribe({
         next: (result) =>
@@ -146,6 +166,9 @@ export class NewOrganizationWizard {
         error: (err: unknown) => {
           this.submitting.set(false);
           this.errorMessage.set(extractErrorMessage(err) ?? 'Could not create organization. Please try again.');
+          // Cloudflare tokens are single-use, so a failed submit needs a fresh one before retrying.
+          this.turnstileToken.set(null);
+          this.turnstileWidget()?.reset();
         },
       });
   }

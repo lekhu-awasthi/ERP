@@ -1,3 +1,4 @@
+using ErpApp.Api.Printing;
 using ErpApp.Api.Reports;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
@@ -21,6 +22,7 @@ using ErpApp.Application.Contacts.Queries.ListActivities;
 using ErpApp.Application.Contacts.Queries.ListComments;
 using ErpApp.Application.Contacts.Queries.ListContactPersonnel;
 using ErpApp.Application.Contacts.Queries.ListContacts;
+using ErpApp.Application.Contacts.Queries.PrintBalanceConfirmation;
 using ErpApp.Application.Crm.Queries.ListSmsLogs;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
@@ -322,6 +324,32 @@ public static class ContactsEndpoints
                     page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
                 ct);
             return ReportSpreadsheetExporter.ExportContactStatement(result, "Supplier");
+        });
+
+        // Phase 27b -- the balance-confirmation letter (FR-11.3), CustomTemplate's second real
+        // consumer. Same hardcoded-discriminator shape as the statement pair above, and it rides
+        // the same two permission keys -- see PrintBalanceConfirmationQuery for why it has none of
+        // its own.
+        group.MapGet("/reports/customer-statement/confirmation", async (
+            Guid organizationId, Guid contactId, DateOnly asOfDate, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new PrintBalanceConfirmationQuery(organizationId, ContactType.Customer, contactId, asOfDate), ct);
+            return Results.File(
+                BalanceConfirmationPdfRenderer.Render(result),
+                "application/pdf",
+                $"CustomerBalanceConfirmation_{result.ContactCode}_{asOfDate:yyyy-MM-dd}.pdf");
+        });
+
+        group.MapGet("/reports/supplier-statement/confirmation", async (
+            Guid organizationId, Guid contactId, DateOnly asOfDate, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new PrintBalanceConfirmationQuery(organizationId, ContactType.Supplier, contactId, asOfDate), ct);
+            return Results.File(
+                BalanceConfirmationPdfRenderer.Render(result),
+                "application/pdf",
+                $"SupplierBalanceConfirmation_{result.ContactCode}_{asOfDate:yyyy-MM-dd}.pdf");
         });
 
         // Phase 26b -- Receivable/Payable. Same "hardcode the discriminator at the route" choice as

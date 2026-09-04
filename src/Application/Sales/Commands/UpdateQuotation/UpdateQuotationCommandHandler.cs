@@ -31,6 +31,8 @@ public sealed class UpdateQuotationCommandHandler(IAppDbContext db)
         var oldLines = quotation.Lines.ToList();
 
         quotation.UpdateHeader(request.ContactId, request.Date, request.ExpiryDate, request.Reference, request.DiscountPct);
+        quotation.SetTerms(request.Terms);
+
         quotation.ClearLines();
         foreach (var line in request.Lines)
         {

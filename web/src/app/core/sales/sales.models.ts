@@ -57,6 +57,8 @@ export interface Quotation {
   createdAt: string;
   discountPct: number;
   customStatusId: string | null;
+  /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
+  terms: string | null;
 }
 
 export interface QuotationLineDto extends QuotationLineInput {
@@ -76,6 +78,8 @@ export interface QuotationRequest {
   reference: string | null;
   lines: QuotationLineInput[];
   discountPct: number;
+  /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
+  terms: string | null;
 }
 
 export interface CreateQuotationResult {
@@ -132,6 +136,8 @@ export interface Invoice {
   referrerType: DocumentType | null;
   referrerId: string | null;
   discountPct: number;
+  /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
+  terms: string | null;
 }
 
 export interface InvoiceLineDto extends InvoiceLineInput {
@@ -166,6 +172,8 @@ export interface InvoiceRequest {
   exportCountry: string | null;
   exportDeclarationNo: string | null;
   exportDeclarationDate: string | null;
+  /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
+  terms: string | null;
 }
 
 export interface CreateInvoiceResult {
@@ -234,6 +242,8 @@ export interface SalesOrder {
   // Phase 27a: the tenant-defined pipeline value shown in the list grid's STAGE column, orthogonal
   // to `status` above. Same shape Quotation has carried since Phase 20b.
   customStatusId: string | null;
+  /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
+  terms: string | null;
 }
 
 export interface SalesOrderLineDto extends SalesOrderLineInput {
@@ -253,6 +263,8 @@ export interface SalesOrderRequest {
   reference: string | null;
   lines: SalesOrderLineInput[];
   discountPct: number;
+  /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
+  terms: string | null;
 }
 
 export interface CreateSalesOrderResult {
@@ -303,6 +315,8 @@ export interface CreditNote {
   referrerType: DocumentType | null;
   referrerId: string | null;
   discountPct: number;
+  /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
+  terms: string | null;
 }
 
 export interface CreditNoteLineDto extends CreditNoteLineInput {
@@ -324,6 +338,8 @@ export interface CreditNoteRequest {
   referrerType?: DocumentType | null;
   referrerId?: string | null;
   discountPct: number;
+  /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
+  terms: string | null;
 }
 
 export interface CreateCreditNoteResult {

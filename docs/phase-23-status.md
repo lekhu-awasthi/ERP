@@ -1,4 +1,4 @@
-# Phase 23 — Nepali localization & parity odds-and-ends
+﻿# Phase 23 — Nepali localization & parity odds-and-ends
 
 ## TL;DR
 
@@ -96,6 +96,12 @@ regardless of the user's setting**. Closing that gap means either a second conve
 sending the preference to the server; both are real work and neither is in this phase. It is a known
 limitation, not an oversight.
 
+> **Closed in Phase 27b** (`docs/phase-27b-status.md`, Decision B), by the second of those two routes:
+> the client sends the preference as an `X-Calendar` header and an ambient `RequestCalendar` serves
+> the print pipeline and every `.xlsx` export. The conversion table was not duplicated — Phase 26b had
+> already ported it once as `Domain/Common/BsCalendar`. The **business dates vs audit timestamps**
+> boundary stated below is exactly the boundary 27b implements; download file names stay AD too.
+
 **Instants versus business dates.** The sweep converted **business dates** — `DateOnly` values on the
 wire, rendered bare (`item.date`, `row.entryDate`, `dueDate`, `chequeDate`, `occurrenceDate`,
 `accountingStartDate`, and FR-5.8's `exportDeclarationDate`): 40 renders across 35 templates.
@@ -163,7 +169,7 @@ configuration, a command, a query and permission plumbing, for one boolean).
 - The preference **does not follow the user across devices or browsers**. NFR-1.1 asks for "switchable
   per user preference" and does not ask for synchronisation. `DatePreferenceService` is the single
   seam to move behind an endpoint if that changes.
-- **Server-rendered output cannot read it** — see Decision A's note on PDFs and `.xlsx`.
+- **Server-rendered output cannot read it** — see Decision A's note on PDFs and `.xlsx`. (Closed in Phase 27b.)
 
 The value is a signal, so flipping it re-renders every date immediately with no reload and no
 per-page subscription.

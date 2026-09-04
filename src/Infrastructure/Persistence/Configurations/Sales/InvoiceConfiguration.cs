@@ -27,6 +27,10 @@ public sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.RowVersion).IsRowVersion();
+        // Phase 27b -- no HasMaxLength: the reference product's terms editor is a rich-text
+        // box with no visible cap, and a truncated legal clause is a worse failure than a
+        // wide column. nvarchar(max), same call this codebase already makes for Notes.
+        builder.Property(x => x.Terms);
         // architecture-spec.md §3.3's document-conversion columns -- null for a standalone Invoice,
         // set when created via GetInvoiceConversionTemplate's pre-filled CreateInvoiceCommand.
         builder.Property(x => x.ReferrerType).HasConversion<string>().HasMaxLength(30);

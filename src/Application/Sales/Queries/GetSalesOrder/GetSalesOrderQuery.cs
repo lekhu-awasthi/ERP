@@ -27,4 +27,5 @@ public sealed record SalesOrderDetailDto(
     DateTimeOffset? ApprovedAt,
     DateTimeOffset CreatedAt,
     decimal DiscountPct,
+    string? Terms,
     IReadOnlyList<SalesOrderLineDto> Lines);

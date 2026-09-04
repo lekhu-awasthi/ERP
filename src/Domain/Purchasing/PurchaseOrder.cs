@@ -32,6 +32,14 @@ public sealed class PurchaseOrder
     public decimal DiscountPct { get; private set; }
     public Guid? CustomStatusId { get; private set; }
 
+    /// <summary>Phase 27b -- the "+ Add Terms and Conditions" block's stored text (FR-11.3's
+    /// CustomTemplate finding its first consumer). Free text on the document, <b>not</b> a pointer
+    /// to the CustomTemplate it was seeded from: the reference product pre-fills the editor from a
+    /// chosen template and then lets the user edit it freely (confirm-live 2026-09-03), so the
+    /// template is a starting point, and a document must keep the words it was actually issued with
+    /// even after that template is edited or deleted.</summary>
+    public string? Terms { get; private set; }
+
     public IReadOnlyList<PurchaseOrderLine> Lines => _lines;
 
     private PurchaseOrder()
@@ -135,6 +143,15 @@ public sealed class PurchaseOrder
     public void SetCustomStatus(Guid? customStatusId)
     {
         CustomStatusId = customStatusId;
+    }
+
+    /// <summary>Draft-only, unlike <c>SetCustomStatus</c>: terms are part of what the document
+    /// says, so they follow the same rule as every other header field rather than the
+    /// orthogonal-metadata rule Custom Status follows.</summary>
+    public void SetTerms(string? terms)
+    {
+        EnsureDraft();
+        Terms = string.IsNullOrWhiteSpace(terms) ? null : terms.Trim();
     }
 
     private void EnsureDraft()

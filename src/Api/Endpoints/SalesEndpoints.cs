@@ -76,7 +76,7 @@ public static class SalesEndpoints
             var result = await sender.Send(
                 new CreateQuotationCommand(
                     organizationId, request.ContactId, request.Date, request.ExpiryDate, request.Reference, request.Lines,
-                    request.DiscountPct),
+                    request.DiscountPct, request.Terms),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/quotations/{result.Id}", result);
         });
@@ -87,7 +87,7 @@ public static class SalesEndpoints
             var result = await sender.Send(
                 new UpdateQuotationCommand(
                     organizationId, id, request.ContactId, request.Date, request.ExpiryDate, request.Reference, request.Lines,
-                    request.DiscountPct),
+                    request.DiscountPct, request.Terms),
                 ct);
             return Results.Ok(result);
         });
@@ -134,7 +134,8 @@ public static class SalesEndpoints
                 new CreateInvoiceCommand(
                     organizationId, request.ContactId, request.WarehouseId, request.Date, request.Reference, request.Lines,
                     request.ReferrerType, request.ReferrerId, request.DiscountPct,
-                    request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate),
+                    request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate,
+                    request.Terms),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/invoices/{result.Id}", result);
         });
@@ -146,7 +147,8 @@ public static class SalesEndpoints
                 new UpdateInvoiceCommand(
                     organizationId, id, request.ContactId, request.WarehouseId, request.Date, request.Reference, request.Lines,
                     request.DiscountPct,
-                    request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate),
+                    request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate,
+                    request.Terms),
                 ct);
             return Results.Ok(result);
         });
@@ -204,7 +206,7 @@ public static class SalesEndpoints
             var result = await sender.Send(
                 new CreateSalesOrderCommand(
                     organizationId, request.ContactId, request.Date, request.DeliveryDate, request.Reference, request.Lines,
-                    request.DiscountPct),
+                    request.DiscountPct, request.Terms),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/sales-orders/{result.Id}", result);
         });
@@ -215,7 +217,7 @@ public static class SalesEndpoints
             var result = await sender.Send(
                 new UpdateSalesOrderCommand(
                     organizationId, id, request.ContactId, request.Date, request.DeliveryDate, request.Reference, request.Lines,
-                    request.DiscountPct),
+                    request.DiscountPct, request.Terms),
                 ct);
             return Results.Ok(result);
         });
@@ -258,7 +260,7 @@ public static class SalesEndpoints
             var result = await sender.Send(
                 new CreateCreditNoteCommand(
                     organizationId, request.ContactId, request.Date, request.Reference, request.Lines,
-                    request.ReferrerType, request.ReferrerId, request.DiscountPct),
+                    request.ReferrerType, request.ReferrerId, request.DiscountPct, request.Terms),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/credit-notes/{result.Id}", result);
         });
@@ -268,7 +270,8 @@ public static class SalesEndpoints
         {
             var result = await sender.Send(
                 new UpdateCreditNoteCommand(
-                    organizationId, id, request.ContactId, request.Date, request.Reference, request.Lines, request.DiscountPct),
+                    organizationId, id, request.ContactId, request.Date, request.Reference, request.Lines, request.DiscountPct,
+                    request.Terms),
                 ct);
             return Results.Ok(result);
         });
@@ -395,14 +398,18 @@ public static class SalesEndpoints
 
     private sealed record QuotationRequest(
         Guid ContactId, DateOnly Date, DateOnly? ExpiryDate, string? Reference, IReadOnlyList<QuotationLineInput> Lines,
-        decimal DiscountPct = 0);
+        decimal DiscountPct = 0,
+        // Phase 27b -- the "+ Add Terms and Conditions" block's text.
+        string? Terms = null);
 
     private sealed record InvoiceRequest(
         Guid ContactId, Guid WarehouseId, DateOnly Date, string? Reference, IReadOnlyList<InvoiceLineInput> Lines,
         DocumentType? ReferrerType = null, Guid? ReferrerId = null, decimal DiscountPct = 0,
         // FR-5.8. All optional, including when IsExport is true (live-confirmed).
         bool IsExport = false, string? ExportCountry = null, string? ExportDeclarationNo = null,
-        DateOnly? ExportDeclarationDate = null);
+        DateOnly? ExportDeclarationDate = null,
+        // Phase 27b -- the "+ Add Terms and Conditions" block's text.
+        string? Terms = null);
 
     private sealed record ApproveInvoiceRequest(bool OverrideWarning = false);
 
@@ -410,9 +417,13 @@ public static class SalesEndpoints
 
     private sealed record SalesOrderRequest(
         Guid ContactId, DateOnly Date, DateOnly? DeliveryDate, string? Reference, IReadOnlyList<SalesOrderLineInput> Lines,
-        decimal DiscountPct = 0);
+        decimal DiscountPct = 0,
+        // Phase 27b -- the "+ Add Terms and Conditions" block's text.
+        string? Terms = null);
 
     private sealed record CreditNoteRequest(
         Guid ContactId, DateOnly Date, string? Reference, IReadOnlyList<CreditNoteLineInput> Lines,
-        DocumentType? ReferrerType = null, Guid? ReferrerId = null, decimal DiscountPct = 0);
+        DocumentType? ReferrerType = null, Guid? ReferrerId = null, decimal DiscountPct = 0,
+        // Phase 27b -- the "+ Add Terms and Conditions" block's text.
+        string? Terms = null);
 }

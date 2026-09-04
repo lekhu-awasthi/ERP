@@ -132,7 +132,42 @@ public static class DocumentMechanisms
     public static readonly IReadOnlyList<DocumentType> DetailTabs = Transactional;
 
     /// <summary>
-    /// Every <see cref="DocumentType"/> that is deliberately outside all four sweeps, with the
+    /// Types whose detail page offers "View Print Preview" -- Phase 20d built the pipeline for six
+    /// of them, Phase 27b wired the remaining nine.
+    ///
+    /// <para><b>All 15, with no exceptions.</b> The 2026-09-03 confirm-live pass opened every one of
+    /// the nine unwired types on the reference tenant and found the action present on all of them,
+    /// including both production documents -- which the roadmap had flagged as genuinely unknown.
+    /// Print is not gated by module or by document richness: a Warehouse Transfer, which carries no
+    /// money at all, prints exactly as an Invoice does. <c>Send Email</c> is the narrower action of
+    /// the two, appearing only on Invoice, Credit Note and Payment; it is Phase 30's concern, not
+    /// this list's.</para>
+    /// </summary>
+    public static readonly IReadOnlyList<DocumentType> Printable = Transactional;
+
+    /// <summary>
+    /// Types carrying the "+ Add Terms and Conditions" block on their create/edit form, seeded from
+    /// a <c>CustomTemplate</c> of type <c>TermsAndConditions</c> (Phase 27b).
+    ///
+    /// <para><b>Five, and the roadmap said two.</b> The roadmap scoped this as "Quotation/Invoice";
+    /// the live pass opened all eight line-item add forms and found the block on Quotation, Sales
+    /// Order, Invoice, Credit Note <i>and</i> Purchase Order, and absent from Purchase Bill, Expense
+    /// and Debit Note. The dividing line is what the document <i>is</i>: the five that carry terms
+    /// are offers and agreements this organization issues, the three that do not are records of
+    /// something already agreed elsewhere. Same shape of correction as Phase 27a's Custom Fields
+    /// count -- the roadmap's number was arithmetic, this one is a count of real screens.</para>
+    /// </summary>
+    public static readonly IReadOnlyList<DocumentType> TermsAndConditions =
+    [
+        DocumentType.Quotation,
+        DocumentType.SalesOrder,
+        DocumentType.Invoice,
+        DocumentType.CreditNote,
+        DocumentType.PurchaseOrder,
+    ];
+
+    /// <summary>
+    /// Every <see cref="DocumentType"/> that is deliberately outside every sweep, with the
     /// reason. The guard test requires that this dictionary plus <see cref="Transactional"/> cover
     /// the enum exactly -- so a new member added by a later phase fails the build until someone
     /// decides which side it falls on.

@@ -42,6 +42,7 @@ public sealed class GetCreditNoteQueryHandler(IAppDbContext db) : IRequestHandle
             creditNote.ReferrerType,
             creditNote.ReferrerId,
             creditNote.DiscountPct,
+            creditNote.Terms,
             creditNote.Lines.Select(x => new CreditNoteLineDto(
                 x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount)).ToList(),
             glLines);

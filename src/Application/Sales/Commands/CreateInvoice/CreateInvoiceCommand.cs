@@ -21,7 +21,10 @@ public sealed record CreateInvoiceCommand(
     bool IsExport = false,
     string? ExportCountry = null,
     string? ExportDeclarationNo = null,
-    DateOnly? ExportDeclarationDate = null)
+    DateOnly? ExportDeclarationDate = null,
+    // Phase 27b -- the "+ Add Terms and Conditions" block's text, pre-filled client-side from a
+    // CustomTemplate and editable from there. Optional and trailing so no existing caller changes.
+    string? Terms = null)
     : IRequest<CreateInvoiceResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequest
 {
     public string PermissionKey => PermissionKeys.InvoiceCreate;

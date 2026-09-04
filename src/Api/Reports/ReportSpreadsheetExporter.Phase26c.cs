@@ -1,6 +1,7 @@
 using ClosedXML.Excel;
 using ErpApp.Application.Accounting.Queries.ExceptionalReport;
 using ErpApp.Application.Accounting.Queries.NetTradingAssets;
+using ErpApp.Application.Common.Formatting;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Identity.Queries.UserLog;
 using ErpApp.Application.Inventory.Queries.InventoryLedgerReport;
@@ -396,7 +397,7 @@ public static partial class ReportSpreadsheetExporter
             },
             XlsxContentType,
             // Not FileName(): a planning report has no period, it has a product and a quantity.
-            $"ProductionPlanning_{report.ProductName}.xlsx");
+            $"ProductionPlanning_{report.ProductName}{RequestCalendar.FileNameMarker}.xlsx");
 
     private static int WriteNetTradingAssetsRow(
         IXLWorksheet sheet, int line, NetTradingAssetsRowDto row, int indent)
@@ -422,5 +423,9 @@ public static partial class ReportSpreadsheetExporter
         return line;
     }
 
-    private static string IsoDate(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    /// <summary>Phase 27b -- the single chokepoint every business date in this partial passes
+    /// through, so honouring the request's calendar was a one-line change here. Audit timestamps
+    /// (User Log's OccurredAt) deliberately do not come through here: they carry a time of day and
+    /// stay AD, exactly phase-23 Decision A's boundary.</summary>
+    private static string IsoDate(DateOnly date) => RequestCalendar.Format(date);
 }

@@ -28,7 +28,8 @@ public class TenantFeatureEnforcementTests
             MultiCurrency: false,
             Manufacturing: false,
             PosRetail: false,
-            PosRestaurant: false);
+            PosRestaurant: false,
+            TurnstileToken: "turnstile-token");
     }
 
     [Fact]
@@ -39,7 +40,7 @@ public class TenantFeatureEnforcementTests
         // checkbox must still be able to create exactly one -- otherwise they could never invoice.
         var db = TestAppDbContext.Create();
         var currentUser = new FakeCurrentUserService(Guid.NewGuid());
-        var organization = await new CreateOrganizationCommandHandler(db, currentUser).Handle(
+        var organization = await new CreateOrganizationCommandHandler(db, currentUser, new FakeTurnstileVerifier()).Handle(
             OrganizationCommand("single-warehouse-org", multipleWarehouses: false), CancellationToken.None);
 
         var warehouse = await new CreateWarehouseCommandHandler(db).Handle(
@@ -53,7 +54,7 @@ public class TenantFeatureEnforcementTests
     {
         var db = TestAppDbContext.Create();
         var currentUser = new FakeCurrentUserService(Guid.NewGuid());
-        var organization = await new CreateOrganizationCommandHandler(db, currentUser).Handle(
+        var organization = await new CreateOrganizationCommandHandler(db, currentUser, new FakeTurnstileVerifier()).Handle(
             OrganizationCommand("capped-org", multipleWarehouses: false), CancellationToken.None);
 
         await new CreateWarehouseCommandHandler(db).Handle(
@@ -71,7 +72,7 @@ public class TenantFeatureEnforcementTests
     {
         var db = TestAppDbContext.Create();
         var currentUser = new FakeCurrentUserService(Guid.NewGuid());
-        var organization = await new CreateOrganizationCommandHandler(db, currentUser).Handle(
+        var organization = await new CreateOrganizationCommandHandler(db, currentUser, new FakeTurnstileVerifier()).Handle(
             OrganizationCommand("multi-warehouse-org", multipleWarehouses: true), CancellationToken.None);
 
         await new CreateWarehouseCommandHandler(db).Handle(
@@ -87,9 +88,9 @@ public class TenantFeatureEnforcementTests
     {
         var db = TestAppDbContext.Create();
         var currentUser = new FakeCurrentUserService(Guid.NewGuid());
-        var capped = await new CreateOrganizationCommandHandler(db, currentUser).Handle(
+        var capped = await new CreateOrganizationCommandHandler(db, currentUser, new FakeTurnstileVerifier()).Handle(
             OrganizationCommand("org-a", multipleWarehouses: false), CancellationToken.None);
-        var uncapped = await new CreateOrganizationCommandHandler(db, currentUser).Handle(
+        var uncapped = await new CreateOrganizationCommandHandler(db, currentUser, new FakeTurnstileVerifier()).Handle(
             OrganizationCommand("org-b", multipleWarehouses: true), CancellationToken.None);
 
         foreach (var organizationId in new[] { capped.OrganizationId, uncapped.OrganizationId })
@@ -112,7 +113,7 @@ public class TenantFeatureEnforcementTests
     {
         var db = TestAppDbContext.Create();
         var currentUser = new FakeCurrentUserService(Guid.NewGuid());
-        var organization = await new CreateOrganizationCommandHandler(db, currentUser).Handle(
+        var organization = await new CreateOrganizationCommandHandler(db, currentUser, new FakeTurnstileVerifier()).Handle(
             OrganizationCommand("subscription-org", multipleWarehouses: true), CancellationToken.None);
 
         var result = await new GetTenantSubscriptionQueryHandler(db).Handle(
