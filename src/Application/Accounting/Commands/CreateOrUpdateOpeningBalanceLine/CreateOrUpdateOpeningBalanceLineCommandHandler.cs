@@ -36,19 +36,29 @@ public sealed class CreateOrUpdateOpeningBalanceLineCommandHandler(IAppDbContext
                     x => x.SourceDocumentType == DocumentType.OpeningBalance && x.SourceDocumentId == line.Id, cancellationToken);
             db.GlJournalEntries.Add(GlJournalEntry.PostReversalOf(priorEntry));
 
-            line.Update(request.Debit, request.Credit);
+            line.Update(request.Debit, request.Credit, request.CurrencyCode, request.ExchangeRate);
         }
         else
         {
-            line = OpeningBalanceLine.Create(request.OrganizationId, request.AccountId, request.Debit, request.Credit);
+            line = OpeningBalanceLine.Create(
+                request.OrganizationId, request.AccountId, request.Debit, request.Credit,
+                request.CurrencyCode, request.ExchangeRate);
             db.OpeningBalanceLines.Add(line);
         }
 
         var equityAccountId = await EnsureEquityAccountAsync(request.OrganizationId, cancellationToken);
 
+        // Phase 28: the opening balance is stored in the row's own currency (the live Opening
+        // Balances form's Currency + Conversion Rate pair) and posted in the base currency. One
+        // converted amount serves both legs, so the entry balances exactly with no residue -- this
+        // is the same "convert the input, not the finished lines" rule the document types follow,
+        // in its simplest possible form.
+        var debitBase = ExchangeRates.ToBase(request.Debit, line.ExchangeRate);
+        var creditBase = ExchangeRates.ToBase(request.Credit, line.ExchangeRate);
+
         var lines = request.Debit > 0
-            ? new List<GlLineInput> { new(request.AccountId, request.Debit, 0m), new(equityAccountId, 0m, request.Debit) }
-            : new List<GlLineInput> { new(equityAccountId, request.Credit, 0m), new(request.AccountId, 0m, request.Credit) };
+            ? new List<GlLineInput> { new(request.AccountId, debitBase, 0m), new(equityAccountId, 0m, debitBase) }
+            : new List<GlLineInput> { new(equityAccountId, creditBase, 0m), new(request.AccountId, 0m, creditBase) };
 
         db.GlJournalEntries.Add(GlJournalEntry.Post(request.OrganizationId, DocumentType.OpeningBalance, line.Id, lines));
 

@@ -46,6 +46,8 @@ public sealed class GetDebitNoteQueryHandler(IAppDbContext db) : IRequestHandler
             debitNote.DiscountPct,
             debitNote.Lines.Select(x => new DebitNoteLineDto(
                 x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount)).ToList(),
-            glLines);
+            glLines,
+            debitNote.CurrencyCode,
+            debitNote.ExchangeRate);
     }
 }

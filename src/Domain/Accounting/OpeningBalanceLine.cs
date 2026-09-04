@@ -1,3 +1,5 @@
+using ErpApp.Domain.Common;
+
 namespace ErpApp.Domain.Accounting;
 
 /// <summary>
@@ -26,13 +28,30 @@ public sealed class OpeningBalanceLine
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
+    /// <summary>
+    /// Phase 28 (FR-2.5). The confirmed-live Opening Balances row form carries <b>Currency +
+    /// Conversion Rate</b> beside Amount and DR/CR, and the Conversion Rate control is the
+    /// identical widget the Invoice and Customer Payment forms use for Exchange Rate To NPR --
+    /// manually entered, disabled and pinned to 1 while the currency is NPR (confirmed live
+    /// 2026-09-04). So it is a per-row <i>document</i> rate, not a separate as-at revaluation rate,
+    /// and it is named ExchangeRate here rather than ConversionRate so the eleven transactional
+    /// aggregates and this one can be read with one vocabulary.
+    /// </summary>
+    public string CurrencyCode { get; private set; } = CurrencyCatalog.BaseCode;
+
+    /// <inheritdoc cref="CurrencyCode"/>
+    public decimal ExchangeRate { get; private set; } = ExchangeRates.BaseRate;
+
     private OpeningBalanceLine()
     {
     }
 
-    public static OpeningBalanceLine Create(Guid organizationId, Guid accountId, decimal debit, decimal credit)
+    public static OpeningBalanceLine Create(
+        Guid organizationId, Guid accountId, decimal debit, decimal credit,
+        string? currencyCode = null, decimal? exchangeRate = null)
     {
         ValidateSides(debit, credit);
+        var (code, rate) = ExchangeRates.Validate(currencyCode, exchangeRate);
 
         var now = DateTimeOffset.UtcNow;
         return new OpeningBalanceLine
@@ -42,16 +61,21 @@ public sealed class OpeningBalanceLine
             AccountId = accountId,
             Debit = debit,
             Credit = credit,
+            CurrencyCode = code,
+            ExchangeRate = rate,
             CreatedAt = now,
             UpdatedAt = now,
         };
     }
 
-    public void Update(decimal debit, decimal credit)
+    public void Update(decimal debit, decimal credit, string? currencyCode = null, decimal? exchangeRate = null)
     {
         ValidateSides(debit, credit);
+        var (code, rate) = ExchangeRates.Validate(currencyCode, exchangeRate);
         Debit = debit;
         Credit = credit;
+        CurrencyCode = code;
+        ExchangeRate = rate;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 

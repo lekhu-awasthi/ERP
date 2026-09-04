@@ -5,6 +5,7 @@ using ErpApp.Application.Tenancy.Commands.AcceptInvitation;
 using ErpApp.Application.Tenancy.Commands.AcceptRequest;
 using ErpApp.Application.Tenancy.Commands.CreateOrganization;
 using ErpApp.Application.Tenancy.Commands.CreateRole;
+using ErpApp.Application.Tenancy.Commands.CreateCurrency;
 using ErpApp.Application.Tenancy.Commands.CreateWarehouse;
 using ErpApp.Application.Tenancy.Commands.DeleteRole;
 using ErpApp.Application.Tenancy.Commands.InviteUser;
@@ -13,9 +14,11 @@ using ErpApp.Application.Tenancy.Commands.UpdateAccountingDefaults;
 using ErpApp.Application.Tenancy.Commands.UpdateMembershipRole;
 using ErpApp.Application.Tenancy.Commands.UpdateRole;
 using ErpApp.Application.Tenancy.Commands.UpdateRolePermissions;
+using ErpApp.Application.Tenancy.Commands.UpdateCurrency;
 using ErpApp.Application.Tenancy.Commands.UpdateWarehouse;
 using ErpApp.Application.Tenancy.Queries.CheckWorkspaceNameAvailability;
 using ErpApp.Application.Tenancy.Queries.GetAccountingDefaults;
+using ErpApp.Application.Tenancy.Queries.ListCurrencyCatalog;
 using ErpApp.Application.Tenancy.Queries.GetOrganizationLockDate;
 using ErpApp.Application.Tenancy.Queries.GetTenantSubscription;
 using ErpApp.Application.Tenancy.Queries.GetRolePermissionMatrix;
@@ -173,6 +176,51 @@ public static class OrganizationEndpoints
             return Results.NoContent();
         });
 
+        // Phase 28 (FR-2.5) -- the tenant's active-currency list, rendered on the Organization's own
+        // Features tab in the reference product rather than under Configurations (confirmed live
+        // 2026-09-04), which is why it sits on this endpoint group beside warehouses rather than in
+        // ConfigurationEndpoints. List/Delete ride the generic lookup pair; Create and Update are
+        // concrete because each carries a rule the generic pair cannot express.
+        group.MapGet("/{organizationId:guid}/currencies", async (
+            Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListLookupsQuery<Currency>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+            return Results.Ok(result);
+        });
+
+        // The "Select Currency" picker behind Add New Currency: the standard catalog, flagged with
+        // what this tenant has already activated.
+        group.MapGet("/{organizationId:guid}/currencies/catalog", async (
+            Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new ListCurrencyCatalogQuery(organizationId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/{organizationId:guid}/currencies", async (
+            Guid organizationId, CreateCurrencyRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new CreateCurrencyCommand(organizationId, request.Code, request.Name, request.Symbol), ct);
+            return Results.Created($"/api/organizations/{organizationId}/currencies/{result.Id}", result);
+        });
+
+        group.MapPut("/{organizationId:guid}/currencies/{id:guid}", async (
+            Guid organizationId, Guid id, UpdateCurrencyRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdateCurrencyCommand(organizationId, id, request.Name, request.Symbol, request.IsActive), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapDelete("/{organizationId:guid}/currencies/{id:guid}", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteLookupCommand<Currency>(organizationId, id), ct);
+            return Results.NoContent();
+        });
+
         // Phase 13 -- powers the Task feature's Assigned-To picker (see
         // ListOrganizationMembersQuery's own doc comment for why it's gated on TaskView rather
         // than a standalone "view members" key nothing else needs yet).
@@ -207,7 +255,9 @@ public static class OrganizationEndpoints
                     request.DefaultInventoryAccountId,
                     request.DefaultCogsAccountId,
                     request.DefaultInventoryAdjustmentAccountId,
-                    request.DefaultProductionCostAccountId),
+                    request.DefaultProductionCostAccountId,
+                    request.DefaultForexGainAccountId,
+                    request.DefaultForexLossAccountId),
                 ct);
             return Results.Ok(result);
         });
@@ -243,6 +293,10 @@ public static class OrganizationEndpoints
 
     private sealed record UpdateWarehouseRequest(string Name, bool IsActive);
 
+    private sealed record CreateCurrencyRequest(string Code, string? Name = null, string? Symbol = null);
+
+    private sealed record UpdateCurrencyRequest(string Name, string Symbol, bool IsActive);
+
     private sealed record UpdateAccountingDefaultsRequest(
         Guid? DefaultSalesAccountId,
         Guid? DefaultAccountsReceivableId,
@@ -254,7 +308,12 @@ public static class OrganizationEndpoints
         Guid? DefaultInventoryAccountId,
         Guid? DefaultCogsAccountId,
         Guid? DefaultInventoryAdjustmentAccountId,
-        Guid? DefaultProductionCostAccountId);
+        Guid? DefaultProductionCostAccountId,
+        // Phase 28 (FR-2.5) -- the two realised-forex accounts. Optional and trailing, so a client
+        // that predates this phase keeps working; but they must exist HERE and not only on the
+        // command, or they bind to null forever (phase-27b's Terms).
+        Guid? DefaultForexGainAccountId = null,
+        Guid? DefaultForexLossAccountId = null);
 
     private sealed record CreateOrganizationRequest(
         string Name,

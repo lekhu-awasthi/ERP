@@ -29,6 +29,9 @@ public sealed class UpdateCreditNoteCommandHandler(IAppDbContext db)
         var oldLines = creditNote.Lines.ToList();
 
         creditNote.UpdateHeader(request.ContactId, request.Date, request.Reference, request.DiscountPct);
+
+        // Phase 28 -- see the Create handler's note. Draft-only, enforced by the aggregate.
+        creditNote.SetCurrency(request.CurrencyCode, request.ExchangeRate);
         creditNote.SetTerms(request.Terms);
 
         creditNote.ClearLines();

@@ -59,9 +59,18 @@ public sealed class ApprovePurchaseBillCommandHandler(
             throw new ConflictException("A purchase bill needs at least one line to be approved.");
         }
 
+        // Phase 28 (FR-2.5): the fold. The document stores its amounts in its own currency; the
+        // general ledger is denominated in the base currency, so every line amount is converted
+        // here, before the posting rule runs. Doing it here rather than on the finished GlLineInput
+        // list is what keeps the entry balanced by construction -- the rule derives its balancing
+        // leg as a sum of these very numbers. See ExchangeRates' doc comment.
         var postingInput = await PurchaseBillAccountResolver.ResolveAsync(
-            db, request.OrganizationId, purchaseBill.Lines.Select(x => (x.ProductId, x.Amount, x.VatAmount)),
-            purchaseBill.TdsAmount, cancellationToken);
+            db, request.OrganizationId,
+            purchaseBill.Lines.Select(x => (
+                x.ProductId,
+                ExchangeRates.ToBase(x.Amount, purchaseBill.ExchangeRate),
+                ExchangeRates.ToBase(x.VatAmount, purchaseBill.ExchangeRate))),
+            ExchangeRates.ToBase(purchaseBill.TdsAmount, purchaseBill.ExchangeRate), cancellationToken);
 
         var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.PurchaseBill, cancellationToken);
 
@@ -80,8 +89,16 @@ public sealed class ApprovePurchaseBillCommandHandler(
                 continue;
             }
 
+            // Phase 28: FIFO layers are a base-currency store -- every later COGS posting and
+            // every inventory valuation reads them without knowing which currency the bill that
+            // created them was written in. So the unit cost is converted on the way in, at the
+            // unit-cost scale rather than the posted-amount scale (see ExchangeRates.ToBaseUnitCost).
+            // This is the one place a document's own Rate reaches the stock ledger; CreditNote and
+            // the Void paths re-increment from a stored CogsUnitCost/ConsumedUnitCost, which is
+            // already base currency and must not be converted a second time.
             await stockLedgerService.IncrementAsync(
-                request.OrganizationId, line.ProductId, purchaseBill.WarehouseId, line.Quantity, line.Rate,
+                request.OrganizationId, line.ProductId, purchaseBill.WarehouseId, line.Quantity,
+                ExchangeRates.ToBaseUnitCost(line.Rate, purchaseBill.ExchangeRate),
                 DocumentType.PurchaseBill, purchaseBill.Id, purchaseBill.Date, cancellationToken);
         }
 

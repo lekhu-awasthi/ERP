@@ -10,6 +10,10 @@ import {
   CreateOrganizationResponse,
   CreateRoleRequest,
   CreateRoleResult,
+  CreateCurrencyRequest,
+  CreateCurrencyResult,
+  Currency,
+  CurrencyCatalogEntry,
   CreateWarehouseRequest,
   CreateWarehouseResult,
   InviteUserRequest,
@@ -24,6 +28,8 @@ import {
   UpdateRolePermissionsRequest,
   UpdateRoleRequest,
   UpdateRoleResult,
+  UpdateCurrencyRequest,
+  UpdateCurrencyResult,
   UpdateWarehouseRequest,
   UpdateWarehouseResult,
   Warehouse,
@@ -99,6 +105,32 @@ export class OrganizationsService {
 
   deleteWarehouse(organizationId: string, id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${organizationId}/warehouses/${id}`, { withCredentials: true });
+  }
+
+  listCurrencies(organizationId: string): Observable<Currency[]> {
+    return this.listAll<Currency>(`${this.baseUrl}/${organizationId}/currencies`);
+  }
+
+  listCurrencyCatalog(organizationId: string): Observable<CurrencyCatalogEntry[]> {
+    return this.http.get<CurrencyCatalogEntry[]>(`${this.baseUrl}/${organizationId}/currencies/catalog`, {
+      withCredentials: true,
+    });
+  }
+
+  createCurrency(organizationId: string, request: CreateCurrencyRequest): Observable<CreateCurrencyResult> {
+    return this.http.post<CreateCurrencyResult>(`${this.baseUrl}/${organizationId}/currencies`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updateCurrency(organizationId: string, id: string, request: UpdateCurrencyRequest): Observable<UpdateCurrencyResult> {
+    return this.http.put<UpdateCurrencyResult>(`${this.baseUrl}/${organizationId}/currencies/${id}`, request, {
+      withCredentials: true,
+    });
+  }
+
+  deleteCurrency(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${organizationId}/currencies/${id}`, { withCredentials: true });
   }
 
   listMembers(organizationId: string): Observable<OrganizationMember[]> {

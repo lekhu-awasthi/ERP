@@ -103,7 +103,12 @@ public sealed record PrintableDocumentDto(
     IReadOnlyList<PrintableFieldDto> Summary,
     string? Notes,
     string? Terms,
-    string? CalendarNote);
+    string? CalendarNote,
+    /// <summary>Phase 28 -- the currency every money value in this document is denominated in.
+    /// The renderer prefixes the emphasised summary line with it, exactly as the reference
+    /// product's Net Total does; nothing else in the layout is currency-aware, because nothing
+    /// else in the reference layout is either.</summary>
+    string CurrencyCode = "NPR");
 
 /// <summary>A label/value pair -- the header block under the title, and the summary block at the
 /// foot. <paramref name="Emphasise"/> is the one bold line a summary usually ends on (Grand Total,

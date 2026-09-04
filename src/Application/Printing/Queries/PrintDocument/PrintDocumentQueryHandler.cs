@@ -79,7 +79,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
 
         return await BuildProductDocumentAsync(
             request, organization, templateName, "Quotation", document.Code, document.Date, document.Reference,
-            document.ContactId, "Quotation For", header, lines, document.DiscountPct, document.Terms, ct);
+            document.ContactId, "Quotation For", header, lines, document.DiscountPct, document.Terms, ct,
+            currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
     }
 
     private async Task<PrintableDocumentDto> BuildSalesOrderAsync(
@@ -95,7 +96,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
 
         return await BuildProductDocumentAsync(
             request, organization, templateName, "Sales Order", document.Code, document.Date, document.Reference,
-            document.ContactId, "Order For", [], lines, document.DiscountPct, document.Terms, ct);
+            document.ContactId, "Order For", [], lines, document.DiscountPct, document.Terms, ct,
+            currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
     }
 
     private async Task<PrintableDocumentDto> BuildInvoiceAsync(
@@ -121,7 +123,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
 
         return await BuildProductDocumentAsync(
             request, organization, templateName, "Invoice", document.Code, document.Date, document.Reference,
-            document.ContactId, "Bill To", header, lines, document.DiscountPct, document.Terms, ct);
+            document.ContactId, "Bill To", header, lines, document.DiscountPct, document.Terms, ct,
+            currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
     }
 
     private async Task<PrintableDocumentDto> BuildCreditNoteAsync(
@@ -137,7 +140,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
 
         return await BuildProductDocumentAsync(
             request, organization, templateName, "Credit Note", document.Code, document.Date, document.Reference,
-            document.ContactId, "Credit To", [], lines, document.DiscountPct, document.Terms, ct);
+            document.ContactId, "Credit To", [], lines, document.DiscountPct, document.Terms, ct,
+            currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
     }
 
     /// <summary>Two sections, matching the reference product's Customer Receipt layout read live:
@@ -215,7 +219,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
             received ? "Customer Receipt" : "Supplier Payment",
             document.Code, document.Date, document.Reference,
             document.ContactId, received ? "Received From" : "Paid To",
-            header, sections, summary, notes: null, terms: null, ct);
+            header, sections, summary, notes: null, terms: null, ct,
+            document.CurrencyCode, document.ExchangeRate);
     }
 
     // ---- Purchasing --------------------------------------------------------------------------
@@ -233,7 +238,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
 
         return await BuildProductDocumentAsync(
             request, organization, templateName, "Purchase Order", document.Code, document.Date, document.Reference,
-            document.ContactId, "Supplier", [], lines, document.DiscountPct, document.Terms, ct);
+            document.ContactId, "Supplier", [], lines, document.DiscountPct, document.Terms, ct,
+            currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
     }
 
     private async Task<PrintableDocumentDto> BuildPurchaseBillAsync(
@@ -249,7 +255,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
 
         return await BuildProductDocumentAsync(
             request, organization, templateName, "Purchase Bill", document.Code, document.Date, document.Reference,
-            document.ContactId, "Supplier", [], lines, document.DiscountPct, terms: null, tdsAmount: document.TdsAmount, ct: ct);
+            document.ContactId, "Supplier", [], lines, document.DiscountPct, terms: null, tdsAmount: document.TdsAmount, ct: ct,
+            currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
     }
 
     /// <summary>Expense lines carry an <b>account</b>, not a product -- the one line-item document
@@ -310,7 +317,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
         return await BuildDocumentAsync(
             request, organization, templateName, "Expense", document.Code, document.Date,
             reference: null, document.ContactId, "Supplier",
-            header, sections, summary, document.Notes, terms: null, ct);
+            header, sections, summary, document.Notes, terms: null, ct,
+            document.CurrencyCode, document.ExchangeRate);
     }
 
     private async Task<PrintableDocumentDto> BuildDebitNoteAsync(
@@ -326,7 +334,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
 
         return await BuildProductDocumentAsync(
             request, organization, templateName, "Debit Note", document.Code, document.Date, document.Reference,
-            document.ContactId, "Debit To", [], lines, document.DiscountPct, terms: null, tdsAmount: document.TdsAmount, ct: ct);
+            document.ContactId, "Debit To", [], lines, document.DiscountPct, terms: null, tdsAmount: document.TdsAmount, ct: ct,
+            currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
     }
 
     // ---- Accounting --------------------------------------------------------------------------
@@ -367,7 +376,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
         return await BuildDocumentAsync(
             request, organization, templateName, "Journal Voucher", document.Code, document.Date, document.Reference,
             contactId: null, partyHeading: null, [], sections,
-            [new PrintableFieldDto("Total", Money(totalDebit), Emphasise: true)], notes: null, terms: null, ct);
+            [new PrintableFieldDto("Total", Money(totalDebit), Emphasise: true)], notes: null, terms: null, ct,
+            document.CurrencyCode, document.ExchangeRate);
     }
 
     /// <summary>Two sections named exactly as the reference product prints them -- "Transferred
@@ -407,7 +417,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
         return await BuildDocumentAsync(
             request, organization, templateName, "Transfer", document.Code, document.Date, document.Reference,
             contactId: null, partyHeading: null, [], sections,
-            [new PrintableFieldDto("Total Transfer", Money(total), Emphasise: true)], notes: null, terms: null, ct);
+            [new PrintableFieldDto("Total Transfer", Money(total), Emphasise: true)], notes: null, terms: null, ct,
+            document.CurrencyCode, document.ExchangeRate);
     }
 
     // ---- Inventory ---------------------------------------------------------------------------
@@ -654,7 +665,9 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
         decimal discountPct,
         string? terms,
         CancellationToken ct,
-        decimal tdsAmount = 0)
+        decimal tdsAmount = 0,
+        string? currencyCode = null,
+        decimal? exchangeRate = null)
     {
         var products = await ProductLabelsAsync(lines.Select(l => l.ProductId), ct);
 
@@ -705,7 +718,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
 
         return await BuildDocumentAsync(
             request, organization, templateName, title, code, date, reference, contactId, partyHeading,
-            headerFields, sections, summary, notes: null, terms, ct);
+            headerFields, sections, summary, notes: null, terms, ct, currencyCode, exchangeRate);
     }
 
     /// <summary>The frame every one of the fifteen shares: organization block, optional party block,
@@ -725,12 +738,32 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
         IReadOnlyList<PrintableFieldDto> summary,
         string? notes,
         string? terms,
-        CancellationToken ct)
+        CancellationToken ct,
+        string? currencyCode = null,
+        decimal? exchangeRate = null)
     {
         Contact? contact = null;
         if (contactId is { } id)
         {
             contact = await db.Contacts.SingleOrDefaultAsync(x => x.Id == id, ct);
+        }
+
+        // Phase 28 (FR-2.5) -- what a foreign-currency document prints. Confirmed live 2026-09-04
+        // by reading the reference product's own print output: line amounts are bare, the Net Total
+        // carries the currency CODE ("NPR 3,06,500.00"), the amount-in-words line names the
+        // currency, and there is no base-currency column anywhere in the layout. A frame with no
+        // column for the NPR equivalent cannot print one, so the decision is settled by the layout
+        // rather than by preference: the printed figure is the transaction currency, full stop.
+        // The rate is disclosed as a header field instead, so a reader can reconcile the document
+        // against a Trial Balance without a second money column crowding the page.
+        var code_ = currencyCode ?? CurrencyCatalog.BaseCode;
+        var rate = exchangeRate ?? ExchangeRates.BaseRate;
+
+        if (!CurrencyCatalog.IsBase(code_))
+        {
+            headerFields = headerFields
+                .Append(new PrintableFieldDto($"Exchange Rate To {CurrencyCatalog.BaseCode}", rate.ToString("0.######")))
+                .ToList();
         }
 
         return new PrintableDocumentDto(
@@ -754,7 +787,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
             summary,
             notes,
             terms,
-            RequestCalendar.DisclosureLine);
+            RequestCalendar.DisclosureLine,
+            code_);
     }
 
     /// <summary>A payment allocation points at a document by type + id; the receipt prints that

@@ -30,6 +30,8 @@ public sealed class GetQuotationQueryHandler(IAppDbContext db) : IRequestHandler
             quotation.CustomStatusId,
             quotation.Terms,
             quotation.Lines.Select(x => new QuotationLineDto(
-                x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount)).ToList());
+                x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount)).ToList(),
+            quotation.CurrencyCode,
+            quotation.ExchangeRate);
     }
 }

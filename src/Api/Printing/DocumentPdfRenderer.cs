@@ -137,7 +137,13 @@ public static class DocumentPdfRenderer
                         summary.Item().Row(row =>
                         {
                             var label = row.RelativeItem().Text(field.Label);
-                            var value = row.ConstantItem(90).AlignRight().Text(field.Value);
+
+                            // Phase 28: the emphasised summary line -- and only it -- carries the
+                            // currency code, matching the reference product's printed Net Total
+                            // ("NPR 3,06,500.00", confirmed live 2026-09-04). Every other money
+                            // cell in the frame stays bare there, so it stays bare here.
+                            var text = field.Emphasise ? $"{dto.CurrencyCode} {field.Value}" : field.Value;
+                            var value = row.ConstantItem(110).AlignRight().Text(text);
 
                             if (field.Emphasise)
                             {

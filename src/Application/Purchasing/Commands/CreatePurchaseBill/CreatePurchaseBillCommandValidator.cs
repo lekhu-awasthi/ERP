@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Currencies;
 using FluentValidation;
 
 namespace ErpApp.Application.Purchasing.Commands.CreatePurchaseBill;
@@ -29,5 +30,8 @@ public sealed class CreatePurchaseBillCommandValidator : AbstractValidator<Creat
             line.RuleFor(x => x.ExpenditureClassification).IsInEnum();
             line.RuleFor(x => x.DiscountPct).InclusiveBetween(0, 100);
         });
+
+        this.AddCurrencyRules(x => x.CurrencyCode, x => x.ExchangeRate);
+
     }
 }

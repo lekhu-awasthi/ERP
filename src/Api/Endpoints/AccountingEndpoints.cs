@@ -164,7 +164,7 @@ public static class AccountingEndpoints
             Guid organizationId, JournalVoucherRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new CreateJournalVoucherCommand(organizationId, request.Date, request.Reference, request.Lines), ct);
+                new CreateJournalVoucherCommand(organizationId, request.Date, request.Reference, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate }, ct);
             return Results.Created($"/api/organizations/{organizationId}/journal-vouchers/{result.Id}", result);
         });
 
@@ -172,7 +172,7 @@ public static class AccountingEndpoints
             Guid organizationId, Guid id, JournalVoucherRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new UpdateJournalVoucherCommand(organizationId, id, request.Date, request.Reference, request.Lines), ct);
+                new UpdateJournalVoucherCommand(organizationId, id, request.Date, request.Reference, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate }, ct);
             return Results.Ok(result);
         });
 
@@ -220,7 +220,7 @@ public static class AccountingEndpoints
             Guid organizationId, CashTransferRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new CreateCashTransferCommand(organizationId, request.Date, request.Reference, request.FromAccountId, request.Lines),
+                new CreateCashTransferCommand(organizationId, request.Date, request.Reference, request.FromAccountId, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/cash-transfers/{result.Id}", result);
         });
@@ -229,7 +229,7 @@ public static class AccountingEndpoints
             Guid organizationId, Guid id, CashTransferRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new UpdateCashTransferCommand(organizationId, id, request.Date, request.Reference, request.FromAccountId, request.Lines),
+                new UpdateCashTransferCommand(organizationId, id, request.Date, request.Reference, request.FromAccountId, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
                 ct);
             return Results.Ok(result);
         });
@@ -263,7 +263,7 @@ public static class AccountingEndpoints
             Guid organizationId, Guid accountId, OpeningBalanceLineRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new CreateOrUpdateOpeningBalanceLineCommand(organizationId, accountId, request.Debit, request.Credit), ct);
+                new CreateOrUpdateOpeningBalanceLineCommand(organizationId, accountId, request.Debit, request.Credit) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate }, ct);
             return Results.Ok(result);
         });
     }
@@ -472,12 +472,30 @@ public static class AccountingEndpoints
         string Name, Guid GroupId, bool IsActive, AccountKind Kind = AccountKind.Other, Guid? BankId = null,
         string? AccountNumber = null);
 
-    private sealed record JournalVoucherRequest(DateOnly Date, string? Reference, IReadOnlyList<JournalVoucherLineInput> Lines);
+    private sealed record JournalVoucherRequest(DateOnly Date, string? Reference, IReadOnlyList<JournalVoucherLineInput> Lines,
+        // Phase 28 (FR-2.5) -- the Currency + "Exchange Rate To NPR" pair. Optional and trailing so
+        // every existing caller is unchanged; null/null means the base currency at rate 1. These must
+        // be carried on the request record itself, not only on the command: a trailing optional
+        // parameter added to a command alone binds to null forever and every test still passes
+        // (phase-27b's Terms).
+        string? CurrencyCode = null, decimal? ExchangeRate = null);
 
     private sealed record PreviewGlPostingRequest(DateOnly Date, string? Reference, IReadOnlyList<JournalVoucherLineInput> Lines);
 
     private sealed record CashTransferRequest(
-        DateOnly Date, string? Reference, Guid FromAccountId, IReadOnlyList<CashTransferLineInput> Lines);
+        DateOnly Date, string? Reference, Guid FromAccountId, IReadOnlyList<CashTransferLineInput> Lines,
+        // Phase 28 (FR-2.5) -- the Currency + "Exchange Rate To NPR" pair. Optional and trailing so
+        // every existing caller is unchanged; null/null means the base currency at rate 1. These must
+        // be carried on the request record itself, not only on the command: a trailing optional
+        // parameter added to a command alone binds to null forever and every test still passes
+        // (phase-27b's Terms).
+        string? CurrencyCode = null, decimal? ExchangeRate = null);
 
-    private sealed record OpeningBalanceLineRequest(decimal Debit, decimal Credit);
+    private sealed record OpeningBalanceLineRequest(decimal Debit, decimal Credit,
+        // Phase 28 (FR-2.5) -- the Currency + "Exchange Rate To NPR" pair. Optional and trailing so
+        // every existing caller is unchanged; null/null means the base currency at rate 1. These must
+        // be carried on the request record itself, not only on the command: a trailing optional
+        // parameter added to a command alone binds to null forever and every test still passes
+        // (phase-27b's Terms).
+        string? CurrencyCode = null, decimal? ExchangeRate = null);
 }

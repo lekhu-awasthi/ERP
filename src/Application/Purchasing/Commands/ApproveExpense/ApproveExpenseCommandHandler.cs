@@ -36,9 +36,18 @@ public sealed class ApproveExpenseCommandHandler(
             throw new ConflictException("An expense needs at least one line to be approved.");
         }
 
+        // Phase 28 (FR-2.5): the fold. The document stores its amounts in its own currency; the
+        // general ledger is denominated in the base currency, so every line amount is converted
+        // here, before the posting rule runs. Doing it here rather than on the finished GlLineInput
+        // list is what keeps the entry balanced by construction -- the rule derives its balancing
+        // leg as a sum of these very numbers. See ExchangeRates' doc comment.
         var postingInput = await ExpenseAccountResolver.ResolveAsync(
-            db, request.OrganizationId, expense.Lines.Select(x => (x.AccountId, x.Amount, x.VatAmount)),
-            expense.TdsAmount, cancellationToken);
+            db, request.OrganizationId,
+            expense.Lines.Select(x => (
+                x.AccountId,
+                ExchangeRates.ToBase(x.Amount, expense.ExchangeRate),
+                ExchangeRates.ToBase(x.VatAmount, expense.ExchangeRate))),
+            ExchangeRates.ToBase(expense.TdsAmount, expense.ExchangeRate), cancellationToken);
 
         var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.Expense, cancellationToken);
 

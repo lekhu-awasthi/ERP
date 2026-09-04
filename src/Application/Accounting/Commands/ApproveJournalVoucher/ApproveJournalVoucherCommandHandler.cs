@@ -43,7 +43,15 @@ public sealed class ApproveJournalVoucherCommandHandler(
 
         journalVoucher.Approve(currentUser.UserId, code);
 
-        var glLines = postingRule.BuildLines(journalVoucher);
+        // Phase 28: JournalVoucher and CashTransfer are the two posting rules whose input is the
+        // domain aggregate itself, so unlike Invoice/PurchaseBill/etc. there is no line-amount
+        // argument to convert before the rule runs -- the finished line list is converted instead,
+        // and any rounding residue is booked to the tenant's forex account rather than absorbed.
+        // See GlCurrencyConversion for why the two paths differ and why only these two can produce
+        // a residue at all.
+        var glLines = await GlCurrencyConversion.ToBaseAsync(
+            db, request.OrganizationId, postingRule.BuildLines(journalVoucher), journalVoucher.ExchangeRate,
+            cancellationToken);
         var glEntry = GlJournalEntry.Post(request.OrganizationId, DocumentType.JournalVoucher, journalVoucher.Id, glLines);
         db.GlJournalEntries.Add(glEntry);
 

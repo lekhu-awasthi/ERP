@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Currencies;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Payments;
@@ -17,9 +18,16 @@ public sealed record CreatePaymentCommand(
     Guid OrganizationId, Guid ContactId, PaymentDirection Direction, DateOnly Date, Guid? PaymentModeId, Guid AccountId,
     decimal Amount, string? Reference, IReadOnlyList<PaymentAllocationInput> Allocations,
     ChequeDetailsInput? ChequeDetails = null)
-    : IRequest<CreatePaymentResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequest
+    : IRequest<CreatePaymentResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequest, ICurrencyBearingCommand
 {
     public string PermissionKey => PermissionKeys.PaymentCreate;
+
+    /// <summary>Phase 28 (FR-2.5). Null means the base currency at rate 1 -- see
+    /// <see cref="ICurrencyBearingCommand"/>.</summary>
+    public string? CurrencyCode { get; init; }
+
+    /// <inheritdoc cref="CurrencyCode"/>
+    public decimal? ExchangeRate { get; init; }
     public DocumentType AuditDocumentType => DocumentType.Payment;
 }
 

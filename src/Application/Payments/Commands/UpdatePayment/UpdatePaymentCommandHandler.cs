@@ -35,6 +35,9 @@ public sealed class UpdatePaymentCommandHandler(IAppDbContext db)
         var oldAllocations = payment.Allocations.ToList();
 
         payment.UpdateHeader(request.ContactId, request.Date, request.PaymentModeId, request.AccountId, request.Amount, request.Reference);
+
+        // Phase 28 -- see the Create handler's note. Draft-only, enforced by the aggregate.
+        payment.SetCurrency(request.CurrencyCode, request.ExchangeRate);
         payment.ClearAllocations();
         foreach (var allocation in request.Allocations)
         {

@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Currencies;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Purchasing;
@@ -15,9 +16,16 @@ public sealed record CreateDebitNoteCommand(
     DocumentType? ReferrerType = null,
     Guid? ReferrerId = null,
     decimal DiscountPct = 0)
-    : IRequest<CreateDebitNoteResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequest
+    : IRequest<CreateDebitNoteResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequest, ICurrencyBearingCommand
 {
     public string PermissionKey => PermissionKeys.DebitNoteCreate;
+
+    /// <summary>Phase 28 (FR-2.5). Null means the base currency at rate 1 -- see
+    /// <see cref="ICurrencyBearingCommand"/>.</summary>
+    public string? CurrencyCode { get; init; }
+
+    /// <inheritdoc cref="CurrencyCode"/>
+    public decimal? ExchangeRate { get; init; }
     public DocumentType AuditDocumentType => DocumentType.DebitNote;
 }
 

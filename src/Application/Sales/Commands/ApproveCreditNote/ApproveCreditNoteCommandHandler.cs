@@ -67,8 +67,17 @@ public sealed class ApproveCreditNoteCommandHandler(
                 .SingleOrDefaultAsync(x => x.Id == invoiceId && x.OrganizationId == request.OrganizationId, cancellationToken);
         }
 
+        // Phase 28 (FR-2.5): the fold. The document stores its amounts in its own currency; the
+        // general ledger is denominated in the base currency, so every line amount is converted
+        // here, before the posting rule runs. Doing it here rather than on the finished GlLineInput
+        // list is what keeps the entry balanced by construction -- the rule derives its balancing
+        // leg as a sum of these very numbers. See ExchangeRates' doc comment.
         var postingInput = await CreditNoteAccountResolver.ResolveAsync(
-            db, request.OrganizationId, creditNote.Lines.Select(x => (x.ProductId, x.Amount, x.VatAmount)),
+            db, request.OrganizationId,
+            creditNote.Lines.Select(x => (
+                x.ProductId,
+                ExchangeRates.ToBase(x.Amount, creditNote.ExchangeRate),
+                ExchangeRates.ToBase(x.VatAmount, creditNote.ExchangeRate))),
             resolveInventoryAccounts: sourceInvoice is not null, cancellationToken);
 
         var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.CreditNote, cancellationToken);

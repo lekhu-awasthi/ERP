@@ -73,8 +73,17 @@ public sealed class ApproveInvoiceCommandHandler(
                 "Approve again to continue anyway.");
         }
 
+        // Phase 28 (FR-2.5): the fold. The document stores its amounts in its own currency; the
+        // general ledger is denominated in the base currency, so every line amount is converted
+        // here, before the posting rule runs. Doing it here rather than on the finished GlLineInput
+        // list is what keeps the entry balanced by construction -- the rule derives its balancing
+        // leg as a sum of these very numbers. See ExchangeRates' doc comment.
         var postingInput = await InvoiceAccountResolver.ResolveAsync(
-            db, request.OrganizationId, invoice.Lines.Select(x => (x.ProductId, x.Amount, x.VatAmount)),
+            db, request.OrganizationId,
+            invoice.Lines.Select(x => (
+                x.ProductId,
+                ExchangeRates.ToBase(x.Amount, invoice.ExchangeRate),
+                ExchangeRates.ToBase(x.VatAmount, invoice.ExchangeRate))),
             resolveInventoryAccounts: goodsLines.Count > 0, cancellationToken);
 
         var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.Invoice, cancellationToken);

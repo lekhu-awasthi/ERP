@@ -21,6 +21,12 @@ public sealed class CreatePaymentCommandHandler(IAppDbContext db)
         var payment = Payment.Create(
             request.OrganizationId, request.ContactId, request.Direction, request.Date, request.PaymentModeId,
             request.AccountId, request.Amount, request.Reference);
+
+        // Phase 28 -- the currency pair is set right after construction rather than threaded
+        // through Create's parameter list; see the aggregate's SetCurrency doc comment for why.
+        // Null/null means the base currency at rate 1, so a caller that never heard of this phase
+        // gets exactly the behaviour it had before.
+        payment.SetCurrency(request.CurrencyCode, request.ExchangeRate);
         foreach (var allocation in request.Allocations)
         {
             payment.AddAllocation(allocation.TargetDocumentType, allocation.TargetDocumentId, allocation.Amount);

@@ -312,6 +312,16 @@ export const routes: Routes = [
     canActivate: [authGuard, featureGuard('MultipleWarehouses')],
   },
   {
+    // Phase 28 -- the client half of the MultiCurrency cap. The server's real enforcement is a cap
+    // on the currency *list* (CreateCurrencyCommandHandler), not a block on documents; this guard
+    // simply keeps a flag-off tenant out of a page that would show them one immutable row, the same
+    // call the MultipleWarehouses route above makes.
+    path: 'organizations/:id/currencies',
+    loadComponent: () =>
+      import('./features/organizations/currency-list-page/currency-list-page').then((m) => m.CurrencyListPage),
+    canActivate: [authGuard, featureGuard('MultiCurrency')],
+  },
+  {
     path: 'organizations/:id/sales/quotations',
     loadComponent: () =>
       import('./features/sales/quotation-list-page/quotation-list-page').then((m) => m.QuotationListPage),

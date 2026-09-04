@@ -2,6 +2,8 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
+import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { SalesService } from '../../../core/sales/sales.service';
@@ -45,7 +47,7 @@ let nextLineKey = 1;
  * own lines the way JournalVoucher's is. */
 @Component({
   selector: 'app-invoice-detail-page',
-  imports: [RouterLink, DatePipe, ReportingTagsEditor, CustomFieldsEditor, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, TermsEditor],
+  imports: [RouterLink, DatePipe, ReportingTagsEditor, CustomFieldsEditor, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, TermsEditor, CurrencyRateFields],
   templateUrl: './invoice-detail-page.html',
 })
 export class InvoiceDetailPage {
@@ -65,6 +67,10 @@ export class InvoiceDetailPage {
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
   protected readonly loading = signal(true);
+  // Phase 28 (FR-2.5) -- the document's own currency and its rate to the base currency, owned here
+  // and rendered by the shared app-currency-rate-fields control.
+  protected readonly currencyCode = signal(BASE_CURRENCY_CODE);
+  protected readonly exchangeRate = signal(1);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
   protected readonly converting = signal(false);
@@ -179,6 +185,8 @@ export class InvoiceDetailPage {
           this.contactId.set('');
           this.date.set(this.today());
           this.reference.set('');
+        this.currencyCode.set(BASE_CURRENCY_CODE);
+        this.exchangeRate.set(1);
           this.terms.set('');
         this.terms.set('');
           this.discountPct.set(0);
@@ -362,6 +370,10 @@ export class InvoiceDetailPage {
     this.errorMessage.set(null);
 
     const request = {
+
+      currencyCode: this.currencyCode(),
+
+      exchangeRate: this.exchangeRate(),
       contactId: this.contactId(),
       warehouseId: this.warehouseId(),
       date: this.date(),
@@ -561,6 +573,8 @@ export class InvoiceDetailPage {
         this.warehouseId.set(invoice.warehouseId);
         this.date.set(invoice.date);
         this.reference.set(invoice.reference ?? '');
+        this.currencyCode.set(invoice.currencyCode);
+        this.exchangeRate.set(invoice.exchangeRate);
         this.terms.set(invoice.terms ?? '');
         this.referrerType = invoice.referrerType;
         this.referrerId = invoice.referrerId;

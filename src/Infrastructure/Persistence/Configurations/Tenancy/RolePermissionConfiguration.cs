@@ -663,6 +663,17 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminAttachmentAccessId = Guid.Parse("00000000-0000-0000-0002-0000000001a5");
     private static readonly Guid MemberAttachmentAccessId = Guid.Parse("00000000-0000-0000-0002-0000000001a6");
 
+    // Phase 28 (multi-currency) -- the tenant's active-currency list. Admin View+Manage; Member
+    // View granted, Manage explicitly denied. Same Member-View-only/Admin-write split every other
+    // lookup in this file gets, and for the same reason: a Member composing a foreign-currency
+    // document has to be able to read the list their Currency picker is populated from, but adding
+    // a currency changes what the whole tenant's documents may be denominated in. See
+    // PermissionKeys.CurrencyView/CurrencyManage.
+    private static readonly Guid AdminCurrencyViewId = Guid.Parse("00000000-0000-0000-0002-0000000001a7");
+    private static readonly Guid AdminCurrencyManageId = Guid.Parse("00000000-0000-0000-0002-0000000001a8");
+    private static readonly Guid MemberCurrencyViewId = Guid.Parse("00000000-0000-0000-0002-0000000001a9");
+    private static readonly Guid MemberCurrencyManageId = Guid.Parse("00000000-0000-0000-0002-0000000001aa");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1176,6 +1187,10 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(MemberUserLogViewId, Role.MemberId, PermissionKeys.UserLogView, false),
 
             RolePermission.Create(AdminAttachmentAccessId, Role.AdminId, PermissionKeys.AttachmentAccess, true),
-            RolePermission.Create(MemberAttachmentAccessId, Role.MemberId, PermissionKeys.AttachmentAccess, true));
+            RolePermission.Create(MemberAttachmentAccessId, Role.MemberId, PermissionKeys.AttachmentAccess, true),
+            RolePermission.Create(AdminCurrencyViewId, Role.AdminId, PermissionKeys.CurrencyView, true),
+            RolePermission.Create(AdminCurrencyManageId, Role.AdminId, PermissionKeys.CurrencyManage, true),
+            RolePermission.Create(MemberCurrencyViewId, Role.MemberId, PermissionKeys.CurrencyView, true),
+            RolePermission.Create(MemberCurrencyManageId, Role.MemberId, PermissionKeys.CurrencyManage, false));
     }
 }

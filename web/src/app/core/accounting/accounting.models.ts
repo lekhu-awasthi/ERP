@@ -178,6 +178,10 @@ export interface PostedGlLineDto {
 }
 
 export interface JournalVoucherDetail {
+  /** Phase 28 (FR-2.5) -- the currency every amount above is denominated in, and its rate to the
+   * base currency. glLines, by contrast, are always in the base currency. */
+  currencyCode: string;
+  exchangeRate: number;
   id: string;
   organizationId: string;
   code: string;
@@ -192,6 +196,9 @@ export interface JournalVoucherDetail {
 }
 
 export interface JournalVoucherRequest {
+  /** Phase 28 (FR-2.5). Optional: omitting both means the base currency at rate 1. */
+  currencyCode?: string | null;
+  exchangeRate?: number | null;
   date: string;
   reference: string | null;
   lines: JournalVoucherLineInput[];
@@ -250,6 +257,10 @@ export interface CashTransferLineDto {
 }
 
 export interface CashTransferDetail {
+  /** Phase 28 (FR-2.5) -- the currency every amount above is denominated in, and its rate to the
+   * base currency. glLines, by contrast, are always in the base currency. */
+  currencyCode: string;
+  exchangeRate: number;
   id: string;
   organizationId: string;
   code: string;
@@ -265,6 +276,9 @@ export interface CashTransferDetail {
 }
 
 export interface CashTransferRequest {
+  /** Phase 28 (FR-2.5). Optional: omitting both means the base currency at rate 1. */
+  currencyCode?: string | null;
+  exchangeRate?: number | null;
   date: string;
   reference: string | null;
   fromAccountId: string;

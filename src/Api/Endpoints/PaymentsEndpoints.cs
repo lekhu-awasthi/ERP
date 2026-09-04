@@ -53,7 +53,7 @@ public static class PaymentsEndpoints
             var result = await sender.Send(
                 new CreatePaymentCommand(
                     organizationId, request.ContactId, request.Direction, request.Date, request.PaymentModeId, request.AccountId,
-                    request.Amount, request.Reference, request.Allocations, request.ChequeDetails),
+                    request.Amount, request.Reference, request.Allocations, request.ChequeDetails) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/payments/{result.Id}", result);
         });
@@ -64,7 +64,7 @@ public static class PaymentsEndpoints
             var result = await sender.Send(
                 new UpdatePaymentCommand(
                     organizationId, id, request.ContactId, request.Date, request.PaymentModeId, request.AccountId,
-                    request.Amount, request.Reference, request.Allocations, request.ChequeDetails),
+                    request.Amount, request.Reference, request.Allocations, request.ChequeDetails) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
                 ct);
             return Results.Ok(result);
         });
@@ -156,7 +156,13 @@ public static class PaymentsEndpoints
 
     private sealed record PaymentRequest(
         Guid ContactId, PaymentDirection Direction, DateOnly Date, Guid? PaymentModeId, Guid AccountId, decimal Amount,
-        string? Reference, IReadOnlyList<PaymentAllocationInput> Allocations, ChequeDetailsInput? ChequeDetails = null);
+        string? Reference, IReadOnlyList<PaymentAllocationInput> Allocations, ChequeDetailsInput? ChequeDetails = null,
+        // Phase 28 (FR-2.5) -- the Currency + "Exchange Rate To NPR" pair. Optional and trailing so
+        // every existing caller is unchanged; null/null means the base currency at rate 1. These must
+        // be carried on the request record itself, not only on the command: a trailing optional
+        // parameter added to a command alone binds to null forever and every test still passes
+        // (phase-27b's Terms).
+        string? CurrencyCode = null, decimal? ExchangeRate = null);
 
     private sealed record PreviewPaymentGlPostingRequest(Guid AccountId, decimal Amount, PaymentDirection Direction);
 

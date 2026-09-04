@@ -151,6 +151,17 @@
               placeholder="Optional reference note"
             />
           </div>
+          <!-- Phase 28 (FR-2.5): Currency + Exchange Rate To NPR, as the live form lays them out --
+               beside the header fields, with the rate disabled and pinned to 1 while the currency is
+               the base one. See shared/currency/currency-rate-fields. -->
+          <div class="col-12">
+            <app-currency-rate-fields
+              [organizationId]="organizationId"
+              [(currencyCode)]="currencyCode"
+              [(exchangeRate)]="exchangeRate"
+              [disabled]="!isDraft()"
+            />
+          </div>
 
           <div class="col-12">
             <div class="form-check">

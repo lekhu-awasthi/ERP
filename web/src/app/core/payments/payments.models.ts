@@ -31,6 +31,10 @@ export interface PaymentAllocationDto extends PaymentAllocationInput {
 }
 
 export interface PaymentDetail extends Payment {
+  /** Phase 28 (FR-2.5) -- the currency every amount above is denominated in, and its rate to the
+   * base currency. glLines, by contrast, are always in the base currency. */
+  currencyCode: string;
+  exchangeRate: number;
   allocations: PaymentAllocationDto[];
   glLines: PostedGlLineDto[] | null;
 }
@@ -44,6 +48,9 @@ export interface ChequeDetailsInput {
 }
 
 export interface PaymentRequest {
+  /** Phase 28 (FR-2.5). Optional: omitting both means the base currency at rate 1. */
+  currencyCode?: string | null;
+  exchangeRate?: number | null;
   contactId: string;
   direction: PaymentDirection;
   date: string;

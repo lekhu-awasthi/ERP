@@ -55,10 +55,17 @@ export interface PurchaseOrderLineDto extends PurchaseOrderLineInput {
 }
 
 export interface PurchaseOrderDetail extends PurchaseOrder {
+  /** Phase 28 (FR-2.5) -- the currency every amount above is denominated in, and its rate to the
+   * base currency. glLines, by contrast, are always in the base currency. */
+  currencyCode: string;
+  exchangeRate: number;
   lines: PurchaseOrderLineDto[];
 }
 
 export interface PurchaseOrderRequest {
+  /** Phase 28 (FR-2.5). Optional: omitting both means the base currency at rate 1. */
+  currencyCode?: string | null;
+  exchangeRate?: number | null;
   contactId: string;
   date: string;
   reference: string | null;
@@ -136,12 +143,19 @@ export interface PurchaseBillLineDto extends PurchaseBillLineInput {
 }
 
 export interface PurchaseBillDetail extends PurchaseBill {
+  /** Phase 28 (FR-2.5) -- the currency every amount above is denominated in, and its rate to the
+   * base currency. glLines, by contrast, are always in the base currency. */
+  currencyCode: string;
+  exchangeRate: number;
   grandTotal: number;
   lines: PurchaseBillLineDto[];
   glLines: PostedGlLineDto[] | null;
 }
 
 export interface PurchaseBillRequest {
+  /** Phase 28 (FR-2.5). Optional: omitting both means the base currency at rate 1. */
+  currencyCode?: string | null;
+  exchangeRate?: number | null;
   contactId: string;
   warehouseId: string;
   date: string;
@@ -226,12 +240,19 @@ export interface ExpenseLineDto extends ExpenseLineInput {
 }
 
 export interface ExpenseDetail extends Expense {
+  /** Phase 28 (FR-2.5) -- the currency every amount above is denominated in, and its rate to the
+   * base currency. glLines, by contrast, are always in the base currency. */
+  currencyCode: string;
+  exchangeRate: number;
   grandTotal: number;
   lines: ExpenseLineDto[];
   glLines: PostedGlLineDto[] | null;
 }
 
 export interface ExpenseRequest {
+  /** Phase 28 (FR-2.5). Optional: omitting both means the base currency at rate 1. */
+  currencyCode?: string | null;
+  exchangeRate?: number | null;
   contactId: string;
   date: string;
   dueDate: string | null;
@@ -303,11 +324,18 @@ export interface DebitNoteLineDto extends DebitNoteLineInput {
 }
 
 export interface DebitNoteDetail extends DebitNote {
+  /** Phase 28 (FR-2.5) -- the currency every amount above is denominated in, and its rate to the
+   * base currency. glLines, by contrast, are always in the base currency. */
+  currencyCode: string;
+  exchangeRate: number;
   lines: DebitNoteLineDto[];
   glLines: PostedGlLineDto[] | null;
 }
 
 export interface DebitNoteRequest {
+  /** Phase 28 (FR-2.5). Optional: omitting both means the base currency at rate 1. */
+  currencyCode?: string | null;
+  exchangeRate?: number | null;
   contactId: string;
   date: string;
   reference: string | null;

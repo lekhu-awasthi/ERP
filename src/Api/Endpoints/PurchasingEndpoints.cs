@@ -78,7 +78,7 @@ public static class PurchasingEndpoints
             var result = await sender.Send(
                 new CreatePurchaseOrderCommand(
                     organizationId, request.ContactId, request.Date, request.Reference, request.Lines, request.DiscountPct,
-                    request.Terms),
+                    request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/purchase-orders/{result.Id}", result);
         });
@@ -89,7 +89,7 @@ public static class PurchasingEndpoints
             var result = await sender.Send(
                 new UpdatePurchaseOrderCommand(
                     organizationId, id, request.ContactId, request.Date, request.Reference, request.Lines, request.DiscountPct,
-                    request.Terms),
+                    request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
                 ct);
             return Results.Ok(result);
         });
@@ -145,7 +145,7 @@ public static class PurchasingEndpoints
                     request.Lines,
                     request.ReferrerType,
                     request.ReferrerId,
-                    request.DiscountPct),
+                    request.DiscountPct) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/purchase-bills/{result.Id}", result);
         });
@@ -168,7 +168,7 @@ public static class PurchasingEndpoints
                     request.ImportDocumentNo,
                     request.TdsTypeId,
                     request.Lines,
-                    request.DiscountPct),
+                    request.DiscountPct) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
                 ct);
             return Results.Ok(result);
         });
@@ -226,7 +226,7 @@ public static class PurchasingEndpoints
             var result = await sender.Send(
                 new CreateExpenseCommand(
                     organizationId, request.ContactId, request.Date, request.DueDate, request.SupplierInvoiceReference,
-                    request.Notes, request.TdsApplicable, request.TdsTypeId, request.Lines),
+                    request.Notes, request.TdsApplicable, request.TdsTypeId, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/expenses/{result.Id}", result);
         });
@@ -237,7 +237,7 @@ public static class PurchasingEndpoints
             var result = await sender.Send(
                 new UpdateExpenseCommand(
                     organizationId, id, request.ContactId, request.Date, request.DueDate, request.SupplierInvoiceReference,
-                    request.Notes, request.TdsApplicable, request.TdsTypeId, request.Lines),
+                    request.Notes, request.TdsApplicable, request.TdsTypeId, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
                 ct);
             return Results.Ok(result);
         });
@@ -288,7 +288,7 @@ public static class PurchasingEndpoints
             var result = await sender.Send(
                 new CreateDebitNoteCommand(
                     organizationId, request.ContactId, request.Date, request.Reference, request.TdsTypeId, request.Lines,
-                    request.ReferrerType, request.ReferrerId, request.DiscountPct),
+                    request.ReferrerType, request.ReferrerId, request.DiscountPct) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/debit-notes/{result.Id}", result);
         });
@@ -299,7 +299,7 @@ public static class PurchasingEndpoints
             var result = await sender.Send(
                 new UpdateDebitNoteCommand(
                     organizationId, id, request.ContactId, request.Date, request.Reference, request.TdsTypeId, request.Lines,
-                    request.DiscountPct),
+                    request.DiscountPct) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
                 ct);
             return Results.Ok(result);
         });
@@ -449,7 +449,13 @@ public static class PurchasingEndpoints
     private sealed record PurchaseOrderRequest(
         Guid ContactId, DateOnly Date, string? Reference, IReadOnlyList<PurchaseOrderLineInput> Lines, decimal DiscountPct = 0,
         // Phase 27b -- the "+ Add Terms and Conditions" block's text.
-        string? Terms = null);
+        string? Terms = null,
+        // Phase 28 (FR-2.5) -- the Currency + "Exchange Rate To NPR" pair. Optional and trailing so
+        // every existing caller is unchanged; null/null means the base currency at rate 1. These must
+        // be carried on the request record itself, not only on the command: a trailing optional
+        // parameter added to a command alone binds to null forever and every test still passes
+        // (phase-27b's Terms).
+        string? CurrencyCode = null, decimal? ExchangeRate = null);
 
     private sealed record PurchaseBillRequest(
         Guid ContactId,
@@ -465,7 +471,13 @@ public static class PurchasingEndpoints
         IReadOnlyList<PurchaseBillLineInput> Lines,
         DocumentType? ReferrerType = null,
         Guid? ReferrerId = null,
-        decimal DiscountPct = 0);
+        decimal DiscountPct = 0,
+        // Phase 28 (FR-2.5) -- the Currency + "Exchange Rate To NPR" pair. Optional and trailing so
+        // every existing caller is unchanged; null/null means the base currency at rate 1. These must
+        // be carried on the request record itself, not only on the command: a trailing optional
+        // parameter added to a command alone binds to null forever and every test still passes
+        // (phase-27b's Terms).
+        string? CurrencyCode = null, decimal? ExchangeRate = null);
 
     private sealed record PreviewPurchaseBillGlPostingRequest(
         IReadOnlyList<PurchaseBillLineInput> Lines, Guid? TdsTypeId, decimal DiscountPct = 0);
@@ -478,11 +490,23 @@ public static class PurchasingEndpoints
         string? Notes,
         bool TdsApplicable,
         Guid? TdsTypeId,
-        IReadOnlyList<ExpenseLineInput> Lines);
+        IReadOnlyList<ExpenseLineInput> Lines,
+        // Phase 28 (FR-2.5) -- the Currency + "Exchange Rate To NPR" pair. Optional and trailing so
+        // every existing caller is unchanged; null/null means the base currency at rate 1. These must
+        // be carried on the request record itself, not only on the command: a trailing optional
+        // parameter added to a command alone binds to null forever and every test still passes
+        // (phase-27b's Terms).
+        string? CurrencyCode = null, decimal? ExchangeRate = null);
 
     private sealed record PreviewExpenseGlPostingRequest(IReadOnlyList<ExpenseLineInput> Lines, bool TdsApplicable, Guid? TdsTypeId);
 
     private sealed record DebitNoteRequest(
         Guid ContactId, DateOnly Date, string? Reference, Guid? TdsTypeId, IReadOnlyList<DebitNoteLineInput> Lines,
-        DocumentType? ReferrerType = null, Guid? ReferrerId = null, decimal DiscountPct = 0);
+        DocumentType? ReferrerType = null, Guid? ReferrerId = null, decimal DiscountPct = 0,
+        // Phase 28 (FR-2.5) -- the Currency + "Exchange Rate To NPR" pair. Optional and trailing so
+        // every existing caller is unchanged; null/null means the base currency at rate 1. These must
+        // be carried on the request record itself, not only on the command: a trailing optional
+        // parameter added to a command alone binds to null forever and every test still passes
+        // (phase-27b's Terms).
+        string? CurrencyCode = null, decimal? ExchangeRate = null);
 }

@@ -1,5 +1,7 @@
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
+import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { SalesService } from '../../../core/sales/sales.service';
@@ -43,7 +45,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-sales-order-detail-page',
-  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor],
+  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor, CurrencyRateFields],
   templateUrl: './sales-order-detail-page.html',
 })
 export class SalesOrderDetailPage {
@@ -62,6 +64,10 @@ export class SalesOrderDetailPage {
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
   protected readonly loading = signal(true);
+  // Phase 28 (FR-2.5) -- the document's own currency and its rate to the base currency, owned here
+  // and rendered by the shared app-currency-rate-fields control.
+  protected readonly currencyCode = signal(BASE_CURRENCY_CODE);
+  protected readonly exchangeRate = signal(1);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
@@ -135,6 +141,8 @@ export class SalesOrderDetailPage {
         this.date.set(this.today());
         this.deliveryDate.set('');
         this.reference.set('');
+        this.currencyCode.set(BASE_CURRENCY_CODE);
+        this.exchangeRate.set(1);
         this.terms.set('');
         this.discountPct.set(0);
         this.lines.set([this.newLine()]);
@@ -221,6 +229,10 @@ export class SalesOrderDetailPage {
     this.errorMessage.set(null);
 
     const request = {
+
+      currencyCode: this.currencyCode(),
+
+      exchangeRate: this.exchangeRate(),
       contactId: this.contactId(),
       date: this.date(),
       deliveryDate: this.deliveryDate() || null,
@@ -363,6 +375,8 @@ export class SalesOrderDetailPage {
         this.date.set(salesOrder.date);
         this.deliveryDate.set(salesOrder.deliveryDate ?? '');
         this.reference.set(salesOrder.reference ?? '');
+        this.currencyCode.set(salesOrder.currencyCode);
+        this.exchangeRate.set(salesOrder.exchangeRate);
         this.terms.set(salesOrder.terms ?? '');
         this.discountPct.set(salesOrder.discountPct);
         this.lines.set(

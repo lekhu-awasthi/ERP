@@ -29,6 +29,8 @@ public sealed class GetSalesOrderQueryHandler(IAppDbContext db) : IRequestHandle
             salesOrder.DiscountPct,
             salesOrder.Terms,
             salesOrder.Lines.Select(x => new SalesOrderLineDto(
-                x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount)).ToList());
+                x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount)).ToList(),
+            salesOrder.CurrencyCode,
+            salesOrder.ExchangeRate);
     }
 }

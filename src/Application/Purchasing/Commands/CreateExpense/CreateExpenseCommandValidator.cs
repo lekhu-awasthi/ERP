@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Currencies;
 using FluentValidation;
 
 namespace ErpApp.Application.Purchasing.Commands.CreateExpense;
@@ -17,5 +18,8 @@ public sealed class CreateExpenseCommandValidator : AbstractValidator<CreateExpe
             line.RuleFor(x => x.Amount).GreaterThan(0);
             line.RuleFor(x => x.VatRate).IsInEnum();
         });
+
+        this.AddCurrencyRules(x => x.CurrencyCode, x => x.ExchangeRate);
+
     }
 }

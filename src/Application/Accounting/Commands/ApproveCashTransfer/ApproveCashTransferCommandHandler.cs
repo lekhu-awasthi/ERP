@@ -43,7 +43,11 @@ public sealed class ApproveCashTransferCommandHandler(
 
         cashTransfer.Approve(currentUser.UserId, code);
 
-        var glLines = postingRule.BuildLines(cashTransfer);
+        // Phase 28 -- see ApproveJournalVoucherCommandHandler's note; the same fallback path, for
+        // the same reason.
+        var glLines = await GlCurrencyConversion.ToBaseAsync(
+            db, request.OrganizationId, postingRule.BuildLines(cashTransfer), cashTransfer.ExchangeRate,
+            cancellationToken);
         var glEntry = GlJournalEntry.Post(request.OrganizationId, DocumentType.CashTransfer, cashTransfer.Id, glLines);
         db.GlJournalEntries.Add(glEntry);
 

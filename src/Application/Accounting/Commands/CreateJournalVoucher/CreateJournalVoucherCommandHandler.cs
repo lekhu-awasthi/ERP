@@ -15,6 +15,12 @@ public sealed class CreateJournalVoucherCommandHandler(IAppDbContext db)
             db, request.OrganizationId, request.Lines.Select(x => x.ContactId), cancellationToken);
 
         var journalVoucher = JournalVoucher.Create(request.OrganizationId, request.Date, request.Reference);
+
+        // Phase 28 -- the currency pair is set right after construction rather than threaded
+        // through Create's parameter list; see the aggregate's SetCurrency doc comment for why.
+        // Null/null means the base currency at rate 1, so a caller that never heard of this phase
+        // gets exactly the behaviour it had before.
+        journalVoucher.SetCurrency(request.CurrencyCode, request.ExchangeRate);
         foreach (var line in request.Lines)
         {
             journalVoucher.AddLine(line.AccountId, line.Debit, line.Credit, line.ContactId);

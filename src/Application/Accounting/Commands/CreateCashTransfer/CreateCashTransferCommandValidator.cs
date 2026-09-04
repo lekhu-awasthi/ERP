@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Currencies;
 using FluentValidation;
 
 namespace ErpApp.Application.Accounting.Commands.CreateCashTransfer;
@@ -15,5 +16,8 @@ public sealed class CreateCashTransferCommandValidator : AbstractValidator<Creat
             line.RuleFor(x => x.ToAccountId).NotEmpty();
             line.RuleFor(x => x.Amount).GreaterThan(0);
         });
+
+        this.AddCurrencyRules(x => x.CurrencyCode, x => x.ExchangeRate);
+
     }
 }

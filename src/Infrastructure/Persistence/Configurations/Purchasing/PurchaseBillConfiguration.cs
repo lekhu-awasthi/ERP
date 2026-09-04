@@ -1,9 +1,10 @@
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Purchasing;
 using ErpApp.Domain.Tenancy;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Infrastructure.Persistence.Configurations.Purchasing;
 
@@ -33,6 +34,16 @@ public sealed class PurchaseBillConfiguration : IEntityTypeConfiguration<Purchas
         builder.Property(x => x.ReferrerType).HasConversion<string>().HasMaxLength(30);
         builder.Property(x => x.ReferrerId);
         builder.Property(x => x.DiscountPct).HasPrecision(18, 4).IsRequired();
+
+        // Phase 28 (FR-2.5). Both carry a SQL default so the migration backfills every existing row
+        // to "base currency at rate 1" without a data script, and ValueGeneratedNever so EF always
+        // sends the aggregate's own value rather than ever falling back to that default (the
+        // phase-2 bug #2 shape: a stored default silently winning over an in-memory value).
+        builder.Property(x => x.CurrencyCode)
+            .HasMaxLength(3).IsRequired().HasDefaultValue(CurrencyCatalog.BaseCode).ValueGeneratedNever();
+        builder.Property(x => x.ExchangeRate)
+            .HasPrecision(18, ExchangeRates.RateScale).IsRequired()
+            .HasDefaultValue(ExchangeRates.BaseRate).ValueGeneratedNever();
 
         builder.Ignore(x => x.GrandTotal);
 

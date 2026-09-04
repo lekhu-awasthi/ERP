@@ -34,6 +34,9 @@ public sealed class UpdateInvoiceCommandHandler(IAppDbContext db)
         invoice.UpdateHeader(
             request.ContactId, request.WarehouseId, request.Date, request.Reference, request.DiscountPct,
             request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate);
+
+        // Phase 28 -- see the Create handler's note. Draft-only, enforced by the aggregate.
+        invoice.SetCurrency(request.CurrencyCode, request.ExchangeRate);
         invoice.SetTerms(request.Terms);
         invoice.ClearLines();
         foreach (var line in request.Lines)

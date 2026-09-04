@@ -51,6 +51,8 @@ public sealed class GetInvoiceQueryHandler(IAppDbContext db) : IRequestHandler<G
             invoice.Terms,
             invoice.Lines.Select(x => new InvoiceLineDto(
                 x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount)).ToList(),
-            glLines);
+            glLines,
+            invoice.CurrencyCode,
+            invoice.ExchangeRate);
     }
 }

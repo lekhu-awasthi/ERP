@@ -827,4 +827,17 @@ public static class PermissionKeys
     // making it Admin-only would block a Member who legitimately holds Sales.Invoice.Edit from
     // deleting a file they just attached to their own invoice.
     public const string AttachmentAccess = "Workflow.Attachment.Access";
+
+    // Phase 28 (multi-currency, FR-2.5). The tenant's active-currency list is configuration --
+    // adding one changes what every document form offers and what the general ledger's inputs are
+    // denominated in -- so Manage is Admin-only by the standing rule. View is Admin+Member,
+    // matching every other lookup's Member-View default: a Member composing a foreign-currency
+    // invoice has to be able to read the list their own Currency picker is populated from, and the
+    // list carries no PAN, no identity and no per-transaction row.
+    //
+    // Reading a *document's* own CurrencyCode/ExchangeRate needs no key of its own -- those are two
+    // more header fields on a document the caller already holds the View key for, exactly as
+    // DiscountPct was in 16b.
+    public const string CurrencyView = "Tenancy.Currency.View";
+    public const string CurrencyManage = "Tenancy.Currency.Manage";
 }

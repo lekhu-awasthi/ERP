@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Currencies;
 using FluentValidation;
 
 namespace ErpApp.Application.Accounting.Commands.CreateOrUpdateOpeningBalanceLine;
@@ -13,5 +14,8 @@ public sealed class CreateOrUpdateOpeningBalanceLineCommandValidator : AbstractV
         RuleFor(x => x)
             .Must(x => (x.Debit > 0) != (x.Credit > 0))
             .WithMessage("Exactly one of Debit/Credit must be greater than zero.");
+
+        this.AddCurrencyRules(x => x.CurrencyCode, x => x.ExchangeRate);
+
     }
 }

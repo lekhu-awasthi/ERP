@@ -1,5 +1,7 @@
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
+import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { SalesService } from '../../../core/sales/sales.service';
@@ -38,7 +40,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-quotation-detail-page',
-  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, AmountPipe, BsDateInput, DocumentTabs, TermsEditor],
+  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, AmountPipe, BsDateInput, DocumentTabs, TermsEditor, CurrencyRateFields],
   templateUrl: './quotation-detail-page.html',
 })
 export class QuotationDetailPage {
@@ -55,6 +57,10 @@ export class QuotationDetailPage {
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
   protected readonly loading = signal(true);
+  // Phase 28 (FR-2.5) -- the document's own currency and its rate to the base currency, owned here
+  // and rendered by the shared app-currency-rate-fields control.
+  protected readonly currencyCode = signal(BASE_CURRENCY_CODE);
+  protected readonly exchangeRate = signal(1);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
@@ -129,6 +135,8 @@ export class QuotationDetailPage {
         this.date.set(this.today());
         this.expiryDate.set('');
         this.reference.set('');
+        this.currencyCode.set(BASE_CURRENCY_CODE);
+        this.exchangeRate.set(1);
         this.terms.set('');
         this.discountPct.set(0);
         this.lines.set([this.newLine()]);
@@ -216,6 +224,10 @@ export class QuotationDetailPage {
     this.errorMessage.set(null);
 
     const request = {
+
+      currencyCode: this.currencyCode(),
+
+      exchangeRate: this.exchangeRate(),
       contactId: this.contactId(),
       date: this.date(),
       expiryDate: this.expiryDate() || null,
@@ -393,6 +405,8 @@ export class QuotationDetailPage {
         this.date.set(quotation.date);
         this.expiryDate.set(quotation.expiryDate ?? '');
         this.reference.set(quotation.reference ?? '');
+        this.currencyCode.set(quotation.currencyCode);
+        this.exchangeRate.set(quotation.exchangeRate);
         this.terms.set(quotation.terms ?? '');
         this.discountPct.set(quotation.discountPct);
         this.lines.set(

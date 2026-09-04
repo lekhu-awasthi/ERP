@@ -1,6 +1,8 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
+import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AccountingService } from '../../../core/accounting/accounting.service';
@@ -43,7 +45,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-journal-voucher-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields],
   templateUrl: './journal-voucher-detail-page.html',
 })
 export class JournalVoucherDetailPage {
@@ -61,6 +63,10 @@ export class JournalVoucherDetailPage {
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
   protected readonly loading = signal(true);
+  // Phase 28 (FR-2.5) -- the document's own currency and its rate to the base currency, owned here
+  // and rendered by the shared app-currency-rate-fields control.
+  protected readonly currencyCode = signal(BASE_CURRENCY_CODE);
+  protected readonly exchangeRate = signal(1);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
@@ -114,6 +120,8 @@ export class JournalVoucherDetailPage {
         this.loading.set(false);
         this.date.set(this.today());
         this.reference.set('');
+this.currencyCode.set(BASE_CURRENCY_CODE);
+this.exchangeRate.set(1);
         this.lines.set([this.newLine(), this.newLine()]);
       } else {
         this.load();
@@ -171,7 +179,7 @@ export class JournalVoucherDetailPage {
     this.saving.set(true);
     this.errorMessage.set(null);
 
-    const request = { date: this.date(), reference: this.reference() || null, lines };
+    const request = { currencyCode: this.currencyCode(), exchangeRate: this.exchangeRate(), date: this.date(), reference: this.reference() || null, lines };
     const request$ = this.isNew()
       ? this.accountingService.createJournalVoucher(this.organizationId, request)
       : this.accountingService.updateJournalVoucher(this.organizationId, this.routeJournalVoucherId, request);
@@ -300,6 +308,8 @@ export class JournalVoucherDetailPage {
         this.journalVoucher.set(journalVoucher);
         this.date.set(journalVoucher.date);
         this.reference.set(journalVoucher.reference ?? '');
+        this.currencyCode.set(journalVoucher.currencyCode);
+        this.exchangeRate.set(journalVoucher.exchangeRate);
         this.lines.set(
           journalVoucher.lines.length > 0
             ? journalVoucher.lines.map((l) => ({

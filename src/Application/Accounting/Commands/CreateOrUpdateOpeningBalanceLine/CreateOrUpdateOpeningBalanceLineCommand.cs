@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Currencies;
 using ErpApp.Application.Common.Security;
 using MediatR;
 
@@ -12,9 +13,16 @@ namespace ErpApp.Application.Accounting.Commands.CreateOrUpdateOpeningBalanceLin
 /// none either -- TrialBalanceQueryHandler cuts off by PostedAt, not a document date).
 /// </summary>
 public sealed record CreateOrUpdateOpeningBalanceLineCommand(Guid OrganizationId, Guid AccountId, decimal Debit, decimal Credit)
-    : IRequest<OpeningBalanceLineResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<OpeningBalanceLineResult>, IRequirePermission, IOrganizationScoped, ICurrencyBearingCommand
 {
     public string PermissionKey => PermissionKeys.OpeningBalanceEdit;
+
+    /// <summary>Phase 28 (FR-2.5). Null means the base currency at rate 1 -- see
+    /// <see cref="ICurrencyBearingCommand"/>.</summary>
+    public string? CurrencyCode { get; init; }
+
+    /// <inheritdoc cref="CurrencyCode"/>
+    public decimal? ExchangeRate { get; init; }
 }
 
 public sealed record OpeningBalanceLineResult(Guid Id, Guid AccountId, decimal Debit, decimal Credit);

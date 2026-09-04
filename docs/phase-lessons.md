@@ -196,3 +196,29 @@ these are in `CLAUDE.md`'s Known gotchas section. When a phase completes, append
   template reference. Read before wiring `Send Email` or the `Email` template type in Phase 30 - the
   same three types carry both actions.
 
+- `phase-28` - before adding a second currency-aware anything, before gating a new feature flag, and
+  before touching a posting rule's inputs. Three things worth carrying:
+  **(a) The fold goes on the posting rule's *inputs*, never on the finished `GlLineInput` list.**
+  Every rule here derives its balancing leg as a sum of the other legs, so converting afterwards
+  rounds that leg independently of what it balances and `GlJournalEntry.Post`'s
+  sum(Debit)==sum(Credit) invariant fails intermittently (two 0.05 debits against one 0.10 credit at
+  rate 1.5 give 0.16 against 0.15). Converting first keeps every entry balanced by construction.
+  Only `JournalVoucher` and `CashTransfer` cannot take that route - their rules take the aggregate
+  itself - and they go through `GlCurrencyConversion`, which *books* the residue to the forex
+  account rather than absorbing it. And nothing already denominated in base currency is converted:
+  FIFO unit costs, COGS, historical `GlLine`s.
+  **(b) An entitlement can be a cap on a *list* rather than a gate on the things that read it.**
+  MultiCurrency is phase-20f Decision #4's shape for the second time, and stronger: because a
+  document's Currency picker reads the tenant's own list and its rate input disables itself on the
+  base currency, a one-entry list makes the whole surface degenerate to "NPR, rate 1, read-only" by
+  itself - so **no document command is feature-gated at all**. Check whether a cap upstream already
+  satisfies the requirement before gating N consumers downstream.
+  **(c) The confirm-live rule cuts both ways.** The roadmap's decisive experiment could not be run -
+  the reference product's own currency-catalog picker returns "No data" on the UAT tenant, so no
+  second currency can be activated there - and the allocation posting rule is therefore reasoned
+  from first principles and **recorded as reasoned**, in the code's own doc comment as well as the
+  status doc. Blocked is a finding; guessing quietly is not. What the pass *did* settle reshaped the
+  design anyway: the printed figure (one money column, no NPR equivalent), the rate being typed and
+  stored per document, Opening Balances' Conversion Rate being the same control, and the reference
+  chart carrying a realised Forex Gain account with **no loss counterpart** - which we diverge from
+  deliberately, on phase-6's VAT-Receivable-vs-Payable precedent

@@ -33,6 +33,9 @@ public sealed class UpdateDebitNoteCommandHandler(IAppDbContext db)
         var oldLines = debitNote.Lines.ToList();
 
         debitNote.UpdateHeader(request.ContactId, request.Date, request.Reference, request.TdsTypeId, tdsAmount, request.DiscountPct);
+
+        // Phase 28 -- see the Create handler's note. Draft-only, enforced by the aggregate.
+        debitNote.SetCurrency(request.CurrencyCode, request.ExchangeRate);
         debitNote.ClearLines();
         foreach (var line in request.Lines)
         {

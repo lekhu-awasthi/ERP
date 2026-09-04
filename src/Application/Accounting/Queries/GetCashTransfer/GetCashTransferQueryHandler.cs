@@ -42,6 +42,8 @@ public sealed class GetCashTransferQueryHandler(IAppDbContext db)
             cashTransfer.ApprovedAt,
             cashTransfer.CreatedAt,
             cashTransfer.Lines.Select(x => new CashTransferLineDto(x.Id, x.ToAccountId, x.Amount)).ToList(),
-            glLines);
+            glLines,
+            cashTransfer.CurrencyCode,
+            cashTransfer.ExchangeRate);
     }
 }

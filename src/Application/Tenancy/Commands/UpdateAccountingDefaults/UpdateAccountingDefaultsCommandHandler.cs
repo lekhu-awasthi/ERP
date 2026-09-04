@@ -28,6 +28,8 @@ public sealed class UpdateAccountingDefaultsCommandHandler(IAppDbContext db)
                 request.DefaultCogsAccountId,
                 request.DefaultInventoryAdjustmentAccountId,
                 request.DefaultProductionCostAccountId,
+                request.DefaultForexGainAccountId,
+                request.DefaultForexLossAccountId,
             }
             .Where(x => x is not null)
             .Select(x => x!.Value)
@@ -52,7 +54,9 @@ public sealed class UpdateAccountingDefaultsCommandHandler(IAppDbContext db)
             request.DefaultPurchaseAccountId,
             request.DefaultAccountsPayableId,
             request.DefaultVatReceivableAccountId,
-            request.DefaultTdsPayableAccountId);
+            request.DefaultTdsPayableAccountId,
+            request.DefaultForexGainAccountId,
+            request.DefaultForexLossAccountId);
         settings.SetInventoryDefaults(
             request.DefaultInventoryAccountId,
             request.DefaultCogsAccountId,
@@ -71,6 +75,8 @@ public sealed class UpdateAccountingDefaultsCommandHandler(IAppDbContext db)
             settings.DefaultInventoryAccountId,
             settings.DefaultCogsAccountId,
             settings.DefaultInventoryAdjustmentAccountId,
-            settings.DefaultProductionCostAccountId);
+            settings.DefaultProductionCostAccountId,
+            settings.DefaultForexGainAccountId,
+            settings.DefaultForexLossAccountId);
     }
 }

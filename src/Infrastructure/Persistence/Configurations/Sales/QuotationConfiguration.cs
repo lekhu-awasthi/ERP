@@ -1,8 +1,9 @@
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Sales;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Infrastructure.Persistence.Configurations.Sales;
 
@@ -26,6 +27,16 @@ public sealed class QuotationConfiguration : IEntityTypeConfiguration<Quotation>
         // wide column. nvarchar(max), same call this codebase already makes for Notes.
         builder.Property(x => x.Terms);
         builder.Property(x => x.DiscountPct).HasPrecision(18, 4).IsRequired();
+
+        // Phase 28 (FR-2.5). Both carry a SQL default so the migration backfills every existing row
+        // to "base currency at rate 1" without a data script, and ValueGeneratedNever so EF always
+        // sends the aggregate's own value rather than ever falling back to that default (the
+        // phase-2 bug #2 shape: a stored default silently winning over an in-memory value).
+        builder.Property(x => x.CurrencyCode)
+            .HasMaxLength(3).IsRequired().HasDefaultValue(CurrencyCatalog.BaseCode).ValueGeneratedNever();
+        builder.Property(x => x.ExchangeRate)
+            .HasPrecision(18, ExchangeRates.RateScale).IsRequired()
+            .HasDefaultValue(ExchangeRates.BaseRate).ValueGeneratedNever();
 
         builder.HasOne<Contact>().WithMany().HasForeignKey(x => x.ContactId).OnDelete(DeleteBehavior.Restrict);
 

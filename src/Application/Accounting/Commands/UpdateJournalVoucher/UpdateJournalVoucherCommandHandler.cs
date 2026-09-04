@@ -37,6 +37,9 @@ public sealed class UpdateJournalVoucherCommandHandler(IAppDbContext db)
         var oldLines = journalVoucher.Lines.ToList();
 
         journalVoucher.UpdateHeader(request.Date, request.Reference);
+
+        // Phase 28 -- see the Create handler's note. Draft-only, enforced by the aggregate.
+        journalVoucher.SetCurrency(request.CurrencyCode, request.ExchangeRate);
         journalVoucher.ClearLines();
         foreach (var line in request.Lines)
         {

@@ -29,6 +29,9 @@ public sealed class UpdateCashTransferCommandHandler(IAppDbContext db)
         var oldLines = cashTransfer.Lines.ToList();
 
         cashTransfer.UpdateHeader(request.Date, request.Reference, request.FromAccountId);
+
+        // Phase 28 -- see the Create handler's note. Draft-only, enforced by the aggregate.
+        cashTransfer.SetCurrency(request.CurrencyCode, request.ExchangeRate);
         cashTransfer.ClearLines();
         foreach (var line in request.Lines)
         {

@@ -31,6 +31,9 @@ public sealed class UpdateQuotationCommandHandler(IAppDbContext db)
         var oldLines = quotation.Lines.ToList();
 
         quotation.UpdateHeader(request.ContactId, request.Date, request.ExpiryDate, request.Reference, request.DiscountPct);
+
+        // Phase 28 -- see the Create handler's note. Draft-only, enforced by the aggregate.
+        quotation.SetCurrency(request.CurrencyCode, request.ExchangeRate);
         quotation.SetTerms(request.Terms);
 
         quotation.ClearLines();

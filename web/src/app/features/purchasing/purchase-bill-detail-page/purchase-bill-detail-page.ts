@@ -1,6 +1,8 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
+import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { PurchasingService } from '../../../core/purchasing/purchasing.service';
@@ -49,7 +51,7 @@ let nextLineKey = 1;
  * "Convert to Credit Note". */
 @Component({
   selector: 'app-purchase-bill-detail-page',
-  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor],
+  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields],
   templateUrl: './purchase-bill-detail-page.html',
 })
 export class PurchaseBillDetailPage {
@@ -73,6 +75,10 @@ export class PurchaseBillDetailPage {
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
   protected readonly loading = signal(true);
+  // Phase 28 (FR-2.5) -- the document's own currency and its rate to the base currency, owned here
+  // and rendered by the shared app-currency-rate-fields control.
+  protected readonly currencyCode = signal(BASE_CURRENCY_CODE);
+  protected readonly exchangeRate = signal(1);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
@@ -186,6 +192,8 @@ export class PurchaseBillDetailPage {
           this.contactId.set('');
           this.date.set(this.today());
           this.reference.set('');
+          this.currencyCode.set(BASE_CURRENCY_CODE);
+          this.exchangeRate.set(1);
           this.discountPct.set(0);
           this.lines.set([this.newLine()]);
         }
@@ -318,6 +326,10 @@ export class PurchaseBillDetailPage {
     this.errorMessage.set(null);
 
     const request = {
+
+      currencyCode: this.currencyCode(),
+
+      exchangeRate: this.exchangeRate(),
       contactId: this.contactId(),
       warehouseId: this.warehouseId(),
       date: this.date(),
@@ -571,6 +583,8 @@ export class PurchaseBillDetailPage {
         this.warehouseId.set(bill.warehouseId);
         this.date.set(bill.date);
         this.reference.set(bill.reference ?? '');
+        this.currencyCode.set(bill.currencyCode);
+        this.exchangeRate.set(bill.exchangeRate);
         this.supplierInvoiceReference.set(bill.supplierInvoiceReference ?? '');
         this.isImport.set(bill.isImport);
         this.importCountry.set(bill.importCountry ?? '');

@@ -53,6 +53,8 @@ public sealed class GetPurchaseBillQueryHandler(IAppDbContext db) : IRequestHand
             purchaseBill.GrandTotal,
             purchaseBill.Lines.Select(x => new PurchaseBillLineDto(
                 x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount, x.ExpenditureClassification)).ToList(),
-            glLines);
+            glLines,
+            purchaseBill.CurrencyCode,
+            purchaseBill.ExchangeRate);
     }
 }

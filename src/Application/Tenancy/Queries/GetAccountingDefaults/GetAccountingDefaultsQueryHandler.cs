@@ -25,6 +25,8 @@ public sealed class GetAccountingDefaultsQueryHandler(IAppDbContext db)
             settings.DefaultInventoryAccountId,
             settings.DefaultCogsAccountId,
             settings.DefaultInventoryAdjustmentAccountId,
-            settings.DefaultProductionCostAccountId);
+            settings.DefaultProductionCostAccountId,
+            settings.DefaultForexGainAccountId,
+            settings.DefaultForexLossAccountId);
     }
 }

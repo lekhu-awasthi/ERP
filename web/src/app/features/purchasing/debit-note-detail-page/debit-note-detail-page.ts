@@ -1,6 +1,8 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
+import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { PurchasingService } from '../../../core/purchasing/purchasing.service';
@@ -43,7 +45,7 @@ let nextLineKey = 1;
  * so a full reversal nets Accounts Payable and TDS Payable back to zero. */
 @Component({
   selector: 'app-debit-note-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields],
   templateUrl: './debit-note-detail-page.html',
 })
 export class DebitNoteDetailPage {
@@ -65,6 +67,10 @@ export class DebitNoteDetailPage {
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
   protected readonly loading = signal(true);
+  // Phase 28 (FR-2.5) -- the document's own currency and its rate to the base currency, owned here
+  // and rendered by the shared app-currency-rate-fields control.
+  protected readonly currencyCode = signal(BASE_CURRENCY_CODE);
+  protected readonly exchangeRate = signal(1);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
@@ -160,6 +166,8 @@ export class DebitNoteDetailPage {
           this.contactId.set('');
           this.date.set(this.today());
           this.reference.set('');
+          this.currencyCode.set(BASE_CURRENCY_CODE);
+          this.exchangeRate.set(1);
           this.tdsTypeId.set('');
           this.discountPct.set(0);
           this.lines.set([this.newLine()]);
@@ -239,6 +247,10 @@ export class DebitNoteDetailPage {
     this.errorMessage.set(null);
 
     const request = {
+
+      currencyCode: this.currencyCode(),
+
+      exchangeRate: this.exchangeRate(),
       contactId: this.contactId(),
       date: this.date(),
       reference: this.reference() || null,
@@ -363,6 +375,8 @@ export class DebitNoteDetailPage {
         this.contactId.set(debitNote.contactId);
         this.date.set(debitNote.date);
         this.reference.set(debitNote.reference ?? '');
+        this.currencyCode.set(debitNote.currencyCode);
+        this.exchangeRate.set(debitNote.exchangeRate);
         this.tdsTypeId.set(debitNote.tdsTypeId ?? '');
         this.referrerType = debitNote.referrerType;
         this.referrerId = debitNote.referrerId;

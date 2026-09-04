@@ -1,6 +1,8 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
+import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AccountingService } from '../../../core/accounting/accounting.service';
@@ -30,7 +32,7 @@ let nextLineKey = 1;
  * credit). */
 @Component({
   selector: 'app-cash-transfer-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields],
   templateUrl: './cash-transfer-detail-page.html',
 })
 export class CashTransferDetailPage {
@@ -47,6 +49,10 @@ export class CashTransferDetailPage {
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
   protected readonly loading = signal(true);
+  // Phase 28 (FR-2.5) -- the document's own currency and its rate to the base currency, owned here
+  // and rendered by the shared app-currency-rate-fields control.
+  protected readonly currencyCode = signal(BASE_CURRENCY_CODE);
+  protected readonly exchangeRate = signal(1);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
@@ -97,6 +103,8 @@ export class CashTransferDetailPage {
         this.loading.set(false);
         this.date.set(this.today());
         this.reference.set('');
+this.currencyCode.set(BASE_CURRENCY_CODE);
+this.exchangeRate.set(1);
         this.fromAccountId.set('');
         this.lines.set([this.newLine()]);
       } else {
@@ -143,7 +151,7 @@ export class CashTransferDetailPage {
     this.saving.set(true);
     this.errorMessage.set(null);
 
-    const request = { date: this.date(), reference: this.reference() || null, fromAccountId, lines };
+    const request = { currencyCode: this.currencyCode(), exchangeRate: this.exchangeRate(), date: this.date(), reference: this.reference() || null, fromAccountId, lines };
     const request$ = this.isNew()
       ? this.accountingService.createCashTransfer(this.organizationId, request)
       : this.accountingService.updateCashTransfer(this.organizationId, this.routeCashTransferId, request);
@@ -238,6 +246,8 @@ export class CashTransferDetailPage {
         this.cashTransfer.set(cashTransfer);
         this.date.set(cashTransfer.date);
         this.reference.set(cashTransfer.reference ?? '');
+        this.currencyCode.set(cashTransfer.currencyCode);
+        this.exchangeRate.set(cashTransfer.exchangeRate);
         this.fromAccountId.set(cashTransfer.fromAccountId);
         this.lines.set(
           cashTransfer.lines.length > 0

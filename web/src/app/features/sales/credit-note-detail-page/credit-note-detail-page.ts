@@ -1,6 +1,8 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
+import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { SalesService } from '../../../core/sales/sales.service';
@@ -38,7 +40,7 @@ let nextLineKey = 1;
  * Quotation. Approve posts CreditNotePostingRule's exact reverse of InvoicePostingRule. */
 @Component({
   selector: 'app-credit-note-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor, CurrencyRateFields],
   templateUrl: './credit-note-detail-page.html',
 })
 export class CreditNoteDetailPage {
@@ -59,6 +61,10 @@ export class CreditNoteDetailPage {
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
   protected readonly loading = signal(true);
+  // Phase 28 (FR-2.5) -- the document's own currency and its rate to the base currency, owned here
+  // and rendered by the shared app-currency-rate-fields control.
+  protected readonly currencyCode = signal(BASE_CURRENCY_CODE);
+  protected readonly exchangeRate = signal(1);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
@@ -151,6 +157,8 @@ export class CreditNoteDetailPage {
           this.contactId.set('');
           this.date.set(this.today());
           this.reference.set('');
+        this.currencyCode.set(BASE_CURRENCY_CODE);
+        this.exchangeRate.set(1);
           this.terms.set('');
         this.terms.set('');
           this.discountPct.set(0);
@@ -226,6 +234,10 @@ export class CreditNoteDetailPage {
     this.errorMessage.set(null);
 
     const request = {
+
+      currencyCode: this.currencyCode(),
+
+      exchangeRate: this.exchangeRate(),
       contactId: this.contactId(),
       date: this.date(),
       reference: this.reference() || null,
@@ -350,6 +362,8 @@ export class CreditNoteDetailPage {
         this.contactId.set(creditNote.contactId);
         this.date.set(creditNote.date);
         this.reference.set(creditNote.reference ?? '');
+        this.currencyCode.set(creditNote.currencyCode);
+        this.exchangeRate.set(creditNote.exchangeRate);
         this.terms.set(creditNote.terms ?? '');
         this.referrerType = creditNote.referrerType;
         this.referrerId = creditNote.referrerId;

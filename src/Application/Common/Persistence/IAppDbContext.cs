@@ -31,6 +31,7 @@ public interface IAppDbContext
     DbSet<TenantSettings> TenantSettings { get; }
     DbSet<TenantSubscription> TenantSubscriptions { get; }
     DbSet<Warehouse> Warehouses { get; }
+    DbSet<Currency> Currencies { get; }
     DbSet<OrganizationMembership> OrganizationMemberships { get; }
     DbSet<Role> Roles { get; }
     DbSet<RolePermission> RolePermissions { get; }

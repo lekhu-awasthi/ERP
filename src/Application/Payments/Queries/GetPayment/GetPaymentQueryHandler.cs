@@ -47,6 +47,8 @@ public sealed class GetPaymentQueryHandler(IAppDbContext db) : IRequestHandler<G
             payment.ApprovedAt,
             payment.CreatedAt,
             allocations.Select(x => new PaymentAllocationDto(x.Id, x.TargetDocumentType, x.TargetDocumentId, x.Amount)).ToList(),
-            glLines);
+            glLines,
+            payment.CurrencyCode,
+            payment.ExchangeRate);
     }
 }

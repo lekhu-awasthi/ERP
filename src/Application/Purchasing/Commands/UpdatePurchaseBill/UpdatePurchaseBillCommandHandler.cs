@@ -47,6 +47,9 @@ public sealed class UpdatePurchaseBillCommandHandler(IAppDbContext db)
             tdsAmount,
             request.DiscountPct);
 
+        // Phase 28 -- see the Create handler's note. Draft-only, enforced by the aggregate.
+        purchaseBill.SetCurrency(request.CurrencyCode, request.ExchangeRate);
+
         purchaseBill.ClearLines();
         foreach (var line in request.Lines)
         {

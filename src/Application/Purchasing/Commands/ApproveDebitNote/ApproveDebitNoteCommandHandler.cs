@@ -54,9 +54,18 @@ public sealed class ApproveDebitNoteCommandHandler(
             throw new ConflictException("A debit note needs at least one line to be approved.");
         }
 
+        // Phase 28 (FR-2.5): the fold. The document stores its amounts in its own currency; the
+        // general ledger is denominated in the base currency, so every line amount is converted
+        // here, before the posting rule runs. Doing it here rather than on the finished GlLineInput
+        // list is what keeps the entry balanced by construction -- the rule derives its balancing
+        // leg as a sum of these very numbers. See ExchangeRates' doc comment.
         var postingInput = await DebitNoteAccountResolver.ResolveAsync(
-            db, request.OrganizationId, debitNote.Lines.Select(x => (x.ProductId, x.Amount, x.VatAmount)),
-            debitNote.TdsAmount, cancellationToken);
+            db, request.OrganizationId,
+            debitNote.Lines.Select(x => (
+                x.ProductId,
+                ExchangeRates.ToBase(x.Amount, debitNote.ExchangeRate),
+                ExchangeRates.ToBase(x.VatAmount, debitNote.ExchangeRate))),
+            ExchangeRates.ToBase(debitNote.TdsAmount, debitNote.ExchangeRate), cancellationToken);
 
         var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.DebitNote, cancellationToken);
 

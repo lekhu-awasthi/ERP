@@ -1,6 +1,8 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
+import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { PurchasingService } from '../../../core/purchasing/purchasing.service';
@@ -44,7 +46,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-expense-detail-page',
-  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor],
+  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields],
   templateUrl: './expense-detail-page.html',
 })
 export class ExpenseDetailPage {
@@ -65,6 +67,10 @@ export class ExpenseDetailPage {
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
   protected readonly loading = signal(true);
+  // Phase 28 (FR-2.5) -- the document's own currency and its rate to the base currency, owned here
+  // and rendered by the shared app-currency-rate-fields control.
+  protected readonly currencyCode = signal(BASE_CURRENCY_CODE);
+  protected readonly exchangeRate = signal(1);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
@@ -129,6 +135,8 @@ export class ExpenseDetailPage {
         this.loading.set(false);
         this.contactId.set('');
         this.date.set(this.today());
+this.currencyCode.set(BASE_CURRENCY_CODE);
+this.exchangeRate.set(1);
         this.dueDate.set('');
         this.supplierInvoiceReference.set('');
         this.notes.set('');
@@ -265,6 +273,10 @@ export class ExpenseDetailPage {
     this.errorMessage.set(null);
 
     const request = {
+
+      currencyCode: this.currencyCode(),
+
+      exchangeRate: this.exchangeRate(),
       contactId: this.contactId(),
       date: this.date(),
       dueDate: this.dueDate() || null,
@@ -380,6 +392,8 @@ export class ExpenseDetailPage {
         this.expense.set(expense);
         this.contactId.set(expense.contactId);
         this.date.set(expense.date);
+        this.currencyCode.set(expense.currencyCode);
+        this.exchangeRate.set(expense.exchangeRate);
         this.dueDate.set(expense.dueDate ?? '');
         this.supplierInvoiceReference.set(expense.supplierInvoiceReference ?? '');
         this.notes.set(expense.notes ?? '');

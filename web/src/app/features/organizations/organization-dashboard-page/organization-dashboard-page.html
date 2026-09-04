@@ -327,6 +327,11 @@
             <a [routerLink]="['/organizations', organizationId(), 'warehouses']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-building"></i> Warehouses
             </a>
+            @if (hasFeature('MultiCurrency')) {
+              <a [routerLink]="['/organizations', organizationId(), 'currencies']" class="btn btn-outline-secondary btn-sm fw-bold">
+                <i class="bi bi-currency-exchange"></i> Currencies
+              </a>
+            }
             <a [routerLink]="['/organizations', organizationId(), 'roles']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-shield-lock"></i> Role Reference
             </a>

@@ -158,7 +158,7 @@ E2E, one proven negative path, a status doc) and the confirm-live rule.
   statement, agreeing with it by construction (both read `ContactLedgerReader`). The `Email` type
   waits for Phase 30, alongside the `Send Email` action live-confirmed on Invoice/Credit Note/Payment.
 
-### 28. Multi-currency (FR-2.5, NFR-1.3) — confirm-lived, shapes known
+### 28. Multi-currency (FR-2.5, NFR-1.3). **DONE (`docs/phase-28-status.md`).**
 - Live: **Currency (default Nepalese Rupee) + Exchange Rate To NPR\*** sit on the Invoice and
   Purchase Bill add forms even on an NPR-only tenant; the Opening Balances row form carries
   **Currency + Conversion Rate**; `Organization > Features > Multiple Currency` lists NPR with an
@@ -174,9 +174,26 @@ E2E, one proven negative path, a status doc) and the confirm-live rule.
   between the invoice's booked NPR value and the payment's NPR value. Decision A of the phase is
   whether unrealised revaluation at period end is in scope (recommend no: Tigg shows no revaluation
   document, only the realised account).
-- **Confirm live before the allocation rule:** add a currency on the UAT tenant (a config write —
-  ask first), book a USD invoice and a USD receipt at different rates, and read the GL Transactions
-  panel on the receipt. That is the phase-25 experiment shape, and it decides the rule.
+- **The decisive experiment could not be run, and that is a finding.** The reference product's own
+  "Add New Currency" catalog picker returns **"No data"** on the UAT tenant (two 400s in its
+  console), so no second currency can be activated there and no foreign-currency document can exist.
+  The allocation posting rule is therefore **reasoned from first principles and recorded as
+  reasoned**, in `PaymentForexCalculator`'s own doc comment as well as the status doc, with one
+  strong corroboration: that tenant's chart carries a *realised* Forex Gain account under Indirect
+  Income and no unrealised or revaluation account of any kind.
+- **What the live pass did settle, all of which changed the design.** The Multi-Currency switch is
+  self-service and on; a document's Currency picker reads **the tenant's own active list** and its
+  Exchange Rate input is **disabled and pinned to 1 on the base currency** — which is why the
+  entitlement became a cap on the *currency list* and **no document command is feature-gated**;
+  Opening Balances' Conversion Rate is the identical control, so it is a document rate, not an as-at
+  one; the chart ships **Forex Gain with no loss counterpart** (we ship two anyway, on phase-6's
+  VAT-Receivable-vs-Payable precedent); and the printed document carries **one money column, a
+  currency-coded Net Total and no NPR equivalent at all** — a layout with no column for it cannot
+  print one, so the printed figure is the transaction currency.
+- **Decision A resolved: no.** Unrealised period-end revaluation is out of scope, corroborated live.
+  The fold went on the posting rule's *inputs*, not its finished lines — every rule derives its
+  balancing leg as a sum, so converting afterwards breaks the balanced-entry invariant
+  intermittently. Zero report changes, as predicted.
 
 ### 29. Landed cost (FR-6.15, Cost Terms' other half) — confirm-lived, shape known
 - Live, on the Purchase Bill itself: an **Additional Cost** section with an "Add product-wise"

@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Currencies;
 using FluentValidation;
 
 namespace ErpApp.Application.Payments.Commands.CreatePayment;
@@ -18,5 +19,8 @@ public sealed class CreatePaymentCommandValidator : AbstractValidator<CreatePaym
             allocation.RuleFor(x => x.TargetDocumentId).NotEmpty();
             allocation.RuleFor(x => x.Amount).GreaterThan(0);
         });
+
+        this.AddCurrencyRules(x => x.CurrencyCode, x => x.ExchangeRate);
+
     }
 }

@@ -97,6 +97,34 @@ A standalone debit note with no referrer falls back to Others/local. `PurchaseRe
 now, and both the Purchase Register and the Purchase Return Register read it, so the two cannot
 report a return in different statutory columns.
 
+**A currency conversion belongs on a posting rule's *inputs*, never on its finished lines
+(phase-28).** Every posting rule in this codebase derives its balancing leg as a *sum of the other
+legs* -- `InvoicePostingRule`'s AR line is revenue + VAT, `PurchaseBillPostingRule`'s AP line
+likewise. Convert the already-built `GlLineInput` list and that balancing leg gets rounded
+independently of the legs it balances, so `Round(T x r)` can differ from `Sum(Round(a_i x r))` and
+`GlJournalEntry.Post`'s sum(Debit)==sum(Credit) invariant fails -- **intermittently**, for some rates
+on some documents, which is the worst possible failure mode. Two 0.05 debits against one 0.10 credit
+at rate 1.5 give 0.08 + 0.08 = 0.16 against 0.15. Converting the *inputs* (the line amounts the
+account resolver is handed) keeps every entry balanced by construction, because the rule then sums
+the very numbers it posts. `Domain/Common/ExchangeRates` is the one conversion point.
+
+Two document types cannot take that route -- `JournalVoucher` and `CashTransfer`, whose rules take
+the domain aggregate itself and so have no line-amount argument. They go through
+`GlCurrencyConversion.ToBaseAsync`, which converts the finished list and **books the residue to the
+tenant's forex account** rather than absorbing it (phase-25's name-the-residue rule). It is bounded
+by half a paisa per line and is exactly zero for most entries, in which case no forex leg is added
+and no forex account is required.
+
+**Nothing already denominated in the base currency may be converted a second time (phase-28).**
+`StockLedgerEntry.UnitCost` is written in base currency at receipt, so an Invoice's COGS leg is
+already base and converting it again would double-apply the rate. The one place a document's own
+rate reaches the stock ledger is `ApprovePurchaseBillCommandHandler`, and it uses
+`ExchangeRates.ToBaseUnitCost` (four decimal places, matching every `UnitCost` column) rather than
+`ToBase` (two) -- rounding a foreign unit price to paisa loses real precision on cheap goods and
+then multiplies it by every quantity ever received. CreditNote and the Void paths re-increment from
+a stored `CogsUnitCost`/`ConsumedUnitCost`, which is already base.
+
+
 ## Background jobs
 
 - A singleton `BackgroundService` **cannot inject a scoped service** (`IAppDbContext` and `IEmailSender` are both `AddScoped` here) — injecting one either fails at startup or pins it for the process lifetime. Take `IServiceScopeFactory` and create a scope per tick. Two companions to the same rule: read options through `IOptionsMonitor`, not `IOptions` (see the caching gotcha below — a long-lived singleton is exactly what it bites), and never let a tick's exception escape `ExecuteAsync`, or the loop stops for the rest of the process's life while the app keeps serving HTTP perfectly happily. See `AlertSchedulerHostedService`.
@@ -165,6 +193,10 @@ side.
 
 - **A registered user has no verification code until `POST /api/auth/request-verification-code` is called.** Registration creates the user only, so an E2E that needs a second identity must call that endpoint, read the code from `[identity].VerificationCodes` with `sqlcmd`, then `verify-email` before `login` will return anything but 403. Worth the four extra calls: a **Member-role user is the only way to prove a document-scoped 403**, since the Admin role is seeded with every key.
 - **A test suite that passes with *fewer* tests than the last run is a failure.** A Python patch script that sliced from an inserted block to the end of the enclosing `describe` deleted four specs in phase 27b; `ng test` went green at 163 where 167 was expected, and only comparing counts across runs caught it. Check what a rewriting script produced by counting it, not by whether the build is green. The same script silently converted CRLF to LF on every file it touched — invisible in `git diff` because `core.autocrlf` normalizes it, but a real change on disk.
+
+- `identity` is a reserved word in T-SQL, so `SELECT ... FROM identity.VerificationCodes` fails with "Incorrect syntax near the keyword 'identity'" -- it needs `[identity].VerificationCodes`. Every E2E that proves a document-scoped 403 needs a Member-role user, and every Member-role user needs its verification code read out of that table, so this is on the path of every future negative-path proof (phase-28).
+- `tsc --noEmit -p tsconfig.json` does **not** typecheck the Angular app in `web/` -- it returned clean while `ng build` reported 22 `TS2339` errors for properties that did not exist on the models. `ng build` is the check that actually covers `src/app`; treat the `tsc` line in CLAUDE.md's exit bar as the weaker of the two (phase-28).
+- A wrong field name in a curl-seeded request body yields a bare `400` with no hint, and the *next* request then fails with "Failed to read parameter ... as JSON" -- because an empty `$VAR` was interpolated where a Guid was expected, and it is the Guid, not the JSON, that fails to bind. Read the Api's own request record rather than guessing its field names (phase-28: `CreateAccountRequest` takes `GroupId`, `CreateProductRequest` takes `CategoryId`/`PrimaryUnitId`/`ReOrderLevel`).
 
 ## Tooling and shell
 

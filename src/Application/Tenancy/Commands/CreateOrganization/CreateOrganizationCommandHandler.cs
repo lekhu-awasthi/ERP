@@ -50,6 +50,15 @@ public sealed class CreateOrganizationCommandHandler(
         db.Organizations.Add(organization);
         db.TenantSettings.Add(TenantSettings.CreateDefault(organization.Id));
 
+        // Phase 28 -- every tenant starts with exactly one currency, the base one. Unlike
+        // Warehouse (which this handler deliberately does not seed, see phase-20f Decision #4),
+        // seeding here is required rather than optional: every document defaults to
+        // CurrencyCatalog.BaseCode, so a tenant with no Currency row would have a document header
+        // referring to a currency its own list does not contain. Seeding it is also what makes the
+        // MultiCurrency entitlement expressible as a cap -- see
+        // CreateCurrencyCommandHandler.EnforceMultiCurrencyEntitlementAsync.
+        db.Currencies.Add(Currency.CreateBase(organization.Id));
+
         var features = new AccountingFeatureSelections(
             request.TrackInventory,
             request.MultipleLocations,

@@ -36,6 +36,12 @@ public sealed class CreateInvoiceCommandHandler(IAppDbContext db)
             request.OrganizationId, request.ContactId, request.WarehouseId, request.Date, request.Reference,
             request.ReferrerType, request.ReferrerId, request.DiscountPct,
             request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate);
+
+        // Phase 28 -- the currency pair is set right after construction rather than threaded
+        // through Create's parameter list; see the aggregate's SetCurrency doc comment for why.
+        // Null/null means the base currency at rate 1, so a caller that never heard of this phase
+        // gets exactly the behaviour it had before.
+        invoice.SetCurrency(request.CurrencyCode, request.ExchangeRate);
         invoice.SetTerms(request.Terms);
 
         foreach (var line in request.Lines)

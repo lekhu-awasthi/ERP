@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Currencies;
 using FluentValidation;
 
 namespace ErpApp.Application.Accounting.Commands.UpdateJournalVoucher;
@@ -19,5 +20,8 @@ public sealed class UpdateJournalVoucherCommandValidator : AbstractValidator<Upd
                 .Must(l => (l.Debit > 0) ^ (l.Credit > 0))
                 .WithMessage("Each line must have exactly one of Debit or Credit greater than zero.");
         });
+
+        this.AddCurrencyRules(x => x.CurrencyCode, x => x.ExchangeRate);
+
     }
 }

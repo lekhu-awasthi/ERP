@@ -28,6 +28,9 @@ public sealed class UpdatePurchaseOrderCommandHandler(IAppDbContext db)
         var oldLines = purchaseOrder.Lines.ToList();
 
         purchaseOrder.UpdateHeader(request.ContactId, request.Date, request.Reference, request.DiscountPct);
+
+        // Phase 28 -- see the Create handler's note. Draft-only, enforced by the aggregate.
+        purchaseOrder.SetCurrency(request.CurrencyCode, request.ExchangeRate);
         purchaseOrder.SetTerms(request.Terms);
 
         purchaseOrder.ClearLines();

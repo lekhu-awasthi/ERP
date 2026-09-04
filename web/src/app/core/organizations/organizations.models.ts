@@ -107,6 +107,57 @@ export interface UpdateWarehouseResult {
   isActive: boolean;
 }
 
+// Phase 28 (FR-2.5) -- the tenant's active currency list, rendered on the Organization's own
+// Features tab in the reference product (confirmed live 2026-09-04), which is why it lives in the
+// organizations models beside Warehouse rather than under configuration.
+export interface Currency {
+  id: string;
+  organizationId: string;
+  code: string;
+  name: string;
+  symbol: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CurrencyCatalogEntry {
+  code: string;
+  name: string;
+  symbol: string;
+  alreadyActivated: boolean;
+}
+
+export interface CreateCurrencyRequest {
+  code: string;
+  name?: string | null;
+  symbol?: string | null;
+}
+
+export interface CreateCurrencyResult {
+  id: string;
+  code: string;
+  name: string;
+  symbol: string;
+}
+
+export interface UpdateCurrencyRequest {
+  name: string;
+  symbol: string;
+  isActive: boolean;
+}
+
+export interface UpdateCurrencyResult {
+  id: string;
+  code: string;
+  name: string;
+  symbol: string;
+  isActive: boolean;
+}
+
+/** The base currency every tenant is seeded with and can never remove -- mirrors
+ * Domain.Common.CurrencyCatalog.BaseCode. */
+export const BASE_CURRENCY_CODE = 'NPR';
+
 // Phase 13 -- powers the Task feature's Assigned-To picker. membershipId/roleId (Phase 14) also
 // let the Role Reference page's Members section reassign a member's Role.
 export interface OrganizationMember {

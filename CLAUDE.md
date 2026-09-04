@@ -55,6 +55,10 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 26c: the Reports catalogue completed — 4 inventory reports, both return registers, Net Trading Assets, Exceptional Report, User Log. Before a report over stock, a second report that must agree with a register, or anything written on an unauthenticated path — `docs/phase-26c-status.md`
 - Phase 27a: swept Custom Fields/Custom Status/Reporting Tags/Tasks-Documents-Activity across every document type, generalized `Comment` to a polymorphic parent. Before adding a `DocumentType` member, or building a second cross-cutting mechanism sweep — `docs/phase-27a-status.md`
 - Phase 27b: print/PDF for all 15 document types on one generic section layout, BS dates in server-rendered PDFs/`.xlsx`, the last three pagers, wizard Turnstile, a feature-flag route guard, and `CustomTemplate`'s first two consumers. Before adding a type to the print pipeline, rendering a date in server-produced output, or giving a `CustomTemplate` type a consumer — `docs/phase-27b-status.md`
+- Phase 28: multi-currency — a tenant `Currency` list, `CurrencyCode`/`ExchangeRate` on 12 document types,
+  the base-currency fold on posting-rule *inputs*, and a realised forex rule on Payment allocation. Before
+  converting anything into the general ledger, before gating a feature flag, or before trusting a
+  confirm-live pass to be possible — `docs/phase-28-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -144,6 +148,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A dated stock report must derive from `StockMovement`, never from `StockLedgerEntry`: `QuantityRemaining` is decremented **in place**, so the FIFO table only ever answers "as of now" and a report for a closed period would silently answer today's question. Opening+In-Out over the append-only movements reconstructs both quantity and value at any date, and equals the FIFO figure today (phase-26c).
 - `StockLedgerService.ConsumeAsync` **throws** on an oversell, so no path in this codebase can drive a stock balance negative — the reference product's Negative Item Balance setting (Reject/Warn/Do Nothing) is unbuilt. Don't write a test for a negative-balance branch; pin the throw instead (phase-26c).
 - A Debit Note line carries no `ExpenditureClassification` or `IsImport` of its own; both are resolved from the source Purchase Bill's matching line by (PurchaseBillId, ProductId, Rate, VatRate) (phase-19, phase-26c's `PurchaseReturnReader`).
+- Convert a currency on a posting rule's **inputs**, never on its finished `GlLineInput` list: every rule derives its balancing leg as a *sum* of the others, so converting afterwards rounds that leg independently and breaks `sum(Debit)==sum(Credit)` intermittently (phase-28).
+- Never convert twice: FIFO unit costs, COGS and historical `GlLine`s are already base currency. `ApprovePurchaseBillCommandHandler` is the one place a document rate reaches the stock ledger, and it rounds to 4 dp (`ToBaseUnitCost`), not 2 (phase-28).
 
 **Background jobs**
 - A singleton `BackgroundService` cannot inject scoped services; take `IServiceScopeFactory`, read options via `IOptionsMonitor`, and never let a tick's exception escape `ExecuteAsync` (`AlertSchedulerHostedService`).
@@ -196,6 +202,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A curl seed script that pipes approvals to `/dev/null` hides its own failures — the first report just comes back empty. Print every approval's status code. Two live traps: `POST /api/organizations` returns `organizationId`, not `id`, and the GL defaults are **one** `PUT /accounting-defaults` taking all eleven accounts (phase-26c).
 - Driving the reference product's Browser pane needs coordinates from `getBoundingClientRect`: its accessibility tree is nearly empty and `find` matches nothing. Its GENERATE control's DOM text is "Generate" — the capitals are CSS `text-transform` (phase-26c).
 - A fresh Organization has zero Accounts and zero Account Groups — nothing seeds a chart of accounts — so any E2E needing a Journal Voucher, Cash Transfer, Payment or Expense line must `POST` its own account groups (one per `AccountRootType`, spelled `Asset`/`Liability`/`Equity`/`Income`/`Expense` — singular, unlike the plural `rootType` groupings a list response returns them under) before it can create an account (phase-27a).
+- `identity` is a reserved word in T-SQL — reading a verification code needs `[identity].VerificationCodes`, and every document-scoped 403 proof needs a Member user, which needs that code (phase-28).
+- `tsc --noEmit -p tsconfig.json` does not typecheck `web/src/app`; it came back clean while `ng build` reported 22 `TS2339` errors. `ng build` is the real check (phase-28).
 
 **Tooling and shell**
 - `nvm use` from a shell that cannot create the symlink deletes `C:\nvm4w\nodejs` and reports success; recreate it with `cmd /c 'mklink /J "C:\nvm4w\nodejs" "%LOCALAPPDATA%\nvm\v24.11.0"'`.
@@ -204,36 +212,41 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-26 (v1 plus the Reports catalogue) are complete, and phase 27 is done — 27a and 27b both.**
-27b closed the output half: **print/PDF is wired for all 15 transactional document types**, on one
-generic section-based layout that switches on no `DocumentType` at all (the confirm-live pass found
-the reference product prints one page frame with a *varying number of titled tables*, which
-phase-20d's two fixed layouts could not express). **Phase-23 Decision A's carried limitation is
-closed** — an `X-Calendar` header plus an ambient `RequestCalendar` put Bikram Sambat business dates
-into server-rendered PDFs and every `.xlsx` export, while audit timestamps and file-name dates
-deliberately stay AD. Also shipped: the three missing pagers, Turnstile on the New Organization
-wizard, a feature-flag route guard (three real flags, 13 routes — buildable only because Phase 25
-gave `Manufacturing` a surface 20f could not gate), and `CustomTemplate`'s first two consumers.
-Terms and Conditions turned out to be **5 document types, not the roadmap's 2**. Full story in
-`docs/phase-27b-status.md`.
+**Phases 0-27 are complete, and phase 28 (multi-currency, FR-2.5/NFR-1.3) is done.** A tenant
+`Currency` list seeded from a fixed product catalog with NPR always present; `CurrencyCode` +
+`ExchangeRate` on all twelve document types whose live form shows them; amounts stored in the
+transaction currency with the base-currency figure **folded into each posting rule's inputs at
+Approve** — so `GlLine` is unchanged and every Phase 8/19/26 report needed zero edits; two new tenant
+defaults (Forex Gain, Forex Loss) and a realised-difference rule on Payment allocation that leaves
+the control account flat.
 
-**What comes next** is **phase 28** (multi-currency, FR-2.5/NFR-1.3 — confirm-lived, shapes known),
-then 29-34 in `docs/roadmap.md`. Still recorded separately:
+Three things from 28 that generalise: the entitlement became a **cap on the currency list** rather
+than a gate on documents (a one-entry list makes the document surface degenerate on its own, so no
+document command is feature-gated at all); the conversion goes on a posting rule's **inputs**, never
+its finished lines, or the balanced-entry invariant fails intermittently; and **the roadmap's
+decisive experiment could not be run** — the reference product's own currency-catalog picker returns
+"No data" on the UAT tenant — so the allocation posting rule is reasoned from first principles and
+is *recorded as reasoned*, in the code as well as the status doc. Full story in
+`docs/phase-28-status.md`, including what the live pass did settle (all of which reshaped the design).
+
+**What comes next** is **phase 29** (landed cost, FR-6.15 — confirm-lived, shape known), then 30-34
+in `docs/roadmap.md`. Still recorded separately:
 - the deferred post-v1 list in `docs/roadmap.md` (POS, IRD e-filing, Marketplace);
-- carried items, now shorter by three: server-rendered PDFs and `.xlsx` print BS dates as of 27b, and
-  Custom Fields/Status/Tags on production documents were resolved by 27a. What remains, scheduled in
-  phase 30 and 33: Phase 25's multi-level BOM explosion; phase-26a's two (an explicit compare-date
+- carried items. Phase 25's multi-level BOM explosion; phase-26a's two (an explicit compare-date
   picker on the two as-of statements, Reporting Tags on the Journal report); phase-26b's four (a
   stored `DueDate` on Invoice/PurchaseBill, aligning phase-9's `ContactAgeingSummaryQueryHandler`
   with 26b's rules, a product-level service-charge flag, Quick Payment/Receipt as a document type);
   phase-26c's five (WarehouseTransfer/OpeningStock in Inventory Master, the Sales Register's inert
-  "Include Credit Note In Calculation" toggle, Additional Cost allocation, the Negative Item Balance
-  setting that would make negative stock reachable, and Inventory Position's Reporting Tags /
-  group-by-warehouse display options); and phase-27b's own (a rich-text terms editor, terms carried
-  through conversions, `Send Email` + the `Email` template type — all three belong with Phase 30).
+  "Include Credit Note In Calculation" toggle, Additional Cost allocation — which is phase 29 — the
+  Negative Item Balance setting, and Inventory Position's display options); phase-27b's three (a
+  rich-text terms editor, terms carried through conversions, `Send Email` + the `Email` template
+  type — all belong with Phase 30); and **phase-28's own**: no unrealised period-end revaluation, no
+  cross-currency settlement, no rate source, the Allocate screens not filtering by currency, and
+  `ApplyPaymentAllocationCommand` posting no forex leg on the allocate-further path.
 
-Tests at last count: Domain 323, Application.UnitTests 722, Api.IntegrationTests 18, Angular 174;
-`dotnet build` / `dotnet test` / `ng build` / `ng test` / `tsc --noEmit` all clean.
+Tests at last count: Domain 375, Application.UnitTests 746, Api.IntegrationTests 18, Angular 180;
+`dotnet build` / `dotnet test` / `ng build` / `ng test` all clean. Note `tsc --noEmit` does **not**
+cover `web/src/app` — `ng build` is the check that does (phase-28).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

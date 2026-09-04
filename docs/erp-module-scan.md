@@ -481,3 +481,33 @@ Opened before phases 26–34 were finalised. Nothing was saved or sent; the Send
 - **Opening Balances > Account**, inline row form: **Currency, Conversion Rate, Amount, DR/CR** (+ a reporting-tag control). No Location column while the feature is disabled.
 - **Chart of Accounts** contains a **"Forex Gain"** account (Income, group "Foreign Exchange Gain"): the product realises exchange differences into the GL.
 - **Users & Permissions** route is `#/config/user-permission/users`; the page did not render its body in the automation browser within the wait, so the role editor was not re-read (Phase 14 read it in full).
+
+### Appendix, 2026-09-04 — multi-currency confirm-live pass (phase 28)
+
+Read on the Moonbeam UAT tenant. Recorded here because three of these contradict or sharpen what the
+original pass assumed, and one is a limitation of the reference product itself.
+
+- **Organization > Features > Multiple Currency** — a `CODE / NAME / SYMBOL` table, a Show Inactive
+  toggle, an ADD NEW CURRENCY action, and exactly one `switch` element in the section whose
+  `aria-checked` is `true`. The list holds **only NPR**, with Show Inactive checked or not.
+- **The Add New Currency dialog is `Currency` (a "Select Currency" picker) + `Name*` + `Symbol*` +
+  Save — and the picker returns "No data"** (two 400s in the console), so no second currency can be
+  activated on this tenant. This is what blocked phase 28's decisive experiment.
+- **Invoice add form** (`#/sales/invoices/add`): the Currency `ant-select` lists the tenant's active
+  currencies as `NPR / Nepalese Rupee`; `Exchange Rate To NPR *` is an `ant-input-number` with
+  **`disabled: true`, value `1`**. **Customer Payment** (`#/sales/payments-received/add`) carries the
+  identical pair, with `Amount` above it.
+- **Opening Balances > Account**, expanded row: `Currency` / `Conversion Rate` (the same
+  `ant-input-number`, disabled) / `Amount` / `DR` / Add Reporting Tags — the same control as the
+  document forms, under a different label.
+- **Chart of Accounts**: searching accounts for `forex` returns exactly `II0006 — Forex Gain`
+  (Income, group "Foreign Exchange Gain"); searching groups for `Foreign` returns exactly
+  `Foreign Exchange Gain` (Income, parent Indirect Income). **There is no Forex Loss account and no
+  Foreign Exchange Loss group**, and no revaluation document anywhere in the product.
+- **Printed invoice** (`collection-report-html`): line amounts bare, `Amount in Words` naming the
+  currency ("... Nepalese Rupee"), `Net Total  NPR 3,06,500.00` carrying the code, BS dates, and
+  **no base-currency column anywhere in the frame**.
+- **Navigation note:** this app is hash-routed (`#/config/organization/features`,
+  `#/accounting/chartsofaccount/accounts`, `#/config/opening-balances/account`,
+  `#/sales/invoices/add`), so `navigate` to a hash URL is far more reliable than clicking through its
+  ant-design menus. Guessed routes silently redirect to a default page rather than 404.

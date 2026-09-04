@@ -43,6 +43,9 @@ public sealed class UpdateExpenseCommandHandler(IAppDbContext db)
             request.TdsTypeId,
             tdsAmount);
 
+        // Phase 28 -- see the Create handler's note. Draft-only, enforced by the aggregate.
+        expense.SetCurrency(request.CurrencyCode, request.ExchangeRate);
+
         expense.ClearLines();
         foreach (var line in request.Lines)
         {

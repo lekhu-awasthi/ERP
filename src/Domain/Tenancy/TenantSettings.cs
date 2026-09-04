@@ -128,6 +128,27 @@ public sealed class TenantSettings
     /// </summary>
     public bool AiDocumentExtractionEnabled { get; private set; }
 
+    /// <summary>
+    /// Phase 28 (FR-2.5) -- the two accounts the realised exchange difference on a payment
+    /// allocation is booked to (see ForexPostingRule). Read only when a foreign-currency
+    /// settlement actually produces a difference, so a single-currency tenant never has to set
+    /// them and never sees an error about them.
+    ///
+    /// <para><b>Two accounts, not one, and this diverges from the reference product on purpose.</b>
+    /// Its chart of accounts ships exactly one forex account -- "Forex Gain" (Income, under a
+    /// "Foreign Exchange Gain" group) -- and no loss counterpart at all (confirmed live 2026-09-04
+    /// by searching both the account and the group lists). Netting losses into that same Income
+    /// account would give an Income-type account a debit balance, which every statement in
+    /// docs/phase-8a-status.md's family presents with the wrong sign. This is the same call
+    /// phase 6 made in keeping DefaultVatReceivableAccountId separate from
+    /// DefaultVatPayableAccountId: one real accounting distinction is worth one more nullable
+    /// column.</para>
+    /// </summary>
+    public Guid? DefaultForexGainAccountId { get; private set; }
+
+    /// <inheritdoc cref="DefaultForexGainAccountId"/>
+    public Guid? DefaultForexLossAccountId { get; private set; }
+
     private TenantSettings()
     {
     }
@@ -169,7 +190,9 @@ public sealed class TenantSettings
         Guid? defaultPurchaseAccountId,
         Guid? defaultAccountsPayableId,
         Guid? defaultVatReceivableAccountId,
-        Guid? defaultTdsPayableAccountId)
+        Guid? defaultTdsPayableAccountId,
+        Guid? defaultForexGainAccountId = null,
+        Guid? defaultForexLossAccountId = null)
     {
         DefaultSalesAccountId = defaultSalesAccountId;
         DefaultAccountsReceivableId = defaultAccountsReceivableId;
@@ -178,6 +201,8 @@ public sealed class TenantSettings
         DefaultAccountsPayableId = defaultAccountsPayableId;
         DefaultVatReceivableAccountId = defaultVatReceivableAccountId;
         DefaultTdsPayableAccountId = defaultTdsPayableAccountId;
+        DefaultForexGainAccountId = defaultForexGainAccountId;
+        DefaultForexLossAccountId = defaultForexLossAccountId;
     }
 
     public void SetInventoryDefaults(

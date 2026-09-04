@@ -95,6 +95,12 @@ public static class DependencyInjection
         // comment), same generic pair.
         RegisterLookupHandlers<Warehouse>(services);
 
+        // Phase 28 (multi-currency) -- Currency is a {code, name, symbol, isActive} lookup, so the
+        // generic List/Delete pair serves it; Create/Update are concrete because both carry rules
+        // the generic pair cannot express (the catalog check and the MultiCurrency cap on create,
+        // the "the base currency can never be deactivated" rule on update).
+        RegisterLookupHandlers<Currency>(services);
+
         // Phase 6 (Purchase chain) -- TdsType is the same "pure {code, name, rate}" lookup shape.
         RegisterLookupHandlers<TdsType>(services);
 

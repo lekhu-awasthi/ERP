@@ -1,5 +1,7 @@
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
+import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { PurchasingService } from '../../../core/purchasing/purchasing.service';
@@ -34,7 +36,7 @@ let nextLineKey = 1;
  * "Convert to Bill" instead of "Convert to Invoice". */
 @Component({
   selector: 'app-purchase-order-detail-page',
-  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor],
+  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor, CurrencyRateFields],
   templateUrl: './purchase-order-detail-page.html',
 })
 export class PurchaseOrderDetailPage {
@@ -54,6 +56,10 @@ export class PurchaseOrderDetailPage {
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
   protected readonly loading = signal(true);
+  // Phase 28 (FR-2.5) -- the document's own currency and its rate to the base currency, owned here
+  // and rendered by the shared app-currency-rate-fields control.
+  protected readonly currencyCode = signal(BASE_CURRENCY_CODE);
+  protected readonly exchangeRate = signal(1);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
@@ -126,6 +132,8 @@ export class PurchaseOrderDetailPage {
         this.contactId.set('');
         this.date.set(this.today());
         this.reference.set('');
+        this.currencyCode.set(BASE_CURRENCY_CODE);
+        this.exchangeRate.set(1);
         this.terms.set('');
         this.discountPct.set(0);
         this.lines.set([this.newLine()]);
@@ -203,6 +211,10 @@ export class PurchaseOrderDetailPage {
     this.errorMessage.set(null);
 
     const request = {
+
+      currencyCode: this.currencyCode(),
+
+      exchangeRate: this.exchangeRate(),
       contactId: this.contactId(),
       date: this.date(),
       reference: this.reference() || null,
@@ -360,6 +372,8 @@ export class PurchaseOrderDetailPage {
         this.contactId.set(purchaseOrder.contactId);
         this.date.set(purchaseOrder.date);
         this.reference.set(purchaseOrder.reference ?? '');
+        this.currencyCode.set(purchaseOrder.currencyCode);
+        this.exchangeRate.set(purchaseOrder.exchangeRate);
         this.terms.set(purchaseOrder.terms ?? '');
         this.discountPct.set(purchaseOrder.discountPct);
         this.lines.set(

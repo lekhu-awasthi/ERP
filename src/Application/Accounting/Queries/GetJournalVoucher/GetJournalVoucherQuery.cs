@@ -27,4 +27,9 @@ public sealed record JournalVoucherDetailDto(
     DateTimeOffset? ApprovedAt,
     DateTimeOffset CreatedAt,
     IReadOnlyList<JournalVoucherLineDto> Lines,
-    IReadOnlyList<PostedGlLineDto>? GlLines);
+    IReadOnlyList<PostedGlLineDto>? GlLines,
+    // Phase 28 (FR-2.5) -- the document's own currency and its rate to the base currency.
+    // Every amount above is denominated in CurrencyCode; the general ledger figures under
+    // GlLines are in the base currency, already converted at ExchangeRate.
+    string CurrencyCode,
+    decimal ExchangeRate);
