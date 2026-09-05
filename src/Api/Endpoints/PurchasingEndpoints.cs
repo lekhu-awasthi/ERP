@@ -145,7 +145,13 @@ public static class PurchasingEndpoints
                     request.Lines,
                     request.ReferrerType,
                     request.ReferrerId,
-                    request.DiscountPct) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.DiscountPct)
+                {
+                    CurrencyCode = request.CurrencyCode,
+                    ExchangeRate = request.ExchangeRate,
+                    AdditionalCosts = request.AdditionalCosts,
+                    IsProductWiseAdditionalCost = request.IsProductWiseAdditionalCost,
+                },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/purchase-bills/{result.Id}", result);
         });
@@ -168,7 +174,13 @@ public static class PurchasingEndpoints
                     request.ImportDocumentNo,
                     request.TdsTypeId,
                     request.Lines,
-                    request.DiscountPct) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.DiscountPct)
+                {
+                    CurrencyCode = request.CurrencyCode,
+                    ExchangeRate = request.ExchangeRate,
+                    AdditionalCosts = request.AdditionalCosts,
+                    IsProductWiseAdditionalCost = request.IsProductWiseAdditionalCost,
+                },
                 ct);
             return Results.Ok(result);
         });
@@ -477,7 +489,12 @@ public static class PurchasingEndpoints
         // be carried on the request record itself, not only on the command: a trailing optional
         // parameter added to a command alone binds to null forever and every test still passes
         // (phase-27b's Terms).
-        string? CurrencyCode = null, decimal? ExchangeRate = null);
+        string? CurrencyCode = null, decimal? ExchangeRate = null,
+        // Phase 29 (FR-6.15) -- the Additional Cost section and its "Add product-wise" display flag.
+        // Same trailing-optional shape, same phase-27b warning: a command-only parameter binds to
+        // null forever.
+        IReadOnlyList<PurchaseBillAdditionalCostInput>? AdditionalCosts = null,
+        bool IsProductWiseAdditionalCost = false);
 
     private sealed record PreviewPurchaseBillGlPostingRequest(
         IReadOnlyList<PurchaseBillLineInput> Lines, Guid? TdsTypeId, decimal DiscountPct = 0);

@@ -23,7 +23,17 @@ public sealed class PurchaseBill
 {
     public const string DraftCode = "DRAFT";
 
+    /// <summary>
+    /// Phase 29 (FR-6.15). The scale every per-line additional-cost allocation is rounded to --
+    /// the same (18,4) the Amount columns themselves carry, so an allocation can always be stored
+    /// exactly as computed. The last line in a row's scope takes the remainder rather than its own
+    /// rounded share, which makes <c>sum(allocations) == row.Amount</c> true to the paisa for every
+    /// row, leaving the unit-cost rounding downstream as the phase's only residue.
+    /// </summary>
+    public const int AllocationScale = 4;
+
     private readonly List<PurchaseBillLine> _lines = [];
+    private readonly List<PurchaseBillAdditionalCost> _additionalCosts = [];
 
     public Guid Id { get; private set; }
     public Guid OrganizationId { get; private set; }
@@ -68,9 +78,41 @@ public sealed class PurchaseBill
     public Guid? ReferrerId { get; private set; }
     public decimal DiscountPct { get; private set; }
 
+    /// <summary>
+    /// Phase 29 (FR-6.15). Display shape of the live "Add product-wise" checkbox, which swaps the
+    /// Additional Cost section between a list of allocation rules and a product-by-cost-term matrix
+    /// of hand-typed cells. It changes nothing about the arithmetic -- a typed cell is just a row
+    /// that already names its product -- so it is one bool here rather than a second entity, kept
+    /// only so reopening a bill re-renders the section the way it was filled in.
+    /// </summary>
+    public bool IsProductWiseAdditionalCost { get; private set; }
+
+    /// <summary>
+    /// Phase 29, both written at Approve by <see cref="RecordAdditionalCostCapitalisation"/> and
+    /// both in <b>base</b> currency (everything else on this aggregate is in
+    /// <see cref="CurrencyCode"/>). <c>CapitalisedAdditionalCost</c> is the extra value the FIFO
+    /// layers actually received; <c>AdditionalCostRoundingAdjustment</c> is the part of the entered
+    /// additional cost that unit-cost rounding would not let them receive. The second is the
+    /// phase's named residue, in the ProductionJournal.CostRoundingAdjustment tradition: bounded by
+    /// half of the last unit-cost decimal per unit received, disclosed rather than absorbed.
+    /// </summary>
+    public decimal? CapitalisedAdditionalCost { get; private set; }
+
+    /// <inheritdoc cref="CapitalisedAdditionalCost"/>
+    public decimal? AdditionalCostRoundingAdjustment { get; private set; }
+
     public IReadOnlyList<PurchaseBillLine> Lines => _lines;
+    public IReadOnlyList<PurchaseBillAdditionalCost> AdditionalCosts => _additionalCosts;
 
     public decimal GrandTotal => _lines.Sum(x => x.Amount + x.VatAmount);
+
+    /// <summary>
+    /// The Additional Cost section's own total, in the document's currency. Deliberately <b>not</b>
+    /// part of <see cref="GrandTotal"/>: confirmed live 2026-09-04 that the reference product
+    /// excludes it from Sub Total and Grand Total alike, and credits the supplier only the goods
+    /// total, which is what makes this a cost to capitalise rather than a bigger payable.
+    /// </summary>
+    public decimal AdditionalCostTotal => _additionalCosts.Sum(x => x.Amount);
 
     private PurchaseBill()
     {
@@ -178,6 +220,116 @@ public sealed class PurchaseBill
         EnsureDraft();
         _lines.Clear();
     }
+
+    /// <summary>Phase 29 (FR-6.15). Adds one Additional Cost row. <paramref name="productId"/> null
+    /// is the live picker's "All Product".</summary>
+    public void AddAdditionalCost(Guid costTermId, Guid? productId, AdditionalCostMethod method, decimal amount)
+    {
+        EnsureDraft();
+        _additionalCosts.Add(PurchaseBillAdditionalCost.Create(Id, costTermId, productId, method, amount));
+    }
+
+    public void ClearAdditionalCosts()
+    {
+        EnsureDraft();
+        _additionalCosts.Clear();
+    }
+
+    /// <inheritdoc cref="IsProductWiseAdditionalCost"/>
+    public void SetProductWiseAdditionalCost(bool isProductWise)
+    {
+        EnsureDraft();
+        IsProductWiseAdditionalCost = isProductWise;
+    }
+
+    /// <summary>
+    /// Phase 29 (FR-6.15). Spreads every Additional Cost row across the bill's <b>goods</b> lines
+    /// and records the result, one <see cref="PurchaseBillAdditionalCostAllocation"/> per (row,
+    /// line). Pure arithmetic in the document's own currency -- the caller passes in which products
+    /// are Goods, because that is a database fact, exactly as ApproveProductionJournalCommandHandler
+    /// hands ProductionJournal the FIFO costs before its roll-up runs.
+    ///
+    /// <para><b>Goods only, and this is a deliberate divergence.</b> The reference product's Product
+    /// picker offers service lines too (confirmed live 2026-09-04 by putting a Service line on a
+    /// draft and finding it in the list). It can afford to: that tenant is periodic, so its
+    /// additional cost posts no journal at all and lives only in a stock-costing subsystem a service
+    /// line simply never reaches. Here the whole purpose is to capitalise the cost into a FIFO
+    /// layer, and a service line creates no layer -- so a cost allocated to one would have nowhere
+    /// to go and would vanish, breaking the conservation law this phase exists to hold. A row that
+    /// names a service product is therefore rejected outright rather than silently dropped, and
+    /// "All Product" means all <i>goods</i> lines.</para>
+    ///
+    /// <para>Each row's own Amount is conserved exactly: shares are rounded to
+    /// <see cref="AllocationScale"/> and the last line in scope takes the remainder.</para>
+    ///
+    /// <para><b>Returns the allocations it created</b>, rather than leaving the caller to walk the
+    /// graph for them. These rows are appended to <see cref="PurchaseBillAdditionalCost"/> instances
+    /// that EF is already tracking, and a child appended to an already-tracked parent's encapsulated
+    /// collection is detected as <i>Modified</i>, not <i>Added</i> -- phase-24 bug #1, whose symptom
+    /// is a <c>DbUpdateConcurrencyException</c> ("attempted to update or delete an entity that does
+    /// not exist in the store") from a handler that looks correct. The documented remedy is exactly
+    /// this: have the Domain method report the change so the handler can <c>AddRange</c> it through
+    /// the child DbSet.</para>
+    /// </summary>
+    public IReadOnlyList<PurchaseBillAdditionalCostAllocation> AllocateAdditionalCosts(IReadOnlySet<Guid> goodsProductIds)
+    {
+        var goodsLines = _lines.Where(x => goodsProductIds.Contains(x.ProductId)).ToList();
+        var created = new List<PurchaseBillAdditionalCostAllocation>();
+
+        foreach (var cost in _additionalCosts)
+        {
+            var scope = cost.ProductId is { } productId
+                ? goodsLines.Where(x => x.ProductId == productId).ToList()
+                : goodsLines;
+
+            if (scope.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    cost.ProductId is null
+                        ? "An additional cost cannot be allocated: this purchase bill has no goods lines to carry it."
+                        : "An additional cost names a product that is not a goods line on this purchase bill.");
+            }
+
+            var basis = scope
+                .Select(x => cost.Method == AdditionalCostMethod.Quantity ? x.Quantity : x.Amount)
+                .ToList();
+            var totalBasis = basis.Sum();
+
+            if (totalBasis <= 0)
+            {
+                throw new InvalidOperationException(
+                    "An additional cost cannot be allocated: the goods lines it applies to total zero on its chosen Method.");
+            }
+
+            var allocated = 0m;
+            for (var i = 0; i < scope.Count; i++)
+            {
+                var share = i == scope.Count - 1
+                    ? cost.Amount - allocated
+                    : Math.Round(cost.Amount * basis[i] / totalBasis, AllocationScale, MidpointRounding.AwayFromZero);
+
+                created.Add(cost.Allocate(scope[i].Id, share));
+                allocated += share;
+            }
+        }
+
+        return created;
+    }
+
+    /// <inheritdoc cref="CapitalisedAdditionalCost"/>
+    public void RecordAdditionalCostCapitalisation(decimal capitalisedAdditionalCost, decimal roundingAdjustment)
+    {
+        CapitalisedAdditionalCost = capitalisedAdditionalCost;
+        AdditionalCostRoundingAdjustment = roundingAdjustment;
+    }
+
+    /// <summary>The additional cost allocated to one line, in the document's currency -- the sum of
+    /// every row's share of it. Zero before <see cref="AllocateAdditionalCosts"/> has run.</summary>
+    public decimal AllocatedAdditionalCostFor(Guid purchaseBillLineId) =>
+        _additionalCosts
+            .SelectMany(x => x.Allocations)
+            .Where(x => x.PurchaseBillLineId == purchaseBillLineId)
+            .Sum(x => x.Amount);
 
     public void Approve(Guid approvedByUserId, string code)
     {

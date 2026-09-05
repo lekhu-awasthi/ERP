@@ -13,6 +13,7 @@ public sealed class GetPurchaseBillQueryHandler(IAppDbContext db) : IRequestHand
     {
         var purchaseBill = await db.PurchaseBills
             .Include(x => x.Lines)
+            .Include(x => x.AdditionalCosts).ThenInclude(x => x.Allocations)
             .SingleOrDefaultAsync(x => x.Id == request.Id && x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Purchase bill not found.");
 
@@ -55,6 +56,19 @@ public sealed class GetPurchaseBillQueryHandler(IAppDbContext db) : IRequestHand
                 x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount, x.ExpenditureClassification)).ToList(),
             glLines,
             purchaseBill.CurrencyCode,
-            purchaseBill.ExchangeRate);
+            purchaseBill.ExchangeRate,
+            purchaseBill.AdditionalCosts.Select(x => new PurchaseBillAdditionalCostDto(
+                x.Id,
+                x.CostTermId,
+                x.ProductId,
+                x.Method,
+                x.Amount,
+                x.Allocations
+                    .Select(a => new PurchaseBillAdditionalCostAllocationDto(a.PurchaseBillLineId, a.Amount))
+                    .ToList())).ToList(),
+            purchaseBill.IsProductWiseAdditionalCost,
+            purchaseBill.AdditionalCostTotal,
+            purchaseBill.CapitalisedAdditionalCost,
+            purchaseBill.AdditionalCostRoundingAdjustment);
     }
 }

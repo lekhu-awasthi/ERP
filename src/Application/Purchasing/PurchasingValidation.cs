@@ -3,6 +3,7 @@ using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Purchasing;
 using Microsoft.EntityFrameworkCore;
@@ -43,6 +44,76 @@ internal static class PurchasingValidation
         if (!exists)
         {
             throw new NotFoundException("Warehouse not found.");
+        }
+    }
+
+    /// <summary>
+    /// Phase 29 (FR-6.15). Checks an Additional Cost section before it is written: every row's Cost
+    /// Term must exist in this tenant and be an
+    /// <see cref="Domain.Configuration.CostTermCategory.AdditionalCost"/> term (the ProductionCost
+    /// half is Phase 25's and is not selectable here), and a row that names a product must name one
+    /// that is on the bill <b>and is Goods</b>.
+    ///
+    /// <para>The goods check is the enforcement half of PurchaseBill.AllocateAdditionalCosts' scope
+    /// decision, moved forward to Create/Update so the user is told at 422 rather than discovering
+    /// it as a 409 at Approve. Deliberately <i>not</i> checked: whether the Cost Term is still
+    /// active. The live picker lists active terms only, but deactivating one should not make an
+    /// existing draft unsaveable, and an approved reference bill happily displays a term that has
+    /// since gone inactive.</para>
+    /// </summary>
+    public static async Task EnsureAdditionalCostsAreValidAsync(
+        IAppDbContext db,
+        Guid organizationId,
+        IReadOnlyList<PurchaseBillAdditionalCostInput> additionalCosts,
+        IEnumerable<Guid> lineProductIds,
+        CancellationToken cancellationToken)
+    {
+        if (additionalCosts.Count == 0)
+        {
+            return;
+        }
+
+        var costTermIds = additionalCosts.Select(x => x.CostTermId).Distinct().ToList();
+        var knownTermCount = await db.CostTerms.CountAsync(
+            x => x.OrganizationId == organizationId
+                && costTermIds.Contains(x.Id)
+                && x.Category == CostTermCategory.AdditionalCost,
+            cancellationToken);
+
+        if (knownTermCount != costTermIds.Count)
+        {
+            throw new NotFoundException(
+                "One or more Additional Cost rows name a Cost Term that does not exist, or that is not an Additional Cost term.");
+        }
+
+        var namedProductIds = additionalCosts
+            .Where(x => x.ProductId is not null)
+            .Select(x => x.ProductId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (namedProductIds.Count == 0)
+        {
+            return;
+        }
+
+        var onTheBill = lineProductIds.ToHashSet();
+        if (namedProductIds.Any(x => !onTheBill.Contains(x)))
+        {
+            throw new ConflictException(
+                "An Additional Cost row names a product that is not a line on this purchase bill.");
+        }
+
+        var goodsProductIds = await db.Products
+            .Where(x => x.OrganizationId == organizationId && namedProductIds.Contains(x.Id) && x.Type == ProductType.Goods)
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        if (goodsProductIds.Count != namedProductIds.Count)
+        {
+            throw new ConflictException(
+                "An Additional Cost row names a service product. Additional cost is capitalised into stock, "
+                + "so it can only be allocated to goods lines.");
         }
     }
 

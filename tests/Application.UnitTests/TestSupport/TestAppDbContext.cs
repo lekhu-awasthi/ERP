@@ -1,4 +1,4 @@
-﻿using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
@@ -131,6 +131,8 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<PurchaseBill> PurchaseBills => Set<PurchaseBill>();
 
     public DbSet<PurchaseBillLine> PurchaseBillLines => Set<PurchaseBillLine>();
+    public DbSet<PurchaseBillAdditionalCost> PurchaseBillAdditionalCosts => Set<PurchaseBillAdditionalCost>();
+    public DbSet<PurchaseBillAdditionalCostAllocation> PurchaseBillAdditionalCostAllocations => Set<PurchaseBillAdditionalCostAllocation>();
 
     public DbSet<Expense> Expenses => Set<Expense>();
 
@@ -229,6 +231,7 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<PurchaseOrder>().Ignore(x => x.RowVersion);
         modelBuilder.Entity<PurchaseBill>().Ignore(x => x.RowVersion);
         modelBuilder.Entity<PurchaseBill>().Ignore(x => x.GrandTotal);
+        modelBuilder.Entity<PurchaseBill>().Ignore(x => x.AdditionalCostTotal);
         modelBuilder.Entity<Expense>().Ignore(x => x.RowVersion);
         modelBuilder.Entity<Expense>().Ignore(x => x.GrandTotal);
         modelBuilder.Entity<DebitNote>().Ignore(x => x.RowVersion);
@@ -348,6 +351,21 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<PurchaseBill>().HasMany(x => x.Lines).WithOne().HasForeignKey("PurchaseBillId");
         modelBuilder.Entity<PurchaseBill>()
             .Metadata.FindNavigation(nameof(PurchaseBill.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        // Phase 29 -- this context has no ApplyConfigurationsFromAssembly, so every encapsulated
+        // collection has to be restated here or its symptom is a DbUpdateConcurrencyException that
+        // looks like a handler bug (see CLAUDE.md's Known gotchas).
+        modelBuilder.Entity<PurchaseBill>().HasMany(x => x.AdditionalCosts).WithOne()
+            .HasForeignKey(x => x.PurchaseBillId);
+        modelBuilder.Entity<PurchaseBill>()
+            .Metadata.FindNavigation(nameof(PurchaseBill.AdditionalCosts))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        modelBuilder.Entity<PurchaseBillAdditionalCost>().HasMany(x => x.Allocations).WithOne()
+            .HasForeignKey(x => x.PurchaseBillAdditionalCostId);
+        modelBuilder.Entity<PurchaseBillAdditionalCost>()
+            .Metadata.FindNavigation(nameof(PurchaseBillAdditionalCost.Allocations))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
 
         modelBuilder.Entity<Expense>().HasMany(x => x.Lines).WithOne().HasForeignKey("ExpenseId");

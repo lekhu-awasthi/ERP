@@ -22,7 +22,11 @@ namespace ErpApp.Application.Purchasing.Commands.ApproveDebitNote;
 /// warn-and-override flow, if the goods being returned to the supplier aren't actually still on
 /// hand (already resold, transferred elsewhere, etc.), same direct-reject precedent
 /// ApproveWarehouseTransferCommandHandler/ApproveInventoryAdjustmentCommandHandler's Decrease-side
-/// already use. No new GL leg -- DebitNotePostingRule's existing Credit line (against whichever
+/// already use. Phase 29 (FR-6.15) added one GL leg and only one: the share of the source bill's
+/// capitalised Additional Cost that the returned quantities carry is credited back out of Inventory
+/// and debited back to the Landed Cost Clearing account, because ConsumeAsync removes layers at
+/// their landed cost while the line-amount credit below only knows the return price. Otherwise no
+/// new GL leg -- DebitNotePostingRule's existing Credit line (against whichever
 /// account PurchaseBillAccountResolver/DebitNoteAccountResolver resolved -- Inventory for a Goods
 /// line since the post-Phase-19 fix, Purchase Expense for a Service line, see
 /// ApprovePurchaseBillCommandHandler's doc comment) is the exact reverse of PurchaseBillPostingRule's
@@ -54,6 +58,19 @@ public sealed class ApproveDebitNoteCommandHandler(
             throw new ConflictException("A debit note needs at least one line to be approved.");
         }
 
+        // Phase 29 (FR-6.15) -- the source bill is loaded before the resolver runs, because whether
+        // this debit note needs a Landed Cost Clearing account is a fact about that bill, and a
+        // missing account has to fail before any FIFO layer is consumed.
+        PurchaseBill? sourcePurchaseBill = null;
+        if (debitNote.ReferrerType == DocumentType.PurchaseBill && debitNote.ReferrerId is { } referrerId)
+        {
+            sourcePurchaseBill = await db.PurchaseBills
+                .Include(x => x.Lines)
+                .Include(x => x.AdditionalCosts).ThenInclude(x => x.Allocations)
+                .SingleOrDefaultAsync(
+                    x => x.Id == referrerId && x.OrganizationId == request.OrganizationId, cancellationToken);
+        }
+
         // Phase 28 (FR-2.5): the fold. The document stores its amounts in its own currency; the
         // general ledger is denominated in the base currency, so every line amount is converted
         // here, before the posting rule runs. Doing it here rather than on the finished GlLineInput
@@ -65,13 +82,14 @@ public sealed class ApproveDebitNoteCommandHandler(
                 x.ProductId,
                 ExchangeRates.ToBase(x.Amount, debitNote.ExchangeRate),
                 ExchangeRates.ToBase(x.VatAmount, debitNote.ExchangeRate))),
-            ExchangeRates.ToBase(debitNote.TdsAmount, debitNote.ExchangeRate), cancellationToken);
+            ExchangeRates.ToBase(debitNote.TdsAmount, debitNote.ExchangeRate), cancellationToken,
+            requiresLandedCostClearing: sourcePurchaseBill?.AdditionalCosts.Count > 0);
 
         var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.DebitNote, cancellationToken);
 
         debitNote.Approve(currentUser.UserId, code);
 
-        if (debitNote.ReferrerType == DocumentType.PurchaseBill && debitNote.ReferrerId is { } purchaseBillId)
+        if (sourcePurchaseBill is { } purchaseBill)
         {
             var productIds = debitNote.Lines.Select(x => x.ProductId).Distinct().ToList();
             var productTypes = await db.Products
@@ -81,21 +99,41 @@ public sealed class ApproveDebitNoteCommandHandler(
 
             var goodsLines = debitNote.Lines.Where(x => productTypes.GetValueOrDefault(x.ProductId) == ProductType.Goods).ToList();
 
-            if (goodsLines.Count > 0)
-            {
-                var purchaseBill = await db.PurchaseBills
-                    .SingleOrDefaultAsync(x => x.Id == purchaseBillId && x.OrganizationId == request.OrganizationId, cancellationToken);
+            // Phase 29 -- the landed cost the returned quantities carry, matched back to the source
+            // bill's own lines on the same (ProductId, Rate, VatRate, DiscountPct) quadruple every
+            // other purchase-return path keys on (see PurchasingValidation.
+            // GetPurchaseBillRemainingByLineAsync). Proportional to quantity returned, and taken at
+            // the *bill's* rate, because the capitalised figure is a base-currency fact of the bill,
+            // not of this note.
+            var allocationByLineKey = purchaseBill.Lines
+                .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct))
+                .ToDictionary(
+                    g => g.Key,
+                    g => (
+                        Allocated: g.Sum(x => purchaseBill.AllocatedAdditionalCostFor(x.Id)),
+                        Quantity: g.Sum(x => x.Quantity)));
 
-                if (purchaseBill is not null)
+            var releasedAdditionalCost = 0m;
+
+            foreach (var line in goodsLines)
+            {
+                var averageUnitCost = await stockLedgerService.ConsumeAsync(
+                    request.OrganizationId, line.ProductId, purchaseBill.WarehouseId, line.Quantity,
+                    DocumentType.DebitNote, debitNote.Id, debitNote.Date, cancellationToken);
+                line.RecordConsumedUnitCost(averageUnitCost);
+
+                if (allocationByLineKey.TryGetValue(
+                        (line.ProductId, line.Rate, line.VatRate, line.DiscountPct), out var source)
+                    && source is { Allocated: > 0, Quantity: > 0 })
                 {
-                    foreach (var line in goodsLines)
-                    {
-                        var averageUnitCost = await stockLedgerService.ConsumeAsync(
-                            request.OrganizationId, line.ProductId, purchaseBill.WarehouseId, line.Quantity,
-                            DocumentType.DebitNote, debitNote.Id, debitNote.Date, cancellationToken);
-                        line.RecordConsumedUnitCost(averageUnitCost);
-                    }
+                    releasedAdditionalCost += ExchangeRates.ToBase(
+                        source.Allocated * line.Quantity / source.Quantity, purchaseBill.ExchangeRate);
                 }
+            }
+
+            if (releasedAdditionalCost > 0)
+            {
+                postingInput = postingInput with { ReleasedAdditionalCost = releasedAdditionalCost };
             }
         }
 

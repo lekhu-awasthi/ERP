@@ -31,6 +31,15 @@ public sealed class CreatePurchaseBillCommandValidator : AbstractValidator<Creat
             line.RuleFor(x => x.DiscountPct).InclusiveBetween(0, 100);
         });
 
+
+        // Phase 29 (FR-6.15) -- the Additional Cost section. A null list is "no additional cost".
+        RuleForEach(x => x.AdditionalCosts).ChildRules(cost =>
+        {
+            cost.RuleFor(x => x.CostTermId).NotEmpty();
+            cost.RuleFor(x => x.Method).IsInEnum();
+            cost.RuleFor(x => x.Amount).GreaterThan(0);
+        });
+
         this.AddCurrencyRules(x => x.CurrencyCode, x => x.ExchangeRate);
 
     }

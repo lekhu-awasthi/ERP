@@ -18,6 +18,19 @@ public sealed record PurchaseBillLineDto(
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
 
+/// <summary>Phase 29 (FR-6.15). One Additional Cost row as entered, with what it actually put on
+/// each line once the bill was approved -- the two together are the product-by-cost-term matrix the
+/// reference product renders on an approved bill.</summary>
+public sealed record PurchaseBillAdditionalCostDto(
+    Guid Id,
+    Guid CostTermId,
+    Guid? ProductId,
+    AdditionalCostMethod Method,
+    decimal Amount,
+    IReadOnlyList<PurchaseBillAdditionalCostAllocationDto> Allocations);
+
+public sealed record PurchaseBillAdditionalCostAllocationDto(Guid PurchaseBillLineId, decimal Amount);
+
 public sealed record PurchaseBillDetailDto(
     Guid Id,
     Guid OrganizationId,
@@ -47,4 +60,12 @@ public sealed record PurchaseBillDetailDto(
     // Every amount above is denominated in CurrencyCode; the general ledger figures under
     // GlLines are in the base currency, already converted at ExchangeRate.
     string CurrencyCode,
-    decimal ExchangeRate);
+    decimal ExchangeRate,
+    // Phase 29 (FR-6.15) -- the Additional Cost section. AdditionalCostTotal is in CurrencyCode,
+    // like the rows themselves, and is deliberately not part of GrandTotal (confirmed live). The two
+    // capitalisation figures are in the base currency and are null until Approve.
+    IReadOnlyList<PurchaseBillAdditionalCostDto> AdditionalCosts,
+    bool IsProductWiseAdditionalCost,
+    decimal AdditionalCostTotal,
+    decimal? CapitalisedAdditionalCost,
+    decimal? AdditionalCostRoundingAdjustment);

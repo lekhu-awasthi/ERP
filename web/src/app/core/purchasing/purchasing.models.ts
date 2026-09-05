@@ -136,6 +136,30 @@ export interface PurchaseBill {
   discountPct: number;
 }
 
+/** Phase 29 (FR-6.15) -- how one Additional Cost row spreads across the bill's goods lines.
+ * Confirmed live: the Method dropdown offers exactly these two and defaults to Value. */
+export type AdditionalCostMethod = 'Value' | 'Quantity';
+
+/** Phase 29 (FR-6.15). One row of the Additional Cost section. `productId` null is the live
+ * picker's "All Product". Amounts are in the document's currency. */
+export interface PurchaseBillAdditionalCostInput {
+  costTermId: string;
+  productId: string | null;
+  method: AdditionalCostMethod;
+  amount: number;
+}
+
+export interface PurchaseBillAdditionalCostAllocationDto {
+  purchaseBillLineId: string;
+  amount: number;
+}
+
+export interface PurchaseBillAdditionalCostDto extends PurchaseBillAdditionalCostInput {
+  id: string;
+  /** Written at Approve; empty while the bill is a Draft. */
+  allocations: PurchaseBillAdditionalCostAllocationDto[];
+}
+
 export interface PurchaseBillLineDto extends PurchaseBillLineInput {
   id: string;
   amount: number;
@@ -150,6 +174,14 @@ export interface PurchaseBillDetail extends PurchaseBill {
   grandTotal: number;
   lines: PurchaseBillLineDto[];
   glLines: PostedGlLineDto[] | null;
+  /** Phase 29 (FR-6.15). additionalCostTotal is in currencyCode and is deliberately NOT part of
+   * grandTotal (confirmed live). The two capitalisation figures are in the base currency and are
+   * null until the bill is approved. */
+  additionalCosts: PurchaseBillAdditionalCostDto[];
+  isProductWiseAdditionalCost: boolean;
+  additionalCostTotal: number;
+  capitalisedAdditionalCost: number | null;
+  additionalCostRoundingAdjustment: number | null;
 }
 
 export interface PurchaseBillRequest {
@@ -170,6 +202,9 @@ export interface PurchaseBillRequest {
   referrerType?: DocumentType | null;
   referrerId?: string | null;
   discountPct: number;
+  /** Phase 29 (FR-6.15). Omitting these is "no additional cost". */
+  additionalCosts?: PurchaseBillAdditionalCostInput[];
+  isProductWiseAdditionalCost?: boolean;
 }
 
 export interface CreatePurchaseBillResult {
@@ -189,6 +224,10 @@ export interface ApprovePurchaseBillResult {
   code: string;
   status: PurchaseBillStatus;
   approvedAt: string | null;
+  /** Phase 29 (FR-6.15), base currency, null when the bill carried no Additional Cost section:
+   * what the FIFO layers absorbed, and the rounding residue that would not fit into them. */
+  capitalisedAdditionalCost: number | null;
+  additionalCostRoundingAdjustment: number | null;
 }
 
 export interface VoidPurchaseBillResult {

@@ -33,7 +33,8 @@ internal static class PurchaseBillAccountResolver
         Guid organizationId,
         IEnumerable<(Guid ProductId, decimal Amount, decimal VatAmount)> lines,
         decimal tdsAmount,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool requiresLandedCostClearing = false)
     {
         var lineList = lines.ToList();
         var productIds = lineList.Select(x => x.ProductId).Distinct().ToList();
@@ -90,11 +91,34 @@ internal static class PurchaseBillAccountResolver
                 "Default TDS Payable account is not configured. Set it under Accounting Defaults before approving purchase bills with TDS.");
         }
 
+        // Phase 29 (FR-6.15). Demanded only when the bill actually carries an Additional Cost
+        // section -- the same lazy treatment phase 28 gave the two forex accounts, so a tenant that
+        // never uses landed cost never has to configure an account for it. Checked here, before
+        // Approve creates a single FIFO layer, so a missing account is a clean 409 rather than a
+        // half-applied approval.
+        Guid? landedCostClearingAccountId = null;
+        if (requiresLandedCostClearing)
+        {
+            landedCostClearingAccountId = settings.DefaultLandedCostClearingAccountId
+                ?? throw new ConflictException(
+                    "Default Landed Cost Clearing account is not configured. Set it under Accounting Defaults "
+                    + "before approving purchase bills that carry an Additional Cost.");
+
+            if (settings.DefaultInventoryAccountId is null)
+            {
+                throw new ConflictException(
+                    "Default Inventory account is not configured. Set it under Accounting Defaults before "
+                    + "approving purchase bills that carry an Additional Cost.");
+            }
+        }
+
         return new PurchaseBillPostingInput(
             accountsPayableId,
             settings.DefaultVatReceivableAccountId ?? Guid.Empty,
             settings.DefaultTdsPayableAccountId ?? Guid.Empty,
             tdsAmount,
-            postingLines);
+            postingLines,
+            settings.DefaultInventoryAccountId,
+            landedCostClearingAccountId);
     }
 }

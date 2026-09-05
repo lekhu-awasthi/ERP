@@ -1,4 +1,4 @@
-﻿using ErpApp.Domain.Accounting;
+using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
@@ -82,6 +82,13 @@ public interface IAppDbContext
     DbSet<PurchaseOrderLine> PurchaseOrderLines { get; }
     DbSet<PurchaseBill> PurchaseBills { get; }
     DbSet<PurchaseBillLine> PurchaseBillLines { get; }
+
+    /// <summary>Phase 29 (FR-6.15). Exposed as its own set because UpdatePurchaseBillCommandHandler
+    /// has to Remove/Add the rows through it when the section is replaced wholesale -- phase-4
+    /// bug #1's remedy, the same reason PurchaseBillLines is here.</summary>
+    DbSet<PurchaseBillAdditionalCost> PurchaseBillAdditionalCosts { get; }
+
+    DbSet<PurchaseBillAdditionalCostAllocation> PurchaseBillAdditionalCostAllocations { get; }
     DbSet<Expense> Expenses { get; }
     DbSet<ExpenseLine> ExpenseLines { get; }
     DbSet<DebitNote> DebitNotes { get; }

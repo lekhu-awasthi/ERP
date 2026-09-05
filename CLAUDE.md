@@ -1,4 +1,4 @@
-﻿# ErpApp
+# ErpApp
 
 A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQRS (MediatR) on .NET 10 (LTS), Angular 21 (LTS) frontend, SQL Server via EF Core.
 
@@ -59,6 +59,11 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
   the base-currency fold on posting-rule *inputs*, and a realised forex rule on Payment allocation. Before
   converting anything into the general ledger, before gating a feature flag, or before trusting a
   confirm-live pass to be possible — `docs/phase-28-status.md`
+- Phase 29: landed cost — an Additional Cost section on the Purchase Bill, allocated at Approve by
+  Value or Quantity across the bill's *goods* lines and capitalised into the received FIFO layers'
+  unit cost, against a new Landed Cost Clearing account. Before capitalising anything into a stock
+  layer, before adding a tenant-default GL account, or before asking to run a confirm-live *write* —
+  `docs/phase-29-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -150,6 +155,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A Debit Note line carries no `ExpenditureClassification` or `IsImport` of its own; both are resolved from the source Purchase Bill's matching line by (PurchaseBillId, ProductId, Rate, VatRate) (phase-19, phase-26c's `PurchaseReturnReader`).
 - Convert a currency on a posting rule's **inputs**, never on its finished `GlLineInput` list: every rule derives its balancing leg as a *sum* of the others, so converting afterwards rounds that leg independently and breaks `sum(Debit)==sum(Credit)` intermittently (phase-28).
 - Never convert twice: FIFO unit costs, COGS and historical `GlLine`s are already base currency. `ApprovePurchaseBillCommandHandler` is the one place a document rate reaches the stock ledger, and it rounds to 4 dp (`ToBaseUnitCost`), not 2 (phase-28).
+- Changing what a posting rule debits changes what every *reversal* of it owes: a Debit Note credits Inventory the return price while `ConsumeAsync` relieves layers at their landed cost, so phase 29's capitalised cost needed its own release leg or Inventory drifted above the ledger one return at a time (phase-29, phase-6 bug #3 again).
+- Build a capitalisation leg from the value the ledger actually received (`layer value created − goods amount`), never the figure the user typed, and round each unit cost **once** at the ledger's own scale from the line's total landed value; the gap is the named residue (phase-29, phase-25's rule on a second aggregate).
+- When a phase adds a tenant-default GL account, grep `web/` for the field name before calling it done — phase 25's and phase 28's three accounts reached the API and no screen, so they could not be configured at all (phase-29; phase-23 bug #1 in reverse).
 
 **Background jobs**
 - A singleton `BackgroundService` cannot inject scoped services; take `IServiceScopeFactory`, read options via `IOptionsMonitor`, and never let a tick's exception escape `ExecuteAsync` (`AlertSchedulerHostedService`).
@@ -212,39 +220,45 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-27 are complete, and phase 28 (multi-currency, FR-2.5/NFR-1.3) is done.** A tenant
-`Currency` list seeded from a fixed product catalog with NPR always present; `CurrencyCode` +
-`ExchangeRate` on all twelve document types whose live form shows them; amounts stored in the
-transaction currency with the base-currency figure **folded into each posting rule's inputs at
-Approve** — so `GlLine` is unchanged and every Phase 8/19/26 report needed zero edits; two new tenant
-defaults (Forex Gain, Forex Loss) and a realised-difference rule on Payment allocation that leaves
-the control account flat.
+**Phases 0-28 are complete, and phase 29 (landed cost, FR-6.15) is done.** The Purchase Bill now
+carries an **Additional Cost** section — rows of *Cost Term x Product ("All Product" or one) x Method
+(Value | Quantity) x Amount*, plus the live "Add product-wise" matrix — which at Approve is allocated
+across the bill's **goods** lines and capitalised into the unit cost of the FIFO layers that receipt
+creates. `CostTerm.AdditionalCost`, unconsumed since phase 20c, finally has its reader.
 
-Three things from 28 that generalise: the entitlement became a **cap on the currency list** rather
-than a gate on documents (a one-entry list makes the document surface degenerate on its own, so no
-document command is feature-gated at all); the conversion goes on a posting rule's **inputs**, never
-its finished lines, or the balanced-entry invariant fails intermittently; and **the roadmap's
-decisive experiment could not be run** — the reference product's own currency-catalog picker returns
-"No data" on the UAT tenant — so the allocation posting rule is reasoned from first principles and
-is *recorded as reasoned*, in the code as well as the status doc. Full story in
-`docs/phase-28-status.md`, including what the live pass did settle (all of which reshaped the design).
+Three things from 29 that generalise. The roadmap's **decisive experiment turned out to be
+unnecessary**: two already-approved bills on the reference tenant carried Additional Cost rows, so
+the whole question was settled read-only — and the answer was that the reference product posts **no
+GL at all** (it is periodic) while fully capitalising the cost into stock. We post anyway, on
+phase-25 Decision A's argument, Debit Inventory / Credit a new lazily-resolved
+`DefaultLandedCostClearingAccountId` — the credit cannot be the supplier (live: it isn't) and there
+is no payee field to name anyone else. Second, **the reference offering something is not a reason to
+offer it**: its product picker lists service lines, which is harmless there and impossible here, so a
+row naming one is rejected rather than silently dropped. Third, **a new capitalised cost changes what
+a reversal owes** — Void was already correct via `PostReversalOf`, but the Debit Note needed a
+release leg it did not have. The conservation law (`goods + allocated = layer value + residue`) is
+proven in SQL, with the Inventory account equal to the FIFO ledger exactly. Full story in
+`docs/phase-29-status.md`.
 
-**What comes next** is **phase 29** (landed cost, FR-6.15 — confirm-lived, shape known), then 30-34
-in `docs/roadmap.md`. Still recorded separately:
+**What comes next** is **phase 30** (Communications — outbound email, SMS medium, email logs), then
+31-34 in `docs/roadmap.md`. Still recorded separately:
 - the deferred post-v1 list in `docs/roadmap.md` (POS, IRD e-filing, Marketplace);
 - carried items. Phase 25's multi-level BOM explosion; phase-26a's two (an explicit compare-date
   picker on the two as-of statements, Reporting Tags on the Journal report); phase-26b's four (a
   stored `DueDate` on Invoice/PurchaseBill, aligning phase-9's `ContactAgeingSummaryQueryHandler`
   with 26b's rules, a product-level service-charge flag, Quick Payment/Receipt as a document type);
-  phase-26c's five (WarehouseTransfer/OpeningStock in Inventory Master, the Sales Register's inert
-  "Include Credit Note In Calculation" toggle, Additional Cost allocation — which is phase 29 — the
-  Negative Item Balance setting, and Inventory Position's display options); phase-27b's three (a
-  rich-text terms editor, terms carried through conversions, `Send Email` + the `Email` template
-  type — all belong with Phase 30); and **phase-28's own**: no unrealised period-end revaluation, no
-  cross-currency settlement, no rate source, the Allocate screens not filtering by currency, and
-  `ApplyPaymentAllocationCommand` posting no forex leg on the allocate-further path.
+  phase-26c's four remaining (WarehouseTransfer/OpeningStock in Inventory Master, the Sales Register's
+  inert "Include Credit Note In Calculation" toggle, the Negative Item Balance setting, and Inventory
+  Position's display options — Additional Cost allocation was phase 29 and is now done); phase-27b's
+  three (a rich-text terms editor, terms carried through conversions, `Send Email` + the `Email`
+  template type — all belong with Phase 30); phase-28's five (no unrealised period-end revaluation,
+  no cross-currency settlement, no rate source, the Allocate screens not filtering by currency, and
+  `ApplyPaymentAllocationCommand` posting no forex leg on the allocate-further path); and **phase-29's
+  own**: no Import action on the product-wise matrix, the additional cost's own currency assumed to
+  follow the document's (undecidable live), landed cost on no document but the Purchase Bill, a Debit
+  Note's release proportional rather than FIFO-exact, and no automatic unwind of the clearing account.
 
-Tests at last count: Domain 375, Application.UnitTests 746, Api.IntegrationTests 18, Angular 180;
+Tests at last count: Domain 386, Application.UnitTests 758, Api.IntegrationTests 18, Angular 187;
 `dotnet build` / `dotnet test` / `ng build` / `ng test` all clean. Note `tsc --noEmit` does **not**
 cover `web/src/app` — `ng build` is the check that does (phase-28).
 

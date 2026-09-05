@@ -32,6 +32,15 @@ public sealed record CreatePurchaseBillCommand(
 
     /// <inheritdoc cref="CurrencyCode"/>
     public decimal? ExchangeRate { get; init; }
+
+    /// <summary>Phase 29 (FR-6.15) -- the Additional Cost section's rows. Init-only rather than a
+    /// trailing positional parameter, the same shape phase 28's currency pair took, so no existing
+    /// caller's argument list changes.</summary>
+    public IReadOnlyList<PurchaseBillAdditionalCostInput>? AdditionalCosts { get; init; }
+
+    /// <inheritdoc cref="Domain.Purchasing.PurchaseBill.IsProductWiseAdditionalCost"/>
+    public bool IsProductWiseAdditionalCost { get; init; }
+
     public DocumentType AuditDocumentType => DocumentType.PurchaseBill;
 }
 

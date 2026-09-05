@@ -257,7 +257,8 @@ public static class OrganizationEndpoints
                     request.DefaultInventoryAdjustmentAccountId,
                     request.DefaultProductionCostAccountId,
                     request.DefaultForexGainAccountId,
-                    request.DefaultForexLossAccountId),
+                    request.DefaultForexLossAccountId,
+                    request.DefaultLandedCostClearingAccountId),
                 ct);
             return Results.Ok(result);
         });
@@ -313,7 +314,10 @@ public static class OrganizationEndpoints
         // that predates this phase keeps working; but they must exist HERE and not only on the
         // command, or they bind to null forever (phase-27b's Terms).
         Guid? DefaultForexGainAccountId = null,
-        Guid? DefaultForexLossAccountId = null);
+        Guid? DefaultForexLossAccountId = null,
+        // Phase 29 (FR-6.15) -- the landed-cost clearing account, same trailing-optional treatment
+        // and the same phase-27b warning applies.
+        Guid? DefaultLandedCostClearingAccountId = null);
 
     private sealed record CreateOrganizationRequest(
         string Name,

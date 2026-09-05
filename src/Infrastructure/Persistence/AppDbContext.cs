@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
@@ -78,6 +78,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
     public DbSet<PurchaseBill> PurchaseBills => Set<PurchaseBill>();
     public DbSet<PurchaseBillLine> PurchaseBillLines => Set<PurchaseBillLine>();
+    public DbSet<PurchaseBillAdditionalCost> PurchaseBillAdditionalCosts => Set<PurchaseBillAdditionalCost>();
+    public DbSet<PurchaseBillAdditionalCostAllocation> PurchaseBillAdditionalCostAllocations => Set<PurchaseBillAdditionalCostAllocation>();
     public DbSet<Expense> Expenses => Set<Expense>();
     public DbSet<ExpenseLine> ExpenseLines => Set<ExpenseLine>();
     public DbSet<DebitNote> DebitNotes => Set<DebitNote>();

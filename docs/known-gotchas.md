@@ -1,4 +1,4 @@
-﻿# Known gotchas — full narrative
+# Known gotchas — full narrative
 
 The one-sentence rules live in `CLAUDE.md`'s Known gotchas section; this file holds each rule's full
 story (symptom, cause, how it was caught, the fix), moved verbatim out of `CLAUDE.md` on 2026-09-02 and
@@ -205,3 +205,35 @@ side.
 - **A code generator that emits Angular templates through `str.format` must escape braces in the format string but *not* in a substituted value.** Phase-26b generated its four crosstab templates from a shared table fragment; the label-cell fragments were pre-escaped `{{{{ row.x }}}}` as though they would be formatted, but they were passed *as values*, so `format` never touched them and the literal quadruple braces shipped into the HTML. The build fails as `NG5002: Unexpected closing block` pointing at a line far below the real one. Generating repetitive Angular pages is still the right call for a mirrored pair — but compile the output before moving on, not after writing all thirteen.
 - **`.claude/launch.json`'s `erp-web-ssl` runs `npm --prefix web`, so its working directory is `web/`.** Its cert paths are therefore relative to `web/`, while phase-25's documented export command (`dotnet dev-certs https --export-path .certs/dev.pem …`) writes to the repo root — the profile started, built the whole app, and only then died with `ENOENT: … web\.certs\dev.pem`. Fixed in phase-26a by pointing the entry at `../.certs/dev.pem`, so the documented recipe works as written.
 
+## A capitalised cost and the reversal that has to give it back (phase 29)
+
+`IStockLedgerService.ConsumeAsync` returns the weighted-average cost of the layers it actually
+consumed, which since phase 29 includes any additional cost capitalised into them at purchase.
+`DebitNotePostingRule`, however, credits Inventory each line's **Amount** - the price the goods are
+being returned at. Before landed cost the two agreed for any undiscounted bill, so nothing showed;
+afterwards they differ by exactly the freight and duty sitting in the returned units, and Inventory
+would drift permanently above the FIFO ledger, one return at a time.
+
+The fix is a second pair of legs on the Debit Note - credit Inventory the released share, debit the
+Landed Cost Clearing account - matched back to the source bill's own line on the
+`(ProductId, Rate, VatRate, DiscountPct)` quadruple every other purchase-return path keys on, and
+proportional to the quantity returned. It is exactly zero for a bill with no Additional Cost section,
+so no pre-existing behaviour moves.
+
+The general rule is phase-6 bug #3's, restated: **when you change what a posting rule debits, trace
+the net effect on every account across the original entry and every reversal of it** - a Void, a
+Debit Note, a Credit Note. A rule that mirrored yours before your change does not necessarily mirror
+it after. Void was fine here only because `PostReversalOf` mirrors the entry's own posted lines
+rather than re-deriving them from the rule (phase-16a), which is precisely why that design was chosen.
+
+## An account the server requires and no screen can set (phase 29)
+
+Phase 25 added `DefaultProductionCostAccountId` and phase 28 added the two forex accounts to
+`TenantSettings`, the command, the query and the API request record - and to nothing in `web/`. The
+Accounting Defaults screen still offered ten accounts, so three server-side requirements had no way
+to be configured through the application at all; the only route was a raw `PUT`. Nothing failed,
+because each is resolved lazily and the E2E scripts set them over curl.
+
+This is phase-23 bug #1 in reverse - there, a DTO carried fields no template rendered; here, an API
+accepts fields no screen sends. Same remedy: **when a phase adds a tenant default, grep `web/` for
+the field name before calling the phase done.** Phase 29 needed a fourth account and closed all four.

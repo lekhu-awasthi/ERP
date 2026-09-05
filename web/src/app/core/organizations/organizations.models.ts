@@ -180,6 +180,14 @@ export interface AccountingDefaults {
   defaultInventoryAccountId: string | null;
   defaultCogsAccountId: string | null;
   defaultInventoryAdjustmentAccountId: string | null;
+  /** Phase 25's account, and phase 28's two, were added to the API but never to this interface or
+   * its screen -- so three server-side requirements had no way to be configured. Found and closed
+   * in phase 29, which needs a fourth (see docs/phase-29-status.md). */
+  defaultProductionCostAccountId: string | null;
+  defaultForexGainAccountId: string | null;
+  defaultForexLossAccountId: string | null;
+  /** Phase 29 (FR-6.15) -- credited when a Purchase Bill capitalises an Additional Cost. */
+  defaultLandedCostClearingAccountId: string | null;
 }
 
 // Phase 16a (lock-date enforcement) -- lockDate is an ISO date string (yyyy-MM-dd) or null (unset).

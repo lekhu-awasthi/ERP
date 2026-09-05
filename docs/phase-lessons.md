@@ -1,4 +1,4 @@
-﻿# Phase lessons — the "read this before touching X" index
+# Phase lessons — the "read this before touching X" index
 
 One paragraph per phase, moved verbatim out of `CLAUDE.md` (2026-09-02) so the root file stays small.
 Each bullet names the situation in which a future session must open that phase's status doc first,
@@ -222,3 +222,26 @@ these are in `CLAUDE.md`'s Known gotchas section. When a phase completes, append
   stored per document, Opening Balances' Conversion Rate being the same control, and the reference
   chart carrying a realised Forex Gain account with **no loss counterpart** - which we diverge from
   deliberately, on phase-6's VAT-Receivable-vs-Payable precedent
+- `phase-29` - before capitalising anything into a FIFO layer, before adding a tenant-default GL
+  account, and before asking permission to run a confirm-live **write**. Four things worth carrying:
+  **(a) Check whether existing data already answers the question.** The roadmap's decisive
+  experiment was a write on the reference tenant; two already-approved bills there carried Additional
+  Cost rows and settled every open question read-only. A blocked confirm-live is a finding
+  (phase-28); an *unnecessary* one is a cost, and the cheap check is to look for a document that has
+  already done the thing.
+  **(b) The reference product offering something is not a reason to offer it.** Its Additional Cost
+  product picker lists service lines, which is harmless there because nothing is posted and nothing
+  is capitalised. Here a service line creates no FIFO layer, so an allocation to one would vanish and
+  break the conservation law - so we reject such a row rather than dropping it silently, and record
+  the divergence.
+  **(c) Build the GL leg from the value the ledger actually received.** `capitalised = layer value
+  created - goods amount`, never the figure the user typed, which is what makes the Inventory account
+  equal the FIFO ledger by construction. The gap between the two is the residue, and it is named on
+  the document (phase-25's rule, applied to a second aggregate). Rounding the unit cost **once**, at
+  the ledger's own scale, from the line's total landed value is the other half of that.
+  **(d) A new capitalised cost changes what a *reversal* owes.** `ConsumeAsync` relieves layers at
+  their landed cost while `DebitNotePostingRule` credited Inventory the return price, so a return off
+  a landed-cost bill would have left Inventory permanently above the ledger - phase-6 bug #3's trap in
+  a new place. Trace the net effect on every account across original **and** reversal before assuming
+  an existing rule still mirrors a rule you have just changed. Also the phase that found the
+  Accounting Defaults screen was three accounts behind its own API (phase-23 bug #1 in reverse).

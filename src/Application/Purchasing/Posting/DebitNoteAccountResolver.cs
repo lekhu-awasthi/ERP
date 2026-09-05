@@ -15,15 +15,19 @@ internal static class DebitNoteAccountResolver
         Guid organizationId,
         IEnumerable<(Guid ProductId, decimal Amount, decimal VatAmount)> lines,
         decimal tdsAmount,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool requiresLandedCostClearing = false)
     {
-        var purchaseBillInput = await PurchaseBillAccountResolver.ResolveAsync(db, organizationId, lines, tdsAmount, cancellationToken);
+        var purchaseBillInput = await PurchaseBillAccountResolver.ResolveAsync(
+            db, organizationId, lines, tdsAmount, cancellationToken, requiresLandedCostClearing);
 
         return new DebitNotePostingInput(
             purchaseBillInput.AccountsPayableAccountId,
             purchaseBillInput.VatReceivableAccountId,
             purchaseBillInput.TdsPayableAccountId,
             purchaseBillInput.TdsAmount,
-            purchaseBillInput.Lines);
+            purchaseBillInput.Lines,
+            purchaseBillInput.InventoryAccountId,
+            purchaseBillInput.LandedCostClearingAccountId);
     }
 }

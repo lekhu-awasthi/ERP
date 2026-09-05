@@ -41,6 +41,10 @@ export class AccountingDefaultsPage {
   protected readonly defaultInventoryAccountId = signal<string>('');
   protected readonly defaultCogsAccountId = signal<string>('');
   protected readonly defaultInventoryAdjustmentAccountId = signal<string>('');
+  protected readonly defaultProductionCostAccountId = signal<string>('');
+  protected readonly defaultForexGainAccountId = signal<string>('');
+  protected readonly defaultForexLossAccountId = signal<string>('');
+  protected readonly defaultLandedCostClearingAccountId = signal<string>('');
 
   protected readonly sortedAccounts = computed(() => [...this.accounts()].sort((a, b) => a.code.localeCompare(b.code)));
 
@@ -65,6 +69,10 @@ export class AccountingDefaultsPage {
         defaultInventoryAccountId: this.defaultInventoryAccountId() || null,
         defaultCogsAccountId: this.defaultCogsAccountId() || null,
         defaultInventoryAdjustmentAccountId: this.defaultInventoryAdjustmentAccountId() || null,
+        defaultProductionCostAccountId: this.defaultProductionCostAccountId() || null,
+        defaultForexGainAccountId: this.defaultForexGainAccountId() || null,
+        defaultForexLossAccountId: this.defaultForexLossAccountId() || null,
+        defaultLandedCostClearingAccountId: this.defaultLandedCostClearingAccountId() || null,
       })
       .subscribe({
         next: () => {
@@ -95,6 +103,10 @@ export class AccountingDefaultsPage {
         this.defaultInventoryAccountId.set(defaults.defaultInventoryAccountId ?? '');
         this.defaultCogsAccountId.set(defaults.defaultCogsAccountId ?? '');
         this.defaultInventoryAdjustmentAccountId.set(defaults.defaultInventoryAdjustmentAccountId ?? '');
+        this.defaultProductionCostAccountId.set(defaults.defaultProductionCostAccountId ?? '');
+        this.defaultForexGainAccountId.set(defaults.defaultForexGainAccountId ?? '');
+        this.defaultForexLossAccountId.set(defaults.defaultForexLossAccountId ?? '');
+        this.defaultLandedCostClearingAccountId.set(defaults.defaultLandedCostClearingAccountId ?? '');
         this.loading.set(false);
       },
       error: (err: unknown) => {

@@ -31,4 +31,5 @@ public sealed record GetAccountingDefaultsDto(
     Guid? DefaultInventoryAdjustmentAccountId,
     Guid? DefaultProductionCostAccountId,
     Guid? DefaultForexGainAccountId,
-    Guid? DefaultForexLossAccountId);
+    Guid? DefaultForexLossAccountId,
+    Guid? DefaultLandedCostClearingAccountId);

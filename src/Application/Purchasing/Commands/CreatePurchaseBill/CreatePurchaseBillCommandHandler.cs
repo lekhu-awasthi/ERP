@@ -17,6 +17,10 @@ public sealed class CreatePurchaseBillCommandHandler(IAppDbContext db)
         await PurchasingValidation.EnsureProductsExistAsync(
             db, request.OrganizationId, request.Lines.Select(x => x.ProductId), cancellationToken);
 
+        var additionalCosts = request.AdditionalCosts ?? [];
+        await PurchasingValidation.EnsureAdditionalCostsAreValidAsync(
+            db, request.OrganizationId, additionalCosts, request.Lines.Select(x => x.ProductId), cancellationToken);
+
         if (request.ReferrerType == DocumentType.PurchaseOrder && request.ReferrerId is { } purchaseOrderId)
         {
             var purchaseOrder = await db.PurchaseOrders.SingleOrDefaultAsync(
@@ -67,6 +71,15 @@ public sealed class CreatePurchaseBillCommandHandler(IAppDbContext db)
         {
             purchaseBill.AddLine(
                 line.ProductId, line.Quantity, line.Rate, line.VatRate, line.ExpenditureClassification, line.DiscountPct);
+        }
+
+        // Phase 29 (FR-6.15) -- the Additional Cost section. Stored as entered; nothing is
+        // allocated or capitalised until Approve, the same "side effects happen at Approve, not
+        // Create" rule every document type here follows.
+        purchaseBill.SetProductWiseAdditionalCost(request.IsProductWiseAdditionalCost);
+        foreach (var cost in additionalCosts)
+        {
+            purchaseBill.AddAdditionalCost(cost.CostTermId, cost.ProductId, cost.Method, cost.Amount);
         }
 
         db.PurchaseBills.Add(purchaseBill);

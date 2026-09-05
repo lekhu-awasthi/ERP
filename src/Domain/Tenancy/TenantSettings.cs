@@ -149,6 +149,28 @@ public sealed class TenantSettings
     /// <inheritdoc cref="DefaultForexGainAccountId"/>
     public Guid? DefaultForexLossAccountId { get; private set; }
 
+    /// <summary>
+    /// Phase 29 (FR-6.15) -- the account a Purchase Bill's capitalised Additional Cost is credited
+    /// to, against a debit to <see cref="DefaultInventoryAccountId"/>. A clearing (liability)
+    /// account: the freight, duty or insurance is owed to somebody, and when that somebody's own
+    /// bill is entered against this same account the two net to zero.
+    ///
+    /// <para><b>Why a clearing account and not the supplier.</b> Confirmed live 2026-09-04 on two
+    /// already-approved reference bills: an Additional Cost row is <i>not</i> added to the bill's
+    /// Grand Total and the supplier's payable is credited the goods total only, and the row has no
+    /// payee field to name anybody else with. So the credit cannot be a payable to a party this
+    /// document knows about. (The reference product posts nothing at all -- it is periodic, so the
+    /// landed cost lives only in its stock-costing subsystem. We are perpetual, and the same
+    /// argument as phase-25 Decision A applies: posting nothing would leave the Inventory account
+    /// understating stock by exactly the capitalised cost, permanently and silently.)</para>
+    ///
+    /// <para>Resolved <b>only when a bill actually carries an additional cost</b>, never up front --
+    /// the same lazy treatment as the two forex accounts above, and for the same reason: demanding
+    /// it at Approve regardless would make every tenant configure an account for a feature most
+    /// never touch.</para>
+    /// </summary>
+    public Guid? DefaultLandedCostClearingAccountId { get; private set; }
+
     private TenantSettings()
     {
     }
@@ -209,12 +231,14 @@ public sealed class TenantSettings
         Guid? defaultInventoryAccountId,
         Guid? defaultCogsAccountId,
         Guid? defaultInventoryAdjustmentAccountId,
-        Guid? defaultProductionCostAccountId)
+        Guid? defaultProductionCostAccountId,
+        Guid? defaultLandedCostClearingAccountId = null)
     {
         DefaultInventoryAccountId = defaultInventoryAccountId;
         DefaultCogsAccountId = defaultCogsAccountId;
         DefaultInventoryAdjustmentAccountId = defaultInventoryAdjustmentAccountId;
         DefaultProductionCostAccountId = defaultProductionCostAccountId;
+        DefaultLandedCostClearingAccountId = defaultLandedCostClearingAccountId;
     }
 
     /// <summary>Phase 22 -- turns AI-assisted extraction on or off for this tenant. Its own

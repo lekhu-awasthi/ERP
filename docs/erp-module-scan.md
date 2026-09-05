@@ -511,3 +511,47 @@ original pass assumed, and one is a limitation of the reference product itself.
   `#/accounting/chartsofaccount/accounts`, `#/config/opening-balances/account`,
   `#/sales/invoices/add`), so `navigate` to a hash URL is far more reliable than clicking through its
   ant-design menus. Guessed routes silently redirect to a default page rather than 404.
+
+### Appendix, 2026-09-04 — landed cost / Additional Cost confirm-live pass (phase 29)
+
+Read on the Moonbeam UAT tenant. **The roadmap's "decisive experiment" (approve a bill carrying a
+Freight row and read its GL) did not need to be run: two already-approved bills on this tenant
+carry Additional Cost rows**, and their detail pages answer every open question read-only. Nothing
+was created, saved or submitted.
+
+- **The add form's Additional Cost section** (`#/purchases/purchases-bill/add`, revealed by a
+  `+ Add Additional Cost` link). Columns exactly: `Cost Terms | Product | Method | Amount (NPR)`.
+  Defaults on a fresh row: Product = **All Product**, Method = **Value**. Method's only options are
+  **Value** and **Quantity**. Cost Terms lists the tenant's *active* AdditionalCost terms (8 here:
+  Addidsoajfdsoj, Clearing Charge, Custom Duty, Excise Duty, Freight, Insurance, Other Cost,
+  Transportation — the 9th, `zxcas`, shows on an old bill but not in the picker, so it is inactive).
+- **There is no payee field of any kind** — a row names a Cost Term and nothing else.
+- **The Product picker lists `All Product` plus every line on the bill, Service lines included.**
+  Verified by putting two Goods lines and one Service line (AWS Consulting, P0593) on a draft: all
+  three appear. So the reference product does **not** restrict landed cost to goods.
+- **"Add product-wise" is an `ant-checkbox`, and it swaps the whole section's shape.** Off: the
+  four-column rule rows above. On: the section becomes a matrix — `Products` down the side, **one
+  column per cost term** across the top, an amount typed into each cell — plus an `Import` action.
+  No Method column, because a hand-typed cell needs no allocation rule.
+- **After approval the allocation is stored and displayed**, as that same matrix, on the bill's
+  Overview immediately below the totals block (unlabelled, inside the Details card). So the
+  per-(line, cost term) allocation is persisted, not merely folded into a cost.
+- **Additional cost is NOT in the document totals.** Bill 6000: one line, 100 @ 200 = 20,000, nine
+  cost terms at 100 each (900 total). Sub Total 20,000, Grand Total **NPR 20,000**.
+- **It posts NOTHING to the general ledger.** Bill 6000's GL Transactions panel is exactly
+  `Purchase Goods 20,000.00 DR` / `123 (the supplier) 20,000.00 CR`, totalling 20,000/20,000. The
+  second bill (2 lines, 6,300,000 of goods, 1,800 of additional cost) is likewise 6,300,000 flat.
+  **The supplier is not credited for it and no other account is touched.**
+- **It IS capitalised into stock valuation, per line, to the rupee.** Inventory Movement for the
+  period: `SSSS (P0597)` shows In **100 @ 209 = 20,900** — exactly (20,000 + 900) / 100. On the
+  two-line bill, `Classis 350 cc (P0599)` totals In 60 @ 650,015 = **39,000,900**, of which our
+  bill's line is 10 @ 600,000 = 6,000,000 **+ 900** = 6,000,900, the other 50 units contributing a
+  round 33,000,000. Both reconcile exactly.
+- **Reading of the whole:** that tenant is *periodic* in the general ledger (Goods debit "Purchase
+  Goods", a Direct Expense — the same fact phase 25 found), so landed cost there lives **only** in
+  the stock/costing subsystem and has nowhere in the GL to go. This is phase-25 Decision A's
+  situation exactly, and phase 29 diverges the same way and for the same reason.
+- Both sample bills were entered **product-wise**: the two-line bill shows a flat 100 in every cell
+  for both products despite a 20:1 value ratio and a 2:1 quantity ratio, which no Value or Quantity
+  allocation could produce. So no live example of the Method-based allocation exists to check the
+  formula against; pro-rata by line value / by line quantity is taken as read.

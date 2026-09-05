@@ -31,6 +31,13 @@ public sealed record UpdatePurchaseBillCommand(
 
     /// <inheritdoc cref="CurrencyCode"/>
     public decimal? ExchangeRate { get; init; }
+
+    /// <inheritdoc cref="CreatePurchaseBill.CreatePurchaseBillCommand.AdditionalCosts"/>
+    public IReadOnlyList<PurchaseBillAdditionalCostInput>? AdditionalCosts { get; init; }
+
+    /// <inheritdoc cref="Domain.Purchasing.PurchaseBill.IsProductWiseAdditionalCost"/>
+    public bool IsProductWiseAdditionalCost { get; init; }
+
     public DocumentType AuditDocumentType => DocumentType.PurchaseBill;
     public Guid AuditDocumentId => Id;
 }

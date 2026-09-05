@@ -183,6 +183,62 @@
           <p class="form-text">The variance/contra account Inventory Adjustments post against -- required before approving one.</p>
         </div>
 
+        <div class="mb-4">
+          <label class="form-label small fw-semibold">Default Production Cost Account</label>
+          <select
+            class="form-select"
+            (change)="defaultProductionCostAccountId.set($any($event.target).value)"
+          >
+            <option value="" [selected]="!defaultProductionCostAccountId()">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id" [selected]="account.id === defaultProductionCostAccountId()">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">The contra-expense account a Production Journal absorbs production expenses into (Phase 25) -- required before approving one.</p>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold">Default Forex Gain Account</label>
+          <select
+            class="form-select"
+            (change)="defaultForexGainAccountId.set($any($event.target).value)"
+          >
+            <option value="" [selected]="!defaultForexGainAccountId()">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id" [selected]="account.id === defaultForexGainAccountId()">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">Where a realised exchange gain on a foreign-currency settlement is booked (Phase 28). Only needed when a settlement actually produces a difference.</p>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold">Default Forex Loss Account</label>
+          <select
+            class="form-select"
+            (change)="defaultForexLossAccountId.set($any($event.target).value)"
+          >
+            <option value="" [selected]="!defaultForexLossAccountId()">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id" [selected]="account.id === defaultForexLossAccountId()">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">The loss counterpart. Kept separate from the gain account on purpose, so an Income account never carries a debit balance.</p>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold">Default Landed Cost Clearing Account</label>
+          <select
+            class="form-select"
+            (change)="defaultLandedCostClearingAccountId.set($any($event.target).value)"
+          >
+            <option value="" [selected]="!defaultLandedCostClearingAccountId()">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id" [selected]="account.id === defaultLandedCostClearingAccountId()">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">Credited when a Purchase Bill capitalises an Additional Cost into stock -- a clearing liability the carrier&#39;s own bill later nets to zero. Required before approving a bill that carries one.</p>
+        </div>
+
         <button type="button" class="btn btn-primary fw-bold" [disabled]="saving()" (click)="save()">
           @if (saving()) {
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>

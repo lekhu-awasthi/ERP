@@ -6,7 +6,13 @@ import { CurrencyRateFields } from '../../../shared/currency/currency-rate-field
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { PurchasingService } from '../../../core/purchasing/purchasing.service';
-import { ExpenditureClassification, PurchaseBillDetail, PurchaseBillLineInput } from '../../../core/purchasing/purchasing.models';
+import {
+  AdditionalCostMethod,
+  ExpenditureClassification,
+  PurchaseBillAdditionalCostInput,
+  PurchaseBillDetail,
+  PurchaseBillLineInput,
+} from '../../../core/purchasing/purchasing.models';
 import { DocumentType } from '../../../core/sales/sales.models';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact } from '../../../core/contacts/contacts.models';
@@ -17,7 +23,7 @@ import { Account } from '../../../core/accounting/accounting.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { Warehouse } from '../../../core/organizations/organizations.models';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
-import { TdsType } from '../../../core/configuration/configuration.models';
+import { CostTerm, TdsType } from '../../../core/configuration/configuration.models';
 import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
 import { PrintingService } from '../../../core/printing/printing.service';
 import { InboxPrefill } from '../../../core/workflow/inbox.models';
@@ -42,7 +48,19 @@ interface EditableLine {
   discountPct: number;
 }
 
+/** Phase 29 (FR-6.15). One editable Additional Cost row. `productId` empty string is the live
+ * picker's "All Product" -- kept as '' rather than null so it binds to a native <select> option
+ * value directly. */
+interface EditableAdditionalCost {
+  key: number;
+  costTermId: string;
+  productId: string;
+  method: AdditionalCostMethod;
+  amount: number;
+}
+
 let nextLineKey = 1;
+let nextAdditionalCostKey = 1;
 
 /** Clones invoice-detail-page's chrome (Warehouse required, GL-preview-free -- PurchaseBill has no
  * live preview endpoint parity yet, see preview button below) plus Purchase-specific fields
@@ -113,6 +131,14 @@ export class PurchaseBillDetailPage {
   protected readonly tdsTypeId = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
   protected readonly discountPct = signal(0);
+
+  // Phase 29 (FR-6.15) -- the Additional Cost section. `showAdditionalCost` mirrors the live
+  // "+ Add Additional Cost" link, which reveals the section rather than adding a row.
+  protected readonly costTerms = signal<CostTerm[]>([]);
+  protected readonly showAdditionalCost = signal(false);
+  protected readonly isProductWiseAdditionalCost = signal(false);
+  protected readonly additionalCosts = signal<EditableAdditionalCost[]>([]);
+  protected readonly additionalCostMethods: AdditionalCostMethod[] = ['Value', 'Quantity'];
   private referrerType: DocumentType | null = null;
   private referrerId: string | null = null;
 
@@ -145,6 +171,61 @@ export class PurchaseBillDetailPage {
   );
   protected readonly grandTotal = computed(() => this.round(this.taxableTotal() + this.nonTaxableTotal() + this.vatTotal()));
 
+  /** In the document's currency, and deliberately outside grandTotal -- confirmed live that the
+   * reference product excludes it from Sub Total and Grand Total alike. */
+  protected readonly additionalCostTotal = computed(() =>
+    this.round(this.additionalCosts().reduce((sum, c) => sum + (c.amount || 0), 0)),
+  );
+
+  /** Only goods lines can carry an additional cost, so only their products are offered. A service
+   * line creates no FIFO layer for the cost to live in -- see PurchaseBill.AllocateAdditionalCosts.
+   * The reference product does offer services here; we refuse, on purpose. */
+  protected readonly goodsLineProducts = computed(() => {
+    const byId = new Map(this.products().map((p) => [p.id, p]));
+    const seen = new Set<string>();
+    const result: Product[] = [];
+    for (const line of this.lines()) {
+      const product = line.productId ? byId.get(line.productId) : undefined;
+      if (product && product.type === 'Goods' && !seen.has(product.id)) {
+        seen.add(product.id);
+        result.push(product);
+      }
+    }
+    return result;
+  });
+
+  protected readonly additionalCostTerms = computed(() =>
+    this.costTerms().filter((t) => t.category === 'AdditionalCost' && t.isActive),
+  );
+
+  /** The product-by-cost-term matrix an approved bill shows, built from the stored allocations --
+   * one row per goods line, one column per cost term that actually allocated something. */
+  protected readonly allocationMatrix = computed(() => {
+    const bill = this.purchaseBill();
+    if (!bill || bill.additionalCosts.length === 0) {
+      return null;
+    }
+
+    const termName = new Map(this.costTerms().map((t) => [t.id, t.name]));
+    const columns = [...new Set(bill.additionalCosts.map((c) => c.costTermId))]
+      .map((id) => ({ costTermId: id, name: termName.get(id) ?? 'Cost Term' }));
+
+    const rows = bill.lines.map((line) => ({
+      lineId: line.id,
+      productName: this.productLabel(line.productId),
+      cells: columns.map((column) =>
+        bill.additionalCosts
+          .filter((c) => c.costTermId === column.costTermId)
+          .reduce(
+            (sum, c) => sum + c.allocations.filter((a) => a.purchaseBillLineId === line.id).reduce((s, a) => s + a.amount, 0),
+            0,
+          ),
+      ),
+    })).filter((row) => row.cells.some((cell) => cell !== 0));
+
+    return rows.length > 0 ? { columns, rows } : null;
+  });
+
   protected readonly isDraft = computed(() => {
     const bill = this.purchaseBill();
     return this.isNew() || !bill || bill.status === 'Draft';
@@ -161,6 +242,7 @@ export class PurchaseBillDetailPage {
     this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
     this.organizationsService.listWarehouses(this.organizationId).subscribe({ next: (w) => this.warehouses.set(w) });
     this.configurationService.listTdsTypes(this.organizationId).subscribe({ next: (t) => this.tdsTypes.set(t) });
+    this.configurationService.listCostTerms(this.organizationId).subscribe({ next: (t) => this.costTerms.set(t) });
 
     this.route.paramMap.subscribe((params) => {
       this.routePurchaseBillId = params.get('purchaseBillId')!;
@@ -197,6 +279,9 @@ export class PurchaseBillDetailPage {
           this.discountPct.set(0);
           this.lines.set([this.newLine()]);
         }
+        this.additionalCosts.set([]);
+        this.showAdditionalCost.set(false);
+        this.isProductWiseAdditionalCost.set(false);
         this.warehouseId.set('');
         this.supplierInvoiceReference.set('');
         this.isImport.set(false);
@@ -344,6 +429,8 @@ export class PurchaseBillDetailPage {
       referrerId: this.referrerId,
       lines,
       discountPct: this.discountPct(),
+      additionalCosts: this.toAdditionalCostInputs(),
+      isProductWiseAdditionalCost: this.isProductWiseAdditionalCost(),
     };
 
     if (this.isNew()) {
@@ -574,6 +661,85 @@ export class PurchaseBillDetailPage {
     return Math.round(value * 100) / 100;
   }
 
+  // --- Phase 29 (FR-6.15), the Additional Cost section ---
+
+  protected addAdditionalCost(): void {
+    this.showAdditionalCost.set(true);
+    this.additionalCosts.update((rows) => [
+      ...rows,
+      {
+        key: nextAdditionalCostKey++,
+        costTermId: this.additionalCostTerms()[0]?.id ?? '',
+        // The live defaults: "All Product" and Value.
+        productId: '',
+        method: 'Value',
+        amount: 0,
+      },
+    ]);
+  }
+
+  protected removeAdditionalCost(key: number): void {
+    this.additionalCosts.update((rows) => rows.filter((r) => r.key !== key));
+  }
+
+  protected onAdditionalCostTermChange(key: number, event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    this.additionalCosts.update((rows) => rows.map((r) => (r.key === key ? { ...r, costTermId: value } : r)));
+  }
+
+  protected onAdditionalCostProductChange(key: number, event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    this.additionalCosts.update((rows) => rows.map((r) => (r.key === key ? { ...r, productId: value } : r)));
+  }
+
+  protected onAdditionalCostMethodChange(key: number, event: Event): void {
+    const value = (event.target as HTMLSelectElement).value as AdditionalCostMethod;
+    this.additionalCosts.update((rows) => rows.map((r) => (r.key === key ? { ...r, method: value } : r)));
+  }
+
+  protected onAdditionalCostAmountChange(key: number, event: Event): void {
+    const value = Number((event.target as HTMLInputElement).value);
+    this.additionalCosts.update((rows) =>
+      rows.map((r) => (r.key === key ? { ...r, amount: Number.isFinite(value) ? value : 0 } : r)),
+    );
+  }
+
+  /** The live "Add product-wise" checkbox. Turning it ON pins every row to a specific product, so
+   * any row still on "All Product" is given the first goods product to fill in -- the matrix has no
+   * All-Product column to render it in. Turning it OFF changes nothing: a row that names a product
+   * is valid in either mode. */
+  protected onProductWiseChange(event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    this.isProductWiseAdditionalCost.set(checked);
+    if (!checked) {
+      return;
+    }
+
+    const firstGoodsProductId = this.goodsLineProducts()[0]?.id ?? '';
+    this.additionalCosts.update((rows) =>
+      rows.map((r) => (r.productId ? r : { ...r, productId: firstGoodsProductId })),
+    );
+  }
+
+  protected costTermName(costTermId: string): string {
+    return this.costTerms().find((t) => t.id === costTermId)?.name ?? '';
+  }
+
+  /** Null for an empty list, so the request omits the section entirely rather than sending []. */
+  private toAdditionalCostInputs(): PurchaseBillAdditionalCostInput[] | undefined {
+    const rows = this.additionalCosts().filter((r) => r.costTermId && r.amount > 0);
+    if (rows.length === 0) {
+      return undefined;
+    }
+
+    return rows.map((r) => ({
+      costTermId: r.costTermId,
+      productId: r.productId || null,
+      method: r.method,
+      amount: r.amount,
+    }));
+  }
+
   private load(): void {
     this.loading.set(true);
     this.purchasingService.getPurchaseBill(this.organizationId, this.routePurchaseBillId).subscribe({
@@ -594,6 +760,17 @@ export class PurchaseBillDetailPage {
         this.referrerType = bill.referrerType;
         this.referrerId = bill.referrerId;
         this.discountPct.set(bill.discountPct);
+        this.isProductWiseAdditionalCost.set(bill.isProductWiseAdditionalCost);
+        this.additionalCosts.set(
+          bill.additionalCosts.map((c) => ({
+            key: nextAdditionalCostKey++,
+            costTermId: c.costTermId,
+            productId: c.productId ?? '',
+            method: c.method,
+            amount: c.amount,
+          })),
+        );
+        this.showAdditionalCost.set(bill.additionalCosts.length > 0);
         this.lines.set(
           bill.lines.length > 0
             ? bill.lines.map((l) => ({

@@ -45,7 +45,16 @@ public sealed class PurchaseBillConfiguration : IEntityTypeConfiguration<Purchas
             .HasPrecision(18, ExchangeRates.RateScale).IsRequired()
             .HasDefaultValue(ExchangeRates.BaseRate).ValueGeneratedNever();
 
+        // Phase 29 (FR-6.15). The two capitalisation figures are nullable and in base currency,
+        // written once at Approve; the flag carries a SQL default so the migration backfills every
+        // existing row without a data script, with ValueGeneratedNever for the phase-2 bug #2 reason.
+        builder.Property(x => x.IsProductWiseAdditionalCost)
+            .IsRequired().HasDefaultValue(false).ValueGeneratedNever();
+        builder.Property(x => x.CapitalisedAdditionalCost).HasPrecision(18, PurchaseBill.AllocationScale);
+        builder.Property(x => x.AdditionalCostRoundingAdjustment).HasPrecision(18, PurchaseBill.AllocationScale);
+
         builder.Ignore(x => x.GrandTotal);
+        builder.Ignore(x => x.AdditionalCostTotal);
 
         builder.HasOne<Contact>().WithMany().HasForeignKey(x => x.ContactId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Warehouse>().WithMany().HasForeignKey(x => x.WarehouseId).OnDelete(DeleteBehavior.Restrict);
@@ -57,6 +66,14 @@ public sealed class PurchaseBillConfiguration : IEntityTypeConfiguration<Purchas
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.Metadata.FindNavigation(nameof(PurchaseBill.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.HasMany(x => x.AdditionalCosts)
+            .WithOne()
+            .HasForeignKey(x => x.PurchaseBillId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Metadata.FindNavigation(nameof(PurchaseBill.AdditionalCosts))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 }

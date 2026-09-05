@@ -1,4 +1,4 @@
-﻿# Build Roadmap — Phases & Task Breakdown
+# Build Roadmap — Phases & Task Breakdown
 
 Companion to `architecture-spec.md` (what to build) and `product-requirements.md` (why). This doc says *in what order*, broken down small enough to actually pick up and work. The reference product is a live Tigg UAT tenant; when a screen's shape is unconfirmed, it is read live through the Browser pane before building (the user logs in themselves — credentials are never entered by the agent and never committed to this repo; see `phase-8f-status.md` for the established workflow).
 
@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–25)
+## Completed phases (0–29)
 
 Detail lives in each phase's own status doc — this table is the index, not the history.
 
@@ -56,6 +56,8 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 26c | Report catalog completion: inventory, tax, system, analytics (closing FR-9.4/9.5/9.7): Inventory Position / Movement / Ledger / Master, Sales & Purchase Return Registers, Net Trading Assets, Exceptional Report, User Log — 9 reports plus the `.xlsx` export the 3 manufacturing reports lacked. One new table (`UserLoginEvent`, written by the auth endpoints); the shared `StockFactReader` the four inventory reports agree through | `phase-26c-status.md` |
 | 27a | Cross-cutting rollout sweep, document-level mechanisms: Custom Fields to 11 more types (13 total, not the assumed 15), Custom Status to Sales Order + Production Order, Reporting Tags to every transactional type plus Opening Balances, Tasks/Documents/Activity tabs on all 15 transactional detail pages. `Comment` generalized to a polymorphic `CommentParentType` (phase-18 decision #3's deferred trigger). One shared `DocumentMechanisms` classification table plus a server guard test and a client guard spec prove the sweep complete | `phase-27a-status.md` |
 | 27b | Cross-cutting rollout sweep, output: print/PDF for the 9 unwired document types (all 15 now, live-confirmed universal) on **one generic section-based layout** replacing phase-20d's two; **Bikram Sambat in server-rendered PDFs and `.xlsx`** via an `X-Calendar` header + ambient `RequestCalendar`, closing phase-23 Decision A; pagers on Email Logs / import history / export history; Turnstile on the New Organization wizard; a feature-flag route guard (3 real flags, 13 routes). `CustomTemplate`'s first two consumers: Terms and Conditions on 5 document types (not the 2 assumed) and the Customer/Supplier Balance Confirmation letter | `phase-27b-status.md` |
+| 28 | Multi-currency (FR-2.5, NFR-1.3): a tenant `Currency` list seeded from a fixed catalog with NPR always present, `CurrencyCode` + `ExchangeRate` on 12 document types, the base-currency fold on each posting rule's **inputs** (so `GlLine` and every phase-8/19/26 report needed zero edits), two forex accounts and a realised-difference rule on Payment allocation. The entitlement is a **cap on the currency list**, not a gate on documents | `phase-28-status.md` |
+| 29 | Landed cost (FR-6.15, Cost Terms' other half): an Additional Cost section on the Purchase Bill (Cost Term x Product x Method x Amount, plus the product-wise matrix), allocated at Approve by Value or Quantity across the bill's **goods** lines and capitalised into the received FIFO layers' unit cost — conservation law proven in SQL, residue named. The reference product posts no GL at all (it is periodic); we post Debit Inventory / Credit a new Landed Cost Clearing account, on phase-25 Decision A's argument. Debit Note gained a release leg | `phase-29-status.md` |
 
 ---
 
@@ -195,7 +197,15 @@ E2E, one proven negative path, a status doc) and the confirm-live rule.
   balancing leg as a sum, so converting afterwards breaks the balanced-entry invariant
   intermittently. Zero report changes, as predicted.
 
-### 29. Landed cost (FR-6.15, Cost Terms' other half) — confirm-lived, shape known
+### 29. Landed cost (FR-6.15, Cost Terms' other half) — **COMPLETE** (see `docs/phase-29-status.md`)
+Shipped: `PurchaseBillAdditionalCost` + `PurchaseBillAdditionalCostAllocation`, allocated at Approve
+by Value or Quantity across the bill's **goods** lines and capitalised into the received FIFO layers'
+unit cost, with the phase-25 conservation law proven in SQL and the residue named
+(`AdditionalCostRoundingAdjustment`). The decisive experiment turned out to be unnecessary: two
+already-approved reference bills answered it read-only, and the answer was that the reference product
+posts **no GL at all** (it is periodic) while fully capitalising the cost into stock. We post anyway —
+Debit Inventory / Credit a new `DefaultLandedCostClearingAccountId` — on phase-25 Decision A's
+argument. Debit Note gained a release leg; Void needed none. The original plan, for the record:
 - Live, on the Purchase Bill itself: an **Additional Cost** section with an "Add product-wise"
   toggle and rows of *Cost Term × Product ("All Product" or one product) × Method (Value |
   Quantity) × Amount (NPR)*. `CostTerm.AdditionalCost` (20c) is the lookup; Phase 25 consumed only
