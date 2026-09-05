@@ -10,5 +10,4 @@ public enum CustomTemplateType
     CustomerBalanceConfirmation,
     SupplierBalanceConfirmation,
     TermsAndConditions,
-    Email,
 }

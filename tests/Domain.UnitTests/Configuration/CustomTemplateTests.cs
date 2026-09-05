@@ -45,7 +45,7 @@ public class CustomTemplateTests
     public void MarkAsDefault_and_ClearDefault_toggle_the_flag()
     {
         var template = CustomTemplate.Create(
-            Guid.NewGuid(), "Standard Letter", CustomTemplateType.Email, "Hello $[ContactName]$,", isDefault: false);
+            Guid.NewGuid(), "Standard Letter", CustomTemplateType.TermsAndConditions, "Hello $[ContactName]$,", isDefault: false);
 
         template.MarkAsDefault();
         Assert.True(template.IsDefault);

@@ -15,6 +15,7 @@ import { AttachmentList } from '../attachment-list/attachment-list';
 import { ActivityPanel } from '../activity-panel/activity-panel';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 
 /** Record-detail-page chrome: left mini-profile panel + vertical tab list + right content pane
  * -- new pattern for this codebase, established here per roadmap Phase 3's Angular deliverable.
@@ -41,7 +42,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
     ContactPersonnelList,
     AttachmentList,
     ActivityPanel,
-    SendSmsForm, AmountPipe, NepaliDatePipe],
+    SendSmsForm, AmountPipe, NepaliDatePipe, SendEmailDialog],
   templateUrl: './contact-detail-page.html',
 })
 export class ContactDetailPage {

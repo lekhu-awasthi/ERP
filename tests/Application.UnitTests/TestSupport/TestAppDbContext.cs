@@ -2,6 +2,7 @@ using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Communications;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Crm;
@@ -200,6 +201,12 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
 
     public DbSet<AlertSendLog> AlertSendLogs => Set<AlertSendLog>();
 
+    public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
+
+    public DbSet<EmailSendLog> EmailSendLogs => Set<EmailSendLog>();
+
+    public DbSet<EmailSendAttachment> EmailSendAttachments => Set<EmailSendAttachment>();
+
     public DbSet<ImportJob> ImportJobs => Set<ImportJob>();
 
     public DbSet<ImportJobRow> ImportJobRows => Set<ImportJobRow>();
@@ -224,6 +231,7 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<CashTransfer>().Ignore(x => x.RowVersion);
         modelBuilder.Entity<Quotation>().Ignore(x => x.RowVersion);
         modelBuilder.Entity<Invoice>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<EmailSendLog>().Ignore(x => x.RowVersion);
         modelBuilder.Entity<Invoice>().Ignore(x => x.GrandTotal);
         modelBuilder.Entity<SalesOrder>().Ignore(x => x.RowVersion);
         modelBuilder.Entity<CreditNote>().Ignore(x => x.RowVersion);
@@ -356,6 +364,13 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         // Phase 29 -- this context has no ApplyConfigurationsFromAssembly, so every encapsulated
         // collection has to be restated here or its symptom is a DbUpdateConcurrencyException that
         // looks like a handler bug (see CLAUDE.md's Known gotchas).
+        // Phase 30 -- same restatement, same reason (EmailSendLog.Attachments).
+        modelBuilder.Entity<EmailSendLog>().HasMany(x => x.Attachments).WithOne()
+            .HasForeignKey(x => x.EmailSendLogId);
+        modelBuilder.Entity<EmailSendLog>()
+            .Metadata.FindNavigation(nameof(EmailSendLog.Attachments))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
         modelBuilder.Entity<PurchaseBill>().HasMany(x => x.AdditionalCosts).WithOne()
             .HasForeignKey(x => x.PurchaseBillId);
         modelBuilder.Entity<PurchaseBill>()

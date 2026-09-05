@@ -174,6 +174,16 @@
                         </button>
                       }
                       <div class="dropdown-divider"></div>
+                      <!-- Phase 30 -- live, the Contact Overview tab's actions read
+                           "Send Email | +SMS | Export Options", so this sits immediately beside
+                           phase 18's SMS action (docs/phase-30-status.md, Step 1.3). -->
+                      <button
+                        type="button"
+                        class="dropdown-item"
+                        (click)="optionsOpen.set(false); emailDialog.show()"
+                      >
+                        <i class="bi bi-envelope me-2"></i> Send Email
+                      </button>
                       <button type="button" class="dropdown-item" (click)="sendSms()">
                         <i class="bi bi-chat-dots me-2"></i> Send SMS
                       </button>
@@ -376,3 +386,11 @@
     </div>
   }
 </div>
+
+<!-- Phase 30 -- no documentType: a Contact-scoped send uses the General template context
+     and has no "Attach PDF" checkbox, exactly as live. -->
+<app-send-email-dialog
+  #emailDialog
+  [organizationId]="organizationId"
+  [parentId]="routeContactId"
+/>

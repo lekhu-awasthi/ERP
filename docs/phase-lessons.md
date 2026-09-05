@@ -245,3 +245,41 @@ these are in `CLAUDE.md`'s Known gotchas section. When a phase completes, append
   a new place. Trace the net effect on every account across original **and** reversal before assuming
   an existing rule still mirrors a rule you have just changed. Also the phase that found the
   Accounting Defaults screen was three accounts behind its own API (phase-23 bug #1 in reverse).
+
+- `phase-30` — before wiring a Send Email action, before adding a background job that *reads* through
+  a permission-gated request, before assuming a `CustomTemplateType` member is the right home for
+  something, and before trusting an earlier phase's "one enum member and a branch" estimate. Five
+  things generalise.
+  **(a) A shared UI panel is not evidence of a shared model.** The reference product renders its
+  email templates inside the Custom Templates panel, which is why phase 27b added
+  `CustomTemplateType.Email`. Underneath, it serves them from a *different resource*, with six extra
+  fields, a disjoint type vocabulary, and a type that is disabled on the edit form. `EmailTemplate`
+  became its own aggregate and the dead enum member was **deleted** rather than left looking like a
+  feature — phase-18 Decision #2's "confirm it is really the same concept" applied to a lookup
+  instead of a polymorphic parent, and coming out the other way.
+  **(b) A sampled list becomes a wrong list; find the rule instead.** Phase 27b recorded Send Email as
+  present on three document types by sampling three. It is on seven live screens (six `DocumentType`s,
+  since Customer and Supplier Payment collapse onto one) — and the *rule* is that Send Email exists
+  exactly where an email template context exists, which also settles the five types never probed.
+  `DocumentMechanisms.Emailable` and `EmailTemplateContexts` are asserted to describe the same set in
+  **both** directions, because the six/seven mismatch makes a naive count comparison pass while the
+  sets disagree.
+  **(c) The rule for whether a background job needs an identity is not "does it write?" — it is "does
+  it send a MediatR request?"** This job only reads, so phase 20e's no-identity default appeared to
+  apply as it did for phase 21b's exporter. But it renders the attached PDF through
+  `PrintDocumentQuery` *precisely so* an emailed PDF cannot drift from a printed one, and a MediatR
+  request with no acting user fails `AuthorizationBehavior`. First job in the codebase to need
+  `IJobActingUser` for a read-only reason; the alternative was duplicating a fifteen-document
+  pipeline.
+  **(d) Do-exactly-once and "a resend is a new row" are compatible only if the key is an *intent*.**
+  An occurrence key (20e's) needs a schedule and there is none; a content hash would silently swallow
+  the legitimate second send a customer asks for. A **request id minted when the dialog opens** splits
+  them exactly, under a unique index. Related: `EmailSendLog` carries a rowversion, which phase-21a's
+  rule forbids on `ImportJob`/`ExportJob` — that rule protects rows with *two* writers, and the
+  question to ask is how many writers the row has, not whether a job touches it.
+  **(e) "We already have the interface" measures the wrong thing.** `AlertMedium.Sms` was predicted as
+  one enum member and a branch because `ISmsSender` had existed since phase 18. It was four changes:
+  the member, recipients changing meaning (addresses → phone numbers, so validation switches), the
+  subject ceasing to be meaningful, and — the one nobody anticipated — it **spends money** through
+  phase 18's credit ledger, so an unaffordable occurrence has to fail *visibly in the send ledger*
+  rather than throw inside a timer tick.

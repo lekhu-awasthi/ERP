@@ -142,6 +142,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'organizations/:id/configuration/email-templates',
+    loadComponent: () =>
+      import('./features/configuration/email-template-list-page/email-template-list-page').then(
+        (m) => m.EmailTemplateListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/configuration/alerts',
     loadComponent: () =>
       import('./features/configuration/alert-list-page/alert-list-page').then((m) => m.AlertListPage),

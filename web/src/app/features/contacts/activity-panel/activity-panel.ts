@@ -1,10 +1,13 @@
+import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { ActivityRowDto, CommentRowDto } from '../../../core/contacts/contacts.models';
 import { SmsLogRowDto } from '../../../core/crm/crm.models';
-import { TabParent, hasSmsHistory } from '../../../core/contacts/tab-parent';
+import { CommunicationsService } from '../../../core/communications/communications.service';
+import { EmailLogRow } from '../../../core/communications/communications.models';
+import { TabParent, hasSmsHistory, tabParentId } from '../../../core/contacts/tab-parent';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 
@@ -17,11 +20,12 @@ type ActivitySubTab = 'Comments' | 'Activities' | 'SmsHistory' | 'EmailLogs';
  * empty-state message only -- not a faked working tab. */
 @Component({
   selector: 'app-activity-panel',
-  imports: [PaginationControl],
+  imports: [PaginationControl, DatePipe],
   templateUrl: './activity-panel.html',
 })
 export class ActivityPanel implements OnInit {
   private readonly contactsService = inject(ContactsService);
+  private readonly communicationsService = inject(CommunicationsService);
 
   readonly organizationId = input.required<string>();
   readonly parent = input.required<TabParent>();
@@ -57,6 +61,15 @@ export class ActivityPanel implements OnInit {
   protected readonly smsPageSize = signal(DEFAULT_PAGE_SIZE);
   protected readonly smsTotalCount = signal(0);
 
+  // Email Logs (Phase 30). The tab and its pager shipped in 27b against no backend at all -- an
+  // empty-state message rather than a faked working tab. This is the data that message was waiting
+  // for.
+  protected readonly emailRows = signal<EmailLogRow[]>([]);
+  protected readonly emailLoading = signal(true);
+  protected readonly emailPage = signal(1);
+  protected readonly emailPageSize = signal(DEFAULT_PAGE_SIZE);
+  protected readonly emailTotalCount = signal(0);
+
   ngOnInit(): void {
     this.loadComments();
   }
@@ -68,6 +81,8 @@ export class ActivityPanel implements OnInit {
       this.loadActivities();
     } else if (tab === 'SmsHistory' && this.smsRows().length === 0) {
       this.loadSmsHistory();
+    } else if (tab === 'EmailLogs' && this.emailRows().length === 0) {
+      this.loadEmailLogs();
     }
   }
 
@@ -105,6 +120,52 @@ export class ActivityPanel implements OnInit {
     this.commentPageSize.set(pageSize);
     this.commentPage.set(1);
     this.loadComments();
+  }
+
+  protected onEmailPageChange(page: number): void {
+    this.emailPage.set(page);
+    this.loadEmailLogs();
+  }
+
+  protected onEmailPageSizeChange(pageSize: number): void {
+    this.emailPageSize.set(pageSize);
+    this.emailPage.set(1);
+    this.loadEmailLogs();
+  }
+
+  /** Refreshable from a host that just sent one, so a send shows up without a page reload. */
+  reloadEmailLogs(): void {
+    this.emailPage.set(1);
+    this.loadEmailLogs();
+  }
+
+  private loadEmailLogs(): void {
+    const parent = this.parent();
+
+    // One query for both shapes, keyed exactly as the reference product's own
+    // /email-logs?source=&source_id= is: a document sends its type, a Contact sends none.
+    const documentType = parent.kind === 'Document' ? parent.documentType : null;
+
+    this.emailLoading.set(true);
+    this.communicationsService
+      .listEmailLogs(
+        this.organizationId(),
+        documentType,
+        tabParentId(parent),
+        this.emailPage(),
+        this.emailPageSize(),
+      )
+      .subscribe({
+        next: (result) => {
+          this.emailLoading.set(false);
+          this.emailRows.set(result.items);
+          this.emailTotalCount.set(result.totalCount);
+        },
+        error: (err: unknown) => {
+          this.emailLoading.set(false);
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load email logs.');
+        },
+      });
   }
 
   protected onActivityPageChange(page: number): void {

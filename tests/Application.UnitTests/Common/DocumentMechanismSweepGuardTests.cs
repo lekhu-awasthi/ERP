@@ -5,6 +5,9 @@ using ErpApp.Application.Configuration.Commands.SetCustomFieldValues;
 using ErpApp.Application.Configuration.Commands.SetCustomStatus;
 using ErpApp.Application.Configuration.Commands.SetTransactionReportingTags;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Communications;
+using ErpApp.Domain.Configuration;
+using ErpApp.Domain.Payments;
 using ErpApp.Domain.Workflow;
 
 namespace ErpApp.Application.UnitTests.Common;
@@ -87,6 +90,7 @@ public class DocumentMechanismSweepGuardTests
             (nameof(DocumentMechanisms.CustomStatus), DocumentMechanisms.CustomStatus),
             (nameof(DocumentMechanisms.ReportingTags), DocumentMechanisms.ReportingTags),
             (nameof(DocumentMechanisms.DetailTabs), DocumentMechanisms.DetailTabs),
+            (nameof(DocumentMechanisms.Emailable), DocumentMechanisms.Emailable),
         };
 
         foreach (var (name, types) in lists)
@@ -408,5 +412,163 @@ public class DocumentMechanismSweepGuardTests
 
         Assert.IsNotType<ArgumentOutOfRangeException>(exception);
         Assert.IsType<Application.Common.Exceptions.NotFoundException>(exception);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Sweep 7 -- Send Email (Phase 30).
+    // ---------------------------------------------------------------------------------------
+
+    /// <summary>The six confirmed live, and the four confirmed absent. See
+    /// docs/phase-30-status.md Step 1.2 for the probe, one real approved document per type.</summary>
+    [Fact]
+    public void Emailable_is_the_six_confirmed_types_and_not_the_four_confirmed_absent()
+    {
+        Assert.Equal(
+            new[]
+            {
+                DocumentType.Quotation,
+                DocumentType.SalesOrder,
+                DocumentType.Invoice,
+                DocumentType.CreditNote,
+                DocumentType.Payment,
+                DocumentType.PurchaseOrder,
+            }.OrderBy(x => x).ToList(),
+            DocumentMechanisms.Emailable.OrderBy(x => x).ToList());
+
+        foreach (var absent in new[]
+                 {
+                     DocumentType.PurchaseBill,
+                     DocumentType.DebitNote,
+                     DocumentType.Expense,
+                     DocumentType.JournalVoucher,
+                 })
+        {
+            Assert.DoesNotContain(absent, DocumentMechanisms.Emailable);
+        }
+
+        Assert.All(DocumentMechanisms.Emailable, x => Assert.Contains(x, DocumentMechanisms.Transactional));
+    }
+
+    /// <summary>
+    /// Emailing is strictly narrower than printing, and that asymmetry is the phase's own finding
+    /// (the roadmap assumed they were the same set). Pinned, so a later phase widening one does not
+    /// silently widen the other.
+    /// </summary>
+    [Fact]
+    public void Every_emailable_type_is_printable_but_not_the_reverse()
+    {
+        Assert.All(DocumentMechanisms.Emailable, x => Assert.Contains(x, DocumentMechanisms.Printable));
+        Assert.True(DocumentMechanisms.Emailable.Count < DocumentMechanisms.Printable.Count);
+    }
+
+    /// <summary>
+    /// The rule the live pass actually established: Send Email exists exactly where an email
+    /// template can be scoped. Asserted in <b>both</b> directions, so neither list can drift from
+    /// the other -- which matters because the six/seven mismatch (one DocumentType.Payment, two
+    /// payment contexts) makes a naive count comparison pass while the sets disagree.
+    /// </summary>
+    [Fact]
+    public void Emailable_types_and_document_bearing_template_contexts_describe_the_same_set()
+    {
+        var fromContexts = Enum.GetValues<EmailTemplateContext>()
+            .Select(EmailTemplateContexts.DocumentTypeFor)
+            .Where(x => x is not null)
+            .Select(x => x!.Value)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToList();
+
+        Assert.Equal(DocumentMechanisms.Emailable.OrderBy(x => x).ToList(), fromContexts);
+
+        // And every emailable type maps forward to a context that maps back to it.
+        foreach (var documentType in DocumentMechanisms.Emailable)
+        {
+            if (documentType == DocumentType.Payment)
+            {
+                Assert.Equal(
+                    EmailTemplateContext.CustomerPayment,
+                    EmailTemplateContexts.For(documentType, PaymentDirection.Received));
+                Assert.Equal(
+                    EmailTemplateContext.SupplierPayment,
+                    EmailTemplateContexts.For(documentType, PaymentDirection.Paid));
+                continue;
+            }
+
+            var context = EmailTemplateContexts.For(documentType);
+            Assert.Equal(documentType, EmailTemplateContexts.DocumentTypeFor(context));
+        }
+    }
+
+    /// <summary>A Payment's context depends on its direction, so asking without one is a wiring bug
+    /// rather than a defaultable case -- pinned because silently defaulting to Customer Payment
+    /// would mail a supplier a template that thanks them for paying us.</summary>
+    [Fact]
+    public void A_payment_context_cannot_be_resolved_without_a_direction()
+    {
+        Assert.Throws<ArgumentNullException>(() => EmailTemplateContexts.For(DocumentType.Payment));
+    }
+
+    [Fact]
+    public void A_non_emailable_type_has_no_template_context()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => EmailTemplateContexts.For(DocumentType.PurchaseBill));
+    }
+
+    /// <summary>
+    /// The phase-26a/27a lesson restated on a fourth parent enum: mapped by name, never by ordinal.
+    /// EmailParentType's members deliberately do not share an ordinal order with DocumentType -- it
+    /// leads with Contact and omits nine document types -- so an ordinal cast would compile and
+    /// silently attribute every email to the wrong document.
+    /// </summary>
+    [Fact]
+    public void Every_emailable_type_round_trips_through_EmailParentType_by_name()
+    {
+        foreach (var documentType in DocumentMechanisms.Emailable)
+        {
+            var parentType = DocumentParentTypes.For<EmailParentType>(documentType);
+
+            Assert.Equal(documentType.ToString(), parentType.ToString());
+            Assert.Equal(documentType, DocumentParentTypes.TryToDocumentType(parentType));
+        }
+
+        // The ordinals genuinely differ, which is what makes the by-name rule load-bearing rather
+        // than decorative: DocumentType.Invoice is 2 and EmailParentType.Invoice is 3, because this
+        // enum leads with Contact and omits nine document types. An ordinal cast would compile,
+        // appear to work for whichever pair happened to line up, and mis-attribute the rest.
+        Assert.NotEqual((int)DocumentType.Invoice, (int)EmailParentType.Invoice);
+        Assert.NotEqual((int)DocumentType.Payment, (int)EmailParentType.Payment);
+        Assert.Null(DocumentParentTypes.TryFor<EmailParentType>(DocumentType.PurchaseBill));
+    }
+
+    /// <summary>Contact is the only non-document parent an email can hang off -- the Contact detail
+    /// page's own Send Email action.</summary>
+    [Fact]
+    public void Contact_is_the_only_non_document_email_parent()
+    {
+        var nonDocuments = Enum.GetValues<EmailParentType>()
+            .Where(x => DocumentParentTypes.TryToDocumentType(x) is null)
+            .ToList();
+
+        Assert.Equal([EmailParentType.Contact], nonDocuments);
+    }
+
+    /// <summary>Every context resolves a parent type, including the two that are about a Contact
+    /// rather than a document.</summary>
+    [Fact]
+    public void Every_template_context_resolves_a_parent_type()
+    {
+        foreach (var context in Enum.GetValues<EmailTemplateContext>())
+        {
+            var parentType = EmailTemplateContexts.ParentTypeFor(context);
+
+            if (EmailTemplateContexts.DocumentTypeFor(context) is null)
+            {
+                Assert.Equal(EmailParentType.Contact, parentType);
+            }
+            else
+            {
+                Assert.NotEqual(EmailParentType.Contact, parentType);
+            }
+        }
     }
 }

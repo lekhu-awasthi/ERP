@@ -1,7 +1,9 @@
 using ErpApp.Application.Common.Email;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Sms;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
+using ErpApp.Domain.Crm;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -34,6 +36,7 @@ namespace ErpApp.Application.Alerts;
 public sealed class AlertDispatcher(
     IAppDbContext db,
     IEmailSender emailSender,
+    ISmsSender smsSender,
     IEnumerable<IAlertContentBuilder> contentBuilders,
     TimeProvider timeProvider,
     ILogger<AlertDispatcher> logger) : IAlertDispatcher
@@ -110,6 +113,34 @@ public sealed class AlertDispatcher(
             return 0;
         }
 
+        // An SMS alert spends real money, so it is checked before a single message goes out --
+        // exactly as SendSmsCommandHandler does for an interactive send, and for the same reason:
+        // failing halfway through a batch leaves some recipients told and some not, with the ledger
+        // already partly debited. An unaffordable occurrence is recorded as a failure against every
+        // recipient rather than thrown, because an exception inside a timer tick is invisible and
+        // this is precisely the kind of problem an admin needs to see in the send log.
+        if (definition.Medium == AlertMedium.Sms)
+        {
+            var balance = await db.SmsCreditLedgerEntries
+                .Where(x => x.OrganizationId == definition.OrganizationId)
+                .SumAsync(x => x.ChangeAmount, cancellationToken);
+
+            if (balance < pending.Count)
+            {
+                var reason = $"Insufficient SMS credit: {pending.Count} needed, {balance} available.";
+                logger.LogWarning(
+                    "Alert {AlertDefinitionId} could not send: {Reason}", definition.Id, reason);
+
+                foreach (var recipient in pending)
+                {
+                    await ClaimAndRecordFailureAsync(
+                        definition, occurrenceDate, recipient, reason, cancellationToken);
+                }
+
+                return 0;
+            }
+        }
+
         var sentCount = 0;
 
         foreach (var recipient in pending)
@@ -126,7 +157,7 @@ public sealed class AlertDispatcher(
 
             try
             {
-                await emailSender.SendAsync(recipient, content.Subject, content.Body, cancellationToken);
+                await DeliverAsync(definition, content, recipient, cancellationToken);
                 claim.MarkSent(timeProvider.GetUtcNow());
                 sentCount++;
             }
@@ -140,6 +171,36 @@ public sealed class AlertDispatcher(
         }
 
         return sentCount;
+    }
+
+    /// <summary>
+    /// The one place the medium matters. Phase 20e predicted an <see cref="AlertMedium.Sms"/> member
+    /// would be "one enum member and a branch"; this is the branch, and the two things it does
+    /// beyond branching -- dropping the subject, and debiting a credit -- are why that estimate was
+    /// short. See <see cref="AlertMedium"/>.
+    ///
+    /// <para>The credit debit is written here, per recipient, rather than once per occurrence,
+    /// because the ledger must not be debited for a message that threw on its way out. Affordability
+    /// was already checked for the whole batch before the loop started, so this cannot overdraw.</para>
+    /// </summary>
+    private async Task DeliverAsync(
+        AlertDefinition definition, AlertContent content, string recipient, CancellationToken cancellationToken)
+    {
+        if (definition.Medium == AlertMedium.Email)
+        {
+            await emailSender.SendAsync(recipient, content.Subject, content.Body, cancellationToken);
+            return;
+        }
+
+        // An SMS has no subject line; the body alone is the message. Prefixing it with the subject
+        // would spend the recipient's first line on the alert's internal name.
+        await smsSender.SendAsync(recipient, content.Body, cancellationToken);
+
+        db.SmsCreditLedgerEntries.Add(SmsCreditLedgerEntry.CreateSendDebit(
+            definition.OrganizationId,
+            creditsUsed: 1,
+            batchId: definition.Id,
+            createdByUserId: definition.CreatedByUserId));
     }
 
     private Task<AlertContent> BuildContentAsync(
@@ -167,6 +228,7 @@ public sealed class AlertDispatcher(
             definition.OrganizationId,
             definition.Id,
             definition.AlertType,
+            definition.Medium,
             occurrenceDate,
             recipient,
             subject,

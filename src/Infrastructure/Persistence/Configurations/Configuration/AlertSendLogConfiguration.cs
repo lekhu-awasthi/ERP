@@ -15,6 +15,10 @@ public sealed class AlertSendLogConfiguration : IEntityTypeConfiguration<AlertSe
         builder.Property(x => x.OrganizationId).IsRequired();
         builder.Property(x => x.AlertDefinitionId).IsRequired();
         builder.Property(x => x.AlertType).HasConversion<string>().HasMaxLength(40).IsRequired();
+
+        // Stored as a string to match AlertDefinition.Medium, which this denormalises. An int here
+        // would mean the same enum reads two different ways in two tables one join apart.
+        builder.Property(x => x.Medium).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.OccurrenceDate).IsRequired();
         builder.Property(x => x.Recipient).HasMaxLength(320).IsRequired();
         builder.Property(x => x.Subject).HasMaxLength(300).IsRequired();

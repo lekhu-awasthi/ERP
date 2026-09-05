@@ -125,9 +125,87 @@
   }
 
   @if (subTab() === 'EmailLogs') {
-    <div class="text-center py-4">
-      <i class="bi bi-envelope-slash fs-2 text-muted mb-2 d-block"></i>
-      <p class="text-muted small mb-0">Email logging isn't available yet.</p>
-    </div>
+    @if (emailLoading()) {
+      <p class="text-muted small mb-0">Loading...</p>
+    } @else if (emailRows().length === 0) {
+      <div class="text-center py-4">
+        <i class="bi bi-envelope-slash fs-2 text-muted mb-2 d-block"></i>
+        <p class="text-muted small mb-0">No Emails Available</p>
+      </div>
+    } @else {
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th scope="col">Sent</th>
+              <th scope="col">Recipients</th>
+              <th scope="col">Subject</th>
+              <th scope="col">Attachments</th>
+              <th scope="col">Sent by</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of emailRows(); track row.id) {
+              <tr>
+                <td class="text-nowrap">{{ row.createdAt | date: 'short' }}</td>
+                <td>
+                  {{ row.recipients }}
+                  @if (row.cc) {
+                    <div class="small text-muted">CC: {{ row.cc }}</div>
+                  }
+                  @if (row.bcc) {
+                    <div class="small text-muted">BCC: {{ row.bcc }}</div>
+                  }
+                </td>
+                <td>{{ row.subject }}</td>
+                <td class="small">
+                  @if (row.attachedDocumentPdf) {
+                    <div>Document PDF</div>
+                  }
+                  @for (name of row.attachmentNames; track name) {
+                    <div>{{ name }}</div>
+                  }
+                  @if (!row.attachedDocumentPdf && row.attachmentNames.length === 0) {
+                    <span class="text-muted">&mdash;</span>
+                  }
+                </td>
+                <td>{{ row.sentByUserName }}</td>
+                <td>
+                  @switch (row.status) {
+                    @case ('Sent') {
+                      <span class="badge bg-success-subtle text-success-emphasis">Sent</span>
+                    }
+                    @case ('Failed') {
+                      <span
+                        class="badge bg-danger-subtle text-danger-emphasis"
+                        [title]="row.failureReason ?? ''"
+                      >Failed</span>
+                    }
+                    @case ('Sending') {
+                      <span class="badge bg-info-subtle text-info-emphasis">Sending</span>
+                    }
+                    @default {
+                      <span class="badge bg-secondary-subtle text-secondary-emphasis">Queued</span>
+                    }
+                  }
+                  @if (row.status === 'Failed' && row.failureReason) {
+                    <div class="small text-danger">{{ row.failureReason }}</div>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <app-pagination-control
+        [page]="emailPage()"
+        [pageSize]="emailPageSize()"
+        [totalCount]="emailTotalCount()"
+        (pageChange)="onEmailPageChange($event)"
+        (pageSizeChange)="onEmailPageSizeChange($event)"
+      />
+    }
   }
 </div>

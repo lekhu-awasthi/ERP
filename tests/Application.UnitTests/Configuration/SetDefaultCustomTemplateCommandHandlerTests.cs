@@ -13,8 +13,8 @@ public class SetDefaultCustomTemplateCommandHandlerTests
     {
         var db = TestAppDbContext.Create();
         var organizationId = Guid.NewGuid();
-        var standard = CustomTemplate.Create(organizationId, "Standard Letter", CustomTemplateType.Email, "Hello,", isDefault: true);
-        var formal = CustomTemplate.Create(organizationId, "Formal Letter", CustomTemplateType.Email, "Dear Sir/Madam,", isDefault: false);
+        var standard = CustomTemplate.Create(organizationId, "Standard Letter", CustomTemplateType.TermsAndConditions, "Hello,", isDefault: true);
+        var formal = CustomTemplate.Create(organizationId, "Formal Letter", CustomTemplateType.TermsAndConditions, "Dear Sir/Madam,", isDefault: false);
         db.CustomTemplates.AddRange(standard, formal);
         await db.SaveChangesAsync();
 

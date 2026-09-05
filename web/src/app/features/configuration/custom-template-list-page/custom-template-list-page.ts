@@ -16,7 +16,6 @@ const SECTION_TITLES: Record<CustomTemplateType, string> = {
   CustomerBalanceConfirmation: 'Customer Balance Confirmation',
   SupplierBalanceConfirmation: 'Supplier Balance Confirmation',
   TermsAndConditions: 'Terms and Conditions',
-  Email: 'Email',
 };
 
 /**
@@ -53,7 +52,7 @@ export class CustomTemplateListPage {
 
   protected readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
-    type: ['Email' as CustomTemplateType, [Validators.required]],
+    type: ['TermsAndConditions' as CustomTemplateType, [Validators.required]],
     body: ['', [Validators.required, Validators.maxLength(4000)]],
     isActive: [true],
   });
@@ -62,7 +61,7 @@ export class CustomTemplateListPage {
     this.load();
   }
 
-  protected startCreate(type: CustomTemplateType = 'Email'): void {
+  protected startCreate(type: CustomTemplateType = 'TermsAndConditions'): void {
     this.editingId.set(null);
     this.form.reset({ name: '', type, body: '', isActive: true });
   }

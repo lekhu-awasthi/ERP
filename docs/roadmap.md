@@ -58,6 +58,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 27b | Cross-cutting rollout sweep, output: print/PDF for the 9 unwired document types (all 15 now, live-confirmed universal) on **one generic section-based layout** replacing phase-20d's two; **Bikram Sambat in server-rendered PDFs and `.xlsx`** via an `X-Calendar` header + ambient `RequestCalendar`, closing phase-23 Decision A; pagers on Email Logs / import history / export history; Turnstile on the New Organization wizard; a feature-flag route guard (3 real flags, 13 routes). `CustomTemplate`'s first two consumers: Terms and Conditions on 5 document types (not the 2 assumed) and the Customer/Supplier Balance Confirmation letter | `phase-27b-status.md` |
 | 28 | Multi-currency (FR-2.5, NFR-1.3): a tenant `Currency` list seeded from a fixed catalog with NPR always present, `CurrencyCode` + `ExchangeRate` on 12 document types, the base-currency fold on each posting rule's **inputs** (so `GlLine` and every phase-8/19/26 report needed zero edits), two forex accounts and a realised-difference rule on Payment allocation. The entitlement is a **cap on the currency list**, not a gate on documents | `phase-28-status.md` |
 | 29 | Landed cost (FR-6.15, Cost Terms' other half): an Additional Cost section on the Purchase Bill (Cost Term x Product x Method x Amount, plus the product-wise matrix), allocated at Approve by Value or Quantity across the bill's **goods** lines and capitalised into the received FIFO layers' unit cost — conservation law proven in SQL, residue named. The reference product posts no GL at all (it is periodic); we post Debit Inventory / Credit a new Landed Cost Clearing account, on phase-25 Decision A's argument. Debit Note gained a release leg | `phase-29-status.md` |
+| 30 | Communications (FR-11.1, FR-4.5's Email Logs): a **Send Email** dialog on 6 document types and the Contact detail page, an Email Logs tab with data behind it, an Email Templates config page, and `AlertMedium.Sms`. Confirm-live corrected the scope three times — Send Email is on 6 of 15 types, not the statement report but yes the Contact page, and email templates are **their own aggregate**, not a `CustomTemplateType` (that member is deleted). Sends go through a claim-then-act ledger and a fourth background job; idempotency is a client-minted request id, so a double-click is one email and a reopened dialog is a new row | `phase-30-status.md` |
 
 ---
 
@@ -219,15 +220,23 @@ argument. Debit Note gained a release leg; Void needed none. The original plan, 
   Freight row and reading its GL Transactions. Debit Note / Void must unwind the capitalised cost
   (phase-16a mirror rule).
 
-### 30. Communications — outbound email, SMS medium, email logs (FR-11.1, FR-4.5's Email Logs)
-- Live: the Invoice detail's **Send Email** opens a dialog — Template\* (an Email-type Custom
-  Template), To\* with More / CC / BCC, Reply To\* defaulting to the user, Subject\*, an "Attach
-  Invoice PDF" checkbox (on) and a drop zone for extra files.
-- **Scope.** That dialog on every printable document and on the Contact statement; merge fields
-  from the `Email` Custom Template; the PDF from 20d's pipeline attached by default; `EmailLog`
-  rows under the Contact Activity tab (the tab exists, the data does not); `AlertMedium.Sms` through
-  the existing `ISmsSender` (20e listed it as one enum member and a branch). Every send goes through
-  phase-20e's claim-then-act ledger — a resend is a new row, never a retry of the same one.
+### 30. Communications — outbound email, SMS medium, email logs (FR-11.1, FR-4.5's Email Logs) — **DONE**
+
+Shipped; see `docs/phase-30-status.md`. The confirm-live pass corrected this heading's own scope
+three times, so the original text is kept below struck through rather than silently edited:
+
+- ~~That dialog on every printable document and on the Contact statement~~ — **6 of 15 document
+  types** (Quotation, Sales Order, Invoice, Credit Note, Payment, Purchase Order), **not** the
+  Contact statement report, **but** the Contact detail page, which the heading did not anticipate.
+- ~~merge fields from the `Email` Custom Template~~ — email templates are **their own aggregate**
+  (`EmailTemplate`), served by a different resource in the reference product, carrying six fields
+  `CustomTemplate` does not have and a disjoint type vocabulary. `CustomTemplateType.Email` is
+  deleted.
+- ~~`AlertMedium.Sms` … (20e listed it as one enum member and a branch)~~ — it was four changes;
+  the one nobody predicted is that it spends SMS credit.
+- The rest held: the PDF comes from 20d/27b's pipeline and is attached by default, the Email Logs
+  tab now has data behind phase 27b's pager, and every send goes through a claim-then-act ledger
+  where a resend is a new row.
 
 ### 31. Credit control, dead settings, and the small carried items
 - **Credit control (live, missed by the scan):** `Contact.CreditLimit` and `CreditTermId` (the

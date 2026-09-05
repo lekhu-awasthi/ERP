@@ -1,0 +1,230 @@
+@if (open()) {
+  <div class="send-email-backdrop" (click)="close()"></div>
+
+  <div class="send-email-panel" role="dialog" aria-modal="true" aria-labelledby="send-email-title">
+    <div class="d-flex justify-content-between align-items-center border-bottom px-3 py-2">
+      <h5 class="mb-0" id="send-email-title">New Email</h5>
+      <div class="d-flex gap-2">
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          [disabled]="!canSend() || sending() || loading()"
+          (click)="send()"
+        >
+          {{ sending() ? 'Sending...' : 'Send Email' }}
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="close()">Close</button>
+      </div>
+    </div>
+
+    <div class="send-email-body p-3">
+      @if (errorMessage(); as message) {
+        <div class="alert alert-danger py-2">{{ message }}</div>
+      }
+
+      @if (loading()) {
+        <p class="text-muted mb-0">Loading...</p>
+      } @else if (prepared(); as draft) {
+        @if (draft.unresolvedTokens.length > 0) {
+          <div class="alert alert-warning py-2">
+            This template has placeholders that could not be filled in:
+            {{ draft.unresolvedTokens.join(', ') }}. Edit the text before sending.
+          </div>
+        }
+
+        <div class="mb-2 row">
+          <label class="col-sm-2 col-form-label col-form-label-sm" for="send-email-template">
+            Template <span class="text-danger">*</span>
+          </label>
+          <div class="col-sm-10">
+            <select
+              id="send-email-template"
+              class="form-select form-select-sm"
+              (change)="onTemplateChange($event)"
+            >
+              @if (draft.templates.length === 0) {
+                <option value="">No template — using the default message</option>
+              }
+              @for (template of draft.templates; track template.id) {
+                <!-- [selected] per option, never [value] on the select: a signal-fed [value] binding
+                     has silently persisted wrong ids in this codebase before (phase-5/6/7). -->
+                <option [value]="template.id" [selected]="template.id === templateId()">
+                  {{ template.name }}{{ template.isDefault ? ' (default)' : '' }}
+                </option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="mb-2 row">
+          <label class="col-sm-2 col-form-label col-form-label-sm" for="send-email-to">
+            To <span class="text-danger">*</span>
+          </label>
+          <div class="col-sm-10">
+            <div class="d-flex flex-wrap gap-1 mb-1">
+              @for (address of to(); track address) {
+                <span class="badge text-bg-light border">
+                  {{ address }}
+                  <button
+                    type="button"
+                    class="btn-close btn-close-sm ms-1"
+                    aria-label="Remove recipient"
+                    (click)="removeRecipient(address)"
+                  ></button>
+                </span>
+              }
+            </div>
+
+            <div class="d-flex gap-2">
+              <input
+                id="send-email-to"
+                type="email"
+                class="form-control form-control-sm"
+                placeholder="To"
+                [value]="toDraft()"
+                (input)="onToDraftInput($event)"
+                (keydown.enter)="commitToDraft()"
+                (blur)="commitToDraft()"
+              />
+              <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm text-nowrap"
+                (click)="showSuggestions.set(!showSuggestions())"
+              >
+                More...
+              </button>
+              <button type="button" class="btn btn-link btn-sm" (click)="showCc.set(!showCc())">CC</button>
+              <button type="button" class="btn btn-link btn-sm" (click)="showBcc.set(!showBcc())">BCC</button>
+            </div>
+
+            @if (showSuggestions()) {
+              <div class="border rounded mt-1 p-2">
+                @if (suggestions().length === 0) {
+                  <span class="text-muted small">No data found</span>
+                } @else {
+                  @for (address of suggestions(); track address) {
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary me-1 mb-1"
+                      (click)="addSuggestion(address)"
+                    >
+                      {{ address }}
+                    </button>
+                  }
+                }
+              </div>
+            }
+          </div>
+        </div>
+
+        @if (showCc()) {
+          <div class="mb-2 row">
+            <label class="col-sm-2 col-form-label col-form-label-sm" for="send-email-cc">CC</label>
+            <div class="col-sm-10">
+              <input
+                id="send-email-cc"
+                type="text"
+                class="form-control form-control-sm"
+                [value]="cc().join(', ')"
+                (input)="onCcInput($event)"
+              />
+            </div>
+          </div>
+        }
+
+        @if (showBcc()) {
+          <div class="mb-2 row">
+            <label class="col-sm-2 col-form-label col-form-label-sm" for="send-email-bcc">BCC</label>
+            <div class="col-sm-10">
+              <input
+                id="send-email-bcc"
+                type="text"
+                class="form-control form-control-sm"
+                [value]="bcc().join(', ')"
+                (input)="onBccInput($event)"
+              />
+            </div>
+          </div>
+        }
+
+        <div class="mb-2 row">
+          <label class="col-sm-2 col-form-label col-form-label-sm" for="send-email-reply-to">
+            Reply To <span class="text-danger">*</span>
+          </label>
+          <div class="col-sm-10">
+            <input
+              id="send-email-reply-to"
+              type="email"
+              class="form-control form-control-sm"
+              [value]="replyTo()"
+              (input)="onReplyToInput($event)"
+            />
+          </div>
+        </div>
+
+        <div class="mb-2 row">
+          <label class="col-sm-2 col-form-label col-form-label-sm" for="send-email-subject">
+            Subject <span class="text-danger">*</span>
+          </label>
+          <div class="col-sm-10">
+            <input
+              id="send-email-subject"
+              type="text"
+              class="form-control form-control-sm"
+              [value]="subject()"
+              (input)="onSubjectInput($event)"
+            />
+          </div>
+        </div>
+
+        <div class="mb-2">
+          <textarea
+            class="form-control form-control-sm send-email-editor"
+            rows="12"
+            aria-label="Message body"
+            (input)="onBodyInput($event)"
+          >{{ body() }}</textarea>
+        </div>
+
+        @if (draft.canAttachDocumentPdf) {
+          <div class="form-check mb-2">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="send-email-attach-pdf"
+              [checked]="attachPdf()"
+              (change)="onAttachPdfChange($event)"
+            />
+            <label class="form-check-label" for="send-email-attach-pdf">{{ attachLabel() }}</label>
+          </div>
+        }
+
+        <div class="border rounded p-3 text-center">
+          <label class="form-label mb-1" for="send-email-files">
+            Drag and drop or click here to upload files
+          </label>
+          <input
+            id="send-email-files"
+            type="file"
+            class="form-control form-control-sm"
+            multiple
+            (change)="onFilesSelected($event)"
+          />
+
+          @if (files().length > 0) {
+            <ul class="list-unstyled text-start mt-2 mb-0">
+              @for (file of files(); track file.name) {
+                <li class="d-flex justify-content-between align-items-center">
+                  <span class="small">{{ file.name }}</span>
+                  <button type="button" class="btn btn-link btn-sm" (click)="removeFile(file)">
+                    Remove
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      }
+    </div>
+  </div>
+}

@@ -36,7 +36,17 @@ public sealed class AlertSendLog
     /// not silently rewrite last week's history.</summary>
     public AlertType AlertType { get; private set; }
 
+    /// <summary>Phase 30 — denormalised for the same reason <see cref="AlertType"/> is, and newly
+    /// load-bearing now that <see cref="AlertMedium.Sms"/> exists: without it a
+    /// <see cref="Recipient"/> is ambiguous between an email address and a phone number, and the
+    /// Email Logs screen would silently list SMS sends. Existing rows migrate to
+    /// <see cref="AlertMedium.Email"/>, which is what every one of them was.</summary>
+    public AlertMedium Medium { get; private set; }
+
     public DateOnly OccurrenceDate { get; private set; }
+
+    /// <summary>An email address when <see cref="Medium"/> is <see cref="AlertMedium.Email"/>, a
+    /// phone number when it is <see cref="AlertMedium.Sms"/>.</summary>
     public string Recipient { get; private set; } = null!;
     public string Subject { get; private set; } = null!;
     public AlertSendStatus Status { get; private set; }
@@ -53,6 +63,7 @@ public sealed class AlertSendLog
         Guid organizationId,
         Guid alertDefinitionId,
         AlertType alertType,
+        AlertMedium medium,
         DateOnly occurrenceDate,
         string recipient,
         string subject,
@@ -64,6 +75,7 @@ public sealed class AlertSendLog
             OrganizationId = organizationId,
             AlertDefinitionId = alertDefinitionId,
             AlertType = alertType,
+            Medium = medium,
             OccurrenceDate = occurrenceDate,
             Recipient = recipient,
             Subject = subject,

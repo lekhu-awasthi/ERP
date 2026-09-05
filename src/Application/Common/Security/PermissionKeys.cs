@@ -484,6 +484,40 @@ public static class PermissionKeys
     public const string AlertDefinitionManage = "Configuration.AlertDefinition.Manage";
     public const string AlertSendLogView = "Configuration.AlertSendLog.View";
 
+    // Phase 30 (Communications -- Send Email, email templates, email logs; FR-11.1 / FR-4.5).
+    // Three keys and two different answers, and the split is the whole derivation.
+    //
+    // - Configuration.EmailTemplate.View/Manage is Admin-only, sitting exactly where
+    //   Configuration.CustomTemplate.* and Configuration.PrintingTemplate.* already sit. An email
+    //   template is control-plane: it fixes the words this organization says in its own name to
+    //   people outside it, and its default CC/BCC lists silently copy every future send to whoever
+    //   they name. That last property is the decisive one -- a BCC nobody notices is the shape of
+    //   a data leak, and it is set here, not at send time.
+    //
+    // - Communication.Email.Send is Admin+Member, and this is the one that does NOT follow
+    //   Crm.Sms.Send's Admin-only precedent. The reason that key is Admin-only is scale: a single
+    //   SendSmsCommand can address every contact in the tenant at once (SmsAudienceMode.All). This
+    //   one cannot address anybody the caller has not typed, about any document the caller cannot
+    //   already open, and emailing a customer their own invoice is the most routine daily-use
+    //   working data there is -- the standing rule's "bounded, routine" half, not its "flat register
+    //   exposing contact identity" half. Making it Admin-only would mean a salesperson who may
+    //   create and approve an invoice may not send it, which is not a security posture, it is a
+    //   broken feature.
+    //
+    //   The bound is enforced, not assumed: the key alone gates nothing useful, and
+    //   SendEmailCommandHandler re-checks the *parent's own View key* once the parent is known --
+    //   the same two-layer shape as AttachmentAccess (see below), for the same reason. So the real
+    //   permission to email an invoice is Sales.Invoice.View AND Communication.Email.Send, and a
+    //   role can be denied sending outright while keeping every document it can read.
+    //
+    // - Communication.EmailLog.View is Admin+Member. It shows what was already sent about a
+    //   document the reader can already open, and the alternative -- a Member who may send but not
+    //   see whether the send failed -- is worse than either option on both usability and safety.
+    public const string EmailTemplateView = "Configuration.EmailTemplate.View";
+    public const string EmailTemplateManage = "Configuration.EmailTemplate.Manage";
+    public const string EmailSend = "Communication.Email.Send";
+    public const string EmailLogView = "Communication.EmailLog.View";
+
     // Phase 21a (Bulk import, FR-2.9 / NFR-4.3). Admin-only for both keys.
     //
     // Manage is the easier half of the derivation: enqueuing an import mutates master data at

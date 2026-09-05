@@ -1,6 +1,7 @@
 ﻿using ErpApp.Application.Common.BotProtection;
 using ErpApp.Application.Common.DocumentExtraction;
 using ErpApp.Application.Common.Email;
+using ErpApp.Application.Communications;
 using ErpApp.Application.Common.Numbering;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
@@ -14,6 +15,7 @@ using ErpApp.Infrastructure.Imports;
 using ErpApp.Infrastructure.Jobs;
 using ErpApp.Infrastructure.BotProtection;
 using ErpApp.Infrastructure.DocumentExtraction;
+using ErpApp.Infrastructure.Communications;
 using ErpApp.Infrastructure.Email;
 using ErpApp.Infrastructure.Identity;
 using ErpApp.Infrastructure.Persistence;
@@ -68,7 +70,22 @@ public static class DependencyInjection
 
         services.AddSingleton<IPasswordHasher, PasswordHasherAdapter>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
-        services.AddScoped<IEmailSender, SmtpEmailSender>();
+        // Phase 30 -- the sender is chosen by configuration, never by environment name, so a
+        // developer running in Production mode locally cannot mail a real customer by accident and
+        // an operator cannot silence production mail with ASPNETCORE_ENVIRONMENT. See
+        // FileDropEmailSender.
+        var deliveryMode = configuration
+            .GetSection(EmailOptions.SectionName)
+            .GetValue(nameof(EmailOptions.DeliveryMode), EmailDeliveryMode.Smtp);
+
+        if (deliveryMode == EmailDeliveryMode.FileDrop)
+        {
+            services.AddScoped<IEmailSender, FileDropEmailSender>();
+        }
+        else
+        {
+            services.AddScoped<IEmailSender, SmtpEmailSender>();
+        }
         services.AddScoped<IDocumentNumberGenerator, DocumentNumberGenerator>();
 
         services.AddOptions<FileStorageOptions>()
@@ -100,6 +117,12 @@ public static class DependencyInjection
         services.AddOptions<ExportJobRunnerOptions>()
             .Bind(configuration.GetSection(ExportJobRunnerOptions.SectionName));
         services.AddHostedService<QueuedJobRunnerHostedService<IExportJobProcessor, ExportJobRunnerOptions>>();
+
+        // Phase 30 (Communications, FR-11.1) -- the fourth background job and the third to ride the
+        // shared runner. Its own hosted service for the same reason the other two have theirs.
+        services.AddOptions<EmailSendRunnerOptions>()
+            .Bind(configuration.GetSection(EmailSendRunnerOptions.SectionName));
+        services.AddHostedService<QueuedJobRunnerHostedService<IEmailSendJobProcessor, EmailSendRunnerOptions>>();
 
         services.AddOptions<TurnstileOptions>()
             .Bind(configuration.GetSection(TurnstileOptions.SectionName))

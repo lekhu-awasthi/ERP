@@ -20,6 +20,9 @@
             <i class="bi bi-printer"></i> Print
           }
         </button>
+      <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" (click)="emailDialog.show()">
+        <i class="bi bi-envelope"></i> Send Email
+      </button>
         <button type="button" class="btn btn-outline-danger btn-sm fw-bold" [disabled]="voiding()" (click)="voidPayment()">
           @if (voiding()) {
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -344,3 +347,13 @@
   }
   }
 </div>
+
+<!-- Phase 30 -- the Send Email dialog. Driven by a template reference rather than a
+     host method: the component owns the whole interaction, including minting the request id
+     that makes a double-click one email. -->
+<app-send-email-dialog
+  #emailDialog
+  [organizationId]="organizationId"
+  documentType="Payment"
+  [parentId]="routePaymentId"
+/>

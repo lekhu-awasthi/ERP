@@ -1,5 +1,6 @@
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
+using ErpApp.Domain.Communications;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Crm;
@@ -128,6 +129,13 @@ public interface IAppDbContext
     DbSet<SmsCreditLedgerEntry> SmsCreditLedgerEntries { get; }
     DbSet<AlertDefinition> AlertDefinitions { get; }
     DbSet<AlertSendLog> AlertSendLogs { get; }
+
+    // Phase 30 -- Communications.
+    DbSet<EmailTemplate> EmailTemplates { get; }
+
+    DbSet<EmailSendLog> EmailSendLogs { get; }
+
+    DbSet<EmailSendAttachment> EmailSendAttachments { get; }
     DbSet<ImportJob> ImportJobs { get; }
     DbSet<ImportJobRow> ImportJobRows { get; }
     DbSet<ExportJob> ExportJobs { get; }

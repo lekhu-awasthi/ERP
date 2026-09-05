@@ -674,6 +674,17 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid MemberCurrencyViewId = Guid.Parse("00000000-0000-0000-0002-0000000001a9");
     private static readonly Guid MemberCurrencyManageId = Guid.Parse("00000000-0000-0000-0002-0000000001aa");
 
+    // Phase 30 -- Communications. Admin holds all four; Member holds the two that are about using
+    // the feature on a document it can already open (Send, and reading the log of what was sent),
+    // and neither of the two that configure what this organization says in its own name.
+    // See PermissionKeys.EmailSend for why this split departs from Crm.Sms.Send's Admin-only bar.
+    private static readonly Guid AdminEmailTemplateViewId = Guid.Parse("00000000-0000-0000-0002-0000000001ab");
+    private static readonly Guid AdminEmailTemplateManageId = Guid.Parse("00000000-0000-0000-0002-0000000001ac");
+    private static readonly Guid AdminEmailSendId = Guid.Parse("00000000-0000-0000-0002-0000000001ad");
+    private static readonly Guid AdminEmailLogViewId = Guid.Parse("00000000-0000-0000-0002-0000000001ae");
+    private static readonly Guid MemberEmailSendId = Guid.Parse("00000000-0000-0000-0002-0000000001af");
+    private static readonly Guid MemberEmailLogViewId = Guid.Parse("00000000-0000-0000-0002-0000000001b0");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1191,6 +1202,12 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminCurrencyViewId, Role.AdminId, PermissionKeys.CurrencyView, true),
             RolePermission.Create(AdminCurrencyManageId, Role.AdminId, PermissionKeys.CurrencyManage, true),
             RolePermission.Create(MemberCurrencyViewId, Role.MemberId, PermissionKeys.CurrencyView, true),
+            RolePermission.Create(AdminEmailTemplateViewId, Role.AdminId, PermissionKeys.EmailTemplateView, true),
+            RolePermission.Create(AdminEmailTemplateManageId, Role.AdminId, PermissionKeys.EmailTemplateManage, true),
+            RolePermission.Create(AdminEmailSendId, Role.AdminId, PermissionKeys.EmailSend, true),
+            RolePermission.Create(AdminEmailLogViewId, Role.AdminId, PermissionKeys.EmailLogView, true),
+            RolePermission.Create(MemberEmailSendId, Role.MemberId, PermissionKeys.EmailSend, true),
+            RolePermission.Create(MemberEmailLogViewId, Role.MemberId, PermissionKeys.EmailLogView, true),
             RolePermission.Create(MemberCurrencyManageId, Role.MemberId, PermissionKeys.CurrencyManage, false));
     }
 }

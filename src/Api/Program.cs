@@ -2,9 +2,11 @@
 using System.Text.Json.Serialization;
 using ErpApp.Api.Endpoints;
 using ErpApp.Api.Middleware;
+using ErpApp.Api.Printing;
 using ErpApp.Api.Services;
 using ErpApp.Application;
 using ErpApp.Application.Common.Security;
+using ErpApp.Application.Communications;
 using ErpApp.Infrastructure;
 using ErpApp.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -24,6 +26,11 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+// Phase 30 -- the composition root wires Application's IDocumentPdfRenderer to the Api's QuestPDF
+// renderer. It cannot live in AddApplication() or AddInfrastructure(): the implementation depends on
+// ErpApp.Api.Printing, and nothing depends on Api except this file. See IDocumentPdfRenderer.
+builder.Services.AddScoped<IDocumentPdfRenderer, MediatorDocumentPdfRenderer>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -137,6 +144,7 @@ app.MapCrmEndpoints();
 app.MapAttachmentsEndpoints();
 app.MapDocumentTabsEndpoints();
 app.MapPrintingEndpoints();
+app.MapCommunicationsEndpoints();
 app.MapImportsEndpoints();
 app.MapExportsEndpoints();
 app.MapDocumentInboxEndpoints();

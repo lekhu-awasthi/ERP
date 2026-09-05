@@ -64,6 +64,11 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
   unit cost, against a new Landed Cost Clearing account. Before capitalising anything into a stock
   layer, before adding a tenant-default GL account, or before asking to run a confirm-live *write* —
   `docs/phase-29-status.md`
+- Phase 30: Communications — a **Send Email** dialog on 6 document types plus the Contact page, an
+  Email Logs tab with data behind it, an Email Templates config page, `AlertMedium.Sms`. Before
+  wiring a Send Email action, before a background job that *reads* through a permission-gated
+  request, before assuming a `CustomTemplateType` member is the right home, or before trusting an
+  earlier phase's "one enum member and a branch" estimate — `docs/phase-30-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -166,6 +171,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Do-exactly-once means write and commit the claim row under a unique index before the external side effect; InMemory does not enforce unique indexes, so verify the race against SQL Server (phase-20e Decision C).
 - Any feature that writes a blob needs its deletion story decided with it; reuse `IQueuedJobProcessor.SweepAsync` + `JobArtifactRetention.Period`, and delete the blob before stamping the row (phase-21b Decision E).
 - A job that produces a file builds it into a buffer, then commits storage key and terminal status in one `SaveChangesAsync`; UIs gate Download on `HasArtifact`, never on `Status == Completed` (phase-21b).
+- A job needs an acting identity when it sends a **MediatR request**, not when it writes; an email job that only reads still needs `IJobActingUser` because it renders its PDF through the permission-gated `PrintDocumentQuery` (phase-30).
+- Phase-21a's "no concurrency token on a job row" is a rule about rows with **two** writers; a row with one writer (nothing edits a send) can carry a rowversion and get real compare-and-set (phase-30).
+- Do-exactly-once plus "a resend is a new row" needs a client-minted **request id** under a unique index — not an occurrence key (no schedule) and not a content hash (it would swallow a legitimate resend); the first intent wins even if the duplicate carried different content (phase-30).
 
 **Files, ClosedXML, uploads and downloads**
 - Sync-only writers (ClosedXML `SaveAs`) cannot target the live response stream; write to a `MemoryStream`, then `CopyToAsync` (`ReportSpreadsheetExporter.WriteWorkbookAsync`, phase-16c bug #3).
@@ -196,6 +204,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `AmountPipe` renders two decimals by default; pass `| amount: 4` for figures legitimately smaller than a cent (phase-25).
 
 **Multi-way switches on a document-attached mechanism**
+- A shared UI *panel* is not evidence of a shared *model*: the reference product shows email templates inside its Custom Templates panel but serves them from a different resource with six extra fields and a disjoint type vocabulary, so `EmailTemplate` is its own aggregate and phase 27b's placeholder `CustomTemplateType.Email` was deleted rather than left dead (phase-30).
+- A list sampled from a few screens becomes a wrong list; find the **rule**. Send Email is not on all 15 printable types but on the 6 whose email-template context exists — a rule that also settles the types never probed, asserted in both directions by a guard test (phase-30, correcting phase-27b).
 - When a request's real permission key depends on a column of the row the handler is about to load (not on the request itself), `IRequirePermission.PermissionKey` cannot express it — that property is evaluated before the handler runs. Declare a blanket key (Admin+Member, seeded, gates nothing on its own — same shape as `TransactionApprovalView`/`RecentTransactionsQuery`'s pattern) to get through `AuthorizationBehavior`, then re-check the real key inside the handler once the row is loaded, throwing the identical `ForbiddenException` shape so a caller can't tell the layers apart (phase-27a, `AttachmentAccess`).
 - Three enums that each name an overlapping-but-distinct vocabulary (a `DocumentType`, and two or three "what can this attach to" parent enums) must never be bridged by ordinal cast — they cannot share an ordinal order once one of them starts with non-document members. Bridge by member *name* (`Enum.TryParse`) and add a guard test picking a member with deliberately divergent ordinals across the enums (phase-27a, `DocumentParentTypes`, restating phase-26a's lesson structurally).
 
@@ -212,53 +222,67 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A fresh Organization has zero Accounts and zero Account Groups — nothing seeds a chart of accounts — so any E2E needing a Journal Voucher, Cash Transfer, Payment or Expense line must `POST` its own account groups (one per `AccountRootType`, spelled `Asset`/`Liability`/`Equity`/`Income`/`Expense` — singular, unlike the plural `rootType` groupings a list response returns them under) before it can create an account (phase-27a).
 - `identity` is a reserved word in T-SQL — reading a verification code needs `[identity].VerificationCodes`, and every document-scoped 403 proof needs a Member user, which needs that code (phase-28).
 - `tsc --noEmit -p tsconfig.json` does not typecheck `web/src/app`; it came back clean while `ng build` reported 22 `TS2339` errors. `ng build` is the real check (phase-28).
+- A Goods line consumes stock regardless of `TrackInventory`, so on a tenant without that feature a Goods product cannot be invoiced at all (403 on opening stock, 409 on approve); seed a **Service** line when an E2E just needs an approved sales document (phase-30).
+- curl cannot read a file for `-F` upload here — every path form gives exit 26 and HTTP `000`, which reads like a server fault; drive the file leg from a short Python `urllib` script (phase-30).
+- `dotnet run --project src/Api` with no `--launch-profile` binds **5155 only**, not the 7104 the Angular dev environment calls; and a stale listener on 5155 makes the https profile fail to start (phase-30).
 
 **Tooling and shell**
 - `nvm use` from a shell that cannot create the symlink deletes `C:\nvm4w\nodejs` and reports success; recreate it with `cmd /c 'mklink /J "C:\nvm4w\nodejs" "%LOCALAPPDATA%\nvm\v24.11.0"'`.
 - A `cat > file <<'EOF'` heredoc in the Bash tool is silently truncated or mis-parsed well below the ~8 KB figure; use the Write tool, or write a small patch script and run it (phase-26a).
+- A `sed -i` over a glob rewrites **every** file it matches, and on Windows that flips CRLF to LF even where the pattern never fires — `git diff` stays empty while `git status` shows a hundred extra modified files. Undoing it needs `rm` *then* `git checkout --`; restrict the file list instead (phase-30).
 - When a generator script emits Angular templates through `str.format`, interpolation braces need escaping in the *format string* but not in a substituted value — `{{{{ x }}}}` in a value ships literally and fails as NG5002 (phase-26b).
 
 ## Current status
 
-**Phases 0-28 are complete, and phase 29 (landed cost, FR-6.15) is done.** The Purchase Bill now
-carries an **Additional Cost** section — rows of *Cost Term x Product ("All Product" or one) x Method
-(Value | Quantity) x Amount*, plus the live "Add product-wise" matrix — which at Approve is allocated
-across the bill's **goods** lines and capitalised into the unit cost of the FIFO layers that receipt
-creates. `CostTerm.AdditionalCost`, unconsumed since phase 20c, finally has its reader.
+**Phases 0-29 are complete, and phase 30 (Communications, FR-11.1 / FR-4.5) is done.** A **Send
+Email** dialog now opens on six document types (seven screens — Customer and Supplier Payment are two
+components over one aggregate) and on the Contact detail page, seeded from an `EmailTemplate` whose
+merge fields are resolved *before the composer sees them*, so what goes out is the document's own
+editable text. Every send is queued to a claim-then-act ledger (`EmailSendLog`) and delivered by a
+fourth background job, which attaches the PDF from 20d/27b's print pipeline. Phase 27b's Email Logs
+tab — shipped as an empty-state message with a pager and no backend — finally has data behind it, and
+`AlertMedium.Sms` exists.
 
-Three things from 29 that generalise. The roadmap's **decisive experiment turned out to be
-unnecessary**: two already-approved bills on the reference tenant carried Additional Cost rows, so
-the whole question was settled read-only — and the answer was that the reference product posts **no
-GL at all** (it is periodic) while fully capitalising the cost into stock. We post anyway, on
-phase-25 Decision A's argument, Debit Inventory / Credit a new lazily-resolved
-`DefaultLandedCostClearingAccountId` — the credit cannot be the supplier (live: it isn't) and there
-is no payee field to name anyone else. Second, **the reference offering something is not a reason to
-offer it**: its product picker lists service lines, which is harmless there and impossible here, so a
-row naming one is rejected rather than silently dropped. Third, **a new capitalised cost changes what
-a reversal owes** — Void was already correct via `PostReversalOf`, but the Debit Note needed a
-release leg it did not have. The conservation law (`goods + allocated = layer value + residue`) is
-proven in SQL, with the Inventory account equal to the FIFO ledger exactly. Full story in
-`docs/phase-29-status.md`.
+Five things from 30 that generalise. **The confirm-live pass corrected the roadmap twice and phase
+27b once**: Send Email is on 6 of 15 document types, not on the Contact *statement report* but yes on
+the Contact *page*, and 27b's three-type list was a three-sample inference — the real rule is that
+Send Email exists exactly where an email-template context exists, asserted in both directions.
+Second, **a shared UI panel is not evidence of a shared model**: the reference product renders email
+templates inside its Custom Templates panel, which is what put `CustomTemplateType.Email` in the
+codebase, but serves them from a different resource with six extra fields and a disjoint type
+vocabulary — so `EmailTemplate` is its own aggregate and that dead member was deleted. Third, **the
+rule for whether a background job needs an identity is "does it send a MediatR request?", not "does
+it write?"** — this job only reads and still needs `IJobActingUser`, because its PDF comes from the
+permission-gated `PrintDocumentQuery`. Fourth, **do-exactly-once and "a resend is a new row" are
+compatible if the key is an intent** — a request id minted when the dialog opens, proven both ways in
+SQL. Fifth, **"we already have the interface" measures the wrong thing**: `AlertMedium.Sms` was
+predicted as one enum member and a branch and was four changes, the unanticipated one being that it
+spends SMS credit. Full story in `docs/phase-30-status.md`.
 
-**What comes next** is **phase 30** (Communications — outbound email, SMS medium, email logs), then
-31-34 in `docs/roadmap.md`. Still recorded separately:
+**What comes next** is **phase 31** (credit control, dead settings, and the small carried items),
+then 32-34 in `docs/roadmap.md`. Still recorded separately:
 - the deferred post-v1 list in `docs/roadmap.md` (POS, IRD e-filing, Marketplace);
 - carried items. Phase 25's multi-level BOM explosion; phase-26a's two (an explicit compare-date
   picker on the two as-of statements, Reporting Tags on the Journal report); phase-26b's four (a
-  stored `DueDate` on Invoice/PurchaseBill, aligning phase-9's `ContactAgeingSummaryQueryHandler`
-  with 26b's rules, a product-level service-charge flag, Quick Payment/Receipt as a document type);
-  phase-26c's four remaining (WarehouseTransfer/OpeningStock in Inventory Master, the Sales Register's
-  inert "Include Credit Note In Calculation" toggle, the Negative Item Balance setting, and Inventory
-  Position's display options — Additional Cost allocation was phase 29 and is now done); phase-27b's
-  three (a rich-text terms editor, terms carried through conversions, `Send Email` + the `Email`
-  template type — all belong with Phase 30); phase-28's five (no unrealised period-end revaluation,
-  no cross-currency settlement, no rate source, the Allocate screens not filtering by currency, and
-  `ApplyPaymentAllocationCommand` posting no forex leg on the allocate-further path); and **phase-29's
-  own**: no Import action on the product-wise matrix, the additional cost's own currency assumed to
-  follow the document's (undecidable live), landed cost on no document but the Purchase Bill, a Debit
-  Note's release proportional rather than FIFO-exact, and no automatic unwind of the clearing account.
+  stored `DueDate` on Invoice/PurchaseBill — which phase 30's `$[DUE_DATE]$` now also waits on —
+  aligning phase-9's `ContactAgeingSummaryQueryHandler` with 26b's rules, a product-level
+  service-charge flag, Quick Payment/Receipt as a document type); phase-26c's four (WarehouseTransfer/
+  OpeningStock in Inventory Master, the Sales Register's inert "Include Credit Note In Calculation"
+  toggle, the Negative Item Balance setting, and Inventory Position's display options); phase-27b's
+  three — **all now closed by phase 30** except the rich-text editor, which stays open as a textarea
+  on both `app-terms-editor` and `app-send-email-dialog`; phase-28's five (no unrealised period-end
+  revaluation, no cross-currency settlement, no rate source, the Allocate screens not filtering by
+  currency, and `ApplyPaymentAllocationCommand` posting no forex leg on the allocate-further path);
+  phase-29's five (no Import on the product-wise matrix, the additional cost's currency assumed to
+  follow the document's, landed cost on no document but the Purchase Bill, a Debit Note's release
+  proportional rather than FIFO-exact, no automatic unwind of the clearing account); and **phase-30's
+  own**: a rich-text body editor, `EmailTemplateContext.BalanceConfirmation` offered but unconsumed,
+  `$[USER_ADDRESS]$`/`$[DOCUMENT_NOTE]$` always empty (no column behind either), no per-recipient
+  delivery status, `AlertMedium.Sms` reachable by API but absent from the Alert Scheduler form
+  (matching live), and a **latent trap found in E2E** — a Goods line consumes stock regardless of
+  `TrackInventory`, so on a tenant without that feature a Goods product cannot be invoiced at all.
 
-Tests at last count: Domain 386, Application.UnitTests 758, Api.IntegrationTests 18, Angular 187;
+Tests at last count: Domain 398, Application.UnitTests 796, Api.IntegrationTests 18, Angular 199;
 `dotnet build` / `dotnet test` / `ng build` / `ng test` all clean. Note `tsc --noEmit` does **not**
 cover `web/src/app` — `ng build` is the check that does (phase-28).
 

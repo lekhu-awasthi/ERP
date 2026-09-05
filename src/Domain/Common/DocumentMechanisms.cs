@@ -167,6 +167,42 @@ public static class DocumentMechanisms
     ];
 
     /// <summary>
+    /// Types carrying a <b>Send Email</b> action on their detail page (Phase 30).
+    ///
+    /// <para><b>Six, and the roadmap said all fifteen.</b> The roadmap scoped this as "that dialog
+    /// on every printable document and on the Contact statement"; neither half survived the live
+    /// pass. Send Email was probed one real approved document at a time on 2026-09-05 and found on
+    /// Invoice, Quotation, Sales Order, Credit Note, Customer Payment, Supplier Payment and
+    /// Purchase Order, and absent from Purchase Bill, Debit Note, Expense and Journal Voucher.
+    /// That is <i>seven</i> live screens and six members here, because Customer Payment and
+    /// Supplier Payment are one <see cref="DocumentType.Payment"/> in this codebase — the same
+    /// collapse Phase 27a's <see cref="CustomFields"/> list records.</para>
+    ///
+    /// <para><b>The list is derived, not observed.</b> The seven live screens are <i>exactly</i> the
+    /// seven document contexts the reference product's Email Template Type picker offers, which
+    /// makes the real rule "Send Email exists where an email template can be scoped" — a rule, not a
+    /// list, and one that also settles the five types never probed individually (Cash Transfer,
+    /// Warehouse Transfer, Inventory Adjustment and both production documents have no Template
+    /// Type, so they have no action). <c>EmailTemplateContexts.For</c> is the same mapping in code,
+    /// and a guard test asserts the two agree in both directions, so this list cannot drift from
+    /// the contexts that make it true.</para>
+    ///
+    /// <para>Deliberately narrower than <see cref="Printable"/>, which is all fifteen: printing is
+    /// universal, emailing is not. The dividing line is who the document is <i>for</i> — the six
+    /// here are documents this organization sends to a counterparty, and the ones excluded are
+    /// records of something received or internal.</para>
+    /// </summary>
+    public static readonly IReadOnlyList<DocumentType> Emailable =
+    [
+        DocumentType.Quotation,
+        DocumentType.SalesOrder,
+        DocumentType.Invoice,
+        DocumentType.CreditNote,
+        DocumentType.Payment,
+        DocumentType.PurchaseOrder,
+    ];
+
+    /// <summary>
     /// Every <see cref="DocumentType"/> that is deliberately outside every sweep, with the
     /// reason. The guard test requires that this dictionary plus <see cref="Transactional"/> cover
     /// the enum exactly -- so a new member added by a later phase fails the build until someone

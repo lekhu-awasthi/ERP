@@ -19,6 +19,7 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
 import { TermsEditor } from '../../../shared/terms/terms-editor';
+import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 
 interface EditableLine {
   key: number;
@@ -40,7 +41,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-quotation-detail-page',
-  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, AmountPipe, BsDateInput, DocumentTabs, TermsEditor, CurrencyRateFields],
+  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, AmountPipe, BsDateInput, DocumentTabs, TermsEditor, CurrencyRateFields, SendEmailDialog],
   templateUrl: './quotation-detail-page.html',
 })
 export class QuotationDetailPage {

@@ -19,6 +19,7 @@ import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-ta
 import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
 import { TermsEditor } from '../../../shared/terms/terms-editor';
+import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 
 interface EditableLine {
   key: number;
@@ -45,7 +46,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-sales-order-detail-page',
-  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor, CurrencyRateFields],
+  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor, CurrencyRateFields, SendEmailDialog],
   templateUrl: './sales-order-detail-page.html',
 })
 export class SalesOrderDetailPage {

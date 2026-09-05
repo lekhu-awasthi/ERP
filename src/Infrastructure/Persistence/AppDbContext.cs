@@ -2,6 +2,7 @@ using System.Reflection;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
+using ErpApp.Domain.Communications;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Crm;
@@ -119,6 +120,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<SmsCreditLedgerEntry> SmsCreditLedgerEntries => Set<SmsCreditLedgerEntry>();
     public DbSet<AlertDefinition> AlertDefinitions => Set<AlertDefinition>();
     public DbSet<AlertSendLog> AlertSendLogs => Set<AlertSendLog>();
+
+    // Phase 30 -- Communications.
+    public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
+
+    public DbSet<EmailSendLog> EmailSendLogs => Set<EmailSendLog>();
+
+    public DbSet<EmailSendAttachment> EmailSendAttachments => Set<EmailSendAttachment>();
 
     public DbSet<ImportJob> ImportJobs => Set<ImportJob>();
 

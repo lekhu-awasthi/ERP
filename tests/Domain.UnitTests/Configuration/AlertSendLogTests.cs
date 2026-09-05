@@ -59,6 +59,6 @@ public class AlertSendLogTests
 
     private static AlertSendLog Build() =>
         AlertSendLog.Claim(
-            Guid.NewGuid(), Guid.NewGuid(), AlertType.DailyTransactionSummary,
+            Guid.NewGuid(), Guid.NewGuid(), AlertType.DailyTransactionSummary, AlertMedium.Email,
             new DateOnly(2026, 6, 15), "ops@example.test", "Daily Transaction Summary", Now);
 }

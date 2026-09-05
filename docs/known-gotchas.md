@@ -166,9 +166,49 @@ a stored `CogsUnitCost`/`ConsumedUnitCost`, which is already base.
 
 - `AmountPipe` renders **exactly two decimals**, so any figure legitimately smaller than a cent renders as `0.00` -- a labelled row showing `0.00` reads as a defect rather than a disclosure. It takes an optional precision argument (`| amount: 4`), added in Phase 25 for the production cost roll-up's rounding residue; the default is unchanged, so phase-23's 324 call sites are unaffected. Caught only by the browser pass.
 
+- **A background job needs an acting identity when it sends a MediatR request, not when it writes.**
+  Phase 20e established "a job needs no ambient identity"; phase 21a gave `IJobActingUser` to the
+  importer *because it writes*; phase 21b's exporter reads and needs none. Phase 30's email job reads
+  too -- and still needs one, because it renders the attached PDF through `PrintDocumentQuery`, which
+  is permission-gated, and `AuthorizationBehavior` has no `HttpContext` inside a job. Symptom if you
+  get it wrong: every "Attach PDF" send fails *inside its own job*, which surfaces as a `Failed` row
+  with an authorization message and gets diagnosed as an SMTP problem. The remedy is
+  `IJobActingUser.Assume(row.SentByUserId)` before the render -- which also re-checks at render time,
+  so a sender who lost access between queueing and sending gets a recorded failure rather than a
+  mailed document. See `EmailSendJobProcessor` and phase-30's Decision H.
+- **Phase-21a's "no concurrency token on a row a job writes" is not a blanket ban -- it is a rule about
+  rows with two writers.** `ImportJob`/`ExportJob` have a second legitimate writer (the user's cancel
+  command), so a rowversion bumped by either wedges the other. `EmailSendLog` has exactly one writer
+  after creation (nothing edits a send; a resend is a new row), so it carries a rowversion and gets
+  real compare-and-set for its claim, which those two had to do without. Ask how many writers the row
+  has, not whether a job touches it (phase-30 Decision I).
+- **Do-exactly-once and "a resend is a new row" need an *intent* key, not an occurrence or a content
+  hash.** Phase 20e's occurrence key (definition, date, recipient) needs a schedule; a user-initiated
+  send has none. A content hash would silently swallow the legitimate second send a customer asks for
+  after saying "I never got it". The key that separates them is a **request id minted by the client
+  when the composer opens**, under a unique index: submitting it twice (double-click, retry of a
+  response never seen) is one row, and reopening the composer mints a fresh one. Note the winner's
+  row is returned even when the duplicate carried different content -- the first intent wins
+  (`EmailSendLog`, phase-30 Decision D).
+
 ## Testing and manual E2E
 
 - A third-party verification API's *test/dummy* credentials that "always pass" (e.g. Cloudflare Turnstile's documented `1x0000000000000000000000000000000AA` secret key) accept literally any input value, not just well-formed ones — hitting the real endpoint with a bogus token under that secret still returns `success: true`, so it cannot be used to prove a server-side check actually *rejects* a bad token. Proving the negative path needs the vendor's matching *always-fails* dummy credential (Turnstile: `2x0000000000000000000000000000000AA`) swapped in temporarily. See `docs/phase-20g-status.md`.
+- **A Goods line consumes stock whether or not the product tracks inventory.**
+  `ApproveInvoiceCommandHandler` selects its `goodsLines` by `ProductType == Goods`, never by
+  `TrackInventory`, so on a tenant *without* the Track Inventory feature a Goods product cannot be
+  invoiced at all: seeding opening stock is refused `403` (feature off) and approving is refused
+  `409` (`ConsumeAsync` throws on the oversell). A manual E2E that just needs an approved sales
+  document should use a **Service** line. Found in phase 30's E2E; recorded there as a follow-up.
+- **curl cannot read a file for `-F` upload in this sandbox** -- every path form (drive-letter,
+  POSIX, relative, inside the repo) returns exit 26 with HTTP status `000`, which reads like a server
+  problem and is not one. Multipart *without* a file works fine. Drive the file leg from a short
+  Python `urllib` script instead (phase 30's `send_email.py`), transplanting the cookie jar's
+  `erp_auth` value into a `Cookie` header.
+- `dotnet run --project src/Api` with no `--launch-profile` binds **http://localhost:5155 only**, not
+  the https 7104 the Angular dev environment points at. Pass `--launch-profile https` for anything
+  the browser has to reach; and if a previous run is still holding 5155 the https profile fails to
+  start with `address already in use` (both profiles bind it), so kill the old listener first.
 - `UpdateRolePermissionsCommand.Grants` is an `IReadOnlyDictionary<string, bool>`, not a list of objects - posting an array yields a bare `400 Failed to read parameter ... as JSON` naming nothing useful. And **the built-in Admin/Member roles are system roles whose grants cannot be edited** (409), so a negative-permission E2E proof has to create a custom role and move the membership onto it, not revoke from Admin.
 - **A browser pass is possible in a non-interactive session, and here is how** (this is what kept four screens unlooked-at across phases 21b/21c/22): the auth cookie is `HttpOnly; Secure; SameSite=None`, so the SPA must be served over HTTPS with a certificate the pane already trusts -- a self-signed `ng serve --ssl` cert is refused, the ASP.NET dev cert is not. Export it (`dotnet dev-certs https --export-path .certs/dev.pem --format PEM --no-password`), start the `erp-web-ssl` launch profile, then transplant the session curl already established: `document.cookie = "erp_auth=<token>; path=/; secure; samesite=none"`. Cookies ignore port, both origins are HTTPS, so it is same-site and reaches the Api. No credentials are typed into any form.
 

@@ -1,6 +1,7 @@
 using ErpApp.Application.Alerts;
 using ErpApp.Application.Common.Email;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Sms;
 using ErpApp.Application.UnitTests.TestSupport;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
@@ -285,7 +286,7 @@ public class AlertDispatcherTests
 
         var sender = new FakeEmailSender();
         var dispatcher = new AlertDispatcher(
-            db, sender, [new ThrowingContentBuilder()], clock, NullLogger<AlertDispatcher>.Instance);
+            db, sender, new FakeSmsSender(), [new ThrowingContentBuilder()], clock, NullLogger<AlertDispatcher>.Instance);
 
         Assert.Equal(0, await dispatcher.DispatchDueAsync(CancellationToken.None));
         Assert.Empty(sender.SentEmails);
@@ -321,9 +322,11 @@ public class AlertDispatcherTests
         return (db, sender, clock, Build(db, sender, clock));
     }
 
-    private static AlertDispatcher Build(IAppDbContext db, IEmailSender sender, TimeProvider clock) =>
+    private static AlertDispatcher Build(
+        IAppDbContext db, IEmailSender sender, TimeProvider clock, ISmsSender? smsSender = null) =>
         new(db,
             sender,
+            smsSender ?? new FakeSmsSender(),
             [new DailyTransactionSummaryContentBuilder(db), new CrmReportContentBuilder(db)],
             clock,
             NullLogger<AlertDispatcher>.Instance);
@@ -366,14 +369,16 @@ public class AlertDispatcherTests
     {
         public List<(string To, string Subject, string Body)> SentEmails { get; } = [];
 
-        public Task SendAsync(string toEmail, string subject, string body, CancellationToken cancellationToken = default)
+        public Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
         {
+            var toEmail = message.To.FirstOrDefault() ?? string.Empty;
+
             if (string.Equals(toEmail, failingRecipient, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException($"SMTP refused {toEmail}.");
             }
 
-            SentEmails.Add((toEmail, subject, body));
+            SentEmails.Add((toEmail, message.Subject, message.Body));
             return Task.CompletedTask;
         }
     }

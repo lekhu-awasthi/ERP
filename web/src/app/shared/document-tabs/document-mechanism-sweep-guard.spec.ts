@@ -83,6 +83,24 @@ const TERMS_TEMPLATES: readonly string[] = [
   '/src/app/features/purchasing/purchase-order-detail-page/purchase-order-detail-page.html',
 ];
 
+/**
+ * Phase 30 -- the detail pages that must carry a Send Email action, live-confirmed one real
+ * approved document at a time on 2026-09-05 (docs/phase-30-status.md, Step 1.2).
+ *
+ * Seven templates for six DocumentTypes: Customer Payment and Supplier Payment are two screens over
+ * this codebase's one Payment aggregate, and the reference product treats them as two contexts with
+ * genuinely different templates, so both must have the action.
+ */
+const EMAILABLE_TEMPLATES: readonly string[] = [
+  '/src/app/features/sales/quotation-detail-page/quotation-detail-page.html',
+  '/src/app/features/sales/sales-order-detail-page/sales-order-detail-page.html',
+  '/src/app/features/sales/invoice-detail-page/invoice-detail-page.html',
+  '/src/app/features/sales/credit-note-detail-page/credit-note-detail-page.html',
+  '/src/app/features/sales/payment-detail-page/payment-detail-page.html',
+  '/src/app/features/purchasing/supplier-payment-detail-page/supplier-payment-detail-page.html',
+  '/src/app/features/purchasing/purchase-order-detail-page/purchase-order-detail-page.html',
+];
+
 /** The Opening Balances screen tags per row, one document type per tab. */
 const OPENING_BALANCE_TEMPLATE = '/src/app/features/configuration/opening-balances-page/opening-balances-page.html';
 
@@ -223,5 +241,34 @@ describe('Phase 27a document-mechanism sweep completeness', () => {
       unexpected,
       `These pages have a terms editor but were live-confirmed not to carry one:\n  ${unexpected.join('\n  ')}`,
     ).toEqual([]);
+  });
+
+  it('gives every emailable type a Send Email action, and no other type', () => {
+    const missing = EMAILABLE_TEMPLATES.filter(
+      (template) => !source(template).includes('<app-send-email-dialog'),
+    );
+    expect(missing, `Add <app-send-email-dialog> to:\n  ${missing.join('\n  ')}`).toEqual([]);
+
+    // The inverse is the half that actually matters here. Unlike printing, which is universal,
+    // Send Email was live-confirmed ABSENT from Purchase Bill, Debit Note, Expense and Journal
+    // Voucher -- so "sweep everything" would be wrong, and this catches a later phase widening it
+    // by reflex.
+    const unexpected = SWEPT_PAGES.filter(
+      (page) =>
+        !EMAILABLE_TEMPLATES.includes(page.template) &&
+        source(page.template).includes('<app-send-email-dialog'),
+    ).map((page) => `${page.documentType} - ${page.template}`);
+    expect(
+      unexpected,
+      `These pages have a Send Email action but were live-confirmed not to carry one:\n  ${unexpected.join('\n  ')}`,
+    ).toEqual([]);
+  });
+
+  it('gives the Contact detail page its own Send Email action', () => {
+    // Live, the Contact Overview tab reads "Send Email | +SMS | Export Options" -- so a Contact is
+    // an email parent in its own right, not only through its documents. It is deliberately absent
+    // from EMAILABLE_TEMPLATES, which is about document types.
+    const contactPage = '/src/app/features/contacts/contact-detail-page/contact-detail-page.html';
+    expect(source(contactPage)).toContain('<app-send-email-dialog');
   });
 });

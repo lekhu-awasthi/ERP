@@ -1,0 +1,37 @@
+// A plain fixed overlay rather than a Bootstrap modal: Bootstrap's JavaScript is not loaded
+// anywhere in this app (angular.json has no `scripts`), so `data-bs-toggle` and `.modal.show` do
+// nothing on their own -- phase-22's gotcha, and the same reason the document dropdowns are
+// hand-driven from a signal.
+
+.send-email-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1050;
+}
+
+// Anchored to the bottom, matching the reference product's own bottom drawer.
+.send-email-panel {
+  position: fixed;
+  z-index: 1051;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+  width: min(900px, 100%);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bs-body-bg, #fff);
+  border-top-left-radius: 0.5rem;
+  border-top-right-radius: 0.5rem;
+  box-shadow: 0 -0.5rem 1.5rem rgba(0, 0, 0, 0.2);
+}
+
+.send-email-body {
+  overflow-y: auto;
+}
+
+.send-email-editor {
+  font-family: inherit;
+  min-height: 14rem;
+}

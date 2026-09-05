@@ -4,6 +4,7 @@ using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Alerts;
 using ErpApp.Application.Common.Security;
 using ErpApp.Application.Common.Trees;
+using ErpApp.Application.Communications;
 using ErpApp.Application.Exports;
 using ErpApp.Application.Exports.Readers;
 using ErpApp.Application.Imports;
@@ -201,6 +202,11 @@ public static class DependencyInjection
         services.AddScoped<IExportCategoryReader, LedgerTransactionExportReader>();
         services.AddScoped<IExportCategoryReader, StockMovementExportReader>();
         services.AddScoped<IExportJobProcessor, ExportJobProcessor>();
+
+        // Phase 30 -- Communications. IDocumentPdfRenderer is deliberately NOT registered here:
+        // its implementation lives in the Api layer (QuestPDF), so Program.cs wires it. See
+        // IDocumentPdfRenderer for why the dependency inverts.
+        services.AddScoped<IEmailSendJobProcessor, EmailSendJobProcessor>();
 
         // The acting identity for background writes. Scoped and inert in every HTTP scope -- see
         // IJobActingUser for why an HTTP request can never be served by it.

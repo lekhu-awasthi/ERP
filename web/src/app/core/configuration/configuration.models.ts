@@ -262,7 +262,7 @@ export interface UpdatePrintingTemplateRequest {
 }
 
 // Phase 20d -- Custom Templates (config) -- merge-field text templates, one of four fixed types.
-export type CustomTemplateType = 'CustomerBalanceConfirmation' | 'SupplierBalanceConfirmation' | 'TermsAndConditions' | 'Email';
+export type CustomTemplateType = 'CustomerBalanceConfirmation' | 'SupplierBalanceConfirmation' | 'TermsAndConditions';
 
 export interface CustomTemplate {
   id: string;
@@ -290,7 +290,7 @@ export interface UpdateCustomTemplateRequest {
 
 // Phase 20e -- Alert Scheduler (FR-11.1). All three unions are single/two-valued because that is
 // what the reference product's own dropdowns actually contain (confirmed live), not a placeholder.
-export type AlertMedium = 'Email';
+export type AlertMedium = 'Email' | 'Sms';
 export type AlertType = 'DailyTransactionSummary' | 'CrmReport';
 export type AlertScheduleFrequency = 'Daily';
 export type AlertSendStatus = 'Pending' | 'Sent' | 'Failed';

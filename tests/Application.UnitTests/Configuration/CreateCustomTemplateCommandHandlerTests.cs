@@ -16,7 +16,7 @@ public class CreateCustomTemplateCommandHandlerTests
         var handler = new CreateCustomTemplateCommandHandler(db);
 
         var result = await handler.Handle(
-            new CreateCustomTemplateCommand(organizationId, "Standard Letter", CustomTemplateType.Email, "Hello $[ContactName]$,"),
+            new CreateCustomTemplateCommand(organizationId, "Standard Letter", CustomTemplateType.TermsAndConditions, "Hello $[ContactName]$,"),
             CancellationToken.None);
 
         Assert.True(result.IsDefault);
@@ -29,13 +29,13 @@ public class CreateCustomTemplateCommandHandlerTests
     {
         var db = TestAppDbContext.Create();
         var organizationId = Guid.NewGuid();
-        db.CustomTemplates.Add(CustomTemplate.Create(organizationId, "Standard Letter", CustomTemplateType.Email, "Hello,", isDefault: true));
+        db.CustomTemplates.Add(CustomTemplate.Create(organizationId, "Standard Letter", CustomTemplateType.TermsAndConditions, "Hello,", isDefault: true));
         await db.SaveChangesAsync();
 
         var handler = new CreateCustomTemplateCommandHandler(db);
 
         var result = await handler.Handle(
-            new CreateCustomTemplateCommand(organizationId, "Formal Letter", CustomTemplateType.Email, "Dear Sir/Madam,"),
+            new CreateCustomTemplateCommand(organizationId, "Formal Letter", CustomTemplateType.TermsAndConditions, "Dear Sir/Madam,"),
             CancellationToken.None);
 
         Assert.False(result.IsDefault);
@@ -46,12 +46,12 @@ public class CreateCustomTemplateCommandHandlerTests
     {
         var db = TestAppDbContext.Create();
         var organizationId = Guid.NewGuid();
-        db.CustomTemplates.Add(CustomTemplate.Create(organizationId, "Standard Letter", CustomTemplateType.Email, "Hello,", isDefault: true));
+        db.CustomTemplates.Add(CustomTemplate.Create(organizationId, "Standard Letter", CustomTemplateType.TermsAndConditions, "Hello,", isDefault: true));
         await db.SaveChangesAsync();
 
         var handler = new CreateCustomTemplateCommandHandler(db);
 
         await Assert.ThrowsAsync<ConflictException>(() => handler.Handle(
-            new CreateCustomTemplateCommand(organizationId, "Standard Letter", CustomTemplateType.Email, "Hi,"), CancellationToken.None));
+            new CreateCustomTemplateCommand(organizationId, "Standard Letter", CustomTemplateType.TermsAndConditions, "Hi,"), CancellationToken.None));
     }
 }
