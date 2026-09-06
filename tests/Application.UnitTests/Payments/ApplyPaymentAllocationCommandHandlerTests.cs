@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Cash;
 using ErpApp.Application.Accounting;
 using ErpApp.Application.Accounting.Commands.ApproveJournalVoucher;
 using ErpApp.Application.Accounting.Commands.CreateAccount;
@@ -19,6 +20,7 @@ using ErpApp.Application.Payments.Posting;
 using ErpApp.Application.Sales;
 using ErpApp.Application.Sales.Commands.ApproveInvoice;
 using ErpApp.Application.Sales.Commands.CreateInvoice;
+using ErpApp.Application.Sales.Credit;
 using ErpApp.Application.Sales.Posting;
 using ErpApp.Application.Sales.Stock;
 using ErpApp.Application.Tenancy.Commands.CreateWarehouse;
@@ -48,7 +50,7 @@ public class ApplyPaymentAllocationCommandHandlerTests
                 seed.OrganizationId, seed.CustomerId, PaymentDirection.Received, new DateOnly(2026, 1, 1), null,
                 seed.CashAccountId, 1000m, null, []),
             CancellationToken.None);
-        await new ApprovePaymentCommandHandler(db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new PaymentPostingRule())
+        await new ApprovePaymentCommandHandler(db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new PaymentPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApprovePaymentCommand(seed.OrganizationId, created.Id), CancellationToken.None);
 
         var handler = new ApplyPaymentAllocationCommandHandler(db);
@@ -73,7 +75,7 @@ public class ApplyPaymentAllocationCommandHandlerTests
                 seed.OrganizationId, seed.CustomerId, PaymentDirection.Received, new DateOnly(2026, 1, 1), null,
                 seed.CashAccountId, 300m, null, []),
             CancellationToken.None);
-        await new ApprovePaymentCommandHandler(db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new PaymentPostingRule())
+        await new ApprovePaymentCommandHandler(db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new PaymentPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApprovePaymentCommand(seed.OrganizationId, created.Id), CancellationToken.None);
 
         var handler = new ApplyPaymentAllocationCommandHandler(db);
@@ -122,7 +124,7 @@ public class ApplyPaymentAllocationCommandHandlerTests
                 ]),
             CancellationToken.None);
         await new ApproveJournalVoucherCommandHandler(
-            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule())
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApproveJournalVoucherCommand(seed.OrganizationId, created.Id), CancellationToken.None);
 
         var line = await db.JournalVoucherLines.SingleAsync(x => x.JournalVoucherId == created.Id && x.ContactId != null);
@@ -153,7 +155,7 @@ public class ApplyPaymentAllocationCommandHandlerTests
                 ]),
             CancellationToken.None);
         await new ApproveJournalVoucherCommandHandler(
-            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule())
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApproveJournalVoucherCommand(seed.OrganizationId, created.Id), CancellationToken.None);
 
         var line = await db.JournalVoucherLines.SingleAsync(x => x.JournalVoucherId == created.Id && x.ContactId != null);
@@ -226,7 +228,7 @@ public class ApplyPaymentAllocationCommandHandlerTests
         var stockLedgerService = new StockLedgerService(db);
         var approved = await new ApproveInvoiceCommandHandler(
             db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new InvoicePostingRule(),
-            new FifoStockAvailabilityPolicy(db, stockLedgerService), stockLedgerService)
+            new FifoStockAvailabilityPolicy(db, stockLedgerService), stockLedgerService, new ContactCreditLimitPolicy(db))
             .Handle(new ApproveInvoiceCommand(seed.OrganizationId, created.Id, OverrideWarning: false), CancellationToken.None);
 
         return (approved.Id, approved.Code);

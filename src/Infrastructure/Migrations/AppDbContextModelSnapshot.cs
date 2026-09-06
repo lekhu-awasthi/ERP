@@ -1694,6 +1694,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<bool>("AcceptsReverseTransactions")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Address")
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
@@ -1705,6 +1710,15 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("CreditLimit")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<Guid?>("CreditTermId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Email")
                         .HasMaxLength(200)
@@ -1742,6 +1756,8 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("nvarchar(20)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreditTermId");
 
                     b.HasIndex("GroupId");
 
@@ -3725,6 +3741,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<DateOnly>("DueDate")
+                        .HasColumnType("date");
+
                     b.Property<decimal>("ExchangeRate")
                         .HasPrecision(18, 6)
                         .HasColumnType("decimal(18,6)")
@@ -4204,6 +4223,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<decimal>("DiscountPct")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateOnly>("DueDate")
+                        .HasColumnType("date");
 
                     b.Property<decimal>("ExchangeRate")
                         .HasPrecision(18, 6)
@@ -7892,6 +7914,34 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = false,
                             PermissionKey = "Tenancy.Currency.Manage",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001b1"),
+                            IsGranted = true,
+                            PermissionKey = "Configuration.GeneralSettings.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001b2"),
+                            IsGranted = false,
+                            PermissionKey = "Configuration.GeneralSettings.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001b3"),
+                            IsGranted = true,
+                            PermissionKey = "Tenancy.Subscription.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001b4"),
+                            IsGranted = false,
+                            PermissionKey = "Tenancy.Subscription.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 
@@ -7906,6 +7956,12 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreditLimitExceedsAction")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasDefaultValue("Warn");
 
                     b.Property<Guid?>("DefaultAccountsPayableId")
                         .HasColumnType("uniqueidentifier");
@@ -8588,6 +8644,11 @@ namespace ErpApp.Infrastructure.Migrations
 
             modelBuilder.Entity("ErpApp.Domain.Contacts.Contact", b =>
                 {
+                    b.HasOne("ErpApp.Domain.Configuration.CreditTerm", null)
+                        .WithMany()
+                        .HasForeignKey("CreditTermId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Contacts.ContactGroup", null)
                         .WithMany()
                         .HasForeignKey("GroupId")

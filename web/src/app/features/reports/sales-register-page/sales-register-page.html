@@ -63,6 +63,23 @@
             }
           </select>
         </div>
+        <div class="col-12">
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="include-credit-notes"
+              [checked]="includeCreditNotes()"
+              (change)="toggleIncludeCreditNotes($any($event.target).checked)"
+            />
+            <label class="form-check-label small" for="include-credit-notes">
+              Include Credit Note In Calculation
+              <span class="d-block text-muted">
+                Off, credit-note rows are removed from the register and every total is recomputed without them.
+              </span>
+            </label>
+          </div>
+        </div>
       </div>
     </div>
   </div>

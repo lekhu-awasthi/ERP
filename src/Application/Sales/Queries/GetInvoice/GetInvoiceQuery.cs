@@ -24,6 +24,8 @@ public sealed record InvoiceDetailDto(
     Guid WarehouseId,
     string Code,
     DateOnly Date,
+    // Phase 31 -- the stored Due Date, so the detail page and its form can round-trip it.
+    DateOnly DueDate,
     string? Reference,
     bool IsExport,
     string? ExportCountry,

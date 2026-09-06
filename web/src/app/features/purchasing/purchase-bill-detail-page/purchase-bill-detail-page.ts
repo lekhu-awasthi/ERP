@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { CreditTerm } from '../../../core/configuration/configuration.models';
 import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
 import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
 
@@ -122,6 +123,12 @@ export class PurchaseBillDetailPage {
   protected readonly contactId = signal('');
   protected readonly warehouseId = signal('');
   protected readonly date = signal(this.today());
+
+  /** Phase 31 -- the stored Due Date; see Invoice's own note. */
+  protected readonly dueDate = signal(this.today());
+
+  /** Phase 31 -- the tenant's credit terms, so picking a supplier can prefill Due Date. */
+  protected readonly creditTerms = signal<CreditTerm[]>([]);
   protected readonly reference = signal('');
   protected readonly supplierInvoiceReference = signal('');
   protected readonly isImport = signal(false);
@@ -238,6 +245,10 @@ export class PurchaseBillDetailPage {
 
   constructor() {
     this.contactsService.listAllContacts(this.organizationId, 'Supplier').subscribe({ next: (c) => this.suppliers.set(c) });
+    this.configurationService.listCreditTerms(this.organizationId).subscribe({
+      next: (terms) => this.creditTerms.set(terms),
+      error: () => this.creditTerms.set([]),
+    });
     this.catalogService.listAllProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
     this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
     this.organizationsService.listWarehouses(this.organizationId).subscribe({ next: (w) => this.warehouses.set(w) });
@@ -261,6 +272,7 @@ export class PurchaseBillDetailPage {
         if (template) {
           this.contactId.set(template.contactId);
           this.date.set(template.date);
+          this.dueDate.set(template.date);
           this.reference.set(template.reference ?? '');
           this.referrerType = template.referrerType;
           this.referrerId = template.referrerId;
@@ -273,6 +285,7 @@ export class PurchaseBillDetailPage {
         } else {
           this.contactId.set('');
           this.date.set(this.today());
+          this.dueDate.set(this.today());
           this.reference.set('');
           this.currencyCode.set(BASE_CURRENCY_CODE);
           this.exchangeRate.set(1);
@@ -319,6 +332,29 @@ export class PurchaseBillDetailPage {
   protected tdsTypeLabel(tdsTypeId: string | null): string {
     const tdsType = this.tdsTypes().find((t) => t.id === tdsTypeId);
     return tdsType ? `${tdsType.code} — ${tdsType.name} (${tdsType.ratePct}%)` : '—';
+  }
+
+  /** Phase 31 -- picking a supplier prefills Due Date from their Credit Term; see the Invoice
+   *  page's own note for why this is a seed rather than a binding. */
+  protected onContactChange(contactId: string): void {
+    this.contactId.set(contactId);
+
+    const contact = this.suppliers().find((c) => c.id === contactId);
+    const term = contact?.creditTermId
+      ? this.creditTerms().find((t) => t.id === contact.creditTermId)
+      : undefined;
+
+    if (!term) {
+      return;
+    }
+
+    const from = new Date(`${this.date()}T00:00:00`);
+    if (Number.isNaN(from.getTime())) {
+      return;
+    }
+
+    from.setDate(from.getDate() + term.dueDays);
+    this.dueDate.set(from.toISOString().slice(0, 10));
   }
 
   protected onProductChange(key: number, event: Event): void {
@@ -418,6 +454,7 @@ export class PurchaseBillDetailPage {
       contactId: this.contactId(),
       warehouseId: this.warehouseId(),
       date: this.date(),
+      dueDate: this.dueDate() || this.date(),
       reference: this.reference() || null,
       supplierInvoiceReference: this.supplierInvoiceReference() || null,
       isImport: this.isImport(),
@@ -540,7 +577,10 @@ export class PurchaseBillDetailPage {
    * fill, never a plausible-looking guess (see InboxPrefill's own doc comment). */
   private applyInboxPrefill(prefill: InboxPrefill): void {
     if (prefill.contactId) this.contactId.set(prefill.contactId);
-    if (prefill.date) this.date.set(prefill.date);
+    if (prefill.date) {
+      this.date.set(prefill.date);
+      this.dueDate.set(prefill.date);
+    }
     if (prefill.reference) this.supplierInvoiceReference.set(prefill.reference);
 
     const lines = prefill.lines
@@ -748,6 +788,7 @@ export class PurchaseBillDetailPage {
         this.contactId.set(bill.contactId);
         this.warehouseId.set(bill.warehouseId);
         this.date.set(bill.date);
+        this.dueDate.set(bill.dueDate);
         this.reference.set(bill.reference ?? '');
         this.currencyCode.set(bill.currencyCode);
         this.exchangeRate.set(bill.exchangeRate);

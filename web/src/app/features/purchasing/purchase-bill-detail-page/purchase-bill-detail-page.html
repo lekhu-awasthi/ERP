@@ -93,7 +93,7 @@
             <label class="form-label small fw-semibold">Supplier</label>
             <select
               class="form-select"
-              (change)="contactId.set($any($event.target).value)"
+              (change)="onContactChange($any($event.target).value)"
               [disabled]="!isDraft()"
             >
               <option value="" disabled [selected]="!contactId()">Select a supplier</option>
@@ -126,6 +126,15 @@
               [inputClass]="'form-control'"
               [value]="date()"
               (valueChange)="date.set($event)"
+              [disabled]="!isDraft()"
+            />
+          </div>
+          <div class="col-12 col-sm-4">
+            <label class="form-label small fw-semibold">Due Date</label>
+            <app-bs-date-input
+              [inputClass]="'form-control'"
+              [value]="dueDate()"
+              (valueChange)="dueDate.set($event)"
               [disabled]="!isDraft()"
             />
           </div>

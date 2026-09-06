@@ -15,6 +15,7 @@ using ErpApp.Application.Purchasing.Posting;
 using ErpApp.Application.Sales;
 using ErpApp.Application.Sales.Commands.ApproveInvoice;
 using ErpApp.Application.Sales.Commands.CreateInvoice;
+using ErpApp.Application.Sales.Credit;
 using ErpApp.Application.Sales.Posting;
 using ErpApp.Application.Sales.Stock;
 using ErpApp.Application.Tenancy.Commands.CreateWarehouse;
@@ -150,7 +151,7 @@ public class ProductProfitabilityQueryHandlerTests
         var stockLedgerService = new StockLedgerService(db);
         var approved = await new ApproveInvoiceCommandHandler(
             db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new InvoicePostingRule(),
-            new FifoStockAvailabilityPolicy(db, stockLedgerService), stockLedgerService)
+            new FifoStockAvailabilityPolicy(db, stockLedgerService), stockLedgerService, new ContactCreditLimitPolicy(db))
             .Handle(new ApproveInvoiceCommand(seed.OrganizationId, created.Id, OverrideWarning: false), CancellationToken.None);
 
         return (approved.Id, approved.Code);

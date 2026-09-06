@@ -135,7 +135,7 @@ public static class SalesEndpoints
                     organizationId, request.ContactId, request.WarehouseId, request.Date, request.Reference, request.Lines,
                     request.ReferrerType, request.ReferrerId, request.DiscountPct,
                     request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate,
-                    request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.Terms, request.DueDate) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/invoices/{result.Id}", result);
         });
@@ -148,7 +148,7 @@ public static class SalesEndpoints
                     organizationId, id, request.ContactId, request.WarehouseId, request.Date, request.Reference, request.Lines,
                     request.DiscountPct,
                     request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate,
-                    request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.Terms, request.DueDate) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
                 ct);
             return Results.Ok(result);
         });
@@ -157,7 +157,11 @@ public static class SalesEndpoints
             Guid organizationId, Guid id, ApproveInvoiceRequest? request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ApproveInvoiceCommand(organizationId, id, request?.OverrideWarning ?? false), ct);
+                new ApproveInvoiceCommand(
+                    organizationId, id,
+                    request?.OverrideWarning ?? false,
+                    request?.OverrideCreditLimitWarning ?? false),
+                ct);
             return Results.Ok(result);
         });
 
@@ -326,24 +330,26 @@ public static class SalesEndpoints
 
         group.MapGet("/reports/sales-register", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid[]? tagOptionIds,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool? includeCreditNotes, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesRegisterQuery(
                     organizationId, fromDate, toDate, contactId, tagOptionIds,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize,
+                    IncludeCreditNotes: includeCreditNotes ?? true),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/sales-register/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid[]? tagOptionIds,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, bool? includeCreditNotes, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesRegisterQuery(
                     organizationId, fromDate, toDate, contactId, tagOptionIds,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full,
+                    IncludeCreditNotes: includeCreditNotes ?? true),
                 ct);
             return ReportSpreadsheetExporter.ExportSalesRegister(result);
         });
@@ -421,9 +427,14 @@ public static class SalesEndpoints
         // be carried on the request record itself, not only on the command: a trailing optional
         // parameter added to a command alone binds to null forever and every test still passes
         // (phase-27b's Terms).
-        string? CurrencyCode = null, decimal? ExchangeRate = null);
+        string? CurrencyCode = null, decimal? ExchangeRate = null,
+        // Phase 31 -- the stored Due Date. Null means the invoice's own date.
+        DateOnly? DueDate = null);
 
-    private sealed record ApproveInvoiceRequest(bool OverrideWarning = false);
+    // Phase 31 adds the second override. Carried on the request record itself, not only on the
+    // command (phase-27b's Terms gotcha).
+    private sealed record ApproveInvoiceRequest(
+        bool OverrideWarning = false, bool OverrideCreditLimitWarning = false);
 
     private sealed record PreviewInvoiceGlPostingRequest(IReadOnlyList<InvoiceLineInput> Lines, decimal DiscountPct = 0);
 

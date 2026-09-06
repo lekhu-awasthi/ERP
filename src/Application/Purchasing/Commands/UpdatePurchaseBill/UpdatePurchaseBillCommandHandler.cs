@@ -51,7 +51,8 @@ public sealed class UpdatePurchaseBillCommandHandler(IAppDbContext db)
             request.ImportDocumentNo,
             request.TdsTypeId,
             tdsAmount,
-            request.DiscountPct);
+            request.DiscountPct,
+            request.DueDate);
 
         // Phase 28 -- see the Create handler's note. Draft-only, enforced by the aggregate.
         purchaseBill.SetCurrency(request.CurrencyCode, request.ExchangeRate);

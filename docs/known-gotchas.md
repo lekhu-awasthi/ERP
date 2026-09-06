@@ -277,3 +277,92 @@ because each is resolved lazily and the E2E scripts set them over curl.
 This is phase-23 bug #1 in reverse - there, a DTO carried fields no template rendered; here, an API
 accepts fields no screen sends. Same remedy: **when a phase adds a tenant default, grep `web/` for
 the field name before calling the phase done.** Phase 29 needed a fourth account and closed all four.
+
+## A setting nothing can write (phase 31)
+
+`TenantSettings` has carried five behaviour switches since phase 2 — Suggest Selling Price, Product
+Price Basis, Inventory Tracking Mode, Negative Cash Balance, Negative Item Balance. Phase 31 opened
+the roadmap expecting to *enforce* three "dead" ones and found something worse: **four of the five
+had no command, no endpoint and no Angular screen at all**, so no tenant could ever have changed
+them, and the fifth was in a subtler trap — `NegativeStockBalanceAction` was genuinely *read* by
+`FifoStockAvailabilityPolicy`, which made it look shipped, while still being permanently stuck on
+the value `TenantSettings.CreateDefault` seeded.
+
+Phase 29 already recorded the field-with-no-screen version of this (three GL default accounts the
+API required and nothing could set). The wider rule is: **a tenant-level field is reachable only if
+you can name the command that writes it and the screen that calls that command.** A field being read
+by a handler proves the read path, not the write path, and the read path is the half that makes the
+gap invisible — the feature demonstrably "works", at exactly one value, forever.
+
+The remedy in this phase was to build `Get`/`UpdateGeneralSettingsCommand` and the Configurations >
+General screen *first*, and treat every enforcement afterwards as downstream of it.
+
+## Two confirmable warnings, one document (phase 31)
+
+Phase 7 gave Invoice Approve a Warn-and-allow flow: a 422, and an `OverrideWarning` flag the client
+resubmits with. Phase 31 added a second warning (Crossed Credit Limit) to the same command, and an
+invoice can trip both.
+
+Widening `OverrideWarning` to cover both would have been one line and silently wrong: the client
+shows the stock dialog, the user presses Continue, the resubmit carries `OverrideWarning=true` — and
+the credit-limit breach is waived without ever having been displayed. The reference product shows
+two dialogs, each with its own Dismiss/Continue, precisely because they are two decisions.
+
+So each warning gets its own exception type and its own override flag, and the 422's ProblemDetails
+carries a **`warningKind`** extension (`StockAvailability` | `CreditLimit` | `NegativeCashBalance`).
+The client sets only the flag matching the kind it was just shown, and the second dialog appears on
+the next attempt. `extractWarningKind` is deliberately null for any status other than 422 and for a
+422 with no kind, so an unknown warning is never mistaken for a known one.
+
+## Adding a NOT NULL column to a populated table (phase 31)
+
+`dotnet ef migrations add` scaffolded `Invoice.DueDate` as:
+
+```csharp
+migrationBuilder.AddColumn<DateOnly>(
+    name: "DueDate", schema: "sales", table: "Invoices",
+    type: "date", nullable: false, defaultValue: new DateOnly(1, 1, 1));
+```
+
+Two faults in one call. Every historical invoice acquires a due date in the **year 1**, which the
+ageing reports then age from; and SQL Server keeps that literal as a **named default constraint** the
+model knows nothing about, so a later insert can silently take it.
+
+Hand-rewritten as three steps — add nullable, `UPDATE [sales].[Invoices] SET [DueDate] = [Date]`,
+then `AlterColumn` to NOT NULL. The backfill value is not arbitrary: "the document's own date" is
+exactly what `DocumentAgeQueryHandler` and `ContactAgeingSummaryQueryHandler` were already
+improvising for these two types, so no report's numbers move for historical data.
+
+CLAUDE.md's existing rule says to hand-review a migration that *replaces or retypes* a column. This
+extends it: a migration that merely **adds** a non-nullable column to a table with rows in it needs
+the same read.
+
+## A permission that depends on what you asked for (phase 31)
+
+Phase 27a's `AttachmentAccess` established the shape: when the real permission key depends on a
+column of the row the handler is about to load, `IRequirePermission.PermissionKey` cannot express it
+(that property is evaluated before the handler runs), so the request declares a blanket key to get
+through `AuthorizationBehavior` and the handler re-checks the real one via
+`GrantedPermissionReader.EnsureGrantedAsync`, throwing the identical `ForbiddenException`.
+
+Phase 31's cheque bounce widens it: the second key depends on the **requested value** as well as the
+row. `TransitionChequeStatusCommand` needs `Configuration.Cheque.Manage` for every transition, and
+additionally `Payments.Payment.Void` **only** when the new status is Bounced *and* the linked
+payment is Approved — because that is the only combination that voids an approved financial document.
+
+The E2E for this has to run in both directions or it proves nothing. The same Member user must get a
+**404** on a nonexistent cheque (proving they hold the pipeline key and the route works for them)
+and a **403 naming the second key** on a real one, with the payment still `Approved` on re-read.
+One of those alone is consistent with the route simply being broken.
+
+## An invariant only time can violate (phase 31)
+
+`TenantSubscription.Renew` refuses an end date at or before `TrialStartsAt`, and `CreateTrial` sets
+`TrialStartsAt = now`. Both are right. Together they mean an **expired** subscription cannot be
+constructed through the aggregate's own API at all — only the passage of time produces one.
+
+The tempting fix is to relax the guard so a test can pass a past date. Don't: the guard is the
+invariant, and weakening a Domain rule to make a test easier to write trades a real protection for a
+convenience. `GeneralSettingsAndSubscriptionTests.ExpireAsync` reaches through EF's change tracker
+instead (`((DbContext)db).Entry(subscription).Property(nameof(...)).CurrentValue = ...`), with a
+comment saying why. The E2E does the same thing one layer down, with `sqlcmd`.

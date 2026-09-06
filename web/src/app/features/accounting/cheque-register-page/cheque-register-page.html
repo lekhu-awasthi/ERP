@@ -23,6 +23,13 @@
     </div>
   }
 
+  @if (successMessage()) {
+    <div class="alert alert-success d-flex align-items-center gap-2 mb-4" role="alert">
+      <i class="bi bi-check-circle-fill"></i>
+      <div>{{ successMessage() }}</div>
+    </div>
+  }
+
   <ul class="nav nav-tabs mb-4">
     <li class="nav-item">
       <button type="button" class="nav-link" [class.active]="activeTab() === 'dashboard'" (click)="switchTab('dashboard')">Dashboard</button>

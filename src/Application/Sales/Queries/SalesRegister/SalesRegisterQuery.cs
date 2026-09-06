@@ -1,4 +1,4 @@
-﻿using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using MediatR;
@@ -13,7 +13,9 @@ namespace ErpApp.Application.Sales.Queries.SalesRegister;
 /// negatively with its Total net of them, so the two are two views rather than a split. The
 /// credit-note magnitudes now come from the shared <c>SalesReturnReader</c> both reports read.
 /// Void/Draft
-/// documents never appear (FR-9.10). TagOptionIds narrows to Invoice rows carrying at least one of
+/// documents never appear (FR-9.10). Phase 31 wired the live <b>Include Credit Note In
+/// Calculation</b> toggle: turning it off drops the CreditNote rows and every total recomputes
+/// without them, which is what the live screen does. TagOptionIds narrows to Invoice rows carrying at least one of
 /// the given ReportingTagOptions (OR semantics) -- CreditNote rows never carry tags (decision #1),
 /// so an active tag filter excludes every CreditNote row, not just unmatched Invoices.
 /// </summary>
@@ -25,7 +27,13 @@ public sealed record SalesRegisterQuery(
     IReadOnlyList<Guid>? TagOptionIds,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize,
-    bool ExportAll = false)
+    bool ExportAll = false,
+    // Phase 31 -- the live "Include Credit Note In Calculation" toggle, which phase 26c recorded as
+    // inert and which is not: unchecking it on the reference tenant took the register from 19 rows
+    // to 8 and re-totalled it (confirmed 2026-09-06). So it removes the credit-note rows from the
+    // row set entirely, not merely from the footer. Defaults to true, which is both the live
+    // default and the behaviour every caller had before this parameter existed.
+    bool IncludeCreditNotes = true)
     : IRequest<SalesRegisterDto>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.SalesRegisterView;

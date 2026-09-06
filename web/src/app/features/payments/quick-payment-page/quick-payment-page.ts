@@ -2,7 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
-import { extractErrorMessage } from '../../../core/auth/api-error';
+import { extractErrorMessage, extractWarningKind } from '../../../core/auth/api-error';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
@@ -214,7 +214,7 @@ export class QuickPaymentPage {
    * Step two: post it. Reads the id off the saved Draft, never off the form -- the form is disabled
    * by now, and the Draft is the only thing that exists in the database.
    */
-  protected approve(): void {
+  protected approve(overrideNegativeCashBalanceWarning = false): void {
     const draft = this.draft();
     if (!draft) {
       return;
@@ -223,7 +223,7 @@ export class QuickPaymentPage {
     this.approving.set(true);
     this.errorMessage.set(null);
 
-    this.paymentsService.approvePayment(this.organizationId, draft.id).subscribe({
+    this.paymentsService.approvePayment(this.organizationId, draft.id, overrideNegativeCashBalanceWarning).subscribe({
       next: (approved) => {
         this.approving.set(false);
         // The real code is read off the *approve* response, not the create one -- numbering happens
@@ -233,6 +233,21 @@ export class QuickPaymentPage {
       },
       error: (err: unknown) => {
         this.approving.set(false);
+
+        // Phase 31 -- the confirmable Negative Cash Balance warning; see the Payment detail page's
+        // own note. Cancel leaves the draft saved, which is what the message below already says.
+        if (extractWarningKind(err) === 'NegativeCashBalance') {
+          const message = extractErrorMessage(err) ?? 'This would leave a bank or cash account negative.';
+          if (window.confirm(`${message}
+
+Approve anyway?`)) {
+            this.approve(true);
+            return;
+          }
+          this.errorMessage.set(message);
+          return;
+        }
+
         this.errorMessage.set(
           extractErrorMessage(err) ??
             'Could not approve. The draft is saved -- you can approve it from the Transaction Approval queue.',

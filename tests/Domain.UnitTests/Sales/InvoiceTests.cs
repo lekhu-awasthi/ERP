@@ -83,7 +83,7 @@ public class InvoiceTests
     public void Create_rejects_a_header_discount_outside_0_to_100(decimal discountPct)
     {
         Assert.Throws<InvalidOperationException>(() =>
-            Invoice.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Today(), null, null, null, discountPct));
+            Invoice.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Today(), null, null, null, null, discountPct));
     }
 
     [Theory]

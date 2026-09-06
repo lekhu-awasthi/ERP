@@ -46,6 +46,7 @@ describe('PurchaseBillDetailPage — Additional Cost', () => {
       warehouseId: 'w-1',
       code: 'PB0001',
       date: '2026-01-10',
+      dueDate: '2026-01-10',
       reference: null,
       supplierInvoiceReference: null,
       isImport: false,
@@ -148,6 +149,7 @@ describe('PurchaseBillDetailPage — Additional Cost', () => {
           provide: ConfigurationService,
           useValue: {
             listTdsTypes: () => of([]),
+            listCreditTerms: () => of([]),
             listCostTerms: () => of(costTerms),
             listCustomFieldDefinitions: () => of([]),
             getCustomFieldValues: () => of([]),

@@ -127,7 +127,8 @@ internal static class ManufacturingTestSeed
         settings.SetInventoryDefaults(inventory, cogs, null, productionCost);
         settings.UpdateSettings(
             SuggestSellingPriceMode.RecentSellingPrice, ProductPriceBasis.ExclusiveOfVat,
-            InventoryTrackingMode.AccountingMovement, BalanceAction.Reject, negativeStock);
+            InventoryTrackingMode.AccountingMovement, BalanceAction.Reject, negativeStock,
+            BalanceAction.DoNothing);
         db.TenantSettings.Add(settings);
 
         await db.SaveChangesAsync(CancellationToken.None);

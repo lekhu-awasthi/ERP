@@ -18,6 +18,12 @@ public sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Property(x => x.OrganizationId).IsRequired();
         builder.Property(x => x.Code).HasMaxLength(30).IsRequired();
         builder.Property(x => x.Date).IsRequired();
+
+        // Phase 31 -- required, never null. The migration adds it with a placeholder default and
+        // then backfills every existing row to that row's own Date in the same migration, which is
+        // the value the ageing reports were already improvising; the default is dropped afterwards
+        // so a future insert cannot silently take it.
+        builder.Property(x => x.DueDate).IsRequired();
         builder.Property(x => x.Reference).HasMaxLength(200);
         // FR-5.8's export-sale block, mirroring PurchaseBillConfiguration's IsImport/ImportCountry/
         // ImportDocumentNo lengths so the two read the same. Nullable detail fields: unlike the

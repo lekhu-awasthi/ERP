@@ -36,6 +36,11 @@ public static class ExceptionHandling
             {
                 ConflictException => (StatusCodes.Status409Conflict, exception.Message),
                 StockAvailabilityWarningException => (StatusCodes.Status422UnprocessableEntity, exception.Message),
+                // Phase 31 -- the second confirmable warning. Same 422, told apart by the
+                // warningKind extension below, because an Invoice can trip both and each Continue
+                // must waive only the warning it was shown for.
+                CreditLimitWarningException => (StatusCodes.Status422UnprocessableEntity, exception.Message),
+                CashBalanceWarningException => (StatusCodes.Status422UnprocessableEntity, exception.Message),
                 Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException => (
                     StatusCodes.Status409Conflict, "This record was modified by someone else. Please reload and try again."),
                 NotFoundException => (StatusCodes.Status404NotFound, exception.Message),
@@ -57,7 +62,26 @@ public static class ExceptionHandling
             };
 
             context.Response.StatusCode = statusCode;
-            await context.Response.WriteAsJsonAsync(new ProblemDetails { Status = statusCode, Title = title });
+
+            var problem = new ProblemDetails { Status = statusCode, Title = title };
+
+            // Phase 31 -- a machine-readable discriminator for the two confirmable warnings, so the
+            // client can resubmit with the matching override flag rather than guessing from the
+            // message text. Absent on every other status code.
+            var warningKind = exception switch
+            {
+                StockAvailabilityWarningException => "StockAvailability",
+                CreditLimitWarningException => "CreditLimit",
+                CashBalanceWarningException => "NegativeCashBalance",
+                _ => null,
+            };
+
+            if (warningKind is not null)
+            {
+                problem.Extensions["warningKind"] = warningKind;
+            }
+
+            await context.Response.WriteAsJsonAsync(problem);
         }));
     }
 }

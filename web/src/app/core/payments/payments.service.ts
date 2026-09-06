@@ -60,10 +60,18 @@ export class PaymentsService {
     });
   }
 
-  approvePayment(organizationId: string, id: string): Observable<ApprovePaymentResult> {
-    return this.http.post<ApprovePaymentResult>(`${this.baseUrl(organizationId)}/payments/${id}/approve`, null, {
-      withCredentials: true,
-    });
+  /** Phase 31 -- overrideNegativeCashBalanceWarning acknowledges the confirmable Negative Cash
+   *  Balance warning (TenantSettings.NegativeCashBalanceAction = Warn). */
+  approvePayment(
+    organizationId: string,
+    id: string,
+    overrideNegativeCashBalanceWarning = false,
+  ): Observable<ApprovePaymentResult> {
+    return this.http.post<ApprovePaymentResult>(
+      `${this.baseUrl(organizationId)}/payments/${id}/approve`,
+      { overrideNegativeCashBalanceWarning },
+      { withCredentials: true },
+    );
   }
 
   voidPayment(organizationId: string, id: string): Observable<VoidPaymentResult> {

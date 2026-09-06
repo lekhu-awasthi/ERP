@@ -130,6 +130,10 @@ export interface Invoice {
   warehouseId: string;
   code: string;
   date: string;
+  /** Phase 31 -- stored, editable, defaulting to the document's own date and prefilled from the
+   *  contact's Credit Term when one is set. Closes phase-26b's carried item and phase-30's
+   *  $[DUE_DATE]$. */
+  dueDate: string;
   reference: string | null;
   /** FR-5.8. When true the invoice is zero-rated and every line's VAT is pinned to 0 Vat. */
   isExport: boolean;
@@ -177,6 +181,8 @@ export interface InvoiceRequest {
   contactId: string;
   warehouseId: string;
   date: string;
+  /** Phase 31 -- omitting it means "the document's own date", which is also the live form's default. */
+  dueDate?: string | null;
   reference: string | null;
   lines: InvoiceLineInput[];
   referrerType?: DocumentType | null;

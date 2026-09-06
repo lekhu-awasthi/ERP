@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
 import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
 
-import { extractErrorMessage } from '../../../core/auth/api-error';
+import { extractErrorMessage, extractWarningKind } from '../../../core/auth/api-error';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account, CashTransferDetail, CashTransferLineInput } from '../../../core/accounting/accounting.models';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
@@ -194,17 +194,33 @@ this.exchangeRate.set(1);
     });
   }
 
-  protected approve(): void {
+  protected approve(overrideNegativeCashBalanceWarning = false): void {
     this.approving.set(true);
     this.errorMessage.set(null);
 
-    this.accountingService.approveCashTransfer(this.organizationId, this.routeCashTransferId).subscribe({
+    this.accountingService.approveCashTransfer(this.organizationId, this.routeCashTransferId, overrideNegativeCashBalanceWarning).subscribe({
       next: () => {
         this.approving.set(false);
         this.load();
       },
       error: (err: unknown) => {
         this.approving.set(false);
+
+        // Phase 31 -- a 422 here is the confirmable Negative Cash Balance warning
+        // (TenantSettings.NegativeCashBalanceAction = Warn), not a failure. Continue
+        // resubmits with the acknowledgement; Cancel leaves the document in Draft.
+        if (extractWarningKind(err) === 'NegativeCashBalance') {
+          const message = extractErrorMessage(err) ?? 'This would leave a bank or cash account negative.';
+          if (window.confirm(`${message}
+
+Approve anyway?`)) {
+            this.approve(true);
+            return;
+          }
+          this.errorMessage.set(message);
+          return;
+        }
+
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not approve cash transfer. Please try again.');
       },
     });

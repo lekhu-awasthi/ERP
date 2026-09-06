@@ -41,6 +41,13 @@ public sealed class TenantSettingsConfiguration : IEntityTypeConfiguration<Tenan
             .HasConversion<string>().HasMaxLength(30).IsRequired()
             .HasDefaultValue(Domain.Tenancy.BalanceAction.Warn).ValueGeneratedNever();
 
+        // Phase 31 -- same treatment as the two above it, and the same reason for
+        // .ValueGeneratedNever(): BalanceAction.Reject is the enum's default(TEnum), so without it
+        // a tenant that deliberately chooses Reject would be written back as the SQL default.
+        builder.Property(s => s.CreditLimitExceedsAction)
+            .HasConversion<string>().HasMaxLength(30).IsRequired()
+            .HasDefaultValue(Domain.Tenancy.BalanceAction.Warn).ValueGeneratedNever();
+
         builder.HasIndex(s => s.OrganizationId).IsUnique();
 
         builder.HasOne<Organization>()

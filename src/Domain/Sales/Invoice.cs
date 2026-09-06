@@ -49,6 +49,25 @@ public sealed class Invoice
     public Guid WarehouseId { get; private set; }
     public string Code { get; private set; } = null!;
     public DateOnly Date { get; private set; }
+
+    /// <summary>
+    /// Phase 31 -- a <b>stored</b> due date, closing phase-26b's carried item and phase-30's
+    /// <c>$[DUE_DATE]$</c>.
+    ///
+    /// <para>Confirmed live 2026-09-06: the reference product's Invoice form carries its own
+    /// required Due Date input, defaulted to the invoice date and freely editable, and it carries no
+    /// Credit Terms field at all. Its Invoice Age report shows due dates that diverge from the
+    /// document date by intervals no configured credit term could produce (03-06-2026 →
+    /// 27-08-2026), which is the proof that this is a stored field rather than a derivation from
+    /// the contact's term. The term is a <i>prefill source</i> only -- the client seeds this from
+    /// the customer's CreditTerm.DueDays when one is picked, and never again.</para>
+    ///
+    /// <para>Non-nullable, defaulting to <see cref="Date"/>, so every ageing consumer can read it
+    /// unconditionally and the backfill on existing rows is exactly "= Date" -- which is also the
+    /// answer phase-9 and phase-26b were already improvising when they aged an invoice from its own
+    /// document date.</para>
+    /// </summary>
+    public DateOnly DueDate { get; private set; }
     public string? Reference { get; private set; }
     public bool IsExport { get; private set; }
     public string? ExportCountry { get; private set; }
@@ -107,6 +126,7 @@ public sealed class Invoice
         string? reference,
         DocumentType? referrerType,
         Guid? referrerId,
+        DateOnly? dueDate = null,
         decimal discountPct = 0,
         bool isExport = false,
         string? exportCountry = null,
@@ -123,6 +143,7 @@ public sealed class Invoice
             WarehouseId = warehouseId,
             Code = DraftCode,
             Date = date,
+            DueDate = dueDate ?? date,
             Reference = reference,
             IsExport = isExport,
             ExportCountry = isExport ? exportCountry : null,
@@ -142,6 +163,7 @@ public sealed class Invoice
         DateOnly date,
         string? reference,
         decimal discountPct,
+        DateOnly? dueDate = null,
         bool isExport = false,
         string? exportCountry = null,
         string? exportDeclarationNo = null,
@@ -152,6 +174,7 @@ public sealed class Invoice
         ContactId = contactId;
         WarehouseId = warehouseId;
         Date = date;
+        DueDate = dueDate ?? date;
         Reference = reference;
         DiscountPct = discountPct;
         SetExport(isExport, exportCountry, exportDeclarationNo, exportDeclarationDate);

@@ -154,10 +154,15 @@ export class AccountingService {
     });
   }
 
-  approveJournalVoucher(organizationId: string, id: string): Observable<ApproveJournalVoucherResult> {
+  /** Phase 31 -- see PaymentsService.approvePayment for the override's meaning. */
+  approveJournalVoucher(
+    organizationId: string,
+    id: string,
+    overrideNegativeCashBalanceWarning = false,
+  ): Observable<ApproveJournalVoucherResult> {
     return this.http.post<ApproveJournalVoucherResult>(
       `${this.baseUrl(organizationId)}/journal-vouchers/${id}/approve`,
-      null,
+      { overrideNegativeCashBalanceWarning },
       { withCredentials: true },
     );
   }
@@ -216,10 +221,15 @@ export class AccountingService {
     });
   }
 
-  approveCashTransfer(organizationId: string, id: string): Observable<ApproveCashTransferResult> {
+  /** Phase 31 -- see PaymentsService.approvePayment for the override's meaning. */
+  approveCashTransfer(
+    organizationId: string,
+    id: string,
+    overrideNegativeCashBalanceWarning = false,
+  ): Observable<ApproveCashTransferResult> {
     return this.http.post<ApproveCashTransferResult>(
       `${this.baseUrl(organizationId)}/cash-transfers/${id}/approve`,
-      null,
+      { overrideNegativeCashBalanceWarning },
       { withCredentials: true },
     );
   }

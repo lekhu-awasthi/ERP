@@ -17,14 +17,13 @@ namespace ErpApp.Application.Contacts.Queries.DocumentAge;
 /// DebitNote for PurchaseBill) -- the same netting <c>ContactAgeingSummaryQueryHandler</c> does,
 /// reported per document here instead of rolled into buckets.
 ///
-/// <para><b>Due Date is the document's own date wherever this codebase stores no due date.</b>
-/// Only <c>Expense</c> carries a <c>DueDate</c> column; Invoice and PurchaseBill do not, and no
-/// Contact carries a credit term to derive one from -- the same gap phase-9 recorded when it
-/// dropped the live Ageing Summary's "Credit Term" column. So the Due Date column is real where
-/// the data is real and equal to the document date everywhere else, which is exactly how the live
-/// report renders its own Journal Voucher and quick-document rows. A stored due date on Invoice
-/// and PurchaseBill belongs with Credit Terms as a whole and is named as a follow-up in
-/// docs/phase-26b-status.md rather than half-built here.</para>
+/// <para><b>Due Date is real for Invoice, PurchaseBill and Expense, and the document's own date for
+/// the rest.</b> Phase 31 closed phase-26b's carried item: Invoice and PurchaseBill now store their
+/// own Due Date, seeded from the contact's Credit Term and editable, so this report ages them from
+/// the date the user actually agreed rather than from the document date. A Journal Voucher still
+/// ages from its own date because it has no due date to store -- which is exactly how the live
+/// report renders its JV rows (confirmed 2026-09-06: every JV line shows Due Date == Date, while
+/// invoice rows show real divergence).</para>
 ///
 /// <para><b>Allocations sourced from a Journal Voucher count.</b> Since phase-17
 /// <c>PaymentAllocation.SourceType</c> is polymorphic, and a contact-tagged JV line can pay an
@@ -163,7 +162,7 @@ public sealed class DocumentAgeQueryHandler(IAppDbContext db)
         var invoices = await db.Invoices
             .Where(x => x.OrganizationId == request.OrganizationId
                 && x.Status == InvoiceStatus.Approved && x.Date <= request.AsOfDate)
-            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate, x.Code, x.Reference })
             .ToListAsync(cancellationToken);
 
         var invoiceIds = invoices.Select(x => x.Id).ToList();
@@ -175,7 +174,7 @@ public sealed class DocumentAgeQueryHandler(IAppDbContext db)
 
         var candidates = invoices
             .Select(x => new Candidate(
-                AgeableDocumentType.Invoice, x.Id, x.ContactId, x.Date, x.Date, x.Code, x.Reference,
+                AgeableDocumentType.Invoice, x.Id, x.ContactId, x.Date, x.DueDate, x.Code, x.Reference,
                 totals.GetValueOrDefault(x.Id)))
             .ToList();
 
@@ -188,7 +187,7 @@ public sealed class DocumentAgeQueryHandler(IAppDbContext db)
         var bills = await db.PurchaseBills
             .Where(x => x.OrganizationId == request.OrganizationId
                 && x.Status == PurchaseBillStatus.Approved && x.Date <= request.AsOfDate)
-            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference, x.TdsAmount })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate, x.Code, x.Reference, x.TdsAmount })
             .ToListAsync(cancellationToken);
         var billIds = bills.Select(x => x.Id).ToList();
         var billLines = await db.PurchaseBillLines
@@ -211,11 +210,11 @@ public sealed class DocumentAgeQueryHandler(IAppDbContext db)
 
         var candidates = bills
             .Select(x => new Candidate(
-                AgeableDocumentType.PurchaseBill, x.Id, x.ContactId, x.Date, x.Date, x.Code, x.Reference,
+                AgeableDocumentType.PurchaseBill, x.Id, x.ContactId, x.Date, x.DueDate, x.Code, x.Reference,
                 billTotals.GetValueOrDefault(x.Id) - x.TdsAmount))
             .ToList();
 
-        // Expense is the one document type in this codebase that stores a real due date.
+        // Expense stored a real due date from phase 6; Invoice and PurchaseBill joined it in 31.
         candidates.AddRange(expenses.Select(x => new Candidate(
             AgeableDocumentType.Expense, x.Id, x.ContactId, x.Date, x.DueDate ?? x.Date, x.Code, x.SupplierInvoiceReference,
             expenseTotals.GetValueOrDefault(x.Id) - x.TdsAmount)));

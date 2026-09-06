@@ -1,4 +1,4 @@
-﻿using ErpApp.Application.Common.Security;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -685,6 +685,14 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid MemberEmailSendId = Guid.Parse("00000000-0000-0000-0002-0000000001af");
     private static readonly Guid MemberEmailLogViewId = Guid.Parse("00000000-0000-0000-0002-0000000001b0");
 
+    // Phase 31 (credit control, dead settings). Both Admin-only, with an explicit Member denial row
+    // each -- see PermissionKeys.GeneralSettingsManage/SubscriptionManage for the reasoning. Neither
+    // has a View counterpart on purpose.
+    private static readonly Guid AdminGeneralSettingsManageId = Guid.Parse("00000000-0000-0000-0002-0000000001b1");
+    private static readonly Guid MemberGeneralSettingsManageId = Guid.Parse("00000000-0000-0000-0002-0000000001b2");
+    private static readonly Guid AdminSubscriptionManageId = Guid.Parse("00000000-0000-0000-0002-0000000001b3");
+    private static readonly Guid MemberSubscriptionManageId = Guid.Parse("00000000-0000-0000-0002-0000000001b4");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1208,6 +1216,10 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminEmailLogViewId, Role.AdminId, PermissionKeys.EmailLogView, true),
             RolePermission.Create(MemberEmailSendId, Role.MemberId, PermissionKeys.EmailSend, true),
             RolePermission.Create(MemberEmailLogViewId, Role.MemberId, PermissionKeys.EmailLogView, true),
-            RolePermission.Create(MemberCurrencyManageId, Role.MemberId, PermissionKeys.CurrencyManage, false));
+            RolePermission.Create(MemberCurrencyManageId, Role.MemberId, PermissionKeys.CurrencyManage, false),
+            RolePermission.Create(AdminGeneralSettingsManageId, Role.AdminId, PermissionKeys.GeneralSettingsManage, true),
+            RolePermission.Create(MemberGeneralSettingsManageId, Role.MemberId, PermissionKeys.GeneralSettingsManage, false),
+            RolePermission.Create(AdminSubscriptionManageId, Role.AdminId, PermissionKeys.SubscriptionManage, true),
+            RolePermission.Create(MemberSubscriptionManageId, Role.MemberId, PermissionKeys.SubscriptionManage, false));
     }
 }

@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Cash;
 using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Numbering;
@@ -16,7 +17,8 @@ namespace ErpApp.Application.Payments.Commands.ApprovePayment;
 
 public sealed class ApprovePaymentCommandHandler(
     IAppDbContext db, IDocumentNumberGenerator numberGenerator, ICurrentUserService currentUser,
-    IGlPostingRule<PaymentPostingInput> postingRule)
+    IGlPostingRule<PaymentPostingInput> postingRule,
+    ICashBalancePolicy cashBalancePolicy)
     : IRequestHandler<ApprovePaymentCommand, ApprovePaymentResult>
 {
     public async Task<ApprovePaymentResult> Handle(ApprovePaymentCommand request, CancellationToken cancellationToken)
@@ -89,6 +91,19 @@ public sealed class ApprovePaymentCommandHandler(
         if (forex is not null)
         {
             postingInput = postingInput with { Forex = forex };
+        }
+
+        // Phase 31 -- NegativeCashBalanceAction. Only a Paid payment takes money out; a Received
+        // one debits the account and can never overdraw it. Checked in base currency, because that
+        // is what GlLine holds and therefore what the account's balance is denominated in.
+        if (payment.Direction == PaymentDirection.Paid)
+        {
+            var cashStatus = await cashBalancePolicy.CheckAsync(
+                request.OrganizationId,
+                [new CashOutflow(payment.AccountId, ExchangeRates.ToBase(payment.Amount, payment.ExchangeRate))],
+                cancellationToken);
+
+            CashBalanceGuard.Enforce(cashStatus, request.OverrideNegativeCashBalanceWarning, "payment");
         }
 
         var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.Payment, cancellationToken);

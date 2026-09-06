@@ -38,6 +38,8 @@ public sealed record PurchaseBillDetailDto(
     Guid WarehouseId,
     string Code,
     DateOnly Date,
+    // Phase 31 -- the stored Due Date, so the detail page and its form can round-trip it.
+    DateOnly DueDate,
     string? Reference,
     string? SupplierInvoiceReference,
     bool IsImport,

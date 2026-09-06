@@ -1,5 +1,6 @@
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Payments;
@@ -29,6 +30,11 @@ namespace ErpApp.Application.Contacts.Queries.ContactAgeingSummary;
 /// is always fully outstanding here, a fact about this codebase's existing data model, not a bug
 /// introduced by this report.
 ///
+/// <b>Phase 31</b> closed phase-26b's follow-up #4 on this handler: JournalVoucher-sourced
+/// allocations now count alongside Payment-sourced ones, and buckets are aged from the bill's
+/// <c>DueDate</c> rather than its document date. Both changes were made so this report and
+/// phase-26b's Invoice Age / Purchase Bill Age cannot disagree about the same outstanding bill.
+///
 /// A standalone CreditNote/DebitNote (no ReferrerId matching an in-scope bill) reduces the Contact's
 /// real balance but isn't bucketed here -- it has no specific bill to attach an age to. It still
 /// shows up in ContactStatementQuery's flat ledger, which needs no such attribution. See
@@ -38,7 +44,7 @@ namespace ErpApp.Application.Contacts.Queries.ContactAgeingSummary;
 public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db)
     : IRequestHandler<ContactAgeingSummaryQuery, ContactAgeingSummaryDto>
 {
-    private sealed record Bill(Guid Id, Guid ContactId, DateOnly Date, decimal NetAmount);
+    private sealed record Bill(Guid Id, Guid ContactId, DateOnly Date, DateOnly DueDate, decimal NetAmount);
 
     public async Task<ContactAgeingSummaryDto> Handle(ContactAgeingSummaryQuery request, CancellationToken cancellationToken)
     {
@@ -53,12 +59,14 @@ public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db)
         var targetDocumentType = request.ContactType == ContactType.Customer ? DocumentType.Invoice : DocumentType.PurchaseBill;
         var paymentDirection = request.ContactType == ContactType.Customer ? PaymentDirection.Received : PaymentDirection.Paid;
         var billIds = bills.Select(x => x.Id).ToList();
-        // Phase 17 decision #2: PaymentAllocation.SourceId is now polymorphic (Payment or a
-        // JournalVoucher line). This join stays scoped to Payment-sourced allocations only, same
-        // as before generalization -- folding JournalVoucher-sourced credits into ageing is an
-        // explicit, flagged follow-up (see docs/phase-17-status.md's Known limitation section),
-        // not silently done here.
-        var allocationsByBillId = await (
+        // Phase 31 closes phase-26b's follow-up #4 (and phase-17's before it): a
+        // JournalVoucher-sourced allocation now reduces an ageing bucket exactly as a
+        // Payment-sourced one does. Before this, a tenant using JV-sourced allocations saw this
+        // report and phase-26b's Invoice Age -- which always counted both -- disagree about the same
+        // outstanding bill. The two queries are the same pair DocumentAgeQueryHandler runs, kept
+        // separate rather than unioned because a Payment is validated by Direction and a voucher by
+        // its own Status.
+        var fromPayments = await (
                 from a in db.PaymentAllocations
                 where a.SourceType == DocumentType.Payment
                 join p in db.Payments on a.SourceId equals p.Id
@@ -66,7 +74,24 @@ public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db)
                       && p.Direction == paymentDirection && p.Status == PaymentStatus.Approved
                 group a by a.TargetDocumentId into g
                 select new { BillId = g.Key, Allocated = g.Sum(x => x.Amount) })
-            .ToDictionaryAsync(x => x.BillId, x => x.Allocated, cancellationToken);
+            .ToListAsync(cancellationToken);
+
+        var fromVouchers = await (
+                from a in db.PaymentAllocations
+                where a.SourceType == DocumentType.JournalVoucher
+                join l in db.JournalVoucherLines on a.SourceId equals l.Id
+                join v in db.JournalVouchers on l.JournalVoucherId equals v.Id
+                where a.TargetDocumentType == targetDocumentType && billIds.Contains(a.TargetDocumentId)
+                      && v.OrganizationId == request.OrganizationId && v.Status == JournalVoucherStatus.Approved
+                group a by a.TargetDocumentId into g
+                select new { BillId = g.Key, Allocated = g.Sum(x => x.Amount) })
+            .ToListAsync(cancellationToken);
+
+        var allocationsByBillId = new Dictionary<Guid, decimal>();
+        foreach (var row in fromPayments.Concat(fromVouchers))
+        {
+            allocationsByBillId[row.BillId] = allocationsByBillId.GetValueOrDefault(row.BillId) + row.Allocated;
+        }
 
         var contactIds = bills.Select(x => x.ContactId).Distinct().ToList();
         var contactsQuery = db.Contacts.Where(x => x.OrganizationId == request.OrganizationId && x.Type == request.ContactType);
@@ -104,7 +129,11 @@ public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db)
                 continue;
             }
 
-            var age = request.AsOfDate.DayNumber - bill.Date.DayNumber;
+            // Phase 31: aged from the DUE date, not the document date -- the other half of
+            // phase-26b's follow-up #4. Invoice and PurchaseBill now store one; an Expense always
+            // did; a bill whose due date is its own document date buckets exactly as before, which
+            // is every row on a tenant that never sets a credit term.
+            var age = request.AsOfDate.DayNumber - bill.DueDate.DayNumber;
             var bucketIndex = age <= 30 ? 0 : age <= 60 ? 1 : age <= 90 ? 2 : 3;
 
             if (!buckets.TryGetValue(bill.ContactId, out var contactBuckets))
@@ -139,7 +168,7 @@ public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db)
     {
         var invoices = await db.Invoices
             .Where(x => x.OrganizationId == request.OrganizationId && x.Status == InvoiceStatus.Approved && x.Date <= request.AsOfDate)
-            .Select(x => new { x.Id, x.ContactId, x.Date })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate })
             .ToListAsync(cancellationToken);
 
         var lines = await db.InvoiceLines
@@ -150,7 +179,7 @@ public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db)
         var grandTotals = lines.GroupBy(x => x.InvoiceId).ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.VatAmount));
 
         return invoices
-            .Select(x => new Bill(x.Id, x.ContactId, x.Date, grandTotals.GetValueOrDefault(x.Id)))
+            .Select(x => new Bill(x.Id, x.ContactId, x.Date, x.DueDate, grandTotals.GetValueOrDefault(x.Id)))
             .ToList();
     }
 
@@ -158,7 +187,7 @@ public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db)
     {
         var purchaseBills = await db.PurchaseBills
             .Where(x => x.OrganizationId == request.OrganizationId && x.Status == PurchaseBillStatus.Approved && x.Date <= request.AsOfDate)
-            .Select(x => new { x.Id, x.ContactId, x.Date, x.TdsAmount })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate, x.TdsAmount })
             .ToListAsync(cancellationToken);
         var purchaseBillLines = await db.PurchaseBillLines
             .Where(x => purchaseBills.Select(b => b.Id).Contains(x.PurchaseBillId))
@@ -168,7 +197,7 @@ public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db)
 
         var expenses = await db.Expenses
             .Where(x => x.OrganizationId == request.OrganizationId && x.Status == ExpenseStatus.Approved && x.Date <= request.AsOfDate)
-            .Select(x => new { x.Id, x.ContactId, x.Date, x.TdsAmount })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate, x.TdsAmount })
             .ToListAsync(cancellationToken);
         var expenseLines = await db.ExpenseLines
             .Where(x => expenses.Select(e => e.Id).Contains(x.ExpenseId))
@@ -177,9 +206,10 @@ public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db)
         var expenseGross = expenseLines.GroupBy(x => x.ExpenseId).ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.VatAmount));
 
         var bills = purchaseBills
-            .Select(x => new Bill(x.Id, x.ContactId, x.Date, purchaseBillGross.GetValueOrDefault(x.Id) - x.TdsAmount))
+            .Select(x => new Bill(x.Id, x.ContactId, x.Date, x.DueDate, purchaseBillGross.GetValueOrDefault(x.Id) - x.TdsAmount))
             .ToList();
-        bills.AddRange(expenses.Select(x => new Bill(x.Id, x.ContactId, x.Date, expenseGross.GetValueOrDefault(x.Id) - x.TdsAmount)));
+        bills.AddRange(expenses.Select(x => new Bill(
+            x.Id, x.ContactId, x.Date, x.DueDate ?? x.Date, expenseGross.GetValueOrDefault(x.Id) - x.TdsAmount)));
         return bills;
     }
 

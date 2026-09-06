@@ -151,6 +151,7 @@ public static class PurchasingEndpoints
                     ExchangeRate = request.ExchangeRate,
                     AdditionalCosts = request.AdditionalCosts,
                     IsProductWiseAdditionalCost = request.IsProductWiseAdditionalCost,
+                    DueDate = request.DueDate,
                 },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/purchase-bills/{result.Id}", result);
@@ -180,6 +181,7 @@ public static class PurchasingEndpoints
                     ExchangeRate = request.ExchangeRate,
                     AdditionalCosts = request.AdditionalCosts,
                     IsProductWiseAdditionalCost = request.IsProductWiseAdditionalCost,
+                    DueDate = request.DueDate,
                 },
                 ct);
             return Results.Ok(result);
@@ -494,7 +496,9 @@ public static class PurchasingEndpoints
         // Same trailing-optional shape, same phase-27b warning: a command-only parameter binds to
         // null forever.
         IReadOnlyList<PurchaseBillAdditionalCostInput>? AdditionalCosts = null,
-        bool IsProductWiseAdditionalCost = false);
+        bool IsProductWiseAdditionalCost = false,
+        // Phase 31 -- the stored Due Date. Null means the bill's own date.
+        DateOnly? DueDate = null);
 
     private sealed record PreviewPurchaseBillGlPostingRequest(
         IReadOnlyList<PurchaseBillLineInput> Lines, Guid? TdsTypeId, decimal DiscountPct = 0);

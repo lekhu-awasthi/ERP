@@ -34,7 +34,7 @@ public sealed class CreateInvoiceCommandHandler(IAppDbContext db)
 
         var invoice = Invoice.Create(
             request.OrganizationId, request.ContactId, request.WarehouseId, request.Date, request.Reference,
-            request.ReferrerType, request.ReferrerId, request.DiscountPct,
+            request.ReferrerType, request.ReferrerId, request.DueDate, request.DiscountPct,
             request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate);
 
         // Phase 28 -- the currency pair is set right after construction rather than threaded

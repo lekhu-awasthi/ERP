@@ -4,6 +4,7 @@ using ErpApp.Application.Common.Numbering;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Application.Inventory.Stock;
+using ErpApp.Application.Sales.Credit;
 using ErpApp.Application.Sales.Posting;
 using ErpApp.Application.Sales.Stock;
 using ErpApp.Domain.Accounting;
@@ -31,7 +32,8 @@ public sealed class ApproveInvoiceCommandHandler(
     ICurrentUserService currentUser,
     IGlPostingRule<InvoicePostingInput> postingRule,
     IStockAvailabilityPolicy stockAvailabilityPolicy,
-    IStockLedgerService stockLedgerService)
+    IStockLedgerService stockLedgerService,
+    ICreditLimitPolicy creditLimitPolicy)
     : IRequestHandler<ApproveInvoiceCommand, ApproveInvoiceResult>
 {
     public async Task<ApproveInvoiceResult> Handle(ApproveInvoiceCommand request, CancellationToken cancellationToken)
@@ -70,6 +72,30 @@ public sealed class ApproveInvoiceCommandHandler(
         {
             throw new StockAvailabilityWarningException(
                 "One or more lines on this invoice exceed the available stock in the selected warehouse. " +
+                "Approve again to continue anyway.");
+        }
+
+        // Phase 31 (credit control). Checked here -- after the stock gate, before the document
+        // number is drawn and before anything is posted -- because that is where the live product
+        // checks it: saving a breaching draft raises nothing at all, and the "Crossed Credit Limit"
+        // dialog appears on Approve (confirmed live 2026-09-06). Stock first, so an invoice tripping
+        // both surfaces them in the same order the reference product does.
+        var creditStatus = await creditLimitPolicy.CheckAsync(
+            request.OrganizationId, invoice.ContactId, invoice.GrandTotal, cancellationToken);
+
+        if (creditStatus.Status == CreditLimitStatus.Reject)
+        {
+            throw new ConflictException(
+                $"Approving this invoice would take {creditStatus.ContactName} ({creditStatus.ContactCode}) to " +
+                $"{creditStatus.ProjectedBalance:0.##}, past their credit limit of {creditStatus.CreditLimit:0.##}. " +
+                "Collect payment or raise the credit limit before approving.");
+        }
+
+        if (creditStatus.Status == CreditLimitStatus.Warn && !request.OverrideCreditLimitWarning)
+        {
+            throw new CreditLimitWarningException(
+                $"This invoice takes {creditStatus.ContactName} ({creditStatus.ContactCode}) to " +
+                $"{creditStatus.ProjectedBalance:0.##}, past their credit limit of {creditStatus.CreditLimit:0.##}. " +
                 "Approve again to continue anyway.");
         }
 

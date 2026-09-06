@@ -24,7 +24,12 @@ public sealed record EmailDocumentFacts(
     decimal VatAmount,
     decimal GrandTotal,
     string? PaymentMode = null,
-    decimal? PaymentAmount = null);
+    decimal? PaymentAmount = null,
+    // Phase 31 -- the stored Due Date, now that Invoice has one. Nullable because only the Invoice
+    // among the six emailable types carries one: a Quotation, Sales Order, Credit Note, Purchase
+    // Order or Payment has no due date even in the reference product, so those keep resolving
+    // $[DUE_DATE]$ to the document's own date rather than inventing one.
+    DateOnly? DueDate = null);
 
 /// <summary>
 /// Assembles the <c>$[TOKEN]$</c> → value map for one send. The shared reader every email goes
@@ -101,11 +106,12 @@ public static class EmailMergeValueReader
         // stores one Date per document, so both resolve to it rather than one of them being absent.
         values["TRANSACTION_DATE"] = EmailMergeResolver.FormatDate(facts.Date);
 
-        // No aggregate stores a due date -- phase-26b's carried item. DocumentAgeQueryHandler
-        // already ages every document from its own Date for the same reason, so resolving DUE_DATE
-        // to the document date keeps the email and the ageing report telling one story. When that
-        // carried item lands, this is the one line that changes.
-        values["DUE_DATE"] = EmailMergeResolver.FormatDate(facts.Date);
+        // Phase 31 closed phase-26b's carried item: an Invoice now stores a real Due Date, and
+        // this is the one line that changed. The other five emailable types have no due date to
+        // store, so they still fall back to the document's own date -- which is also what
+        // DocumentAgeQueryHandler does for them, so the email and the ageing report keep telling one
+        // story.
+        values["DUE_DATE"] = EmailMergeResolver.FormatDate(facts.DueDate ?? facts.Date);
 
         values["CURRENCY"] = facts.CurrencyCode;
         values["EXCHANGE_RATE"] = EmailMergeResolver.FormatAmount(facts.ExchangeRate);
@@ -157,7 +163,7 @@ public static class EmailMergeValueReader
 
         return FromLines(
             d.ContactId, d.Code, d.Date, d.Reference, d.CurrencyCode, d.ExchangeRate, d.DiscountPct,
-            d.Lines.Select(l => (l.Amount, l.VatAmount)));
+            d.Lines.Select(l => (l.Amount, l.VatAmount)), d.DueDate);
     }
 
     private static async Task<EmailDocumentFacts> ReadQuotationAsync(
@@ -250,7 +256,8 @@ public static class EmailMergeValueReader
         string currencyCode,
         decimal exchangeRate,
         decimal documentDiscountPct,
-        IEnumerable<(decimal Amount, decimal VatAmount)> lines)
+        IEnumerable<(decimal Amount, decimal VatAmount)> lines,
+        DateOnly? dueDate = null)
     {
         var materialised = lines.ToList();
         var netTotal = materialised.Sum(x => x.Amount);
@@ -269,6 +276,7 @@ public static class EmailMergeValueReader
             NonTaxableTotal: netTotal - taxable,
             TaxableTotal: taxable,
             VatAmount: vatTotal,
-            GrandTotal: netTotal + vatTotal);
+            GrandTotal: netTotal + vatTotal,
+            DueDate: dueDate);
     }
 }

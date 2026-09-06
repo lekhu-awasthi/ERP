@@ -14,6 +14,7 @@ using ErpApp.Application.Sales.Commands.ApproveCreditNote;
 using ErpApp.Application.Sales.Commands.ApproveInvoice;
 using ErpApp.Application.Sales.Commands.CreateCreditNote;
 using ErpApp.Application.Sales.Commands.CreateInvoice;
+using ErpApp.Application.Sales.Credit;
 using ErpApp.Application.Sales.Posting;
 using ErpApp.Application.Sales.Queries.SalesMasterReport;
 using ErpApp.Application.Sales.Stock;
@@ -273,7 +274,7 @@ public class SalesMasterReportQueryHandlerTests
         var stockLedgerService = new StockLedgerService(db);
         return await new ApproveInvoiceCommandHandler(
             db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new InvoicePostingRule(),
-            new FifoStockAvailabilityPolicy(db, stockLedgerService), stockLedgerService)
+            new FifoStockAvailabilityPolicy(db, stockLedgerService), stockLedgerService, new ContactCreditLimitPolicy(db))
             .Handle(new ApproveInvoiceCommand(seed.OrganizationId, invoiceId, OverrideWarning: false), CancellationToken.None);
     }
 

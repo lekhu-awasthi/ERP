@@ -172,13 +172,28 @@ export class SalesOrderDetailPage {
     return product ? `${product.code} — ${product.name}` : '—';
   }
 
+  /**
+   * Phase 31 -- the rate now comes from the server, because which rate to suggest is a tenant
+   * setting (SuggestSellingPriceMode: the most recent approved sale, or the product's own price) and
+   * how to read the product's own price is a second one (ProductPriceBasis). Reading
+   * `product.sellingPrice` here was silently the Fixed + Exclusive branch of both.
+   *
+   * The product's own price is applied immediately so the line never sits blank while the call is in
+   * flight, then corrected when the answer arrives; a failed call leaves that fallback in place
+   * rather than blocking the line.
+   */
   protected onProductChange(key: number, event: Event): void {
     const productId = (event.target as HTMLSelectElement).value;
     const product = this.products().find((p) => p.id === productId);
-    this.updateLine(key, {
-      productId,
-      rate: product?.sellingPrice ?? 0,
-      vatRate: product?.vatRate ?? 'NoVat',
+    this.updateLine(key, { productId, rate: product?.sellingPrice ?? 0, vatRate: product?.vatRate ?? 'NoVat' });
+
+    if (!productId) {
+      return;
+    }
+
+    this.catalogService.suggestProductRate(this.organizationId, productId).subscribe({
+      next: (suggestion) => this.updateLine(key, { rate: suggestion.rate, vatRate: suggestion.vatRate }),
+      error: () => undefined,
     });
   }
 

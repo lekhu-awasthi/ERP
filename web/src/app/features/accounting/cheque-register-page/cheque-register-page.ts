@@ -40,6 +40,7 @@ export class ChequeRegisterPage {
   protected readonly activeTab = signal<ChequeTab>('dashboard');
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly successMessage = signal<string | null>(null);
   protected readonly contacts = signal<Contact[]>([]);
   protected readonly contactId = signal('');
   protected readonly fromDate = signal('');
@@ -79,9 +80,35 @@ export class ChequeRegisterPage {
     this.load();
   }
 
+  /**
+   * Phase 31 -- Bounced is no longer a status-only change: it voids the payment the cheque settled
+   * and reverses that payment's GL entry (closing phase-17 decision #4's recorded gap). It is
+   * confirmed first, because it is not reversible and because the user is about to undo a receipt
+   * they may not realise is attached, and the outcome names the voided document -- otherwise the
+   * only place that consequence appears is the ledger.
+   */
   protected transition(cheque: ChequeDto, newStatus: ChequeStatus): void {
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    if (
+      newStatus === 'Bounced' &&
+      !window.confirm(
+        'Marking this cheque Bounced will void the payment it settled and reverse its ledger entry. Continue?',
+      )
+    ) {
+      return;
+    }
+
     this.paymentsService.transitionChequeStatus(this.organizationId, cheque.id, newStatus).subscribe({
-      next: () => this.load(),
+      next: (result) => {
+        if (result.voidedPaymentCode) {
+          this.successMessage.set(
+            `Cheque marked Bounced. Payment ${result.voidedPaymentCode} was voided and its ledger entry reversed.`,
+          );
+        }
+        this.load();
+      },
       error: (err: unknown) => this.errorMessage.set(extractErrorMessage(err) ?? 'Could not update cheque status.'),
     });
   }

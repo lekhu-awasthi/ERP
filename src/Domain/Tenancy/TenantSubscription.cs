@@ -51,6 +51,36 @@ public sealed class TenantSubscription
     }
 
     /// <summary>
+    /// Phase 31 -- the mutator phase 20f deliberately left out. Renews or extends the subscription:
+    /// the plan's name and the date past which
+    /// <c>SubscriptionExpiryBehavior</c> makes this organization read-only for business documents.
+    ///
+    /// <para><b>It moves the end date and the plan name, and nothing else.</b> The entitlement flags
+    /// stay immutable after creation, exactly as 20f established and as the reference product's own
+    /// read-only Features screen shows -- a renewal is a billing event, not a re-negotiation of what
+    /// the tenant may model, and letting it flip <c>TrackInventoryEnabled</c> would let a tenant
+    /// with stock already in a FIFO ledger turn inventory off underneath it.</para>
+    ///
+    /// <para><c>TrialStartsAt</c> is likewise untouched: it records when this tenant began, which a
+    /// renewal does not change.</para>
+    /// </summary>
+    public void Renew(string planName, DateTimeOffset endsAt)
+    {
+        if (string.IsNullOrWhiteSpace(planName))
+        {
+            throw new InvalidOperationException("A subscription needs a plan name.");
+        }
+
+        if (endsAt <= TrialStartsAt)
+        {
+            throw new InvalidOperationException("A subscription cannot end before it started.");
+        }
+
+        PlanName = planName.Trim();
+        TrialEndsAt = endsAt;
+    }
+
+    /// <summary>
     /// Whether this tenant opted into <paramref name="feature"/> at Organization creation
     /// (FR-2.6, enforced since Phase 20f). The single place the <see cref="TenantFeature"/> enum
     /// maps back onto the flag columns, so FeatureGateBehavior and the read-only subscription

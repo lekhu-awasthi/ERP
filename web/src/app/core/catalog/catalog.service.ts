@@ -35,6 +35,7 @@ import {
   UpdateVariantAttributeRequest,
   VariantAttribute,
   VariantCombinationInput,
+  SuggestedProductRate,
 } from './catalog.models';
 
 @Injectable({ providedIn: 'root' })
@@ -262,6 +263,20 @@ export class CatalogService {
 
   getProduct(organizationId: string, id: string): Observable<Product> {
     return this.http.get<Product>(`${this.baseUrl(organizationId)}/products/${id}`, { withCredentials: true });
+  }
+
+  /**
+   * Phase 31 -- what rate a sales line should start at for this product, decided server-side from
+   * TenantSettings.SuggestSellingPriceMode and ProductPriceBasis. Four screens (Quotation, Sales
+   * Order, Invoice, Credit Note) used to read `product.sellingPrice` directly, which was silently
+   * the Fixed branch of a two-way setting. Mirrors the reference product's own
+   * `get_recent_selling_price` call at line-picker time.
+   */
+  suggestProductRate(organizationId: string, productId: string): Observable<SuggestedProductRate> {
+    return this.http.get<SuggestedProductRate>(
+      `${this.baseUrl(organizationId)}/products/${productId}/suggested-rate`,
+      { withCredentials: true },
+    );
   }
 
   createProduct(organizationId: string, request: CreateProductRequest): Observable<CreateProductResult> {

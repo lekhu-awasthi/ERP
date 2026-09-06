@@ -51,6 +51,29 @@ public sealed class TenantSettings
     public InventoryTrackingMode InventoryTrackingMode { get; private set; }
     public BalanceAction NegativeCashBalanceAction { get; private set; }
     public BalanceAction NegativeStockBalanceAction { get; private set; }
+
+    /// <summary>
+    /// Phase 31 (FR-3.x credit control) -- the third member of the Reject/Warn/DoNothing family,
+    /// live-confirmed 2026-09-06 as a peer of the other two on Configurations &gt; General ("Select a
+    /// action to be triggered when a Customer's balance is about to exceed it's credit limit").
+    ///
+    /// <para>Consulted at <b>Invoice Approve</b> and nowhere else. Two live facts pin that: saving a
+    /// breaching draft produced no warning at all, and pressing Approve raised a "Crossed Credit
+    /// Limit" dialog with Dismiss/Continue -- the same shape as the Negative Stock Balance dialog,
+    /// which is why this reuses <see cref="BalanceAction"/> rather than inventing a parallel enum.
+    /// The setting's own wording says <i>Customer's</i> balance, so a supplier's credit limit is
+    /// carried on the Contact but is not enforced anywhere; see docs/phase-31-status.md Decision B.
+    /// </para>
+    ///
+    /// <para>Defaults to <see cref="BalanceAction.Warn"/>, matching NegativeStockBalanceAction
+    /// rather than NegativeCashBalanceAction's Reject: a credit limit is a commercial judgement a
+    /// salesperson may legitimately override, where an overdrawn bank account is an accounting
+    /// error. The default is inert on a fresh tenant regardless, because
+    /// <see cref="Domain.Contacts.Contact.CreditLimit"/> is 0 (= no limit) until somebody sets
+    /// one.</para>
+    /// </summary>
+    public BalanceAction CreditLimitExceedsAction { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     /// <summary>
@@ -186,6 +209,7 @@ public sealed class TenantSettings
             InventoryTrackingMode = InventoryTrackingMode.AccountingMovement,
             NegativeCashBalanceAction = BalanceAction.Reject,
             NegativeStockBalanceAction = BalanceAction.Warn,
+            CreditLimitExceedsAction = BalanceAction.Warn,
             AiDocumentExtractionEnabled = false,
             CreatedAt = DateTimeOffset.UtcNow,
         };
@@ -196,13 +220,15 @@ public sealed class TenantSettings
         ProductPriceBasis productPriceBasis,
         InventoryTrackingMode inventoryTrackingMode,
         BalanceAction negativeCashBalanceAction,
-        BalanceAction negativeStockBalanceAction)
+        BalanceAction negativeStockBalanceAction,
+        BalanceAction creditLimitExceedsAction)
     {
         SuggestSellingPriceMode = suggestSellingPriceMode;
         ProductPriceBasis = productPriceBasis;
         InventoryTrackingMode = inventoryTrackingMode;
         NegativeCashBalanceAction = negativeCashBalanceAction;
         NegativeStockBalanceAction = negativeStockBalanceAction;
+        CreditLimitExceedsAction = creditLimitExceedsAction;
     }
 
     public void SetAccountingDefaults(

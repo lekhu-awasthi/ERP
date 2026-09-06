@@ -283,3 +283,44 @@ these are in `CLAUDE.md`'s Known gotchas section. When a phase completes, append
   subject ceasing to be meaningful, and — the one nobody anticipated — it **spends money** through
   phase 18's credit ledger, so an unaffordable occurrence has to fail *visibly in the send ledger*
   rather than throw inside a timer tick.
+
+- `phase-31` — before enforcing any tenant setting, before adding a second confirmable warning to a
+  document that already has one, before adding a non-nullable column to a populated table, and
+  before deciding a subscription or entitlement is "just a flag". Six things generalise.
+  **(a) A setting with no command behind it is not a dead setting — it is an absent feature.** The
+  roadmap listed three `TenantSettings` fields as dead. Four of the five had no command, no endpoint
+  and no screen at all, and the fifth (`NegativeStockBalanceAction`) was *read* by
+  `FifoStockAvailabilityPolicy` and still could never be moved off its seed. So the phase's first
+  deliverable was reachability, not enforcement. Phase 29's rule — grep `web/` for the field name
+  before calling it done — extends one step: **grep for the command too.**
+  **(b) Two confirmable warnings on one document cannot share an override flag.** An invoice can trip
+  both a stock shortfall and a credit-limit breach, and the reference product shows them as two
+  dialogs. One shared `OverrideWarning` would mean acknowledging the stock dialog silently waived a
+  credit breach the user was never shown. Two flags, plus a `warningKind` extension on the 422's
+  ProblemDetails so the client sets only the flag matching the dialog it just displayed.
+  **(c) Reuse an existing marker set rather than inventing a third.** `SubscriptionExpiryBehavior`
+  (the fifth pipeline behavior) gates exactly what `ILockDateSensitive`/`ILockDateSensitiveDocument`
+  already mark — which *is* "a create, update, approve or void of a transactional document" across
+  all fifteen types, the same set a lock date freezes and for the same reason. No sweep, and the two
+  gates cannot drift apart. The command that lifts the expiry is excluded automatically, because it
+  carries no document date and could not implement either marker if it tried.
+  **(d) The `AttachmentAccess` pattern, second use — and the shape is wider than it looked.** Phase
+  27a's rule was "the real key depends on a column of the row the handler is about to load". Here it
+  depends on the *requested value* as well: bouncing a cheque needs `Payments.Payment.Void`, but only
+  when the linked payment is Approved. Same remedy (a blanket key on the request, the real key
+  re-checked inside the handler with the identical `ForbiddenException` shape), and the E2E has to
+  prove it in **both** directions or it proves nothing: the same Member gets 404 on a nonexistent
+  cheque (so they do hold the pipeline key) and 403 naming the second key on a real one.
+  **(e) A non-nullable column added to a populated table needs its backfill written by hand.**
+  `migrations add` scaffolds `NOT NULL DEFAULT '0001-01-01'` for a `DateOnly`, which back-dates every
+  historical row to the year 1 and leaves a stray default constraint. Add nullable, `UPDATE` from the
+  sibling column, alter to NOT NULL — CLAUDE.md's "read any migration that replaces or retypes a
+  column" applied to one that merely *adds* one.
+  **(f) An invariant that only time can violate cannot be constructed through its own aggregate.**
+  `TenantSubscription.Renew` refuses an end date before the start date and a trial starts *now*, so
+  the expired-tenant test reaches through EF's change tracker rather than weakening the invariant to
+  make itself easier to write. Weakening a Domain rule so a test can reach a state is the wrong
+  trade every time.
+  Also, and cheaply: phase-23's `sweep-guard.spec.ts` caught a raw `<input type="date">` this phase
+  introduced on a screen written eight phases after that guard — the clearest return a guard test in
+  this codebase has yet produced.

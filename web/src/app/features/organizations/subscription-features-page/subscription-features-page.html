@@ -53,6 +53,47 @@
       </div>
     </div>
 
+    <!-- Phase 31 -- the only control on this page. Past the end date the organization is read-only
+         for business documents, so a renewal has to be reachable from inside the product. It moves
+         the plan name and the end date; the entitlement flags below stay immutable. -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <h2 class="h5 fw-bold mb-1 text-dark">Renew</h2>
+        <p class="text-muted small mb-3">
+          Past the end date this organization can still be read, printed and exported, but no document can be
+          created, edited, approved or voided.
+        </p>
+        @if (successMessage()) {
+          <div class="alert alert-success py-2" role="alert">{{ successMessage() }}</div>
+        }
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-sm-5">
+            <label class="form-label small fw-semibold" for="renew-plan">Plan name</label>
+            <input
+              id="renew-plan"
+              type="text"
+              class="form-control"
+              [value]="renewPlanName()"
+              (input)="renewPlanName.set($any($event.target).value)"
+            />
+          </div>
+          <div class="col-12 col-sm-4">
+            <label class="form-label small fw-semibold">Ends on</label>
+            <app-bs-date-input
+              [inputClass]="'form-control'"
+              [value]="renewEndsAt()"
+              (valueChange)="renewEndsAt.set($event)"
+            />
+          </div>
+          <div class="col-12 col-sm-3">
+            <button class="btn btn-primary fw-bold w-100" type="button" [disabled]="renewing()" (click)="renew()">
+              {{ renewing() ? 'Saving...' : 'Renew' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-white p-4 border-0">
         <h2 class="h5 fw-bold mb-1 text-dark">Accounting Features</h2>

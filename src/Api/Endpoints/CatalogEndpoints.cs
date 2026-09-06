@@ -15,6 +15,7 @@ using ErpApp.Application.Catalog.Commands.UpdateProduct;
 using ErpApp.Application.Catalog.Commands.UpdateProductCategory;
 using ErpApp.Application.Catalog.Commands.UpdateUnitOfMeasurement;
 using ErpApp.Application.Catalog.Queries.GetProduct;
+using ErpApp.Application.Catalog.Queries.SuggestProductRate;
 using ErpApp.Application.Catalog.Queries.ListProductVariants;
 using ErpApp.Application.Catalog.Queries.ListProducts;
 using ErpApp.Application.Catalog.Queries.ListVariantAttributes;
@@ -128,6 +129,16 @@ public static class CatalogEndpoints
             Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new GetProductQuery(organizationId, id), ct);
+            return Results.Ok(result);
+        });
+
+        // Phase 31 -- the line picker's suggested rate, decided server-side from
+        // TenantSettings.SuggestSellingPriceMode + ProductPriceBasis. Mirrors the reference
+        // product's own get_recent_selling_price call.
+        group.MapGet("/products/{id:guid}/suggested-rate", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new SuggestProductRateQuery(organizationId, id), ct);
             return Results.Ok(result);
         });
 

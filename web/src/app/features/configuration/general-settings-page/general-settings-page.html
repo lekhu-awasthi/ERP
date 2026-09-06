@@ -1,0 +1,191 @@
+<div class="container py-5" style="max-width: 860px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i class="bi bi-sliders fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">General</h1>
+          <p class="text-muted small mb-0">Tenant-wide behaviour applied when a document is approved</p>
+        </div>
+      </div>
+      <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'configuration']">
+        <i class="bi bi-arrow-left"></i> Configurations
+      </a>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger" role="alert">{{ errorMessage() }}</div>
+  }
+  @if (successMessage()) {
+    <div class="alert alert-success" role="alert">{{ successMessage() }}</div>
+  }
+
+  @if (loading()) {
+    <p class="text-muted">Loading settings...</p>
+  } @else {
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-1">Suggest Selling Price</h5>
+        <p class="text-muted small mb-3">
+          How the selling price is suggested on a Quotation, Sales Order, Invoice and Credit Note line.
+        </p>
+        <div class="form-check mb-2">
+          <input
+            class="form-check-input"
+            type="radio"
+            id="suggest-recent"
+            name="suggestSellingPriceMode"
+            [checked]="suggestSellingPriceMode() === 'RecentSellingPrice'"
+            (change)="setSuggestSellingPriceMode('RecentSellingPrice')"
+          />
+          <label class="form-check-label" for="suggest-recent">
+            <span class="fw-semibold">Recent Selling Price</span>
+            <span class="d-block text-muted small">The rate on the most recent approved invoice for that product.</span>
+          </label>
+        </div>
+        <div class="form-check">
+          <input
+            class="form-check-input"
+            type="radio"
+            id="suggest-fixed"
+            name="suggestSellingPriceMode"
+            [checked]="suggestSellingPriceMode() === 'FixedSellingPrice'"
+            (change)="setSuggestSellingPriceMode('FixedSellingPrice')"
+          />
+          <label class="form-check-label" for="suggest-fixed">
+            <span class="fw-semibold">Fixed Selling Price</span>
+            <span class="d-block text-muted small">The Selling Price on the product's own record.</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-1">Product Price Basis</h5>
+        <p class="text-muted small mb-3">
+          Whether the Selling Price on a product's record already contains VAT. Line amounts are always stored
+          exclusive of VAT; this only decides how the product's own price is read.
+        </p>
+        <div class="form-check mb-2">
+          <input
+            class="form-check-input"
+            type="radio"
+            id="basis-inclusive"
+            name="productPriceBasis"
+            [checked]="productPriceBasis() === 'InclusiveOfVat'"
+            (change)="setProductPriceBasis('InclusiveOfVat')"
+          />
+          <label class="form-check-label" for="basis-inclusive">
+            <span class="fw-semibold">Inclusive of VAT</span>
+            <span class="d-block text-muted small">The suggested line rate is back-calculated from the product's price.</span>
+          </label>
+        </div>
+        <div class="form-check">
+          <input
+            class="form-check-input"
+            type="radio"
+            id="basis-exclusive"
+            name="productPriceBasis"
+            [checked]="productPriceBasis() === 'ExclusiveOfVat'"
+            (change)="setProductPriceBasis('ExclusiveOfVat')"
+          />
+          <label class="form-check-label" for="basis-exclusive">
+            <span class="fw-semibold">Exclusive of VAT</span>
+            <span class="d-block text-muted small">VAT is added on top of the product's price.</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-1">Negative Cash Balance</h5>
+        <p class="text-muted small mb-3">
+          What happens when approving a payment, cash transfer or journal voucher would take a Bank or Cash
+          account below zero.
+        </p>
+        @for (option of balanceOptions; track option.value) {
+          <div class="form-check mb-2">
+            <input
+              class="form-check-input"
+              type="radio"
+              [id]="'cash-' + option.value"
+              name="negativeCashBalanceAction"
+              [checked]="negativeCashBalanceAction() === option.value"
+              (change)="setNegativeCashBalanceAction(option.value)"
+            />
+            <label class="form-check-label" [attr.for]="'cash-' + option.value">
+              <span class="fw-semibold">{{ option.label }}</span>
+              <span class="d-block text-muted small">{{ option.help }}</span>
+            </label>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-1">Negative Item Balance</h5>
+        <p class="text-muted small mb-3">
+          What happens when approving an invoice or production journal would take a product's stock below zero
+          in the selected warehouse.
+        </p>
+        @for (option of balanceOptions; track option.value) {
+          <div class="form-check mb-2">
+            <input
+              class="form-check-input"
+              type="radio"
+              [id]="'stock-' + option.value"
+              name="negativeStockBalanceAction"
+              [checked]="negativeStockBalanceAction() === option.value"
+              (change)="setNegativeStockBalanceAction(option.value)"
+            />
+            <label class="form-check-label" [attr.for]="'stock-' + option.value">
+              <span class="fw-semibold">{{ option.label }}</span>
+              <span class="d-block text-muted small">{{ option.help }}</span>
+            </label>
+          </div>
+        }
+        <p class="text-muted small mb-0 mt-2">
+          <i class="bi bi-info-circle"></i>
+          Stock is never actually driven negative: a shortfall that gets past this setting still fails when the
+          FIFO ledger is asked to consume more than it holds.
+        </p>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-1">Credit Limit Exceeds</h5>
+        <p class="text-muted small mb-3">
+          What happens when approving an invoice would take a customer's balance past the Credit Limit on their
+          contact record. A credit limit of 0 means no limit.
+        </p>
+        @for (option of balanceOptions; track option.value) {
+          <div class="form-check mb-2">
+            <input
+              class="form-check-input"
+              type="radio"
+              [id]="'credit-' + option.value"
+              name="creditLimitExceedsAction"
+              [checked]="creditLimitExceedsAction() === option.value"
+              (change)="setCreditLimitExceedsAction(option.value)"
+            />
+            <label class="form-check-label" [attr.for]="'credit-' + option.value">
+              <span class="fw-semibold">{{ option.label }}</span>
+              <span class="d-block text-muted small">{{ option.help }}</span>
+            </label>
+          </div>
+        }
+      </div>
+    </div>
+
+    <button class="btn btn-primary fw-bold" type="button" [disabled]="saving()" (click)="save()">
+      {{ saving() ? 'Saving...' : 'Save settings' }}
+    </button>
+  }
+</div>

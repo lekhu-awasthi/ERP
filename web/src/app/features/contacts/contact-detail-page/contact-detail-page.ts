@@ -4,6 +4,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { buildTreeRows, TreeRow } from '../../../core/common/tree';
+import { ConfigurationService } from '../../../core/configuration/configuration.service';
+import { CreditTerm } from '../../../core/configuration/configuration.models';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact, ContactGroup, ContactOverviewDto, ContactType } from '../../../core/contacts/contacts.models';
 import { TabParent } from '../../../core/contacts/tab-parent';
@@ -49,6 +51,7 @@ export class ContactDetailPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly contactsService = inject(ContactsService);
+  private readonly configurationService = inject(ConfigurationService);
   private readonly fb = inject(FormBuilder);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
@@ -87,6 +90,15 @@ export class ContactDetailPage {
 
   protected readonly types: ContactType[] = ['Customer', 'Supplier', 'Lead'];
 
+  /**
+   * Phase 31 -- the credit block's visibility and its toggle's label both depend on the selected
+   * Type, and the app is zoneless: a computed() over `form.controls.type.value` would cache the
+   * first read forever (CLAUDE.md's phase-17 gotcha). So the type is mirrored into its own signal,
+   * written by the radio group's own change handler.
+   */
+  protected readonly selectedType = signal<ContactType>('Customer');
+  protected readonly creditTerms = signal<CreditTerm[]>([]);
+
   protected readonly form = this.fb.nonNullable.group({
     type: ['Customer' as ContactType, Validators.required],
     name: ['', [Validators.required, Validators.maxLength(200)]],
@@ -96,11 +108,23 @@ export class ContactDetailPage {
     email: [''],
     groupId: [''],
     openingBalance: [0, [Validators.required, Validators.min(0)]],
+    // Phase 31 -- the live "+ Add More Details" block. creditLimit 0 means "no limit", which is what
+    // the reference field stores on every contact that has never had one set.
+    creditLimit: [0, [Validators.required, Validators.min(0)]],
+    creditTermId: [''],
+    acceptsReverseTransactions: [false],
   });
 
   constructor() {
     this.contactsService.listContactGroups(this.organizationId).subscribe({
       next: (groups) => this.groups.set(groups),
+    });
+
+    // Phase 31 -- the Credit Terms picker's options. Failing quietly is deliberate: a tenant whose
+    // role cannot read the lookup still edits every other field on this form.
+    this.configurationService.listCreditTerms(this.organizationId).subscribe({
+      next: (terms) => this.creditTerms.set(terms.filter((x) => x.isActive)),
+      error: () => this.creditTerms.set([]),
     });
 
     this.route.paramMap.subscribe((params) => {
@@ -128,11 +152,28 @@ export class ContactDetailPage {
           email: '',
           groupId: '',
           openingBalance: 0,
+          creditLimit: 0,
+          creditTermId: '',
+          acceptsReverseTransactions: false,
         });
+        this.selectedType.set('Customer');
       } else {
         this.load();
       }
     });
+  }
+
+  protected creditTermName(creditTermId: string | null): string {
+    if (!creditTermId) {
+      return 'None';
+    }
+    const term = this.creditTerms().find((x) => x.id === creditTermId);
+    return term ? `${term.name} (${term.dueDays} days)` : 'None';
+  }
+
+  /** Written by the Type radio group so the credit block's visibility tracks it in a zoneless app. */
+  protected onTypeChanged(type: ContactType): void {
+    this.selectedType.set(type);
   }
 
   protected switchTab(tab: 'Overview' | 'Personnel' | 'Tasks' | 'Deals' | 'Documents' | 'Activity'): void {
@@ -203,7 +244,11 @@ export class ContactDetailPage {
         email: contact.email ?? '',
         groupId: contact.groupId ?? '',
         openingBalance: contact.openingBalance,
+        creditLimit: contact.creditLimit,
+        creditTermId: contact.creditTermId ?? '',
+        acceptsReverseTransactions: contact.acceptsReverseTransactions,
       });
+      this.selectedType.set(contact.type);
     }
     this.editing.set(true);
     this.optionsOpen.set(false);
@@ -226,7 +271,10 @@ export class ContactDetailPage {
     this.saving.set(true);
     this.errorMessage.set(null);
 
-    const { type, name, address, pan, phone, email, groupId, openingBalance } = this.form.getRawValue();
+    const {
+      type, name, address, pan, phone, email, groupId, openingBalance,
+      creditLimit, creditTermId, acceptsReverseTransactions,
+    } = this.form.getRawValue();
     const groupIdOrNull = groupId || null;
     const addressOrNull = address || null;
     const panOrNull = pan || null;
@@ -244,6 +292,9 @@ export class ContactDetailPage {
           email: emailOrNull,
           groupId: groupIdOrNull,
           openingBalance,
+          creditLimit,
+          creditTermId: creditTermId || null,
+          acceptsReverseTransactions,
         })
         .subscribe({
           next: (result) => {
@@ -267,6 +318,9 @@ export class ContactDetailPage {
         email: emailOrNull,
         groupId: groupIdOrNull,
         openingBalance,
+        creditLimit,
+        creditTermId: creditTermId || null,
+        acceptsReverseTransactions,
       })
       .subscribe({
         next: () => {

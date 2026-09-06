@@ -1,4 +1,4 @@
-﻿using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Configuration;
 using ErpApp.Application.Sales.Reports;
@@ -81,7 +81,11 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db) : IRequestHandle
             }));
         }
 
-        if (!tagFilterActive)
+        // Phase 31: the Include Credit Note In Calculation toggle is the second reason this block
+        // can be skipped. Both reasons remove the rows themselves, so every total below is net of
+        // whichever notes actually rendered -- which is exactly what the live screen showed when the
+        // toggle was cleared (19 rows to 8, taxable 71,324.41 to 139,280.06).
+        if (!tagFilterActive && request.IncludeCreditNotes)
         {
             // Phase 26c: the credit-note half now comes from SalesReturnReader, which the new Sales
             // Return Register also reads -- so the two registers show the same magnitudes for the

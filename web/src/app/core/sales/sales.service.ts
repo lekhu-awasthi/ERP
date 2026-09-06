@@ -126,9 +126,18 @@ export class SalesService {
     });
   }
 
-  approveInvoice(organizationId: string, id: string, overrideWarning = false): Observable<ApproveInvoiceResult> {
+  /** Phase 31 -- a second override, because an approval can trip the stock warning and the
+   *  credit-limit warning independently and each Continue must waive only the one it was shown for. */
+  approveInvoice(
+    organizationId: string,
+    id: string,
+    overrideWarning = false,
+    overrideCreditLimitWarning = false,
+  ): Observable<ApproveInvoiceResult> {
     return this.http.post<ApproveInvoiceResult>(
-      `${this.baseUrl(organizationId)}/invoices/${id}/approve`, { overrideWarning }, { withCredentials: true },
+      `${this.baseUrl(organizationId)}/invoices/${id}/approve`,
+      { overrideWarning, overrideCreditLimitWarning },
+      { withCredentials: true },
     );
   }
 
@@ -303,11 +312,16 @@ export class SalesService {
     });
   }
 
+  /** Phase 31 -- includeCreditNotes is the live "Include Credit Note In Calculation" view option.
+   *  Off, the credit-note rows leave the row set entirely and every total recomputes without them
+   *  (confirmed live 2026-09-06: 19 rows to 8). Defaults to true, the live default. */
   getSalesRegister(
     organizationId: string, fromDate: string, toDate: string, contactId: string | null, tagOptionIds: string[],
-    page = 1, pageSize = 50,
+    page = 1, pageSize = 50, includeCreditNotes = true,
   ): Observable<SalesRegisterDto> {
-    const params: Record<string, string | string[]> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
+    const params: Record<string, string | string[]> = {
+      fromDate, toDate, page: String(page), pageSize: String(pageSize), includeCreditNotes: String(includeCreditNotes),
+    };
     if (contactId) params['contactId'] = contactId;
     if (tagOptionIds.length > 0) params['tagOptionIds'] = tagOptionIds;
 
@@ -319,10 +333,11 @@ export class SalesService {
 
   exportSalesRegister(
     organizationId: string, fromDate: string, toDate: string, contactId: string | null, tagOptionIds: string[],
-    full: boolean, page: number, pageSize: number,
+    full: boolean, page: number, pageSize: number, includeCreditNotes = true,
   ): Observable<Blob> {
     const params: Record<string, string | string[]> = {
       fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
+      includeCreditNotes: String(includeCreditNotes),
     };
     if (contactId) params['contactId'] = contactId;
     if (tagOptionIds.length > 0) params['tagOptionIds'] = tagOptionIds;

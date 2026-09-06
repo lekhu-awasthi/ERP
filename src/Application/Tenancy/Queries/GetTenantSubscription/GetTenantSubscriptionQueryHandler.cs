@@ -14,7 +14,7 @@ public sealed class GetTenantSubscriptionQueryHandler(IAppDbContext db)
     /// own Step 2 checkbox cards, so the read-only Features screen names each entitlement exactly
     /// the way the user saw it when they chose (or skipped) it at creation.
     /// </summary>
-    private static readonly (TenantFeature Feature, string DisplayName, string Description)[] Catalog =
+    internal static readonly (TenantFeature Feature, string DisplayName, string Description)[] Catalog =
     [
         (TenantFeature.TrackInventory, "Track Inventory",
             "Maintain real-time stock levels, inventory values, and purchase reorder parameters."),
@@ -39,6 +39,16 @@ public sealed class GetTenantSubscriptionQueryHandler(IAppDbContext db)
             x => x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("This organization has no subscription record.");
 
+        return ToDto(subscription);
+    }
+
+    /// <summary>
+    /// Phase 31 extracted this so <c>SetTenantSubscriptionCommandHandler</c> returns byte-identical
+    /// state to what the read query would next produce -- the same reason phase 26b insisted a pair
+    /// of reports agree by construction rather than by inspection.
+    /// </summary>
+    internal static TenantSubscriptionDto ToDto(TenantSubscription subscription)
+    {
         var now = DateTimeOffset.UtcNow;
         var daysRemaining = (int)Math.Ceiling((subscription.TrialEndsAt - now).TotalDays);
 

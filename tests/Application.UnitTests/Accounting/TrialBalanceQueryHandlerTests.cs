@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Cash;
 using ErpApp.Application.Accounting;
 using ErpApp.Application.Accounting.Commands.ApproveJournalVoucher;
 using ErpApp.Application.Accounting.Commands.CreateJournalVoucher;
@@ -75,7 +76,7 @@ public class TrialBalanceQueryHandlerTests
             CancellationToken.None);
 
         await new ApproveJournalVoucherCommandHandler(
-            db, new FakeDocumentNumberGenerator(), new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule())
+            db, new FakeDocumentNumberGenerator(), new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApproveJournalVoucherCommand(organizationId, created.Id), CancellationToken.None);
     }
 }

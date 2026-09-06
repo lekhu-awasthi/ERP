@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Cash;
 using ErpApp.Application.Accounting;
 using ErpApp.Application.Accounting.Commands.ApproveJournalVoucher;
 using ErpApp.Application.Accounting.Commands.CreateJournalVoucher;
@@ -30,7 +31,7 @@ public class VoidJournalVoucherCommandHandlerTests
                 [new JournalVoucherLineInput(cashAccountId, 1000m, 0m), new JournalVoucherLineInput(salesAccountId, 0m, 1000m)]),
             CancellationToken.None);
         await new ApproveJournalVoucherCommandHandler(
-            db, new FakeDocumentNumberGenerator(), new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule())
+            db, new FakeDocumentNumberGenerator(), new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApproveJournalVoucherCommand(organizationId, created.Id), CancellationToken.None);
 
         var voiderId = Guid.NewGuid();
@@ -77,7 +78,7 @@ public class VoidJournalVoucherCommandHandlerTests
                 [new JournalVoucherLineInput(cashAccountId, 1000m, 0m), new JournalVoucherLineInput(salesAccountId, 0m, 1000m)]),
             CancellationToken.None);
         await new ApproveJournalVoucherCommandHandler(
-            db, new FakeDocumentNumberGenerator(), new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule())
+            db, new FakeDocumentNumberGenerator(), new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApproveJournalVoucherCommand(organizationId, created.Id), CancellationToken.None);
         var handler = new VoidJournalVoucherCommandHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         await handler.Handle(new VoidJournalVoucherCommand(organizationId, created.Id), CancellationToken.None);

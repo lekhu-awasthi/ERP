@@ -59,7 +59,8 @@ public sealed class CreatePurchaseBillCommandHandler(IAppDbContext db)
             tdsAmount,
             request.ReferrerType,
             request.ReferrerId,
-            request.DiscountPct);
+            request.DiscountPct,
+            request.DueDate);
 
         // Phase 28 -- the currency pair is set right after construction rather than threaded
         // through Create's parameter list; see the aggregate's SetCurrency doc comment for why.

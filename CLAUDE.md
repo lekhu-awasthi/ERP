@@ -69,6 +69,13 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
   wiring a Send Email action, before a background job that *reads* through a permission-gated
   request, before assuming a `CustomTemplateType` member is the right home, or before trusting an
   earlier phase's "one enum member and a branch" estimate — `docs/phase-30-status.md`
+- Phase 31: credit control — `Contact.CreditLimit`/`CreditTermId`/`AcceptsReverseTransactions` and a
+  **Credit Limit Exceeds** policy at Invoice Approve, plus the **Configurations > General** screen
+  that made all five behaviour settings reachable for the first time; Negative Cash Balance,
+  Suggest Selling Price and Product Price Basis enforced; a stored `DueDate`; a bounced cheque that
+  voids its payment; subscription expiry. Before enforcing a tenant setting, before adding a second
+  confirmable warning to a document, before adding a non-nullable column to a populated table, or
+  before writing a test that needs a state only time can produce — `docs/phase-31-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -164,6 +171,20 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Build a capitalisation leg from the value the ledger actually received (`layer value created − goods amount`), never the figure the user typed, and round each unit cost **once** at the ledger's own scale from the line's total landed value; the gap is the named residue (phase-29, phase-25's rule on a second aggregate).
 - When a phase adds a tenant-default GL account, grep `web/` for the field name before calling it done — phase 25's and phase 28's three accounts reached the API and no screen, so they could not be configured at all (phase-29; phase-23 bug #1 in reverse).
 
+- A tenant-level field is reachable only if you can name the **command** that writes it and the
+  screen that calls it; being *read* by a handler proves the read path and makes the missing write
+  path invisible (phase-31, extending phase-29's grep-`web/` rule).
+- Two confirmable warnings on one document need two override flags and a `warningKind` on the 422,
+  or confirming the first silently waives the second (phase-31).
+- Adding a **non-nullable** column to a populated table needs its backfill written by hand: the
+  scaffold's `DEFAULT '0001-01-01'` back-dates every historical row and leaves a stray constraint
+  (phase-31, extending the replace-or-retype rule).
+- A permission whose applicability depends on the **requested value** as well as the loaded row is
+  phase-27a's `AttachmentAccess` pattern again; the E2E must show 404 on a missing row *and* 403 on
+  a real one, or it has proved nothing (phase-31's cheque bounce).
+- Never weaken a Domain invariant so a test can reach a state only time produces; reach through EF's
+  change tracker instead (phase-31's expired `TenantSubscription`).
+
 **Background jobs**
 - A singleton `BackgroundService` cannot inject scoped services; take `IServiceScopeFactory`, read options via `IOptionsMonitor`, and never let a tick's exception escape `ExecuteAsync` (`AlertSchedulerHostedService`).
 - No `IsRowVersion()` token on a row a job writes repeatedly if a user can also write it — a cancel wedged a running import; the unique index on the occurrence key is the real correctness mechanism (phase-21a Decision C, bug 1).
@@ -224,6 +245,12 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `tsc --noEmit -p tsconfig.json` does not typecheck `web/src/app`; it came back clean while `ng build` reported 22 `TS2339` errors. `ng build` is the real check (phase-28).
 - A Goods line consumes stock regardless of `TrackInventory`, so on a tenant without that feature a Goods product cannot be invoiced at all (403 on opening stock, 409 on approve); seed a **Service** line when an E2E just needs an approved sales document (phase-30).
 - curl cannot read a file for `-F` upload here — every path form gives exit 26 and HTTP `000`, which reads like a server fault; drive the file leg from a short Python `urllib` script (phase-30).
+- `POST /api/organizations` also needs `industry` and a **non-empty** `turnstileToken` (any string
+  passes against the dummy secret); accept-invitation is `/api/organizations/memberships/{id}/accept-invitation`
+  with **no org segment**, and calling it with one returns a 404 that reads like a bad membership id
+  while the membership silently stays `Invited` — which makes any later Member-403 proof meaningless;
+  units are `/units-of-measurement` (field `shortName`); credit terms are under `/configuration/`
+  (phase-31).
 - `dotnet run --project src/Api` with no `--launch-profile` binds **5155 only**, not the 7104 the Angular dev environment calls; and a stale listener on 5155 makes the https profile fail to start (phase-30).
 
 **Tooling and shell**
@@ -234,55 +261,58 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-29 are complete, and phase 30 (Communications, FR-11.1 / FR-4.5) is done.** A **Send
-Email** dialog now opens on six document types (seven screens — Customer and Supplier Payment are two
-components over one aggregate) and on the Contact detail page, seeded from an `EmailTemplate` whose
-merge fields are resolved *before the composer sees them*, so what goes out is the document's own
-editable text. Every send is queued to a claim-then-act ledger (`EmailSendLog`) and delivered by a
-fourth background job, which attaches the PDF from 20d/27b's print pipeline. Phase 27b's Email Logs
-tab — shipped as an empty-state message with a pager and no backend — finally has data behind it, and
-`AlertMedium.Sms` exists.
+**Phases 0-30 are complete, and phase 31 (credit control, dead settings, and the small carried
+items) is done.** A customer's **Credit Limit** is now enforced at Invoice Approve through the
+tenant's **Credit Limit Exceeds** policy, and — the finding that shaped the phase — the four other
+behaviour settings on `TenantSettings` turned out to have had **no command, no endpoint and no
+screen since phase 2**, so the first deliverable was a **Configurations > General** page rather than
+any enforcement. On top of it: **Negative Cash Balance** on the three documents that can take money
+out of a Bank or Cash account, **Suggest Selling Price** and **Product Price Basis** decided
+server-side at the line picker, `TrialEndsAt` as read-only-for-documents via a fifth pipeline
+behavior plus the renewal that lifts it, a stored **Due Date** on Invoice and Purchase Bill, a
+**bounced cheque** that voids the payment it settled, and the **Include Credit Note In Calculation**
+toggle.
 
-Five things from 30 that generalise. **The confirm-live pass corrected the roadmap twice and phase
-27b once**: Send Email is on 6 of 15 document types, not on the Contact *statement report* but yes on
-the Contact *page*, and 27b's three-type list was a three-sample inference — the real rule is that
-Send Email exists exactly where an email-template context exists, asserted in both directions.
-Second, **a shared UI panel is not evidence of a shared model**: the reference product renders email
-templates inside its Custom Templates panel, which is what put `CustomTemplateType.Email` in the
-codebase, but serves them from a different resource with six extra fields and a disjoint type
-vocabulary — so `EmailTemplate` is its own aggregate and that dead member was deleted. Third, **the
-rule for whether a background job needs an identity is "does it send a MediatR request?", not "does
-it write?"** — this job only reads and still needs `IJobActingUser`, because its PDF comes from the
-permission-gated `PrintDocumentQuery`. Fourth, **do-exactly-once and "a resend is a new row" are
-compatible if the key is an intent** — a request id minted when the dialog opens, proven both ways in
-SQL. Fifth, **"we already have the interface" measures the wrong thing**: `AlertMedium.Sms` was
-predicted as one enum member and a branch and was four changes, the unanticipated one being that it
-spends SMS credit. Full story in `docs/phase-30-status.md`.
+Six things from 31 that generalise. **A setting with no command behind it is not a dead setting, it
+is an absent feature** — and one of the five was worse than absent, being *read* by a handler (so it
+looked shipped) while permanently stuck on its seed; phase 29's grep-`web/` rule extends to "grep for
+the command too". Second, **two confirmable warnings on one document cannot share an override flag**:
+an invoice can trip both a stock shortfall and a credit breach, so each gets its own flag and the 422
+carries a `warningKind`. Third, **reuse an existing marker set rather than inventing a third** — the
+subscription gate rides `ILockDateSensitive`, which already means "the books", so it needed no sweep
+and cannot drift. Fourth, **phase-27a's `AttachmentAccess` pattern is wider than recorded**: a second
+key can depend on the *requested value*, not just the loaded row, and proving it needs a 404 and a
+403 from the same user. Fifth, **a non-nullable column added to a populated table needs its backfill
+written by hand** — the scaffold would have back-dated every historical invoice to the year 1.
+Sixth, **never weaken a Domain invariant so a test can reach a state only time produces.** Full story
+in `docs/phase-31-status.md`.
 
-**What comes next** is **phase 31** (credit control, dead settings, and the small carried items),
-then 32-34 in `docs/roadmap.md`. Still recorded separately:
+**What comes next** is **phase 32** (Billing Locations), then 33-34 in `docs/roadmap.md`. Still
+recorded separately:
 - the deferred post-v1 list in `docs/roadmap.md` (POS, IRD e-filing, Marketplace);
 - carried items. Phase 25's multi-level BOM explosion; phase-26a's two (an explicit compare-date
-  picker on the two as-of statements, Reporting Tags on the Journal report); phase-26b's four (a
-  stored `DueDate` on Invoice/PurchaseBill — which phase 30's `$[DUE_DATE]$` now also waits on —
-  aligning phase-9's `ContactAgeingSummaryQueryHandler` with 26b's rules, a product-level
-  service-charge flag, Quick Payment/Receipt as a document type); phase-26c's four (WarehouseTransfer/
-  OpeningStock in Inventory Master, the Sales Register's inert "Include Credit Note In Calculation"
-  toggle, the Negative Item Balance setting, and Inventory Position's display options); phase-27b's
-  three — **all now closed by phase 30** except the rich-text editor, which stays open as a textarea
-  on both `app-terms-editor` and `app-send-email-dialog`; phase-28's five (no unrealised period-end
-  revaluation, no cross-currency settlement, no rate source, the Allocate screens not filtering by
-  currency, and `ApplyPaymentAllocationCommand` posting no forex leg on the allocate-further path);
-  phase-29's five (no Import on the product-wise matrix, the additional cost's currency assumed to
-  follow the document's, landed cost on no document but the Purchase Bill, a Debit Note's release
-  proportional rather than FIFO-exact, no automatic unwind of the clearing account); and **phase-30's
-  own**: a rich-text body editor, `EmailTemplateContext.BalanceConfirmation` offered but unconsumed,
-  `$[USER_ADDRESS]$`/`$[DOCUMENT_NOTE]$` always empty (no column behind either), no per-recipient
-  delivery status, `AlertMedium.Sms` reachable by API but absent from the Alert Scheduler form
-  (matching live), and a **latent trap found in E2E** — a Goods line consumes stock regardless of
-  `TrackInventory`, so on a tenant without that feature a Goods product cannot be invoiced at all.
+  picker on the two as-of statements, Reporting Tags on the Journal report); phase-26b's four — **two
+  now closed by 31** (the stored `DueDate`, and phase-9's ageing handler aligned with 26b's rules),
+  leaving a product-level service-charge flag and Quick Payment/Receipt as a document type;
+  phase-26c's four — **two now closed by 31** (the Sales Register's Include-Credit-Note toggle, which
+  was never inert, and the Negative Item Balance setting, now configurable though its Warn/DoNothing
+  branches stay fictional pending negative FIFO layers) — leaving WarehouseTransfer/OpeningStock in
+  Inventory Master and Inventory Position's display options; phase-27b's rich-text editor (still a
+  textarea on `app-terms-editor` and `app-send-email-dialog`); phase-28's five (no unrealised
+  period-end revaluation, no cross-currency settlement, no rate source, the Allocate screens not
+  filtering by currency, and `ApplyPaymentAllocationCommand` posting no forex leg on the
+  allocate-further path — note 31's credit-limit check inherits the un-converted contact ledger from
+  the same family); phase-29's five (no Import on the product-wise matrix, the additional cost's
+  currency assumed to follow the document's, landed cost on no document but the Purchase Bill, a
+  Debit Note's release proportional rather than FIFO-exact, no automatic unwind of the clearing
+  account); phase-30's own six, of which **one is now closed** (`$[DUE_DATE]$` resolves to a real due
+  date); and **phase-31's own**: a supplier's credit limit stored but never enforced, credit-terms →
+  due-date as a client-side prefill only (and unproven live), subscription-expiry behaviour derived
+  rather than confirmed, configuration writes still allowed past expiry, the newly-found **Group By
+  Bill** toggle on the Sales Register, and the import/export breadth from 21a/24/21b deliberately
+  left for a phase of its own.
 
-Tests at last count: Domain 398, Application.UnitTests 796, Api.IntegrationTests 18, Angular 199;
+Tests at last count: Domain 398, Application.UnitTests 830, Api.IntegrationTests 18, Angular 207;
 `dotnet build` / `dotnet test` / `ng build` / `ng test` all clean. Note `tsc --noEmit` does **not**
 cover `web/src/app` — `ng build` is the check that does (phase-28).
 

@@ -24,6 +24,17 @@ public sealed class CreateContactCommandHandler(IAppDbContext db, IDocumentNumbe
             }
         }
 
+        if (request.CreditTermId is { } creditTermId)
+        {
+            var creditTermExists = await db.CreditTerms.AnyAsync(
+                x => x.Id == creditTermId && x.OrganizationId == request.OrganizationId, cancellationToken);
+
+            if (!creditTermExists)
+            {
+                throw new NotFoundException("Credit term not found.");
+            }
+        }
+
         var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.Contact, cancellationToken);
 
         var contact = Contact.Create(
@@ -36,7 +47,10 @@ public sealed class CreateContactCommandHandler(IAppDbContext db, IDocumentNumbe
             request.Phone,
             request.Email,
             request.GroupId,
-            request.OpeningBalance);
+            request.OpeningBalance,
+            request.CreditLimit,
+            request.CreditTermId,
+            request.AcceptsReverseTransactions);
 
         db.Contacts.Add(contact);
         await db.SaveChangesAsync(cancellationToken);

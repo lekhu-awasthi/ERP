@@ -41,6 +41,14 @@ public sealed class PurchaseBill
     public Guid WarehouseId { get; private set; }
     public string Code { get; private set; } = null!;
     public DateOnly Date { get; private set; }
+
+    /// <inheritdoc cref="Sales.Invoice.DueDate"/>
+    /// <remarks>Phase 31 -- the Purchase-side twin. The live Purchase Bill form carries the same
+    /// required, editable Due Date input beside its Bill Date, and phase-26b's Purchase Bill Age
+    /// report is the mirror of Invoice Age. Same non-nullable, defaults-to-Date treatment, same
+    /// backfill.</remarks>
+    public DateOnly DueDate { get; private set; }
+
     public string? Reference { get; private set; }
     public string? SupplierInvoiceReference { get; private set; }
     public bool IsImport { get; private set; }
@@ -133,7 +141,8 @@ public sealed class PurchaseBill
         decimal tdsAmount,
         DocumentType? referrerType,
         Guid? referrerId,
-        decimal discountPct = 0)
+        decimal discountPct = 0,
+        DateOnly? dueDate = null)
     {
         EnsureValidDiscountPct(discountPct);
 
@@ -145,6 +154,7 @@ public sealed class PurchaseBill
             WarehouseId = warehouseId,
             Code = DraftCode,
             Date = date,
+            DueDate = dueDate ?? date,
             Reference = reference,
             SupplierInvoiceReference = supplierInvoiceReference,
             IsImport = isImport,
@@ -173,13 +183,15 @@ public sealed class PurchaseBill
         string? importDocumentNo,
         Guid? tdsTypeId,
         decimal tdsAmount,
-        decimal discountPct)
+        decimal discountPct,
+        DateOnly? dueDate = null)
     {
         EnsureDraft();
         EnsureValidDiscountPct(discountPct);
         ContactId = contactId;
         WarehouseId = warehouseId;
         Date = date;
+        DueDate = dueDate ?? date;
         Reference = reference;
         SupplierInvoiceReference = supplierInvoiceReference;
         IsImport = isImport;

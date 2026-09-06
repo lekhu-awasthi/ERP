@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Cash;
 using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Numbering;
@@ -14,7 +15,8 @@ public sealed class ApproveCashTransferCommandHandler(
     IAppDbContext db,
     IDocumentNumberGenerator numberGenerator,
     ICurrentUserService currentUser,
-    IGlPostingRule<CashTransfer> postingRule)
+    IGlPostingRule<CashTransfer> postingRule,
+    ICashBalancePolicy cashBalancePolicy)
     : IRequestHandler<ApproveCashTransferCommand, ApproveCashTransferResult>
 {
     public async Task<ApproveCashTransferResult> Handle(ApproveCashTransferCommand request, CancellationToken cancellationToken)
@@ -38,6 +40,18 @@ public sealed class ApproveCashTransferCommandHandler(
         {
             throw new ConflictException("A cash transfer's destination accounts must differ from its From account.");
         }
+
+        // Phase 31 -- NegativeCashBalanceAction. A transfer credits exactly one account, the From
+        // account, by the sum of its destination lines; the destinations are debited and cannot go
+        // negative because of it.
+        var transferStatus = await cashBalancePolicy.CheckAsync(
+            request.OrganizationId,
+            [new CashOutflow(
+                cashTransfer.FromAccountId,
+                ExchangeRates.ToBase(cashTransfer.Lines.Sum(x => x.Amount), cashTransfer.ExchangeRate))],
+            cancellationToken);
+
+        CashBalanceGuard.Enforce(transferStatus, request.OverrideNegativeCashBalanceWarning, "cash transfer");
 
         var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.CashTransfer, cancellationToken);
 

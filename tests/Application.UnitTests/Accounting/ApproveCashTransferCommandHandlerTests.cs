@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Cash;
 using ErpApp.Application.Accounting;
 using ErpApp.Application.Accounting.Commands.ApproveCashTransfer;
 using ErpApp.Application.Accounting.Commands.CreateCashTransfer;
@@ -23,7 +24,7 @@ public class ApproveCashTransferCommandHandlerTests
                 [new CashTransferLineInput(salesAccountId, 400m)]),
             CancellationToken.None);
         var handler = new ApproveCashTransferCommandHandler(
-            db, new FakeDocumentNumberGenerator(), new FakeCurrentUserService(Guid.NewGuid()), new CashTransferPostingRule());
+            db, new FakeDocumentNumberGenerator(), new FakeCurrentUserService(Guid.NewGuid()), new CashTransferPostingRule(), new GlCashBalancePolicy(db));
 
         var result = await handler.Handle(new ApproveCashTransferCommand(organizationId, created.Id), CancellationToken.None);
 
@@ -45,7 +46,7 @@ public class ApproveCashTransferCommandHandlerTests
             new CreateCashTransferCommand(organizationId, new DateOnly(2026, 1, 1), null, cashAccountId, []),
             CancellationToken.None);
         var handler = new ApproveCashTransferCommandHandler(
-            db, new FakeDocumentNumberGenerator(), new FakeCurrentUserService(Guid.NewGuid()), new CashTransferPostingRule());
+            db, new FakeDocumentNumberGenerator(), new FakeCurrentUserService(Guid.NewGuid()), new CashTransferPostingRule(), new GlCashBalancePolicy(db));
 
         await Assert.ThrowsAsync<ConflictException>(() => handler.Handle(
             new ApproveCashTransferCommand(organizationId, created.Id), CancellationToken.None));

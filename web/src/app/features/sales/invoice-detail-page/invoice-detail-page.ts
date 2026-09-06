@@ -2,10 +2,12 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ConfigurationService } from '../../../core/configuration/configuration.service';
+import { CreditTerm } from '../../../core/configuration/configuration.models';
 import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
 import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
 
-import { extractErrorMessage } from '../../../core/auth/api-error';
+import { extractErrorMessage, extractWarningKind } from '../../../core/auth/api-error';
 import { SalesService } from '../../../core/sales/sales.service';
 import { DocumentType, InvoiceDetail, InvoiceLineInput } from '../../../core/sales/sales.models';
 import { ContactsService } from '../../../core/contacts/contacts.service';
@@ -59,6 +61,7 @@ export class InvoiceDetailPage {
   private readonly salesService = inject(SalesService);
   private readonly contactsService = inject(ContactsService);
   private readonly catalogService = inject(CatalogService);
+  private readonly configurationService = inject(ConfigurationService);
   private readonly accountingService = inject(AccountingService);
   private readonly organizationsService = inject(OrganizationsService);
   private readonly pendingTemplateStore = inject(PendingTemplateStore);
@@ -80,6 +83,10 @@ export class InvoiceDetailPage {
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly invoice = signal<InvoiceDetail | null>(null);
   protected readonly customers = signal<Contact[]>([]);
+
+  /** Phase 31 -- the tenant's credit terms, read once so picking a customer can prefill Due Date
+   *  without a round trip. Empty on failure; the Due Date simply stays at the document date. */
+  protected readonly creditTerms = signal<CreditTerm[]>([]);
   protected readonly products = signal<Product[]>([]);
   protected readonly accounts = signal<Account[]>([]);
   protected readonly warehouses = signal<Warehouse[]>([]);
@@ -92,6 +99,13 @@ export class InvoiceDetailPage {
   protected readonly contactId = signal('');
   protected readonly warehouseId = signal('');
   protected readonly date = signal(this.today());
+
+  /**
+   * Phase 31 -- the stored Due Date. Kept as its own signal beside `date` rather than derived from
+   * it: the reference form defaults it to the document date and then lets the user move it freely,
+   * and Invoice Age shows real divergence, so it is a value, not a formula.
+   */
+  protected readonly dueDate = signal(this.today());
   protected readonly reference = signal('');
   protected readonly terms = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
@@ -157,6 +171,10 @@ export class InvoiceDetailPage {
     this.catalogService.listAllProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
     this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
     this.organizationsService.listWarehouses(this.organizationId).subscribe({ next: (w) => this.warehouses.set(w) });
+    this.configurationService.listCreditTerms(this.organizationId).subscribe({
+      next: (terms) => this.creditTerms.set(terms),
+      error: () => this.creditTerms.set([]),
+    });
 
     this.route.paramMap.subscribe((params) => {
       this.routeInvoiceId = params.get('invoiceId')!;
@@ -173,6 +191,7 @@ export class InvoiceDetailPage {
         if (template) {
           this.contactId.set(template.contactId);
           this.date.set(template.date);
+          this.dueDate.set(template.date);
           this.reference.set(template.reference ?? '');
           this.referrerType = template.referrerType;
           this.referrerId = template.referrerId;
@@ -185,6 +204,7 @@ export class InvoiceDetailPage {
         } else {
           this.contactId.set('');
           this.date.set(this.today());
+          this.dueDate.set(this.today());
           this.reference.set('');
         this.currencyCode.set(BASE_CURRENCY_CODE);
         this.exchangeRate.set(1);
@@ -230,7 +250,10 @@ export class InvoiceDetailPage {
       next: (prefill) => {
         this.inboxPrefill.set(prefill);
         if (prefill.contactId) this.contactId.set(prefill.contactId);
-        if (prefill.date) this.date.set(prefill.date);
+        if (prefill.date) {
+          this.date.set(prefill.date);
+          this.dueDate.set(prefill.date);
+        }
         if (prefill.reference) this.reference.set(prefill.reference);
 
         const lines = prefill.lines
@@ -295,10 +318,56 @@ export class InvoiceDetailPage {
     return account ? `${account.code} — ${account.name}` : '—';
   }
 
+  /**
+   * Phase 31 -- the rate now comes from the server, because which rate to suggest is a tenant
+   * setting (SuggestSellingPriceMode: the most recent approved sale, or the product's own price) and
+   * how to read the product's own price is a second one (ProductPriceBasis). Reading
+   * `product.sellingPrice` here was silently the Fixed + Exclusive branch of both.
+   *
+   * The product's own price is applied immediately so the line never sits blank while the call is in
+   * flight, then corrected when the answer arrives; a failed call leaves that fallback in place
+   * rather than blocking the line.
+   */
+  /**
+   * Phase 31 -- picking a customer prefills Due Date from their Credit Term, which is the *only*
+   * thing a credit term does. Confirmed live 2026-09-06: the reference Invoice form has no Credit
+   * Terms field of its own and its Due Date is freely editable afterwards, so this is a seed, not a
+   * binding. A customer with no term leaves the date alone.
+   */
+  protected onContactChange(contactId: string): void {
+    this.contactId.set(contactId);
+
+    const contact = this.customers().find((c) => c.id === contactId);
+    const term = contact?.creditTermId
+      ? this.creditTerms().find((t) => t.id === contact.creditTermId)
+      : undefined;
+
+    if (!term) {
+      return;
+    }
+
+    const from = new Date(`${this.date()}T00:00:00`);
+    if (Number.isNaN(from.getTime())) {
+      return;
+    }
+
+    from.setDate(from.getDate() + term.dueDays);
+    this.dueDate.set(from.toISOString().slice(0, 10));
+  }
+
   protected onProductChange(key: number, event: Event): void {
     const productId = (event.target as HTMLSelectElement).value;
     const product = this.products().find((p) => p.id === productId);
     this.updateLine(key, { productId, rate: product?.sellingPrice ?? 0, vatRate: product?.vatRate ?? 'NoVat' });
+
+    if (!productId) {
+      return;
+    }
+
+    this.catalogService.suggestProductRate(this.organizationId, productId).subscribe({
+      next: (suggestion) => this.updateLine(key, { rate: suggestion.rate, vatRate: suggestion.vatRate }),
+      error: () => undefined,
+    });
   }
 
   protected onQuantityChange(key: number, event: Event): void {
@@ -378,6 +447,7 @@ export class InvoiceDetailPage {
       contactId: this.contactId(),
       warehouseId: this.warehouseId(),
       date: this.date(),
+      dueDate: this.dueDate() || this.date(),
       reference: this.reference() || null,
       terms: this.terms() || null,
       referrerType: this.referrerType,
@@ -437,36 +507,50 @@ export class InvoiceDetailPage {
     }
   }
 
-  /** overrideWarning=true is only ever passed by the confirm-dialog resubmit below --
-   * architecture-spec.md §3.5's Warn-and-allow flow, avoiding a second round-trip just to ask
-   * "are you sure". A 422 means the API is showing a StockAvailabilityWarningException (a
-   * confirmable warning, not a hard block) -- distinct from every other status code, which is a
-   * real error the user can't route around by confirming. */
-  protected approve(overrideWarning = false): void {
+  /**
+   * The override flags are only ever passed by the confirm-dialog resubmit below -- the
+   * Warn-and-allow flow, avoiding a second round-trip just to ask "are you sure". A 422 is a
+   * confirmable warning, not a hard block; every other status code is a real error the user cannot
+   * route around by confirming.
+   *
+   * Phase 31: there are now two such warnings, and an invoice can trip both. The 422's warningKind
+   * says which one was raised, and only that one's flag is set on the resubmit -- so confirming the
+   * stock dialog cannot silently waive a credit-limit breach the user was never shown, and the
+   * second dialog appears on the next attempt exactly as it does in the reference product.
+   */
+  protected approve(overrideWarning = false, overrideCreditLimitWarning = false): void {
     this.approving.set(true);
     this.errorMessage.set(null);
 
-    this.salesService.approveInvoice(this.organizationId, this.routeInvoiceId, overrideWarning).subscribe({
-      next: () => {
-        this.approving.set(false);
-        this.load();
-      },
-      error: (err: unknown) => {
-        this.approving.set(false);
+    this.salesService
+      .approveInvoice(this.organizationId, this.routeInvoiceId, overrideWarning, overrideCreditLimitWarning)
+      .subscribe({
+        next: () => {
+          this.approving.set(false);
+          this.load();
+        },
+        error: (err: unknown) => {
+          this.approving.set(false);
 
-        if (err instanceof HttpErrorResponse && err.status === 422) {
-          const message = extractErrorMessage(err) ?? 'This invoice exceeds the available stock.';
-          if (window.confirm(`${message}\n\nApprove anyway?`)) {
-            this.approve(true);
+          const warningKind = extractWarningKind(err);
+          if (warningKind) {
+            const message = extractErrorMessage(err) ?? 'This invoice needs confirmation before it can be approved.';
+            if (window.confirm(`${message}
+
+Approve anyway?`)) {
+              this.approve(
+                overrideWarning || warningKind === 'StockAvailability',
+                overrideCreditLimitWarning || warningKind === 'CreditLimit',
+              );
+              return;
+            }
+            this.errorMessage.set(message);
             return;
           }
-          this.errorMessage.set(message);
-          return;
-        }
 
-        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not approve invoice. Please try again.');
-      },
-    });
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not approve invoice. Please try again.');
+        },
+      });
   }
 
   protected print(): void {
@@ -573,6 +657,7 @@ export class InvoiceDetailPage {
         this.contactId.set(invoice.contactId);
         this.warehouseId.set(invoice.warehouseId);
         this.date.set(invoice.date);
+        this.dueDate.set(invoice.dueDate);
         this.reference.set(invoice.reference ?? '');
         this.currencyCode.set(invoice.currencyCode);
         this.exchangeRate.set(invoice.exchangeRate);

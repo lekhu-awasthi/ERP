@@ -24,6 +24,15 @@ public sealed class ContactConfiguration : IEntityTypeConfiguration<Contact>
         builder.Property(x => x.Email).HasMaxLength(200);
         builder.Property(x => x.IsActive).IsRequired();
         builder.Property(x => x.OpeningBalance).HasPrecision(18, 4).IsRequired();
+
+        // Phase 31 (credit control). CreditLimit is non-nullable with a 0 default so the ADD COLUMN
+        // backfills every existing row as "no limit" -- see Contact.CreditLimit for why 0 carries
+        // that meaning rather than being a limit of zero. No .ValueGeneratedNever() needed: these
+        // are not enums, so the default-sentinel gotcha that TenantSettingsConfiguration documents
+        // does not apply.
+        builder.Property(x => x.CreditLimit).HasPrecision(18, 4).IsRequired().HasDefaultValue(0m);
+        builder.Property(x => x.AcceptsReverseTransactions).IsRequired().HasDefaultValue(false);
+
         builder.Property(x => x.CreatedAt).IsRequired();
 
         builder.HasIndex(x => new { x.OrganizationId, x.Code }).IsUnique();
@@ -31,6 +40,11 @@ public sealed class ContactConfiguration : IEntityTypeConfiguration<Contact>
         builder.HasOne<ContactGroup>()
             .WithMany()
             .HasForeignKey(x => x.GroupId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Domain.Configuration.CreditTerm>()
+            .WithMany()
+            .HasForeignKey(x => x.CreditTermId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

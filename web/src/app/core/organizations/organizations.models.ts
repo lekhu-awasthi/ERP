@@ -281,3 +281,31 @@ export interface TenantSubscription {
   irdSyncEnabled: boolean;
   features: TenantFeatureState[];
 }
+
+/**
+ * Phase 31 -- Configurations > General. Four of these five had been schema'd since phase 2 with no
+ * command, no endpoint and no screen; the fifth (negativeStockBalanceAction) was read by
+ * FifoStockAvailabilityPolicy but could never be moved off its seeded default. Live-confirmed
+ * 2026-09-06: the reference page carries exactly these five radio groups plus the two VAT account
+ * maps, which live on the Accounting Defaults screen here.
+ */
+export type SuggestSellingPriceMode = 'RecentSellingPrice' | 'FixedSellingPrice';
+export type ProductPriceBasis = 'InclusiveOfVat' | 'ExclusiveOfVat';
+export type InventoryTrackingMode = 'PhysicalMovement' | 'AccountingMovement';
+export type BalanceAction = 'Reject' | 'Warn' | 'DoNothing';
+
+export interface GeneralSettings {
+  suggestSellingPriceMode: SuggestSellingPriceMode;
+  productPriceBasis: ProductPriceBasis;
+  inventoryTrackingMode: InventoryTrackingMode;
+  negativeCashBalanceAction: BalanceAction;
+  negativeStockBalanceAction: BalanceAction;
+  creditLimitExceedsAction: BalanceAction;
+}
+
+/** Phase 31 -- the renewal 20f left out. Entitlement flags are deliberately absent: a renewal is a
+ *  billing event, not a re-negotiation of what the tenant may model. */
+export interface SetTenantSubscriptionRequest {
+  planName: string;
+  endsAt: string;
+}

@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Cash;
 using ErpApp.Application.Accounting;
 using ErpApp.Application.Accounting.Commands.ApproveJournalVoucher;
 using ErpApp.Application.Accounting.Commands.CreateAccount;
@@ -26,6 +27,7 @@ using ErpApp.Application.Sales.Commands.ApproveCreditNote;
 using ErpApp.Application.Sales.Commands.ApproveInvoice;
 using ErpApp.Application.Sales.Commands.CreateCreditNote;
 using ErpApp.Application.Sales.Commands.CreateInvoice;
+using ErpApp.Application.Sales.Credit;
 using ErpApp.Application.Sales.Posting;
 using ErpApp.Application.Sales.Stock;
 using ErpApp.Application.Tenancy.Commands.CreateWarehouse;
@@ -171,7 +173,7 @@ internal sealed record TradeReportSeed(
         var stock = new StockLedgerService(db);
         var approved = await new ApproveInvoiceCommandHandler(
                 db, this.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new InvoicePostingRule(),
-                new FifoStockAvailabilityPolicy(db, stock), stock)
+                new FifoStockAvailabilityPolicy(db, stock), stock, new ContactCreditLimitPolicy(db))
             .Handle(new ApproveInvoiceCommand(this.OrganizationId, created.Id, OverrideWarning: false), CancellationToken.None);
 
         return (approved.Id, approved.Code);
@@ -188,7 +190,7 @@ internal sealed record TradeReportSeed(
         var stock = new StockLedgerService(db);
         var approved = await new ApproveInvoiceCommandHandler(
                 db, this.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new InvoicePostingRule(),
-                new FifoStockAvailabilityPolicy(db, stock), stock)
+                new FifoStockAvailabilityPolicy(db, stock), stock, new ContactCreditLimitPolicy(db))
             .Handle(new ApproveInvoiceCommand(this.OrganizationId, created.Id, OverrideWarning: false), CancellationToken.None);
 
         return (approved.Id, approved.Code);
@@ -272,7 +274,7 @@ internal sealed record TradeReportSeed(
             CancellationToken.None);
 
         var approved = await new ApproveJournalVoucherCommandHandler(
-                db, this.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule())
+                db, this.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApproveJournalVoucherCommand(this.OrganizationId, created.Id), CancellationToken.None);
 
         return (approved.Id, approved.Code);
@@ -290,7 +292,7 @@ internal sealed record TradeReportSeed(
             CancellationToken.None);
 
         var approved = await new ApprovePaymentCommandHandler(
-                db, this.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new PaymentPostingRule())
+                db, this.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new PaymentPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApprovePaymentCommand(this.OrganizationId, created.Id), CancellationToken.None);
 
         return (approved.Id, approved.Code);

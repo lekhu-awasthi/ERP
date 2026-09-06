@@ -1,4 +1,4 @@
-﻿import { Routes } from '@angular/router';
+import { Routes } from '@angular/router';
 
 import { authGuard } from './core/auth/auth.guard';
 import { featureGuard } from './core/organizations/feature.guard';
@@ -73,6 +73,14 @@ export const routes: Routes = [
     path: 'organizations/:id/configuration',
     loadComponent: () =>
       import('./features/configuration/configuration-shell/configuration-shell').then((m) => m.ConfigurationShell),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/configuration/general',
+    loadComponent: () =>
+      import('./features/configuration/general-settings-page/general-settings-page').then(
+        (m) => m.GeneralSettingsPage,
+      ),
     canActivate: [authGuard],
   },
   {

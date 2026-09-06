@@ -46,6 +46,13 @@ export interface Contact {
   groupId: string | null;
   isActive: boolean;
   openingBalance: number;
+  /** Phase 31 -- the live "+ Add More Details" block. 0 means "no limit", not "a limit of zero";
+   *  creditTermId only prefills a document's Due Date; acceptsReverseTransactions is one field the
+   *  live form labels "Accept Purchase" on a Customer and "Accept Sales" on a Supplier. A Lead
+   *  carries none of the three. */
+  creditLimit: number;
+  creditTermId: string | null;
+  acceptsReverseTransactions: boolean;
   createdAt: string;
 }
 
@@ -58,6 +65,13 @@ export interface CreateContactRequest {
   email: string | null;
   groupId: string | null;
   openingBalance: number;
+  /** Phase 31 -- the live "+ Add More Details" block. 0 means "no limit", not "a limit of zero";
+   *  creditTermId only prefills a document's Due Date; acceptsReverseTransactions is one field the
+   *  live form labels "Accept Purchase" on a Customer and "Accept Sales" on a Supplier. A Lead
+   *  carries none of the three. */
+  creditLimit: number;
+  creditTermId: string | null;
+  acceptsReverseTransactions: boolean;
 }
 
 export interface CreateContactResult {
@@ -75,6 +89,13 @@ export interface UpdateContactRequest {
   email: string | null;
   groupId: string | null;
   openingBalance: number;
+  /** Phase 31 -- the live "+ Add More Details" block. 0 means "no limit", not "a limit of zero";
+   *  creditTermId only prefills a document's Due Date; acceptsReverseTransactions is one field the
+   *  live form labels "Accept Purchase" on a Customer and "Accept Sales" on a Supplier. A Lead
+   *  carries none of the three. */
+  creditLimit: number;
+  creditTermId: string | null;
+  acceptsReverseTransactions: boolean;
 }
 
 export interface UpdateContactResult {

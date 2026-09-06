@@ -103,7 +103,8 @@ public static class ContactsEndpoints
             var result = await sender.Send(
                 new CreateContactCommand(
                     organizationId, request.Type, request.Name, request.Address, request.Pan, request.Phone,
-                    request.Email, request.GroupId, request.OpeningBalance),
+                    request.Email, request.GroupId, request.OpeningBalance,
+                    request.CreditLimit, request.CreditTermId, request.AcceptsReverseTransactions),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/contacts/{result.Id}", result);
         });
@@ -114,7 +115,8 @@ public static class ContactsEndpoints
             var result = await sender.Send(
                 new UpdateContactCommand(
                     organizationId, id, request.Name, request.Address, request.Pan, request.Phone, request.Email,
-                    request.GroupId, request.OpeningBalance),
+                    request.GroupId, request.OpeningBalance,
+                    request.CreditLimit, request.CreditTermId, request.AcceptsReverseTransactions),
                 ct);
             return Results.Ok(result);
         });
@@ -462,12 +464,18 @@ public static class ContactsEndpoints
 
     private sealed record UpdateContactGroupRequest(string Name, Guid? ParentGroupId, bool IsActive);
 
+    // Phase 31 (credit control) -- the three "+ Add More Details" fields. Trailing and optional to
+    // keep every existing caller working, but carried on the request record itself, which is the
+    // whole point of phase-27b's Terms gotcha: a trailing optional parameter added to the command
+    // alone would bind to null forever while every test still passed.
     private sealed record CreateContactRequest(
         ContactType Type, string Name, string? Address, string? Pan, string? Phone, string? Email,
-        Guid? GroupId, decimal OpeningBalance);
+        Guid? GroupId, decimal OpeningBalance,
+        decimal CreditLimit = 0m, Guid? CreditTermId = null, bool AcceptsReverseTransactions = false);
 
     private sealed record UpdateContactRequest(
-        string Name, string? Address, string? Pan, string? Phone, string? Email, Guid? GroupId, decimal OpeningBalance);
+        string Name, string? Address, string? Pan, string? Phone, string? Email, Guid? GroupId, decimal OpeningBalance,
+        decimal CreditLimit = 0m, Guid? CreditTermId = null, bool AcceptsReverseTransactions = false);
 
     private sealed record ContactPersonnelRequest(
         string Name, string? Address, string? Code, string? Phone, Guid? GroupId, string? Email, string? OrganizationTitle);

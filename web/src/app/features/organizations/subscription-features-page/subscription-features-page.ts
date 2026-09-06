@@ -5,6 +5,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { TenantSubscription } from '../../../core/organizations/organizations.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 
 /**
  * Phase 20f (FR-2.6) -- the read-only view of the tenant's plan and its opted-in Accounting
@@ -18,10 +19,15 @@ import { OrganizationsService } from '../../../core/organizations/organizations.
  * Presentation follows the reference product's own shown-but-disabled pattern rather than hiding
  * a disabled feature: each feature keeps its card and description, and a disabled one gains an
  * explanatory note. See docs/phase-20f-status.md.
+ *
+ * Phase 31 added the one control this page has: Renew. Past `trialEndsAt` the organization goes
+ * read-only for business documents (SubscriptionExpiryBehavior), so without a renewal reachable from
+ * inside the product an expired tenant would be bricked. It moves the plan name and the end date and
+ * nothing else -- the entitlement flags stay exactly as immutable as 20f made them.
  */
 @Component({
   selector: 'app-subscription-features-page',
-  imports: [RouterLink, SlicePipe],
+  imports: [RouterLink, SlicePipe, BsDateInput],
   templateUrl: './subscription-features-page.html',
 })
 export class SubscriptionFeaturesPage {
@@ -38,6 +44,41 @@ export class SubscriptionFeaturesPage {
     () => this.subscription()?.features.filter((x) => x.isEnabled).length ?? 0,
   );
 
+  protected readonly renewing = signal(false);
+  protected readonly successMessage = signal<string | null>(null);
+  protected readonly renewPlanName = signal('');
+  protected readonly renewEndsAt = signal('');
+
+  protected renew(): void {
+    const planName = this.renewPlanName().trim();
+    const endsAt = this.renewEndsAt();
+
+    if (!planName || !endsAt) {
+      this.errorMessage.set('Enter a plan name and an end date.');
+      return;
+    }
+
+    this.renewing.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    // The date input gives a local calendar day; the API stores an instant, so it is sent as the
+    // end of that day in UTC -- a subscription that "ends on the 30th" is live all through the 30th.
+    this.organizationsService
+      .setSubscription(this.organizationId, { planName, endsAt: `${endsAt}T23:59:59Z` })
+      .subscribe({
+        next: (result) => {
+          this.renewing.set(false);
+          this.subscription.set(result);
+          this.successMessage.set(`Subscription renewed on the ${result.planName} plan.`);
+        },
+        error: (err: unknown) => {
+          this.renewing.set(false);
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not renew the subscription.');
+        },
+      });
+  }
+
   constructor() {
     this.load();
   }
@@ -48,6 +89,8 @@ export class SubscriptionFeaturesPage {
     this.organizationsService.getSubscription(this.organizationId).subscribe({
       next: (result) => {
         this.subscription.set(result);
+        this.renewPlanName.set(result.planName);
+        this.renewEndsAt.set(result.trialEndsAt.slice(0, 10));
         this.loading.set(false);
       },
       error: (err: unknown) => {

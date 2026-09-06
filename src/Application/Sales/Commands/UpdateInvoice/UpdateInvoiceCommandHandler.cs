@@ -33,6 +33,7 @@ public sealed class UpdateInvoiceCommandHandler(IAppDbContext db)
         // zero-rating sees the new flag rather than the previous save's.
         invoice.UpdateHeader(
             request.ContactId, request.WarehouseId, request.Date, request.Reference, request.DiscountPct,
+            request.DueDate,
             request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate);
 
         // Phase 28 -- see the Create handler's note. Draft-only, enforced by the aggregate.

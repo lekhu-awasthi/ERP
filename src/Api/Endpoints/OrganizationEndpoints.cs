@@ -10,7 +10,9 @@ using ErpApp.Application.Tenancy.Commands.CreateWarehouse;
 using ErpApp.Application.Tenancy.Commands.DeleteRole;
 using ErpApp.Application.Tenancy.Commands.InviteUser;
 using ErpApp.Application.Tenancy.Commands.SetOrganizationLockDate;
+using ErpApp.Application.Tenancy.Commands.SetTenantSubscription;
 using ErpApp.Application.Tenancy.Commands.UpdateAccountingDefaults;
+using ErpApp.Application.Tenancy.Commands.UpdateGeneralSettings;
 using ErpApp.Application.Tenancy.Commands.UpdateMembershipRole;
 using ErpApp.Application.Tenancy.Commands.UpdateRole;
 using ErpApp.Application.Tenancy.Commands.UpdateRolePermissions;
@@ -18,6 +20,7 @@ using ErpApp.Application.Tenancy.Commands.UpdateCurrency;
 using ErpApp.Application.Tenancy.Commands.UpdateWarehouse;
 using ErpApp.Application.Tenancy.Queries.CheckWorkspaceNameAvailability;
 using ErpApp.Application.Tenancy.Queries.GetAccountingDefaults;
+using ErpApp.Application.Tenancy.Queries.GetGeneralSettings;
 using ErpApp.Application.Tenancy.Queries.ListCurrencyCatalog;
 using ErpApp.Application.Tenancy.Queries.GetOrganizationLockDate;
 using ErpApp.Application.Tenancy.Queries.GetTenantSubscription;
@@ -263,6 +266,31 @@ public static class OrganizationEndpoints
             return Results.Ok(result);
         });
 
+        // Phase 31 -- Configurations > General. The five behaviour switches on TenantSettings, four
+        // of which had been schema'd since phase 2 with no way to read or write them at all.
+        group.MapGet("/{organizationId:guid}/general-settings", async (
+            Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new GetGeneralSettingsQuery(organizationId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPut("/{organizationId:guid}/general-settings", async (
+            Guid organizationId, UpdateGeneralSettingsRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdateGeneralSettingsCommand(
+                    organizationId,
+                    request.SuggestSellingPriceMode,
+                    request.ProductPriceBasis,
+                    request.InventoryTrackingMode,
+                    request.NegativeCashBalanceAction,
+                    request.NegativeStockBalanceAction,
+                    request.CreditLimitExceedsAction),
+                ct);
+            return Results.Ok(result);
+        });
+
         // Phase 16a (lock-date enforcement) -- Admin-only view/set/clear of the LockDate seam
         // schema'd since Phase 1b.
         group.MapGet("/{organizationId:guid}/lock-date", async (
@@ -288,7 +316,28 @@ public static class OrganizationEndpoints
             var result = await sender.Send(new GetTenantSubscriptionQuery(organizationId), ct);
             return Results.Ok(result);
         });
+
+        // Phase 31 -- the renewal counterpart 20f left out, so an expired organization is not
+        // permanently read-only from inside the product. The entitlement flags stay immutable and
+        // are not on this request at all; see TenantSubscription.Renew.
+        group.MapPut("/{organizationId:guid}/subscription", async (
+            Guid organizationId, SetTenantSubscriptionRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new SetTenantSubscriptionCommand(organizationId, request.PlanName, request.EndsAt), ct);
+            return Results.Ok(result);
+        });
     }
+
+    private sealed record SetTenantSubscriptionRequest(string PlanName, DateTimeOffset EndsAt);
+
+    private sealed record UpdateGeneralSettingsRequest(
+        SuggestSellingPriceMode SuggestSellingPriceMode,
+        ProductPriceBasis ProductPriceBasis,
+        InventoryTrackingMode InventoryTrackingMode,
+        BalanceAction NegativeCashBalanceAction,
+        BalanceAction NegativeStockBalanceAction,
+        BalanceAction CreditLimitExceedsAction);
 
     private sealed record CreateWarehouseRequest(string Name);
 

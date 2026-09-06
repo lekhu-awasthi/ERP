@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Cash;
 using ErpApp.Application.Accounting;
 using ErpApp.Application.Accounting.Commands.ApproveJournalVoucher;
 using ErpApp.Application.Accounting.Commands.CreateAccount;
@@ -159,7 +160,7 @@ public class CashFlowSummaryQueryHandlerTests
             CancellationToken.None);
 
         var approved = await new ApprovePaymentCommandHandler(
-            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new PaymentPostingRule())
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new PaymentPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApprovePaymentCommand(seed.OrganizationId, created.Id), CancellationToken.None);
 
         return (approved.Id, approved.Code);
@@ -184,7 +185,7 @@ public class CashFlowSummaryQueryHandlerTests
             new CreateJournalVoucherCommand(seed.OrganizationId, date, null, lines), CancellationToken.None);
 
         var approved = await new ApproveJournalVoucherCommandHandler(
-            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule())
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApproveJournalVoucherCommand(seed.OrganizationId, created.Id), CancellationToken.None);
 
         return (approved.Id, approved.Code);

@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Cash;
 using ErpApp.Application.Accounting;
 using ErpApp.Application.Accounting.Commands.ApproveJournalVoucher;
 using ErpApp.Application.Accounting.Commands.CreateAccount;
@@ -15,6 +16,7 @@ using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Sales;
 using ErpApp.Application.Sales.Commands.ApproveInvoice;
 using ErpApp.Application.Sales.Commands.CreateInvoice;
+using ErpApp.Application.Sales.Credit;
 using ErpApp.Application.Sales.Posting;
 using ErpApp.Application.Sales.Stock;
 using ErpApp.Application.Tenancy.Commands.CreateWarehouse;
@@ -100,7 +102,7 @@ public class RatioAnalysisQueryHandlerTests
                 [new JournalVoucherLineInput(cash.Id, 10000m, 0), new JournalVoucherLineInput(capital.Id, 0, 10000m)]),
             CancellationToken.None);
         await new ApproveJournalVoucherCommandHandler(
-            db, numberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule())
+            db, numberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApproveJournalVoucherCommand(organizationId, jv1.Id), CancellationToken.None);
 
         // 2,000 Rent on credit -> Accounts Payable.
@@ -110,7 +112,7 @@ public class RatioAnalysisQueryHandlerTests
                 [new JournalVoucherLineInput(rent.Id, 2000m, 0), new JournalVoucherLineInput(ap.Id, 0, 2000m)]),
             CancellationToken.None);
         await new ApproveJournalVoucherCommandHandler(
-            db, numberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule())
+            db, numberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApproveJournalVoucherCommand(organizationId, jv2.Id), CancellationToken.None);
 
         // A 3,000 Service Invoice -- no COGS (a Service line never gets a CogsUnitCost).
@@ -122,7 +124,7 @@ public class RatioAnalysisQueryHandlerTests
         var stockLedgerService = new StockLedgerService(db);
         await new ApproveInvoiceCommandHandler(
             db, numberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new InvoicePostingRule(),
-            new FifoStockAvailabilityPolicy(db, stockLedgerService), stockLedgerService)
+            new FifoStockAvailabilityPolicy(db, stockLedgerService), stockLedgerService, new ContactCreditLimitPolicy(db))
             .Handle(new ApproveInvoiceCommand(organizationId, invoice.Id, OverrideWarning: false), CancellationToken.None);
 
         var handler = new RatioAnalysisQueryHandler(db, new AccountGroupTreeQuery(db));

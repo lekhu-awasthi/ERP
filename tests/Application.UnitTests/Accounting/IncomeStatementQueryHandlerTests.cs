@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Cash;
 using ErpApp.Application.Accounting;
 using ErpApp.Application.Accounting.Commands.ApproveJournalVoucher;
 using ErpApp.Application.Accounting.Commands.CreateAccount;
@@ -18,6 +19,7 @@ using ErpApp.Application.Purchasing.Posting;
 using ErpApp.Application.Sales;
 using ErpApp.Application.Sales.Commands.ApproveInvoice;
 using ErpApp.Application.Sales.Commands.CreateInvoice;
+using ErpApp.Application.Sales.Credit;
 using ErpApp.Application.Sales.Posting;
 using ErpApp.Application.Sales.Stock;
 using ErpApp.Application.Tenancy.Commands.CreateWarehouse;
@@ -115,7 +117,7 @@ public class IncomeStatementQueryHandlerTests
             CancellationToken.None);
         await new ApproveInvoiceCommandHandler(
             db, numberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new InvoicePostingRule(),
-            new FifoStockAvailabilityPolicy(db, stockLedgerService), stockLedgerService)
+            new FifoStockAvailabilityPolicy(db, stockLedgerService), stockLedgerService, new ContactCreditLimitPolicy(db))
             .Handle(new ApproveInvoiceCommand(organizationId, invoice.Id, OverrideWarning: false), CancellationToken.None);
 
         var handler = new IncomeStatementQueryHandler(db);
@@ -216,7 +218,7 @@ public class IncomeStatementQueryHandlerTests
             CancellationToken.None);
 
         await new ApproveJournalVoucherCommandHandler(
-            db, new FakeDocumentNumberGenerator(), new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule())
+            db, new FakeDocumentNumberGenerator(), new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApproveJournalVoucherCommand(organizationId, created.Id), CancellationToken.None);
     }
 }

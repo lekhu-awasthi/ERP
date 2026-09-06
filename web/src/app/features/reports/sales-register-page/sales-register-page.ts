@@ -43,6 +43,13 @@ export class SalesRegisterPage {
   protected readonly fromDate = signal(this.firstOfMonth());
   protected readonly toDate = signal(this.today());
   protected readonly contactId = signal('');
+
+  /**
+   * Phase 31 -- the live "Include Credit Note In Calculation" view option, which phase 26c recorded
+   * as inert and which is not: clearing it on the reference tenant took this register from 19 rows
+   * to 8 and re-totalled it. Defaults on, the live default.
+   */
+  protected readonly includeCreditNotes = signal(true);
   protected readonly selectedTagOptionIds = signal<string[]>([]);
 
   protected readonly page = signal(1);
@@ -109,12 +116,18 @@ export class SalesRegisterPage {
     this.runExport(true, 1, this.pageSize());
   }
 
+  protected toggleIncludeCreditNotes(include: boolean): void {
+    this.includeCreditNotes.set(include);
+    this.page.set(1);
+    this.load();
+  }
+
   private runExport(full: boolean, page: number, pageSize: number): void {
     this.exporting.set(true);
     this.salesService
       .exportSalesRegister(
         this.organizationId, this.fromDate(), this.toDate(), this.contactId() || null,
-        this.selectedTagOptionIds(), full, page, pageSize,
+        this.selectedTagOptionIds(), full, page, pageSize, this.includeCreditNotes(),
       )
       .subscribe({
         next: (blob) => {
@@ -135,7 +148,7 @@ export class SalesRegisterPage {
     this.salesService
       .getSalesRegister(
         this.organizationId, this.fromDate(), this.toDate(), this.contactId() || null,
-        this.selectedTagOptionIds(), this.page(), this.pageSize(),
+        this.selectedTagOptionIds(), this.page(), this.pageSize(), this.includeCreditNotes(),
       )
       .subscribe({
         next: (report) => {

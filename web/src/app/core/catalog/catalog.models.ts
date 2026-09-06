@@ -285,3 +285,14 @@ export interface GenerateProductVariantsResult {
   skippedExisting: number;
   created: ProductVariant[];
 }
+
+/**
+ * Phase 31 -- the suggested line rate for one product. `rate` is always VAT-exclusive: stored line
+ * amounts never change with the Product Price Basis setting, only how the product's own price is
+ * read does. `source` says which branch produced it.
+ */
+export interface SuggestedProductRate {
+  rate: number;
+  vatRate: VatRate;
+  source: 'ProductSellingPrice' | 'RecentSale';
+}

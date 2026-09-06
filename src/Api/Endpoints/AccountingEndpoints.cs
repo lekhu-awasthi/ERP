@@ -1,4 +1,4 @@
-﻿using ErpApp.Api.Reports;
+using ErpApp.Api.Reports;
 using ErpApp.Application.Accounting.Commands.ApproveCashTransfer;
 using ErpApp.Application.Accounting.Commands.ApproveJournalVoucher;
 using ErpApp.Application.Accounting.Commands.CreateAccount;
@@ -176,10 +176,16 @@ public static class AccountingEndpoints
             return Results.Ok(result);
         });
 
+        // Phase 31 -- the Negative Cash Balance warning is confirmable, so the approve endpoint now
+        // takes an optional body carrying the acknowledgement. Nullable request so every existing
+        // caller that posts no body at all keeps working.
         group.MapPost("/journal-vouchers/{id:guid}/approve", async (
-            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+            Guid organizationId, Guid id, ApproveWithCashOverrideRequest? request, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ApproveJournalVoucherCommand(organizationId, id), ct);
+            var result = await sender.Send(
+                new ApproveJournalVoucherCommand(
+                    organizationId, id, request?.OverrideNegativeCashBalanceWarning ?? false),
+                ct);
             return Results.Ok(result);
         });
 
@@ -235,9 +241,12 @@ public static class AccountingEndpoints
         });
 
         group.MapPost("/cash-transfers/{id:guid}/approve", async (
-            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+            Guid organizationId, Guid id, ApproveWithCashOverrideRequest? request, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new ApproveCashTransferCommand(organizationId, id), ct);
+            var result = await sender.Send(
+                new ApproveCashTransferCommand(
+                    organizationId, id, request?.OverrideNegativeCashBalanceWarning ?? false),
+                ct);
             return Results.Ok(result);
         });
 
@@ -460,6 +469,10 @@ public static class AccountingEndpoints
             return ReportSpreadsheetExporter.ExportVatSummaryReport(result);
         });
     }
+
+    // Phase 31 -- the Warn-and-allow acknowledgement for TenantSettings.NegativeCashBalanceAction.
+    // Carried on the request record, not only on the command (phase-27b's Terms gotcha).
+    private sealed record ApproveWithCashOverrideRequest(bool OverrideNegativeCashBalanceWarning = false);
 
     private sealed record CreateAccountGroupRequest(string Name, AccountRootType RootType, Guid? ParentGroupId);
 

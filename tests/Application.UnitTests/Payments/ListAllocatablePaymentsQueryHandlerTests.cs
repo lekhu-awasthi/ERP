@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Cash;
 using ErpApp.Application.Accounting;
 using ErpApp.Application.Accounting.Commands.ApproveJournalVoucher;
 using ErpApp.Application.Accounting.Commands.CreateAccount;
@@ -35,7 +36,7 @@ public class ListAllocatablePaymentsQueryHandlerTests
                 seed.OrganizationId, seed.CustomerId, PaymentDirection.Received, new DateOnly(2026, 1, 1), null,
                 seed.CashAccountId, 500m, null, []),
             CancellationToken.None);
-        await new ApprovePaymentCommandHandler(db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new PaymentPostingRule())
+        await new ApprovePaymentCommandHandler(db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new PaymentPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApprovePaymentCommand(seed.OrganizationId, created.Id), CancellationToken.None);
 
         var result = await new ListAllocatablePaymentsQueryHandler(db).Handle(
@@ -61,7 +62,7 @@ public class ListAllocatablePaymentsQueryHandlerTests
                 ]),
             CancellationToken.None);
         await new ApproveJournalVoucherCommandHandler(
-            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule())
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApproveJournalVoucherCommand(seed.OrganizationId, created.Id), CancellationToken.None);
 
         var result = await new ListAllocatablePaymentsQueryHandler(db).Handle(
@@ -87,7 +88,7 @@ public class ListAllocatablePaymentsQueryHandlerTests
                 ]),
             CancellationToken.None);
         await new ApproveJournalVoucherCommandHandler(
-            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule())
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApproveJournalVoucherCommand(seed.OrganizationId, created.Id), CancellationToken.None);
 
         // A Customer-tagged line shouldn't surface on the Supplier (Paid/AP) Allocate screen.
@@ -111,7 +112,7 @@ public class ListAllocatablePaymentsQueryHandlerTests
                 ]),
             CancellationToken.None);
         await new ApproveJournalVoucherCommandHandler(
-            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule())
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApproveJournalVoucherCommand(seed.OrganizationId, created.Id), CancellationToken.None);
 
         // CreditNote isn't existence-checked by EnsureAllocationTargetsExistAsync (only

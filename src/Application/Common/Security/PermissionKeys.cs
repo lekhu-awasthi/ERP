@@ -1,4 +1,4 @@
-﻿namespace ErpApp.Application.Common.Security;
+namespace ErpApp.Application.Common.Security;
 
 /// <summary>
 /// Stable permission-key catalog (architecture-spec.md §3.7's "PermissionKey a stable string"),
@@ -874,4 +874,25 @@ public static class PermissionKeys
     // DiscountPct was in 16b.
     public const string CurrencyView = "Tenancy.Currency.View";
     public const string CurrencyManage = "Tenancy.Currency.Manage";
+
+    // Phase 31 (credit control and the dead settings). ONE key, not a View/Manage pair, and
+    // deliberately: this follows AccountingDefaultsManage exactly, because it is the same kind of
+    // thing -- a tenant-wide accounting-policy switchboard with exactly one screen behind it, whose
+    // values are read by handlers (FifoStockAvailabilityPolicy, CreditLimitPolicy,
+    // CashBalancePolicy, ProductPriceSuggester) and never by a caller who needs a View grant. A
+    // Member has no use for reading "Negative Cash Balance = Reject"; they experience it as a 409.
+    // Splitting it would have created a View key that nothing ever checks.
+    //
+    // Admin-only. Every one of these five settings changes how *every* document in the tenant
+    // behaves at Approve -- one radio click can turn a hard stop into a silent allow across the
+    // whole organization. That is the flat-per-tenant-control-plane end of the derivation rule, the
+    // same bar as LockDate and AiDocumentExtractionManage, not the routine-working-data end.
+    public const string GeneralSettingsManage = "Configuration.GeneralSettings.Manage";
+
+    // Phase 31 -- the TenantSubscription mutator phase 20f deliberately left out. Admin-only for
+    // the obvious reason: it is the control that decides whether this organization is read-only,
+    // so a Member holding it could lift their own tenant's expiry. It is also the one command
+    // SubscriptionExpiryBehavior must let through after expiry, or an expired tenant could never
+    // renew itself -- see that behavior's doc comment.
+    public const string SubscriptionManage = "Tenancy.Subscription.Manage";
 }

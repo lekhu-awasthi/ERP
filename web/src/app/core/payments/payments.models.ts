@@ -121,6 +121,9 @@ export interface ChequeDashboardSummaryDto {
 export interface TransitionChequeStatusResult {
   id: string;
   status: ChequeStatus;
+  /** Phase 31 -- the Payment this transition voided, or null when it voided none. A bounce unwinds
+   *  the receipt or payment the cheque settled; every other transition leaves it alone. */
+  voidedPaymentCode: string | null;
 }
 
 // --- Phase 17: Allocate Customer/Supplier Payment ---

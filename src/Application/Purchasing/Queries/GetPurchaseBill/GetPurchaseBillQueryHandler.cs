@@ -36,6 +36,7 @@ public sealed class GetPurchaseBillQueryHandler(IAppDbContext db) : IRequestHand
             purchaseBill.WarehouseId,
             purchaseBill.Code,
             purchaseBill.Date,
+            purchaseBill.DueDate,
             purchaseBill.Reference,
             purchaseBill.SupplierInvoiceReference,
             purchaseBill.IsImport,

@@ -25,8 +25,21 @@ public sealed class UpdateContactCommandHandler(IAppDbContext db)
             }
         }
 
+
+        if (request.CreditTermId is { } creditTermId)
+        {
+            var creditTermExists = await db.CreditTerms.AnyAsync(
+                x => x.Id == creditTermId && x.OrganizationId == request.OrganizationId, cancellationToken);
+
+            if (!creditTermExists)
+            {
+                throw new NotFoundException("Credit term not found.");
+            }
+        }
+
         contact.Update(
-            request.Name, request.Address, request.Pan, request.Phone, request.Email, request.GroupId, request.OpeningBalance);
+            request.Name, request.Address, request.Pan, request.Phone, request.Email, request.GroupId,
+            request.OpeningBalance, request.CreditLimit, request.CreditTermId, request.AcceptsReverseTransactions);
         await db.SaveChangesAsync(cancellationToken);
 
         return new UpdateContactResult(contact.Id, contact.Name);

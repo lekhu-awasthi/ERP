@@ -25,7 +25,12 @@ public sealed record CreateInvoiceCommand(
     DateOnly? ExportDeclarationDate = null,
     // Phase 27b -- the "+ Add Terms and Conditions" block's text, pre-filled client-side from a
     // CustomTemplate and editable from there. Optional and trailing so no existing caller changes.
-    string? Terms = null)
+    string? Terms = null,
+    // Phase 31 -- the stored Due Date. Optional and trailing: null means "the document's own
+    // date", which is both the live form's default and the exact backfill applied to every
+    // pre-phase-31 row, so an unaware caller behaves identically to before. Carried on the Api's
+    // request record too (phase-27b's Terms gotcha).
+    DateOnly? DueDate = null)
     : IRequest<CreateInvoiceResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequest, ICurrencyBearingCommand
 {
     public string PermissionKey => PermissionKeys.InvoiceCreate;

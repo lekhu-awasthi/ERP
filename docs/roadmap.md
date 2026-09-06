@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–29)
+## Completed phases (0–31)
 
 Detail lives in each phase's own status doc — this table is the index, not the history.
 
@@ -59,6 +59,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 28 | Multi-currency (FR-2.5, NFR-1.3): a tenant `Currency` list seeded from a fixed catalog with NPR always present, `CurrencyCode` + `ExchangeRate` on 12 document types, the base-currency fold on each posting rule's **inputs** (so `GlLine` and every phase-8/19/26 report needed zero edits), two forex accounts and a realised-difference rule on Payment allocation. The entitlement is a **cap on the currency list**, not a gate on documents | `phase-28-status.md` |
 | 29 | Landed cost (FR-6.15, Cost Terms' other half): an Additional Cost section on the Purchase Bill (Cost Term x Product x Method x Amount, plus the product-wise matrix), allocated at Approve by Value or Quantity across the bill's **goods** lines and capitalised into the received FIFO layers' unit cost — conservation law proven in SQL, residue named. The reference product posts no GL at all (it is periodic); we post Debit Inventory / Credit a new Landed Cost Clearing account, on phase-25 Decision A's argument. Debit Note gained a release leg | `phase-29-status.md` |
 | 30 | Communications (FR-11.1, FR-4.5's Email Logs): a **Send Email** dialog on 6 document types and the Contact detail page, an Email Logs tab with data behind it, an Email Templates config page, and `AlertMedium.Sms`. Confirm-live corrected the scope three times — Send Email is on 6 of 15 types, not the statement report but yes the Contact page, and email templates are **their own aggregate**, not a `CustomTemplateType` (that member is deleted). Sends go through a claim-then-act ledger and a fourth background job; idempotency is a client-minted request id, so a double-click is one email and a reopened dialog is a new row | `phase-30-status.md` |
+| 31 | Credit control, dead settings, and the small carried items: `Contact.CreditLimit`/`CreditTermId`/`AcceptsReverseTransactions`, a **Credit Limit Exceeds** policy enforced at Invoice Approve, and a **Configurations > General** screen that makes all five behaviour settings reachable for the first time — four of them had no command, no endpoint and no screen at all. Plus **Negative Cash Balance** enforced on the three documents that can take money out, **Suggest Selling Price / Product Price Basis** decided server-side at the line picker, a **stored Due Date** on Invoice and Purchase Bill (closing 26b's carried item, 30's `$[DUE_DATE]$` and 26b's ageing follow-up), a **bounced cheque** that voids the payment it settled, subscription expiry as read-only-for-documents plus the renewal that lifts it, and the **Include Credit Note In Calculation** toggle — which the confirm-live pass showed 26c had wrongly recorded as inert | `phase-31-status.md` |
 
 ---
 
@@ -238,21 +239,27 @@ three times, so the original text is kept below struck through rather than silen
   tab now has data behind phase 27b's pager, and every send goes through a claim-then-act ledger
   where a resend is a new row.
 
-### 31. Credit control, dead settings, and the small carried items
-- **Credit control (live, missed by the scan):** `Contact.CreditLimit` and `CreditTermId` (the
-  New Contact modal's "Add More Details" block, alongside an **Accept Purchase** toggle and Email),
-  plus a tenant policy **Credit Limit Exceeds = Reject / Warn / Do Nothing** on Configurations >
-  General, applied at Invoice Approve against the customer's ledger balance — the same
-  `BalanceAction` shape phase-7 built for stock, so reuse the Warn-and-override flow.
-- **Enforce the three dead `TenantSettings`:** Suggest Selling Price (recent vs fixed, on the line
-  picker), Product Price Basis (VAT-inclusive rates — a display and back-calculation rule, stored
-  amounts stay exclusive), Negative Cash Balance (mirror of the stock policy, on any document
-  crediting a Bank/Cash account); and `TrialEndsAt` (read-only past expiry, plus the
-  `TenantSubscription` mutator 20f deliberately left out; live: the Subscriptions screen shows
-  "will expire in N days").
-- Cheque **Bounced** reverses the receipt's GL via `PostReversalOf` (Phase 17 recorded "no automatic
-  reversal" as a gap); import for Account / Product Category / Account Group / Contact Personnel and
-  for variants (21a and 24's deferred lists); export date range and extra categories (21b).
+### 31. Credit control, dead settings, and the small carried items — **DONE** (see `docs/phase-31-status.md`)
+- Shipped: `Contact.CreditLimit` (0 = no limit) / `CreditTermId` / `AcceptsReverseTransactions` (one
+  field, labelled "Accept Purchase" on a Customer and "Accept Sales" on a Supplier; a Lead carries
+  none of the three), a tenant **Credit Limit Exceeds** policy enforced **at Invoice Approve** against
+  the customer's `ContactLedgerReader` balance, and the **Configurations > General** screen the other
+  four settings needed to exist at all.
+- **Negative Cash Balance** on Payment / CashTransfer / JournalVoucher Approve; **Suggest Selling
+  Price** and **Product Price Basis** decided server-side at the line picker, mirroring the reference
+  product's own `get_recent_selling_price` call; **`TrialEndsAt`** as read-only-for-documents via a
+  fifth pipeline behavior reusing the lock-date markers, plus the `TenantSubscription` mutator 20f
+  left out.
+- Carried items closed: **Cheque Bounced** now voids the payment it settled and reverses its GL entry
+  (phase-17 decision #4); a **stored `DueDate`** on Invoice and PurchaseBill, which also closed
+  26b's carried item, 30's `$[DUE_DATE]$` and 26b's ageing follow-up #4; and the **Include Credit
+  Note In Calculation** toggle, which the confirm-live pass proved is *not* inert (19 rows to 8 on the
+  live tenant), correcting phase 26c.
+- **Deliberately not taken** (agreed with the user, recorded rather than omitted): import for
+  Account / Product Category / Account Group / Contact Personnel and for variants (21a and 24's
+  deferred lists), export date range and extra categories (21b), and the newly-found **Group By
+  Bill** toggle on the Sales Register. Negative Item Balance's Warn/DoNothing branches stay
+  fictional — making them real is a Domain invariant change (negative FIFO layers), not a setting.
 
 ### 32. Billing Locations (FR-2.3, FR-3.3) — not observable on the UAT tenant
 - Live: `Organization > Features` shows Billing Location **Disabled** with "reach out to Tigg

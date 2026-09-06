@@ -555,3 +555,58 @@ was created, saved or submitted.
   for both products despite a 20:1 value ratio and a 2:1 quantity ratio, which no Value or Quantity
   allocation could produce. So no live example of the Method-based allocation exists to check the
   formula against; pro-rata by line value / by line quantity is taken as read.
+
+### Appendix, 2026-09-06 — credit control and the three-way settings confirm-live pass (phase 31)
+
+Read on the Moonbeam UAT tenant. Unlike every prior appendix this one includes **four deliberate
+writes**, made with the user's explicit approval because all three Reject/Warn/DoNothing settings
+were sitting on **Do Nothing**, so nothing could be observed read-only: Credit Limit Exceeds was
+flipped to Warn, a credit limit of 100 was put on one contact, a draft invoice was created and then
+**voided**, and both settings were **restored to their original values** (verified by re-reading the
+radio states, which matched the pre-experiment reading exactly).
+
+- **Configurations > General** (`#/config/app/general`) carries five radio settings and two account
+  maps: Suggest Selling Price (Recent / Fixed), Product Price Basis (Inclusive / Exclusive of VAT),
+  Negative Cash Balance, Negative Item Balance, Credit Limit Exceeds (each Reject / Warn / Do
+  Nothing), then VAT on Purchase and VAT on Sales accounts. **There is no Save button — a radio
+  click saves immediately.** Moonbeam's state: Recent, **Inclusive of VAT**, and all three balance
+  actions **Do Nothing**.
+- **Credit Limit Exceeds fires at Approve, never at save.** Saving a draft that breaches the limit
+  produced no warning at all. Pressing Approve raised a dialog titled **"Crossed Credit Limit"** with
+  one row per offending contact — `Adhitya Bhandari (Rd0005)   Nrs.26,800` — and **Dismiss /
+  Continue** buttons: the same shape as the Negative Stock Balance dialog the 2026-08 pass recorded.
+  Dismiss left the document in Draft.
+- **The number in that dialog is the projected closing balance, not the excess.** The contact stood
+  at 21,800 DR and the invoice was 5,000; the dialog said 26,800 (the excess over a limit of 100
+  would have been 26,700). So the rule is `closing balance + this document's total > CreditLimit`.
+- **Credit Limit is per-contact and nothing else.** It is a plain number input in the New/Edit
+  Contact modal's "+ Add More Details" block. **Contact Group is Name / Under Group / Description
+  only — there is no group-level default** to inherit from.
+- **A stored 0 means "no limit", not "limit zero".** Every existing contact reads `credit_limit: 0`,
+  and the contact used above sat at 21,800 DR under that 0 with nothing firing; the dialog appeared
+  only once 100 was saved.
+- **The toggle is one field with two labels.** On a Customer it reads **Accept Purchase**; switch
+  Type to Supplier and the same control reads **Accept Sales**. On a **Lead** the entire additional
+  block collapses — no PAN, no toggle, no Credit Terms, no Credit Limit, only Email Address. So
+  credit control is a Customer/Supplier concept and Leads are outside it.
+- **Credit Terms** is a (days, name) lookup identical in shape to ours (On Receipt 1, Net 15, Net 30,
+  Net 45, Net 60, Net 90, 120 bdays …).
+- **Invoice carries its own stored, required, user-editable Due Date**, defaulting to the invoice
+  date, and **the Invoice form has no Credit Terms field** (the Quotation form does). Invoice Age
+  shows Due Dates genuinely diverging from Invoice Date (25-06-2026 → 25-07-2026; 03-06-2026 →
+  27-08-2026) and computes **Age Days from the Due Date**. Selecting seven different customers in
+  turn never moved the Due Date — but none of them had a credit term set, so **credit-terms → due-date
+  prefill is unproven**; what is proven is that Due Date is a real stored column, not a derivation.
+- **"Include Credit Note In Calculation" on the Sales Register is NOT inert** — correcting phase 26c.
+  Unchecking it took the report from **19 rows to 8** and re-totalled it (taxable 71,324.41 →
+  139,280.06, tax 9,272.18 → 18,106.41): the credit-note rows are removed from the row set entirely,
+  not merely excluded from the footer. Beside it sits a second, previously unrecorded toggle,
+  **Group By Bill**.
+- **Suggest Selling Price is enforced at the line picker, server-side.** The Invoice add form calls
+  `products-minimized?...&get_recent_selling_price=true`; the setting decides what that endpoint
+  returns, so the rate arrives already suggested rather than being computed in the browser.
+- The **Contact Overview page displays no credit limit anywhere** — the field exists only on the
+  edit modal.
+- Incidental, not phase-31 scope: on this tenant the **Invoice Code is required at Create** ("code is
+  required!" on save), where this codebase assigns a document number at Approve. That divergence is
+  a numbering-configuration difference, already recorded in phase 2.

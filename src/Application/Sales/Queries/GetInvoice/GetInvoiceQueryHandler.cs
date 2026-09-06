@@ -35,6 +35,7 @@ public sealed class GetInvoiceQueryHandler(IAppDbContext db) : IRequestHandler<G
             invoice.WarehouseId,
             invoice.Code,
             invoice.Date,
+            invoice.DueDate,
             invoice.Reference,
             invoice.IsExport,
             invoice.ExportCountry,

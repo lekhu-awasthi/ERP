@@ -34,6 +34,8 @@ import {
   UpdateWarehouseResult,
   Warehouse,
   WorkspaceNameAvailability,
+  GeneralSettings,
+  SetTenantSubscriptionRequest,
 } from './organizations.models';
 
 @Injectable({ providedIn: 'root' })
@@ -150,6 +152,27 @@ export class OrganizationsService {
   }
 
   // Phase 20f (FR-2.6). No setter counterpart -- the entitlements are immutable after creation.
+  // Phase 31 -- Configurations > General.
+  getGeneralSettings(organizationId: string): Observable<GeneralSettings> {
+    return this.http.get<GeneralSettings>(`${this.baseUrl}/${organizationId}/general-settings`, {
+      withCredentials: true,
+    });
+  }
+
+  updateGeneralSettings(organizationId: string, request: GeneralSettings): Observable<GeneralSettings> {
+    return this.http.put<GeneralSettings>(`${this.baseUrl}/${organizationId}/general-settings`, request, {
+      withCredentials: true,
+    });
+  }
+
+  // Phase 31 -- the renewal setter 20f left out, so an expired organization is not permanently
+  // read-only from inside the product.
+  setSubscription(organizationId: string, request: SetTenantSubscriptionRequest): Observable<TenantSubscription> {
+    return this.http.put<TenantSubscription>(`${this.baseUrl}/${organizationId}/subscription`, request, {
+      withCredentials: true,
+    });
+  }
+
   getSubscription(organizationId: string): Observable<TenantSubscription> {
     return this.http.get<TenantSubscription>(`${this.baseUrl}/${organizationId}/subscription`, {
       withCredentials: true,

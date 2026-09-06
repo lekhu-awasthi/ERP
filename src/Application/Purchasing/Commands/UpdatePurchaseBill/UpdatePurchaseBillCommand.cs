@@ -38,6 +38,12 @@ public sealed record UpdatePurchaseBillCommand(
     /// <inheritdoc cref="Domain.Purchasing.PurchaseBill.IsProductWiseAdditionalCost"/>
     public bool IsProductWiseAdditionalCost { get; init; }
 
+
+    /// <summary>Phase 31 -- the stored Due Date. Init-only rather than a trailing positional
+    /// parameter, matching the shape phases 28 and 29 already used on this command. Null means "the
+    /// bill's own date", which is the live form's default and the exact backfill applied to every
+    /// pre-phase-31 row.</summary>
+    public DateOnly? DueDate { get; init; }
     public DocumentType AuditDocumentType => DocumentType.PurchaseBill;
     public Guid AuditDocumentId => Id;
 }

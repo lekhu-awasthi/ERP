@@ -14,5 +14,9 @@ public sealed class CreateContactCommandValidator : AbstractValidator<CreateCont
         RuleFor(x => x.Phone).MaximumLength(30);
         RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Email));
         RuleFor(x => x.OpeningBalance).GreaterThanOrEqualTo(0);
+
+        // Phase 31 -- 0 is legal and means "no limit" (Contact.CreditLimit), so the only illegal
+        // value is a negative one.
+        RuleFor(x => x.CreditLimit).GreaterThanOrEqualTo(0);
     }
 }

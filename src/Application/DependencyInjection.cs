@@ -55,6 +55,11 @@ public static class DependencyInjection
         // entitlement rejection never triggers the LockDate lookup. See FeatureGateBehavior's
         // own doc comment.
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Common.Behaviors.FeatureGateBehavior<,>));
+        // Subscription expiry (roadmap Phase 31) sits beside the feature gate and before the lock
+        // date: both answer "may this organization do this at all", and neither should cost a
+        // document lookup when the answer is no. See SubscriptionExpiryBehavior's doc comment for
+        // why it reuses the lock-date markers rather than adding a third.
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Common.Behaviors.SubscriptionExpiryBehavior<,>));
         // Lock date (roadmap Phase 16a, NFR-3.4) runs after permission is confirmed, before the
         // handler itself -- see LockDateBehavior's own doc comment.
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Common.Behaviors.LockDateBehavior<,>));
@@ -216,6 +221,10 @@ public static class DependencyInjection
         // policy it backs -- replaces Phase 5's AlwaysOkStockAvailabilityPolicy stub.
         services.AddTransient<IStockLedgerService, StockLedgerService>();
         services.AddTransient<IStockAvailabilityPolicy, FifoStockAvailabilityPolicy>();
+
+        // Phase 31 (credit control) -- the same registration shape as the stock policy beside it.
+        services.AddTransient<Sales.Credit.ICreditLimitPolicy, Sales.Credit.ContactCreditLimitPolicy>();
+        services.AddTransient<Accounting.Cash.ICashBalancePolicy, Accounting.Cash.GlCashBalancePolicy>();
 
         // Phase 8a's BalanceSheetQuery needs AccountGroup's full-subtree rollup (architecture-
         // spec.md §5) -- see AccountGroupTreeQuery's doc comment for why this is an in-memory BFS

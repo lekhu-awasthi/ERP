@@ -119,6 +119,9 @@ export interface PurchaseBill {
   warehouseId: string;
   code: string;
   date: string;
+  /** Phase 31 -- stored, editable, defaulting to the bill's own date and prefilled from the
+   *  supplier's Credit Term when one is set. The Purchase-side twin of Invoice.dueDate. */
+  dueDate: string;
   reference: string | null;
   supplierInvoiceReference: string | null;
   isImport: boolean;
@@ -191,6 +194,8 @@ export interface PurchaseBillRequest {
   contactId: string;
   warehouseId: string;
   date: string;
+  /** Phase 31 -- omitting it means "the bill's own date". */
+  dueDate?: string | null;
   reference: string | null;
   supplierInvoiceReference: string | null;
   isImport: boolean;

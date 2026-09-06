@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Cash;
 using ErpApp.Application.Accounting;
 using ErpApp.Application.Accounting.Commands.CreateAccount;
 using ErpApp.Application.Accounting.Commands.CreateAccountGroup;
@@ -247,7 +248,7 @@ public class TransactionApprovalQueryHandlerTests
     {
         var created = await CreateJournalVoucherAsync(db, seed);
         await new ApproveJournalVoucherCommandHandler(
-            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule())
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApproveJournalVoucherCommand(seed.OrganizationId, created.Id), CancellationToken.None);
         return created.Id;
     }
