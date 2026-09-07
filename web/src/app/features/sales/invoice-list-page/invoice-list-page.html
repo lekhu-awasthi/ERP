@@ -35,6 +35,23 @@
         {{ status }}
       </button>
     }
+
+    <!-- Phase 32 -- the location filter. Shown only once a tenant has more than one location, so a
+         single-location tenant sees no control for a choice it does not have. -->
+    @if (billingLocations().length > 1) {
+      <select
+        class="form-select form-select-sm w-auto ms-auto"
+        aria-label="Filter by billing location"
+        (change)="selectLocation($any($event.target).value)"
+      >
+        <option value="" [selected]="locationFilter() === ''">All locations</option>
+        @for (location of billingLocations(); track location.id) {
+          <option [value]="location.id" [selected]="locationFilter() === location.id">
+            {{ location.name }} ({{ location.code }})
+          </option>
+        }
+      </select>
+    }
   </div>
 
   <div class="card border-0 shadow-sm">
@@ -66,6 +83,14 @@
                 <div>
                   <h6 class="fw-bold mb-1 text-dark">{{ item.code }}</h6>
                   <span class="text-muted small">{{ item.date | nepaliDate }}{{ item.reference ? ' · ' + item.reference : '' }}</span>
+                  <!-- Phase 32 -- the LOCATION the live grid shows between CUSTOMER and INVOICE NO.
+                       Rendered only when the invoice actually carries one, so a single-location
+                       tenant and one whose scope excludes Invoice both see the row unchanged. -->
+                  @if (locationName(item.locationId); as location) {
+                    <span class="badge bg-light text-muted border ms-2">
+                      <i class="bi bi-geo-alt"></i> {{ location }}
+                    </span>
+                  }
                 </div>
               </div>
               <div class="d-flex align-items-center gap-3">

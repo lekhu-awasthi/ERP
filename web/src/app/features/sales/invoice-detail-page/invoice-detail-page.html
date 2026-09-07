@@ -13,6 +13,32 @@
         <span class="badge bg-warning-subtle text-warning-emphasis">Draft</span>
       }
     }
+
+    <!--
+      Phase 32 (FR-2.3/FR-3.3) -- the billing location picker sits in the page HEADER, not in the
+      form body, and renders "Name (Code)" defaulting to HeadOffice (HO). Confirmed live 2026-09-07
+      on a location-enabled tenant; the reference product renders it borderless immediately left of
+      Save. Absent entirely when the tenant's LocationScopeMode excludes Invoice, which is the same
+      thing a tenant without the entitlement sees.
+
+      [selected] per option, never [value] on the select -- the phase-5/6/7 native-select race that
+      persisted wrong ids rather than merely displaying them.
+    -->
+    @if (locationApplies() && billingLocations().length > 0) {
+      <select
+        class="form-select form-select-sm w-auto"
+        aria-label="Billing location"
+        [disabled]="invoice()?.status === 'Approved' || invoice()?.status === 'Void'"
+        (change)="locationId.set($any($event.target).value)"
+      >
+        @for (location of billingLocations(); track location.id) {
+          <option [value]="location.id" [selected]="locationId() === location.id">
+            {{ location.name }} ({{ location.code }})
+          </option>
+        }
+      </select>
+    }
+
     @if (invoice()?.status === 'Approved') {
       <button type="button" class="btn btn-outline-secondary btn-sm fw-bold ms-auto" [disabled]="printing()" (click)="print()">
         @if (printing()) {

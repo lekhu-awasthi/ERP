@@ -48,6 +48,20 @@ public sealed class ProductionJournal
 
     public Guid Id { get; private set; }
     public Guid OrganizationId { get; private set; }
+
+    /// <summary>
+    /// Phase 32 (FR-2.3/FR-3.3). The billing location this document was raised from -- the
+    /// borderless picker in the live document header, rendering "Name (Code)" and defaulting to
+    /// HeadOffice (confirmed live 2026-09-07 on a location-enabled tenant).
+    ///
+    /// <para>Present on this type although the live default scope
+    /// (<see cref="Domain.Tenancy.LocationScopeMode.SalesTransactionsOnly"/>) excludes it: the wider
+    /// AllTransactions mode names "Sales, Purchase, Inventory, Accounting, etc.", and that mode is a
+    /// runtime setting an Admin can flip at any moment, so the column has to exist before the switch
+    /// does. <see cref="Domain.Tenancy.DocumentLocationScope"/> decides which types carry one for a
+    /// given tenant; nothing here branches on it.</para>
+    /// </summary>
+    public Guid? LocationId { get; private set; }
     public string Code { get; private set; } = null!;
     public DateOnly Date { get; private set; }
     public string? Reference { get; private set; }
@@ -267,6 +281,18 @@ public sealed class ProductionJournal
         {
             throw new InvalidOperationException("A production journal needs a positive Output Quantity.");
         }
+    }
+
+    /// <summary>
+    /// Phase 32 -- sets the billing location this document is raised from. Draft-only: an Approved
+    /// document's location is what its numbering pool was drawn from (see
+    /// DocumentNumberingRule.LocationWiseNumbering) and what every location-filtered report has
+    /// already counted it under, so moving it afterwards would silently restate both.
+    /// </summary>
+    public void SetLocation(Guid? locationId)
+    {
+        EnsureDraft();
+        LocationId = locationId;
     }
 
     private void EnsureDraft()

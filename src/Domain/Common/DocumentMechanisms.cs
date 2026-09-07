@@ -203,6 +203,54 @@ public static class DocumentMechanisms
     ];
 
     /// <summary>
+    /// Types that carry a <b>billing location</b> when the tenant's
+    /// <c>LocationScopeMode</c> is <c>AllTransactions</c> (Phase 32, FR-2.3/FR-3.3).
+    ///
+    /// <para><b>All 15 transactional types plus both opening-balance kinds = 17</b> -- identical to
+    /// <see cref="ReportingTags"/>, and identical for a related reason: the Advanced panel's wider
+    /// option says "Apply location tracking across all transaction modules. (Sales, Purchase,
+    /// Inventory, Accounting, etc.)", and the Opening Balances &gt; Account row form leads with a
+    /// <b>Location</b> field (both confirmed live 2026-09-07 on a location-enabled tenant, the first
+    /// tenant this project has had access to where the entitlement is on).</para>
+    ///
+    /// <para><b>This list is what the schema is sized for, in every mode.</b> Every one of the 17
+    /// carries a nullable <c>LocationId</c> column, because the mode is a runtime setting an Admin can
+    /// widen at any moment -- see <c>Domain.Tenancy.LocationScopeMode</c>. Which of them actually
+    /// carries one for a given tenant is <c>Domain.Tenancy.DocumentLocationScope</c>'s answer, and it
+    /// reads these two lists rather than keeping its own.</para>
+    /// </summary>
+    public static readonly IReadOnlyList<DocumentType> LocationBearing =
+    [
+        .. Transactional,
+        DocumentType.OpeningBalance,
+        DocumentType.OpeningStock,
+    ];
+
+    /// <summary>
+    /// The subset of <see cref="LocationBearing"/> that carries a location under the <i>default</i>
+    /// scope, <c>LocationScopeMode.SalesTransactionsOnly</c>.
+    ///
+    /// <para><b>Three, transcribed from the live control's own label rather than sampled.</b> The
+    /// radio reads "Enable Location in Sales Transactions Only -- Use locations only in sales-related
+    /// transactions. <b>(Invoice, Sales Order, POS, Credit Note)</b>". POS is not built here
+    /// (architecture-spec.md §6 defers it), which leaves exactly these three. This is phase-30's
+    /// lesson taken deliberately -- <i>a list sampled from a few screens becomes a wrong list; find
+    /// the rule</i> -- and here the product states the rule in the label of the switch itself.</para>
+    ///
+    /// <para><see cref="DocumentType.Quotation"/> is <b>absent on purpose.</b> The label does not name
+    /// it, and the confirm-live tenant runs in AllTransactions mode, so its Quotation form showing a
+    /// picker proves nothing about the narrow mode. Adding it on the reasoning that "a quotation is
+    /// sales-related" would be exactly the over-broad guess phase 30 warns against. Recorded as this
+    /// phase's one unresolved live question in docs/phase-32-status.md.</para>
+    /// </summary>
+    public static readonly IReadOnlyList<DocumentType> LocationBearingSalesOnly =
+    [
+        DocumentType.Invoice,
+        DocumentType.SalesOrder,
+        DocumentType.CreditNote,
+    ];
+
+    /// <summary>
     /// Every <see cref="DocumentType"/> that is deliberately outside every sweep, with the
     /// reason. The guard test requires that this dictionary plus <see cref="Transactional"/> cover
     /// the enum exactly -- so a new member added by a later phase fails the build until someone

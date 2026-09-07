@@ -30,7 +30,8 @@ public sealed class ApprovePurchaseOrderCommandHandler(
             throw new ConflictException("A purchase order needs at least one line to be approved.");
         }
 
-        var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.PurchaseOrder, cancellationToken);
+        var code = await numberGenerator.GetNextNumberAsync(
+            request.OrganizationId, DocumentType.PurchaseOrder, cancellationToken, purchaseOrder.LocationId);
 
         purchaseOrder.Approve(currentUser.UserId, code);
 

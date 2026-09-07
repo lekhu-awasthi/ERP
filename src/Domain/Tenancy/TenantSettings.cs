@@ -34,6 +34,34 @@ public enum BalanceAction
 }
 
 /// <summary>
+/// How far a tenant's billing locations reach across its documents -- the radio/checkbox pair inside
+/// Organization &gt; Features &gt; Billing Location &gt; <b>Advanced</b> ("Choose how locations should
+/// be used in your organization"), confirmed live 2026-09-07 and invisible on a tenant without the
+/// entitlement, which is why no earlier phase could see it.
+///
+/// <para>The live wording is verbatim: <see cref="SalesTransactionsOnly"/> is
+/// <i>"Enable Location in Sales Transactions Only -- Use locations only in sales-related
+/// transactions. (Invoice, Sales Order, POS, Credit Note)"</i> and carries a <b>Default</b> badge;
+/// <see cref="AllTransactions"/> is <i>"Enable Location in All Transactions -- Apply location
+/// tracking across all transaction modules. (Sales, Purchase, Inventory, Accounting, etc.)"</i>.
+///
+/// <para><b>This is why <c>LocationId</c> is nullable on every transactional aggregate rather than
+/// present only on the sales four.</b> The scope is a runtime setting an Admin can widen at any
+/// moment, so the column has to exist on the purchase, inventory and accounting documents before
+/// anybody flips it -- otherwise the switch would be a lie until some later phase shipped the schema.
+/// See <c>DocumentLocationScope</c> for the single place that turns this enum into a per-DocumentType
+/// answer.</para>
+/// </summary>
+public enum LocationScopeMode
+{
+    /// <summary>The live default. Its member list is taken verbatim from the label's own
+    /// parenthesis, nothing added -- see <c>DocumentLocationScope</c>.</summary>
+    SalesTransactionsOnly = 0,
+
+    AllTransactions = 1,
+}
+
+/// <summary>
 /// Single-row-per-tenant settings aggregate. Seeded with sensible defaults at Organization
 /// creation (roadmap Phase 1b task 3) so it always exists by the time Phase 2 adds the real
 /// configurable fields (Suggest Selling Price mode, Product Price Basis, Inventory Tracking
@@ -194,6 +222,40 @@ public sealed class TenantSettings
     /// </summary>
     public Guid? DefaultLandedCostClearingAccountId { get; private set; }
 
+    /// <summary>
+    /// Phase 32 (FR-2.3/FR-3.3) -- the first of the two controls inside Organization &gt; Features &gt;
+    /// Billing Location &gt; Advanced. Defaults to <see cref="LocationScopeMode.SalesTransactionsOnly"/>,
+    /// which is the option the live screen badges <b>Default</b>.
+    ///
+    /// <para>Lives on TenantSettings rather than on <see cref="TenantSubscription"/> beside the
+    /// MultipleLocations entitlement, and the distinction matters: the entitlement is bought, captured
+    /// once at Organization creation and immutable afterwards
+    /// (<see cref="TenantSubscription.IsEnabled"/>), whereas this is a configuration decision an Admin
+    /// revisits -- exactly the line phase 22 drew for
+    /// <see cref="AiDocumentExtractionEnabled"/>.</para>
+    /// </summary>
+    public LocationScopeMode LocationScopeMode { get; private set; }
+
+    /// <summary>
+    /// Phase 32 -- the second Advanced control, live-labelled <i>"Implement Location Wise Permission
+    /// for Report View -- Restrict users to view reports only for locations they have access to."</i>
+    ///
+    /// <para><b>Stored and editable here, but read by nothing yet, and that is a deliberate scope
+    /// line rather than an oversight.</b> The live role editor holds the answer to what it does: its
+    /// Location-specific Permissions section replicates <i>only</i> the Transactions group (94 keys)
+    /// per location, while General/Settings/<b>Reports</b> stay organization-wide. Turning this on is
+    /// what would pull the 52 Reports keys into location scope -- so its consumer is the per-location
+    /// permission matrix, which is phase 32b. It ships now because it is one of the three controls on
+    /// the Advanced panel and a panel with a control missing is the phase-31 trap in reverse.</para>
+    ///
+    /// <para>Phase-31 lesson (a) applies and is answered: a setting with no command behind it is an
+    /// absent feature, so this one has its command
+    /// (<c>UpdateBillingLocationSettingsCommand</c>), its endpoint and its screen from day one. What
+    /// it lacks is an <i>enforcer</i>, which is named here and in docs/phase-32-status.md rather than
+    /// left to be discovered.</para>
+    /// </summary>
+    public bool LocationWiseReportPermission { get; private set; }
+
     private TenantSettings()
     {
     }
@@ -211,6 +273,8 @@ public sealed class TenantSettings
             NegativeStockBalanceAction = BalanceAction.Warn,
             CreditLimitExceedsAction = BalanceAction.Warn,
             AiDocumentExtractionEnabled = false,
+            LocationScopeMode = LocationScopeMode.SalesTransactionsOnly,
+            LocationWiseReportPermission = false,
             CreatedAt = DateTimeOffset.UtcNow,
         };
     }
@@ -273,4 +337,17 @@ public sealed class TenantSettings
     /// Admin may revisit, and folding it in would mean a routine save of the General settings
     /// screen could silently re-enable data egress.</summary>
     public void SetAiDocumentExtractionEnabled(bool enabled) => AiDocumentExtractionEnabled = enabled;
+
+    /// <summary>
+    /// Phase 32 -- the Advanced panel on Organization &gt; Features &gt; Billing Location. Its own
+    /// mutator rather than two more parameters on <see cref="UpdateSettings"/>, on the phase-22
+    /// precedent directly above: those six fields are Configurations &gt; General's screen, these two
+    /// are a different screen in a different module, and folding them together would mean a routine
+    /// save of the General settings page could silently narrow which documents carry a location.
+    /// </summary>
+    public void SetLocationSettings(LocationScopeMode locationScopeMode, bool locationWiseReportPermission)
+    {
+        LocationScopeMode = locationScopeMode;
+        LocationWiseReportPermission = locationWiseReportPermission;
+    }
 }

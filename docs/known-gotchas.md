@@ -366,3 +366,89 @@ invariant, and weakening a Domain rule to make a test easier to write trades a r
 convenience. `GeneralSettingsAndSubscriptionTests.ExpireAsync` reaches through EF's change tracker
 instead (`((DbContext)db).Entry(subscription).Property(nameof(...)).CurrentValue = ...`), with a
 comment saying why. The E2E does the same thing one layer down, with `sqlcmd`.
+
+## The unique index whose filter you must suppress (phase 32)
+
+CLAUDE.md's standing rule, and a correct one: *SQL Server treats NULLs as equal in a unique index, so
+a unique index over a nullable column needs `.HasFilter("[Col] IS NOT NULL")`.* EF Core agrees — it
+scaffolds that filter **automatically** for a unique index over a nullable column, without being
+asked.
+
+Phase 32 made the document-numbering counter location-aware by adding a nullable `LocationId` to
+`configuration.DocumentNumberingRules` and rebuilding its unique index as
+`(OrganizationId, DocumentType, LocationId)`. In that table:
+
+- `LocationId IS NULL` is **the settings row** — one per (organization, document type), carrying
+  Prefix, Mode and the three flags, and doubling as the shared counter while location-wise numbering
+  is off;
+- a non-null value is one branch's own counter, created lazily on first approval from that branch.
+
+So "there must be exactly one row with a NULL here" is precisely the invariant, and SQL Server
+treating NULLs as equal is what buys it. **EF's automatic filter inverts that.** With
+`filter: "[LocationId] IS NOT NULL"` the settings rows sit outside the index entirely: a tenant can
+end up with two settings rows and two competing counters, and — worse, because it is silent —
+`DocumentNumberGenerator`'s lazy-create race protection disappears, since that race is *only* guarded
+by a concurrent loser's INSERT violating this index. Duplicate document numbers are the one failure
+mode `architecture-spec.md` §3.1 says is not tolerable.
+
+The fix is `.HasFilter(null)` in `DocumentNumberingRuleConfiguration`, and it is load-bearing rather
+than cosmetic: a later scaffold that reintroduces the filter is a bug, not a tidy-up. Verified against
+the live database with `SELECT name, is_unique, has_filter FROM sys.indexes`.
+
+**The general rule:** before applying the filter gotcha, ask what a NULL in that column *means*. If
+NULL is a sentinel value with an at-most-one invariant, the unfiltered index is the enforcement
+mechanism and the filter destroys it. If NULL merely means "absent", the standing rule applies as
+written.
+
+## When a tenant setting decides which types store a field (phase 32)
+
+Phase 31's lesson was that a `TenantSettings` field with no command behind it is not a dead setting
+but an **absent feature**. Phase 32 is the same problem from the other side.
+
+Organization > Features > Billing Location > **Advanced** holds a scope switch: *Enable Location in
+Sales Transactions Only* (the default, covering Invoice / Sales Order / Credit Note) versus *Enable
+Location in All Transactions* (all seventeen). An Admin can move it at any moment, with one click.
+
+The tempting build is to add `LocationId` to the document types the default names, and add the rest
+"when someone needs them". That produces a switch that **appears** to work: flipping it to All
+Transactions changes the label, changes nothing in the database, and silently records no location on
+eleven document types until some later phase ships the columns. Nobody gets an error.
+
+So the storage is sized for the **union** of everything the setting can select, and only *behaviour*
+is the selection:
+
+- all 17 of `DocumentMechanisms.LocationBearing` carry a nullable `LocationId`;
+- `DocumentLocationScope.AppliesTo(documentType, mode)` is the single place that answers "does this
+  type carry one for this tenant", and every consumer — the picker's visibility, the resolver's
+  null-versus-HeadOffice decision, the settings DTO the client reads — goes through it;
+- `LocationResolver` returns a real null for an out-of-scope type **even when the caller supplied a
+  location**, so a client that keeps sending one after an Admin narrows the scope cannot quietly keep
+  writing it. Narrowing the setting has to actually narrow the data.
+
+**The general rule:** when a setting selects among sets, the schema owes the widest set. Ask what the
+widest option costs *before* choosing which columns to add, because the cost of adding them later is
+not the migration — it is the window in which the setting was a lie.
+
+## The confirm-live that was only blocked on one tenant (phase 32)
+
+`docs/roadmap.md`'s phase-32 entry stated that Billing Location "cannot be read here", because it is
+an entitlement that is **off** on the Moonbeam UAT tenant every earlier phase was read against, and
+it pre-authorised phase-21c's "derive when confirm-live is impossible" precedent for the whole phase.
+
+That was true of the tenant, and false of the world. A second tenant with `Location Enabled = Yes`
+was available for the asking, and reading it changed four decisions that had already been written
+down as scope:
+
+| The roadmap assumed | The tenant showed |
+|---|---|
+| `BillingLocation.LocationType` is part of the create form | there is **no type field** — it is system-assigned |
+| a Location field on the document form, beside Warehouse | a borderless picker in the document **header**, `Name (Code)` |
+| a fixed list of location-bearing document types | a **runtime tenant setting** (the Advanced panel) choosing between two lists |
+| a second permission matrix of unknown shape | the **Transactions group alone**, replicated per location — 94 × N |
+
+None of those errors would have failed a test. All four would have shipped as confident prose in a
+status doc, which is the expensive kind of wrong.
+
+**The general rule:** "we cannot observe this" is a statement about the environment you have, not
+about the feature. Before invoking the derive-instead precedent, ask whether a different tenant,
+account, plan or environment can observe it — the cost of asking is one question.

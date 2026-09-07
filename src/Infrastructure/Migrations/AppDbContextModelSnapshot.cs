@@ -159,6 +159,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid>("FromAccountId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -186,6 +189,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("FromAccountId");
+
+                    b.HasIndex("LocationId");
 
                     b.ToTable("CashTransfers", "accounting");
                 });
@@ -305,6 +310,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("decimal(18,6)")
                         .HasDefaultValue(1m);
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -330,6 +338,8 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("LocationId");
 
                     b.ToTable("JournalVouchers", "accounting");
                 });
@@ -397,6 +407,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("decimal(18,6)")
                         .HasDefaultValue(1m);
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -406,6 +419,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AccountId");
+
+                    b.HasIndex("LocationId");
 
                     b.HasIndex("OrganizationId", "AccountId")
                         .IsUnique();
@@ -1293,6 +1308,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<bool>("IncludeFiscalYearInCode")
                         .HasColumnType("bit");
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<bool>("LocationWiseNumbering")
                         .HasColumnType("bit");
 
@@ -1323,7 +1341,9 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrganizationId", "DocumentType")
+                    b.HasIndex("LocationId");
+
+                    b.HasIndex("OrganizationId", "DocumentType", "LocationId")
                         .IsUnique();
 
                     b.ToTable("DocumentNumberingRules", "configuration");
@@ -2419,6 +2439,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -2447,6 +2470,8 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("LocationId");
 
                     b.HasIndex("WarehouseId");
 
@@ -2500,6 +2525,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -2519,6 +2547,8 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("LocationId");
 
                     b.HasIndex("ProductId");
 
@@ -2661,6 +2691,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid>("FromWarehouseId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -2691,6 +2724,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("FromWarehouseId");
+
+                    b.HasIndex("LocationId");
 
                     b.HasIndex("ToWarehouseId");
 
@@ -2878,6 +2913,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -2934,6 +2972,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("BillOfMaterialsId");
+
+                    b.HasIndex("LocationId");
 
                     b.HasIndex("ProductId");
 
@@ -3066,6 +3106,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -3104,6 +3147,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("BillOfMaterialsId");
+
+                    b.HasIndex("LocationId");
 
                     b.HasIndex("ProductId");
 
@@ -3291,6 +3336,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("decimal(18,6)")
                         .HasDefaultValue(1m);
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -3323,6 +3371,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("AccountId");
 
                     b.HasIndex("ContactId");
+
+                    b.HasIndex("LocationId");
 
                     b.HasIndex("PaymentModeId");
 
@@ -3405,6 +3455,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("decimal(18,6)")
                         .HasDefaultValue(1m);
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -3446,6 +3499,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ContactId");
+
+                    b.HasIndex("LocationId");
 
                     b.HasIndex("TdsTypeId");
 
@@ -3542,6 +3597,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("decimal(18,6)")
                         .HasDefaultValue(1m);
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
@@ -3583,6 +3641,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ContactId");
+
+                    b.HasIndex("LocationId");
 
                     b.HasIndex("TdsTypeId");
 
@@ -3767,6 +3827,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -3815,6 +3878,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ContactId");
+
+                    b.HasIndex("LocationId");
 
                     b.HasIndex("TdsTypeId");
 
@@ -3978,6 +4043,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("decimal(18,6)")
                         .HasDefaultValue(1m);
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -4010,6 +4078,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("ContactId");
 
                     b.HasIndex("CustomStatusId");
+
+                    b.HasIndex("LocationId");
 
                     b.ToTable("PurchaseOrders", "purchasing");
                 });
@@ -4101,6 +4171,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("decimal(18,6)")
                         .HasDefaultValue(1m);
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -4138,6 +4211,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ContactId");
+
+                    b.HasIndex("LocationId");
 
                     b.ToTable("CreditNotes", "sales");
                 });
@@ -4246,6 +4321,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<bool>("IsExport")
                         .HasColumnType("bit");
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -4286,6 +4364,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ContactId");
+
+                    b.HasIndex("LocationId");
 
                     b.HasIndex("WarehouseId");
 
@@ -4462,6 +4542,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<DateOnly?>("ExpiryDate")
                         .HasColumnType("date");
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -4494,6 +4577,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("ContactId");
 
                     b.HasIndex("CustomStatusId");
+
+                    b.HasIndex("LocationId");
 
                     b.ToTable("Quotations", "sales");
                 });
@@ -4591,6 +4676,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("decimal(18,6)")
                         .HasDefaultValue(1m);
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -4621,6 +4709,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ContactId");
+
+                    b.HasIndex("LocationId");
 
                     b.ToTable("SalesOrders", "sales");
                 });
@@ -4669,6 +4759,51 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("SalesOrderId");
 
                     b.ToTable("SalesOrderLines", "sales");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Tenancy.BillingLocation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("LocationType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("WarehouseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("OrganizationId", "Code")
+                        .IsUnique();
+
+                    b.ToTable("BillingLocations", "tenancy");
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Tenancy.Currency", b =>
@@ -7942,6 +8077,34 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = false,
                             PermissionKey = "Tenancy.Subscription.Manage",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001b5"),
+                            IsGranted = true,
+                            PermissionKey = "Tenancy.BillingLocation.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001b6"),
+                            IsGranted = true,
+                            PermissionKey = "Tenancy.BillingLocation.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001b7"),
+                            IsGranted = true,
+                            PermissionKey = "Tenancy.BillingLocation.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001b8"),
+                            IsGranted = false,
+                            PermissionKey = "Tenancy.BillingLocation.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 
@@ -8010,6 +8173,12 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)")
                         .HasDefaultValue("AccountingMovement");
+
+                    b.Property<int>("LocationScopeMode")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("LocationWiseReportPermission")
+                        .HasColumnType("bit");
 
                     b.Property<string>("NegativeCashBalanceAction")
                         .IsRequired()
@@ -8413,6 +8582,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("FromAccountId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Accounting.CashTransferLine", b =>
@@ -8445,6 +8619,14 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Accounting.JournalVoucher", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Accounting.JournalVoucherLine", b =>
                 {
                     b.HasOne("ErpApp.Domain.Accounting.Account", null)
@@ -8472,6 +8654,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("AccountId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Catalog.Product", b =>
@@ -8613,6 +8800,14 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("FieldDefinitionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Configuration.DocumentNumberingRule", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Configuration.ReportingTagOption", b =>
@@ -8766,6 +8961,11 @@ namespace ErpApp.Infrastructure.Migrations
 
             modelBuilder.Entity("ErpApp.Domain.Inventory.InventoryAdjustment", b =>
                 {
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Tenancy.Warehouse", null)
                         .WithMany()
                         .HasForeignKey("WarehouseId")
@@ -8790,6 +8990,11 @@ namespace ErpApp.Infrastructure.Migrations
 
             modelBuilder.Entity("ErpApp.Domain.Inventory.OpeningStockLine", b =>
                 {
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Catalog.Product", null)
                         .WithMany()
                         .HasForeignKey("ProductId")
@@ -8840,6 +9045,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("FromWarehouseId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("ErpApp.Domain.Tenancy.Warehouse", null)
                         .WithMany()
@@ -8924,6 +9134,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("BillOfMaterialsId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Catalog.Product", null)
                         .WithMany()
                         .HasForeignKey("ProductId")
@@ -8987,6 +9202,11 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasOne("ErpApp.Domain.Manufacturing.BillOfMaterials", null)
                         .WithMany()
                         .HasForeignKey("BillOfMaterialsId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("ErpApp.Domain.Catalog.Product", null)
@@ -9070,6 +9290,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Configuration.PaymentMode", null)
                         .WithMany()
                         .HasForeignKey("PaymentModeId")
@@ -9083,6 +9308,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("ContactId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("ErpApp.Domain.Configuration.TdsType", null)
                         .WithMany()
@@ -9113,6 +9343,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Configuration.TdsType", null)
                         .WithMany()
                         .HasForeignKey("TdsTypeId")
@@ -9141,6 +9376,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("ContactId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("ErpApp.Domain.Configuration.TdsType", null)
                         .WithMany()
@@ -9216,6 +9456,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("CustomStatusId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Purchasing.PurchaseOrderLine", b =>
@@ -9240,6 +9485,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("ContactId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Sales.CreditNoteLine", b =>
@@ -9264,6 +9514,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("ContactId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("ErpApp.Domain.Tenancy.Warehouse", null)
                         .WithMany()
@@ -9299,6 +9554,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("CustomStatusId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Sales.QuotationLine", b =>
@@ -9323,6 +9583,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("ContactId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Sales.SalesOrderLine", b =>

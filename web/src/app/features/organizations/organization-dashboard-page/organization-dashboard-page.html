@@ -332,6 +332,11 @@
                 <i class="bi bi-currency-exchange"></i> Currencies
               </a>
             }
+            @if (hasFeature('MultipleLocations')) {
+              <a [routerLink]="['/organizations', organizationId(), 'billing-locations']" class="btn btn-outline-secondary btn-sm fw-bold">
+                <i class="bi bi-geo-alt"></i> Billing Locations
+              </a>
+            }
             <a [routerLink]="['/organizations', organizationId(), 'roles']" class="btn btn-outline-secondary btn-sm fw-bold">
               <i class="bi bi-shield-lock"></i> Role Reference
             </a>

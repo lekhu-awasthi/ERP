@@ -53,7 +53,8 @@ public sealed class ApproveCashTransferCommandHandler(
 
         CashBalanceGuard.Enforce(transferStatus, request.OverrideNegativeCashBalanceWarning, "cash transfer");
 
-        var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.CashTransfer, cancellationToken);
+        var code = await numberGenerator.GetNextNumberAsync(
+            request.OrganizationId, DocumentType.CashTransfer, cancellationToken, cashTransfer.LocationId);
 
         cashTransfer.Approve(currentUser.UserId, code);
 

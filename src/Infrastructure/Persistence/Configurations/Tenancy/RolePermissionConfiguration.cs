@@ -693,6 +693,16 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminSubscriptionManageId = Guid.Parse("00000000-0000-0000-0002-0000000001b3");
     private static readonly Guid MemberSubscriptionManageId = Guid.Parse("00000000-0000-0000-0002-0000000001b4");
 
+    // Phase 32 (Billing Locations) -- the same Member-View-only/Admin-write split as Currency above,
+    // derived in PermissionKeys.BillingLocationView/BillingLocationManage. Member View is granted
+    // rather than merely tolerated: GetBillingLocationSettingsQuery rides this key, and every
+    // document form reads it to decide whether to render a location picker at all, so a Member
+    // without it would lose the picker rather than lose the list.
+    private static readonly Guid AdminBillingLocationViewId = Guid.Parse("00000000-0000-0000-0002-0000000001b5");
+    private static readonly Guid AdminBillingLocationManageId = Guid.Parse("00000000-0000-0000-0002-0000000001b6");
+    private static readonly Guid MemberBillingLocationViewId = Guid.Parse("00000000-0000-0000-0002-0000000001b7");
+    private static readonly Guid MemberBillingLocationManageId = Guid.Parse("00000000-0000-0000-0002-0000000001b8");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1220,6 +1230,10 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminGeneralSettingsManageId, Role.AdminId, PermissionKeys.GeneralSettingsManage, true),
             RolePermission.Create(MemberGeneralSettingsManageId, Role.MemberId, PermissionKeys.GeneralSettingsManage, false),
             RolePermission.Create(AdminSubscriptionManageId, Role.AdminId, PermissionKeys.SubscriptionManage, true),
-            RolePermission.Create(MemberSubscriptionManageId, Role.MemberId, PermissionKeys.SubscriptionManage, false));
+            RolePermission.Create(MemberSubscriptionManageId, Role.MemberId, PermissionKeys.SubscriptionManage, false),
+            RolePermission.Create(AdminBillingLocationViewId, Role.AdminId, PermissionKeys.BillingLocationView, true),
+            RolePermission.Create(AdminBillingLocationManageId, Role.AdminId, PermissionKeys.BillingLocationManage, true),
+            RolePermission.Create(MemberBillingLocationViewId, Role.MemberId, PermissionKeys.BillingLocationView, true),
+            RolePermission.Create(MemberBillingLocationManageId, Role.MemberId, PermissionKeys.BillingLocationManage, false));
     }
 }

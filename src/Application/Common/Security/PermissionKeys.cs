@@ -875,6 +875,31 @@ public static class PermissionKeys
     public const string CurrencyView = "Tenancy.Currency.View";
     public const string CurrencyManage = "Tenancy.Currency.Manage";
 
+    // Phase 32 (Billing Locations, FR-2.3/FR-3.3). The View/Manage split is derived the same way
+    // Currency's directly above was, and lands in the same place for the same two reasons.
+    //
+    // View is Admin+Member. A Member raising an Invoice has to be able to read the list their own
+    // location picker is populated from -- and, since phase 32 makes the picker's *presence*
+    // conditional on LocationScopeMode, this key also gates GetBillingLocationSettingsQuery, which
+    // every document form reads before deciding whether to render one. The list carries no PAN, no
+    // contact identity and no per-transaction row: it is Code/Name/Address/Warehouse, which is the
+    // bounded-rollup end of the derivation rule, not the flat-register end.
+    //
+    // Manage is Admin-only. This one key covers the whole Features card -- the location rows *and*
+    // the Advanced panel behind UpdateBillingLocationSettingsCommand -- rather than splitting a
+    // third GeneralSettingsManage-style key out for two toggles. They are one screen and one
+    // decision: both adding a location and widening LocationScopeMode change what every document
+    // form in the tenant offers, which is the same "structural topology" bar that makes Manage
+    // Admin-only in the first place. Phase-31 lesson (c) -- reuse an existing set rather than
+    // inventing a third -- applied to a permission key.
+    //
+    // Reading a *document's* own LocationId needs no key of its own: it is one more header field on
+    // a document the caller already holds the View key for, exactly as CurrencyCode was in 28 and
+    // DiscountPct in 16b. Per-location *scoping* of the transaction keys is phase 32b and is a
+    // different mechanism entirely -- see docs/phase-32-status.md.
+    public const string BillingLocationView = "Tenancy.BillingLocation.View";
+    public const string BillingLocationManage = "Tenancy.BillingLocation.Manage";
+
     // Phase 31 (credit control and the dead settings). ONE key, not a View/Manage pair, and
     // deliberately: this follows AccountingDefaultsManage exactly, because it is the same kind of
     // thing -- a tenant-wide accounting-policy switchboard with exactly one screen behind it, whose

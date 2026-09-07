@@ -55,13 +55,18 @@ public static class InventoryEndpoints
         {
             var result = await sender.Send(
                 new CreateOrUpdateOpeningStockLineCommand(
-                    organizationId, productId, request.WarehouseId, request.Quantity, request.Rate),
+                    organizationId, productId, request.WarehouseId, request.Quantity, request.Rate)
+                { LocationId = request.LocationId },
                 ct);
             return Results.Ok(result);
         });
     }
 
-    private sealed record OpeningStockLineRequest(Guid WarehouseId, decimal Quantity, decimal Rate);
+    private sealed record OpeningStockLineRequest(
+        Guid WarehouseId, decimal Quantity, decimal Rate,
+        // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Optional,
+        // trailing, and carried here on the request record, not only on the command (phase-27b's Terms).
+        Guid? LocationId = null);
 
     private static void MapWarehouseTransferEndpoints(RouteGroupBuilder group)
     {
@@ -85,7 +90,8 @@ public static class InventoryEndpoints
         {
             var result = await sender.Send(
                 new CreateWarehouseTransferCommand(
-                    organizationId, request.FromWarehouseId, request.ToWarehouseId, request.Date, request.Reference, request.Lines),
+                    organizationId, request.FromWarehouseId, request.ToWarehouseId, request.Date, request.Reference, request.Lines)
+                { LocationId = request.LocationId },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/warehouse-transfers/{result.Id}", result);
         });
@@ -95,7 +101,8 @@ public static class InventoryEndpoints
         {
             var result = await sender.Send(
                 new UpdateWarehouseTransferCommand(
-                    organizationId, id, request.FromWarehouseId, request.ToWarehouseId, request.Date, request.Reference, request.Lines),
+                    organizationId, id, request.FromWarehouseId, request.ToWarehouseId, request.Date, request.Reference, request.Lines)
+                { LocationId = request.LocationId },
                 ct);
             return Results.Ok(result);
         });
@@ -137,7 +144,8 @@ public static class InventoryEndpoints
             Guid organizationId, InventoryAdjustmentRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new CreateInventoryAdjustmentCommand(organizationId, request.WarehouseId, request.Date, request.Reference, request.Lines),
+                new CreateInventoryAdjustmentCommand(organizationId, request.WarehouseId, request.Date, request.Reference, request.Lines)
+                { LocationId = request.LocationId },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/inventory-adjustments/{result.Id}", result);
         });
@@ -147,7 +155,8 @@ public static class InventoryEndpoints
         {
             var result = await sender.Send(
                 new UpdateInventoryAdjustmentCommand(
-                    organizationId, id, request.WarehouseId, request.Date, request.Reference, request.Lines),
+                    organizationId, id, request.WarehouseId, request.Date, request.Reference, request.Lines)
+                { LocationId = request.LocationId },
                 ct);
             return Results.Ok(result);
         });
@@ -233,8 +242,15 @@ public static class InventoryEndpoints
     }
 
     private sealed record WarehouseTransferRequest(
-        Guid FromWarehouseId, Guid ToWarehouseId, DateOnly Date, string? Reference, IReadOnlyList<WarehouseTransferLineInput> Lines);
+        Guid FromWarehouseId, Guid ToWarehouseId, DateOnly Date, string? Reference,
+        IReadOnlyList<WarehouseTransferLineInput> Lines,
+        // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Optional,
+        // trailing, and carried here on the request record, not only on the command (phase-27b's Terms).
+        Guid? LocationId = null);
 
     private sealed record InventoryAdjustmentRequest(
-        Guid WarehouseId, DateOnly Date, string? Reference, IReadOnlyList<InventoryAdjustmentLineInput> Lines);
+        Guid WarehouseId, DateOnly Date, string? Reference, IReadOnlyList<InventoryAdjustmentLineInput> Lines,
+        // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Optional,
+        // trailing, and carried here on the request record, not only on the command (phase-27b's Terms).
+        Guid? LocationId = null);
 }

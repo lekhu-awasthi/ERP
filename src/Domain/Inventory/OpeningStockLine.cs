@@ -24,11 +24,25 @@ public sealed class OpeningStockLine
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
+    /// <summary>
+    /// Phase 32 (FR-2.3/FR-3.3). The billing location this opening stock figure belongs to. The
+    /// Opening Balances &gt; <b>Product</b> tab is the Account tab's mirror, and the Account tab's
+    /// inline form leads with a Location field (confirmed live 2026-09-07), so this row carries the
+    /// same field for the same reason its sibling <see cref="Accounting.OpeningBalanceLine"/> does.
+    ///
+    /// <para>Set through Create/Update rather than a draft-guarded mutator: like its sibling, this
+    /// row has no Draft/Approve lifecycle -- it is a "day zero" figure keyed by
+    /// (OrganizationId, ProductId, WarehouseId), editable in place.</para>
+    /// </summary>
+    public Guid? LocationId { get; private set; }
+
     private OpeningStockLine()
     {
     }
 
-    public static OpeningStockLine Create(Guid organizationId, Guid productId, Guid warehouseId, decimal quantity, decimal rate)
+    public static OpeningStockLine Create(
+        Guid organizationId, Guid productId, Guid warehouseId, decimal quantity, decimal rate,
+        Guid? locationId = null)
     {
         Validate(quantity, rate);
 
@@ -41,16 +55,18 @@ public sealed class OpeningStockLine
             WarehouseId = warehouseId,
             Quantity = quantity,
             Rate = rate,
+            LocationId = locationId,
             CreatedAt = now,
             UpdatedAt = now,
         };
     }
 
-    public void Update(decimal quantity, decimal rate)
+    public void Update(decimal quantity, decimal rate, Guid? locationId = null)
     {
         Validate(quantity, rate);
         Quantity = quantity;
         Rate = rate;
+        LocationId = locationId;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 

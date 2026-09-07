@@ -25,8 +25,16 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db)
             invoiceQuery = invoiceQuery.Where(x => x.WarehouseId == invoiceWarehouseId);
         }
 
+        // Phase 32 -- the Billing Location filter. Applied to both document queries directly, because
+        // unlike WarehouseId a Credit Note carries its own LocationId (it is in the default sales-only
+        // scope), so there is no referrer lookup to fall back on.
+        if (request.LocationId is { } invoiceLocationId)
+        {
+            invoiceQuery = invoiceQuery.Where(x => x.LocationId == invoiceLocationId);
+        }
+
         var invoices = await invoiceQuery
-            .Select(x => new { x.Id, x.ContactId, x.WarehouseId, x.Code, x.Reference, x.Date })
+            .Select(x => new { x.Id, x.ContactId, x.WarehouseId, x.LocationId, x.Code, x.Reference, x.Date })
             .ToListAsync(cancellationToken);
         var invoiceIds = invoices.Select(x => x.Id).ToList();
 
@@ -48,8 +56,13 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db)
             creditNoteQuery = creditNoteQuery.Where(x => x.ContactId == creditNoteContactId);
         }
 
+        if (request.LocationId is { } creditNoteLocationId)
+        {
+            creditNoteQuery = creditNoteQuery.Where(x => x.LocationId == creditNoteLocationId);
+        }
+
         var creditNotes = await creditNoteQuery
-            .Select(x => new { x.Id, x.ContactId, x.Code, x.Reference, x.Date, x.ReferrerType, x.ReferrerId })
+            .Select(x => new { x.Id, x.ContactId, x.LocationId, x.Code, x.Reference, x.Date, x.ReferrerType, x.ReferrerId })
             .ToListAsync(cancellationToken);
         var creditNoteIds = creditNotes.Select(x => x.Id).ToList();
 
@@ -100,6 +113,19 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db)
                 .Select(x => new { x.Id, x.Name })
                 .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
+        var locationIds = invoices.Select(x => x.LocationId)
+            .Concat(creditNotes.Select(x => x.LocationId))
+            .Where(x => x is not null)
+            .Select(x => x!.Value)
+            .Distinct()
+            .ToList();
+        var locationNames = locationIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await db.BillingLocations
+                .Where(x => x.OrganizationId == request.OrganizationId && locationIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.Name })
+                .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+
         var productIds = invoiceLines.Select(x => x.ProductId).Concat(creditNoteLines.Select(x => x.ProductId)).Distinct().ToList();
         var products = await db.Products
             .Where(x => x.OrganizationId == request.OrganizationId && productIds.Contains(x.Id))
@@ -126,6 +152,7 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db)
                 contact.Id, contact.Code, contact.Name, DocumentType.Invoice,
                 contact.GroupId, contact.GroupId is { } groupId ? groupNames.GetValueOrDefault(groupId) : null,
                 invoice.WarehouseId, warehouseNames.GetValueOrDefault(invoice.WarehouseId),
+                invoice.LocationId, invoice.LocationId is { } iLoc ? locationNames.GetValueOrDefault(iLoc) : null,
                 invoice.Code, invoice.Reference, invoice.Date,
                 product.Id, product.Code, product.Name,
                 line.Quantity, line.Rate, netAfterLineDiscount, itemDiscount, transactionDiscount, line.Amount,
@@ -160,6 +187,7 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db)
                 contact.Id, contact.Code, contact.Name, DocumentType.CreditNote,
                 contact.GroupId, contact.GroupId is { } groupId ? groupNames.GetValueOrDefault(groupId) : null,
                 resolvedWarehouseId, resolvedWarehouseId is { } wId ? warehouseNames.GetValueOrDefault(wId) : null,
+                creditNote.LocationId, creditNote.LocationId is { } cLoc ? locationNames.GetValueOrDefault(cLoc) : null,
                 creditNote.Code, creditNote.Reference, creditNote.Date,
                 product.Id, product.Code, product.Name,
                 line.Quantity, line.Rate, netAfterLineDiscount, itemDiscount, transactionDiscount, line.Amount,

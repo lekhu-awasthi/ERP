@@ -59,6 +59,17 @@ public sealed class CreateOrganizationCommandHandler(
         // CreateCurrencyCommandHandler.EnforceMultiCurrencyEntitlementAsync.
         db.Currencies.Add(Currency.CreateBase(organization.Id));
 
+        // Phase 32 -- the HeadOffice billing location, seeded unconditionally, for exactly the reason
+        // the base Currency above is and explicitly NOT gated on the MultipleLocations entitlement.
+        // Every document defaults to a location, so a tenant with no BillingLocation row would have a
+        // document header pointing at a location its own list does not contain. Seeding it is also
+        // what makes MultipleLocations expressible as a cap rather than a block -- a tenant without
+        // the entitlement has exactly this one location and is capped there, and the *second*
+        // location is what the entitlement buys. See
+        // CreateBillingLocationCommandHandler.EnforceMultipleLocationsEntitlementAsync, and
+        // phase-20f Decision #4 / phase-28's currency cap for the first two instances of the shape.
+        db.BillingLocations.Add(BillingLocation.CreateHeadOffice(organization.Id));
+
         var features = new AccountingFeatureSelections(
             request.TrackInventory,
             request.MultipleLocations,

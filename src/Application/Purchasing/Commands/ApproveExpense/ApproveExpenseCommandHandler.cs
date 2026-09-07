@@ -49,7 +49,8 @@ public sealed class ApproveExpenseCommandHandler(
                 ExchangeRates.ToBase(x.VatAmount, expense.ExchangeRate))),
             ExchangeRates.ToBase(expense.TdsAmount, expense.ExchangeRate), cancellationToken);
 
-        var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.Expense, cancellationToken);
+        var code = await numberGenerator.GetNextNumberAsync(
+            request.OrganizationId, DocumentType.Expense, cancellationToken, expense.LocationId);
 
         expense.Approve(currentUser.UserId, code);
 

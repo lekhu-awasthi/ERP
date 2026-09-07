@@ -30,7 +30,8 @@ public sealed class ApproveQuotationCommandHandler(
             throw new ConflictException("A quotation needs at least one line to be approved.");
         }
 
-        var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.Quotation, cancellationToken);
+        var code = await numberGenerator.GetNextNumberAsync(
+            request.OrganizationId, DocumentType.Quotation, cancellationToken, quotation.LocationId);
 
         quotation.Approve(currentUser.UserId, code);
 

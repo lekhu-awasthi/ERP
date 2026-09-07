@@ -32,7 +32,7 @@ public sealed class ApproveProductionOrderCommandHandler(
         }
 
         var code = await numberGenerator.GetNextNumberAsync(
-            request.OrganizationId, DocumentType.ProductionOrder, cancellationToken);
+            request.OrganizationId, DocumentType.ProductionOrder, cancellationToken, order.LocationId);
 
         order.Approve(currentUser.UserId, code);
         await db.SaveChangesAsync(cancellationToken);

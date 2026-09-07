@@ -42,13 +42,26 @@ public sealed class OpeningBalanceLine
     /// <inheritdoc cref="CurrencyCode"/>
     public decimal ExchangeRate { get; private set; } = ExchangeRates.BaseRate;
 
+    /// <summary>
+    /// Phase 32 (FR-2.3/FR-3.3). The billing location this opening balance belongs to. Confirmed
+    /// live 2026-09-07 on a location-enabled tenant: the Opening Balances &gt; Account inline row
+    /// form reads <b>Location, Currency, Conversion Rate, Amount, DR/CR</b> -- Location is its
+    /// <i>first</i> field, and it is absent entirely on a tenant without the entitlement, which is
+    /// why no earlier phase could see it.
+    ///
+    /// <para>Nullable and set through Create/Update rather than a draft-guarded mutator, because
+    /// unlike the fifteen transactional aggregates this row has no Draft/Approve lifecycle at all --
+    /// it is a "day zero" figure keyed by (OrganizationId, AccountId), editable in place forever.</para>
+    /// </summary>
+    public Guid? LocationId { get; private set; }
+
     private OpeningBalanceLine()
     {
     }
 
     public static OpeningBalanceLine Create(
         Guid organizationId, Guid accountId, decimal debit, decimal credit,
-        string? currencyCode = null, decimal? exchangeRate = null)
+        string? currencyCode = null, decimal? exchangeRate = null, Guid? locationId = null)
     {
         ValidateSides(debit, credit);
         var (code, rate) = ExchangeRates.Validate(currencyCode, exchangeRate);
@@ -63,12 +76,15 @@ public sealed class OpeningBalanceLine
             Credit = credit,
             CurrencyCode = code,
             ExchangeRate = rate,
+            LocationId = locationId,
             CreatedAt = now,
             UpdatedAt = now,
         };
     }
 
-    public void Update(decimal debit, decimal credit, string? currencyCode = null, decimal? exchangeRate = null)
+    public void Update(
+        decimal debit, decimal credit, string? currencyCode = null, decimal? exchangeRate = null,
+        Guid? locationId = null)
     {
         ValidateSides(debit, credit);
         var (code, rate) = ExchangeRates.Validate(currencyCode, exchangeRate);
@@ -76,6 +92,7 @@ public sealed class OpeningBalanceLine
         Credit = credit;
         CurrencyCode = code;
         ExchangeRate = rate;
+        LocationId = locationId;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 

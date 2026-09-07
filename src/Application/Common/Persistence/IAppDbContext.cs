@@ -33,6 +33,7 @@ public interface IAppDbContext
     DbSet<TenantSubscription> TenantSubscriptions { get; }
     DbSet<Warehouse> Warehouses { get; }
     DbSet<Currency> Currencies { get; }
+    DbSet<BillingLocation> BillingLocations { get; }
     DbSet<OrganizationMembership> OrganizationMemberships { get; }
     DbSet<Role> Roles { get; }
     DbSet<RolePermission> RolePermissions { get; }

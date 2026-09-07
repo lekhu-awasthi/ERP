@@ -1,5 +1,6 @@
 using ErpApp.Application.Catalog.Variants;
 using ErpApp.Application.Common.Exceptions;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Inventory.Stock;
 using ErpApp.Domain.Catalog;
@@ -46,6 +47,11 @@ public sealed class CreateOrUpdateOpeningStockLineCommandHandler(IAppDbContext d
 
         var organization = await db.Organizations.SingleAsync(x => x.Id == request.OrganizationId, cancellationToken);
 
+        // Phase 32 -- resolved before the branch below so create and update store it identically;
+        // null when the tenant's LocationScopeMode leaves OpeningStock out of scope.
+        var locationId = await LocationResolver.ResolveAsync(
+            db, request.OrganizationId, DocumentType.OpeningStock, request.LocationId, cancellationToken);
+
         var line = await db.OpeningStockLines.SingleOrDefaultAsync(
             x => x.OrganizationId == request.OrganizationId && x.ProductId == request.ProductId
                 && x.WarehouseId == request.WarehouseId,
@@ -56,11 +62,13 @@ public sealed class CreateOrUpdateOpeningStockLineCommandHandler(IAppDbContext d
             await stockLedger.ReverseIncrementAsync(
                 request.OrganizationId, DocumentType.OpeningStock, line.Id, organization.AccountingStartDate, cancellationToken);
 
-            line.Update(request.Quantity, request.Rate);
+            line.Update(request.Quantity, request.Rate, locationId);
         }
         else
         {
-            line = OpeningStockLine.Create(request.OrganizationId, request.ProductId, request.WarehouseId, request.Quantity, request.Rate);
+            line = OpeningStockLine.Create(
+                request.OrganizationId, request.ProductId, request.WarehouseId, request.Quantity, request.Rate,
+                locationId);
             db.OpeningStockLines.Add(line);
         }
 

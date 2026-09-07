@@ -76,7 +76,7 @@ public static class SalesEndpoints
             var result = await sender.Send(
                 new CreateQuotationCommand(
                     organizationId, request.ContactId, request.Date, request.ExpiryDate, request.Reference, request.Lines,
-                    request.DiscountPct, request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.DiscountPct, request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/quotations/{result.Id}", result);
         });
@@ -87,7 +87,7 @@ public static class SalesEndpoints
             var result = await sender.Send(
                 new UpdateQuotationCommand(
                     organizationId, id, request.ContactId, request.Date, request.ExpiryDate, request.Reference, request.Lines,
-                    request.DiscountPct, request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.DiscountPct, request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Ok(result);
         });
@@ -110,12 +110,13 @@ public static class SalesEndpoints
     private static void MapInvoiceEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/invoices", async (
-            Guid organizationId, InvoiceStatus? status, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            Guid organizationId, InvoiceStatus? status, int? page, int? pageSize, Guid? locationId,
+            ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ListInvoicesQuery(
                     organizationId, status,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, locationId),
                 ct);
             return Results.Ok(result);
         });
@@ -135,7 +136,7 @@ public static class SalesEndpoints
                     organizationId, request.ContactId, request.WarehouseId, request.Date, request.Reference, request.Lines,
                     request.ReferrerType, request.ReferrerId, request.DiscountPct,
                     request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate,
-                    request.Terms, request.DueDate) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.Terms, request.DueDate) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/invoices/{result.Id}", result);
         });
@@ -148,7 +149,7 @@ public static class SalesEndpoints
                     organizationId, id, request.ContactId, request.WarehouseId, request.Date, request.Reference, request.Lines,
                     request.DiscountPct,
                     request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate,
-                    request.Terms, request.DueDate) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.Terms, request.DueDate) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Ok(result);
         });
@@ -210,7 +211,7 @@ public static class SalesEndpoints
             var result = await sender.Send(
                 new CreateSalesOrderCommand(
                     organizationId, request.ContactId, request.Date, request.DeliveryDate, request.Reference, request.Lines,
-                    request.DiscountPct, request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.DiscountPct, request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/sales-orders/{result.Id}", result);
         });
@@ -221,7 +222,7 @@ public static class SalesEndpoints
             var result = await sender.Send(
                 new UpdateSalesOrderCommand(
                     organizationId, id, request.ContactId, request.Date, request.DeliveryDate, request.Reference, request.Lines,
-                    request.DiscountPct, request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.DiscountPct, request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Ok(result);
         });
@@ -264,7 +265,7 @@ public static class SalesEndpoints
             var result = await sender.Send(
                 new CreateCreditNoteCommand(
                     organizationId, request.ContactId, request.Date, request.Reference, request.Lines,
-                    request.ReferrerType, request.ReferrerId, request.DiscountPct, request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.ReferrerType, request.ReferrerId, request.DiscountPct, request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/credit-notes/{result.Id}", result);
         });
@@ -275,7 +276,7 @@ public static class SalesEndpoints
             var result = await sender.Send(
                 new UpdateCreditNoteCommand(
                     organizationId, id, request.ContactId, request.Date, request.Reference, request.Lines, request.DiscountPct,
-                    request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Ok(result);
         });
@@ -306,24 +307,24 @@ public static class SalesEndpoints
     {
         group.MapGet("/reports/sales-master-report", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid? productId, Guid? warehouseId,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            Guid? locationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesMasterReportQuery(
                     organizationId, fromDate, toDate, contactId, productId, warehouseId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/sales-master-report/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid? productId, Guid? warehouseId,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            Guid? locationId, bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesMasterReportQuery(
                     organizationId, fromDate, toDate, contactId, productId, warehouseId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportSalesMasterReport(result, fromDate, toDate);
         });
@@ -412,7 +413,11 @@ public static class SalesEndpoints
         // be carried on the request record itself, not only on the command: a trailing optional
         // parameter added to a command alone binds to null forever and every test still passes
         // (phase-27b's Terms).
-        string? CurrencyCode = null, decimal? ExchangeRate = null);
+        string? CurrencyCode = null, decimal? ExchangeRate = null,
+        // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Same shape and
+        // the same reason as the currency pair above: optional, trailing, and carried on the request
+        // record itself rather than only on the command.
+        Guid? LocationId = null);
 
     private sealed record InvoiceRequest(
         Guid ContactId, Guid WarehouseId, DateOnly Date, string? Reference, IReadOnlyList<InvoiceLineInput> Lines,
@@ -429,7 +434,10 @@ public static class SalesEndpoints
         // (phase-27b's Terms).
         string? CurrencyCode = null, decimal? ExchangeRate = null,
         // Phase 31 -- the stored Due Date. Null means the invoice's own date.
-        DateOnly? DueDate = null);
+        DateOnly? DueDate = null,
+        // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Optional,
+        // trailing, and carried here on the request record, not only on the command (phase-27b's Terms).
+        Guid? LocationId = null);
 
     // Phase 31 adds the second override. Carried on the request record itself, not only on the
     // command (phase-27b's Terms gotcha).
@@ -448,7 +456,11 @@ public static class SalesEndpoints
         // be carried on the request record itself, not only on the command: a trailing optional
         // parameter added to a command alone binds to null forever and every test still passes
         // (phase-27b's Terms).
-        string? CurrencyCode = null, decimal? ExchangeRate = null);
+        string? CurrencyCode = null, decimal? ExchangeRate = null,
+        // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Same shape and
+        // the same reason as the currency pair above: optional, trailing, and carried on the request
+        // record itself rather than only on the command.
+        Guid? LocationId = null);
 
     private sealed record CreditNoteRequest(
         Guid ContactId, DateOnly Date, string? Reference, IReadOnlyList<CreditNoteLineInput> Lines,
@@ -460,5 +472,9 @@ public static class SalesEndpoints
         // be carried on the request record itself, not only on the command: a trailing optional
         // parameter added to a command alone binds to null forever and every test still passes
         // (phase-27b's Terms).
-        string? CurrencyCode = null, decimal? ExchangeRate = null);
+        string? CurrencyCode = null, decimal? ExchangeRate = null,
+        // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Same shape and
+        // the same reason as the currency pair above: optional, trailing, and carried on the request
+        // record itself rather than only on the command.
+        Guid? LocationId = null);
 }

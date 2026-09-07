@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Exceptions;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Numbering;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Accounting;
@@ -25,6 +26,12 @@ public sealed class CreateOrUpdateOpeningBalanceLineCommandHandler(IAppDbContext
     {
         await AccountingValidation.EnsureAccountsExistAsync(db, request.OrganizationId, [request.AccountId], cancellationToken);
 
+        // Phase 32 -- the Location field the live Opening Balances > Account row form leads with
+        // (confirmed 2026-09-07). Resolved before the branch below so create and update store it
+        // identically; null when the tenant's LocationScopeMode leaves OpeningBalance out of scope.
+        var locationId = await LocationResolver.ResolveAsync(
+            db, request.OrganizationId, DocumentType.OpeningBalance, request.LocationId, cancellationToken);
+
         var line = await db.OpeningBalanceLines.SingleOrDefaultAsync(
             x => x.OrganizationId == request.OrganizationId && x.AccountId == request.AccountId, cancellationToken);
 
@@ -36,13 +43,13 @@ public sealed class CreateOrUpdateOpeningBalanceLineCommandHandler(IAppDbContext
                     x => x.SourceDocumentType == DocumentType.OpeningBalance && x.SourceDocumentId == line.Id, cancellationToken);
             db.GlJournalEntries.Add(GlJournalEntry.PostReversalOf(priorEntry));
 
-            line.Update(request.Debit, request.Credit, request.CurrencyCode, request.ExchangeRate);
+            line.Update(request.Debit, request.Credit, request.CurrencyCode, request.ExchangeRate, locationId);
         }
         else
         {
             line = OpeningBalanceLine.Create(
                 request.OrganizationId, request.AccountId, request.Debit, request.Credit,
-                request.CurrencyCode, request.ExchangeRate);
+                request.CurrencyCode, request.ExchangeRate, locationId);
             db.OpeningBalanceLines.Add(line);
         }
 

@@ -22,6 +22,12 @@ public sealed record InvoiceDetailDto(
     Guid OrganizationId,
     Guid ContactId,
     Guid WarehouseId,
+    // Phase 32 -- the billing location this invoice was raised from, null when the tenant's
+    // LocationScopeMode excludes Invoice. Unlike the list (which returns the aggregate itself, so the
+    // field came for free), this detail query projects an explicit DTO -- so omitting it here would
+    // leave the header picker unable to show the stored value on an existing invoice while the write
+    // path worked perfectly. Caught by the phase-32 E2E, not by any test.
+    Guid? LocationId,
     string Code,
     DateOnly Date,
     // Phase 31 -- the stored Due Date, so the detail page and its form can round-trip it.

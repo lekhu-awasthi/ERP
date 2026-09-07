@@ -10,6 +10,12 @@ public sealed class OpeningStockLineConfiguration : IEntityTypeConfiguration<Ope
 {
     public void Configure(EntityTypeBuilder<OpeningStockLine> builder)
     {
+        // Phase 32 -- the billing location this document was raised from. Restrict, mirroring the
+        // Warehouse FK this codebase already uses: a location a document points at must not vanish
+        // under it. Nullable, so a tenant whose LocationScopeMode excludes this type stores null.
+        builder.HasOne<BillingLocation>().WithMany().HasForeignKey(x => x.LocationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.ToTable("OpeningStockLines", schema: "inventory");
 
         builder.HasKey(x => x.Id);

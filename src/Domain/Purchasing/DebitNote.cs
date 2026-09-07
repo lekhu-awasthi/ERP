@@ -48,6 +48,22 @@ public sealed class DebitNote
     public string CurrencyCode { get; private set; } = CurrencyCatalog.BaseCode;
 
     /// <summary>
+    /// Phase 32 (FR-2.3/FR-3.3). The billing location this document was raised from -- the
+    /// borderless picker in the live document header, left of Save, rendering "Name (Code)" and
+    /// defaulting to HeadOffice (confirmed live 2026-09-07 on a location-enabled tenant).
+    ///
+    /// <para>Nullable, and nullable on every transactional aggregate rather than only the sales-side
+    /// ones, because <see cref="Domain.Tenancy.LocationScopeMode"/> is a runtime setting an Admin can
+    /// widen at any moment: the column has to exist before the switch is flipped, or the switch is a
+    /// lie. <see cref="Domain.Tenancy.DocumentLocationScope"/> is the single place that decides
+    /// whether a given type carries one for a given tenant.</para>
+    ///
+    /// <para>An Id rather than a code, unlike <see cref="CurrencyCode"/> directly above -- see
+    /// Domain.Tenancy.BillingLocation for why the two diverge.</para>
+    /// </summary>
+    public Guid? LocationId { get; private set; }
+
+    /// <summary>
     /// This document's rate to the base currency, stored on the document rather than looked up by
     /// date. Confirmed live 2026-09-04: the reference product's "Exchange Rate To NPR*" is a plain
     /// manual number input with no date coupling, and its conversion flow carries the rate along in
@@ -174,6 +190,23 @@ public sealed class DebitNote
     {
         EnsureDraft();
         (CurrencyCode, ExchangeRate) = ExchangeRates.Validate(currencyCode, exchangeRate);
+    }
+
+    /// <summary>
+    /// Phase 32 -- sets the billing location this document is raised from. Draft-only, exactly like
+    /// <see cref="SetCurrency"/> beside it and for a related reason: an Approved document's location
+    /// is what its numbering pool was drawn from (see DocumentNumberingRule.LocationWiseNumbering)
+    /// and what every location-filtered report has already counted it under, so moving it afterwards
+    /// would silently restate both.
+    ///
+    /// <para>Accepts null -- a tenant whose <see cref="Domain.Tenancy.LocationScopeMode"/> excludes
+    /// this document type simply never sets one, which is why the column is nullable rather than
+    /// defaulted to HeadOffice at the aggregate level. The Create handler resolves the default.</para>
+    /// </summary>
+    public void SetLocation(Guid? locationId)
+    {
+        EnsureDraft();
+        LocationId = locationId;
     }
 
     private void EnsureDraft()

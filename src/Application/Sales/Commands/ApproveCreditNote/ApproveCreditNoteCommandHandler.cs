@@ -80,7 +80,8 @@ public sealed class ApproveCreditNoteCommandHandler(
                 ExchangeRates.ToBase(x.VatAmount, creditNote.ExchangeRate))),
             resolveInventoryAccounts: sourceInvoice is not null, cancellationToken);
 
-        var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.CreditNote, cancellationToken);
+        var code = await numberGenerator.GetNextNumberAsync(
+            request.OrganizationId, DocumentType.CreditNote, cancellationToken, creditNote.LocationId);
 
         creditNote.Approve(currentUser.UserId, code);
 

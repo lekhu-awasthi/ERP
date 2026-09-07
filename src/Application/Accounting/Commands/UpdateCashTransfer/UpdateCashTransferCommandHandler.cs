@@ -1,6 +1,8 @@
 using ErpApp.Application.Common.Exceptions;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Accounting;
+using ErpApp.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -32,6 +34,15 @@ public sealed class UpdateCashTransferCommandHandler(IAppDbContext db)
 
         // Phase 28 -- see the Create handler's note. Draft-only, enforced by the aggregate.
         cashTransfer.SetCurrency(request.CurrencyCode, request.ExchangeRate);
+
+        // Phase 32 -- same treatment as the currency pair above: resolved right after
+        // construction rather than threaded through Create's parameter list. Null means
+        // "the tenant's default", and LocationResolver returns a real null when this type is
+        // outside the tenant's LocationScopeMode, so a client that keeps sending a location
+        // after an Admin narrows the scope cannot quietly keep writing one.
+        cashTransfer.SetLocation(await LocationResolver.ResolveAsync(
+            db, request.OrganizationId, DocumentType.CashTransfer, request.LocationId,
+            cancellationToken));
         cashTransfer.ClearLines();
         foreach (var line in request.Lines)
         {

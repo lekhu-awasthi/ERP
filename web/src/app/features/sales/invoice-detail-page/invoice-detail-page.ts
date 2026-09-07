@@ -17,7 +17,7 @@ import { Product, VatRate } from '../../../core/catalog/catalog.models';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
-import { Warehouse } from '../../../core/organizations/organizations.models';
+import { BillingLocation, Warehouse } from '../../../core/organizations/organizations.models';
 import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
@@ -98,6 +98,24 @@ export class InvoiceDetailPage {
 
   protected readonly contactId = signal('');
   protected readonly warehouseId = signal('');
+
+  /**
+   * Phase 32 (FR-2.3/FR-3.3) -- the billing location this invoice is raised from. Confirmed live
+   * 2026-09-07 on a location-enabled tenant: it is **not** a field in the form body but a borderless
+   * picker in the page header, immediately left of Save, rendering `Name (Code)` and defaulting to
+   * `HeadOffice (HO)`. Its dropdown lists every active location including the POS ones.
+   *
+   * Empty means "let the server pick the default", which LocationResolver turns into HeadOffice --
+   * so a tenant with one location never has to touch it, and a tenant whose scope setting excludes
+   * Invoice stores nothing.
+   */
+  protected readonly locationId = signal('');
+  protected readonly billingLocations = signal<BillingLocation[]>([]);
+
+  /** Whether this document type carries a location at all for this tenant, resolved server-side by
+   * DocumentLocationScope so no screen re-derives the rule (phase-30's "find the rule" lesson). */
+  protected readonly locationApplies = signal(false);
+
   protected readonly date = signal(this.today());
 
   /**
@@ -171,6 +189,30 @@ export class InvoiceDetailPage {
     this.catalogService.listAllProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
     this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
     this.organizationsService.listWarehouses(this.organizationId).subscribe({ next: (w) => this.warehouses.set(w) });
+
+    // Phase 32 -- the header location picker. Two calls rather than one because they answer
+    // different questions: the settings say whether an Invoice carries a location for THIS tenant
+    // (the server resolves DocumentLocationScope, so the client never re-derives the rule), and the
+    // list is what the picker is populated from. Both fail soft -- a tenant without the entitlement
+    // gets no picker rather than a broken form, which is the phase-20f rule applied to a control.
+    this.organizationsService.getBillingLocationSettings(this.organizationId).subscribe({
+      next: (settings) => this.locationApplies.set(settings.locationBearingDocumentTypes.includes('Invoice')),
+      error: () => this.locationApplies.set(false),
+    });
+    this.organizationsService.listBillingLocations(this.organizationId).subscribe({
+      next: (locations) => {
+        this.billingLocations.set(locations);
+
+        // Select HeadOffice explicitly rather than letting the first <option> win by sort order.
+        // The server would resolve an empty value to the same row, but a select showing one location
+        // while the request carries none is the phase-5 select-race in spirit: the display and the
+        // stored value must agree because they were made to, not because two orderings happen to.
+        if (!this.locationId()) {
+          this.locationId.set(locations.find((x) => x.isHeadOffice)?.id ?? locations[0]?.id ?? '');
+        }
+      },
+      error: () => this.billingLocations.set([]),
+    });
     this.configurationService.listCreditTerms(this.organizationId).subscribe({
       next: (terms) => this.creditTerms.set(terms),
       error: () => this.creditTerms.set([]),
@@ -214,6 +256,10 @@ export class InvoiceDetailPage {
           this.lines.set([this.newLine()]);
         }
         this.warehouseId.set('');
+        // Phase 32 -- a new invoice starts on the tenant's default location. Empty rather than
+        // pre-selected: the server resolves the default, so the client never has to know which row
+        // is HeadOffice, and the picker below shows it as soon as the list arrives.
+        this.locationId.set('');
         this.inboxPrefill.set(null);
         this.inboxDocumentId = null;
       } else {
@@ -446,6 +492,9 @@ export class InvoiceDetailPage {
       exchangeRate: this.exchangeRate(),
       contactId: this.contactId(),
       warehouseId: this.warehouseId(),
+      // Phase 32 -- null means "the tenant's default", which the server resolves to HeadOffice (or
+      // to nothing, if its LocationScopeMode excludes Invoice). Never sent as an empty string.
+      locationId: this.locationId() || null,
       date: this.date(),
       dueDate: this.dueDate() || this.date(),
       reference: this.reference() || null,
@@ -656,6 +705,7 @@ Approve anyway?`)) {
         this.invoice.set(invoice);
         this.contactId.set(invoice.contactId);
         this.warehouseId.set(invoice.warehouseId);
+        this.locationId.set(invoice.locationId ?? '');
         this.date.set(invoice.date);
         this.dueDate.set(invoice.dueDate);
         this.reference.set(invoice.reference ?? '');

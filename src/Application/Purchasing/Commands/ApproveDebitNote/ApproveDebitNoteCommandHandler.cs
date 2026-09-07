@@ -85,7 +85,8 @@ public sealed class ApproveDebitNoteCommandHandler(
             ExchangeRates.ToBase(debitNote.TdsAmount, debitNote.ExchangeRate), cancellationToken,
             requiresLandedCostClearing: sourcePurchaseBill?.AdditionalCosts.Count > 0);
 
-        var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.DebitNote, cancellationToken);
+        var code = await numberGenerator.GetNextNumberAsync(
+            request.OrganizationId, DocumentType.DebitNote, cancellationToken, debitNote.LocationId);
 
         debitNote.Approve(currentUser.UserId, code);
 

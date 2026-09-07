@@ -158,6 +158,65 @@ export interface UpdateCurrencyResult {
  * Domain.Common.CurrencyCatalog.BaseCode. */
 export const BASE_CURRENCY_CODE = 'NPR';
 
+// Phase 32 (FR-2.3/FR-3.3) -- the tenant's billing locations, rendered on the Organization's own
+// Features tab beside Warehouse and Currency (confirmed live 2026-09-07 on a location-enabled
+// tenant), which is why these live here rather than under configuration.
+
+/** System-assigned, never chosen by the tenant: the live Add New Location dialog has no type
+ * control at all. Mirrors Domain.Tenancy.BillingLocationType. */
+export type BillingLocationType = 'HeadOffice' | 'Standard' | 'PosRestaurant' | 'PosRetail';
+
+export interface BillingLocation {
+  id: string;
+  code: string;
+  name: string;
+  address: string | null;
+  warehouseId: string | null;
+  warehouseName: string | null;
+  locationType: BillingLocationType;
+  isHeadOffice: boolean;
+  isActive: boolean;
+}
+
+export interface CreateBillingLocationRequest {
+  code: string;
+  name: string;
+  address?: string | null;
+  warehouseId?: string | null;
+}
+
+export interface CreateBillingLocationResult {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface UpdateBillingLocationRequest {
+  code: string;
+  name: string;
+  address: string | null;
+  warehouseId: string | null;
+  isActive: boolean;
+}
+
+/** The Advanced panel inside the Billing Location card. `SalesTransactionsOnly` is the live default
+ * (badged "Default"); `AllTransactions` is the widening opt-in. */
+export type LocationScopeMode = 'SalesTransactionsOnly' | 'AllTransactions';
+
+export interface BillingLocationSettings {
+  locationScopeMode: LocationScopeMode;
+  locationWiseReportPermission: boolean;
+  multipleLocationsEnabled: boolean;
+  /** Resolved server-side from locationScopeMode, so no screen re-derives the rule. A document form
+   * asks "is my own DocumentType in here?" to decide whether to render a location picker. */
+  locationBearingDocumentTypes: string[];
+}
+
+export interface UpdateBillingLocationSettingsRequest {
+  locationScopeMode: LocationScopeMode;
+  locationWiseReportPermission: boolean;
+}
+
 // Phase 13 -- powers the Task feature's Assigned-To picker. membershipId/roleId (Phase 14) also
 // let the Role Reference page's Members section reassign a member's Role.
 export interface OrganizationMember {

@@ -338,6 +338,18 @@ export const routes: Routes = [
     canActivate: [authGuard, featureGuard('MultiCurrency')],
   },
   {
+    // Phase 32 -- the client half of the MultipleLocations cap, the same call the two routes above
+    // make. The server's real enforcement is a cap on the location *list*
+    // (CreateBillingLocationCommandHandler), not a block on documents; this guard keeps a flag-off
+    // tenant out of a page that would show them one immutable row and a panel they cannot use.
+    path: 'organizations/:id/billing-locations',
+    loadComponent: () =>
+      import('./features/organizations/billing-location-list-page/billing-location-list-page').then(
+        (m) => m.BillingLocationListPage,
+      ),
+    canActivate: [authGuard, featureGuard('MultipleLocations')],
+  },
+  {
     path: 'organizations/:id/sales/quotations',
     loadComponent: () =>
       import('./features/sales/quotation-list-page/quotation-list-page').then((m) => m.QuotationListPage),

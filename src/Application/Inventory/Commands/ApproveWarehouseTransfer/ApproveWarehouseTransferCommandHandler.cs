@@ -43,7 +43,8 @@ public sealed class ApproveWarehouseTransferCommandHandler(
             throw new ConflictException("A warehouse transfer needs at least one line to be approved.");
         }
 
-        var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.WarehouseTransfer, cancellationToken);
+        var code = await numberGenerator.GetNextNumberAsync(
+            request.OrganizationId, DocumentType.WarehouseTransfer, cancellationToken, warehouseTransfer.LocationId);
 
         warehouseTransfer.Approve(currentUser.UserId, code);
 

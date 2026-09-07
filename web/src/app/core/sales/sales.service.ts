@@ -106,9 +106,13 @@ export class SalesService {
     status?: InvoiceStatus,
     page = 1,
     pageSize = 50,
+    locationId?: string,
   ): Observable<PagedResult<Invoice>> {
+    // Record<string, string>, not a union including {} -- the phase-3 gotcha where a wider type
+    // silently resolves HttpClient.get to its arraybuffer overload.
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
     if (status) params['status'] = status;
+    if (locationId) params['locationId'] = locationId;
     return this.http.get<PagedResult<Invoice>>(`${this.baseUrl(organizationId)}/invoices`, { withCredentials: true, params });
   }
 

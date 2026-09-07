@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Currencies;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
@@ -19,7 +20,7 @@ public sealed record UpdateInvoiceCommand(
     // pre-phase-31 row, so an unaware caller behaves identically to before. Carried on the Api's
     // request record too (phase-27b's Terms gotcha).
     DateOnly? DueDate = null)
-    : IRequest<UpdateInvoiceResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId, ICurrencyBearingCommand
+    : IRequest<UpdateInvoiceResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId, ICurrencyBearingCommand, ILocationBearingCommand
 {
     public string PermissionKey => PermissionKeys.InvoiceEdit;
 
@@ -29,6 +30,12 @@ public sealed record UpdateInvoiceCommand(
 
     /// <inheritdoc cref="CurrencyCode"/>
     public decimal? ExchangeRate { get; init; }
+
+    /// <summary>Phase 32 (FR-2.3/FR-3.3). The billing location this document is raised from. Null
+    /// means "the tenant's default", which <see cref="LocationResolver"/> resolves to HeadOffice --
+    /// or to a real null when this document type is out of the tenant's LocationScopeMode. See
+    /// <see cref="ILocationBearingCommand"/>.</summary>
+    public Guid? LocationId { get; init; }
     public DocumentType AuditDocumentType => DocumentType.Invoice;
     public Guid AuditDocumentId => Id;
 }

@@ -75,7 +75,8 @@ public sealed class ApprovePurchaseBillCommandHandler(
             ExchangeRates.ToBase(purchaseBill.TdsAmount, purchaseBill.ExchangeRate), cancellationToken,
             requiresLandedCostClearing: purchaseBill.AdditionalCosts.Count > 0);
 
-        var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.PurchaseBill, cancellationToken);
+        var code = await numberGenerator.GetNextNumberAsync(
+            request.OrganizationId, DocumentType.PurchaseBill, cancellationToken, purchaseBill.LocationId);
 
         purchaseBill.Approve(currentUser.UserId, code);
 

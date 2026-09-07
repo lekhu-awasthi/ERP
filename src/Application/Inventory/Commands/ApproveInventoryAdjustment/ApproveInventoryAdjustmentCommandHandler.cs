@@ -60,7 +60,7 @@ public sealed class ApproveInventoryAdjustmentCommandHandler(
                 "Default Inventory Adjustment account is not configured. Set it under Accounting Defaults before approving inventory adjustments.");
 
         var code = await numberGenerator.GetNextNumberAsync(
-            request.OrganizationId, DocumentType.InventoryAdjustment, cancellationToken);
+            request.OrganizationId, DocumentType.InventoryAdjustment, cancellationToken, inventoryAdjustment.LocationId);
 
         inventoryAdjustment.Approve(currentUser.UserId, code);
 

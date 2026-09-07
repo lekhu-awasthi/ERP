@@ -2,6 +2,7 @@ using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Purchasing;
+using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +12,12 @@ public sealed class PurchaseOrderConfiguration : IEntityTypeConfiguration<Purcha
 {
     public void Configure(EntityTypeBuilder<PurchaseOrder> builder)
     {
+        // Phase 32 -- the billing location this document was raised from. Restrict, mirroring the
+        // Warehouse FK this codebase already uses: a location a document points at must not vanish
+        // under it. Nullable, so a tenant whose LocationScopeMode excludes this type stores null.
+        builder.HasOne<BillingLocation>().WithMany().HasForeignKey(x => x.LocationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.ToTable("PurchaseOrders", schema: "purchasing");
 
         builder.HasKey(x => x.Id);

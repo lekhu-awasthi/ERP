@@ -18,6 +18,11 @@ public sealed class ListInvoicesQueryHandler(IAppDbContext db)
             query = query.Where(x => x.Status == status);
         }
 
+        if (request.LocationId is { } locationId)
+        {
+            query = query.Where(x => x.LocationId == locationId);
+        }
+
         return await query.OrderByDescending(x => x.CreatedAt)
             .ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
     }

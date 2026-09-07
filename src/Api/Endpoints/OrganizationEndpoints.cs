@@ -5,6 +5,7 @@ using ErpApp.Application.Tenancy.Commands.AcceptInvitation;
 using ErpApp.Application.Tenancy.Commands.AcceptRequest;
 using ErpApp.Application.Tenancy.Commands.CreateOrganization;
 using ErpApp.Application.Tenancy.Commands.CreateRole;
+using ErpApp.Application.Tenancy.Commands.CreateBillingLocation;
 using ErpApp.Application.Tenancy.Commands.CreateCurrency;
 using ErpApp.Application.Tenancy.Commands.CreateWarehouse;
 using ErpApp.Application.Tenancy.Commands.DeleteRole;
@@ -16,10 +17,14 @@ using ErpApp.Application.Tenancy.Commands.UpdateGeneralSettings;
 using ErpApp.Application.Tenancy.Commands.UpdateMembershipRole;
 using ErpApp.Application.Tenancy.Commands.UpdateRole;
 using ErpApp.Application.Tenancy.Commands.UpdateRolePermissions;
+using ErpApp.Application.Tenancy.Commands.UpdateBillingLocation;
+using ErpApp.Application.Tenancy.Commands.UpdateBillingLocationSettings;
 using ErpApp.Application.Tenancy.Commands.UpdateCurrency;
 using ErpApp.Application.Tenancy.Commands.UpdateWarehouse;
 using ErpApp.Application.Tenancy.Queries.CheckWorkspaceNameAvailability;
 using ErpApp.Application.Tenancy.Queries.GetAccountingDefaults;
+using ErpApp.Application.Tenancy.Queries.GetBillingLocationSettings;
+using ErpApp.Application.Tenancy.Queries.ListBillingLocations;
 using ErpApp.Application.Tenancy.Queries.GetGeneralSettings;
 using ErpApp.Application.Tenancy.Queries.ListCurrencyCatalog;
 using ErpApp.Application.Tenancy.Queries.GetOrganizationLockDate;
@@ -224,6 +229,60 @@ public static class OrganizationEndpoints
             return Results.NoContent();
         });
 
+        // Phase 32 (FR-2.3/FR-3.3) -- the tenant's billing locations, on this endpoint group for the
+        // same reason currencies and warehouses are: the reference product renders all three on the
+        // Organization's own Features tab, not under Configurations (confirmed live 2026-09-07 on a
+        // location-enabled tenant). No Delete: the live list deactivates instead, and a location a
+        // document points at must never disappear -- see BillingLocation.Update's HeadOffice guard.
+        group.MapGet("/{organizationId:guid}/billing-locations", async (
+            Guid organizationId, bool? includeInactive, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListBillingLocationsQuery(organizationId, includeInactive ?? false), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/{organizationId:guid}/billing-locations", async (
+            Guid organizationId, CreateBillingLocationRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new CreateBillingLocationCommand(
+                    organizationId, request.Code, request.Name, request.Address, request.WarehouseId),
+                ct);
+            return Results.Created($"/api/organizations/{organizationId}/billing-locations/{result.Id}", result);
+        });
+
+        group.MapPut("/{organizationId:guid}/billing-locations/{id:guid}", async (
+            Guid organizationId, Guid id, UpdateBillingLocationRequest request, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(
+                new UpdateBillingLocationCommand(
+                    organizationId, id, request.Code, request.Name, request.Address, request.WarehouseId,
+                    request.IsActive),
+                ct);
+            return Results.NoContent();
+        });
+
+        // The Advanced panel inside the Billing Location card. Read on BillingLocationView rather
+        // than the Manage key, because every document form asks it whether to render a location
+        // picker -- see GetBillingLocationSettingsQuery.
+        group.MapGet("/{organizationId:guid}/billing-location-settings", async (
+            Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new GetBillingLocationSettingsQuery(organizationId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapPut("/{organizationId:guid}/billing-location-settings", async (
+            Guid organizationId, UpdateBillingLocationSettingsRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdateBillingLocationSettingsCommand(
+                    organizationId, request.LocationScopeMode, request.LocationWiseReportPermission),
+                ct);
+            return Results.Ok(result);
+        });
+
         // Phase 13 -- powers the Task feature's Assigned-To picker (see
         // ListOrganizationMembersQuery's own doc comment for why it's gated on TaskView rather
         // than a standalone "view members" key nothing else needs yet).
@@ -346,6 +405,19 @@ public static class OrganizationEndpoints
     private sealed record CreateCurrencyRequest(string Code, string? Name = null, string? Symbol = null);
 
     private sealed record UpdateCurrencyRequest(string Name, string Symbol, bool IsActive);
+
+    // Phase 32 -- the live "Add New Location" dialog is Location Code*, Location Name*, Address* and
+    // Warehouse*. WarehouseId is optional here although the dialog marks it required: nothing seeds a
+    // Warehouse for a tenant, so demanding one would make the second location unreachable for a
+    // tenant that has never created one (the phase-20f failure mode). See the command's remarks.
+    private sealed record CreateBillingLocationRequest(
+        string Code, string Name, string? Address = null, Guid? WarehouseId = null);
+
+    private sealed record UpdateBillingLocationRequest(
+        string Code, string Name, string? Address, Guid? WarehouseId, bool IsActive);
+
+    private sealed record UpdateBillingLocationSettingsRequest(
+        LocationScopeMode LocationScopeMode, bool LocationWiseReportPermission);
 
     private sealed record UpdateAccountingDefaultsRequest(
         Guid? DefaultSalesAccountId,

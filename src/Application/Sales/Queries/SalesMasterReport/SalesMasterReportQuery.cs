@@ -36,7 +36,12 @@ public sealed record SalesMasterReportQuery(
     Guid? WarehouseId,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize,
-    bool ExportAll = false)
+    bool ExportAll = false,
+    // Phase 32 -- the "Billing Location" filter, confirmed live 2026-09-07 on a location-enabled
+    // tenant as a first-class control on this report's own filter bar (date range, Billing Location,
+    // Contact, Product, GENERATE) under that label, not a reuse of the Warehouse picker. Optional and
+    // trailing: null is "All", which is the live default and what every earlier caller keeps getting.
+    Guid? LocationId = null)
     : IRequest<SalesMasterReportDto>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.SalesMasterReportView;
@@ -57,6 +62,12 @@ public sealed record SalesMasterReportRowDto(
     string? ContactGroupName,
     Guid? WarehouseId,
     string? WarehouseName,
+    // Phase 32 -- the Location column erp-module-scan.md's Reports section records on this report
+    // ("Contact, Type, Contact Group, Warehouse, Location, Entry No, ..."), populated for the first
+    // time now that documents carry a location. Unlike WarehouseId above it needs no referrer lookup
+    // for a Credit Note: CreditNote is in the default sales-only location scope and carries its own.
+    Guid? LocationId,
+    string? LocationName,
     string EntryNo,
     string? ReferenceNo,
     DateOnly EntryDate,

@@ -37,6 +37,8 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
 
     public DbSet<Currency> Currencies => Set<Currency>();
 
+    public DbSet<BillingLocation> BillingLocations => Set<BillingLocation>();
+
     public DbSet<OrganizationMembership> OrganizationMemberships => Set<OrganizationMembership>();
 
     public DbSet<Role> Roles => Set<Role>();

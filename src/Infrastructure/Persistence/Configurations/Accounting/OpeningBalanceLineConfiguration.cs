@@ -1,5 +1,6 @@
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +10,12 @@ public sealed class OpeningBalanceLineConfiguration : IEntityTypeConfiguration<O
 {
     public void Configure(EntityTypeBuilder<OpeningBalanceLine> builder)
     {
+        // Phase 32 -- the billing location this document was raised from. Restrict, mirroring the
+        // Warehouse FK this codebase already uses: a location a document points at must not vanish
+        // under it. Nullable, so a tenant whose LocationScopeMode excludes this type stores null.
+        builder.HasOne<BillingLocation>().WithMany().HasForeignKey(x => x.LocationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.ToTable("OpeningBalanceLines", schema: "accounting");
 
         builder.HasKey(x => x.Id);

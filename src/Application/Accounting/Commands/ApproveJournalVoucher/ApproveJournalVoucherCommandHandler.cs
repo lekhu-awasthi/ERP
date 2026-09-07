@@ -57,7 +57,8 @@ public sealed class ApproveJournalVoucherCommandHandler(
 
         CashBalanceGuard.Enforce(voucherStatus, request.OverrideNegativeCashBalanceWarning, "journal voucher");
 
-        var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.JournalVoucher, cancellationToken);
+        var code = await numberGenerator.GetNextNumberAsync(
+            request.OrganizationId, DocumentType.JournalVoucher, cancellationToken, journalVoucher.LocationId);
 
         journalVoucher.Approve(currentUser.UserId, code);
 

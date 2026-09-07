@@ -1,6 +1,7 @@
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Sales;
+using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,6 +11,12 @@ public sealed class CreditNoteConfiguration : IEntityTypeConfiguration<CreditNot
 {
     public void Configure(EntityTypeBuilder<CreditNote> builder)
     {
+        // Phase 32 -- the billing location this document was raised from. Restrict, mirroring the
+        // Warehouse FK this codebase already uses: a location a document points at must not vanish
+        // under it. Nullable, so a tenant whose LocationScopeMode excludes this type stores null.
+        builder.HasOne<BillingLocation>().WithMany().HasForeignKey(x => x.LocationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.ToTable("CreditNotes", schema: "sales");
 
         builder.HasKey(x => x.Id);

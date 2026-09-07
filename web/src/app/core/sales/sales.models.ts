@@ -128,6 +128,9 @@ export interface Invoice {
   organizationId: string;
   contactId: string;
   warehouseId: string;
+  /** Phase 32 -- the billing location this invoice was raised from; null when the tenant's
+   * LocationScopeMode excludes Invoice. Rendered by the header picker and the list's LOCATION column. */
+  locationId: string | null;
   code: string;
   date: string;
   /** Phase 31 -- stored, editable, defaulting to the document's own date and prefilled from the
@@ -180,6 +183,9 @@ export interface InvoiceRequest {
   exchangeRate?: number | null;
   contactId: string;
   warehouseId: string;
+  /** Phase 32 -- omitting it (or null) means "the tenant's default location", which the server
+   * resolves to HeadOffice, or to nothing when this document type is out of the tenant's scope. */
+  locationId?: string | null;
   date: string;
   /** Phase 31 -- omitting it means "the document's own date", which is also the live form's default. */
   dueDate?: string | null;
@@ -423,6 +429,9 @@ export interface SalesMasterReportRowDto {
   contactGroupName: string | null;
   warehouseId: string | null;
   warehouseName: string | null;
+  /** Phase 32 -- the Location column erp-module-scan.md records on this report. */
+  locationId: string | null;
+  locationName: string | null;
   entryNo: string;
   referenceNo: string | null;
   entryDate: string;

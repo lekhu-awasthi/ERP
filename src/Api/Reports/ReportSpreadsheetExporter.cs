@@ -83,6 +83,11 @@ public static partial class ReportSpreadsheetExporter
                 ("Contact Name", r => r.ContactName),
                 ("Contact Group", r => r.ContactGroupName),
                 ("Warehouse", r => r.WarehouseName),
+                // Phase 32 -- the Location column erp-module-scan.md records on this report, beside
+                // Warehouse exactly as the live column order has it. Adding it shifts Total Amount
+                // from index 18 to 19, and the WriteTotalRow index below moves with it. Populating a
+                // DTO field without a consumer here is phase-23 bug #1 exactly.
+                ("Location", r => r.LocationName),
                 ("Product Code", r => r.ProductCode),
                 ("Product Name", r => r.ProductName),
                 ("Quantity", r => r.Quantity),
@@ -96,7 +101,7 @@ public static partial class ReportSpreadsheetExporter
                 ("Total Amount", r => r.TotalAmount),
             ],
             report.Rows,
-            sheet => WriteTotalRow(sheet, report.Rows.Count, "Total Amount", 18, report.TotalAmount));
+            sheet => WriteTotalRow(sheet, report.Rows.Count, "Total Amount", 19, report.TotalAmount));
 
     public static IResult ExportPurchaseMasterReport(PurchaseMasterReportDto report, DateOnly fromDate, DateOnly toDate) =>
         ExportTable(

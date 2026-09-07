@@ -1,5 +1,7 @@
 using ErpApp.Application.Common.Exceptions;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Inventory;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -42,6 +44,13 @@ public sealed class UpdateInventoryAdjustmentCommandHandler(IAppDbContext db)
 
         db.InventoryAdjustmentLines.RemoveRange(oldLines);
         db.InventoryAdjustmentLines.AddRange(inventoryAdjustment.Lines);
+
+        // Phase 32 -- resolved through the one shared resolver so this type follows the
+        // tenant's LocationScopeMode identically to the sales-side ones. Under the default
+        // mode that setting puts this document out of scope and the resolver returns null.
+        inventoryAdjustment.SetLocation(await LocationResolver.ResolveAsync(
+            db, request.OrganizationId, DocumentType.InventoryAdjustment, request.LocationId,
+            cancellationToken));
 
         await db.SaveChangesAsync(cancellationToken);
 

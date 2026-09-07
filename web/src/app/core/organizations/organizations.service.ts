@@ -10,6 +10,12 @@ import {
   CreateOrganizationResponse,
   CreateRoleRequest,
   CreateRoleResult,
+  BillingLocation,
+  BillingLocationSettings,
+  CreateBillingLocationRequest,
+  CreateBillingLocationResult,
+  UpdateBillingLocationRequest,
+  UpdateBillingLocationSettingsRequest,
   CreateCurrencyRequest,
   CreateCurrencyResult,
   Currency,
@@ -133,6 +139,54 @@ export class OrganizationsService {
 
   deleteCurrency(organizationId: string, id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${organizationId}/currencies/${id}`, { withCredentials: true });
+  }
+
+  // Phase 32 (FR-2.3/FR-3.3). No delete: the live list deactivates instead, and a location a
+  // document points at must never disappear.
+  listBillingLocations(organizationId: string, includeInactive = false): Observable<BillingLocation[]> {
+    return this.http.get<BillingLocation[]>(`${this.baseUrl}/${organizationId}/billing-locations`, {
+      params: { includeInactive: String(includeInactive) },
+      withCredentials: true,
+    });
+  }
+
+  createBillingLocation(
+    organizationId: string,
+    request: CreateBillingLocationRequest,
+  ): Observable<CreateBillingLocationResult> {
+    return this.http.post<CreateBillingLocationResult>(
+      `${this.baseUrl}/${organizationId}/billing-locations`,
+      request,
+      { withCredentials: true },
+    );
+  }
+
+  updateBillingLocation(
+    organizationId: string,
+    id: string,
+    request: UpdateBillingLocationRequest,
+  ): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/${organizationId}/billing-locations/${id}`, request, {
+      withCredentials: true,
+    });
+  }
+
+  getBillingLocationSettings(organizationId: string): Observable<BillingLocationSettings> {
+    return this.http.get<BillingLocationSettings>(
+      `${this.baseUrl}/${organizationId}/billing-location-settings`,
+      { withCredentials: true },
+    );
+  }
+
+  updateBillingLocationSettings(
+    organizationId: string,
+    request: UpdateBillingLocationSettingsRequest,
+  ): Observable<BillingLocationSettings> {
+    return this.http.put<BillingLocationSettings>(
+      `${this.baseUrl}/${organizationId}/billing-location-settings`,
+      request,
+      { withCredentials: true },
+    );
   }
 
   listMembers(organizationId: string): Observable<OrganizationMember[]> {

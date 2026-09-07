@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Currencies;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using MediatR;
 
@@ -13,7 +14,7 @@ namespace ErpApp.Application.Accounting.Commands.CreateOrUpdateOpeningBalanceLin
 /// none either -- TrialBalanceQueryHandler cuts off by PostedAt, not a document date).
 /// </summary>
 public sealed record CreateOrUpdateOpeningBalanceLineCommand(Guid OrganizationId, Guid AccountId, decimal Debit, decimal Credit)
-    : IRequest<OpeningBalanceLineResult>, IRequirePermission, IOrganizationScoped, ICurrencyBearingCommand
+    : IRequest<OpeningBalanceLineResult>, IRequirePermission, IOrganizationScoped, ICurrencyBearingCommand, ILocationBearingCommand
 {
     public string PermissionKey => PermissionKeys.OpeningBalanceEdit;
 
@@ -23,6 +24,12 @@ public sealed record CreateOrUpdateOpeningBalanceLineCommand(Guid OrganizationId
 
     /// <inheritdoc cref="CurrencyCode"/>
     public decimal? ExchangeRate { get; init; }
+
+    /// <summary>Phase 32 (FR-2.3/FR-3.3). The billing location this document is raised from. Null
+    /// means "the tenant's default", which <see cref="LocationResolver"/> resolves to HeadOffice --
+    /// or to a real null when this document type is out of the tenant's LocationScopeMode. See
+    /// <see cref="ILocationBearingCommand"/>.</summary>
+    public Guid? LocationId { get; init; }
 }
 
 public sealed record OpeningBalanceLineResult(Guid Id, Guid AccountId, decimal Debit, decimal Credit);

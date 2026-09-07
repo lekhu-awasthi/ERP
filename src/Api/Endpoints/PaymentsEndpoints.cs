@@ -53,7 +53,7 @@ public static class PaymentsEndpoints
             var result = await sender.Send(
                 new CreatePaymentCommand(
                     organizationId, request.ContactId, request.Direction, request.Date, request.PaymentModeId, request.AccountId,
-                    request.Amount, request.Reference, request.Allocations, request.ChequeDetails) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.Amount, request.Reference, request.Allocations, request.ChequeDetails) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/payments/{result.Id}", result);
         });
@@ -64,7 +64,7 @@ public static class PaymentsEndpoints
             var result = await sender.Send(
                 new UpdatePaymentCommand(
                     organizationId, id, request.ContactId, request.Date, request.PaymentModeId, request.AccountId,
-                    request.Amount, request.Reference, request.Allocations, request.ChequeDetails) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.Amount, request.Reference, request.Allocations, request.ChequeDetails) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Ok(result);
         });
@@ -172,7 +172,11 @@ public static class PaymentsEndpoints
         // be carried on the request record itself, not only on the command: a trailing optional
         // parameter added to a command alone binds to null forever and every test still passes
         // (phase-27b's Terms).
-        string? CurrencyCode = null, decimal? ExchangeRate = null);
+        string? CurrencyCode = null, decimal? ExchangeRate = null,
+        // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Same shape and
+        // the same reason as the currency pair above: optional, trailing, and carried on the request
+        // record itself rather than only on the command.
+        Guid? LocationId = null);
 
     private sealed record PreviewPaymentGlPostingRequest(Guid AccountId, decimal Amount, PaymentDirection Direction);
 

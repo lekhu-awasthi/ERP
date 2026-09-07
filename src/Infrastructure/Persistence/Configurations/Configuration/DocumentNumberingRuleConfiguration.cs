@@ -29,8 +29,26 @@ public sealed class DocumentNumberingRuleConfiguration : IEntityTypeConfiguratio
         // scope decision for why RowVersion alone isn't safe for the increment).
         builder.Property(x => x.RowVersion).IsRowVersion();
 
-        // Guards both the "one row per (org, doc type)" invariant and the lazy-create race in
-        // DocumentNumberGenerator (a concurrent loser's INSERT hits this and retries the UPDATE).
-        builder.HasIndex(x => new { x.OrganizationId, x.DocumentType }).IsUnique();
+        // Phase 32 -- the counter key gained a third column. LocationId null is the settings row
+        // (one per org+type, carrying Prefix/Mode/the flags, and the shared counter while
+        // LocationWiseNumbering is off); a non-null value is one branch's own counter.
+        //
+        // HasFilter(null) is load-bearing and must not be removed. EF Core *automatically* scaffolds
+        // `filter: "[LocationId] IS NOT NULL"` on a unique index over a nullable column -- normally
+        // the right thing, and the thing CLAUDE.md's own gotcha asks for. Here it is exactly wrong:
+        // SQL Server treating NULLs as equal is the invariant being bought, because it is what admits
+        // one and only one settings row (LocationId null) per (org, type). With EF's default filter
+        // those rows fall outside the index entirely, a tenant can end up with two settings rows and
+        // two competing counters, and DocumentNumberGenerator's lazy-create race -- which relies on a
+        // concurrent loser's INSERT violating this index -- silently stops being guarded for them.
+        //
+        // Still guards that race, now per location.
+        builder.HasIndex(x => new { x.OrganizationId, x.DocumentType, x.LocationId })
+            .IsUnique()
+            .HasFilter(null);
+
+        // Restrict, matching every other document->location FK added this phase.
+        builder.HasOne<Domain.Tenancy.BillingLocation>().WithMany().HasForeignKey(x => x.LocationId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

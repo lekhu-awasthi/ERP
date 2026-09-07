@@ -76,6 +76,13 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
   voids its payment; subscription expiry. Before enforcing a tenant setting, before adding a second
   confirmable warning to a document, before adding a non-nullable column to a populated table, or
   before writing a test that needs a state only time can produce — `docs/phase-31-status.md`
+- Phase 32: Billing Locations — a `BillingLocation` aggregate with **HeadOffice seeded
+  unconditionally** and `MultipleLocations` as a cap at one, nullable `LocationId` on all 17
+  location-bearing types, the **Advanced** panel that makes location scope a runtime tenant setting,
+  location-wise numbering, and the location filter/column on the Invoice list and Sales Master
+  Report. Before deciding a screen cannot be confirm-lived, before letting a setting choose which
+  types store a field, or before adding the filter to a unique index over a nullable column —
+  `docs/phase-32-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -112,7 +119,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Working practices (recurring cross-phase disciplines)
 - **Every phase ends with its own `docs/phase-N-status.md`** (scope decisions with reasoning, bugs hit and fixed) and a refresh of this file's Current status section — see the update rule there.
-- **Unconfirmed screen shape → confirm live before coding.** If `erp-module-scan.md` never opened the screen in its hands-on pass, read the live Tigg UAT tenant through the Browser pane first (the user logs in themselves — never enter credentials, never commit them). The Phase 8f Annex 5 lesson: the speculative design and the real screen had nothing in common.
+- **Unconfirmed screen shape → confirm live before coding.** If `erp-module-scan.md` never opened the screen in its hands-on pass, read the live Tigg UAT tenant through the Browser pane first (the user logs in themselves — never enter credentials, never commit them). The Phase 8f Annex 5 lesson: the speculative design and the real screen had nothing in common. And when a screen appears unreadable because a feature is *off*, that is a fact about the tenant, not the feature — **ask whether another tenant, account or plan can show it before invoking phase-21c's derive-instead precedent** (phase 32: a second tenant existed, and four already-written scope decisions were wrong).
 - **Permission keys are derived per feature, not defaulted.** Flat per-transaction registers and anything exposing PAN/contact identity → Admin-only; bounded rollups and routine daily-use working data → Admin+Member. Record the reasoning in the status doc. New `PermissionKeys.cs` constants are auto-discovered by `PermissionKeyCatalog` (reflection), but the permission-seed migration must go through `RolePermissionConfiguration.HasData` first or the scaffold is silently empty.
 - **Manual E2E bar:** seed master data via direct API calls (curl + cookie jar), reserve browser clicks for the phase's own new UI; prove at least one negative path (a 403 naming the exact key — against a nonexistent id, so 403-not-404 proves the behavior fired before the handler); verify persisted data via `sqlcmd` when a UI value could lie (see the select-race gotcha). A reusable Admin test login (email/password) persists across phases in local `dotnet user-secrets` under the `Testing:*` keys (never committed) — reuse that identity, but still create a **fresh Organization per phase** so seeded data doesn't accumulate across phases' baselines; run `dotnet user-secrets list --project src/Api` to see the key names (not values).
 - **Context discipline:** one phase = one session (start from `docs/roadmap.md` and the relevant `docs/phase-N-status.md`; don't continue a finished phase's thread). Each session ends by generating the **next session's kickoff prompt** (the user pastes it into a fresh session): name the phase from `docs/roadmap.md`, list what to read (roadmap entry, scan sections incl. the 2026-09-02 confirm-live appendix, `phase-lessons.md` paragraphs, `known-gotchas.md` headings, prior status-doc TL;DRs), the open confirm-live questions, the scope decisions to make, and the exit bar — without restating this file, which every session loads anyway. Start each `phase-N-status.md` with a short TL;DR block so future sessions can read just the header unless the task needs a specific section; consult docs via targeted search (Grep/section reads), not full-file reads.
@@ -184,6 +191,13 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
   a real one, or it has proved nothing (phase-31's cheque bounce).
 - Never weaken a Domain invariant so a test can reach a state only time produces; reach through EF's
   change tracker instead (phase-31's expired `TenantSubscription`).
+- Before applying the nullable-unique-index filter rule, ask what a NULL in that column *means*: when
+  NULL is a sentinel with an at-most-one invariant, the **unfiltered** index is the enforcement and
+  EF's automatic `IS NOT NULL` filter destroys it — `HasFilter(null)` is load-bearing (phase-32's
+  numbering counter, inverting the standing gotcha).
+- When a tenant setting selects among *sets* of document types, the schema owes the **widest** set,
+  not the current one — otherwise flipping the setting is a lie until a later phase ships the columns
+  (phase-32's `LocationScopeMode`, phase-31 lesson (a) inside out).
 
 **Background jobs**
 - A singleton `BackgroundService` cannot inject scoped services; take `IServiceScopeFactory`, read options via `IOptionsMonitor`, and never let a tick's exception escape `ExecuteAsync` (`AlertSchedulerHostedService`).
@@ -206,6 +220,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Import-template date columns need an explicit day-first-before-month-first format list, never bare `DateTime.TryParse`; assert the ambiguous case (`ImportRowReader.GetOptionalDate`, phase-21c).
 
 - A trailing optional parameter added to a command reaches nothing until the Api's own request record carries it too — it compiles, every test passes, and the field binds silently to `null` (phase-27b's `Terms`).
+- The mirror of that on the read side: a **list** query returning the aggregate exposes a new field for free, while a **detail** query projecting a DTO drops it silently — the write path looks perfect and the form can never show the stored value (phase-32's `GetInvoiceQuery`, caught only by an E2E that re-read what it wrote).
 
 **Angular**
 - A component serving both `.../new` and `.../:id` must read the id from `route.paramMap` (an Observable) and re-derive "is new" on every emission (phase-3 bug #1).
@@ -251,6 +266,13 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
   while the membership silently stays `Invited` — which makes any later Member-403 proof meaningless;
   units are `/units-of-measurement` (field `shortName`); credit terms are under `/configuration/`
   (phase-31).
+- `POST /accounts` takes `groupId`, not `accountGroupId`; and `POST /products` takes **`type`, not
+  `productType`** — the wrong name silently yields a *Goods* product whose line then consumes stock
+  and 409s at Approve with a message about the warehouse, which reads like a seeding fault rather
+  than a typo (phase-32).
+- A scripted multi-file edit must assert its **anchor count** before writing (and preserve each
+  file's CRLF/BOM); phase 32's sweep touched 32 commands safely that way, and the one edit that
+  matched three records where two were meant was caught by exactly that check.
 - `dotnet run --project src/Api` with no `--launch-profile` binds **5155 only**, not the 7104 the Angular dev environment calls; and a stale listener on 5155 makes the https profile fail to start (phase-30).
 
 **Tooling and shell**
@@ -261,60 +283,66 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-30 are complete, and phase 31 (credit control, dead settings, and the small carried
-items) is done.** A customer's **Credit Limit** is now enforced at Invoice Approve through the
-tenant's **Credit Limit Exceeds** policy, and — the finding that shaped the phase — the four other
-behaviour settings on `TenantSettings` turned out to have had **no command, no endpoint and no
-screen since phase 2**, so the first deliverable was a **Configurations > General** page rather than
-any enforcement. On top of it: **Negative Cash Balance** on the three documents that can take money
-out of a Bank or Cash account, **Suggest Selling Price** and **Product Price Basis** decided
-server-side at the line picker, `TrialEndsAt` as read-only-for-documents via a fifth pipeline
-behavior plus the renewal that lifts it, a stored **Due Date** on Invoice and Purchase Bill, a
-**bounced cheque** that voids the payment it settled, and the **Include Credit Note In Calculation**
-toggle.
+**Phases 0-31 are complete, and phase 32 (Billing Locations, FR-2.3/FR-3.3) is done.** A tenant now
+has a **`BillingLocation`** list on its Organization > Features card, with a **HeadOffice row seeded
+unconditionally at Organization creation** and `MultipleLocations` expressed as a **cap at one** --
+phase-20f Decision #4's shape for the third time, after 20f's warehouses and 28's currencies. Every
+one of the 17 location-bearing document types carries a nullable `LocationId`, added in one migration
+whose **seed-and-backfill is hand-written** (98 organizations, 98 locations, zero null documents).
+Document numbering finally consumes `LocationWiseNumbering`, and the Invoice list and Sales Master
+Report gained the location filter and column.
 
-Six things from 31 that generalise. **A setting with no command behind it is not a dead setting, it
-is an absent feature** — and one of the five was worse than absent, being *read* by a handler (so it
-looked shipped) while permanently stuck on its seed; phase 29's grep-`web/` rule extends to "grep for
-the command too". Second, **two confirmable warnings on one document cannot share an override flag**:
-an invoice can trip both a stock shortfall and a credit breach, so each gets its own flag and the 422
-carries a `warningKind`. Third, **reuse an existing marker set rather than inventing a third** — the
-subscription gate rides `ILockDateSensitive`, which already means "the books", so it needed no sweep
-and cannot drift. Fourth, **phase-27a's `AttachmentAccess` pattern is wider than recorded**: a second
-key can depend on the *requested value*, not just the loaded row, and proving it needs a 404 and a
-403 from the same user. Fifth, **a non-nullable column added to a populated table needs its backfill
-written by hand** — the scaffold would have back-dated every historical invoice to the year 1.
-Sixth, **never weaken a Domain invariant so a test can reach a state only time produces.** Full story
-in `docs/phase-31-status.md`.
+**The phase's defining event is that it was not supposed to be observable.** The roadmap recorded
+that Billing Location is an entitlement switched *off* on the UAT tenant, and pre-authorised
+phase-21c's "derive when confirm-live is impossible" precedent for the whole phase. A second tenant
+with the entitlement **on** was available for the asking, and reading it corrected four decisions
+already written down as scope: `LocationType` is **system-assigned** (the create dialog has no such
+field), the picker is a document **header** control rendering `Name (Code)` rather than a body field,
+the second permission matrix is the **Transactions group alone** replicated per location, and -- the
+one that reshaped the build -- **location scope is a runtime tenant setting**, not a fixed list.
 
-**What comes next** is **phase 32** (Billing Locations), then 33-34 in `docs/roadmap.md`. Still
-recorded separately:
+Five things from 32 that generalise. **A blocked confirm-live is a state, not a verdict**: ask
+whether a different tenant, account or plan can observe it before deriving. **A setting that selects
+among sets forces the storage to the union** -- phase-31 lesson (a) inside out, and why `LocationId`
+went onto all 17 types rather than the three the default names; sizing to the default would have made
+the switch a lie. **When EF's convention and this file's own gotcha agree and are both wrong, say so
+at the index** -- the numbering counter's unique index needs `HasFilter(null)`, because NULL there is
+a sentinel with an at-most-one invariant. **Two lists that must not drift belong in the file that
+exists to stop drift** (`DocumentMechanisms`, reusing 27a's guard rather than writing a second).
+**A scripted sweep is safe only if every edit asserts its anchor count first.** Full story in
+`docs/phase-32-status.md`.
+
+**What comes next** is **phase 32b** (per-location permission scope -- split out of 32 by agreement,
+with its shape already confirmed live), then 33-34 in `docs/roadmap.md`. Still recorded separately:
 - the deferred post-v1 list in `docs/roadmap.md` (POS, IRD e-filing, Marketplace);
 - carried items. Phase 25's multi-level BOM explosion; phase-26a's two (an explicit compare-date
-  picker on the two as-of statements, Reporting Tags on the Journal report); phase-26b's four — **two
-  now closed by 31** (the stored `DueDate`, and phase-9's ageing handler aligned with 26b's rules),
-  leaving a product-level service-charge flag and Quick Payment/Receipt as a document type;
-  phase-26c's four — **two now closed by 31** (the Sales Register's Include-Credit-Note toggle, which
-  was never inert, and the Negative Item Balance setting, now configurable though its Warn/DoNothing
-  branches stay fictional pending negative FIFO layers) — leaving WarehouseTransfer/OpeningStock in
-  Inventory Master and Inventory Position's display options; phase-27b's rich-text editor (still a
-  textarea on `app-terms-editor` and `app-send-email-dialog`); phase-28's five (no unrealised
-  period-end revaluation, no cross-currency settlement, no rate source, the Allocate screens not
-  filtering by currency, and `ApplyPaymentAllocationCommand` posting no forex leg on the
-  allocate-further path — note 31's credit-limit check inherits the un-converted contact ledger from
-  the same family); phase-29's five (no Import on the product-wise matrix, the additional cost's
-  currency assumed to follow the document's, landed cost on no document but the Purchase Bill, a
-  Debit Note's release proportional rather than FIFO-exact, no automatic unwind of the clearing
-  account); phase-30's own six, of which **one is now closed** (`$[DUE_DATE]$` resolves to a real due
-  date); and **phase-31's own**: a supplier's credit limit stored but never enforced, credit-terms →
-  due-date as a client-side prefill only (and unproven live), subscription-expiry behaviour derived
-  rather than confirmed, configuration writes still allowed past expiry, the newly-found **Group By
-  Bill** toggle on the Sales Register, and the import/export breadth from 21a/24/21b deliberately
-  left for a phase of its own.
+  picker on the two as-of statements, Reporting Tags on the Journal report); phase-26b's remaining
+  two (a product-level service-charge flag, Quick Payment/Receipt as a document type); phase-26c's
+  remaining two (WarehouseTransfer/OpeningStock in Inventory Master, Inventory Position's display
+  options); phase-27b's rich-text editor (still a textarea on `app-terms-editor` and
+  `app-send-email-dialog`); phase-28's five (no unrealised period-end revaluation, no cross-currency
+  settlement, no rate source, the Allocate screens not filtering by currency, and
+  `ApplyPaymentAllocationCommand` posting no forex leg on the allocate-further path -- 31's
+  credit-limit check inherits the un-converted contact ledger from the same family); phase-29's five
+  (no Import on the product-wise matrix, the additional cost's currency assumed to follow the
+  document's, landed cost on no document but the Purchase Bill, a Debit Note's release proportional
+  rather than FIFO-exact, no automatic unwind of the clearing account); phase-30's five open;
+  phase-31's six (a supplier's credit limit stored but never enforced, credit-terms -> due-date as a
+  client-side prefill only, subscription-expiry behaviour derived rather than confirmed,
+  configuration writes still allowed past expiry, the **Group By Bill** toggle on the Sales Register,
+  and the import/export breadth from 21a/24/21b); and **phase-32's own seven**, of which the first
+  two matter most: the **per-location permission matrix is 32b**, and
+  `TenantSettings.LocationWiseReportPermission` ships stored, editable and **enforced by nothing**
+  until then. Then: the header picker is wired on Invoice only (Sales Order and Credit Note are the
+  same three-line change); **Quotation's membership of the sales-only scope is unresolved** and
+  deliberately excluded rather than guessed; the location filter reaches only the Invoice list and
+  Sales Master Report; there is no Delete for a location (the live list deactivates, and the FK is
+  `Restrict`); `BillingLocation.WarehouseId` is captured and displayed but defaults nothing; and POS
+  location types stay modelled, not built.
 
-Tests at last count: Domain 398, Application.UnitTests 830, Api.IntegrationTests 18, Angular 207;
+Tests at last count: Domain 443, Application.UnitTests 879, Api.IntegrationTests 18, Angular 212;
 `dotnet build` / `dotnet test` / `ng build` / `ng test` all clean. Note `tsc --noEmit` does **not**
-cover `web/src/app` — `ng build` is the check that does (phase-28).
+cover `web/src/app` -- `ng build` is the check that does (phase-28).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

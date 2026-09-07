@@ -1,4 +1,4 @@
-﻿using ErpApp.Api.Reports;
+using ErpApp.Api.Reports;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Manufacturing;
 using ErpApp.Application.Manufacturing.Commands.ApproveProductionJournal;
@@ -118,7 +118,10 @@ public static class ManufacturingEndpoints
         string? Notes,
         IReadOnlyList<ProductionRawMaterialLineInput> RawMaterials,
         IReadOnlyList<ProductionByProductLineInput> ByProducts,
-        IReadOnlyList<ProductionExpenseLineInput> Expenses);
+        IReadOnlyList<ProductionExpenseLineInput> Expenses,
+        // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Optional,
+        // trailing, and carried here on the request record, not only on the command (phase-27b's Terms).
+        Guid? LocationId = null);
 
     private static void MapProductionOrderEndpoints(RouteGroupBuilder group)
     {
@@ -145,7 +148,8 @@ public static class ManufacturingEndpoints
             var result = await sender.Send(
                 new CreateProductionOrderCommand(
                     organizationId, request.Date, request.Reference, request.ProductId, request.OutputQuantity,
-                    request.BillOfMaterialsId, request.Notes, request.RawMaterials, request.ByProducts, request.Expenses),
+                    request.BillOfMaterialsId, request.Notes, request.RawMaterials, request.ByProducts, request.Expenses)
+                { LocationId = request.LocationId },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/production-orders/{result.Id}", result);
         });
@@ -156,7 +160,8 @@ public static class ManufacturingEndpoints
             var result = await sender.Send(
                 new UpdateProductionOrderCommand(
                     organizationId, id, request.Date, request.Reference, request.ProductId, request.OutputQuantity,
-                    request.BillOfMaterialsId, request.Notes, request.RawMaterials, request.ByProducts, request.Expenses),
+                    request.BillOfMaterialsId, request.Notes, request.RawMaterials, request.ByProducts, request.Expenses)
+                { LocationId = request.LocationId },
                 ct);
             return Results.Ok(result);
         });
@@ -195,7 +200,10 @@ public static class ManufacturingEndpoints
         Guid? ReferrerId,
         IReadOnlyList<ProductionRawMaterialLineInput> RawMaterials,
         IReadOnlyList<ProductionByProductLineInput> ByProducts,
-        IReadOnlyList<ProductionExpenseLineInput> Expenses);
+        IReadOnlyList<ProductionExpenseLineInput> Expenses,
+        // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Optional,
+        // trailing, and carried here on the request record, not only on the command (phase-27b's Terms).
+        Guid? LocationId = null);
 
     private static void MapProductionJournalEndpoints(RouteGroupBuilder group)
     {
@@ -223,7 +231,8 @@ public static class ManufacturingEndpoints
                 new CreateProductionJournalCommand(
                     organizationId, request.Date, request.Reference, request.ProductId, request.OutputQuantity,
                     request.WarehouseId, request.BillOfMaterialsId, request.Notes, request.ReferrerType,
-                    request.ReferrerId, request.RawMaterials, request.ByProducts, request.Expenses),
+                    request.ReferrerId, request.RawMaterials, request.ByProducts, request.Expenses)
+                { LocationId = request.LocationId },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/production-journals/{result.Id}", result);
         });
@@ -235,7 +244,8 @@ public static class ManufacturingEndpoints
                 new UpdateProductionJournalCommand(
                     organizationId, id, request.Date, request.Reference, request.ProductId, request.OutputQuantity,
                     request.WarehouseId, request.BillOfMaterialsId, request.Notes, request.RawMaterials,
-                    request.ByProducts, request.Expenses),
+                    request.ByProducts, request.Expenses)
+                { LocationId = request.LocationId },
                 ct);
             return Results.Ok(result);
         });

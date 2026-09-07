@@ -324,3 +324,39 @@ these are in `CLAUDE.md`'s Known gotchas section. When a phase completes, append
   Also, and cheaply: phase-23's `sweep-guard.spec.ts` caught a raw `<input type="date">` this phase
   introduced on a screen written eight phases after that guard — the clearest return a guard test in
   this codebase has yet produced.
+
+- `phase-32` — before deciding a screen cannot be confirm-lived, before letting a tenant setting
+  choose which document types store a field, and before adding a filtered unique index because the
+  standing gotcha says to. Five things generalise.
+  **(a) A blocked confirm-live is a state, not a verdict.** The roadmap did not merely predict this
+  phase would be derived — it pre-authorised phase-21c's derive-instead precedent, because Billing
+  Location is an entitlement that is off on the Moonbeam tenant. A *second* tenant with the
+  entitlement on existed the whole time. Taken at face value, the phase would have shipped a body
+  field instead of a header picker, a user-chosen `LocationType`, a fixed scope list instead of a
+  runtime setting, and no Advanced panel at all — four wrong things, confidently documented. **Ask
+  whether a different tenant, account or environment can observe it before invoking the precedent.**
+  **(b) A setting that selects among *sets* forces the storage to the union, not the current value.**
+  This is phase-31 lesson (a) inside out. The Advanced panel lets an Admin widen location scope from
+  the sales-side three to all seventeen document types with one click, at any moment. Sizing the
+  schema to the default would have made that click a lie — it would appear to work and silently
+  record nothing on eleven types. So `LocationId` is nullable on all 17, and only *behaviour* is the
+  selection (`DocumentLocationScope`). Whenever a setting picks a subset, ask what the widest subset
+  costs, because that is what the schema owes.
+  **(c) When EF's convention and this codebase's own gotcha agree, and both are wrong, record it at
+  the index.** CLAUDE.md's standing rule is that a unique index over a nullable column needs
+  `.HasFilter("[Col] IS NOT NULL")`, and `migrations add` scaffolds exactly that. For the numbering
+  counter it is inverted: SQL Server treating NULLs as *equal* is the invariant being bought, because
+  it is what admits one and only one settings row per (org, type). Under the filter those rows leave
+  the index, a tenant can acquire two competing counters, and `DocumentNumberGenerator`'s lazy-create
+  race stops being guarded. `HasFilter(null)` is load-bearing; the next reader's instinct will be to
+  "fix" it.
+  **(d) Two lists that must not drift belong in the file that exists to stop drift.**
+  `DocumentLocationScope` began with private copies of the 17 and the 3; they moved into
+  `DocumentMechanisms`, so 27a's existing `DocumentMechanismSweepGuardTests` fails the build when a
+  later phase adds a `DocumentType` without deciding whether it carries a location. Reusing the guard
+  that already exists beats writing a second one.
+  **(e) A scripted sweep across 32 commands is safe only if every edit asserts its own anchor count.**
+  Each script here counted its anchor and refused to write on anything but the expected number, and
+  preserved per-file CRLF and BOM. That caught a stray `LocationId` on `BillOfMaterialsRequest` (a
+  shared record tail matched three records where two were meant). The counter-discipline to CLAUDE.md's
+  `sed`-over-a-glob warning is not "never script" but "never script without a pre-flight count".

@@ -610,3 +610,98 @@ radio states, which matched the pre-experiment reading exactly).
 - Incidental, not phase-31 scope: on this tenant the **Invoice Code is required at Create** ("code is
   required!" on save), where this codebase assigns a document number at Approve. That divergence is
   a numbering-configuration difference, already recorded in phase 2.
+
+---
+
+## Confirm-live pass on a LOCATION-ENABLED tenant (2026-09-07, `cadehi.tigg.app` — Cadehi Enterprises, read-only)
+
+**This pass reverses the premise of roadmap phase 32.** The 2026-09-02 pass read Moonbeam, where
+Billing Location is an entitlement that is **off**, and concluded the location-enabled screens could
+never be read. A second tenant supplied by the user has `Location Enabled = Yes` on
+`#/config/tigg-subscription`, so every location surface below is **observed, not derived**. The
+phase-21c "derive when confirm-live is impossible" precedent is therefore **not** invoked for
+phase 32. Nothing was saved: the Add-New-Location dialog and the Invoice numbering dialog were
+opened and dismissed, and the role editor was navigated away from without pressing Save.
+
+### The setting nobody could find: `Organization > Features > Billing Location > Advanced`
+Route `#/config/organization/features`. With the entitlement on, the Billing Location card gains an
+**Advanced** disclosure ("Choose how locations should be used in your organization") holding three
+controls — this is the "multiple location setting" that is invisible on a disabled tenant:
+- **Enable Location in Sales Transactions Only** — radio, badged **Default**. "Use locations only in
+  sales-related transactions. (Invoice, Sales Order, POS, Credit Note)"
+- **Enable Location in All Transactions** — checkbox. "Apply location tracking across all
+  transaction modules. (Sales, Purchase, Inventory, Accounting, etc.)"
+- **Implement Location Wise Permission for Report View** — checkbox. "Restrict users to view reports
+  only for locations they have access to."
+On this tenant the radio and the All-Transactions checkbox both read `checked` in the DOM
+simultaneously, so they are **not** a mutually exclusive pair in the markup; treat the radio as the
+baseline mode and the checkbox as the widening opt-in. **The scope of `LocationId` is therefore a
+tenant setting, not a fixed list** — the default is sales-side documents only.
+
+### Billing Location list and form
+- List columns: Code, Name, Address, Warehouse, plus a per-row `⋮` menu and a **Show Inactive**
+  toggle. Seeded rows: `HO / HeadOffice / (blank address) / Main Warehouse`, `1002 / POS Restaurant`,
+  `1003 / POS Retail` — identical to the original scan's reading.
+- **+ ADD NEW LOCATION** dialog "Add New Location": **Location Code\***, **Location Name\***,
+  **Address\*** (all plain required text) and **Warehouse\*** (a searchable select, "Select Default
+  Warehouse"), then **Save**. **There is no Location Type field.** `LocationType`
+  (HeadOffice/PosRestaurant/PosRetail) is system-assigned and not user-editable — correcting
+  `architecture-spec.md` §4/`erp-module-scan.md` §Features, which both modelled `locationType` as if
+  it were part of the create form.
+
+### Where a Location actually appears on a document
+- **Invoice add form** (`#/sales/invoices/add`): the location is **not** a field in the form body. It
+  is a borderless `ant-select` in the **page header**, immediately left of **Save**, rendering
+  `Name (Code)` and defaulting to **HeadOffice (HO)**. Its dropdown lists **all three** locations,
+  POS ones included — the picker is not filtered by `LocationType`.
+- **Invoice list** (`#/sales/invoices`): a **LOCATION** column sits between CUSTOMER and INVOICE NO.
+- **Opening Balances > Account** (`#/config/opening-balances/account`): the expandable inline entry
+  form is `Location, Currency, Conversion Rate, Amount, DR/CR, Add Reporting Tags, SAVE CHANGES` —
+  **Location is the first field**, exactly as the original scan recorded and as the disabled tenant
+  could not show. There is still no Location *column* on the collapsed grid.
+- **Home dashboard**: carries its own **Location** filter, defaulting to **All**.
+
+### Document numbering
+Route `#/config/app/numbering` (this tenant nests the config pages under **Configurations > Apps**:
+General, Custom Status, Banks, CRM, Workflow, Credit Terms, Cost Terms, Payment Mode, TDS Type,
+Reporting Tags, Custom Fields, Printing Templates, Custom Templates, Document Numbering, Alert
+Scheduler). The per-rule dialog "Document Numbering for Invoice" holds: **Prefix\***, **Next
+Number\***, **Type of Account\*** (Auto Numbering | Manual Numbering) and three toggles — Reset every
+fiscal year (on), Add fiscal year in code (on), and **Enable Location-wise Next Number** (off).
+So `DocumentNumberingRule.LocationWiseNumbering` has a real, user-facing control and it appears
+**only** because Billing Location is enabled. Sixteen transaction rules on this tenant (no
+DeliveryNote/GoodsReceivedNote rows at all, unlike Moonbeam).
+
+### The role editor's second matrix — the exact shape
+Route `#/config/user-permission/role-reference/{roleId}/edit`. The editor is **two** top-level
+collapsibles, not one flat list of scope groups (which is how phase 14 read it on a disabled
+tenant):
+1. **Organization-wide Permissions** — "Apply across all billing locations · 43 of 175 enabled".
+   Groups: **General 20** (subgroups *General Permission* 17 + *Document Permission* 3),
+   **Transactions 94**, **Settings 9**, **Reports 52**.  20+94+9+52 = **175**. ✓
+2. **Location-specific Permissions** — "Scoped to individual billing locations · 0 of 282 enabled".
+   One collapsible per location, each with its own **Grant all**: **HeadOffice 0 of 94**,
+   **POS Restaurant 0 of 94**, **POS Retail 0 of 94**.  94 × 3 = **282**. ✓
+   Each location's 94 breaks down into exactly the org-wide Transactions subgroups:
+   **Sales 25, Purchase 25, Accounting 24, Inventory 20** (= 94), verified identical on both sides.
+
+**The rule this settles:** the location-scoped matrix is *precisely the Transactions group,
+replicated per location* — General, Settings and Reports are org-wide only. That is why
+"Implement Location Wise Permission for Report View" is a **separate** opt-in toggle: turning it on
+is what would bring the 52 Reports keys into location scope. It also confirms
+`architecture-spec.md` §3.7's guessed key shape `"HeadOffice.Sales.Invoice.Approve"` — a location
+segment prefixed onto a transaction key — while narrowing it: only transaction keys ever carry one.
+
+### Reports
+**Sales Master Report** (`#/reports/new/sales-materialized`) filter bar: date range, **Billing
+Location (All)**, Contact, Product, GENERATE. So "Billing Location" is a first-class report filter
+under its own label, not a reused Warehouse control. All 40 catalog entries present, plus Ratio
+Analysis Report.
+
+### Also noted in passing (not phase 32 scope)
+- **Mode of Inventory Tracking is present** on this tenant's `Configurations > Apps > General`,
+  though the 2026-09-02 pass found it gone from Moonbeam's General page.
+- This tenant's Configurations sidebar is only Apps / Users & Permissions / Import-Export / Opening
+  Balances / Tigg Subscriptions / Organization; everything else is nested under **Apps**.
+- Organization tabs here: Overview, Tasks, Documents, Features, Migration, **Backup** (Moonbeam had
+  Developer Mode and no Backup).

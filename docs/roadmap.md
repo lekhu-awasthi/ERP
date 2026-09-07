@@ -60,6 +60,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 29 | Landed cost (FR-6.15, Cost Terms' other half): an Additional Cost section on the Purchase Bill (Cost Term x Product x Method x Amount, plus the product-wise matrix), allocated at Approve by Value or Quantity across the bill's **goods** lines and capitalised into the received FIFO layers' unit cost — conservation law proven in SQL, residue named. The reference product posts no GL at all (it is periodic); we post Debit Inventory / Credit a new Landed Cost Clearing account, on phase-25 Decision A's argument. Debit Note gained a release leg | `phase-29-status.md` |
 | 30 | Communications (FR-11.1, FR-4.5's Email Logs): a **Send Email** dialog on 6 document types and the Contact detail page, an Email Logs tab with data behind it, an Email Templates config page, and `AlertMedium.Sms`. Confirm-live corrected the scope three times — Send Email is on 6 of 15 types, not the statement report but yes the Contact page, and email templates are **their own aggregate**, not a `CustomTemplateType` (that member is deleted). Sends go through a claim-then-act ledger and a fourth background job; idempotency is a client-minted request id, so a double-click is one email and a reopened dialog is a new row | `phase-30-status.md` |
 | 31 | Credit control, dead settings, and the small carried items: `Contact.CreditLimit`/`CreditTermId`/`AcceptsReverseTransactions`, a **Credit Limit Exceeds** policy enforced at Invoice Approve, and a **Configurations > General** screen that makes all five behaviour settings reachable for the first time — four of them had no command, no endpoint and no screen at all. Plus **Negative Cash Balance** enforced on the three documents that can take money out, **Suggest Selling Price / Product Price Basis** decided server-side at the line picker, a **stored Due Date** on Invoice and Purchase Bill (closing 26b's carried item, 30's `$[DUE_DATE]$` and 26b's ageing follow-up), a **bounced cheque** that voids the payment it settled, subscription expiry as read-only-for-documents plus the renewal that lifts it, and the **Include Credit Note In Calculation** toggle — which the confirm-live pass showed 26c had wrongly recorded as inert | `phase-31-status.md` |
+| 32 | Billing Locations (FR-2.3/FR-3.3) — **and the phase this roadmap said could not be confirm-lived, was.** A second tenant with `Location Enabled = Yes` turned the whole phase from derived to observed, correcting four things this entry had assumed. A `BillingLocation` aggregate with a **HeadOffice row seeded unconditionally** and `MultipleLocations` as a **cap at one** (phase-20f Decision #4's shape, third instance); the **Advanced** panel that makes location scope a *runtime tenant setting* (Sales-only by default, All-Transactions opt-in) — which is why nullable `LocationId` went onto **all 17** location-bearing types in one hand-written seed-and-backfill migration rather than the four the default names; a document-**header** location picker (not a body field); **location-wise numbering** consumed at last; and the location filter/column on the Invoice list and Sales Master Report. `LocationType` is system-assigned — the live create dialog has no such field | `phase-32-status.md` |
 
 ---
 
@@ -261,22 +262,54 @@ three times, so the original text is kept below struck through rather than silen
   Bill** toggle on the Sales Register. Negative Item Balance's Warn/DoNothing branches stay
   fictional — making them real is a Domain invariant change (negative FIFO layers), not a setting.
 
-### 32. Billing Locations (FR-2.3, FR-3.3) — not observable on the UAT tenant
-- Live: `Organization > Features` shows Billing Location **Disabled** with "reach out to Tigg
-  Support" — an entitlement, not a toggle — and, consistently, no Location field on any form,
-  no Location column on Opening Balances, and Location Enabled = No on the Subscriptions screen.
-  So the location-enabled screens cannot be read here, which is why this phase now follows the
-  observable ones rather than leading them.
-- **Scope (to the scan, stated as such).** `BillingLocation { Code, Name, Address, WarehouseId,
-  LocationType }` under `Tenancy`; **seed a HeadOffice location at Organization creation** and make
-  `MultipleLocations` a *cap at one* (the phase-20f lesson); nullable-then-backfilled `LocationId`
-  on every `ApprovableTransaction`, Payment and opening-balance line; location-wise numbering pools
-  (`DocumentNumberingRule.LocationWiseNumbering` already exists and is read by nothing); location
-  filter on registers and Master reports; per-location permission scope (`scope ∈ {default,
-  HeadOffice, …}` per `architecture-spec.md` §3.7) as a second matrix in the role editor. POS
-  location *types* are modelled, not built. If a location-enabled tenant becomes available, read
-  it first; otherwise the phase-21c "derive when confirm-live is impossible" precedent applies and
-  the status doc says so.
+### 32. Billing Locations (FR-2.3, FR-3.3) — **DONE** (see `docs/phase-32-status.md`)
+- **The premise of this entry was wrong, and that is its main lesson.** It said the
+  location-enabled screens "cannot be read here" and pre-authorised phase-21c's derive-instead
+  precedent. A second tenant (`cadehi.tigg.app`, `Location Enabled = Yes`) was available the whole
+  time, and the 2026-09-07 pass over it made the phase **observed, not derived** — correcting four
+  things this entry had assumed. *Before invoking "derive because we cannot observe", ask whether a
+  different tenant can observe it.*
+- Shipped: `BillingLocation { Code, Name, Address, WarehouseId, LocationType }` under `Tenancy` with
+  its Features card; **HeadOffice seeded unconditionally** at Organization creation and
+  `MultipleLocations` as a **cap at one** (phase-20f Decision #4's shape, third instance after 20f's
+  warehouses and 28's currencies); nullable `LocationId` on **all 17** location-bearing types in one
+  migration with a hand-written seed-and-backfill; **location-wise numbering pools** consumed at last
+  (`DocumentNumberingRule` gained a nullable `LocationId` — null is the settings row); the location
+  filter and column on the Invoice list and the Sales Master Report.
+- **What the live pass changed.** `LocationType` is **system-assigned** — the create dialog is Code,
+  Name, Address, Warehouse and nothing else. The picker is a document **header** control rendering
+  `Name (Code)`, not a body field beside Warehouse. And the scope is a **runtime tenant setting** (the
+  Advanced panel: *Sales Transactions Only* by default, *All Transactions* opt-in), which is why the
+  schema is sized for the widest setting rather than the default one.
+- **Split to 32b:** the per-location permission matrix, whose shape is now confirmed exactly — the
+  **Transactions group alone** (94 keys) replicated per location, with General/Settings/Reports
+  org-wide, which is also why *Implement Location Wise Permission for Report View* is a separate
+  toggle. That toggle ships stored, editable and enforced by nothing, recorded as such.
+- POS location *types* stay modelled, not built.
+
+### 32b. Per-location permission scope (FR-3.3, `architecture-spec.md` §3.7)
+Split out of 32 by agreement, because it is the largest single piece and it touches
+`AuthorizationBehavior` — the one mechanism verifying org membership at all. Its shape is **already
+confirmed live** (2026-09-07), so this phase starts from an observed design, not a guess:
+
+- The role editor is **two** top-level sections, not N scope groups: *Organization-wide* (General 20
+  + Transactions 94 + Settings 9 + Reports 52 = 175) and *Location-specific*, which is the
+  **Transactions group alone** replicated per location — 94 × N, breaking down identically as Sales
+  25 / Purchase 25 / Accounting 24 / Inventory 20.
+- So a location-scoped key is a location segment prefixed onto a **transaction** key
+  (`"HeadOffice.Sales.Invoice.Approve"`) — §3.7's guess, confirmed and **narrowed**: only transaction
+  keys ever carry one.
+- The real key depends on the loaded row's own `LocationId`, which `IRequirePermission.PermissionKey`
+  cannot express. That is phase-27a's `AttachmentAccess` pattern a third time (after 27a and 31): a
+  blanket key on the request, the real key re-checked inside the handler with the identical
+  `ForbiddenException` shape. The E2E must prove it in **both** directions — 404 on a nonexistent
+  document (so the caller does hold the pipeline key) and 403 naming the location key on a real one.
+- Also here: the consumer for `TenantSettings.LocationWiseReportPermission`, which phase 32 shipped
+  stored, editable and **enforced by nothing** (recorded, not hidden). Turning it on is what pulls
+  the 52 Reports keys into location scope.
+- Watch the seed size: N locations × 94 keys is the first permission set whose row count is a
+  function of tenant *data*, not of the catalog. Decide whether a location-scoped grant is stored per
+  location or derived from a default, before writing the migration.
 
 ### 33. Platform chrome — global search, history, Quick Links
 - Tigg's top bar: global search (Ctrl + /) across contacts, products and document numbers; a

@@ -1,5 +1,6 @@
 using ErpApp.Application.Accounting;
 using ErpApp.Application.Common.Exceptions;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Payments;
@@ -38,6 +39,15 @@ public sealed class UpdatePaymentCommandHandler(IAppDbContext db)
 
         // Phase 28 -- see the Create handler's note. Draft-only, enforced by the aggregate.
         payment.SetCurrency(request.CurrencyCode, request.ExchangeRate);
+
+        // Phase 32 -- same treatment as the currency pair above: resolved right after
+        // construction rather than threaded through Create's parameter list. Null means
+        // "the tenant's default", and LocationResolver returns a real null when this type is
+        // outside the tenant's LocationScopeMode, so a client that keeps sending a location
+        // after an Admin narrows the scope cannot quietly keep writing one.
+        payment.SetLocation(await LocationResolver.ResolveAsync(
+            db, request.OrganizationId, DocumentType.Payment, request.LocationId,
+            cancellationToken));
         payment.ClearAllocations();
         foreach (var allocation in request.Allocations)
         {

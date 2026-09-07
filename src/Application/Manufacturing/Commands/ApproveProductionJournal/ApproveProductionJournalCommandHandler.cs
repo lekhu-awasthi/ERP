@@ -103,7 +103,7 @@ public sealed class ApproveProductionJournalCommandHandler(
         }
 
         var code = await numberGenerator.GetNextNumberAsync(
-            request.OrganizationId, DocumentType.ProductionJournal, cancellationToken);
+            request.OrganizationId, DocumentType.ProductionJournal, cancellationToken, journal.LocationId);
 
         journal.Approve(currentUser.UserId, code);
 

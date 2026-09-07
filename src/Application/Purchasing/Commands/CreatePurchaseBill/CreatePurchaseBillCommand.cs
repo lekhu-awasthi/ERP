@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Currencies;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Purchasing;
@@ -22,7 +23,7 @@ public sealed record CreatePurchaseBillCommand(
     DocumentType? ReferrerType = null,
     Guid? ReferrerId = null,
     decimal DiscountPct = 0)
-    : IRequest<CreatePurchaseBillResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequest, ICurrencyBearingCommand
+    : IRequest<CreatePurchaseBillResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequest, ICurrencyBearingCommand, ILocationBearingCommand
 {
     public string PermissionKey => PermissionKeys.PurchaseBillCreate;
 
@@ -32,6 +33,12 @@ public sealed record CreatePurchaseBillCommand(
 
     /// <inheritdoc cref="CurrencyCode"/>
     public decimal? ExchangeRate { get; init; }
+
+    /// <summary>Phase 32 (FR-2.3/FR-3.3). The billing location this document is raised from. Null
+    /// means "the tenant's default", which <see cref="LocationResolver"/> resolves to HeadOffice --
+    /// or to a real null when this document type is out of the tenant's LocationScopeMode. See
+    /// <see cref="ILocationBearingCommand"/>.</summary>
+    public Guid? LocationId { get; init; }
 
     /// <summary>Phase 29 (FR-6.15) -- the Additional Cost section's rows. Init-only rather than a
     /// trailing positional parameter, the same shape phase 28's currency pair took, so no existing

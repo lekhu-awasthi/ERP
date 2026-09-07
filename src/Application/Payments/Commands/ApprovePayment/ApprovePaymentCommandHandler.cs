@@ -106,7 +106,8 @@ public sealed class ApprovePaymentCommandHandler(
             CashBalanceGuard.Enforce(cashStatus, request.OverrideNegativeCashBalanceWarning, "payment");
         }
 
-        var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.Payment, cancellationToken);
+        var code = await numberGenerator.GetNextNumberAsync(
+            request.OrganizationId, DocumentType.Payment, cancellationToken, payment.LocationId);
 
         payment.Approve(currentUser.UserId, code);
 

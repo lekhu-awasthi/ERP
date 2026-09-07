@@ -164,7 +164,7 @@ public static class AccountingEndpoints
             Guid organizationId, JournalVoucherRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new CreateJournalVoucherCommand(organizationId, request.Date, request.Reference, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate }, ct);
+                new CreateJournalVoucherCommand(organizationId, request.Date, request.Reference, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId }, ct);
             return Results.Created($"/api/organizations/{organizationId}/journal-vouchers/{result.Id}", result);
         });
 
@@ -172,7 +172,7 @@ public static class AccountingEndpoints
             Guid organizationId, Guid id, JournalVoucherRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new UpdateJournalVoucherCommand(organizationId, id, request.Date, request.Reference, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate }, ct);
+                new UpdateJournalVoucherCommand(organizationId, id, request.Date, request.Reference, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId }, ct);
             return Results.Ok(result);
         });
 
@@ -226,7 +226,7 @@ public static class AccountingEndpoints
             Guid organizationId, CashTransferRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new CreateCashTransferCommand(organizationId, request.Date, request.Reference, request.FromAccountId, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                new CreateCashTransferCommand(organizationId, request.Date, request.Reference, request.FromAccountId, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/cash-transfers/{result.Id}", result);
         });
@@ -235,7 +235,7 @@ public static class AccountingEndpoints
             Guid organizationId, Guid id, CashTransferRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new UpdateCashTransferCommand(organizationId, id, request.Date, request.Reference, request.FromAccountId, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                new UpdateCashTransferCommand(organizationId, id, request.Date, request.Reference, request.FromAccountId, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Ok(result);
         });
@@ -272,7 +272,7 @@ public static class AccountingEndpoints
             Guid organizationId, Guid accountId, OpeningBalanceLineRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new CreateOrUpdateOpeningBalanceLineCommand(organizationId, accountId, request.Debit, request.Credit) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate }, ct);
+                new CreateOrUpdateOpeningBalanceLineCommand(organizationId, accountId, request.Debit, request.Credit) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId }, ct);
             return Results.Ok(result);
         });
     }
@@ -491,7 +491,11 @@ public static class AccountingEndpoints
         // be carried on the request record itself, not only on the command: a trailing optional
         // parameter added to a command alone binds to null forever and every test still passes
         // (phase-27b's Terms).
-        string? CurrencyCode = null, decimal? ExchangeRate = null);
+        string? CurrencyCode = null, decimal? ExchangeRate = null,
+        // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Same shape and
+        // the same reason as the currency pair above: optional, trailing, and carried on the request
+        // record itself rather than only on the command.
+        Guid? LocationId = null);
 
     private sealed record PreviewGlPostingRequest(DateOnly Date, string? Reference, IReadOnlyList<JournalVoucherLineInput> Lines);
 
@@ -502,7 +506,11 @@ public static class AccountingEndpoints
         // be carried on the request record itself, not only on the command: a trailing optional
         // parameter added to a command alone binds to null forever and every test still passes
         // (phase-27b's Terms).
-        string? CurrencyCode = null, decimal? ExchangeRate = null);
+        string? CurrencyCode = null, decimal? ExchangeRate = null,
+        // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Same shape and
+        // the same reason as the currency pair above: optional, trailing, and carried on the request
+        // record itself rather than only on the command.
+        Guid? LocationId = null);
 
     private sealed record OpeningBalanceLineRequest(decimal Debit, decimal Credit,
         // Phase 28 (FR-2.5) -- the Currency + "Exchange Rate To NPR" pair. Optional and trailing so
@@ -510,5 +518,9 @@ public static class AccountingEndpoints
         // be carried on the request record itself, not only on the command: a trailing optional
         // parameter added to a command alone binds to null forever and every test still passes
         // (phase-27b's Terms).
-        string? CurrencyCode = null, decimal? ExchangeRate = null);
+        string? CurrencyCode = null, decimal? ExchangeRate = null,
+        // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Same shape and
+        // the same reason as the currency pair above: optional, trailing, and carried on the request
+        // record itself rather than only on the command.
+        Guid? LocationId = null);
 }

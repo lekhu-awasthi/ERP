@@ -112,7 +112,8 @@ public sealed class ApproveInvoiceCommandHandler(
                 ExchangeRates.ToBase(x.VatAmount, invoice.ExchangeRate))),
             resolveInventoryAccounts: goodsLines.Count > 0, cancellationToken);
 
-        var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.Invoice, cancellationToken);
+        var code = await numberGenerator.GetNextNumberAsync(
+            request.OrganizationId, DocumentType.Invoice, cancellationToken, invoice.LocationId);
 
         invoice.Approve(currentUser.UserId, code);
 

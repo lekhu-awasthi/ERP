@@ -78,7 +78,7 @@ public static class PurchasingEndpoints
             var result = await sender.Send(
                 new CreatePurchaseOrderCommand(
                     organizationId, request.ContactId, request.Date, request.Reference, request.Lines, request.DiscountPct,
-                    request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/purchase-orders/{result.Id}", result);
         });
@@ -89,7 +89,7 @@ public static class PurchasingEndpoints
             var result = await sender.Send(
                 new UpdatePurchaseOrderCommand(
                     organizationId, id, request.ContactId, request.Date, request.Reference, request.Lines, request.DiscountPct,
-                    request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Ok(result);
         });
@@ -152,6 +152,7 @@ public static class PurchasingEndpoints
                     AdditionalCosts = request.AdditionalCosts,
                     IsProductWiseAdditionalCost = request.IsProductWiseAdditionalCost,
                     DueDate = request.DueDate,
+                    LocationId = request.LocationId,
                 },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/purchase-bills/{result.Id}", result);
@@ -182,6 +183,7 @@ public static class PurchasingEndpoints
                     AdditionalCosts = request.AdditionalCosts,
                     IsProductWiseAdditionalCost = request.IsProductWiseAdditionalCost,
                     DueDate = request.DueDate,
+                    LocationId = request.LocationId,
                 },
                 ct);
             return Results.Ok(result);
@@ -240,7 +242,7 @@ public static class PurchasingEndpoints
             var result = await sender.Send(
                 new CreateExpenseCommand(
                     organizationId, request.ContactId, request.Date, request.DueDate, request.SupplierInvoiceReference,
-                    request.Notes, request.TdsApplicable, request.TdsTypeId, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.Notes, request.TdsApplicable, request.TdsTypeId, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/expenses/{result.Id}", result);
         });
@@ -251,7 +253,7 @@ public static class PurchasingEndpoints
             var result = await sender.Send(
                 new UpdateExpenseCommand(
                     organizationId, id, request.ContactId, request.Date, request.DueDate, request.SupplierInvoiceReference,
-                    request.Notes, request.TdsApplicable, request.TdsTypeId, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.Notes, request.TdsApplicable, request.TdsTypeId, request.Lines) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Ok(result);
         });
@@ -302,7 +304,7 @@ public static class PurchasingEndpoints
             var result = await sender.Send(
                 new CreateDebitNoteCommand(
                     organizationId, request.ContactId, request.Date, request.Reference, request.TdsTypeId, request.Lines,
-                    request.ReferrerType, request.ReferrerId, request.DiscountPct) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.ReferrerType, request.ReferrerId, request.DiscountPct) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/debit-notes/{result.Id}", result);
         });
@@ -313,7 +315,7 @@ public static class PurchasingEndpoints
             var result = await sender.Send(
                 new UpdateDebitNoteCommand(
                     organizationId, id, request.ContactId, request.Date, request.Reference, request.TdsTypeId, request.Lines,
-                    request.DiscountPct) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate },
+                    request.DiscountPct) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
                 ct);
             return Results.Ok(result);
         });
@@ -469,7 +471,11 @@ public static class PurchasingEndpoints
         // be carried on the request record itself, not only on the command: a trailing optional
         // parameter added to a command alone binds to null forever and every test still passes
         // (phase-27b's Terms).
-        string? CurrencyCode = null, decimal? ExchangeRate = null);
+        string? CurrencyCode = null, decimal? ExchangeRate = null,
+        // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Same shape and
+        // the same reason as the currency pair above: optional, trailing, and carried on the request
+        // record itself rather than only on the command.
+        Guid? LocationId = null);
 
     private sealed record PurchaseBillRequest(
         Guid ContactId,
@@ -498,7 +504,10 @@ public static class PurchasingEndpoints
         IReadOnlyList<PurchaseBillAdditionalCostInput>? AdditionalCosts = null,
         bool IsProductWiseAdditionalCost = false,
         // Phase 31 -- the stored Due Date. Null means the bill's own date.
-        DateOnly? DueDate = null);
+        DateOnly? DueDate = null,
+        // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Optional,
+        // trailing, and carried here on the request record, not only on the command (phase-27b's Terms).
+        Guid? LocationId = null);
 
     private sealed record PreviewPurchaseBillGlPostingRequest(
         IReadOnlyList<PurchaseBillLineInput> Lines, Guid? TdsTypeId, decimal DiscountPct = 0);
@@ -517,7 +526,11 @@ public static class PurchasingEndpoints
         // be carried on the request record itself, not only on the command: a trailing optional
         // parameter added to a command alone binds to null forever and every test still passes
         // (phase-27b's Terms).
-        string? CurrencyCode = null, decimal? ExchangeRate = null);
+        string? CurrencyCode = null, decimal? ExchangeRate = null,
+        // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Same shape and
+        // the same reason as the currency pair above: optional, trailing, and carried on the request
+        // record itself rather than only on the command.
+        Guid? LocationId = null);
 
     private sealed record PreviewExpenseGlPostingRequest(IReadOnlyList<ExpenseLineInput> Lines, bool TdsApplicable, Guid? TdsTypeId);
 
@@ -529,5 +542,9 @@ public static class PurchasingEndpoints
         // be carried on the request record itself, not only on the command: a trailing optional
         // parameter added to a command alone binds to null forever and every test still passes
         // (phase-27b's Terms).
-        string? CurrencyCode = null, decimal? ExchangeRate = null);
+        string? CurrencyCode = null, decimal? ExchangeRate = null,
+        // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Same shape and
+        // the same reason as the currency pair above: optional, trailing, and carried on the request
+        // record itself rather than only on the command.
+        Guid? LocationId = null);
 }

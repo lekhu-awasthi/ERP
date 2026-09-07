@@ -1,5 +1,7 @@
 using ErpApp.Application.Common.Exceptions;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Manufacturing;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -47,6 +49,13 @@ public sealed class UpdateProductionJournalCommandHandler(IAppDbContext db)
         db.ProductionJournalRawMaterialLines.AddRange(journal.RawMaterials.ToList());
         db.ProductionJournalByProductLines.AddRange(journal.ByProducts.ToList());
         db.ProductionJournalExpenseLines.AddRange(journal.Expenses.ToList());
+
+        // Phase 32 -- resolved through the one shared resolver so this type follows the
+        // tenant's LocationScopeMode identically to the sales-side ones. Under the default
+        // mode that setting puts this document out of scope and the resolver returns null.
+        journal.SetLocation(await LocationResolver.ResolveAsync(
+            db, request.OrganizationId, DocumentType.ProductionJournal, request.LocationId,
+            cancellationToken));
 
         await db.SaveChangesAsync(cancellationToken);
 
