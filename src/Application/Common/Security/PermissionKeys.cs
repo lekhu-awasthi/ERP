@@ -1,4 +1,4 @@
-namespace ErpApp.Application.Common.Security;
+﻿namespace ErpApp.Application.Common.Security;
 
 /// <summary>
 /// Stable permission-key catalog (architecture-spec.md §3.7's "PermissionKey a stable string"),
@@ -920,4 +920,30 @@ public static class PermissionKeys
     // SubscriptionExpiryBehavior must let through after expiry, or an expired tenant could never
     // renew itself -- see that behavior's doc comment.
     public const string SubscriptionManage = "Tenancy.Subscription.Manage";
+
+    // Phase 33 (platform chrome). TWO keys for three features, and the asymmetry is the point.
+    //
+    // GlobalSearchView is a blanket key in exactly the sense TransactionApprovalView (phase 12) and
+    // RecentTransactionView (phase 23) are, and this is that pattern's fourth use. Its job is that
+    // AuthorizationBehavior -- the only mechanism in this codebase that verifies the acting user
+    // belongs to OrganizationId at all -- runs for the request. It is emphatically NOT the gate on
+    // what the search returns: GlobalSearchQueryHandler re-derives, per result kind, whether the
+    // caller holds that kind's own View key, and narrows document hits to the caller's billing
+    // locations through LocationAccessScope. Granting this key alone finds nothing, which is the
+    // correct and safe default. Admin+Member, because a search box a Member cannot open is not a
+    // search box; the flat-register argument for Admin-only does not transfer, since every row the
+    // search can return is one the caller could already open by navigating to it.
+    public const string GlobalSearchView = "Platform.GlobalSearch.View";
+
+    // UserPreferenceManage covers both reading and writing a user's *own* settings, and is a single
+    // key rather than a View/Manage pair for the reason GeneralSettingsManage is: there is no
+    // caller who needs to read one without writing it, so a View key would be one nothing checks.
+    // Admin+Member, and it could hardly be otherwise -- this is the key on "may I choose my own
+    // Quick Links and my own calendar", which is the most routine per-user working data there is.
+    //
+    // It grants no access to anyone else's preferences and cannot: SetUserPreferenceCommand and
+    // GetUserPreferencesQuery take no user id at all, resolving the row from ICurrentUserService.
+    // There is deliberately no administrative key for reading another user's tray -- nothing in the
+    // product needs it, and adding one would make a private setting a reporting surface.
+    public const string UserPreferenceManage = "Platform.UserPreference.Manage";
 }

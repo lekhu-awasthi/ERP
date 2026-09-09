@@ -758,3 +758,129 @@ tenant (the live product deactivates, never deletes). Derived instead, and recor
 The pane's screenshot coordinate frame was 800x534 while the page's own `innerWidth/innerHeight` was
 1513x1010 -- multiply `getBoundingClientRect` coordinates by 800/1513 = 0.5288 before clicking. That
 is phase-26c's getBoundingClientRect idiom plus a scale factor the earlier pass did not need.
+
+
+### Appendix, 2026-09-09 — platform chrome confirm-live pass (phase 33)
+
+Read on **both** tenants: `cadehi.tigg.app` (locations enabled, almost no data) and
+`moonbeamtradingandsuppliers.tigguat.com/erp/` (no locations, several years of real data). Read-only
+on moonbeam; on cadehi one Quick Link was added and removed again, with the tenant left exactly as
+found. **Three of the four things this phase came to read contradict what was written down.**
+
+#### Global search (Ctrl + /) — one endpoint, two result shapes
+
+`GET /api/v1/erp/search?namespace=<tenant>&search_phrase=<q>`, debounced per keystroke, **capped at
+10 results**, returning a single flat `data` array whose members are one of two shapes:
+
+| | `nav_type: "UI"` | `nav_type: "SERVER"` |
+|---|---|---|
+| fields | `app_id`, `name`, `type`, `url` | `collection`, `id`, `code`, + *either* `name`+`type` *or* `source` |
+| means | a screen to navigate to | a stored row to open |
+| `type` values | `APP` (a module root), `LIST`, `ADD`, `DETAIL` (a report) | the sub-kind: `Customer`, `Supplier`, `Lead`, `Product`, `Normal`, `Cash` |
+
+So the top-bar search is **half a command palette**. Typing `INV` on a tenant with thousands of
+invoices returned ten rows, *all* of them navigation: `Add Invoice`, `Inventory`, `Inventory
+Adjustment`, `Add Inventory Adjustment`, five inventory/ageing reports, and the `Invoice` list. A
+third of everything it offers is a **create action** (`Add Cash Transfers`, `Add Debit Notes`).
+
+The `SERVER` half splits again, and the split is the interesting part:
+
+- **Master data** — `collection` ∈ `Contact`, `Product`, `Account` — carries a **`name`** and a
+  `type`. Matched on *both* name and code: `0001` found the customer `Anish Balami` whose code is
+  `0001`, and `2026` found the product `Test 2026` by name.
+- **Documents** — `collection` ∈ `Journal Voucher`, `Purchase Bill`, … — carries **no `name` at all**,
+  only `code` and a **`source`** naming the document type. A document has no name, so the row renders
+  code-as-title with the type beneath: `JV0001/81-82` / `Journal Voucher`.
+
+Which means: **documents are matched on their document number and nothing else.** Searching a
+customer's name does not surface that customer's invoices. Note the codes carry the BS fiscal-year
+suffix (`JV0001/81-82`), so the *stored* number is what is matched.
+
+Contacts and Accounts additionally carry a **`View Ledger`** quick-action button inside the result
+row; products and documents do not.
+
+Matching is fuzzy and token-wise rather than prefix: `Cash C` returned `Share Capital`, and `SI-`
+returned ten unrelated contacts and products. There is **no permission or entitlement filtering
+visible on the navigation half** — moonbeam's results offered `Delivery Notes` and `Goods Received
+Notes`, and cadehi's offered `Marketplace`, on tenants that have never used them.
+
+> **Correction.** The roadmap's phase-33 entry said "global search (Ctrl + /) across contacts,
+> products and document numbers". Those three are real, but the entry omits **Accounts** (a whole
+> `collection`), the **navigation half** — which is the majority of what a typical query returns —
+> and the **create actions**. A search box was assumed; a command palette is what shipped.
+
+#### History — `localStorage`, per browser, and it is not a record list
+
+The icon left of the search box (`.history_popover`) opens a popover reading straight out of
+**`localStorage["history"]`**. No request is made to open it and **no request is made to write it**:
+
+```json
+[{"app_id":"crm","subdomain_id":"contacts","title":"","url":"/crm/contacts/60847df1-…/overview"},
+ {"app_id":"config","subdomain_id":"tigg-subscription","title":"","url":"/config/tigg-subscription"}]
+```
+
+Observed by navigating seven screens in sequence and reading the key after each:
+
+- Most-recent-first, and the entry for a screen is written when you **leave** it.
+- **Deduplicated by `app_id` — one entry per module.** Visiting Tigg Subscriptions then Users &
+  Permissions leaves one `config` entry, not two; but `sales`, `crm`, `inventory`, `accounting` and
+  `config` coexist happily. In practice the list is "the last screen I was on in each module", so it
+  is bounded by the nine modules rather than by a length cap.
+- `title` is **always the empty string**. The popover's labels (`CRM` / `Contacts`) are derived
+  client-side from `app_id` + `subdomain_id`.
+- It **does** store a record-detail URL — but because the label is derived from the route, that entry
+  still renders as `CRM | Contacts`. **It never shows the record's name.**
+- `#/` (Home) is not recorded; it has no `app_id`.
+
+> **Correction.** The roadmap called it "a History/Browse list of recently opened **records**" and
+> the scan's top-bar line called it a "History/Browse icon". It is a list of recently visited
+> **screens**, one per module, held in the browser. Nothing is written server-side when a document is
+> opened — which settles phase 33's Decision C by observation rather than by costing it.
+
+#### Quick Links — server-stored, whole-list replace, screens only
+
+The Home tray, `Edit Links` in its corner. Unlike History this **is** on the server:
+
+- `GET /api/v1/erp/quick-links?namespace=<tenant>` → `{"data":[{name, app_id, type, url}, …]}`
+- `POST /api/v1/erp/quick-links?namespace=<tenant>` with `{"items":[…]}` → `"quick links update
+  successful"`, followed immediately by a re-`GET`.
+
+The POST is a **whole-list replace** carrying the tray in display order; there is no per-link
+endpoint, and nothing is sent until `Done` is pressed (adding and deleting are staged in the client).
+The item shape is *exactly* the search endpoint's `nav_type: UI` shape minus `nav_type` — the two
+features share one vocabulary of navigation targets.
+
+`ADD NEW QUICK LINK` opens a **`Search For Quick Links`** modal: a filterable list of screens grouped
+by module, `LIST` and `ADD` targets only. **A record can never be a Quick Link.** In edit mode each
+tile gains a `Remove this shortcut` ✕ and the tray is a `sortable-container`, so order is
+drag-editable and is what the POST persists.
+
+No cap at six: moonbeam's tray holds **nine** (including `Document` and `Marketplace`, and one `ADD`
+target — `/accounting/journal-voucher/add`). Cadehi's six (Customers, Products, Charts Of Account,
+Invoice, Purchase Bills, Journal Voucher) look like a **seeded default**, since that tenant has never
+been customised.
+
+**Per-user or per-tenant is not observable here** and is recorded as unsettled: the endpoint takes
+only `namespace`, the caller's identity comes from the JWT, and there is one account per tenant. The
+experiment that would settle it is a second user on one tenant; the scan's original "personalizable
+shortcut tray, per-user" is an inference from the word *personalizable*, not an observation.
+
+#### Tigg Subscriptions — read-only, and mostly already built
+
+`#/config/tigg-subscription`, on cadehi: a banner (*"currently active and will expire in 13 days"*)
+over six read-only rows — **Subscription Plan** `Standard ( 0 Txn, 0 Products)`, **Subscription
+Amount** `0.00`, **Expiry Date** `22-09-2026`, then **Location Enabled** `Yes`, **Warehouse Enabled**
+`Yes`, **IRD Verified** `No`, **IRD Sync Enabled** `No`. No controls of any kind.
+
+This rebuild's `organizations/:id/features` (phase 20f, plus phase 31's Renew) already carries the
+plan, the expiry and seven entitlement flags. What it lacks is Subscription Amount, the two quotas
+and IRD Verified — see phase-33-status.md's Decision D for why those stay unbuilt.
+
+#### Browser-pane note
+
+Same idiom as phase 26c/32b, different scale factor each time: on this pass the frame was 800×534
+against an `innerWidth` of **1511** (factor 0.5294) on one tenant and 1280 (factor 0.625) on the
+other — read `innerWidth` per tab rather than reusing a recorded number. The search input carries
+`tabindex="-1"`, so a synthetic `.focus()` types into it but the results dropdown only renders after
+a **real** click; setting `.value` through React's native setter fires the request without the
+dropdown, which is the faster way to read raw payloads and the wrong way to read the rendered row.

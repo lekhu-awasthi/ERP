@@ -1,0 +1,36 @@
+<div class="history-menu position-relative d-inline-block">
+  <button
+    type="button"
+    class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+    title="Recently visited screens"
+    aria-label="History"
+    (click)="toggle()">
+    <i class="bi bi-clock-history"></i>
+  </button>
+
+  @if (open()) {
+    <div class="history-menu-panel shadow-sm border rounded bg-white">
+      @if (entries().length === 0) {
+        <div class="p-3 text-muted small">Nothing visited yet.</div>
+      } @else {
+        <ul class="list-unstyled mb-0">
+          @for (entry of entries(); track entry.url) {
+            <li>
+              <button
+                type="button"
+                class="history-row w-100 text-start border-0 bg-transparent px-3 py-2"
+                (click)="go(entry.url)">
+                <span class="d-block text-muted text-uppercase" style="font-size: 0.68rem;">{{ entry.area }}</span>
+                <span class="d-block text-dark">{{ entry.name }}</span>
+              </button>
+            </li>
+          }
+        </ul>
+
+        <div class="border-top px-3 py-1 text-end">
+          <button type="button" class="btn btn-link btn-sm p-0 text-muted" (click)="clear()">Clear</button>
+        </div>
+      }
+    </div>
+  }
+</div>

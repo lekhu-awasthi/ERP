@@ -1,0 +1,25 @@
+.quick-link-tile {
+  position: relative;
+  min-height: 3.25rem;
+  background-color: #fff;
+}
+
+.quick-link-add {
+  background-color: transparent;
+  border-style: dashed !important;
+  color: #6c757d;
+  cursor: pointer;
+}
+
+.quick-link-picker {
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
+.quick-link-option {
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba(13, 110, 253, 0.08);
+  }
+}

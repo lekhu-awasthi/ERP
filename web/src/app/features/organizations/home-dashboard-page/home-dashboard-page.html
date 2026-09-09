@@ -1,4 +1,4 @@
-<div class="container py-4" style="max-width: 1100px;">
+﻿<div class="container py-4" style="max-width: 1100px;">
   <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
     <div>
       <h1 class="h4 fw-bold mb-0">Home</h1>
@@ -16,6 +16,10 @@
       </a>
     </div>
   </div>
+
+  <!-- Phase 33: the personalisable Quick Links tray, above the KPI cards exactly as the live
+       product places it. Per-user and server-stored -- see quick-links.ts. -->
+  <app-quick-links [organizationId]="organizationId" />
 
   @if (errorMessage()) {
     <div class="alert alert-danger" role="alert">{{ errorMessage() }}</div>

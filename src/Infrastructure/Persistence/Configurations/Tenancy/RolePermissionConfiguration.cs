@@ -1,4 +1,4 @@
-using ErpApp.Application.Common.Security;
+﻿using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -703,6 +703,17 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid MemberBillingLocationViewId = Guid.Parse("00000000-0000-0000-0002-0000000001b7");
     private static readonly Guid MemberBillingLocationManageId = Guid.Parse("00000000-0000-0000-0002-0000000001b8");
 
+    // Phase 33 (platform chrome). Both Admin+Member, both blanket keys -- see
+    // PermissionKeys.GlobalSearchView/UserPreferenceManage. GlobalSearchView granted to Member
+    // discloses nothing on its own: GlobalSearchQueryHandler re-derives every collection's own View
+    // key before it will return a row, so a Member holding this and nothing else searches an empty
+    // tenant. UserPreferenceManage is the key on choosing one's own Quick Links and calendar, which
+    // is per-user data no role has a reason to withhold.
+    private static readonly Guid AdminGlobalSearchViewId = Guid.Parse("00000000-0000-0000-0002-0000000001b9");
+    private static readonly Guid MemberGlobalSearchViewId = Guid.Parse("00000000-0000-0000-0002-0000000001ba");
+    private static readonly Guid AdminUserPreferenceManageId = Guid.Parse("00000000-0000-0000-0002-0000000001bb");
+    private static readonly Guid MemberUserPreferenceManageId = Guid.Parse("00000000-0000-0000-0002-0000000001bc");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1250,6 +1261,10 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminBillingLocationViewId, Role.AdminId, PermissionKeys.BillingLocationView, true),
             RolePermission.Create(AdminBillingLocationManageId, Role.AdminId, PermissionKeys.BillingLocationManage, true),
             RolePermission.Create(MemberBillingLocationViewId, Role.MemberId, PermissionKeys.BillingLocationView, true),
-            RolePermission.Create(MemberBillingLocationManageId, Role.MemberId, PermissionKeys.BillingLocationManage, false));
+            RolePermission.Create(MemberBillingLocationManageId, Role.MemberId, PermissionKeys.BillingLocationManage, false),
+            RolePermission.Create(AdminGlobalSearchViewId, Role.AdminId, PermissionKeys.GlobalSearchView, true),
+            RolePermission.Create(MemberGlobalSearchViewId, Role.MemberId, PermissionKeys.GlobalSearchView, true),
+            RolePermission.Create(AdminUserPreferenceManageId, Role.AdminId, PermissionKeys.UserPreferenceManage, true),
+            RolePermission.Create(MemberUserPreferenceManageId, Role.MemberId, PermissionKeys.UserPreferenceManage, true));
     }
 }

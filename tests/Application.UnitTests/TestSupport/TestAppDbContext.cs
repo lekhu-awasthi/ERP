@@ -1,4 +1,4 @@
-using ErpApp.Application.Common.Persistence;
+﻿using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
@@ -218,6 +218,7 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<MigratedPurchaseRegisterEntry> MigratedPurchaseRegisterEntries => Set<MigratedPurchaseRegisterEntry>();
     public DbSet<UploadedDocument> UploadedDocuments => Set<UploadedDocument>();
     public DbSet<UserLoginEvent> UserLoginEvents => Set<UserLoginEvent>();
+    public DbSet<UserPreference> UserPreferences => Set<UserPreference>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

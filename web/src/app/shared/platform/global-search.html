@@ -1,0 +1,61 @@
+<div class="global-search position-relative">
+  <div class="input-group input-group-sm">
+    <span class="input-group-text bg-white border-end-0">
+      <i class="bi bi-search text-muted"></i>
+    </span>
+    <input
+      #box
+      type="text"
+      class="form-control border-start-0 border-end-0"
+      placeholder="Search contacts, products, accounts, document numbers…"
+      aria-label="Global search"
+      autocomplete="off"
+      (input)="onInput($event)"
+      (keydown)="onKeydown($event)"
+      (focus)="open.set(true)" />
+    <span class="input-group-text bg-white border-start-0 text-muted small">Ctrl + /</span>
+  </div>
+
+  @if (open() && term().trim().length > 0) {
+    <div class="global-search-results shadow-sm border rounded bg-white">
+      @if (rows().length === 0) {
+        <div class="p-3 text-muted small">
+          @if (searching()) {
+            Searching…
+          } @else {
+            No matches for &ldquo;{{ term() }}&rdquo;.
+          }
+        </div>
+      } @else {
+        <ul class="list-unstyled mb-0">
+          @for (row of rows(); track $index) {
+            <li>
+              <button
+                type="button"
+                class="global-search-row d-flex align-items-center gap-2 w-100 text-start border-0 bg-transparent px-3 py-2"
+                [class.is-highlighted]="$index === highlighted()"
+                [disabled]="!row.link"
+                (mouseenter)="highlighted.set($index)"
+                (click)="go(row)">
+                <span class="badge text-bg-light border flex-shrink-0">{{ row.kindBadge }}</span>
+                <span class="flex-grow-1 text-truncate">
+                  <span class="d-block text-dark">{{ row.label }}</span>
+                  <span class="d-block text-muted small">{{ row.description }}</span>
+                </span>
+                @if (!row.link) {
+                  <span class="text-muted small flex-shrink-0">no detail page</span>
+                }
+              </button>
+            </li>
+          }
+        </ul>
+
+        <div class="border-top px-3 py-1 text-muted d-flex gap-3" style="font-size: 0.72rem;">
+          <span>&uarr;&darr; Navigate</span>
+          <span>&crarr; Select</span>
+          <span>esc Dismiss</span>
+        </div>
+      }
+    </div>
+  }
+</div>

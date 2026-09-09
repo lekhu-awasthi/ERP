@@ -1,5 +1,16 @@
+@if (organizationId(); as orgId) {
+  <!-- Phase 33: the platform chrome. Present on every in-organization screen, exactly as the
+       reference product's own top bar is. See app.ts for why it lives in the shell. -->
+  <header class="platform-bar border-bottom bg-white">
+    <div class="d-flex align-items-center gap-2 px-3 py-2">
+      <app-history-menu />
+      <div class="flex-grow-1" style="max-width: 40rem;">
+        <app-global-search [organizationId]="orgId" />
+      </div>
+    </div>
+  </header>
+}
+
 <main class="shell">
-  <!-- <h1>{{ title() }}</h1>
-  <p>API status: <strong>{{ apiStatus() }}</strong></p> -->
   <router-outlet />
 </main>

@@ -1,4 +1,4 @@
-using ErpApp.Application.Common.Pagination;
+﻿using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
@@ -34,16 +34,13 @@ public sealed class RecentTransactionsQueryHandler(IAppDbContext db, ICurrentUse
         // single key, resolved once as a set because this query checks up to six different *.View
         // keys. Copied from TransactionApprovalQueryHandler (Phase 12), which is the precedent for a
         // multi-type feed gated per type.
-        var grantedKeys = (await (
-            from membership in db.OrganizationMemberships
-            where membership.OrganizationId == request.OrganizationId
-                  && membership.UserId == currentUser.UserId
-                  && membership.Status == MembershipStatus.Accepted
-            join rolePermission in db.RolePermissions
-                on membership.RoleId equals rolePermission.RoleId
-            where rolePermission.IsGranted
-            select rolePermission.PermissionKey
-        ).ToListAsync(cancellationToken)).ToHashSet();
+        //
+        // Phase 33: read through the shared reader, which filters LocationId == null. As an inlined
+        // copy this predated phase 32b and counted location-scoped grants as organization-wide ones,
+        // so a branch-scoped role's feed showed every branch's documents. See the same fix and the
+        // same reasoning in TransactionApprovalQueryHandler.
+        var grantedKeys = await GrantedPermissionReader.GrantedKeysAsync(
+            db, request.OrganizationId, currentUser.UserId, cancellationToken);
 
         var filter = request.Filter;
         var wantsSales = filter is RecentTransactionFilter.All or RecentTransactionFilter.Sales;

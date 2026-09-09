@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+﻿import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
@@ -18,6 +18,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { CalendarToggle } from '../../../shared/formatting/calendar-toggle';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { QuickLinks } from '../../../shared/platform/quick-links';
 
 /** One KPI card. `previous` is null when the prior-period query could not be read. */
 interface Kpi {
@@ -61,7 +62,7 @@ interface Kpi {
  */
 @Component({
   selector: 'app-home-dashboard-page',
-  imports: [RouterLink, AmountPipe, NepaliDatePipe, BsDateInput, CalendarToggle, PaginationControl],
+  imports: [RouterLink, AmountPipe, NepaliDatePipe, BsDateInput, CalendarToggle, PaginationControl, QuickLinks],
   templateUrl: './home-dashboard-page.html',
 })
 export class HomeDashboardPage {

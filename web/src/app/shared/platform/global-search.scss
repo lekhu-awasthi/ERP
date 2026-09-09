@@ -1,0 +1,25 @@
+.global-search-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  // Above the page content but not above a modal backdrop. Bootstrap's JS is not loaded anywhere in
+  // this app (phase-22's gotcha), so this panel is positioned by CSS rather than by a dropdown
+  // plugin, and it must clear the cards it overlaps on the dashboards it sits on.
+  z-index: 1030;
+  max-height: 26rem;
+  overflow-y: auto;
+}
+
+.global-search-row {
+  cursor: pointer;
+
+  &.is-highlighted {
+    background-color: rgba(13, 110, 253, 0.08);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.75;
+  }
+}

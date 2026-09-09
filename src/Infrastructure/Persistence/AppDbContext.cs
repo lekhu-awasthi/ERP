@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
@@ -137,6 +137,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<MigratedPurchaseRegisterEntry> MigratedPurchaseRegisterEntries => Set<MigratedPurchaseRegisterEntry>();
     public DbSet<UploadedDocument> UploadedDocuments => Set<UploadedDocument>();
     public DbSet<UserLoginEvent> UserLoginEvents => Set<UserLoginEvent>();
+    public DbSet<UserPreference> UserPreferences => Set<UserPreference>();
 
     // IAppDbContext.Set<TEntity>() -- satisfied implicitly by DbContext's own public
     // Set<TEntity>() (identical signature), needed by the generic

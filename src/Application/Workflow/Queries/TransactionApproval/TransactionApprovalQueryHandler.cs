@@ -1,4 +1,4 @@
-using ErpApp.Application.Common.Persistence;
+﻿using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Common;
@@ -21,16 +21,15 @@ public sealed class TransactionApprovalQueryHandler(IAppDbContext db, ICurrentUs
         // Same OrganizationMemberships/RolePermissions join AuthorizationBehavior performs for a
         // single PermissionKey -- resolved once here as a set, since this query needs to check up
         // to 13 different *.Approve keys against the acting user's Role.
-        var grantedKeys = (await (
-            from membership in db.OrganizationMemberships
-            where membership.OrganizationId == request.OrganizationId
-                  && membership.UserId == currentUser.UserId
-                  && membership.Status == MembershipStatus.Accepted
-            join rolePermission in db.RolePermissions
-                on membership.RoleId equals rolePermission.RoleId
-            where rolePermission.IsGranted
-            select rolePermission.PermissionKey
-        ).ToListAsync(cancellationToken)).ToHashSet();
+        //
+        // Phase 33: this was an inlined copy of that join, and it predated phase 32b's split, so it
+        // was still reading *every* granted row including the location-scoped ones. A role granted
+        // Sales.Invoice.Approve at one branch therefore had that key in this set and saw every
+        // branch's drafts -- the exact escalation GrantedPermissionReader's remarks describe. Reading
+        // it through the shared reader (which filters LocationId == null) is the fix, and is what
+        // that reader was extracted for in the first place.
+        var grantedKeys = await GrantedPermissionReader.GrantedKeysAsync(
+            db, request.OrganizationId, currentUser.UserId, cancellationToken);
 
         var rows = new List<TransactionApprovalRowDto>();
 

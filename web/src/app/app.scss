@@ -1,0 +1,7 @@
+
+/* Phase 33 -- the platform chrome sits above the page and stays put while it scrolls. */
+.platform-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+}

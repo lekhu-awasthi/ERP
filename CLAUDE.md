@@ -1,4 +1,4 @@
-# ErpApp
+﻿# ErpApp
 
 A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQRS (MediatR) on .NET 10 (LTS), Angular 21 (LTS) frontend, SQL Server via EF Core.
 
@@ -89,6 +89,11 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
   permission that depends on a row the handler has not read yet, before re-confirming a screen an
   earlier phase already confirmed, or before adding a request over a location-bearing document type
   — `docs/phase-32b-status.md`
+- Phase 33: platform chrome — a **global search** (Ctrl + /) in the shell, a **History** popover, the
+  **Quick Links** tray, and `UserPreference`, the per-user store (a row per
+  `(OrganizationId, UserId, Key)`). Before adding a per-user setting, before a request that searches
+  across document types, or before trusting a recorded description of a control nobody operated —
+  `docs/phase-33-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -159,6 +164,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `TestAppDbContext` has no `ApplyConfigurationsFromAssembly`, so every encapsulated collection must be restated there with `HasMany...SetPropertyAccessMode(Field)`; its symptom is the identical `DbUpdateConcurrencyException`, so check the test context first.
 - SQL Server treats NULLs as equal in a unique index; a unique index over a nullable column needs `.HasFilter("[Col] IS NOT NULL")`, and InMemory enforces neither half.
 - `EF.Functions.Like` cannot be translated by InMemory; write `String.Contains`, which SQL Server turns into the same `LIKE`.
+- An extraction is not done until the copies it replaced are deleted: `GrantedPermissionReader` said it had replaced two inlined joins and had not, so both missed phase-32b's `LocationId == null` filter and read a branch grant as organization-wide. Before writing copy N+1 of a pattern, grep that copies 1..N were retired (phase-33).
+- An expression tree does not short-circuit, so `!flag || list.Contains(x)` hands EF a **null** list to translate — and only on the unrestricted branch, i.e. almost every caller. Compose a second `.Where()` (phase-33).
 - Read a handler's `Where` before assuming it matches its request — `ListPaymentsQueryHandler` shipped with a hardcoded `Direction == Received` (phase-6 bug #2).
 - A store-side aggregate (`GroupBy...Count()`) must run after the `SaveChangesAsync` that persists what it counts; tracked-but-unsaved rows are invisible to it (phase-21a).
 - A Domain factory/mutator can stay `internal` only while its sole caller is in the Domain assembly (phase-7 bug #1).
@@ -299,60 +306,69 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 **Tooling and shell**
 - `nvm use` from a shell that cannot create the symlink deletes `C:\nvm4w\nodejs` and reports success; recreate it with `cmd /c 'mklink /J "C:\nvm4w\nodejs" "%LOCALAPPDATA%\nvm\v24.11.0"'`.
 - A `cat > file <<'EOF'` heredoc in the Bash tool is silently truncated or mis-parsed well below the ~8 KB figure; use the Write tool, or write a small patch script and run it (phase-26a).
+- `sed -i` also flips the CRLF of the file you *aimed* it at, after which every `
+`-anchored patch script fails its assertion with the anchor looking correct; use Edit for a single substitution, or read the file's own newline (phase-33).
 - A `sed -i` over a glob rewrites **every** file it matches, and on Windows that flips CRLF to LF even where the pattern never fires — `git diff` stays empty while `git status` shows a hundred extra modified files. Undoing it needs `rm` *then* `git checkout --`; restrict the file list instead (phase-30).
 - When a generator script emits Angular templates through `str.format`, interpolation braces need escaping in the *format string* but not in a substituted value — `{{{{ x }}}}` in a value ships literally and fails as NG5002 (phase-26b).
 
 ## Current status
 
-**Phases 0-32 are complete, and phase 32b (per-location permission scope, FR-3.3) is done.** The role
-editor now has the **two sections the live product has**: *Organization-wide Permissions* ("Apply
-across all billing locations") and *Location-specific Permissions*, the second being the
-**transaction keys alone** replicated per location -- 77 of this codebase's 222 keys, derived from
-`DocumentMechanisms.LocationBearing` rather than listed. A location grant is a `RolePermission` row
-carrying a nullable **`LocationId` FK** where **null is the organization-wide grant**, so the
-migration needed no backfill and nothing is seeded per location -- which dissolved the roadmap's own
-"N x 94 rows" seed-size warning. Enforcement is one extra branch inside **`AuthorizationBehavior`**,
-behind four marker interfaces and `LocationScopeSweepGuardTests`.
+**Phases 0-32b are complete, and phase 33 (platform chrome) is done.** The app now has the top bar it
+never had: a **global search** (Ctrl + /) in the shell on every in-organization screen, a **History**
+popover, and the personalisable **Quick Links** tray phase 23 recorded as "still not built". Behind
+all three, the phase's real deliverable -- **`UserPreference`, the per-user server store**, decided
+once: a row per `(OrganizationId, UserId, Key)` holding that setting's JSON, not one blob per user
+(two tabs saving two settings would clobber each other) and not a column per preference (every new
+one would be a migration). Phase-23 Decision C's calendar boolean moved behind it, keeping
+`localStorage` as the synchronous cache so the first paint never flashes the wrong calendar.
 
-**The phase's defining event is that the confirm-live pass falsified a design already written down.**
-Four documents -- the roadmap's 32b entry, phase 32's Decision A, the module scan's own 2026-09-07
-appendix and the field's C# doc comment -- all said turning `LocationWiseReportPermission` on pulls
-the 52 Reports keys into location scope. With the toggle **on** and persisted across a hard reload,
-the live matrix stayed at 0 of 282 = 94 x 3 with no Reports group. It scopes report *rows*, and that
-is the consumer that shipped. All four have been corrected in place.
+**The confirm-live pass overturned three of the four things that were written down.** History is
+**client-only `localStorage`** -- no request on open *or* on navigate -- and lists **screens, one per
+module**, not "recently opened records"; it stores a record url but derives the label from the
+route, so a contact detail page renders as "CRM - Contacts". Global search is **half a command
+palette**: its navigation and create-action half is usually the majority of a result set, and the
+recorded list omitted a whole collection (Accounts). And a document is matched on its **number
+alone** -- it carries no name at all, so searching a customer's name never surfaces that customer's
+invoices. Only "Quick Links is per-user and server-stored" survived, which is what made the store
+worth building.
 
-Five things from 32b that generalise. **A confirm-live pass can falsify an earlier one** -- a screen
-someone already read is not settled when what was recorded is an inference about a control nobody
-operated. **What promotes a pattern is blast radius, not count**: `AttachmentAccess`'s third use
-covers ~120 requests, so it became a pipeline branch rather than a fourth hand-written re-check.
-**A marker interface is only as good as the guard requiring it** -- this one found two real defects on
-its first run. **Reuse a marker by reading it, not merging it** (thirty Approve/Void commands needed
-no edit). **A nullable FK whose NULL is a sentinel wants an unfiltered unique index** -- second
-instance in two phases, which is what turned the standing gotcha into "ask what a NULL there means".
-Full story in `docs/phase-32b-status.md`.
+Search is filtered per collection against each one's own `*.View` key and per billing location
+through 32b's existing `LocationAccessScope.ForKeyAsync` -- and building it **found a real defect**:
+`TransactionApprovalQueryHandler` and `RecentTransactionsQueryHandler` still carried the pre-32b
+inlined permission joins that `GrantedPermissionReader`'s own doc comment claims to have replaced, so
+a branch-scoped grant read as an organization-wide one in the approval queue and the Home feed. Both
+fixed. Five things generalise: **a confirm-live pass can falsify several claims at once**, and a
+cost argument can be wrong where an observation of the shipped product cannot; **an extraction is not
+done until its copies are deleted** -- grep, don't trust the doc comment; **an expression tree has no
+short-circuit**, so an optional filter must be a composed `.Where()`; **derive a catalogue from the
+router** rather than writing one down (no second copy of the route table on either side of the wire);
+and **a well-named seam is what makes a declined decision cheap to reverse** -- phase 23 named
+`DatePreferenceService` as exactly that, and the reversal cost one call. Full story in
+`docs/phase-33-status.md`.
 
-**What comes next** is **phase 33** (platform chrome -- global search, History, Quick Links, and the
-per-user store all three need), then 34 in `docs/roadmap.md`. Still recorded separately:
+**What comes next** is **phase 34** (hardening -- NFR-6.2's WCAG 2.1 AA pass, NFR-6.1's one
+interaction model across every screen, and NFR-5.1/5.2 measured on a tenant-sized dataset), the last
+entry in `docs/roadmap.md`. Note phase 33 deliberately did **not** build the full left-nav shell: the
+bar it added is search + History only, and the re-layout is 34's subject. Still recorded separately:
 - the deferred post-v1 list in `docs/roadmap.md` (POS, IRD e-filing, Marketplace);
-- carried items. Phase 25's multi-level BOM explosion; phase-26a's two; phase-26b's remaining two;
-  phase-26c's remaining two; phase-27b's rich-text editor; phase-28's five; phase-29's five;
-  phase-30's five; phase-31's six; **phase-32's remaining six** (the header picker is wired on Invoice
-  only; Quotation's membership of the sales-only scope is unresolved and deliberately excluded; the
-  location filter reaches only the Invoice list and Sales Master Report; no Delete for a location;
-  `BillingLocation.WarehouseId` defaults nothing; POS location types stay modelled, not built) -- its
-  per-location permission matrix is now **closed**; and **phase-32b's own five**, of which the first
-  matters most: **every report but the Sales Master Report still cannot restrict by location**,
-  because none of them has a location dimension to restrict -- phase 32's carried item #4 gates it,
-  and closing that one closes this one for free. Then: the two opening-balance lists narrow their
-  joined *figures* rather than their rows; a grant at a deactivated location is kept but becomes
-  invisible in the editor; there is no per-user location assignment (the role carries the scope, which
-  is what the live tenant shows); and `LocationDocumentTypeOverride` has exactly one user.
+- carried items. Phase 25's multi-level BOM explosion; 26a's two; 26b's remaining two; 26c's
+  remaining two; 27b's rich-text editor; 28's five; 29's five; 30's five; 31's six; 32's remaining
+  six; 32b's five (the first of which -- no report but the Sales Master Report can restrict by
+  location -- is still gated on 32's carried item #4); and **phase 33's own six**, of which two
+  matter most: an **Account (or Contact) hit has nowhere to go**, because the Chart of Accounts has
+  no per-account detail page and `reports/detail-general-ledger` does not take an account as a route
+  parameter -- the reference product's row offers *View Ledger*; and **Tigg Subscriptions ships as
+  carried**, since `organizations/:id/features` already covers plan, expiry and seven entitlement
+  flags while its three remaining fields (Amount, the two quotas, IRD Verified) have no writer and no
+  reader, which is phase-31's lesson in reverse. Then: Quick Links reorders by buttons rather than
+  drag; per-user-vs-per-tenant Quick Links is derived rather than observed (one account per tenant
+  made the experiment impossible); and search has no result-kind filter or see-all page.
 
-Tests at last count: Domain 443, Application.UnitTests 893, Api.IntegrationTests 18, Angular 212;
-`dotnet build` / `ng build` / `ng test` all clean, and `dotnet test`'s Api.IntegrationTests suite
-needs Docker Desktop running (it fails at `ResourceReaper` without it, which is environmental, not a
-regression). Note `tsc --noEmit` does **not** cover `web/src/app` -- `ng build` is the check that does
-(phase-28).
+Tests at last count: Domain 443, Application.UnitTests 921, Api.IntegrationTests 18, Angular 225;
+`dotnet build` / `dotnet test` / `ng build` / `ng test` all clean. `ng build` warns that the initial
+bundle exceeds its 500 kB budget -- that is **pre-existing** (621 kB before this phase, 637 after),
+and is the global stylesheet plus the framework chunk, not app code. Note `tsc --noEmit` does **not**
+cover `web/src/app` -- `ng build` is the check that does (phase-28).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

@@ -1,4 +1,4 @@
-using ErpApp.Domain.Accounting;
+﻿using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Communications;
 using ErpApp.Domain.Configuration;
@@ -144,6 +144,7 @@ public interface IAppDbContext
     DbSet<MigratedPurchaseRegisterEntry> MigratedPurchaseRegisterEntries { get; }
     DbSet<UploadedDocument> UploadedDocuments { get; }
     DbSet<UserLoginEvent> UserLoginEvents { get; }
+    DbSet<UserPreference> UserPreferences { get; }
 
     /// <summary>
     /// Generic accessor mirroring DbContext's own Set&lt;TEntity&gt;() -- lets the generic

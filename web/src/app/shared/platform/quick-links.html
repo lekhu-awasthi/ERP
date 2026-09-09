@@ -1,0 +1,100 @@
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h6 fw-bold mb-0 text-dark">Quick Links</h2>
+
+      @if (editing()) {
+        <button type="button" class="btn btn-link btn-sm p-0 fw-semibold" [disabled]="saving()" (click)="done()">
+          {{ saving() ? 'Saving…' : 'Done' }}
+        </button>
+      } @else {
+        <button type="button" class="btn btn-link btn-sm p-0 text-muted" (click)="startEditing()">Edit Links</button>
+      }
+    </div>
+
+    @if (errorMessage()) {
+      <div class="alert alert-danger py-2 small" role="alert">{{ errorMessage() }}</div>
+    }
+
+    @if (links().length === 0 && !editing()) {
+      <p class="text-muted small mb-0">No Quick Links yet. Use <strong>Edit Links</strong> to pin the screens you use most.</p>
+    }
+
+    <div class="row g-2">
+      @for (link of links(); track link.url) {
+        <div class="col-12 col-sm-6 col-lg-4">
+          <div class="quick-link-tile border rounded d-flex align-items-center gap-2 px-3 py-2">
+            @if (editing()) {
+              <span class="flex-grow-1 text-truncate">
+                <span class="d-block text-dark small fw-semibold">{{ link.name }}</span>
+                <span class="d-block text-muted" style="font-size: 0.72rem;">{{ link.area }}</span>
+              </span>
+              <button type="button" class="btn btn-sm btn-link p-0 text-muted" title="Move up" (click)="move(link, -1)">
+                <i class="bi bi-arrow-up"></i>
+              </button>
+              <button type="button" class="btn btn-sm btn-link p-0 text-muted" title="Move down" (click)="move(link, 1)">
+                <i class="bi bi-arrow-down"></i>
+              </button>
+              <button type="button" class="btn btn-sm btn-link p-0 text-danger" title="Remove this shortcut" (click)="remove(link)">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            } @else {
+              <a class="stretched-link text-decoration-none flex-grow-1 text-truncate" [routerLink]="routerLink(link)">
+                <span class="d-block text-dark small fw-semibold">{{ link.name }}</span>
+                <span class="d-block text-muted" style="font-size: 0.72rem;">{{ link.area }}</span>
+              </a>
+            }
+          </div>
+        </div>
+      }
+
+      @if (editing()) {
+        <div class="col-12 col-sm-6 col-lg-4">
+          <button
+            type="button"
+            class="quick-link-tile quick-link-add border rounded w-100 text-center px-3 py-2 text-uppercase small fw-semibold"
+            (click)="picking.set(true)">
+            + Add new quick link
+          </button>
+        </div>
+      }
+    </div>
+
+    @if (editing() && picking()) {
+      <div class="border rounded mt-3">
+        <div class="p-2 border-bottom">
+          <input
+            type="text"
+            class="form-control form-control-sm"
+            placeholder="Search for a screen"
+            autocomplete="off"
+            (input)="onPickerInput($event)" />
+        </div>
+
+        <div class="quick-link-picker">
+          @if (available().length === 0) {
+            <div class="p-3 text-muted small">No screens match.</div>
+          } @else {
+            <ul class="list-unstyled mb-0">
+              @for (option of available(); track option.url) {
+                <li>
+                  <button
+                    type="button"
+                    class="quick-link-option w-100 text-start border-0 bg-transparent px-3 py-2"
+                    (click)="add(option)">
+                    <span class="d-block text-dark small">{{ option.name }}</span>
+                    <span class="d-block text-muted" style="font-size: 0.72rem;">{{ option.area }}</span>
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+
+        <div class="border-top px-3 py-1 text-end">
+          <button type="button" class="btn btn-link btn-sm p-0 text-muted" (click)="picking.set(false)">Close</button>
+        </div>
+      </div>
+    }
+  </div>
+</div>

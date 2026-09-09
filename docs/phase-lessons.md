@@ -1,4 +1,4 @@
-# Phase lessons — the "read this before touching X" index
+﻿# Phase lessons — the "read this before touching X" index
 
 One paragraph per phase, moved verbatim out of `CLAUDE.md` (2026-09-02) so the root file stays small.
 Each bullet names the situation in which a future session must open that phase's status doc first,
@@ -398,3 +398,56 @@ these are in `CLAUDE.md`'s Known gotchas section. When a phase completes, append
   so `HasFilter(null)` is the enforcement, exactly as phase 32's numbering counter found. Two
   instances in consecutive phases is what turned CLAUDE.md's standing rule from "always filter" into
   "ask what a NULL there means first".
+
+## Phase 33 — platform chrome (global search, History, Quick Links, the per-user store)
+
+**Read `docs/phase-33-status.md` before touching the shell (`web/src/app/app.ts`/`app.html`), before
+adding a per-user setting, before adding a request that searches across document types, and before
+trusting any list of "what a screen does" that nobody has operated a control on.**
+
+**(a) A confirm-live pass can falsify *three* things at once — and the corrections were not
+refinements.** Phase 32b's lesson recurred at scale: of the four claims the roadmap made about this
+phase, three were wrong. History turned out to be **client-only `localStorage`** listing **screens,
+one per module**, not a server-recorded list of opened records — which settled Decision C by
+observation rather than by costing a write-per-document-open, and a cost argument can be wrong where
+an observation of the shipped product cannot. Global search turned out to be **half a command
+palette**, its navigation and create-action half usually the majority of a result set, with a whole
+`collection` (Accounts) missing from the recorded list. And a document is matched on its **number
+alone** — it carries no name in the payload at all, so searching a customer's name never surfaces
+that customer's invoices. Only "Quick Links is per-user and server-stored" survived intact.
+
+**(b) Extracting a shared helper is not done until the copies it replaced are deleted.**
+`GrantedPermissionReader`'s own doc comment said phase 12's and phase 23's inlined permission joins
+"are one method now". They were not: both still carried the inlined join, and it predated phase 32b,
+so neither filtered `LocationId == null` — a branch-scoped grant read as an organization-wide one in
+both the Transaction Approval queue and the Home recent-activity feed. **A doc comment claiming an
+extraction is complete is not evidence; `grep` is.** It was found only because this phase's search
+handler was about to become the third copy of the same pattern — which is the general case: the
+moment you are about to write copy N+1, check that copies 1..N were actually retired.
+
+**(c) An expression tree does not short-circuit, so `flag || list.Contains(x)` hands EF a null
+list.** Folding an optional filter into one predicate with a captured `bool` compiles, and fails
+during *translation* — on the branch where the caller is unrestricted, i.e. almost everyone. Compose
+a second `.Where()` instead, which is what every phase-32b list handler already does. Neither the
+compiler nor an InMemory test can catch this.
+
+**(d) Derive a catalogue from the router rather than writing one down.** The reference product serves
+its search's navigation half from the server; this codebase keeps it client-side and derives it from
+`Router.config`, so there is no second copy of the route table on either side of the wire. A route a
+later phase adds appears in the search *and* in the Quick Links picker with no edit, and one deleted
+disappears from both — the same "find the rule, don't sample the list" discipline as phase 30, except
+here the rule is executable. The guard spec pins the two silent failure modes: a screen that yields
+no entry, and an entry whose url is not a route.
+
+**(e) A per-user store wants a row per key, not a document per user.** One JSON blob per user makes
+every write a read-modify-write of the same row, so two settings saved from two tabs silently discard
+one. A row per `(OrganizationId, UserId, Key)` makes "last writer wins" mean *of that setting*. And a
+stored url that a client later navigates to is an **open-redirect surface** unless the validator
+requires it to be application-relative.
+
+**(f) Phase 23's declined decision was this phase's premise, and it did not need revisiting to be
+reversed.** Decision C declined a table for one boolean and named `DatePreferenceService` as "the
+single seam to move behind an endpoint if that changes". Quick Links made the table necessary anyway,
+so the second consumer cost one `activate()` call — with `localStorage` kept as the *synchronous
+cache* so the first paint never flashes the wrong calendar. **A well-named seam is what makes a
+declined decision cheap to reverse later**, which is the argument for writing the decline down.

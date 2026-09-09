@@ -1,4 +1,4 @@
-# Known gotchas — full narrative
+﻿# Known gotchas — full narrative
 
 The one-sentence rules live in `CLAUDE.md`'s Known gotchas section; this file holds each rule's full
 story (symptom, cause, how it was caught, the fix), moved verbatim out of `CLAUDE.md` on 2026-09-02 and
@@ -504,3 +504,69 @@ So they stay separate types, and `LocationScopeResolver` simply *reads* the lock
 location one is absent. Thirty Approve/Void commands needed no edit at all, the two interfaces cannot
 drift into each other, and a guard test pins that the reuse still covers them — so an Approve command
 that ever drops the lock-date marker fails the build rather than silently losing its location check.
+
+## An extraction nobody finished (phase 33)
+
+`GrantedPermissionReader`'s doc comment reads: *"Phase 12's `TransactionApprovalQueryHandler` and
+phase 23's `RecentTransactionsQueryHandler` each inlined their own copy of this join with a comment
+saying it was copied from the other. Phase 27a would have made a third and fourth copy, so it is one
+method now."*
+
+It was not one method. Phase 27a wrote the shared reader and gave it its new callers, but never
+switched the two handlers that motivated it. That was invisible until phase 32b split the join —
+adding `&& rolePermission.LocationId == null`, because *"letting one fall through an unqualified
+'does this user hold key K' question would turn a single-branch grant into an organization-wide one
+— the exact privilege escalation this phase exists to prevent."* The shared method got the filter.
+The two forgotten copies did not.
+
+So a role granted `Sales.Invoice.View` **at HeadOffice only** had that key in both handlers'
+granted-key sets and saw **every** location's rows, in the Transaction Approval queue and in the Home
+dashboard's recent-activity feed. No test failed; no screen looked broken; a branch-scoped user
+simply saw more than they should.
+
+It was found because phase 33's global search was about to become the *third* multi-type feed gated
+by the same per-type key check — and reading the two existing ones for the pattern showed the
+pattern had rotted. **The rule: a doc comment saying an extraction is complete is not evidence that
+it is. When you are about to write copy N+1 of a pattern, grep for copies 1..N and check they were
+actually retired.** A shared helper that half the callers ignore is worse than no shared helper,
+because the next person to change the helper believes they have changed everyone.
+
+## An expression tree has no short-circuit (phase 33)
+
+The obvious way to make a filter optional inside one predicate:
+
+```csharp
+var scoped = allowedLocations is not null;
+query.Where(x => x.Code.Contains(term)
+    && (!scoped || (x.LocationId != null && allowedLocations!.Contains(x.LocationId.Value))));
+```
+
+In ordinary C# `!scoped ||` short-circuits and the null-forgiving `!` is honest. Inside a LINQ
+**expression tree** nothing executes: EF walks the whole tree and evaluates
+`allowedLocations.Contains(…)` at translation time — against a null list. It throws while
+translating, and only on the branch where `scoped` is false, which is the *unrestricted* caller, i.e.
+almost every request. The failure therefore lands on the common path and never on the path the test
+was written for.
+
+**Compose a second `Where` instead**, which is exactly what every phase-32b list handler already
+does:
+
+```csharp
+var query = db.Set<T>().Where(x => …);
+if (allowedLocations is not null) { var ids = allowedLocations.ToList(); query = query.Where(x => …); }
+```
+
+The same applies to any `flag ? a : b` or `x == null || …` over a captured reference in a predicate.
+Neither the compiler nor an InMemory test can see it; only a real provider can, and only on the
+branch you were not testing.
+
+## `sed -i` damaging the file you aimed it at (phase 33)
+
+CLAUDE.md already records that `sed -i` over a glob rewrites every file it matches and flips CRLF to
+LF even where the pattern never fires. The narrower case is worth its own line: it does that to the
+**intended** file too. A one-token fix (`VatRate.Zero` → `VatRate.NoVat`) silently converted a
+newly-written test file from CRLF to LF, after which every subsequent `
+`-anchored patch script
+failed its assertion with no explanation — the anchor was right, the line endings were not. Prefer
+the Edit tool for a single substitution, and if a script must patch a file, read its existing
+newline (`io.open(..., newline='')`) rather than assuming one.

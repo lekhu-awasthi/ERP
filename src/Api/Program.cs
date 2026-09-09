@@ -140,6 +140,7 @@ app.MapCatalogueReportEndpoints();
 app.MapInventoryEndpoints();
 app.MapManufacturingEndpoints();
 app.MapWorkflowEndpoints();
+app.MapPlatformEndpoints();
 app.MapCrmEndpoints();
 app.MapAttachmentsEndpoints();
 app.MapDocumentTabsEndpoints();

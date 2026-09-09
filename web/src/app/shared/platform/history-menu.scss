@@ -1,0 +1,17 @@
+.history-menu-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 1030;
+  min-width: 16rem;
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
+.history-row {
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba(13, 110, 253, 0.08);
+  }
+}

@@ -1,4 +1,4 @@
-# Build Roadmap — Phases & Task Breakdown
+﻿# Build Roadmap — Phases & Task Breakdown
 
 Companion to `architecture-spec.md` (what to build) and `product-requirements.md` (why). This doc says *in what order*, broken down small enough to actually pick up and work. The reference product is a live Tigg UAT tenant; when a screen's shape is unconfirmed, it is read live through the Browser pane before building (the user logs in themselves — credentials are never entered by the agent and never committed to this repo; see `phase-8f-status.md` for the established workflow).
 
@@ -62,6 +62,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 31 | Credit control, dead settings, and the small carried items: `Contact.CreditLimit`/`CreditTermId`/`AcceptsReverseTransactions`, a **Credit Limit Exceeds** policy enforced at Invoice Approve, and a **Configurations > General** screen that makes all five behaviour settings reachable for the first time — four of them had no command, no endpoint and no screen at all. Plus **Negative Cash Balance** enforced on the three documents that can take money out, **Suggest Selling Price / Product Price Basis** decided server-side at the line picker, a **stored Due Date** on Invoice and Purchase Bill (closing 26b's carried item, 30's `$[DUE_DATE]$` and 26b's ageing follow-up), a **bounced cheque** that voids the payment it settled, subscription expiry as read-only-for-documents plus the renewal that lifts it, and the **Include Credit Note In Calculation** toggle — which the confirm-live pass showed 26c had wrongly recorded as inert | `phase-31-status.md` |
 | 32 | Billing Locations (FR-2.3/FR-3.3) — **and the phase this roadmap said could not be confirm-lived, was.** A second tenant with `Location Enabled = Yes` turned the whole phase from derived to observed, correcting four things this entry had assumed. A `BillingLocation` aggregate with a **HeadOffice row seeded unconditionally** and `MultipleLocations` as a **cap at one** (phase-20f Decision #4's shape, third instance); the **Advanced** panel that makes location scope a *runtime tenant setting* (Sales-only by default, All-Transactions opt-in) — which is why nullable `LocationId` went onto **all 17** location-bearing types in one hand-written seed-and-backfill migration rather than the four the default names; a document-**header** location picker (not a body field); **location-wise numbering** consumed at last; and the location filter/column on the Invoice list and Sales Master Report. `LocationType` is system-assigned — the live create dialog has no such field | `phase-32-status.md` |
 | 32b | Per-location permission scope (FR-3.3) -- the role editor's **second matrix**: *Organization-wide Permissions* ("Apply across all billing locations") and *Location-specific Permissions*, the **transaction keys alone** replicated per location (77 of this codebase's 222, derived from `DocumentMechanisms.LocationBearing`). A grant is a `RolePermission` row with a nullable **`LocationId` FK** -- null is the organization-wide grant, so no backfill and nothing seeded per location, which dissolves this roadmap's own seed-size warning. Enforced by one extra branch in **`AuthorizationBehavior`** (phase-27a's `AttachmentAccess` pattern, third use, promoted to the pipeline because it spans ~120 requests) plus four marker interfaces and a sweep guard. **And the confirm-live pass falsified what four documents recorded**: turning `LocationWiseReportPermission` ON does *not* pull the 52 Reports keys into the matrix -- it narrows report *rows*, and that is the consumer that shipped | `phase-32b-status.md` |
+| 33 | Platform chrome (the top bar this app never had): a **global search** (Ctrl + /) in the shell, a **History** popover, the personalisable **Quick Links** tray, and the thing all of it exists to decide -- **`UserPreference`, the per-user server store** (a row per `(OrganizationId, UserId, Key)` with an opaque JSON value), which also closes phase-23 Decision C's `localStorage`-only calendar choice. **Three of the four things this entry recorded were wrong**, and the confirm-live pass on both tenants is what showed it: History is **client-only `localStorage`** and lists **screens, one per module** rather than opened records; global search is **half a command palette**, whose navigation and create-action half is usually the majority of a result set and whose record half omits a whole collection (Accounts) from this entry's list; and a document is matched on its **number alone**, never through its contact's name. Search is filtered per collection *and* per billing location through 32b's existing `LocationAccessScope` seam -- building which surfaced a real defect: the two pre-32b inlined permission joins in the approval queue and the recent-activity feed still read location-scoped grants as organization-wide ones | `phase-33-status.md` |
 
 ---
 
@@ -314,12 +315,23 @@ confirmed live** (2026-09-07), so this phase starts from an observed design, not
 - The seed-size warning **dissolved**: an absent row is a denial and the live default is 0 of 94 at
   every location, so only *granted* rows exist and nothing is seeded per location at all.
 
-### 33. Platform chrome — global search, history, Quick Links
-- Tigg's top bar: global search (Ctrl + /) across contacts, products and document numbers; a
-  History/Browse list of recently opened records; the per-user **Quick Links** tray on Home
-  (phase-23 declined per-user server storage for one boolean — this is the phase that decides the
-  per-user store, once, for all three). Also the Tigg Subscriptions read-only screen (live: plan,
-  amount, expiry, four entitlement flags).
+### 33. Platform chrome — global search, history, Quick Links ✅ (see `phase-33-status.md`)
+- **Done.** What this entry said, and what the 2026-09-09 confirm-live pass on both tenants found:
+  - "global search across contacts, products and document numbers" — right about those three, but it
+    omits **Accounts** (a fourth `collection`) and, more importantly, the **navigation half**:
+    screens and `Add X` create actions, which on a typical query are the majority of the ten results.
+    It is half a command palette. A document is matched on its **number alone** — searching a
+    customer's name does not surface that customer's invoices.
+  - "a History/Browse list of recently opened **records**" — wrong twice. It is **client-only**
+    (`localStorage`, no request on open *or* on navigate), and it lists **screens, one per module**;
+    it stores a record url but derives the label from the route, so a contact detail page renders as
+    "CRM · Contacts". Decision C was settled by observation, not by costing a write-per-open.
+  - "the per-user Quick Links tray" — right, and server-stored, which is what made the per-user store
+    worth building. **Two day-one consumers, not three**, once History dropped out.
+  - "the Tigg Subscriptions read-only screen" — **carried, deliberately.**
+    `organizations/:id/features` already carries the plan, the expiry and seven entitlement flags;
+    the three fields it lacks (Amount, the two quotas, IRD Verified) have no writer and no reader,
+    which is phase-31's lesson in reverse. Re-entry condition: a billing feature that sets them.
 
 ### 34. Hardening — accessibility, consistency, scale
 - NFR-6.2 (WCAG 2.1 AA) and NFR-6.1 (one interaction model across every list, detail and entry
