@@ -452,3 +452,55 @@ status doc, which is the expensive kind of wrong.
 **The general rule:** "we cannot observe this" is a statement about the environment you have, not
 about the feature. Before invoking the derive-instead precedent, ask whether a different tenant,
 account, plan or environment can observe it — the cost of asking is one question.
+
+## A permission that depends on a row nobody has read yet, at scale (phase 32b)
+
+Phase 27a's `AttachmentAccess` and phase 31's cheque bounce both handled this by declaring a blanket
+key on the request and re-checking the real one inside the handler. Phase 32b is the third instance
+and the first where that does not work: a location-scoped grant applies to **~120 requests** across
+every module, and one handler that forgets to re-check is not a bug, it is a door left open for a
+caller who should have been narrowed to a single branch.
+
+So the check moved into `AuthorizationBehavior` itself, as a second chance taken only when the
+organization-wide check has already failed. Two details are load-bearing:
+
+- the organization-wide grant join now filters `LocationId == null`. Without it a single-branch grant
+  satisfies the tenant-wide check, which is the exact escalation the feature exists to prevent;
+- it is **not** a sixth pipeline behavior. The location half needs to know whether the first half
+  passed, and passing that between two behaviors means a scoped context object that a nested
+  `ISender.Send` would overwrite — a bug visible only on the handful of handlers that send other
+  requests.
+
+Four marker interfaces say what each request is, and `LocationScopeSweepGuardTests` fails the build on
+any request whose declared key is location-scopable and which declares none of them. It reads
+`PermissionKey` off `RuntimeHelpers.GetUninitializedObject`, so a key computed from request data
+throws and is treated as scopable conservatively rather than skipped.
+
+## A confirm-live pass can falsify an earlier confirm-live pass (phase 32b)
+
+Phase 32's lesson was that a blocked confirm-live is a state, not a verdict — ask whether another
+tenant can observe it. Phase 32b is the next step: **a screen someone already read is not thereby
+settled, when what was recorded is an inference about a control nobody operated.**
+
+Four documents said that turning `TenantSettings.LocationWiseReportPermission` on is what pulls the
+52 Reports keys into the per-location permission matrix: `roadmap.md`'s 32b entry,
+`phase-32-status.md`'s Decision A, `erp-module-scan.md`'s 2026-09-07 appendix, and the field's own C#
+doc comment. Ticking that checkbox on the live tenant and hard-reloading the app left the matrix at
+0 of 282 = 94 x 3 with no Reports group anywhere. The toggle narrows report **rows** to the locations
+a role holds grants at; it adds no keys at all.
+
+The cost of finding out was one reversible tenant setting, flipped with the user's explicit
+permission and reverted and verified afterwards. The cost of not finding out would have been a
+per-location Reports matrix of 52 x N keys that nothing could ever have enforced.
+
+## Reuse a marker by reading it, not by merging it (phase 32b)
+
+Phase-31 lesson (c) says to reuse an existing marker set rather than invent a third — but only when
+the set is the same. `ILocationScopedDocument` and `ILockDateSensitiveDocument` have identical shapes
+and different sets: a lock date freezes writes, so it is on Approve/Void only, while a location grant
+also governs reads (a Member scoped to HeadOffice must not open, print or comment on a POS invoice).
+
+So they stay separate types, and `LocationScopeResolver` simply *reads* the lock-date marker when the
+location one is absent. Thirty Approve/Void commands needed no edit at all, the two interfaces cannot
+drift into each other, and a guard test pins that the reuse still covers them — so an Approve command
+that ever drops the lock-date marker fails the build rather than silently losing its location check.

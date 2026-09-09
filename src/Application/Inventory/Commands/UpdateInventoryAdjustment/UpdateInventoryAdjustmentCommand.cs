@@ -14,9 +14,12 @@ public sealed record UpdateInventoryAdjustmentCommand(
     DateOnly Date,
     string? Reference,
     IReadOnlyList<InventoryAdjustmentLineInput> Lines)
-    : IRequest<UpdateInventoryAdjustmentResult>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILockDateSensitive, IAuditableRequestWithId, ILocationBearingCommand
+    : IRequest<UpdateInventoryAdjustmentResult>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILockDateSensitive, IAuditableRequestWithId, ILocationBearingCommand, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.InventoryAdjustmentEdit;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 
     // Phase 20f (FR-2.6): the Inventory context is only available to a tenant that opted
     // into Track Inventory. Catalog (Products/Categories/Units) is deliberately NOT gated --

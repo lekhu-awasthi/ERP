@@ -1,14 +1,19 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Catalog;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
 using MediatR;
 
 namespace ErpApp.Application.Sales.Queries.GetSalesOrder;
 
 public sealed record GetSalesOrderQuery(Guid OrganizationId, Guid Id)
-    : IRequest<SalesOrderDetailDto>, IRequirePermission, IOrganizationScoped
+    : IRequest<SalesOrderDetailDto>, IRequirePermission, IOrganizationScoped, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.SalesOrderView;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 }
 
 public sealed record SalesOrderLineDto(

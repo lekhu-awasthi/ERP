@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
@@ -21,7 +22,7 @@ public sealed record ListAllocatablePaymentsQuery(
     Guid? ContactId = null,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<AllocatablePaymentDto>>, IRequirePermission, IOrganizationScoped
+    : IRequest<PagedResult<AllocatablePaymentDto>>, IRequirePermission, IOrganizationScoped, ILocationFilteredQuery
 {
     public string PermissionKey => PermissionKeys.PaymentEdit;
 }

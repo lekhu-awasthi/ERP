@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using MediatR;
@@ -11,7 +12,7 @@ public sealed record ListAccountOpeningBalancesQuery(
     Guid OrganizationId,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<AccountOpeningBalanceDto>>, IRequirePermission, IOrganizationScoped
+    : IRequest<PagedResult<AccountOpeningBalanceDto>>, IRequirePermission, IOrganizationScoped, ILocationFilteredQuery
 {
     public string PermissionKey => PermissionKeys.OpeningBalanceView;
 }

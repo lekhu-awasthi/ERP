@@ -240,19 +240,20 @@ public sealed class TenantSettings
     /// Phase 32 -- the second Advanced control, live-labelled <i>"Implement Location Wise Permission
     /// for Report View -- Restrict users to view reports only for locations they have access to."</i>
     ///
-    /// <para><b>Stored and editable here, but read by nothing yet, and that is a deliberate scope
-    /// line rather than an oversight.</b> The live role editor holds the answer to what it does: its
-    /// Location-specific Permissions section replicates <i>only</i> the Transactions group (94 keys)
-    /// per location, while General/Settings/<b>Reports</b> stay organization-wide. Turning this on is
-    /// what would pull the 52 Reports keys into location scope -- so its consumer is the per-location
-    /// permission matrix, which is phase 32b. It ships now because it is one of the three controls on
-    /// the Advanced panel and a panel with a control missing is the phase-31 trap in reverse.</para>
+    /// <para><b>Phase 32b gave it its consumer, and corrected what phase 32 believed it did.</b>
+    /// Phase 32 recorded here -- and in the roadmap, the module scan and its own status doc -- that
+    /// turning this on is "what would pull the 52 Reports keys into location scope". The 2026-09-09
+    /// confirm-live pass disproved that: with the toggle ON and persisted across a hard reload, the
+    /// live role editor's Location-specific section stayed at 0 of 282 = 94 x 3, with no Reports
+    /// group anywhere in it.</para>
     ///
-    /// <para>Phase-31 lesson (a) applies and is answered: a setting with no command behind it is an
-    /// absent feature, so this one has its command
-    /// (<c>UpdateBillingLocationSettingsCommand</c>), its endpoint and its screen from day one. What
-    /// it lacks is an <i>enforcer</i>, which is named here and in docs/phase-32-status.md rather than
-    /// left to be discovered.</para>
+    /// <para>So the label is the whole of it: <i>"Restrict users to view reports only for locations
+    /// they have access to."</i> It narrows report <b>rows</b> to the locations a role holds
+    /// location-specific grants at -- there is no per-location Reports matrix, and phase 32b added no
+    /// report permission keys. <c>Application.Common.Locations.LocationAccessScope.ForReportsAsync</c>
+    /// is the consumer, and the Sales Master Report is its only caller because it is the only report
+    /// in this codebase with a location dimension to restrict (phase 32's carried item #4 gates the
+    /// rest).</para>
     /// </summary>
     public bool LocationWiseReportPermission { get; private set; }
 

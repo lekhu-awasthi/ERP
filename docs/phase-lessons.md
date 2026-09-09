@@ -360,3 +360,41 @@ these are in `CLAUDE.md`'s Known gotchas section. When a phase completes, append
   preserved per-file CRLF and BOM. That caught a stray `LocationId` on `BillOfMaterialsRequest` (a
   shared record tail matched three records where two were meant). The counter-discipline to CLAUDE.md's
   `sed`-over-a-glob warning is not "never script" but "never script without a pre-flight count".
+
+- `phase-32b` — before enforcing a permission that depends on a row the handler has not read yet,
+  before re-confirming a screen an earlier phase already confirmed, and before adding any request over
+  a location-bearing document type. Five things generalise.
+  **(a) A confirm-live pass can falsify an earlier confirm-live pass.** Four documents recorded that
+  turning `LocationWiseReportPermission` on pulls the 52 Reports keys into the per-location matrix —
+  the roadmap, phase 32's status doc, the module scan's own 2026-09-07 appendix, and the field's C#
+  doc comment. Flipping the toggle on the live tenant and hard-reloading showed the matrix unchanged
+  at 94 × N with no Reports group. It scopes report *rows*, not report *keys*. Phase 32's lesson was
+  "ask whether another tenant can observe it"; this one is the next step — **a screen someone already
+  read is not thereby settled, if what was recorded is an inference about a control nobody actually
+  operated.** One reversible tenant setting, flipped with permission and reverted, was the whole cost.
+  **(b) The `AttachmentAccess` pattern's third use is where it stops being a per-handler re-check.**
+  27a and 31 were one handler each; this spans ~120 requests, and a single missed re-check is an open
+  door rather than a bug. So the check moved *into* `AuthorizationBehavior` — not a sixth pipeline
+  stage, because the location half must know whether the organization-wide half passed, and passing
+  that between two behaviors needs a scoped context a nested `ISender.Send` would corrupt. The count
+  is not what promotes a pattern; the blast radius of missing one instance is.
+  **(c) A marker interface is only as good as the guard that requires it.** Four markers
+  (`ILocationBearingCommand` reused from 32, plus `ILocationScopedDocument` /
+  `ILocationFilteredQuery` / `ILocationAgnosticRequest`) and `LocationScopeSweepGuardTests`, which
+  reads `PermissionKey` off `RuntimeHelpers.GetUninitializedObject` and fails the build on any
+  location-scopable request declaring none of them. It found two real defects on its first run,
+  including a command that would have looked a Journal Voucher id up in the Payments table and
+  silently skipped its own check. Requests whose key cannot be evaluated statically are treated as
+  scopable *conservatively*, and the two genuine exemptions are named in a dictionary with reasons
+  (27a's `NotApplicableReasons` idiom) rather than filtered out by a predicate.
+  **(d) Reuse a marker by reading it, not by merging it.** All thirty Approve/Void commands already
+  declare `ILockDateSensitiveDocument`, which names a document by (type, id) in exactly the needed
+  shape — so `LocationScopeResolver` reads that marker when the location one is absent, and thirty
+  files needed no edit. The two interfaces stay separate because the sets genuinely differ (a lock
+  date freezes writes; a location grant also governs reads), and a guard test pins that the reuse
+  still covers them. Phase-31 lesson (c) said reuse when the set is the same; this is its complement.
+  **(e) A nullable FK whose NULL is a sentinel wants an *unfiltered* unique index — second instance.**
+  `RolePermission.LocationId` null means *the* organization-wide grant, at most one per (role, key),
+  so `HasFilter(null)` is the enforcement, exactly as phase 32's numbering counter found. Two
+  instances in consecutive phases is what turned CLAUDE.md's standing rule from "always filter" into
+  "ask what a NULL there means first".

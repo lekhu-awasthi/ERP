@@ -712,12 +712,28 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
         builder.Property(rp => rp.PermissionKey).HasMaxLength(200).IsRequired();
         builder.Property(rp => rp.IsGranted).IsRequired();
 
-        builder.HasIndex(rp => new { rp.RoleId, rp.PermissionKey }).IsUnique();
+        // Phase 32b. HasFilter(null) is load-bearing and deliberately overrides both EF's own
+        // convention and CLAUDE.md's standing "a unique index over a nullable column needs
+        // HasFilter([Col] IS NOT NULL)" gotcha -- for the same reason phase 32's numbering counter
+        // did. NULL here is not "no value", it is the sentinel for *the organization-wide grant*,
+        // and there must be at most one of those per (Role, PermissionKey). SQL Server treats NULLs
+        // as equal in a unique index, so the UNFILTERED index is what enforces that; EF's automatic
+        // "WHERE [LocationId] IS NOT NULL" filter would let a role accumulate duplicate org-wide
+        // rows for one key, which is exactly the row the whole authorization check reads.
+        builder.HasIndex(rp => new { rp.RoleId, rp.PermissionKey, rp.LocationId }).IsUnique().HasFilter(null);
 
         builder.HasOne<Role>()
             .WithMany()
             .HasForeignKey(rp => rp.RoleId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Restrict, matching BillingLocation's other FKs (phase 32): a location is deactivated,
+        // never deleted, so a cascade here would be dead code guarding a path that cannot happen --
+        // and if one ever could, silently dropping a role's grants is the wrong default.
+        builder.HasOne<BillingLocation>()
+            .WithMany()
+            .HasForeignKey(rp => rp.LocationId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasData(
             RolePermission.Create(AdminInviteUserId, Role.AdminId, PermissionKeys.OrganizationInviteUser, true),

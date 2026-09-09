@@ -1,13 +1,18 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Accounting;
+using ErpApp.Domain.Common;
 using MediatR;
 
 namespace ErpApp.Application.Accounting.Queries.GetCashTransfer;
 
 public sealed record GetCashTransferQuery(Guid OrganizationId, Guid Id)
-    : IRequest<CashTransferDetailDto>, IRequirePermission, IOrganizationScoped
+    : IRequest<CashTransferDetailDto>, IRequirePermission, IOrganizationScoped, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.CashTransferView;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 }
 
 public sealed record CashTransferLineDto(Guid Id, Guid ToAccountId, decimal Amount);

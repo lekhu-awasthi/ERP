@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Manufacturing;
@@ -11,7 +12,7 @@ public sealed record ListProductionJournalsQuery(
     ProductionJournalStatus? Status,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<ProductionJournalListItemDto>>, IRequirePermission, IOrganizationScoped, IRequireFeature
+    : IRequest<PagedResult<ProductionJournalListItemDto>>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILocationFilteredQuery
 {
     public string PermissionKey => PermissionKeys.ProductionJournalView;
 

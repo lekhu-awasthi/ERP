@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using MediatR;
 
@@ -7,7 +8,7 @@ namespace ErpApp.Application.Sales.Queries.PreviewInvoiceGlPosting;
 /// computed GL lines before the user clicks Approve, reusing InvoiceAccountResolver +
 /// InvoicePostingRule exactly as ApproveInvoiceCommandHandler does (no duplicated math).</summary>
 public sealed record PreviewInvoiceGlPostingQuery(Guid OrganizationId, IReadOnlyList<InvoiceLineInput> Lines, decimal DiscountPct = 0)
-    : IRequest<IReadOnlyList<GlLinePreviewDto>>, IRequirePermission, IOrganizationScoped
+    : IRequest<IReadOnlyList<GlLinePreviewDto>>, IRequirePermission, IOrganizationScoped, ILocationAgnosticRequest
 {
     public string PermissionKey => PermissionKeys.InvoiceView;
 }

@@ -1,4 +1,6 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Manufacturing;
 using ErpApp.Domain.Tenancy;
 using MediatR;
@@ -6,9 +8,12 @@ using MediatR;
 namespace ErpApp.Application.Manufacturing.Queries.GetProductionOrder;
 
 public sealed record GetProductionOrderQuery(Guid OrganizationId, Guid Id)
-    : IRequest<ProductionOrderDetailDto>, IRequirePermission, IOrganizationScoped, IRequireFeature
+    : IRequest<ProductionOrderDetailDto>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.ProductionOrderView;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 
     public IReadOnlyCollection<TenantFeature> RequiredFeatures =>
         [TenantFeature.Manufacturing, TenantFeature.TrackInventory];

@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using MediatR;
@@ -12,9 +13,12 @@ namespace ErpApp.Application.Sales.Queries.GetInvoiceConversionTemplate;
 /// of its own.
 /// </summary>
 public sealed record GetInvoiceConversionTemplateQuery(Guid OrganizationId, Guid QuotationId)
-    : IRequest<InvoiceConversionTemplateDto>, IRequirePermission, IOrganizationScoped
+    : IRequest<InvoiceConversionTemplateDto>, IRequirePermission, IOrganizationScoped, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.QuotationView;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => QuotationId;
 }
 
 public sealed record InvoiceConversionTemplateDto(

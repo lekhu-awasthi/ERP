@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using MediatR;
@@ -20,11 +21,21 @@ namespace ErpApp.Application.Payments.Commands.ApplyPaymentAllocation;
 public sealed record ApplyPaymentAllocationCommand(
     Guid OrganizationId, DocumentType SourceType, Guid SourceId, Guid? ParentDocumentId,
     DocumentType TargetDocumentType, Guid TargetDocumentId, decimal Amount)
-    : IRequest<ApplyPaymentAllocationResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitiveDocument
+    : IRequest<ApplyPaymentAllocationResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitiveDocument, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.PaymentEdit;
     public DocumentType LockDateDocumentType => SourceType;
     public Guid LockDateDocumentId => SourceType == DocumentType.JournalVoucher && ParentDocumentId is { } id ? id : SourceId;
+
+    /// <summary>Phase 32b -- the location this touches is the SOURCE document's, and the source can
+    /// be a Journal Voucher rather than the Payment the permission key names. This is the one
+    /// request in the codebase whose targeted row is not of the key's own document type, so it is
+    /// the one that overrides <see cref="ILocationScopedDocument.LocationDocumentTypeOverride"/> --
+    /// without it the pipeline would look a Journal Voucher id up in the Payments table, find
+    /// nothing, and skip the check. Caught by LocationScopeSweepGuardTests, not by review.</summary>
+    public DocumentType? LocationDocumentTypeOverride => SourceType;
+
+    public Guid LocationDocumentId => LockDateDocumentId;
 }
 
 public sealed record ApplyPaymentAllocationResult(Guid Id, decimal Amount, decimal Allocated, decimal Balance);

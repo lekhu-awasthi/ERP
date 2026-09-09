@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Purchasing;
@@ -10,7 +11,7 @@ public sealed record ListDebitNotesQuery(
     DebitNoteStatus? Status,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<DebitNote>>, IRequirePermission, IOrganizationScoped
+    : IRequest<PagedResult<DebitNote>>, IRequirePermission, IOrganizationScoped, ILocationFilteredQuery
 {
     public string PermissionKey => PermissionKeys.DebitNoteView;
 }

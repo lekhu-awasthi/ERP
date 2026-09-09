@@ -9,9 +9,12 @@ namespace ErpApp.Application.Accounting.Commands.UpdateJournalVoucher;
 
 public sealed record UpdateJournalVoucherCommand(
     Guid OrganizationId, Guid Id, DateOnly Date, string? Reference, IReadOnlyList<JournalVoucherLineInput> Lines)
-    : IRequest<UpdateJournalVoucherResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId, ICurrencyBearingCommand, ILocationBearingCommand
+    : IRequest<UpdateJournalVoucherResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId, ICurrencyBearingCommand, ILocationBearingCommand, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.JournalVoucherEdit;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 
     /// <summary>Phase 28 (FR-2.5). Null means the base currency at rate 1 -- see
     /// <see cref="ICurrencyBearingCommand"/>.</summary>

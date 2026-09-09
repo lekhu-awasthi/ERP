@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
@@ -7,9 +8,12 @@ using MediatR;
 namespace ErpApp.Application.Purchasing.Queries.GetPurchaseBill;
 
 public sealed record GetPurchaseBillQuery(Guid OrganizationId, Guid Id)
-    : IRequest<PurchaseBillDetailDto>, IRequirePermission, IOrganizationScoped
+    : IRequest<PurchaseBillDetailDto>, IRequirePermission, IOrganizationScoped, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.PurchaseBillView;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 }
 
 public sealed record PurchaseBillLineDto(

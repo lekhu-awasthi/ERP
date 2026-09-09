@@ -1,13 +1,18 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Accounting;
+using ErpApp.Domain.Common;
 using MediatR;
 
 namespace ErpApp.Application.Accounting.Queries.GetJournalVoucher;
 
 public sealed record GetJournalVoucherQuery(Guid OrganizationId, Guid Id)
-    : IRequest<JournalVoucherDetailDto>, IRequirePermission, IOrganizationScoped
+    : IRequest<JournalVoucherDetailDto>, IRequirePermission, IOrganizationScoped, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.JournalVoucherView;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 }
 
 public sealed record JournalVoucherLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit, Guid? ContactId);

@@ -2,6 +2,8 @@ using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Tenancy;
+using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,7 +35,9 @@ public sealed class UpdateRolePermissionsCommandHandler(IAppDbContext db) : IReq
         var validKeys = PermissionKeyCatalog.AllKeys.ToHashSet();
 
         var existingRows = await db.RolePermissions.Where(rp => rp.RoleId == request.RoleId).ToListAsync(cancellationToken);
-        var existingByKey = existingRows.ToDictionary(rp => rp.PermissionKey);
+        var existingByKey = existingRows
+            .Where(rp => rp.LocationId == null)
+            .ToDictionary(rp => rp.PermissionKey);
 
         foreach (var key in validKeys)
         {
@@ -52,7 +56,87 @@ public sealed class UpdateRolePermissionsCommandHandler(IAppDbContext db) : IReq
             }
         }
 
+        await ApplyLocationGrantsAsync(request, existingRows, cancellationToken);
+
         await db.SaveChangesAsync(cancellationToken);
         return Unit.Value;
+    }
+
+    /// <summary>
+    /// The Location-specific half. Three rules, each with a reason:
+    ///
+    /// <list type="bullet">
+    /// <item>only <c>LocationScopedPermissions.ScopableKeys</c> may be granted per location. A caller
+    /// posting <c>Reports.*</c> or <c>Configuration.*</c> under a location is not making a narrower
+    /// grant, it is making one the enforcement seam will never read -- so it is rejected rather than
+    /// stored as a row nothing consults;</item>
+    /// <item>the location must belong to this organization and be active. A grant at another tenant's
+    /// location is the shape of a cross-tenant leak, and one at a closed branch is dead data;</item>
+    /// <item>a location the caller does not mention is left alone, so a client that knows nothing of
+    /// this section cannot silently revoke it.</item>
+    /// </list>
+    /// </summary>
+    private async Task ApplyLocationGrantsAsync(
+        UpdateRolePermissionsCommand request,
+        List<RolePermission> existingRows,
+        CancellationToken cancellationToken)
+    {
+        if (request.LocationGrants is not { Count: > 0 } locationGrants)
+        {
+            return;
+        }
+
+        var scopableKeys = LocationScopedPermissions.ScopableKeys.ToHashSet(StringComparer.Ordinal);
+
+        var requestedLocationIds = locationGrants.Select(x => x.LocationId).Distinct().ToList();
+        var validLocationIds = await db.BillingLocations
+            .Where(x => x.OrganizationId == request.OrganizationId
+                        && x.IsActive
+                        && requestedLocationIds.Contains(x.Id))
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        var missing = requestedLocationIds.Except(validLocationIds).ToList();
+        if (missing.Count > 0)
+        {
+            throw new NotFoundException("Billing location not found.");
+        }
+
+        foreach (var slice in locationGrants)
+        {
+            var unknown = slice.Grants.Keys.Where(key => !scopableKeys.Contains(key)).ToList();
+            if (unknown.Count > 0)
+            {
+                throw new ValidationException(
+                [
+                    new ValidationFailure(
+                        nameof(request.LocationGrants),
+                        $"'{unknown[0]}' cannot be granted per location. Only transaction permissions are "
+                        + "location-scoped; General, Settings and Reports permissions are organization-wide."),
+                ]);
+            }
+
+            var existingHere = existingRows
+                .Where(rp => rp.LocationId == slice.LocationId)
+                .ToDictionary(rp => rp.PermissionKey);
+
+            foreach (var key in scopableKeys)
+            {
+                var isGrantedNow = slice.Grants.TryGetValue(key, out var requested) && requested;
+
+                if (existingHere.TryGetValue(key, out var row))
+                {
+                    if (row.IsGranted != isGrantedNow)
+                    {
+                        row.SetGranted(isGrantedNow);
+                    }
+                }
+                else if (isGrantedNow)
+                {
+                    db.RolePermissions.Add(
+                        RolePermission.Create(Guid.NewGuid(), request.RoleId, key, true, slice.LocationId));
+                }
+            }
+        }
     }
 }

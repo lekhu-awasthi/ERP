@@ -18,9 +18,12 @@ public sealed record UpdateExpenseCommand(
     bool TdsApplicable,
     Guid? TdsTypeId,
     IReadOnlyList<ExpenseLineInput> Lines)
-    : IRequest<UpdateExpenseResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId, ICurrencyBearingCommand, ILocationBearingCommand
+    : IRequest<UpdateExpenseResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId, ICurrencyBearingCommand, ILocationBearingCommand, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.ExpenseEdit;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 
     /// <summary>Phase 28 (FR-2.5). Null means the base currency at rate 1 -- see
     /// <see cref="ICurrencyBearingCommand"/>.</summary>

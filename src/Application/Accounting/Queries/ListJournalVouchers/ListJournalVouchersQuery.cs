@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Accounting;
@@ -10,7 +11,7 @@ public sealed record ListJournalVouchersQuery(
     JournalVoucherStatus? Status,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<JournalVoucher>>, IRequirePermission, IOrganizationScoped
+    : IRequest<PagedResult<JournalVoucher>>, IRequirePermission, IOrganizationScoped, ILocationFilteredQuery
 {
     public string PermissionKey => PermissionKeys.JournalVoucherView;
 }

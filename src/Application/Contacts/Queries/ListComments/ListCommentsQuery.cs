@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Workflow;
@@ -13,9 +14,14 @@ public sealed record ListCommentsQuery(
     Guid ParentId,
     int Page = 1,
     int PageSize = PagingDefaults.MaxPageSize)
-    : IRequest<CommentListDto>, IRequirePermission, IOrganizationScoped
+    : IRequest<CommentListDto>, IRequirePermission, IOrganizationScoped, ILocationScopedDocument
 {
     public string PermissionKey => ParentPermissions.ViewPermissionFor(ParentType);
+
+    /// <summary>Phase 32b -- when the parent is a document, the key above is that document&#39;s own, so
+    /// a location-scoped caller must hold it at the parent&#39;s location. When the parent is a Contact the
+    /// key is not location-scopable and the check never runs.</summary>
+    public Guid LocationDocumentId => ParentId;
 }
 
 public sealed record CommentRowDto(Guid Id, string Content, Guid AuthorUserId, string AuthorName, DateTimeOffset CreatedAt);

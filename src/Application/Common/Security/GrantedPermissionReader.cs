@@ -17,10 +17,22 @@ namespace ErpApp.Application.Common.Security;
 /// one method now. Behaviour is deliberately identical to the behavior's own check -- Accepted
 /// memberships only, <c>IsGranted</c> rows only -- because a divergence between the two would be a
 /// silent authorization hole rather than a bug anyone would notice.</para>
+///
+/// <para><b>Phase 32b: every organization-wide read here filters <c>LocationId == null</c>.</b> That
+/// is not a refinement, it is the whole correctness of the split. A <c>RolePermission</c> row with a
+/// location is a grant <i>at that location only</i>; letting one fall through an unqualified
+/// "does this user hold key K" question would turn a single-branch grant into an
+/// organization-wide one -- the exact privilege escalation this phase exists to prevent. The
+/// location-aware questions are the <c>...AtLocation</c>/<c>...Locations</c> members below, and they
+/// are the only place a non-null <c>LocationId</c> is ever read.</para>
 /// </summary>
 public static class GrantedPermissionReader
 {
-    /// <summary>Every permission key the current user holds in this organization.</summary>
+    /// <summary>
+    /// Every <b>organization-wide</b> permission key the current user holds in this organization --
+    /// the ones the live editor labels "Apply across all billing locations". Location-scoped grants
+    /// are deliberately excluded; ask <see cref="GrantedLocationsAsync"/> about those.
+    /// </summary>
     public static async Task<IReadOnlySet<string>> GrantedKeysAsync(
         IAppDbContext db,
         Guid organizationId,
@@ -34,7 +46,7 @@ public static class GrantedPermissionReader
                   && membership.Status == MembershipStatus.Accepted
             join rolePermission in db.RolePermissions
                 on membership.RoleId equals rolePermission.RoleId
-            where rolePermission.IsGranted
+            where rolePermission.IsGranted && rolePermission.LocationId == null
             select rolePermission.PermissionKey
         ).ToListAsync(cancellationToken);
 
@@ -60,5 +72,61 @@ public static class GrantedPermissionReader
             throw new ForbiddenException(
                 $"You do not have permission to perform this action ({permissionKey}).");
         }
+    }
+
+    /// <summary>
+    /// Phase 32b -- the billing locations at which this user holds <paramref name="permissionKey"/>
+    /// <b>location-specifically</b>. Empty is the normal answer: the live editor's own default is
+    /// 0 of 94 at every location, and a role that works purely from organization-wide grants never
+    /// writes a row here.
+    /// </summary>
+    public static async Task<IReadOnlySet<Guid>> GrantedLocationsAsync(
+        IAppDbContext db,
+        Guid organizationId,
+        Guid userId,
+        string permissionKey,
+        CancellationToken cancellationToken)
+    {
+        var locationIds = await (
+            from membership in db.OrganizationMemberships
+            where membership.OrganizationId == organizationId
+                  && membership.UserId == userId
+                  && membership.Status == MembershipStatus.Accepted
+            join rolePermission in db.RolePermissions
+                on membership.RoleId equals rolePermission.RoleId
+            where rolePermission.IsGranted
+                  && rolePermission.PermissionKey == permissionKey
+                  && rolePermission.LocationId != null
+            select rolePermission.LocationId!.Value
+        ).ToListAsync(cancellationToken);
+
+        return locationIds.ToHashSet();
+    }
+
+    /// <summary>
+    /// Phase 32b -- every billing location at which this user holds <b>any</b> location-scoped grant.
+    /// This is what "the locations they have access to" means for
+    /// <c>TenantSettings.LocationWiseReportPermission</c>; see
+    /// <c>Application.Common.Locations.LocationAccessScope</c>, which is the only caller and which
+    /// documents why the report toggle reads transaction grants rather than report ones.
+    /// </summary>
+    public static async Task<IReadOnlySet<Guid>> AnyGrantedLocationsAsync(
+        IAppDbContext db,
+        Guid organizationId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var locationIds = await (
+            from membership in db.OrganizationMemberships
+            where membership.OrganizationId == organizationId
+                  && membership.UserId == userId
+                  && membership.Status == MembershipStatus.Accepted
+            join rolePermission in db.RolePermissions
+                on membership.RoleId equals rolePermission.RoleId
+            where rolePermission.IsGranted && rolePermission.LocationId != null
+            select rolePermission.LocationId!.Value
+        ).ToListAsync(cancellationToken);
+
+        return locationIds.ToHashSet();
     }
 }

@@ -61,6 +61,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 30 | Communications (FR-11.1, FR-4.5's Email Logs): a **Send Email** dialog on 6 document types and the Contact detail page, an Email Logs tab with data behind it, an Email Templates config page, and `AlertMedium.Sms`. Confirm-live corrected the scope three times — Send Email is on 6 of 15 types, not the statement report but yes the Contact page, and email templates are **their own aggregate**, not a `CustomTemplateType` (that member is deleted). Sends go through a claim-then-act ledger and a fourth background job; idempotency is a client-minted request id, so a double-click is one email and a reopened dialog is a new row | `phase-30-status.md` |
 | 31 | Credit control, dead settings, and the small carried items: `Contact.CreditLimit`/`CreditTermId`/`AcceptsReverseTransactions`, a **Credit Limit Exceeds** policy enforced at Invoice Approve, and a **Configurations > General** screen that makes all five behaviour settings reachable for the first time — four of them had no command, no endpoint and no screen at all. Plus **Negative Cash Balance** enforced on the three documents that can take money out, **Suggest Selling Price / Product Price Basis** decided server-side at the line picker, a **stored Due Date** on Invoice and Purchase Bill (closing 26b's carried item, 30's `$[DUE_DATE]$` and 26b's ageing follow-up), a **bounced cheque** that voids the payment it settled, subscription expiry as read-only-for-documents plus the renewal that lifts it, and the **Include Credit Note In Calculation** toggle — which the confirm-live pass showed 26c had wrongly recorded as inert | `phase-31-status.md` |
 | 32 | Billing Locations (FR-2.3/FR-3.3) — **and the phase this roadmap said could not be confirm-lived, was.** A second tenant with `Location Enabled = Yes` turned the whole phase from derived to observed, correcting four things this entry had assumed. A `BillingLocation` aggregate with a **HeadOffice row seeded unconditionally** and `MultipleLocations` as a **cap at one** (phase-20f Decision #4's shape, third instance); the **Advanced** panel that makes location scope a *runtime tenant setting* (Sales-only by default, All-Transactions opt-in) — which is why nullable `LocationId` went onto **all 17** location-bearing types in one hand-written seed-and-backfill migration rather than the four the default names; a document-**header** location picker (not a body field); **location-wise numbering** consumed at last; and the location filter/column on the Invoice list and Sales Master Report. `LocationType` is system-assigned — the live create dialog has no such field | `phase-32-status.md` |
+| 32b | Per-location permission scope (FR-3.3) -- the role editor's **second matrix**: *Organization-wide Permissions* ("Apply across all billing locations") and *Location-specific Permissions*, the **transaction keys alone** replicated per location (77 of this codebase's 222, derived from `DocumentMechanisms.LocationBearing`). A grant is a `RolePermission` row with a nullable **`LocationId` FK** -- null is the organization-wide grant, so no backfill and nothing seeded per location, which dissolves this roadmap's own seed-size warning. Enforced by one extra branch in **`AuthorizationBehavior`** (phase-27a's `AttachmentAccess` pattern, third use, promoted to the pipeline because it spans ~120 requests) plus four marker interfaces and a sweep guard. **And the confirm-live pass falsified what four documents recorded**: turning `LocationWiseReportPermission` ON does *not* pull the 52 Reports keys into the matrix -- it narrows report *rows*, and that is the consumer that shipped | `phase-32b-status.md` |
 
 ---
 
@@ -287,7 +288,7 @@ three times, so the original text is kept below struck through rather than silen
   toggle. That toggle ships stored, editable and enforced by nothing, recorded as such.
 - POS location *types* stay modelled, not built.
 
-### 32b. Per-location permission scope (FR-3.3, `architecture-spec.md` §3.7)
+### 32b. Per-location permission scope (FR-3.3, `architecture-spec.md` §3.7) — **DONE** (see `docs/phase-32b-status.md`)
 Split out of 32 by agreement, because it is the largest single piece and it touches
 `AuthorizationBehavior` — the one mechanism verifying org membership at all. Its shape is **already
 confirmed live** (2026-09-07), so this phase starts from an observed design, not a guess:
@@ -304,12 +305,14 @@ confirmed live** (2026-09-07), so this phase starts from an observed design, not
   blanket key on the request, the real key re-checked inside the handler with the identical
   `ForbiddenException` shape. The E2E must prove it in **both** directions — 404 on a nonexistent
   document (so the caller does hold the pipeline key) and 403 naming the location key on a real one.
-- Also here: the consumer for `TenantSettings.LocationWiseReportPermission`, which phase 32 shipped
-  stored, editable and **enforced by nothing** (recorded, not hidden). Turning it on is what pulls
-  the 52 Reports keys into location scope.
-- Watch the seed size: N locations × 94 keys is the first permission set whose row count is a
-  function of tenant *data*, not of the catalog. Decide whether a location-scoped grant is stored per
-  location or derived from a default, before writing the migration.
+- Also here: the consumer for `TenantSettings.LocationWiseReportPermission`. **This entry's own
+  claim that turning it on "pulls the 52 Reports keys into location scope" was wrong**, and the
+  2026-09-09 confirm-live pass proved it: with the toggle ON and persisted across a hard reload, the
+  live matrix stayed at 0 of 282 = 94 × 3 with no Reports group. It narrows report *rows* to the
+  locations a role holds transaction grants at, which is what shipped -- on the Sales Master Report,
+  the only report with a location dimension (phase 32's carried item #4 gates the rest).
+- The seed-size warning **dissolved**: an absent row is a denial and the live default is 0 of 94 at
+  every location, so only *granted* rows exist and nothing is seeded per location at all.
 
 ### 33. Platform chrome — global search, history, Quick Links
 - Tigg's top bar: global search (Ctrl + /) across contacts, products and document numbers; a

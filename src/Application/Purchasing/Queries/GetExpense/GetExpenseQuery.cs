@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
@@ -7,9 +8,12 @@ using MediatR;
 namespace ErpApp.Application.Purchasing.Queries.GetExpense;
 
 public sealed record GetExpenseQuery(Guid OrganizationId, Guid Id)
-    : IRequest<ExpenseDetailDto>, IRequirePermission, IOrganizationScoped
+    : IRequest<ExpenseDetailDto>, IRequirePermission, IOrganizationScoped, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.ExpenseView;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 }
 
 public sealed record ExpenseLineDto(Guid Id, Guid AccountId, decimal Amount, VatRate VatRate, decimal VatAmount);

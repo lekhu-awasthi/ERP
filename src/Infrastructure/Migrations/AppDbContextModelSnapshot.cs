@@ -5010,6 +5010,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<bool>("IsGranted")
                         .HasColumnType("bit");
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("PermissionKey")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -5020,7 +5023,9 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("RoleId", "PermissionKey")
+                    b.HasIndex("LocationId");
+
+                    b.HasIndex("RoleId", "PermissionKey", "LocationId")
                         .IsUnique();
 
                     b.ToTable("RolePermissions", "tenancy");
@@ -9627,6 +9632,11 @@ namespace ErpApp.Infrastructure.Migrations
 
             modelBuilder.Entity("ErpApp.Domain.Tenancy.RolePermission", b =>
                 {
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Tenancy.Role", null)
                         .WithMany()
                         .HasForeignKey("RoleId")

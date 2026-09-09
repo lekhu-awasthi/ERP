@@ -88,7 +88,12 @@ precedent: a location-scoped key is a location segment prefixed onto a **transac
 request, the real key re-checked inside the handler.
 
 **Consequence, recorded rather than buried:** `TenantSettings.LocationWiseReportPermission` ships
-**stored, editable, screen-reachable and read by no enforcer.** That is phase-31 lesson (a) held at
+**stored, editable, screen-reachable and read by no enforcer.**
+
+> **Corrected by phase 32b (2026-09-09).** This section, and item 5 above, both say turning that
+> toggle on is what pulls the 52 Reports keys into location scope. A second confirm-live pass with the
+> toggle **ON** and persisted across a hard reload found the matrix unchanged at 0 of 282 = 94 x 3
+> with no Reports group. It scopes report *rows*, not report *keys*. See `docs/phase-32b-status.md`. That is phase-31 lesson (a) held at
 arm's length: the field has a command, an endpoint and a control from day one, so it is not an
 *absent* feature; what it lacks is a consumer, named here, on the field itself, and in the handoff.
 

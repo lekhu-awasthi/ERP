@@ -705,3 +705,56 @@ Analysis Report.
   Balances / Tigg Subscriptions / Organization; everything else is nested under **Apps**.
 - Organization tabs here: Overview, Tasks, Documents, Features, Migration, **Backup** (Moonbeam had
   Developer Mode and no Backup).
+
+## Confirm-live pass 2 on the location-enabled tenant (2026-09-09, `cadehi.tigg.app`, phase 32b)
+
+**This pass corrects the 2026-09-07 appendix above, and three other documents with it.** Read-only
+except ONE reversible tenant setting, flipped with the user's explicit permission and reverted and
+verified afterwards.
+
+### The two sections are independent stores
+Role **Sales**, `#/config/user-permission/role-reference/{id}/edit`:
+- *Organization-wide Permissions* -- "Apply across all billing locations - **43 of 175** enabled":
+  General 5/20 (General Permission 2/17 + Document Permission 3/3), **Transactions 25/94**,
+  Settings 1/9, Reports 12/52.
+- *Location-specific Permissions* -- "Scoped to individual billing locations - **0 of 282**":
+  HeadOffice 0/94, POS Restaurant 0/94, POS Retail 0/94.
+
+25 organization-wide transaction grants coexisting with 0 location grants settles the question the
+roadmap left open: **a location-scoped grant does not default to, mirror or inherit the
+organization-wide one.** With that section's own subtitle, the effective rule is org-wide **OR**
+location-specific -- never AND, which would break every existing role the moment a tenant enables
+locations.
+
+HeadOffice's 94 expands to Sales 25 / Purchase 25 / Accounting 24 / Inventory 20; Sales 25 expands to
+five documents x five actions (Quotation, Sales Order, Invoice, Credit Note, **Customer Payment** x
+View/Create/Edit/Approve/Void). The chips are
+`<button class="permission-chip" aria-pressed="false" aria-label="Approve permission">`, with no id or
+name attribute exposing a persisted key shape -- so `"HeadOffice.Sales.Invoice.Approve"` is confirmed
+as a *display* shape only, never observed as storage.
+
+### `Implement Location Wise Permission for Report View` does NOT add Reports to the matrix
+**The 2026-09-07 appendix, `roadmap.md`'s 32b entry, `phase-32-status.md`'s Decision A and
+`TenantSettings.LocationWiseReportPermission`'s doc comment all said turning it on is "what would
+pull the 52 Reports keys into location scope". It is not.**
+
+Procedure: `Organization > Features > Billing Location > Advanced`, ticked the checkbox (it saves
+inline -- the card has no Save button), hard-reloaded the app, re-opened Advanced and confirmed
+`checked: true` persisted. Re-opened role Sales: Location-specific still **0 of 282**, still three
+locations at 94 each, **still no Reports group**. The Users screen gained nothing either (1 user,
+Admin, no location column). Then unticked, reloaded, verified `checked: false`.
+
+The label is therefore the whole of it: *"Restrict users to view reports only for locations they have
+access to"* -- the toggle narrows report **rows** to the locations a role holds location-specific
+grants at. There is no per-location Reports matrix.
+
+### Not observable without a write
+What the editor does when a location is **added or deactivated**: all three locations were active,
+there was no inactive row to compare against, and creating one leaves a permanent row on the user's
+tenant (the live product deactivates, never deletes). Derived instead, and recorded as derived in
+`docs/phase-32b-status.md`.
+
+### Browser-pane note
+The pane's screenshot coordinate frame was 800x534 while the page's own `innerWidth/innerHeight` was
+1513x1010 -- multiply `getBoundingClientRect` coordinates by 800/1513 = 0.5288 before clicking. That
+is phase-26c's getBoundingClientRect idiom plus a scale factor the earlier pass did not need.

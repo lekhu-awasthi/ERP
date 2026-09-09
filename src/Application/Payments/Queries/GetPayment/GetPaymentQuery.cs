@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Payments;
@@ -6,9 +7,12 @@ using MediatR;
 namespace ErpApp.Application.Payments.Queries.GetPayment;
 
 public sealed record GetPaymentQuery(Guid OrganizationId, Guid Id)
-    : IRequest<PaymentDetailDto>, IRequirePermission, IOrganizationScoped
+    : IRequest<PaymentDetailDto>, IRequirePermission, IOrganizationScoped, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.PaymentView;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 }
 
 public sealed record PaymentAllocationDto(Guid Id, DocumentType TargetDocumentType, Guid TargetDocumentId, decimal Amount);

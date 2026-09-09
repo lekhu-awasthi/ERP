@@ -10,9 +10,12 @@ namespace ErpApp.Application.Purchasing.Commands.UpdateDebitNote;
 public sealed record UpdateDebitNoteCommand(
     Guid OrganizationId, Guid Id, Guid ContactId, DateOnly Date, string? Reference, Guid? TdsTypeId,
     IReadOnlyList<DebitNoteLineInput> Lines, decimal DiscountPct = 0)
-    : IRequest<UpdateDebitNoteResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId, ICurrencyBearingCommand, ILocationBearingCommand
+    : IRequest<UpdateDebitNoteResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId, ICurrencyBearingCommand, ILocationBearingCommand, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.DebitNoteEdit;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 
     /// <summary>Phase 28 (FR-2.5). Null means the base currency at rate 1 -- see
     /// <see cref="ICurrencyBearingCommand"/>.</summary>

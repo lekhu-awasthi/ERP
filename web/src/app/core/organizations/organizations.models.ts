@@ -295,15 +295,35 @@ export interface PermissionMatrixGroup {
   permissions: PermissionMatrixEntry[];
 }
 
+/**
+ * One billing location's slice of the Location-specific section (phase 32b). `groups` holds only the
+ * transaction keys -- General, Settings and Reports are organization-wide, confirmed live.
+ */
+export interface LocationPermissionSection {
+  locationId: string;
+  locationCode: string;
+  locationName: string;
+  groups: PermissionMatrixGroup[];
+}
+
 export interface RolePermissionMatrix {
   roleId: string;
   roleName: string;
   isSystemRole: boolean;
+  /** Organization-wide -- "Apply across all billing locations". */
   groups: PermissionMatrixGroup[];
+  /** Empty for a tenant with a single location: there is nothing to scope. */
+  locationSections: LocationPermissionSection[];
+}
+
+export interface LocationGrantsInput {
+  locationId: string;
+  grants: Record<string, boolean>;
 }
 
 export interface UpdateRolePermissionsRequest {
   grants: Record<string, boolean>;
+  locationGrants?: LocationGrantsInput[];
 }
 
 export interface UpdateMembershipRoleRequest {

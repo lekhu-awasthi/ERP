@@ -83,6 +83,12 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
   Report. Before deciding a screen cannot be confirm-lived, before letting a setting choose which
   types store a field, or before adding the filter to a unique index over a nullable column —
   `docs/phase-32-status.md`
+- Phase 32b: per-location permission scope — the role editor's second matrix (the 77 transaction
+  keys per location), a nullable `RolePermission.LocationId` where **null is the organization-wide
+  grant**, and enforcement as one extra branch inside `AuthorizationBehavior`. Before enforcing a
+  permission that depends on a row the handler has not read yet, before re-confirming a screen an
+  earlier phase already confirmed, or before adding a request over a location-bearing document type
+  — `docs/phase-32b-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -198,6 +204,21 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - When a tenant setting selects among *sets* of document types, the schema owes the **widest** set,
   not the current one — otherwise flipping the setting is a lie until a later phase ships the columns
   (phase-32's `LocationScopeMode`, phase-31 lesson (a) inside out).
+- The `AttachmentAccess` pattern stops being a per-handler re-check at the point where missing one
+  instance is an open door rather than a bug: phase 32b's ~120 requests moved the check *into*
+  `AuthorizationBehavior` (not a sixth behavior — the two halves must share one decision, and a
+  scoped context between behaviors is corrupted by a nested `ISender.Send`), behind four marker
+  interfaces and a sweep guard that fails the build on any location-scopable request declaring none
+  of them (phase-32b).
+- **A confirm-live pass can falsify an earlier confirm-live pass.** Four documents recorded that
+  `LocationWiseReportPermission` pulls the 52 Reports keys into the per-location matrix; flipping it
+  on the live tenant showed the matrix unchanged — it scopes report *rows*. A screen someone already
+  read is not settled when what was recorded is an inference about a control nobody operated
+  (phase-32b, extending 32's another-tenant rule).
+- Reuse a marker interface by **reading** it, not by merging it: phase-31 lesson (c) applies only
+  when the sets match, and `ILockDateSensitiveDocument`'s is narrower than a location grant's (a
+  lock date never gates a read). Reading it from the resolver spared all thirty Approve/Void
+  commands an edit, with a guard test pinning that the reuse still covers them (phase-32b).
 
 **Background jobs**
 - A singleton `BackgroundService` cannot inject scoped services; take `IServiceScopeFactory`, read options via `IOptionsMonitor`, and never let a tick's exception escape `ExecuteAsync` (`AlertSchedulerHostedService`).
@@ -283,66 +304,55 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-31 are complete, and phase 32 (Billing Locations, FR-2.3/FR-3.3) is done.** A tenant now
-has a **`BillingLocation`** list on its Organization > Features card, with a **HeadOffice row seeded
-unconditionally at Organization creation** and `MultipleLocations` expressed as a **cap at one** --
-phase-20f Decision #4's shape for the third time, after 20f's warehouses and 28's currencies. Every
-one of the 17 location-bearing document types carries a nullable `LocationId`, added in one migration
-whose **seed-and-backfill is hand-written** (98 organizations, 98 locations, zero null documents).
-Document numbering finally consumes `LocationWiseNumbering`, and the Invoice list and Sales Master
-Report gained the location filter and column.
+**Phases 0-32 are complete, and phase 32b (per-location permission scope, FR-3.3) is done.** The role
+editor now has the **two sections the live product has**: *Organization-wide Permissions* ("Apply
+across all billing locations") and *Location-specific Permissions*, the second being the
+**transaction keys alone** replicated per location -- 77 of this codebase's 222 keys, derived from
+`DocumentMechanisms.LocationBearing` rather than listed. A location grant is a `RolePermission` row
+carrying a nullable **`LocationId` FK** where **null is the organization-wide grant**, so the
+migration needed no backfill and nothing is seeded per location -- which dissolved the roadmap's own
+"N x 94 rows" seed-size warning. Enforcement is one extra branch inside **`AuthorizationBehavior`**,
+behind four marker interfaces and `LocationScopeSweepGuardTests`.
 
-**The phase's defining event is that it was not supposed to be observable.** The roadmap recorded
-that Billing Location is an entitlement switched *off* on the UAT tenant, and pre-authorised
-phase-21c's "derive when confirm-live is impossible" precedent for the whole phase. A second tenant
-with the entitlement **on** was available for the asking, and reading it corrected four decisions
-already written down as scope: `LocationType` is **system-assigned** (the create dialog has no such
-field), the picker is a document **header** control rendering `Name (Code)` rather than a body field,
-the second permission matrix is the **Transactions group alone** replicated per location, and -- the
-one that reshaped the build -- **location scope is a runtime tenant setting**, not a fixed list.
+**The phase's defining event is that the confirm-live pass falsified a design already written down.**
+Four documents -- the roadmap's 32b entry, phase 32's Decision A, the module scan's own 2026-09-07
+appendix and the field's C# doc comment -- all said turning `LocationWiseReportPermission` on pulls
+the 52 Reports keys into location scope. With the toggle **on** and persisted across a hard reload,
+the live matrix stayed at 0 of 282 = 94 x 3 with no Reports group. It scopes report *rows*, and that
+is the consumer that shipped. All four have been corrected in place.
 
-Five things from 32 that generalise. **A blocked confirm-live is a state, not a verdict**: ask
-whether a different tenant, account or plan can observe it before deriving. **A setting that selects
-among sets forces the storage to the union** -- phase-31 lesson (a) inside out, and why `LocationId`
-went onto all 17 types rather than the three the default names; sizing to the default would have made
-the switch a lie. **When EF's convention and this file's own gotcha agree and are both wrong, say so
-at the index** -- the numbering counter's unique index needs `HasFilter(null)`, because NULL there is
-a sentinel with an at-most-one invariant. **Two lists that must not drift belong in the file that
-exists to stop drift** (`DocumentMechanisms`, reusing 27a's guard rather than writing a second).
-**A scripted sweep is safe only if every edit asserts its anchor count first.** Full story in
-`docs/phase-32-status.md`.
+Five things from 32b that generalise. **A confirm-live pass can falsify an earlier one** -- a screen
+someone already read is not settled when what was recorded is an inference about a control nobody
+operated. **What promotes a pattern is blast radius, not count**: `AttachmentAccess`'s third use
+covers ~120 requests, so it became a pipeline branch rather than a fourth hand-written re-check.
+**A marker interface is only as good as the guard requiring it** -- this one found two real defects on
+its first run. **Reuse a marker by reading it, not merging it** (thirty Approve/Void commands needed
+no edit). **A nullable FK whose NULL is a sentinel wants an unfiltered unique index** -- second
+instance in two phases, which is what turned the standing gotcha into "ask what a NULL there means".
+Full story in `docs/phase-32b-status.md`.
 
-**What comes next** is **phase 32b** (per-location permission scope -- split out of 32 by agreement,
-with its shape already confirmed live), then 33-34 in `docs/roadmap.md`. Still recorded separately:
+**What comes next** is **phase 33** (platform chrome -- global search, History, Quick Links, and the
+per-user store all three need), then 34 in `docs/roadmap.md`. Still recorded separately:
 - the deferred post-v1 list in `docs/roadmap.md` (POS, IRD e-filing, Marketplace);
-- carried items. Phase 25's multi-level BOM explosion; phase-26a's two (an explicit compare-date
-  picker on the two as-of statements, Reporting Tags on the Journal report); phase-26b's remaining
-  two (a product-level service-charge flag, Quick Payment/Receipt as a document type); phase-26c's
-  remaining two (WarehouseTransfer/OpeningStock in Inventory Master, Inventory Position's display
-  options); phase-27b's rich-text editor (still a textarea on `app-terms-editor` and
-  `app-send-email-dialog`); phase-28's five (no unrealised period-end revaluation, no cross-currency
-  settlement, no rate source, the Allocate screens not filtering by currency, and
-  `ApplyPaymentAllocationCommand` posting no forex leg on the allocate-further path -- 31's
-  credit-limit check inherits the un-converted contact ledger from the same family); phase-29's five
-  (no Import on the product-wise matrix, the additional cost's currency assumed to follow the
-  document's, landed cost on no document but the Purchase Bill, a Debit Note's release proportional
-  rather than FIFO-exact, no automatic unwind of the clearing account); phase-30's five open;
-  phase-31's six (a supplier's credit limit stored but never enforced, credit-terms -> due-date as a
-  client-side prefill only, subscription-expiry behaviour derived rather than confirmed,
-  configuration writes still allowed past expiry, the **Group By Bill** toggle on the Sales Register,
-  and the import/export breadth from 21a/24/21b); and **phase-32's own seven**, of which the first
-  two matter most: the **per-location permission matrix is 32b**, and
-  `TenantSettings.LocationWiseReportPermission` ships stored, editable and **enforced by nothing**
-  until then. Then: the header picker is wired on Invoice only (Sales Order and Credit Note are the
-  same three-line change); **Quotation's membership of the sales-only scope is unresolved** and
-  deliberately excluded rather than guessed; the location filter reaches only the Invoice list and
-  Sales Master Report; there is no Delete for a location (the live list deactivates, and the FK is
-  `Restrict`); `BillingLocation.WarehouseId` is captured and displayed but defaults nothing; and POS
-  location types stay modelled, not built.
+- carried items. Phase 25's multi-level BOM explosion; phase-26a's two; phase-26b's remaining two;
+  phase-26c's remaining two; phase-27b's rich-text editor; phase-28's five; phase-29's five;
+  phase-30's five; phase-31's six; **phase-32's remaining six** (the header picker is wired on Invoice
+  only; Quotation's membership of the sales-only scope is unresolved and deliberately excluded; the
+  location filter reaches only the Invoice list and Sales Master Report; no Delete for a location;
+  `BillingLocation.WarehouseId` defaults nothing; POS location types stay modelled, not built) -- its
+  per-location permission matrix is now **closed**; and **phase-32b's own five**, of which the first
+  matters most: **every report but the Sales Master Report still cannot restrict by location**,
+  because none of them has a location dimension to restrict -- phase 32's carried item #4 gates it,
+  and closing that one closes this one for free. Then: the two opening-balance lists narrow their
+  joined *figures* rather than their rows; a grant at a deactivated location is kept but becomes
+  invisible in the editor; there is no per-user location assignment (the role carries the scope, which
+  is what the live tenant shows); and `LocationDocumentTypeOverride` has exactly one user.
 
-Tests at last count: Domain 443, Application.UnitTests 879, Api.IntegrationTests 18, Angular 212;
-`dotnet build` / `dotnet test` / `ng build` / `ng test` all clean. Note `tsc --noEmit` does **not**
-cover `web/src/app` -- `ng build` is the check that does (phase-28).
+Tests at last count: Domain 443, Application.UnitTests 893, Api.IntegrationTests 18, Angular 212;
+`dotnet build` / `ng build` / `ng test` all clean, and `dotnet test`'s Api.IntegrationTests suite
+needs Docker Desktop running (it fails at `ResourceReaper` without it, which is environmental, not a
+regression). Note `tsc --noEmit` does **not** cover `web/src/app` -- `ng build` is the check that does
+(phase-28).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

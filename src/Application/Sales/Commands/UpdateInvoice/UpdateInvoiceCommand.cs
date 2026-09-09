@@ -20,9 +20,12 @@ public sealed record UpdateInvoiceCommand(
     // pre-phase-31 row, so an unaware caller behaves identically to before. Carried on the Api's
     // request record too (phase-27b's Terms gotcha).
     DateOnly? DueDate = null)
-    : IRequest<UpdateInvoiceResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId, ICurrencyBearingCommand, ILocationBearingCommand
+    : IRequest<UpdateInvoiceResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId, ICurrencyBearingCommand, ILocationBearingCommand, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.InvoiceEdit;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 
     /// <summary>Phase 28 (FR-2.5). Null means the base currency at rate 1 -- see
     /// <see cref="ICurrencyBearingCommand"/>.</summary>

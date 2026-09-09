@@ -13,9 +13,12 @@ public sealed record UpdateQuotationCommand(
     // Phase 27b -- the "+ Add Terms and Conditions" block's text, pre-filled client-side from a
     // CustomTemplate and editable from there. Optional and trailing so no existing caller changes.
     string? Terms = null)
-    : IRequest<UpdateQuotationResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId, ICurrencyBearingCommand, ILocationBearingCommand
+    : IRequest<UpdateQuotationResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitive, IAuditableRequestWithId, ICurrencyBearingCommand, ILocationBearingCommand, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.QuotationEdit;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 
     /// <summary>Phase 28 (FR-2.5). Null means the base currency at rate 1 -- see
     /// <see cref="ICurrencyBearingCommand"/>.</summary>

@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Tenancy;
@@ -14,7 +15,7 @@ public sealed record ListProductOpeningBalancesQuery(
     Guid WarehouseId,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<ProductOpeningBalanceDto>>, IRequirePermission, IOrganizationScoped, IRequireFeature
+    : IRequest<PagedResult<ProductOpeningBalanceDto>>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILocationFilteredQuery
 {
     public string PermissionKey => PermissionKeys.OpeningBalanceView;
 

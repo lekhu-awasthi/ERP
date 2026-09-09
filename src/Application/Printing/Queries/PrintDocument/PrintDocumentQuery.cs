@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using MediatR;
@@ -27,9 +28,14 @@ namespace ErpApp.Application.Printing.Queries.PrintDocument;
 /// unwired.</para>
 /// </summary>
 public sealed record PrintDocumentQuery(Guid OrganizationId, DocumentType DocumentType, Guid DocumentId)
-    : IRequest<PrintableDocumentDto>, IRequirePermission, IOrganizationScoped
+    : IRequest<PrintableDocumentDto>, IRequirePermission, IOrganizationScoped, ILocationScopedDocument
 {
     public string PermissionKey => PrintDocumentPermissions.ViewPermissionFor(DocumentType);
+
+    /// <summary>Phase 32b -- when the parent is a document, the key above is that document&#39;s own, so
+    /// a location-scoped caller must hold it at the parent&#39;s location. When the parent is a Contact the
+    /// key is not location-scopable and the check never runs.</summary>
+    public Guid LocationDocumentId => DocumentId;
 }
 
 /// <summary>Each document type's own View key -- printing never widens what a role may see. The

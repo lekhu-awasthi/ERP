@@ -1,4 +1,6 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Tenancy;
 using MediatR;
@@ -6,9 +8,12 @@ using MediatR;
 namespace ErpApp.Application.Inventory.Queries.GetWarehouseTransfer;
 
 public sealed record GetWarehouseTransferQuery(Guid OrganizationId, Guid Id)
-    : IRequest<WarehouseTransferDetailDto>, IRequirePermission, IOrganizationScoped, IRequireFeature
+    : IRequest<WarehouseTransferDetailDto>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.WarehouseTransferView;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 
     // Phase 20f (FR-2.6): moving stock between warehouses needs both entitlements -- the
     // inventory tracking that gives the movement meaning, and more than one warehouse to

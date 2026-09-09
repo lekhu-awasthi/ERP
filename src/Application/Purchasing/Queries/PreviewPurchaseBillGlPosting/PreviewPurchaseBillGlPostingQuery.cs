@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using MediatR;
 
@@ -8,7 +9,7 @@ namespace ErpApp.Application.Purchasing.Queries.PreviewPurchaseBillGlPosting;
 /// PurchaseBillPostingRule exactly as ApprovePurchaseBillCommandHandler does.</summary>
 public sealed record PreviewPurchaseBillGlPostingQuery(
     Guid OrganizationId, IReadOnlyList<PurchaseBillLineInput> Lines, Guid? TdsTypeId, decimal DiscountPct = 0)
-    : IRequest<IReadOnlyList<GlLinePreviewDto>>, IRequirePermission, IOrganizationScoped
+    : IRequest<IReadOnlyList<GlLinePreviewDto>>, IRequirePermission, IOrganizationScoped, ILocationAgnosticRequest
 {
     public string PermissionKey => PermissionKeys.PurchaseBillView;
 }

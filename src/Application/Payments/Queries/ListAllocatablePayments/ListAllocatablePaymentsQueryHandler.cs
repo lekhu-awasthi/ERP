@@ -1,5 +1,7 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
@@ -9,12 +11,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Payments.Queries.ListAllocatablePayments;
 
-public sealed class ListAllocatablePaymentsQueryHandler(IAppDbContext db)
+public sealed class ListAllocatablePaymentsQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<ListAllocatablePaymentsQuery, PagedResult<AllocatablePaymentDto>>
 {
     public async Task<PagedResult<AllocatablePaymentDto>> Handle(
         ListAllocatablePaymentsQuery request, CancellationToken cancellationToken)
     {
+
+        // Phase 32b -- see LocationAccessScope: null (no filter) for every caller holding the key
+        // organization-wide, a narrowed set for one granted it only at particular locations.
+        var allowedLocations = await LocationAccessScope.ForKeyAsync(
+            db, currentUser, request.OrganizationId, request.PermissionKey, cancellationToken);
+
         var paymentRows = await (
                 from payment in db.Payments
                 join contact in db.Contacts on payment.ContactId equals contact.Id
@@ -22,6 +30,8 @@ public sealed class ListAllocatablePaymentsQueryHandler(IAppDbContext db)
                     && payment.Direction == request.Direction
                     && payment.Status == PaymentStatus.Approved
                     && (request.ContactId == null || payment.ContactId == request.ContactId)
+                    && (allowedLocations == null
+                        || (payment.LocationId != null && allowedLocations.Contains(payment.LocationId.Value)))
                 select new { payment.Id, payment.Code, payment.Date, payment.ContactId, ContactName = contact.Name, payment.Amount })
             .ToListAsync(cancellationToken);
 
@@ -45,6 +55,9 @@ public sealed class ListAllocatablePaymentsQueryHandler(IAppDbContext db)
                     && journalVoucher.Status == JournalVoucherStatus.Approved
                     && contact.Type == contactType
                     && (request.ContactId == null || contact.Id == request.ContactId)
+                    && (allowedLocations == null
+                        || (journalVoucher.LocationId != null
+                            && allowedLocations.Contains(journalVoucher.LocationId.Value)))
                 select new
                 {
                     line.Id,

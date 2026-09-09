@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using MediatR;
@@ -20,9 +21,14 @@ namespace ErpApp.Application.Configuration.Commands.SetCustomStatus;
 /// as CustomFieldValuePermissions/TransactionReportingTagPermissions -- no new PermissionKeys.
 /// </summary>
 public sealed record SetCustomStatusCommand(Guid OrganizationId, DocumentType DocumentType, Guid DocumentId, Guid? CustomStatusId)
-    : IRequest<Unit>, IRequirePermission, IOrganizationScoped
+    : IRequest<Unit>, IRequirePermission, IOrganizationScoped, ILocationScopedDocument
 {
     public string PermissionKey => CustomStatusPermissions.EditPermissionFor(DocumentType);
+
+    /// <summary>Phase 32b -- when the parent is a document, the key above is that document&#39;s own, so
+    /// a location-scoped caller must hold it at the parent&#39;s location. When the parent is a Contact the
+    /// key is not location-scopable and the check never runs.</summary>
+    public Guid LocationDocumentId => DocumentId;
 }
 
 /// <summary>

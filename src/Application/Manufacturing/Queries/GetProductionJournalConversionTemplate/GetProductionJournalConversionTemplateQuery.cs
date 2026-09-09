@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Tenancy;
@@ -12,9 +13,12 @@ namespace ErpApp.Application.Manufacturing.Queries.GetProductionJournalConversio
 /// they are converting.
 /// </summary>
 public sealed record GetProductionJournalConversionTemplateQuery(Guid OrganizationId, Guid ProductionOrderId)
-    : IRequest<ProductionJournalConversionTemplateDto>, IRequirePermission, IOrganizationScoped, IRequireFeature
+    : IRequest<ProductionJournalConversionTemplateDto>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.ProductionOrderView;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => ProductionOrderId;
 
     public IReadOnlyCollection<TenantFeature> RequiredFeatures =>
         [TenantFeature.Manufacturing, TenantFeature.TrackInventory];

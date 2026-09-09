@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Sales;
@@ -10,7 +11,7 @@ public sealed record ListCreditNotesQuery(
     CreditNoteStatus? Status,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<CreditNote>>, IRequirePermission, IOrganizationScoped
+    : IRequest<PagedResult<CreditNote>>, IRequirePermission, IOrganizationScoped, ILocationFilteredQuery
 {
     public string PermissionKey => PermissionKeys.CreditNoteView;
 }

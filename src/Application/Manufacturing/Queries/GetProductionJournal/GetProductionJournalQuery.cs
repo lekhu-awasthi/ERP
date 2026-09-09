@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Manufacturing;
@@ -7,9 +8,12 @@ using MediatR;
 namespace ErpApp.Application.Manufacturing.Queries.GetProductionJournal;
 
 public sealed record GetProductionJournalQuery(Guid OrganizationId, Guid Id)
-    : IRequest<ProductionJournalDetailDto>, IRequirePermission, IOrganizationScoped, IRequireFeature
+    : IRequest<ProductionJournalDetailDto>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.ProductionJournalView;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 
     public IReadOnlyCollection<TenantFeature> RequiredFeatures =>
         [TenantFeature.Manufacturing, TenantFeature.TrackInventory];

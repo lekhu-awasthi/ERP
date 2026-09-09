@@ -1,5 +1,6 @@
 using ErpApp.Application.Common.DocumentExtraction;
 using ErpApp.Application.Common.Exceptions;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
@@ -28,9 +29,14 @@ namespace ErpApp.Application.Workflow.Queries.GetInboxDocumentPrefill;
 /// a wrong supplier on a bill with no visible sign anything was guessed.</para>
 /// </summary>
 public sealed record GetInboxDocumentPrefillQuery(Guid OrganizationId, Guid DocumentId, DocumentType TargetType)
-    : IRequest<InboxPrefillDto>, IRequirePermission, IOrganizationScoped
+    : IRequest<InboxPrefillDto>, IRequirePermission, IOrganizationScoped, ILocationAgnosticRequest
 {
     public string PermissionKey => InboxConversionTargets.CreatePermissionFor(TargetType);
+
+    // Phase 32b -- the key is a document Create key and so location-scopable, but DocumentId names
+    // an InboxDocument (a scanned file), not a transaction, and this query only prefills a form the
+    // caller must still submit through the real Create command, which IS location-checked. Same
+    // shape and same reasoning as GetBomTemplateQuery.
 }
 
 /// <summary>

@@ -45,7 +45,7 @@ public class SalesMasterReportQueryHandlerTests
 
         var creditNote = await CreateAndApproveStandaloneCreditNoteAsync(db, seed, new DateOnly(2026, 1, 18), 1m, 40m);
 
-        var handler = new SalesMasterReportQueryHandler(db);
+        var handler = new SalesMasterReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new SalesMasterReportQuery(seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), null, null, null),
             CancellationToken.None);
@@ -93,7 +93,7 @@ public class SalesMasterReportQueryHandlerTests
             CancellationToken.None);
         await ApproveInvoiceAsync(db, seed, created.Id);
 
-        var handler = new SalesMasterReportQueryHandler(db);
+        var handler = new SalesMasterReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new SalesMasterReportQuery(seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), null, null, null),
             CancellationToken.None);
@@ -128,7 +128,7 @@ public class SalesMasterReportQueryHandlerTests
             CancellationToken.None);
         var invoiceForOtherCustomer = await ApproveInvoiceAsync(db, seed, createdForOtherCustomer.Id);
 
-        var handler = new SalesMasterReportQueryHandler(db);
+        var handler = new SalesMasterReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
 
         var byContact = await handler.Handle(
             new SalesMasterReportQuery(
@@ -170,7 +170,7 @@ public class SalesMasterReportQueryHandlerTests
             new CreditNotePostingRule(), new StockLedgerService(db))
             .Handle(new ApproveCreditNoteCommand(seed.OrganizationId, creditNote.Id), CancellationToken.None);
 
-        var handler = new SalesMasterReportQueryHandler(db);
+        var handler = new SalesMasterReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
 
         var byOriginalWarehouse = await handler.Handle(
             new SalesMasterReportQuery(

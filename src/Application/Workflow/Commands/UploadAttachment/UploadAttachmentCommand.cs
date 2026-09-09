@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Workflow;
 using MediatR;
@@ -16,9 +17,14 @@ public sealed record UploadAttachmentCommand(
     long FileSizeBytes,
     string ContentType,
     Stream Content)
-    : IRequest<AttachmentResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<AttachmentResult>, IRequirePermission, IOrganizationScoped, ILocationScopedDocument
 {
     public string PermissionKey => ParentPermissions.EditPermissionFor(ParentType);
+
+    /// <summary>Phase 32b -- when the parent is a document, the key above is that document&#39;s own, so
+    /// a location-scoped caller must hold it at the parent&#39;s location. When the parent is a Contact the
+    /// key is not location-scopable and the check never runs.</summary>
+    public Guid LocationDocumentId => ParentId;
 }
 
 public sealed record AttachmentResult(

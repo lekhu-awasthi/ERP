@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Tenancy;
 using MediatR;
@@ -22,7 +23,7 @@ namespace ErpApp.Application.Manufacturing.Queries.GetBomTemplate;
 /// is master data every Member can read anyway.</para>
 /// </summary>
 public sealed record GetBomTemplateQuery(Guid OrganizationId, Guid ProductId, decimal OutputQuantity)
-    : IRequest<BomTemplateDto?>, IRequirePermission, IOrganizationScoped, IRequireFeature
+    : IRequest<BomTemplateDto?>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILocationAgnosticRequest
 {
     public string PermissionKey => PermissionKeys.ProductionJournalCreate;
 

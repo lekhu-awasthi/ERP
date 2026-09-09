@@ -39,7 +39,7 @@ public class ListAllocatablePaymentsQueryHandlerTests
         await new ApprovePaymentCommandHandler(db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new PaymentPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApprovePaymentCommand(seed.OrganizationId, created.Id), CancellationToken.None);
 
-        var result = await new ListAllocatablePaymentsQueryHandler(db).Handle(
+        var result = await new ListAllocatablePaymentsQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ListAllocatablePaymentsQuery(seed.OrganizationId, PaymentDirection.Received), CancellationToken.None);
 
         var row = Assert.Single(result.Items);
@@ -65,7 +65,7 @@ public class ListAllocatablePaymentsQueryHandlerTests
             db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule(), new GlCashBalancePolicy(db))
             .Handle(new ApproveJournalVoucherCommand(seed.OrganizationId, created.Id), CancellationToken.None);
 
-        var result = await new ListAllocatablePaymentsQueryHandler(db).Handle(
+        var result = await new ListAllocatablePaymentsQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ListAllocatablePaymentsQuery(seed.OrganizationId, PaymentDirection.Received), CancellationToken.None);
 
         var row = Assert.Single(result.Items);
@@ -92,7 +92,7 @@ public class ListAllocatablePaymentsQueryHandlerTests
             .Handle(new ApproveJournalVoucherCommand(seed.OrganizationId, created.Id), CancellationToken.None);
 
         // A Customer-tagged line shouldn't surface on the Supplier (Paid/AP) Allocate screen.
-        var result = await new ListAllocatablePaymentsQueryHandler(db).Handle(
+        var result = await new ListAllocatablePaymentsQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ListAllocatablePaymentsQuery(seed.OrganizationId, PaymentDirection.Paid), CancellationToken.None);
 
         Assert.Empty(result.Items);
@@ -124,9 +124,9 @@ public class ListAllocatablePaymentsQueryHandlerTests
                 seed.OrganizationId, DocumentType.JournalVoucher, line.Id, created.Id, DocumentType.CreditNote, Guid.NewGuid(), 300m),
             CancellationToken.None);
 
-        var unallocated = await new ListAllocatablePaymentsQueryHandler(db).Handle(
+        var unallocated = await new ListAllocatablePaymentsQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ListAllocatablePaymentsQuery(seed.OrganizationId, PaymentDirection.Received), CancellationToken.None);
-        var allocated = await new ListAllocatablePaymentsQueryHandler(db).Handle(
+        var allocated = await new ListAllocatablePaymentsQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ListAllocatablePaymentsQuery(seed.OrganizationId, PaymentDirection.Received, ShowAllocated: true), CancellationToken.None);
 
         Assert.Empty(unallocated.Items);

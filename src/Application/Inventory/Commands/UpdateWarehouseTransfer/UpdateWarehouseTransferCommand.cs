@@ -15,9 +15,12 @@ public sealed record UpdateWarehouseTransferCommand(
     DateOnly Date,
     string? Reference,
     IReadOnlyList<WarehouseTransferLineInput> Lines)
-    : IRequest<UpdateWarehouseTransferResult>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILockDateSensitive, IAuditableRequestWithId, ILocationBearingCommand
+    : IRequest<UpdateWarehouseTransferResult>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILockDateSensitive, IAuditableRequestWithId, ILocationBearingCommand, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.WarehouseTransferEdit;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 
     // Phase 20f (FR-2.6): moving stock between warehouses needs both entitlements -- the
     // inventory tracking that gives the movement meaning, and more than one warehouse to

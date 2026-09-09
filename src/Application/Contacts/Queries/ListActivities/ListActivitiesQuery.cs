@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
@@ -26,7 +27,7 @@ public sealed record ListActivitiesQuery(
     Guid DocumentId,
     int Page = 1,
     int PageSize = PagingDefaults.MaxPageSize)
-    : IRequest<ActivityListDto>, IRequirePermission, IOrganizationScoped
+    : IRequest<ActivityListDto>, IRequirePermission, IOrganizationScoped, ILocationScopedDocument
 {
     // Contact predates the View/Create/Edit/Approve split and keeps its own key; every document type
     // resolves through the shared map. DocumentPermissions throws for a DocumentType nothing can be
@@ -34,6 +35,11 @@ public sealed record ListActivitiesQuery(
     public string PermissionKey => DocumentType == DocumentType.Contact
         ? PermissionKeys.ContactView
         : DocumentPermissions.ViewPermissionFor(DocumentType);
+
+    /// <summary>Phase 32b -- when the parent is a document, the key above is that document&#39;s own, so
+    /// a location-scoped caller must hold it at the parent&#39;s location. When the parent is a Contact the
+    /// key is not location-scopable and the check never runs.</summary>
+    public Guid LocationDocumentId => DocumentId;
 }
 
 public sealed record ActivityRowDto(Guid Id, string Action, Guid UserId, string UserName, DateTimeOffset CreatedAt);

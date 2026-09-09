@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Inventory;
@@ -11,7 +12,7 @@ public sealed record ListInventoryAdjustmentsQuery(
     InventoryAdjustmentStatus? Status,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<InventoryAdjustment>>, IRequirePermission, IOrganizationScoped, IRequireFeature
+    : IRequest<PagedResult<InventoryAdjustment>>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILocationFilteredQuery
 {
     public string PermissionKey => PermissionKeys.InventoryAdjustmentView;
 

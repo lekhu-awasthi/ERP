@@ -151,7 +151,8 @@ public static class OrganizationEndpoints
         group.MapPut("/{organizationId:guid}/roles/{id:guid}/permissions", async (
             Guid organizationId, Guid id, UpdateRolePermissionsRequest request, ISender sender, CancellationToken ct) =>
         {
-            await sender.Send(new UpdateRolePermissionsCommand(organizationId, id, request.Grants), ct);
+            await sender.Send(
+                new UpdateRolePermissionsCommand(organizationId, id, request.Grants, request.LocationGrants), ct);
             return Results.Ok();
         });
 
@@ -468,7 +469,11 @@ public static class OrganizationEndpoints
 
     private sealed record UpdateRoleRequest(string Name, string? Description);
 
-    private sealed record UpdateRolePermissionsRequest(IReadOnlyDictionary<string, bool> Grants);
+    /// <summary>Phase 32b -- LocationGrants is optional and trailing, and MUST be carried here as
+    /// well as on the command: a trailing command parameter the Api's own request record does not
+    /// name binds silently to null, compiles, and passes every test (phase-27b's Terms gotcha).</summary>
+    private sealed record UpdateRolePermissionsRequest(
+        IReadOnlyDictionary<string, bool> Grants, IReadOnlyList<LocationGrantsInput>? LocationGrants = null);
 
     private sealed record SetOrganizationLockDateRequest(DateOnly? LockDate);
 }

@@ -1,14 +1,19 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Catalog;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Purchasing;
 using MediatR;
 
 namespace ErpApp.Application.Purchasing.Queries.GetPurchaseOrder;
 
 public sealed record GetPurchaseOrderQuery(Guid OrganizationId, Guid Id)
-    : IRequest<PurchaseOrderDetailDto>, IRequirePermission, IOrganizationScoped
+    : IRequest<PurchaseOrderDetailDto>, IRequirePermission, IOrganizationScoped, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.PurchaseOrderView;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 }
 
 public sealed record PurchaseOrderLineDto(

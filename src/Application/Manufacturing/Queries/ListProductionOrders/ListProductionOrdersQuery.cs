@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Manufacturing;
@@ -11,7 +12,7 @@ public sealed record ListProductionOrdersQuery(
     ProductionOrderStatus? Status,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<ProductionOrderListItemDto>>, IRequirePermission, IOrganizationScoped, IRequireFeature
+    : IRequest<PagedResult<ProductionOrderListItemDto>>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILocationFilteredQuery
 {
     public string PermissionKey => PermissionKeys.ProductionOrderView;
 

@@ -1,5 +1,7 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
 using MediatR;
@@ -7,11 +9,19 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Sales.Queries.SalesMasterReport;
 
-public sealed class SalesMasterReportQueryHandler(IAppDbContext db)
+public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<SalesMasterReportQuery, SalesMasterReportDto>
 {
     public async Task<SalesMasterReportDto> Handle(SalesMasterReportQuery request, CancellationToken cancellationToken)
     {
+        // Phase 32b -- TenantSettings.LocationWiseReportPermission's only consumer: "Restrict users
+        // to view reports only for locations they have access to." Null unless the tenant has turned
+        // the toggle on AND the caller's role carries location-specific grants, so no existing tenant
+        // changes. This is the ONE report with a location dimension to restrict -- see
+        // LocationAccessScope, and docs/phase-32b-status.md's carried item for the rest.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var invoiceQuery = db.Invoices.Where(x =>
             x.OrganizationId == request.OrganizationId && x.Status == InvoiceStatus.Approved
             && x.Date >= request.FromDate && x.Date <= request.ToDate);
@@ -31,6 +41,12 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db)
         if (request.LocationId is { } invoiceLocationId)
         {
             invoiceQuery = invoiceQuery.Where(x => x.LocationId == invoiceLocationId);
+        }
+
+        if (reportLocations is not null)
+        {
+            invoiceQuery = invoiceQuery.Where(
+                x => x.LocationId != null && reportLocations.Contains(x.LocationId.Value));
         }
 
         var invoices = await invoiceQuery
@@ -59,6 +75,12 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db)
         if (request.LocationId is { } creditNoteLocationId)
         {
             creditNoteQuery = creditNoteQuery.Where(x => x.LocationId == creditNoteLocationId);
+        }
+
+        if (reportLocations is not null)
+        {
+            creditNoteQuery = creditNoteQuery.Where(
+                x => x.LocationId != null && reportLocations.Contains(x.LocationId.Value));
         }
 
         var creditNotes = await creditNoteQuery

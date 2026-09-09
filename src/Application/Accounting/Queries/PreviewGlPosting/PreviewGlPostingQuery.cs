@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using MediatR;
 
@@ -11,7 +12,7 @@ namespace ErpApp.Application.Accounting.Queries.PreviewGlPosting;
 /// stops being a trivial identity mapping.
 /// </summary>
 public sealed record PreviewGlPostingQuery(Guid OrganizationId, DateOnly Date, string? Reference, IReadOnlyList<JournalVoucherLineInput> Lines)
-    : IRequest<IReadOnlyList<GlLinePreviewDto>>, IRequirePermission, IOrganizationScoped
+    : IRequest<IReadOnlyList<GlLinePreviewDto>>, IRequirePermission, IOrganizationScoped, ILocationAgnosticRequest
 {
     public string PermissionKey => PermissionKeys.JournalVoucherView;
 }

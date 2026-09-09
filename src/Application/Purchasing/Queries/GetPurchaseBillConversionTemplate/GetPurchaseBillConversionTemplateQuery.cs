@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using MediatR;
@@ -11,9 +12,12 @@ namespace ErpApp.Application.Purchasing.Queries.GetPurchaseBillConversionTemplat
 /// GetInvoiceConversionTemplateQuery, not a new pattern to invent.
 /// </summary>
 public sealed record GetPurchaseBillConversionTemplateQuery(Guid OrganizationId, Guid PurchaseOrderId)
-    : IRequest<PurchaseBillConversionTemplateDto>, IRequirePermission, IOrganizationScoped
+    : IRequest<PurchaseBillConversionTemplateDto>, IRequirePermission, IOrganizationScoped, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.PurchaseOrderView;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => PurchaseOrderId;
 }
 
 public sealed record PurchaseBillConversionTemplateDto(

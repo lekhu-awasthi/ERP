@@ -1,5 +1,6 @@
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Manufacturing;
 using ErpApp.Domain.Tenancy;
 using MediatR;
@@ -19,9 +20,12 @@ public sealed record UpdateProductionJournalCommand(
     IReadOnlyList<ProductionRawMaterialLineInput> RawMaterials,
     IReadOnlyList<ProductionByProductLineInput> ByProducts,
     IReadOnlyList<ProductionExpenseLineInput> Expenses)
-    : IRequest<UpdateProductionJournalResult>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILockDateSensitive, ILocationBearingCommand
+    : IRequest<UpdateProductionJournalResult>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILockDateSensitive, ILocationBearingCommand, ILocationScopedDocument
 {
     public string PermissionKey => PermissionKeys.ProductionJournalEdit;
+
+    /// <summary>Phase 32b -- a location-scoped caller must hold the key at this document location.</summary>
+    public Guid LocationDocumentId => Id;
 
     public IReadOnlyCollection<TenantFeature> RequiredFeatures =>
         [TenantFeature.Manufacturing, TenantFeature.TrackInventory];
