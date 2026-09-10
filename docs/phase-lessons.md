@@ -623,3 +623,14 @@ Moved verbatim; the one-line versions in CLAUDE.md keep the same "before X" hook
   list query, before a filter a screen displays but does not own, before putting `overflow` on a
   layout container, or before trusting a measurement taken across a viewport resize —
   `docs/phase-34b-status.md`
+- Phase 34c: scale (NFR-5.1/5.2) — the 50,000-invoice dataset and its committed harness
+  (`tools/scale/`), a p95 budget per class of screen, `TenantIndexConvention`'s **50 indexes derived
+  from a rule** after finding 18 tenant-scoped tables with no index leading on `OrganizationId`, and
+  the shell `@defer`ed off the login path. Before adding an index of any kind (an index added for one
+  access path changes the plan for every other path over the same table — this one made search
+  *worse* while making the list 10× faster), before mapping a new tenant-scoped entity (the
+  convention throws at model build if it cannot classify it), before quoting any performance number
+  from this repo (the report class swung 4× between two identical passes; only the list class is
+  reliable here), and before believing a structural inference about multi-tenant cost — the
+  `GlLine`-has-no-tenant-column story was refused by seeding a second tenant and re-measuring —
+  `docs/phase-34c-status.md`

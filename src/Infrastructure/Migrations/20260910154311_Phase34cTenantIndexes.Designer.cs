@@ -4,6 +4,7 @@ using ErpApp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ErpApp.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260910154311_Phase34cTenantIndexes")]
+    partial class Phase34cTenantIndexes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -192,10 +195,6 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasIndex("LocationId");
 
-                    b.HasIndex("OrganizationId", "Code");
-
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OrganizationId", "Code"), new[] { "Reference" });
-
                     b.HasIndex("OrganizationId", "CreatedAt")
                         .IsDescending(false, true);
 
@@ -351,10 +350,6 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("LocationId");
-
-                    b.HasIndex("OrganizationId", "Code");
-
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OrganizationId", "Code"), new[] { "Reference" });
 
                     b.HasIndex("OrganizationId", "CreatedAt")
                         .IsDescending(false, true);
@@ -563,10 +558,6 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasIndex("OrganizationId", "Code")
                         .IsUnique();
-
-                    b.HasIndex("OrganizationId", "Name", "Code");
-
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OrganizationId", "Name", "Code"), new[] { "Sku" });
 
                     b.HasIndex("OrganizationId", "ParentProductId", "CombinationKey")
                         .IsUnique()
@@ -1808,8 +1799,6 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("OrganizationId", "Code")
                         .IsUnique();
 
-                    b.HasIndex("OrganizationId", "Name", "Code");
-
                     b.ToTable("Contacts", "contacts");
                 });
 
@@ -2534,10 +2523,6 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasIndex("WarehouseId");
 
-                    b.HasIndex("OrganizationId", "Code");
-
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OrganizationId", "Code"), new[] { "Reference" });
-
                     b.HasIndex("OrganizationId", "CreatedAt")
                         .IsDescending(false, true);
 
@@ -2797,10 +2782,6 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasIndex("ToWarehouseId");
 
-                    b.HasIndex("OrganizationId", "Code");
-
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OrganizationId", "Code"), new[] { "Reference" });
-
                     b.HasIndex("OrganizationId", "CreatedAt")
                         .IsDescending(false, true);
 
@@ -3056,10 +3037,6 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasIndex("WarehouseId");
 
-                    b.HasIndex("OrganizationId", "Code");
-
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OrganizationId", "Code"), new[] { "Reference" });
-
                     b.HasIndex("OrganizationId", "CreatedAt")
                         .IsDescending(false, true);
 
@@ -3237,10 +3214,6 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("LocationId");
 
                     b.HasIndex("ProductId");
-
-                    b.HasIndex("OrganizationId", "Code");
-
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OrganizationId", "Code"), new[] { "Reference" });
 
                     b.HasIndex("OrganizationId", "CreatedAt")
                         .IsDescending(false, true);
@@ -3471,10 +3444,6 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasIndex("PaymentModeId");
 
-                    b.HasIndex("OrganizationId", "Code");
-
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OrganizationId", "Code"), new[] { "Reference" });
-
                     b.HasIndex("OrganizationId", "CreatedAt")
                         .IsDescending(false, true);
 
@@ -3607,10 +3576,6 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("LocationId");
 
                     b.HasIndex("TdsTypeId");
-
-                    b.HasIndex("OrganizationId", "Code");
-
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OrganizationId", "Code"), new[] { "Reference" });
 
                     b.HasIndex("OrganizationId", "CreatedAt")
                         .IsDescending(false, true);
@@ -3758,10 +3723,6 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("LocationId");
 
                     b.HasIndex("TdsTypeId");
-
-                    b.HasIndex("OrganizationId", "Code");
-
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OrganizationId", "Code"), new[] { "SupplierInvoiceReference" });
 
                     b.HasIndex("OrganizationId", "CreatedAt")
                         .IsDescending(false, true);
@@ -4010,10 +3971,6 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasIndex("WarehouseId");
 
-                    b.HasIndex("OrganizationId", "Code");
-
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OrganizationId", "Code"), new[] { "Reference", "SupplierInvoiceReference" });
-
                     b.HasIndex("OrganizationId", "CreatedAt")
                         .IsDescending(false, true);
 
@@ -4215,10 +4172,6 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasIndex("LocationId");
 
-                    b.HasIndex("OrganizationId", "Code");
-
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OrganizationId", "Code"), new[] { "Reference" });
-
                     b.HasIndex("OrganizationId", "CreatedAt")
                         .IsDescending(false, true);
 
@@ -4356,10 +4309,6 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("ContactId");
 
                     b.HasIndex("LocationId");
-
-                    b.HasIndex("OrganizationId", "Code");
-
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OrganizationId", "Code"), new[] { "Reference" });
 
                     b.HasIndex("OrganizationId", "CreatedAt")
                         .IsDescending(false, true);
@@ -4520,10 +4469,6 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("LocationId");
 
                     b.HasIndex("WarehouseId");
-
-                    b.HasIndex("OrganizationId", "Code");
-
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OrganizationId", "Code"), new[] { "Reference" });
 
                     b.HasIndex("OrganizationId", "CreatedAt")
                         .IsDescending(false, true);
@@ -4744,10 +4689,6 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasIndex("LocationId");
 
-                    b.HasIndex("OrganizationId", "Code");
-
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OrganizationId", "Code"), new[] { "Reference" });
-
                     b.HasIndex("OrganizationId", "CreatedAt")
                         .IsDescending(false, true);
 
@@ -4884,10 +4825,6 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("ContactId");
 
                     b.HasIndex("LocationId");
-
-                    b.HasIndex("OrganizationId", "Code");
-
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OrganizationId", "Code"), new[] { "Reference" });
 
                     b.HasIndex("OrganizationId", "CreatedAt")
                         .IsDescending(false, true);

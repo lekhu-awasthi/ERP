@@ -42,3 +42,9 @@ testsprite_tests/tmp/config.json
 # browser already trusts (see docs/phase-25-status.md's browser-pass note). Regenerate with:
 #   dotnet dev-certs https --export-path .certs/dev.pem --format PEM --no-password
 .certs/
+
+# Phase 34c: the scale harness's local run state. The scripts and the measured results are
+# committed (tools/scale/*.sh, *.sql, results-*.csv); the cookie jars and the per-run organization
+# ids that only make sense on the machine that seeded them are not.
+tools/scale/.cookies*
+tools/scale/.seed-ids.env

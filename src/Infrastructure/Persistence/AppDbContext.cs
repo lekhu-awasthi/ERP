@@ -148,6 +148,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+
+        // Phase 34c (NFR-5.1) -- the tenant index sweep. Runs after the configurations so it can see
+        // the indexes they declare and leave those alone; see TenantIndexConvention for the rule and
+        // for what it refuses to let through.
+        TenantIndexConvention.Apply(modelBuilder);
     }
 
     /// <summary>

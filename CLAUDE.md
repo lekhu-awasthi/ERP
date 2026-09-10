@@ -64,6 +64,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 33: platform chrome (global search, History, Quick Links, the `UserPreference` per-user store). Before a per-user setting or a cross-type search — `docs/phase-33-status.md`
 - Phase 34a: WCAG 2.1 AA sweep + `a11y-sweep-guard.spec.ts`. Before adding a template, choosing a colour, or scripting an edit between two anchors — `docs/phase-34a-status.md`
 - Phase 34b: the shell on `NavigationCatalog` (zero page-template edits), Reports index, list chrome (search on 25 queries, date range on 16). Before a paginated list query, a displayed-but-unowned filter, or `overflow` on a layout container — `docs/phase-34b-status.md`
+- Phase 34c: scale (NFR-5.1/5.2) — the 50k-invoice dataset in `tools/scale/`, a p95 budget per class of screen, `TenantIndexConvention` (50 indexes from a rule), the shell `@defer`ed. Before adding an index, mapping a tenant-scoped entity, or quoting a performance number — `docs/phase-34c-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -138,6 +139,10 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - An expression tree does not short-circuit, so `!flag || list.Contains(x)` hands EF a **null** list to translate — and only on the unrestricted branch, i.e. almost every caller. Compose a second `.Where()` (phase-33).
 - A shared matcher cannot live inside a LINQ predicate: a **static call** is untranslatable and so is `Contains(term, StringComparison)` — and InMemory evaluates both in C#, so every handler test passes while all 25 endpoints 500 (phase-34b, phase-25's captured-`Func` through another door).
 - Single-argument `Contains` is case-**insensitive** on SQL Server (collation) and case-**sensitive** on InMemory; a handler test must search with the stored casing or it pins a behaviour production lacks (phase-34b).
+- Every tenant-scoped table needs an index **leading on `OrganizationId`**; 18 had none, and they were exactly the documents, because master data got one free from its per-tenant uniqueness rule. `TenantIndexConvention` derives all three families and throws at model build for an entity it cannot classify (phase-34c).
+- An index added for one access path changes the plan for **every other path over the same table**: `(OrganizationId, CreatedAt)` made the invoice list 10× faster and a non-matching search 1.8× *slower*, because the optimizer swapped one scan for a seek plus a key lookup per row. Re-measure the paths you did not change (phase-34c).
+- A materialised id list handed back to SQL becomes an `OPENJSON` parameter as long as the list; a report that loads its period then re-queries children by `ids.Contains` is linear in the period, not in the page. `JournalReportQueryHandler` is the shape that is not (phase-34c).
+- On a bulk-`INSERT`-seeded database, statistics quality moves a report that joins to a line table by 2× — more than most changes under test. `UPDATE STATISTICS ... WITH FULLSCAN` on both sides before comparing anything (phase-34c).
 - Read a handler's `Where` before assuming it matches its request — `ListPaymentsQueryHandler` shipped with a hardcoded `Direction == Received` (phase-6 bug #2).
 - A store-side aggregate (`GroupBy...Count()`) must run after the `SaveChangesAsync` that persists what it counts; tracked-but-unsaved rows are invisible to it (phase-21a).
 - A Domain factory/mutator can stay `internal` only while its sole caller is in the Domain assembly (phase-7 bug #1).
@@ -262,27 +267,32 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 `-anchored patch script fails its assertion with the anchor looking correct; use Edit for a single substitution, or read the file's own newline (phase-33).
 - A `sed -i` over a glob rewrites **every** file it matches, and on Windows that flips CRLF to LF even where the pattern never fires — `git diff` stays empty while `git status` shows a hundred extra modified files. Undoing it needs `rm` *then* `git checkout --`; restrict the file list instead (phase-30).
 - When a generator script emits Angular templates through `str.format`, interpolation braces need escaping in the *format string* but not in a substituted value — `{{{{ x }}}}` in a value ships literally and fails as NG5002 (phase-26b).
+- A benchmark run against an **empty** tenant looks like a spectacularly fast one — 20 ms p95, every status 200. Only the response size tells them apart, so a harness must assert its target is populated before timing it; `seed-master.sh` rewriting `.seed-ids.env` is the side effect that caused it (phase-34c, the prints-and-returns trap in another costume).
+- `sqlcmd -i` runs with `QUOTED_IDENTIFIER OFF`, so any `INSERT` into a table with a filtered index fails; put `SET QUOTED_IDENTIFIER ON` at the top of every script. `-W` and `-y/-Y` are also mutually exclusive (phase-34c).
 
 ## Current status
 
-**Phases 0–34b are complete; 34c (scale, NFR-5.1/5.2) is in progress and is the last entry of the
-parity sequence.** Its dataset and measurement are fixed by `phase-34a-status.md` Decision C: 50,000
-invoices / 50,000 contacts / 20,000 products seeded by direct `INSERT`, p95 on each list's first and
-last page, the three financial statements, the two heaviest registers and global search. The
-25,000-row export cap and the OpenXml SAX writer stay a re-entry condition. 34b handed it one more
-measurable: the initial bundle grew 640 kB → 726 kB because the shell is eagerly imported, and
-`@defer`ing it on `organizationId` would move about 46 kB off the login path. Uncommitted 34c work
-(two `Phase34c*` migrations, `TenantIndexConvention`, `tools/scale/`) is in the tree.
+**Phases 0–34c are complete.** 34c closed the parity sequence by measuring: a 50,000-invoice /
+50,000-contact / 20,000-product tenant seeded by direct `INSERT` (`tools/scale/`, committed), a p95
+budget per class of screen (500 ms for a list page or the search box, 2 s for a statement or a
+register), and 50 indexes derived from a rule rather than a list. `TenantIndexConvention` found
+**18 tenant-scoped tables with no index leading on `OrganizationId`** — exactly the transactional
+documents plus `GlJournalEntry`, because master data got one free from its per-tenant uniqueness rule.
+List first pages went **469 ms → 49–97 ms**; the shell was `@defer`ed for **724 kB → 649 kB**. Three
+things outlive that: an index added for the list path made *search* on the same table worse; a
+plausible multi-tenancy inference was refused by a second-tenant experiment; and the report layer's
+cost is the **period**, not `pageSize`.
 
-**After 34c:** phases 35–41 in `docs/roadmap.md`, a 2026-09-10 plan built from the carried-item
-backlog of phases 25–34b plus the remaining reference-product gaps. The second reference tenant
-(`cadehi.tigg.app`, Billing Location enabled) was read on 2026-09-10; findings are in
-`docs/erp-module-scan.md` under "Second reference tenant".
+**Next: phases 35–41 in `docs/roadmap.md`** — the 2026-09-10 consolidation plan built from the
+carried-item backlog of phases 25–34b plus the second reference tenant (`cadehi.tigg.app`, findings
+in `docs/erp-module-scan.md`). 34c answers the three questions 38/39/40 leave to it: the export cap's
+condition is met (raise the cap before writing a SAX writer — ~2.5 kB of working set per row is the
+coefficient), global search's cap of 5 does bite, and the shell `@defer` is already done.
 
-Tests at last count: Domain 443, Application.UnitTests 931, Api.IntegrationTests 18, Angular 271;
-`dotnet build` / `dotnet test` / `ng build` / `ng test` all clean. `ng build` warns the initial
-bundle exceeds its 500 kB budget (pre-existing). `tsc --noEmit` does not cover `web/src/app`;
-`ng build` is the check (phase-28).
+Tests: Domain 443, Application.UnitTests 931, Api.IntegrationTests 18, Angular 273. `dotnet build` /
+`dotnet test` / `ng build` / `ng test` all clean. `ng build` still warns the initial bundle exceeds
+its 500 kB budget (pre-existing, now 649 kB). `tsc --noEmit` does not cover `web/src/app`; `ng build`
+is the check (phase-28).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

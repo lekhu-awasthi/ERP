@@ -1,0 +1,35 @@
+| endpoint | budget | before p95 | after p95 | after2 p95 | verdict |
+|---|---|---|---|---|---|
+| `invoices.page1` | 500 | 469.3 | 96.8 | 62.0 | PASS |
+| `invoices.last` | 500 | 586.3 | 527.3 | 425.7 | MIXED |
+| `invoices.search.hit` | 500 | 763.2 | 283.4 | 267.9 | PASS |
+| `invoices.search.miss` | 500 | 651.5 | 1172.7 | 857.4 | **FAIL** |
+| `invoices.daterange` | 500 | 186.0 | 288.9 | 213.3 | PASS |
+| `invoices.status` | 500 | 195.8 | 255.1 | 652.0 | MIXED |
+| `contacts.page1` | 500 | 418.7 | 61.8 | 65.6 | PASS |
+| `contacts.last` | 500 | 470.6 | 520.1 | 568.0 | **FAIL** |
+| `contacts.search.hit` | 500 | 1131.6 | 753.6 | 724.8 | **FAIL** |
+| `contacts.search.miss` | 500 | 1056.4 | 1166.5 | 1420.9 | **FAIL** |
+| `products.page1` | 500 | 177.7 | 137.7 | 119.2 | PASS |
+| `products.last` | 500 | 199.1 | 564.9 | 245.7 | MIXED |
+| `products.search.hit` | 500 | 419.2 | 261.1 | 254.2 | PASS |
+| `purchase-bills.page1` | 500 | 139.8 | 68.7 | 181.3 | PASS |
+| `purchase-bills.last` | 500 | 153.7 | 200.9 | 347.8 | PASS |
+| `accounts.page1` | 500 | 19.2 | 48.4 | 55.0 | PASS |
+| `payments.page1` | 500 | 25.0 | 55.1 | 64.2 | PASS |
+| `journal-vouchers.page1` | 500 | 38.8 | 57.4 | 75.1 | PASS |
+| `stmt.trial-balance` | 2000 | 1015.7 | 1325.5 | 4077.1 | MIXED |
+| `stmt.balance-sheet` | 2000 | 1066.0 | 1407.8 | 3668.1 | MIXED |
+| `stmt.income-statement` | 2000 | 1011.7 | 1237.0 | 4007.4 | MIXED |
+| `stmt.income-statement.compare` | 2000 | 1144.0 | 1282.6 | 4082.9 | MIXED |
+| `reg.sales-register` | 2000 | 2196.1 | 3473.2 | 3499.5 | **FAIL** |
+| `reg.sales-register.last` | 2000 | 2193.1 | 3506.7 | 3262.8 | **FAIL** |
+| `reg.purchase-register` | 2000 | 1020.3 | 1080.2 | 1376.4 | PASS |
+| `rep.journal-report` | 2000 | 242.0 | 344.4 | 2517.8 | MIXED |
+| `rep.detail-general-ledger` | 2000 | 6872.7 | 8917.0 | 14898.9 | **FAIL** |
+| `rep.general-ledger-summary` | 2000 | 1168.3 | 1295.2 | 3893.5 | MIXED |
+| `rep.customer-ageing` | 2000 | 8055.8 | 8925.7 | 10921.9 | **FAIL** |
+| `rep.sales-by-customer` | 2000 | 2345.1 | 3133.6 | 4429.4 | **FAIL** |
+| `search.common` | 500 | 999.4 | 594.6 | 702.0 | **FAIL** |
+| `search.code` | 500 | 910.9 | 787.3 | 876.8 | **FAIL** |
+| `search.miss` | 500 | 884.5 | 969.7 | 1106.2 | **FAIL** |

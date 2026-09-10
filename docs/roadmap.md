@@ -65,6 +65,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 33 | Platform chrome: global search (Ctrl + /), a History popover, the Quick Links tray, `UserPreference` per-user store | `phase-33-status.md` |
 | 34a | WCAG 2.1 AA sweep over all 161 templates (titles, control names, `th scope`, icon names, contrast), pinned by `a11y-sweep-guard.spec.ts` | `phase-34a-status.md` |
 | 34b | The shell (left nav, Create New flyout, company switcher, global date filter) on `NavigationCatalog` with zero page-template edits, a Reports index page, search on 25 `List*Query` types and a date range on 16 | `phase-34b-status.md` |
+| 34c | Scale (NFR-5.1/5.2): the 50,000-invoice dataset seeded by direct `INSERT` (`tools/scale/`), a p95 budget per class of screen, and **50 indexes from a rule** — `TenantIndexConvention` found **18 tenant-scoped tables with no index leading on `OrganizationId`**, exactly the transactional documents plus `GlJournalEntry`, because every other table got one free from its per-tenant uniqueness rule. List first pages **469 ms → 49 ms**; the shell `@defer`ed for **724 kB → 649 kB**. Three findings outlive the speed-up: an index added for one access path made *search* on the same table worse; a plausible multi-tenancy inference (`GlLine` has no tenant column, so statements must pay for other tenants) was **refused by a second-tenant experiment**; and the report layer's cost is the **period**, not the page size — with `JournalReportQueryHandler` already in the repo as the shape that fixes it. The export cap's re-entry condition is **met by specification** and the constant deliberately unchanged | `phase-34c-status.md` |
 
 ---
 
@@ -76,17 +77,41 @@ Phases 26–34b closed the 2026-09-02 gap analysis against the reference product
 planning entries and the method write-up moved verbatim to `docs/roadmap-history.md` on 2026-09-10
 (their outcomes are in each `docs/phase-N-status.md`). One entry is still open:
 
-#### 34c. Scale (NFR-5.1/5.2) — after 34b
-- The dataset and the measurement are already decided in `phase-34a-status.md`'s Decision C:
-  **50,000 invoices / 50,000 contacts / 20,000 products**, seeded by direct `INSERT` (not through the
-  API — that would measure the seeder), with p95 taken for each list's first *and last* page, the
-  three financial statements, the two heaviest registers, and global search.
-- **The export rewrite is conditional and the condition is still unmet.** The 25,000-row cap and the
-  OpenXml SAX streaming writer wait on a tenant having hit the cap; there are no tenants. 34c decides
-  it *after* the measurement — phase-8f's "omit rather than fake" in a new shape.
-- Phase-33 carried item #4 (global search's per-collection cap of 5 and its 18-query fan-out) is
-  measured in the same pass, and stays carried until then: against today's two invoices any number
-  would be meaningless.
+#### 34c. Scale (NFR-5.1/5.2) — **DONE** (see `docs/phase-34c-status.md`)
+
+**What shipped.** The dataset and measurement Decision C fixed, executed and committed
+(`tools/scale/`: an API-driven master seeder, a 190,000-row `INSERT` seeder that derives its columns
+from the reference rows the handlers wrote, a statistics refresh, a 33-endpoint timing harness and a
+summariser). Decision A set a p95 budget per class of screen — **500 ms** for a list page or the
+search box, **2 s** for a statement or a register — because NFR-5.1/5.2 name no number and a
+measurement without a threshold is a table nobody can act on.
+
+**The finding that made the fix a rule.** `TenantIndexConvention` found **18 tenant-scoped tables
+with no index leading on `OrganizationId`** — exactly the transactional documents plus
+`GlJournalEntry`, because every other tenant table already had one *free* from its per-tenant
+uniqueness rule and a document number is not unique-indexed. 50 indexes in three families, derived
+from what the handlers do, with the convention throwing at model build for any tenant entity it
+cannot classify. List first pages **469 ms → 49–97 ms**; write cost measured at **+32.8 %** on a
+pure-`INSERT` workload.
+
+**Three results outlive the speed-up.** An index added for the list path made *search* on the same
+table **worse** (651 → 1,173 ms — one scan replaced by a seek plus a key lookup per row). A plausible
+multi-tenancy inference — `GlLine` has no tenant column, so every statement pays for every other
+tenant's ledger — was **refused by a second-tenant experiment**, and survives only as a precise
+statement with a re-entry condition. And the report layer's cost is the **period**, not `pageSize`:
+0.65 s for a month against 2.1–3.5 s for three years, with `JournalReportQueryHandler` already in the
+repo as the shape that fixes it.
+
+**Answers owed to phases 38–40**, which name 34c by name:
+- **38** — the export cap's condition is **met**: NFR-5.1's own top-of-range tenant truncates
+  `Ledger Transactions (25,000 of 210,006)`. But the SAX writer is not the first move; the complete
+  export was measured at 280,024 rows / 12.1 MB / 15.8 s / ~700 MB, i.e. **~2.5 kB of working set per
+  row**, so *raising the cap to a measured level* comes first. The constant was deliberately left at
+  25,000 — a server-safety limit should not move on one machine's run.
+- **39** — global search's cap of 5 **does** bite, and the 18-query fan-out costs 595–1,106 ms p95,
+  over budget in every pass before any UI is added.
+- **40** — **`@defer` the shell is done here** (724.2 kB → 649.5 kB raw, 141.0 → 127.3 kB transfer,
+  pinned by two `DeferBlockBehavior.Playthrough` tests). Strike it from 40.
 
 ---
 

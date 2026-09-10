@@ -820,3 +820,156 @@ These thirteen entries had grown past one line in CLAUDE.md; they were shortened
 - `POST /api/organizations` also needs `industry` and a **non-empty** `turnstileToken` (any string passes against the dummy secret); accept-invitation is `/api/organizations/memberships/{id}/accept-invitation` with **no org segment**, and calling it with one returns a 404 that reads like a bad membership id while the membership silently stays `Invited` — which makes any later Member-403 proof meaningless; units are `/units-of-measurement` (field `shortName`); credit terms are under `/configuration/` (phase-31).
 - `POST /accounts` takes `groupId`, not `accountGroupId`; and `POST /products` takes **`type`, not `productType`** — the wrong name silently yields a *Goods* product whose line then consumes stock and 409s at Approve with a message about the warehouse, which reads like a seeding fault rather than a typo (phase-32).
 - A scripted multi-file edit must assert its **anchor count** before writing (and preserve each file's CRLF/BOM); phase 32's sweep touched 32 commands safely that way, and the one edit that matched three records where two were meant was caught by exactly that check.
+
+---
+
+## Every tenant-scoped table needs an index leading on `OrganizationId` (phase 34c)
+
+Eighteen did not, and the eighteen were not a random eighteen: they were **exactly the transactional
+documents plus `GlJournalEntry`**. The reason is structural rather than editorial. Master data
+carries a per-tenant uniqueness rule — `(OrganizationId, Code)` on Contacts and Products,
+`(OrganizationId, Name)` on the lookups — so every one of those tables got a leading-`OrganizationId`
+index *for free* as a side effect of a constraint nobody added for performance. A document number is
+not unique-indexed, so no document table ever got one. The gap tracked the absence of a uniqueness
+rule.
+
+The cost, measured on 50,000 invoices in one tenant: the invoice list's first page issued two
+statements (`CountAsync`, then `Skip/Take`) that each read **2,644 pages** — a full clustered scan —
+plus a sort of every row the tenant owns to satisfy `ORDER BY CreatedAt DESC`. 469 ms p95 for fifty
+rows.
+
+Because the gap had a rule behind it, the fix does too. `TenantIndexConvention` runs after
+`ApplyConfigurationsFromAssembly` and derives three families from the model:
+
+- an entity with `OrganizationId` **and a business date** (`Date`, else `PostedAt`) is a document:
+  `(OrganizationId, BusinessDate)` for the reports that range over it, and
+  `(OrganizationId, CreatedAt DESC)` for the list screen, since all fourteen document lists order
+  `CreatedAt DESC`;
+- the searchable columns get a covering index — `(OrganizationId, Name?, Code)` with the wide
+  reference fields as `INCLUDE`s;
+- anything else must already carry a leading-`OrganizationId` index, and the convention **throws at
+  model build** naming the entity if it does not, unless it is listed in `NotIndexedByTenant` with a
+  reason. That is stronger than a guard test: it creates the index rather than checking someone
+  wrote one, and it fires in `dotnet ef migrations add` and in every test that boots the host.
+
+"An aggregate with a business `Date` is a document, master data is not" is phase 34b's own rule for
+which lists get a date filter. The same sentence decides which tables get the date index, which is
+why it is stated once instead of decided per table.
+
+Write cost, measured on an identical 190,000-row bulk `INSERT` with no reads at all — the most
+hostile framing available: 48.8 s with none of them, 60.3 s with the 33 document indexes (+23.6 %),
+64.8 s with all 50 (+32.8 %). Every key column is write-once, so there is no update cost, only
+insert.
+
+## An index added for one access path changes the plan for every other path (phase 34c)
+
+`(OrganizationId, CreatedAt DESC)` took the unfiltered invoice list from 469 ms to 49 ms. On the same
+table, in the same deployment, a search term matching nothing went from **651 ms to 1,173 ms**.
+
+The mechanism: `WHERE OrganizationId = @o AND (Code LIKE @t OR Reference LIKE @t) ORDER BY CreatedAt
+DESC OFFSET 0 ROWS FETCH NEXT 50`. Before the index there was one plan available — scan the clustered
+index once (5,825 pages), filter, sort. After it, the optimizer bets it can avoid the sort by walking
+the new index in `CreatedAt` order and doing a **key lookup per row** to test the `LIKE`, stopping as
+soon as it has fifty matches. When the term matches something recent the bet pays (283 ms). When it
+matches nothing the bet costs a full walk with 50,001 lookups — **83,000 logical reads per
+execution**.
+
+The covering search index this phase then added fixes the *raw* predicate (6,743 logical reads to 700
+on Contacts, 5,825 to 451 on Invoices) and therefore fixes **global search**, whose queries are
+`… Code LIKE @t ORDER BY Code TOP 5` and can be answered from the index alone: 999 ms to 595 ms.
+It does **not** fix the list search, because `ORDER BY CreatedAt DESC` still makes the ordering index
+look cheaper. Adding `CreatedAt` to the covering index's `INCLUDE` list was tried and made it worse
+(153,439 reads) — the optimizer kept its choice.
+
+Two things to take from it. **Re-measure the paths you did not change**, over the same table, before
+calling an index a win. And a `LIKE '%term%'` is non-sargable no matter what you do: an index can
+only make the scan narrow and per-tenant, never a seek. The remaining fix is full-text indexing or a
+two-step handler (match ids from the covering index, then order and page), which is twenty handlers
+and belongs to whoever has a tenant complaining.
+
+## A report's cost is its period, not its page size (phase 34c)
+
+Seven of the report handlers materialise every row in the requested period and then page the
+resulting list, so `pageSize` bounds the response and not the work. Measured on 50,000 invoices: the
+Sales Register costs 0.65 s for one month, 1.19 s for a year and 2.1–3.5 s for three; the Detail
+General Ledger 1.8 s / 4.3 s / 6.1–14.9 s, returning **59.5 MB at `pageSize=50`** because its page
+unit is the *account* and the rows inside a page are unbounded.
+
+The full read is not laziness. Phase 16c requires footer totals over the whole filtered set, never a
+reduce over one page, and `SalesRegisterQueryHandler` sums its four totals over every row in the
+period. Removing the full read therefore means two queries — a SQL aggregate for the totals and a SQL
+page for the rows — per report.
+
+`JournalReportQueryHandler` is the counter-example, and it is already in the repo: it loads only the
+entry *keys* for the period, pages those in memory, and then fetches lines for the page alone. Over
+the same 70,002 entries it costs 250–344 ms. That is the shape, and it is why this is a conversion
+rather than a design problem.
+
+The related trap is the `Contains` that carries it: a materialised id list handed back to SQL becomes
+an `OPENJSON` parameter as long as the list. `ContactAgeingSummaryQueryHandler` ships a
+50,000-element array on every call and costs 7.5–8.9 s.
+
+## An inference about a design is not a measurement (phase 34c)
+
+`GlLine` carries no `OrganizationId`. Every financial statement therefore joins through
+`GlJournalEntries` and hash-joins against a **full scan of the whole GL line table**, across every
+tenant in the database — 7,586 logical reads at 421,780 rows. The obvious conclusion is that every
+tenant's Trial Balance pays for every other tenant's ledger, and it was one edit away from being
+written up as a finding.
+
+Seeding a *second* 50,000-invoice tenant and re-measuring the first refused it. The scan does double
+(3,800 to 7,586 logical reads) and the wall time does not move outside run-to-run noise, because a
+logical read from a warm buffer pool is nearly free next to the aggregate that follows it. The
+structural fact is real; the cost it implies is not, yet. It becomes real when `GlLines` no longer
+fits the buffer pool and those logical reads become physical — which is the re-entry condition, and
+is checkable rather than speculative.
+
+The general form: **a plausible mechanism plus a plausible magnitude is still not a measurement.**
+The experiment that separates them here cost one seed run.
+
+## Measuring performance on a working machine (phase 34c)
+
+Two identical passes of the same 33-endpoint harness, against the same database with the same
+statistics treatment, disagreed by up to **4×** on the report class — the three financial statements
+read 1.0 s, 1.3 s and 3.7–4.1 s across three passes with no schema change between the last two. The
+list class agreed within 30 %. The difference is that a list page is a handful of milliseconds of
+work and the reports are seconds of CPU that compete with whatever else the machine is doing (a
+build, a leftover dev server, a 400,000-row delete).
+
+Three rules came out of it:
+
+- **Refresh statistics identically on both sides.** On a dataset that arrives by bulk `INSERT`,
+  statistics quality moves a report that joins to a line table by 2× — more than most changes under
+  test. `tools/scale/refresh-stats.sql` does it, and clears the plan cache.
+- **Judge a row over more than one pass**, and say `MIXED` where the passes straddle the budget
+  rather than reporting whichever ran last. `summarise.sh` does this.
+- **Prefer within-pass comparisons for anything expensive.** The period-sensitivity readings that
+  carry this phase's report finding are consecutive requests inside one pass, which controls for the
+  machine in a way that two passes an hour apart do not.
+
+## A benchmark against an empty tenant looks like a fast one (phase 34c)
+
+A repeat pass came back at 20–30 ms p95 on every endpoint with every status code `200`. It was
+reading an empty organization: `seed-master.sh` rewrites `tools/scale/.seed-ids.env` every time it
+runs, so seeding a second tenant silently repointed the harness at it.
+
+Nothing in the timings distinguishes the two cases — that is the point. The only signal is the
+**response size**, so `run-measurement.sh` now refuses to start unless a 50-row invoice page returns
+more than 1,000 bytes.
+
+This is phase 34b's prints-and-returns trap in another costume: **a helper called for one purpose
+that also writes shared state**. The other half of the same lesson is that a fast number is the one
+you should distrust first.
+
+## `sqlcmd -i` runs with `QUOTED_IDENTIFIER OFF` (phase 34c)
+
+The first bulk insert into `catalog.Products` failed with `INSERT failed because the following SET
+options have incorrect settings: 'QUOTED_IDENTIFIER'`, which reads like a syntax problem and is not:
+the table carries a filtered index (`IX_Products_OrganizationId_ParentProductId_CombinationKey`), and
+SQL Server refuses any insert into a table with one unless `QUOTED_IDENTIFIER` is ON. `sqlcmd -i`
+does not set it. Put `SET QUOTED_IDENTIFIER ON;` at the top of every script that writes to this
+schema.
+
+Two smaller frictions from the same session: `sqlcmd -W` and `-y`/`-Y` are mutually exclusive, and a
+`SELECT` naming a column present on two joined tables fails with `Ambiguous column name` rather than
+picking one.
