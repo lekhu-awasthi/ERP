@@ -119,6 +119,8 @@ public class UserPreferenceTests
         {
             [UserPreferenceKeys.QuickLinks] = "[]",
             [UserPreferenceKeys.Calendar] = "\"AD\"",
+            [UserPreferenceKeys.DateRange] =
+                """{"preset":"last-30","label":"Last 30 days","from":"2026-08-11","to":"2026-09-10"}""",
         };
 
         Assert.Equal(UserPreferenceKeys.All.OrderBy(x => x, StringComparer.Ordinal), samples.Keys.Order(StringComparer.Ordinal));

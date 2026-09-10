@@ -1,4 +1,5 @@
 import { HttpClient } from '@angular/common/http';
+import { ListQueryOptions, applyListOptions } from '../../shared/pagination/list-query-options';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
@@ -39,8 +40,10 @@ export class PaymentsService {
     direction?: PaymentDirection,
     page = 1,
     pageSize = 50,
+    options?: ListQueryOptions,
   ): Observable<PagedResult<Payment>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (status) params['status'] = status;
     if (direction) params['direction'] = direction;
     return this.http.get<PagedResult<Payment>>(`${this.baseUrl(organizationId)}/payments`, { withCredentials: true, params });
@@ -102,8 +105,10 @@ export class PaymentsService {
     toDate?: string,
     page = 1,
     pageSize = 50,
+    options?: ListQueryOptions,
   ): Observable<PagedResult<ChequeDto>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (direction) params['direction'] = direction;
     if (status) params['status'] = status;
     if (contactId) params['contactId'] = contactId;

@@ -1,0 +1,104 @@
+<!--
+  The small-viewport toggle. Above `lg` the rail is permanent and this button is hidden, so it is
+  never a second way to reach a nav that is already on screen.
+-->
+<button
+  type="button"
+  class="btn btn-sm btn-outline-secondary d-lg-none left-nav-toggle"
+  [attr.aria-expanded]="drawerOpen()"
+  aria-controls="left-nav-rail"
+  (click)="toggleDrawer()"
+>
+  <i aria-hidden="true" class="bi bi-list"></i>
+  <span class="visually-hidden">{{ drawerOpen() ? 'Close navigation' : 'Open navigation' }}</span>
+</button>
+
+@if (drawerOpen()) {
+  <!-- Click-away for the drawer. Purely decorative: every action it covers is reachable by keyboard
+       with Escape-free tabbing, so it takes no role and no name. -->
+  <div class="left-nav-backdrop d-lg-none" (click)="toggleDrawer()" aria-hidden="true"></div>
+}
+
+<nav
+  id="left-nav-rail"
+  class="left-nav bg-white border-end"
+  [class.left-nav-open]="drawerOpen()"
+  aria-label="Main"
+>
+  <div class="left-nav-head border-bottom">
+    <app-create-new-flyout [organizationId]="organizationId()" />
+  </div>
+
+  <ul class="left-nav-list list-unstyled mb-0">
+    <li>
+      <a
+        class="left-nav-leaf"
+        [class.active]="isActiveItem(home.url)"
+        [attr.aria-current]="isActiveItem(home.url) ? 'page' : null"
+        [routerLink]="linkFor(home.url)"
+      >
+        <i aria-hidden="true" class="bi bi-house-door"></i>
+        <span>{{ home.name }}</span>
+      </a>
+    </li>
+
+    @for (group of tree(); track group.area) {
+      <li>
+        @if (group.url) {
+          <!-- A leaf area: Reports, which opens the catalogue page rather than 52 nav rows. -->
+          <a
+            class="left-nav-leaf"
+            [class.active]="isActiveGroup(group)"
+            [attr.aria-current]="isActiveItem(group.url) ? 'page' : null"
+            [routerLink]="linkFor(group.url)"
+          >
+            <i aria-hidden="true" class="bi bi-bar-chart-line"></i>
+            <span>{{ group.area }}</span>
+          </a>
+        } @else {
+          <button
+            type="button"
+            class="left-nav-group"
+            [class.active]="isActiveGroup(group)"
+            [attr.aria-expanded]="isOpen(group)"
+            [attr.aria-controls]="'left-nav-group-' + group.area"
+            (click)="toggleGroup(group)"
+          >
+            <i aria-hidden="true" class="bi bi-dot"></i>
+            <span class="flex-grow-1 text-start">{{ group.area }}</span>
+            <i aria-hidden="true" class="bi" [class.bi-chevron-down]="isOpen(group)" [class.bi-chevron-right]="!isOpen(group)"></i>
+          </button>
+
+          <ul
+            [id]="'left-nav-group-' + group.area"
+            class="left-nav-sub list-unstyled mb-0"
+            [hidden]="!isOpen(group)"
+          >
+            @for (item of group.items; track item.url) {
+              <li>
+                <a
+                  class="left-nav-item"
+                  [class.active]="isActiveItem(item.url)"
+                  [attr.aria-current]="isActiveItem(item.url) ? 'page' : null"
+                  [routerLink]="linkFor(item.url)"
+                >{{ item.name }}</a>
+              </li>
+            }
+          </ul>
+        }
+      </li>
+    }
+  </ul>
+
+  <!--
+    The company switcher. Confirmed live: the reference product's "Change Company" is a plain link
+    away to its account portal, not an in-app tenant dropdown — so this is a link to this app's own
+    organization picker, which is the same gesture.
+  -->
+  <div class="left-nav-foot border-top">
+    <div class="fw-semibold text-dark small text-truncate" [title]="organizationName()">
+      {{ organizationName() }}
+    </div>
+    <a class="small text-primary" routerLink="/organizations">Change company</a>
+  </div>
+</nav>

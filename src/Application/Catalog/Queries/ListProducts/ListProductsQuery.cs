@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Catalog;
@@ -10,8 +11,9 @@ public sealed record ListProductsQuery(
     ProductType? Type,
     ProductVariantFilter VariantFilter = ProductVariantFilter.All,
     int Page = 1,
-    int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<Product>>, IRequirePermission, IOrganizationScoped
+    int PageSize = PagingDefaults.DefaultPageSize,
+    string? Search = null)
+    : IRequest<PagedResult<Product>>, IRequirePermission, IOrganizationScoped, ISearchableQuery
 {
     public string PermissionKey => PermissionKeys.ProductView;
 }

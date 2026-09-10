@@ -1,0 +1,116 @@
+// Phase 34b -- the left rail.
+//
+// Widths are the reference product's, measured: its rail is 233px. 240 here so the eight-character
+// area names and their chevron never wrap at the default font size.
+//
+// Every colour is a Bootstrap CSS variable rather than a literal, so `contrast-rules.ts` still
+// describes the whole palette. Phase 34a's note applies in reverse: the moment a screen sets a
+// colour any other way the contrast guard stops covering it, and this file deliberately does not.
+
+$rail-width: 240px;
+
+.left-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: $rail-width;
+  display: flex;
+  flex-direction: column;
+  z-index: 1035;
+
+  // Deliberately NOT `overflow: hidden`. It was, and it clipped the Create New flyout to the rail's
+  // 240px -- two of its four columns simply were not there. That is phase-22's gotcha (a menu inside
+  // an overflow container is clipped by it) reaching a new container. The scrolling this rail needs
+  // belongs to `.left-nav-list` alone, which has its own `overflow-y`, so nothing is lost by
+  // removing it.
+}
+
+.left-nav-head {
+  padding: 0.75rem;
+  flex: 0 0 auto;
+}
+
+.left-nav-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+}
+
+.left-nav-foot {
+  flex: 0 0 auto;
+  padding: 0.75rem 1rem;
+}
+
+// The three row shapes. A group header is a <button> and a leaf is an <a>, so they need their
+// button/anchor defaults stripped back to a common baseline before they can look alike.
+.left-nav-leaf,
+.left-nav-group,
+.left-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: 0;
+  background: none;
+  color: var(--bs-secondary-color);
+  font-size: 0.875rem;
+  text-decoration: none;
+  text-align: left;
+
+  &:hover {
+    background-color: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+  }
+
+  // WCAG 2.4.7 Focus Visible. The rail is dense, so the default outline is kept and pulled inside
+  // the row rather than suppressed -- one of the six criteria 34a could not mechanise, made correct
+  // by construction here rather than audited afterwards (phase-34a Decision B).
+  &:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: -2px;
+  }
+
+  &.active {
+    background-color: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary-text-emphasis);
+    font-weight: 600;
+  }
+}
+
+.left-nav-item {
+  padding-left: 2.625rem;
+}
+
+.left-nav-sub {
+  padding-bottom: 0.25rem;
+}
+
+.left-nav-toggle {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 1045;
+}
+
+.left-nav-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1030;
+}
+
+// Below `lg` the rail becomes a drawer. This is also WCAG 1.4.10 Reflow: at 320px there is no
+// 240px of horizontal space to give away, and a permanent rail would force two-dimensional
+// scrolling on every screen in the app.
+@media (max-width: 991.98px) {
+  .left-nav {
+    transform: translateX(-100%);
+    transition: transform 0.15s ease-in-out;
+  }
+
+  .left-nav-open {
+    transform: none;
+  }
+}

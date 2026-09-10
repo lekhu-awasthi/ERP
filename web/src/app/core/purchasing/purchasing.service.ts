@@ -1,4 +1,5 @@
 import { HttpClient } from '@angular/common/http';
+import { ListQueryOptions, applyListOptions } from '../../shared/pagination/list-query-options';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
@@ -58,8 +59,10 @@ export class PurchasingService {
 
   listPurchaseOrders(
     organizationId: string, status?: PurchaseOrderStatus, page = 1, pageSize = 50,
+    options?: ListQueryOptions,
   ): Observable<PagedResult<PurchaseOrder>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (status) params['status'] = status;
     return this.http.get<PagedResult<PurchaseOrder>>(`${this.baseUrl(organizationId)}/purchase-orders`, {
       withCredentials: true,
@@ -104,8 +107,10 @@ export class PurchasingService {
 
   listPurchaseBills(
     organizationId: string, status?: PurchaseBillStatus, page = 1, pageSize = 50,
+    options?: ListQueryOptions,
   ): Observable<PagedResult<PurchaseBill>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (status) params['status'] = status;
     return this.http.get<PagedResult<PurchaseBill>>(`${this.baseUrl(organizationId)}/purchase-bills`, {
       withCredentials: true,
@@ -166,8 +171,9 @@ export class PurchasingService {
     );
   }
 
-  listExpenses(organizationId: string, status?: ExpenseStatus, page = 1, pageSize = 50): Observable<PagedResult<Expense>> {
+  listExpenses(organizationId: string, status?: ExpenseStatus, page = 1, pageSize = 50, options?: ListQueryOptions): Observable<PagedResult<Expense>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (status) params['status'] = status;
     return this.http.get<PagedResult<Expense>>(`${this.baseUrl(organizationId)}/expenses`, { withCredentials: true, params });
   }
@@ -211,8 +217,9 @@ export class PurchasingService {
     );
   }
 
-  listDebitNotes(organizationId: string, status?: DebitNoteStatus, page = 1, pageSize = 50): Observable<PagedResult<DebitNote>> {
+  listDebitNotes(organizationId: string, status?: DebitNoteStatus, page = 1, pageSize = 50, options?: ListQueryOptions): Observable<PagedResult<DebitNote>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (status) params['status'] = status;
     return this.http.get<PagedResult<DebitNote>>(`${this.baseUrl(organizationId)}/debit-notes`, { withCredentials: true, params });
   }

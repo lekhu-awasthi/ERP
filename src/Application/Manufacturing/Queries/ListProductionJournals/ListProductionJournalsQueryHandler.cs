@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
@@ -18,13 +19,35 @@ public sealed class ListProductionJournalsQueryHandler(IAppDbContext db, ICurren
         var allowedLocations = await LocationAccessScope.ForKeyAsync(
             db, currentUser, request.OrganizationId, request.PermissionKey, cancellationToken);
 
+        // Phase 34b -- the search and range filters compose over the *entity* queryable, before the
+        // projection, rather than over the projected DTO. Filtering after a `select new Dto(...)`
+        // makes EF map each member back through the projection, which it can do here but which
+        // silently stops being translatable the moment a computed column joins the DTO. Filtering
+        // first is the shape that keeps working.
+        var journals = db.ProductionJournals
+            .Where(x => x.OrganizationId == request.OrganizationId)
+            .Where(x => request.Status == null || x.Status == request.Status)
+            .Where(x => allowedLocations == null
+                || (x.LocationId != null && allowedLocations.Contains(x.LocationId.Value)));
+
+        if (SearchTerm.Normalize(request.Search) is { } term)
+        {
+            journals = journals.Where(x => x.Code.Contains(term) || (x.Reference != null && x.Reference.Contains(term)));
+        }
+
+        if (request.FromDate is { } fromDate)
+        {
+            journals = journals.Where(x => x.Date >= fromDate);
+        }
+
+        if (request.ToDate is { } toDate)
+        {
+            journals = journals.Where(x => x.Date <= toDate);
+        }
+
         var query =
-            from journal in db.ProductionJournals
+            from journal in journals
             join product in db.Products on journal.ProductId equals product.Id
-            where journal.OrganizationId == request.OrganizationId
-                && (request.Status == null || journal.Status == request.Status)
-                && (allowedLocations == null
-                    || (journal.LocationId != null && allowedLocations.Contains(journal.LocationId.Value)))
             orderby journal.CreatedAt descending
             select new ProductionJournalListItemDto(
                 journal.Id, journal.Code, journal.Date, journal.Reference, journal.ProductId, product.Name,

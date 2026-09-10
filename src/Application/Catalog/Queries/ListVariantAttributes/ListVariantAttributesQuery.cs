@@ -1,4 +1,5 @@
 using ErpApp.Application.Catalog.Commands.CreateVariantAttribute;
+using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using MediatR;
@@ -12,8 +13,9 @@ public sealed record ListVariantAttributesQuery(
     Guid OrganizationId,
     bool ActiveOnly = false,
     int Page = 1,
-    int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<VariantAttributeResult>>, IRequirePermission, IOrganizationScoped
+    int PageSize = PagingDefaults.DefaultPageSize,
+    string? Search = null)
+    : IRequest<PagedResult<VariantAttributeResult>>, IRequirePermission, IOrganizationScoped, ISearchableQuery
 {
     public string PermissionKey => PermissionKeys.VariantAttributeView;
 }

@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
@@ -31,6 +32,27 @@ public sealed class ListWarehouseTransfersQueryHandler(IAppDbContext db, ICurren
         if (request.Status is { } status)
         {
             query = query.Where(x => x.Status == status);
+        }
+
+        // Phase 34b (NFR-6.1) -- the list search. A separate composed `.Where()`, never folded
+        // into one predicate with a null check: an expression tree does not short-circuit, so
+        // `term == null || x.Code.Contains(term)` hands EF a null to translate on the unrestricted
+        // branch, which is almost every caller (phase-33's gotcha).
+        if (SearchTerm.Normalize(request.Search) is { } term)
+        {
+            query = query.Where(x => x.Code.Contains(term) || (x.Reference != null && x.Reference.Contains(term)));
+        }
+
+        // Phase 34b -- the shell's global date range, over this document's own business date. See
+        // `IDateRangeFilteredQuery`: only aggregates with a business date implement it.
+        if (request.FromDate is { } fromDate)
+        {
+            query = query.Where(x => x.Date >= fromDate);
+        }
+
+        if (request.ToDate is { } toDate)
+        {
+            query = query.Where(x => x.Date <= toDate);
         }
 
         return await query.OrderByDescending(x => x.CreatedAt)

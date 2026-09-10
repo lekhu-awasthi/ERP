@@ -1,4 +1,5 @@
 import { HttpClient } from '@angular/common/http';
+import { ListQueryOptions, applyListOptions } from '../../shared/pagination/list-query-options';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
@@ -59,8 +60,10 @@ export class SalesService {
     status?: QuotationStatus,
     page = 1,
     pageSize = 50,
+    options?: ListQueryOptions,
   ): Observable<PagedResult<Quotation>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (status) params['status'] = status;
     return this.http.get<PagedResult<Quotation>>(`${this.baseUrl(organizationId)}/quotations`, {
       withCredentials: true,
@@ -107,10 +110,12 @@ export class SalesService {
     page = 1,
     pageSize = 50,
     locationId?: string,
+    options?: ListQueryOptions,
   ): Observable<PagedResult<Invoice>> {
     // Record<string, string>, not a union including {} -- the phase-3 gotcha where a wider type
     // silently resolves HttpClient.get to its arraybuffer overload.
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (status) params['status'] = status;
     if (locationId) params['locationId'] = locationId;
     return this.http.get<PagedResult<Invoice>>(`${this.baseUrl(organizationId)}/invoices`, { withCredentials: true, params });
@@ -171,8 +176,10 @@ export class SalesService {
     status?: SalesOrderStatus,
     page = 1,
     pageSize = 50,
+    options?: ListQueryOptions,
   ): Observable<PagedResult<SalesOrder>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (status) params['status'] = status;
     return this.http.get<PagedResult<SalesOrder>>(`${this.baseUrl(organizationId)}/sales-orders`, {
       withCredentials: true,
@@ -213,8 +220,10 @@ export class SalesService {
     status?: CreditNoteStatus,
     page = 1,
     pageSize = 50,
+    options?: ListQueryOptions,
   ): Observable<PagedResult<CreditNote>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (status) params['status'] = status;
     return this.http.get<PagedResult<CreditNote>>(`${this.baseUrl(organizationId)}/credit-notes`, {
       withCredentials: true,

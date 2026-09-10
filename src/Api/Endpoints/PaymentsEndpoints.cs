@@ -31,11 +31,11 @@ public static class PaymentsEndpoints
 
         group.MapGet("/payments", async (
             Guid organizationId, PaymentStatus? status, PaymentDirection? direction, int? page, int? pageSize,
-            ISender sender, CancellationToken ct) =>
+            string? search, DateOnly? fromDate, DateOnly? toDate, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ListPaymentsQuery(
-                    organizationId, status, direction, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    organizationId, status, direction, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate),
                 ct);
             return Results.Ok(result);
         });
@@ -135,12 +135,16 @@ public static class PaymentsEndpoints
     {
         group.MapGet("/cheques", async (
             Guid organizationId, PaymentDirection? direction, ChequeStatus? status, Guid? contactId,
-            DateOnly? fromDate, DateOnly? toDate, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            DateOnly? fromDate, DateOnly? toDate, int? page, int? pageSize, string? search,
+            ISender sender, CancellationToken ct) =>
         {
+            // Phase 34b: the Cheque Register already had its own fromDate/toDate, which is why its
+            // query satisfies IDateRangeFilteredQuery with no new parameters -- the shell's global
+            // range now drives the same two.
             var result = await sender.Send(
                 new ListChequesQuery(
                     organizationId, direction, status, contactId, fromDate, toDate,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search),
                 ct);
             return Results.Ok(result);
         });

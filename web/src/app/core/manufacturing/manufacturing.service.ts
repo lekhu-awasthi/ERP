@@ -1,4 +1,5 @@
 import { HttpClient } from '@angular/common/http';
+import { ListQueryOptions, applyListOptions } from '../../shared/pagination/list-query-options';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
@@ -41,8 +42,10 @@ export class ManufacturingService {
     isActive?: boolean,
     page = 1,
     pageSize = 50,
+    options?: ListQueryOptions,
   ): Observable<PagedResult<BillOfMaterialsListItem>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (search) params['search'] = search;
     if (isActive !== undefined) params['isActive'] = String(isActive);
     return this.http.get<PagedResult<BillOfMaterialsListItem>>(`${this.baseUrl(organizationId)}/bills-of-materials`, {
@@ -97,8 +100,10 @@ export class ManufacturingService {
     status?: ProductionOrderStatus,
     page = 1,
     pageSize = 50,
+    options?: ListQueryOptions,
   ): Observable<PagedResult<ProductionOrderListItem>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (status) params['status'] = status;
     return this.http.get<PagedResult<ProductionOrderListItem>>(`${this.baseUrl(organizationId)}/production-orders`, {
       withCredentials: true,
@@ -161,8 +166,10 @@ export class ManufacturingService {
     status?: ProductionJournalStatus,
     page = 1,
     pageSize = 50,
+    options?: ListQueryOptions,
   ): Observable<PagedResult<ProductionJournalListItem>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (status) params['status'] = status;
     return this.http.get<PagedResult<ProductionJournalListItem>>(
       `${this.baseUrl(organizationId)}/production-journals`,

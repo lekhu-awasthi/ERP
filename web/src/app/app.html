@@ -3,23 +3,31 @@
 
   Phase 33 put a header on every in-organization screen, which means every keyboard user now tabs
   through the History button and the search box before reaching the page they navigated to -- on
-  every single navigation. This is the mechanism that lets them skip it. It is visually hidden until
-  focused (`.visually-hidden-focusable`), so it costs the layout nothing and is the first thing Tab
-  reaches, which is the only position that makes it useful.
+  every single navigation. Phase 34b put a left nav in front of that, which makes the skip link
+  load-bearing rather than merely correct: without it, Tab now crosses ~60 nav rows before reaching
+  the page. It is visually hidden until focused (`.visually-hidden-focusable`), so it costs the
+  layout nothing and is the first thing Tab reaches, which is the only position that makes it useful.
 -->
 <a class="skip-link visually-hidden-focusable" href="#main-content">Skip to main content</a>
 
 @if (organizationId(); as orgId) {
-  <!-- Phase 33: the platform chrome. Present on every in-organization screen, exactly as the
-       reference product's own top bar is. See app.ts for why it lives in the shell.
-       Phase 34a: `banner` is implicit on a top-level <header>, and the search box is labelled as
-       its own landmark so a screen reader's landmark list distinguishes it from the page. -->
+  <!-- Phase 33: the platform chrome. Phase 34b: the left nav, Create New flyout, company switcher
+       and global date filter that phase 33 deferred by name (its carried item #5).
+
+       The rail is `position: fixed`, and the header and `<main>` are inset by its width, so the
+       130 page templates below are untouched: every one of them opens with the same
+       `<div class="container py-5">`, and a centred container simply re-centres inside a narrower
+       main. See phase-34b-status.md Decision A -- the choice was never "re-layout 130 pages or
+       overlay them", because the uniformity of that wrapper made a third option free. -->
+  <app-left-nav [organizationId]="orgId" />
+
   <header class="platform-bar border-bottom bg-white">
     <div class="d-flex align-items-center gap-2 px-3 py-2">
       <app-history-menu />
       <search class="flex-grow-1" style="max-width: 40rem;">
         <app-global-search [organizationId]="orgId" />
       </search>
+      <app-date-range-picker />
     </div>
   </header>
 }
@@ -28,6 +36,6 @@
   `tabindex="-1"` is what makes the skip link actually move focus: without it the browser scrolls to
   the target and leaves focus on the link, so the next Tab goes straight back into the header.
 -->
-<main id="main-content" class="shell" tabindex="-1">
+<main id="main-content" class="shell" [class.shell-with-nav]="organizationId() !== null" tabindex="-1">
   <router-outlet />
 </main>

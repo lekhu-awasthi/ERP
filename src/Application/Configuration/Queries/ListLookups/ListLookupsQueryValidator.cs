@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Domain.Common;
 using FluentValidation;
@@ -15,5 +16,6 @@ public sealed class ListLookupsQueryValidator<TLookup> : AbstractValidator<ListL
     public ListLookupsQueryValidator()
     {
         this.ValidatePaging(x => x.Page, x => x.PageSize);
+        this.ValidateSearch(x => x.Search);
     }
 }

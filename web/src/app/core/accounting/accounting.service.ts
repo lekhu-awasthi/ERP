@@ -4,6 +4,7 @@ import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
+import { ListQueryOptions, applyListOptions } from '../../shared/pagination/list-query-options';
 import {
   Account,
   AccountGroup,
@@ -94,8 +95,9 @@ export class AccountingService {
     return this.http.delete<void>(`${this.baseUrl(organizationId)}/account-groups/${id}`, { withCredentials: true });
   }
 
-  listAccounts(organizationId: string, rootType?: AccountRootType, page = 1, pageSize = 50): Observable<PagedResult<Account>> {
+  listAccounts(organizationId: string, rootType?: AccountRootType, page = 1, pageSize = 50, options?: ListQueryOptions): Observable<PagedResult<Account>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (rootType) params['rootType'] = rootType;
     return this.http.get<PagedResult<Account>>(`${this.baseUrl(organizationId)}/accounts`, { withCredentials: true, params });
   }
@@ -123,8 +125,10 @@ export class AccountingService {
 
   listJournalVouchers(
     organizationId: string, status?: JournalVoucherStatus, page = 1, pageSize = 50,
+    options?: ListQueryOptions,
   ): Observable<PagedResult<JournalVoucher>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (status) params['status'] = status;
     return this.http.get<PagedResult<JournalVoucher>>(`${this.baseUrl(organizationId)}/journal-vouchers`, {
       withCredentials: true,
@@ -190,8 +194,10 @@ export class AccountingService {
 
   listCashTransfers(
     organizationId: string, status?: CashTransferStatus, page = 1, pageSize = 50,
+    options?: ListQueryOptions,
   ): Observable<PagedResult<CashTransfer>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (status) params['status'] = status;
     return this.http.get<PagedResult<CashTransfer>>(`${this.baseUrl(organizationId)}/cash-transfers`, {
       withCredentials: true,
@@ -242,10 +248,22 @@ export class AccountingService {
     );
   }
 
-  listBankAccounts(organizationId: string, isActive = true, page = 1, pageSize = 50): Observable<PagedResult<BankAccountDto>> {
+  listBankAccounts(
+    organizationId: string,
+    isActive = true,
+    page = 1,
+    pageSize = 50,
+    options?: ListQueryOptions,
+  ): Observable<PagedResult<BankAccountDto>> {
+    const params: Record<string, string> = {
+      isActive: String(isActive),
+      page: String(page),
+      pageSize: String(pageSize),
+    };
+    applyListOptions(params, options);
     return this.http.get<PagedResult<BankAccountDto>>(`${this.baseUrl(organizationId)}/bank-accounts`, {
       withCredentials: true,
-      params: { isActive: String(isActive), page: String(page), pageSize: String(pageSize) },
+      params,
     });
   }
 

@@ -509,3 +509,56 @@ spec built first is what makes the next phase's markup conformant on the day it 
 `bg-*-subtle` with the plain tone 161 times (3.4–3.9:1) and with `-emphasis` 50 times (7.2–10.5:1):
 one screen was doing it right, every other screen was doing it wrong, and that is simultaneously
 WCAG 1.4.3 and NFR-6.1. Expect more of these when 34b measures the list screens.
+
+---
+
+## Phase 34b — consistency and the shell (NFR-6.1)
+
+**Read this before building anything that sits outside a page**, before adding a paginated list
+query, and before wiring a filter a screen displays but does not own.
+
+**(a) Ask what the codebase already is before choosing between two ways to change it.** The kickoff
+framed the shell as a choice between re-laying out 130 page templates and an offcanvas overlay that
+leaves them alone. One grep dissolved it: all 130 already open with the same
+`<div class="container py-5">`, and a centred container re-centres inside a narrower `<main>`. A
+fixed rail plus a left inset on two shell elements gave a permanent left nav for **zero** page edits.
+The generalisable move is not "prefer the cheap option" — it is that a dichotomy offered by a plan is
+a hypothesis about the code, and it is worth one grep before spending a phase on either branch.
+
+**(b) A filter a screen *displays* but did not *apply* is worse than no filter.** The global date
+range arrives from the per-user store asynchronously, after a list page's constructor has already
+issued its request — so the chrome rendered "Last 30 days: 2026-08-11 – 2026-09-10" above an invoice
+dated 2026-07-20. It looked checked and it was wrong. Anything global that a screen both shows and
+sends must reload that screen when it changes, and the reload has to exist from the first version,
+not be retrofitted once someone notices.
+
+**(c) An `effect()` cannot distinguish the write that is already being acted on from a new one.** A
+handler set a signal and scheduled work; an effect watching the same signal cancelled that work,
+believing it stale. Clearing the search box silently never restored the list. If a handler already
+schedules the response to its own write, an effect over that signal is a race, not a safety net.
+
+**(d) Deriving beats listing for a catalogue; listing beats deriving for a tray.** The left nav is
+built from `NavigationCatalog` and only its area *ordering* is written down, because a missing nav
+entry is a screen nobody can reach. The Create New flyout's 18 shortcuts *are* written down, because
+deriving them would produce a different, longer panel and lose the curation that is the feature. Both
+are guarded the same way: every url must resolve to a real catalogue entry. Decide which kind of list
+you have before reaching for the router.
+
+**(e) A shared matcher inside a LINQ predicate is untranslatable, and InMemory hides it.** A
+`SearchTerm.Matches(column, term)` helper was written and deleted before use: a static call in a
+`Where` cannot be translated, nor can
+`string.Contains(term, StringComparison.OrdinalIgnoreCase)` — and every handler test would have
+passed, because InMemory evaluates the expression in C#. Phase-25's captured-`Func` gotcha through a
+different door. Related: the single-argument `Contains` matches case-insensitively on SQL Server
+(collation) and case-sensitively on InMemory, so a handler test must search with the stored casing.
+
+**(f) A uniform sweep is worth more than its subject, because it is the first thing that asks the
+question uniformly.** Adding a search term to every paginated list found three pre-existing gaps
+nobody was looking for: two queries with no validator at all (so their paging was unbounded too), and
+one that had accepted a term since phase 25 with no length cap on it. Phase-33's finding restated.
+
+**(g) The screenshot is ground truth in the browser pane.** Under viewport emulation,
+`getComputedStyle` and `getBoundingClientRect` can lag the rendering after a resize — the mobile
+drawer measured as on-screen with an identity transform while the screenshot showed it correctly
+tucked away, and a fresh load at the emulated size agreed with the screenshot. Reload after emulating
+a viewport rather than trusting measurements taken across a resize.

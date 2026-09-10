@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
@@ -26,7 +27,7 @@ public sealed record ListInboxDocumentsQuery(
     string? Search = null,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<InboxDocumentDto>>, IRequirePermission, IOrganizationScoped
+    : IRequest<PagedResult<InboxDocumentDto>>, IRequirePermission, IOrganizationScoped, ISearchableQuery
 {
     public string PermissionKey => PermissionKeys.InboxDocumentView;
 }
@@ -36,7 +37,12 @@ public sealed class ListInboxDocumentsQueryValidator : AbstractValidator<ListInb
     public ListInboxDocumentsQueryValidator()
     {
         RuleFor(x => x.OrganizationId).NotEmpty();
-        RuleFor(x => x.Search).MaximumLength(260);
+
+        // Phase 34b -- was MaximumLength(260), a filename-shaped cap from phase 22 when this was the
+        // only searchable list in the codebase. Now that 25 lists share one term, they share one
+        // bound: a search is a fragment, and 100 characters is well past any fragment anyone types.
+        this.ValidateSearch(x => x.Search);
+
         PagingValidation.ValidatePaging(this, x => x.Page, x => x.PageSize);
     }
 }

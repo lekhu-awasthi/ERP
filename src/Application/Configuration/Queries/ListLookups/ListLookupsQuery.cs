@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
@@ -25,8 +26,9 @@ namespace ErpApp.Application.Configuration.Queries.ListLookups;
 public sealed record ListLookupsQuery<TLookup>(
     Guid OrganizationId,
     int Page = 1,
-    int PageSize = PagingDefaults.MaxPageSize)
-    : IRequest<PagedResult<TLookup>>, IRequirePermission, IOrganizationScoped
+    int PageSize = PagingDefaults.MaxPageSize,
+    string? Search = null)
+    : IRequest<PagedResult<TLookup>>, IRequirePermission, IOrganizationScoped, ISearchableQuery
     where TLookup : class, ITenantLookupEntity
 {
     public string PermissionKey => LookupPermissionKeys.ViewKeyFor<TLookup>();

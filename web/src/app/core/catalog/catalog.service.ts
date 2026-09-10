@@ -4,6 +4,7 @@ import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
+import { ListQueryOptions, applyListOptions } from '../../shared/pagination/list-query-options';
 import {
   AddSecondaryUnitRequest,
   AddSecondaryUnitResult,
@@ -127,8 +128,10 @@ export class CatalogService {
     page = 1,
     pageSize = 50,
     variantFilter: ProductVariantFilter = 'All',
+    options?: ListQueryOptions,
   ): Observable<PagedResult<Product>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (type) params['type'] = type;
     if (variantFilter !== 'All') params['variantFilter'] = variantFilter;
     return this.http.get<PagedResult<Product>>(`${this.baseUrl(organizationId)}/products`, { withCredentials: true, params });
@@ -157,8 +160,13 @@ export class CatalogService {
 
   // ---- Phase 24: the tenant-global attribute catalog ----
 
-  listVariantAttributes(organizationId: string, activeOnly = false): Observable<PagedResult<VariantAttribute>> {
+  listVariantAttributes(
+    organizationId: string,
+    activeOnly = false,
+    options?: ListQueryOptions,
+  ): Observable<PagedResult<VariantAttribute>> {
     const params: Record<string, string> = { pageSize: String(MAX_PAGE_SIZE) };
+    applyListOptions(params, options);
     if (activeOnly) params['activeOnly'] = 'true';
     return this.http.get<PagedResult<VariantAttribute>>(`${this.baseUrl(organizationId)}/variant-attributes`, {
       withCredentials: true,

@@ -46,10 +46,10 @@ public static class CatalogEndpoints
     private static void MapProductCategoryEndpoints(RouteGroupBuilder group)
     {
         group.MapGet(
-            "/product-categories", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            "/product-categories", async (Guid organizationId, int? page, int? pageSize, string? search, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListLookupsQuery<ProductCategory>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+                new ListLookupsQuery<ProductCategory>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize, search), ct);
             return Results.Ok(result);
         });
 
@@ -80,10 +80,10 @@ public static class CatalogEndpoints
     private static void MapUnitOfMeasurementEndpoints(RouteGroupBuilder group)
     {
         group.MapGet(
-            "/units-of-measurement", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            "/units-of-measurement", async (Guid organizationId, int? page, int? pageSize, string? search, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListLookupsQuery<UnitOfMeasurement>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+                new ListLookupsQuery<UnitOfMeasurement>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize, search), ct);
             return Results.Ok(result);
         });
 
@@ -115,12 +115,12 @@ public static class CatalogEndpoints
     {
         group.MapGet("/products", async (
             Guid organizationId, ProductType? type, ProductVariantFilter? variantFilter, int? page, int? pageSize,
-            ISender sender, CancellationToken ct) =>
+            string? search, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ListProductsQuery(
                     organizationId, type, variantFilter ?? ProductVariantFilter.All,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search),
                 ct);
             return Results.Ok(result);
         });
@@ -182,11 +182,11 @@ public static class CatalogEndpoints
     private static void MapVariantAttributeEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/variant-attributes", async (
-            Guid organizationId, bool? activeOnly, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            Guid organizationId, bool? activeOnly, int? page, int? pageSize, string? search, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ListVariantAttributesQuery(
-                    organizationId, activeOnly ?? false, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize),
+                    organizationId, activeOnly ?? false, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize, search),
                 ct);
             return Results.Ok(result);
         });

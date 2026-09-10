@@ -4,6 +4,7 @@ import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
+import { ListQueryOptions, applyListOptions } from '../../shared/pagination/list-query-options';
 import {
   AccountingDefaults,
   CreateOrganizationRequest,
@@ -249,10 +250,17 @@ export class OrganizationsService {
     });
   }
 
-  listRoles(organizationId: string, page = 1, pageSize = MAX_PAGE_SIZE): Observable<PagedResult<Role>> {
+  listRoles(
+    organizationId: string,
+    page = 1,
+    pageSize = MAX_PAGE_SIZE,
+    options?: ListQueryOptions,
+  ): Observable<PagedResult<Role>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     return this.http.get<PagedResult<Role>>(`${this.baseUrl}/${organizationId}/roles`, {
       withCredentials: true,
-      params: { page: String(page), pageSize: String(pageSize) },
+      params,
     });
   }
 

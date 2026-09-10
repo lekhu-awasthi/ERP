@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using MediatR;
@@ -12,8 +13,9 @@ public sealed record ListBankAccountsQuery(
     Guid OrganizationId,
     bool IsActive = true,
     int Page = 1,
-    int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<BankAccountDto>>, IRequirePermission, IOrganizationScoped
+    int PageSize = PagingDefaults.DefaultPageSize,
+    string? Search = null)
+    : IRequest<PagedResult<BankAccountDto>>, IRequirePermission, IOrganizationScoped, ISearchableQuery
 {
     public string PermissionKey => PermissionKeys.BankAccountView;
 }

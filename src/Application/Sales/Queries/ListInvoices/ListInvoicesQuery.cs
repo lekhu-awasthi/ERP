@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
@@ -16,8 +17,11 @@ public sealed record ListInvoicesQuery(
     InvoiceStatus? Status,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize,
-    Guid? LocationId = null)
-    : IRequest<PagedResult<Invoice>>, IRequirePermission, IOrganizationScoped, ILocationFilteredQuery
+    Guid? LocationId = null,
+    string? Search = null,
+    DateOnly? FromDate = null,
+    DateOnly? ToDate = null)
+    : IRequest<PagedResult<Invoice>>, IRequirePermission, IOrganizationScoped, ILocationFilteredQuery, ISearchableQuery, IDateRangeFilteredQuery
 {
     public string PermissionKey => PermissionKeys.InvoiceView;
 }

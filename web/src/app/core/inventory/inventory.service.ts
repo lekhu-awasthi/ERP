@@ -1,4 +1,5 @@
 import { HttpClient } from '@angular/common/http';
+import { ListQueryOptions, applyListOptions } from '../../shared/pagination/list-query-options';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
@@ -43,8 +44,10 @@ export class InventoryService {
     status?: WarehouseTransferStatus,
     page = 1,
     pageSize = 50,
+    options?: ListQueryOptions,
   ): Observable<PagedResult<WarehouseTransfer>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (status) params['status'] = status;
     return this.http.get<PagedResult<WarehouseTransfer>>(`${this.baseUrl(organizationId)}/warehouse-transfers`, {
       withCredentials: true,
@@ -89,8 +92,10 @@ export class InventoryService {
     status?: InventoryAdjustmentStatus,
     page = 1,
     pageSize = 50,
+    options?: ListQueryOptions,
   ): Observable<PagedResult<InventoryAdjustment>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (status) params['status'] = status;
     return this.http.get<PagedResult<InventoryAdjustment>>(`${this.baseUrl(organizationId)}/inventory-adjustments`, {
       withCredentials: true,

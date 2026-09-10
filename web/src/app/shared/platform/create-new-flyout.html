@@ -1,0 +1,28 @@
+<button
+  type="button"
+  class="btn btn-success btn-sm w-100 fw-bold d-flex align-items-center justify-content-center gap-2"
+  [attr.aria-expanded]="open()"
+  aria-controls="create-new-panel"
+  aria-haspopup="menu"
+  (click)="toggle()"
+>
+  <i aria-hidden="true" class="bi bi-plus-circle-fill"></i>
+  <span>Create New</span>
+</button>
+
+<div id="create-new-panel" class="create-new-panel shadow" [hidden]="!open()">
+  <div class="row g-4">
+    @for (column of columns; track column.heading) {
+      <div class="col-6 col-xl-3">
+        <h2 class="h6 text-uppercase text-secondary-emphasis small fw-bold mb-2">{{ column.heading }}</h2>
+        <ul class="list-unstyled mb-0">
+          @for (link of column.links; track link.url) {
+            <li>
+              <a class="create-new-link" [routerLink]="linkFor(link.url)" (click)="close()">{{ link.label }}</a>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+  </div>
+</div>

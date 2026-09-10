@@ -7,6 +7,8 @@ import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account, AccountGroup } from '../../../core/accounting/accounting.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { ListChrome } from '../../../shared/pagination/list-chrome';
+import { ListFilter } from '../../../shared/pagination/list-query-options';
 
 /** List-page chrome for Account -- same "inline form above a flat list" shape as
  * account-group-list-page/product-category-list-page (Account is closer in weight to a simple
@@ -14,13 +16,19 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
  * Draft/Approve lifecycle of its own). */
 @Component({
   selector: 'app-account-list-page',
-  imports: [ReactiveFormsModule, RouterLink, PaginationControl],
+  imports: [ReactiveFormsModule, RouterLink, PaginationControl, ListChrome],
   templateUrl: './account-list-page.html',
 })
 export class AccountListPage {
   private readonly route = inject(ActivatedRoute);
   private readonly accountingService = inject(AccountingService);
   private readonly fb = inject(FormBuilder);
+
+  /**
+   * Phase 34b -- the screen's search term. No date range: this list is master data, which
+   * the shell's global range deliberately does not scope (see `IDateRangeFilteredQuery`).
+   */
+  protected readonly filter = new ListFilter();
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -112,7 +120,7 @@ export class AccountListPage {
 
   private load(): void {
     this.loading.set(true);
-    this.accountingService.listAccounts(this.organizationId, undefined, this.page(), this.pageSize()).subscribe({
+    this.accountingService.listAccounts(this.organizationId, undefined, this.page(), this.pageSize(), this.filter.options()).subscribe({
       next: (result) => {
         this.items.set(result.items);
         this.totalCount.set(result.totalCount);
@@ -124,4 +132,15 @@ export class AccountListPage {
       },
     });
   }
+  /**
+   * Phase 34b -- the shared list chrome's search box. Resets to page 1, because staying on page 4
+   * of a result set the filter has just shrunk to one page shows an empty list and reads as
+   * "search found nothing".
+   */
+  protected onSearch(term: string): void {
+    this.filter.search.set(term);
+    this.page.set(1);
+    this.load();
+  }
+
 }

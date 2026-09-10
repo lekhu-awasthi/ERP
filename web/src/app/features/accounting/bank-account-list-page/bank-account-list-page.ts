@@ -10,12 +10,14 @@ import { ConfigurationService } from '../../../core/configuration/configuration.
 import { Bank } from '../../../core/configuration/configuration.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { ListChrome } from '../../../shared/pagination/list-chrome';
+import { ListFilter } from '../../../shared/pagination/list-query-options';
 
 /** Phase 17 -- card-grid view of every Bank/Cash-kind Account with a live running balance,
  * All/Inactive tabs (docs/phase-17-status.md decision #3). */
 @Component({
   selector: 'app-bank-account-list-page',
-  imports: [ReactiveFormsModule, RouterLink, PaginationControl, DecimalPipe],
+  imports: [ReactiveFormsModule, RouterLink, PaginationControl, DecimalPipe, ListChrome],
   templateUrl: './bank-account-list-page.html',
 })
 export class BankAccountListPage {
@@ -23,6 +25,12 @@ export class BankAccountListPage {
   private readonly accountingService = inject(AccountingService);
   private readonly configurationService = inject(ConfigurationService);
   private readonly fb = inject(FormBuilder);
+
+  /**
+   * Phase 34b -- the screen's search term. No date range: this list is master data, which
+   * the shell's global range deliberately does not scope (see `IDateRangeFilteredQuery`).
+   */
+  protected readonly filter = new ListFilter();
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -116,7 +124,7 @@ export class BankAccountListPage {
   private load(): void {
     this.loading.set(true);
     this.accountingService
-      .listBankAccounts(this.organizationId, this.activeTab() === 'active', this.page(), this.pageSize())
+      .listBankAccounts(this.organizationId, this.activeTab() === 'active', this.page(), this.pageSize(), this.filter.options())
       .subscribe({
         next: (result) => {
           this.items.set(result.items);
@@ -129,4 +137,15 @@ export class BankAccountListPage {
         },
       });
   }
+  /**
+   * Phase 34b -- the shared list chrome's search box. Resets to page 1, because staying on page 4
+   * of a result set the filter has just shrunk to one page shows an empty list and reads as
+   * "search found nothing".
+   */
+  protected onSearch(term: string): void {
+    this.filter.search.set(term);
+    this.page.set(1);
+    this.load();
+  }
+
 }

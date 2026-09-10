@@ -7,18 +7,26 @@ import { CatalogService } from '../../../core/catalog/catalog.service';
 import { Product, ProductType } from '../../../core/catalog/catalog.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { ListChrome } from '../../../shared/pagination/list-chrome';
+import { ListFilter } from '../../../shared/pagination/list-query-options';
 
 type ProductTypeFilter = ProductType | 'All';
 
 /** List-page chrome for Product, mirroring contact-list-page's list->detail split. */
 @Component({
   selector: 'app-product-list-page',
-  imports: [RouterLink, PaginationControl],
+  imports: [RouterLink, PaginationControl, ListChrome],
   templateUrl: './product-list-page.html',
 })
 export class ProductListPage {
   private readonly route = inject(ActivatedRoute);
   private readonly catalogService = inject(CatalogService);
+
+  /**
+   * Phase 34b -- the screen's search term. No date range: this list is master data, which
+   * the shell's global range deliberately does not scope (see `IDateRangeFilteredQuery`).
+   */
+  protected readonly filter = new ListFilter();
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -84,6 +92,8 @@ export class ProductListPage {
         this.page(),
         this.pageSize(),
         this.variantFilter(),
+      
+        this.filter.options(),
       )
       .subscribe({
         next: (result) => {
@@ -97,4 +107,15 @@ export class ProductListPage {
         },
       });
   }
+  /**
+   * Phase 34b -- the shared list chrome's search box. Resets to page 1, because staying on page 4
+   * of a result set the filter has just shrunk to one page shows an empty list and reads as
+   * "search found nothing".
+   */
+  protected onSearch(term: string): void {
+    this.filter.search.set(term);
+    this.page.set(1);
+    this.load();
+  }
+
 }

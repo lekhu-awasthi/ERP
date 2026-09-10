@@ -28,6 +28,18 @@ public static class UserPreferenceKeys
     /// </summary>
     public const string Calendar = "calendar";
 
+    /// <summary>
+    /// Phase 34b -- the top bar's global date range, as a JSON object
+    /// <c>{"preset":"last-30","label":"Last 30 days","from":"2026-08-11","to":"2026-09-10"}</c>.
+    ///
+    /// <para>The reference product keeps this in <c>localStorage</c> (<c>TOP_DATE_FROM</c>,
+    /// <c>TOP_DATE_TO</c>, <c>TOP_DATE_NAME</c> -- read live on 2026-09-10), so its users lose the
+    /// setting on every new machine. This store is exactly the shape that problem wants, so the
+    /// range lives here instead. A relative preset is re-derived from today on load rather than
+    /// restored literally: "Last 7 days" stored a week ago must not come back meaning that week.</para>
+    /// </summary>
+    public const string DateRange = "date-range";
+
     public static readonly IReadOnlySet<string> All =
-        new HashSet<string>(StringComparer.Ordinal) { QuickLinks, Calendar };
+        new HashSet<string>(StringComparer.Ordinal) { QuickLinks, Calendar, DateRange };
 }

@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
 using MediatR;
@@ -40,6 +41,14 @@ public sealed class ListChequesQueryHandler(IAppDbContext db) : IRequestHandler<
         if (request.ToDate is { } toDate)
         {
             query = query.Where(x => x.cheque.ChequeDate <= toDate);
+        }
+
+        // Phase 34b (NFR-6.1) -- the list search. This query already had FromDate/ToDate before the
+        // phase, which is why it satisfies IDateRangeFilteredQuery without new parameters; the two
+        // are the same filter the shell's global range now drives.
+        if (SearchTerm.Normalize(request.Search) is { } term)
+        {
+            query = query.Where(x => x.cheque.ChequeNo.Contains(term) || x.contact.Name.Contains(term));
         }
 
         return await query

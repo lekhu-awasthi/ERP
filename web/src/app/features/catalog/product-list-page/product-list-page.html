@@ -1,34 +1,32 @@
 <div class="container py-5" style="max-width: 900px;">
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
-      <div class="d-flex align-items-center gap-3">
-        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
-          <i aria-hidden="true" class="bi bi-box-seam fs-4 d-flex"></i>
+  <app-list-chrome
+    heading="Products"
+    description="Goods and Services you buy and sell"
+    icon="box-seam"
+    [totalCount]="totalCount()"
+    [loading]="loading()"
+    (searchChange)="onSearch($event)"
+  >
+    <div listActions class="d-flex align-items-center gap-2 flex-wrap">
+  <div class="d-flex gap-2">
+          <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'products', 'categories']">
+            <i aria-hidden="true" class="bi bi-diagram-3"></i> Categories
+          </a>
+          <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'products', 'units']">
+            <i aria-hidden="true" class="bi bi-rulers"></i> Units
+          </a>
+          <a
+            class="btn btn-outline-secondary btn-sm fw-bold"
+            [routerLink]="['/organizations', organizationId, 'products', 'variant-attributes']"
+          >
+            <i aria-hidden="true" class="bi bi-palette"></i> Variant Attributes
+          </a>
+          <a class="btn btn-success btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'products', 'new']">
+            <i aria-hidden="true" class="bi bi-plus-lg"></i> Add New
+          </a>
         </div>
-        <div>
-          <h1 class="h3 fw-bold mb-0 text-dark">Products</h1>
-          <p class="text-muted small mb-0">Goods and Services you buy and sell</p>
-        </div>
-      </div>
-      <div class="d-flex gap-2">
-        <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'products', 'categories']">
-          <i aria-hidden="true" class="bi bi-diagram-3"></i> Categories
-        </a>
-        <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'products', 'units']">
-          <i aria-hidden="true" class="bi bi-rulers"></i> Units
-        </a>
-        <a
-          class="btn btn-outline-secondary btn-sm fw-bold"
-          [routerLink]="['/organizations', organizationId, 'products', 'variant-attributes']"
-        >
-          <i aria-hidden="true" class="bi bi-palette"></i> Variant Attributes
-        </a>
-        <a class="btn btn-success btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'products', 'new']">
-          <i aria-hidden="true" class="bi bi-plus-lg"></i> Add New
-        </a>
-      </div>
     </div>
-  </div>
+  </app-list-chrome>
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">

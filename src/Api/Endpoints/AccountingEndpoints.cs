@@ -60,10 +60,10 @@ public static class AccountingEndpoints
 
     private static void MapAccountGroupEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/account-groups", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        group.MapGet("/account-groups", async (Guid organizationId, int? page, int? pageSize, string? search, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListLookupsQuery<AccountGroup>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+                new ListLookupsQuery<AccountGroup>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize, search), ct);
             return Results.Ok(result);
         });
 
@@ -94,10 +94,10 @@ public static class AccountingEndpoints
     private static void MapAccountEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/accounts", async (
-            Guid organizationId, AccountRootType? rootType, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            Guid organizationId, AccountRootType? rootType, int? page, int? pageSize, string? search, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListAccountsQuery(organizationId, rootType, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+                new ListAccountsQuery(organizationId, rootType, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search), ct);
             return Results.Ok(result);
         });
 
@@ -133,11 +133,11 @@ public static class AccountingEndpoints
     private static void MapBankAccountEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/bank-accounts", async (
-            Guid organizationId, bool? isActive, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            Guid organizationId, bool? isActive, int? page, int? pageSize, string? search, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ListBankAccountsQuery(
-                    organizationId, isActive ?? true, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    organizationId, isActive ?? true, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search),
                 ct);
             return Results.Ok(result);
         });
@@ -146,10 +146,10 @@ public static class AccountingEndpoints
     private static void MapJournalVoucherEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/journal-vouchers", async (
-            Guid organizationId, JournalVoucherStatus? status, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            Guid organizationId, JournalVoucherStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListJournalVouchersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+                new ListJournalVouchersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate), ct);
             return Results.Ok(result);
         });
 
@@ -208,10 +208,10 @@ public static class AccountingEndpoints
     private static void MapCashTransferEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/cash-transfers", async (
-            Guid organizationId, CashTransferStatus? status, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            Guid organizationId, CashTransferStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListCashTransfersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+                new ListCashTransfersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate), ct);
             return Results.Ok(result);
         });
 

@@ -1,3 +1,29 @@
+/*
+  Phase 34b -- the shell's one layout rule.
+
+  The left rail is `position: fixed`, so the only thing the rest of the app owes it is a left inset.
+  Applying that inset here, to the header and `<main>`, is what let the nav ship without editing any
+  of the 130 in-organization page templates: each of them opens with `<div class="container py-5">`,
+  and a centred max-width container re-centres perfectly well inside a narrower main. Below `lg` the
+  rail becomes a drawer (see `left-nav.scss`) and the inset goes away entirely, which is also WCAG
+  1.4.10 Reflow -- at 320px there is no 240px to give away.
+*/
+$rail-width: 240px;
+
+.platform-bar,
+.shell-with-nav {
+  @media (min-width: 992px) {
+    margin-left: $rail-width;
+  }
+}
+
+/* The small-viewport nav toggle is fixed at the top-left, so the header has to start clear of it. */
+@media (max-width: 991.98px) {
+  .platform-bar {
+    padding-left: 2.5rem;
+  }
+}
+
 /* Phase 33 -- the platform chrome sits above the page and stays put while it scrolls. */
 .platform-bar {
   position: sticky;

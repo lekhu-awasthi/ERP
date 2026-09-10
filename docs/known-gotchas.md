@@ -672,3 +672,131 @@ only offences it would have reported were the ones just removed.
 Back the file up to the scratchpad first and restore it by **SHA-256**, which is also what makes a
 before/after measurement trustworthy: the same before/after toggle was then used to measure one badge
 at 3.49:1 on HEAD's markup and 10.35:1 on the phase's, in the same running app, on the same element.
+
+
+---
+
+## A global filter a screen renders but does not reload on (phase 34b)
+
+The top bar's date range is stored per user and loaded asynchronously. A list page's constructor
+issues its first request immediately, so on the first paint the two disagree: the chrome rendered
+**"Last 30 days: 2026-08-11 – 2026-09-10"** above an invoice dated **2026-07-20**, because the label
+read the settled signal and the rows came from the default the request was built with.
+
+Nothing was broken in a way a test could see. The request was well-formed, the handler filtered
+correctly, the label was accurate about the *current* setting. The defect is only visible when the
+two are on screen together, which is why the browser pass found it and 271 unit tests did not.
+
+**The rule:** anything global that a screen both *shows* and *sends* has to reload that screen when
+it changes. `ListFilter` therefore takes a `reload` callback and drives it from an `effect` over the
+range, skipping the first run by comparing the value rather than by a flag — the window may
+legitimately settle to the one it started at.
+
+**The stronger form:** a filter a page displays but did not apply is worse than no filter at all. No
+filter shows you everything and you know it. A displayed-but-unapplied filter shows you a wrong
+answer that looks checked.
+
+---
+
+## An `effect()` racing the handler that wrote the signal (phase 34b)
+
+The list chrome's search box debounces: `onInput` sets `term` and schedules `searchChange.emit(value)`
+after 300ms, or after **0ms** when the box has been cleared, so clearing feels instant.
+
+An `effect()` was then added over `term` to "make clearing immediate" — it saw an empty term with a
+pending timer and cancelled it. But the timer it cancelled was the one `onInput` had *just* scheduled
+to do exactly that job. Clearing the search never restored the unfiltered list; the symptom was a
+list stuck at its filtered count with an empty box above it.
+
+**The rule:** an effect cannot distinguish "the write that is already being acted on" from "a write
+that needs acting on". If the handler that wrote the signal already schedules the response, an effect
+over that signal is a race and not a safety net. Delete it and let the handler own the whole
+transition.
+
+---
+
+## `overflow: hidden` on a shell container clips the popups inside it (phase 34b)
+
+The left rail had `overflow: hidden` to keep its flex children in bounds. The Create New flyout is
+`position: absolute` inside the rail's header and is 46rem wide — so two of its four columns were
+simply not rendered, clipped to the rail's 240px.
+
+This is phase-22's gotcha (`.dropdown-menu` inside `.table-responsive` is clipped by the implied
+`overflow-y`) reaching a second container. The remedy there was `position: fixed` at captured
+coordinates; here the simpler one applies, because the scrolling the rail actually needs belongs to
+its middle section alone (`.left-nav-list` has its own `overflow-y: auto`). Removing `overflow` from
+the outer container costs nothing.
+
+**The rule:** before putting `overflow` on a layout container, ask what is anchored inside it. Any
+menu, popover or flyout that means to escape its parent will be cut by it, silently and without a
+console error.
+
+---
+
+## A shared matcher cannot live inside a LINQ-to-Entities predicate (phase 34b)
+
+Phase 34b gave 25 list queries a search term, and the obvious first move was one shared rule:
+
+```csharp
+public static bool Matches(string? column, string term) =>
+    column != null && column.Contains(term, StringComparison.OrdinalIgnoreCase);
+```
+
+It cannot work, for two independent reasons: **a static method call inside a `Where` is not
+translatable at all**, and **`string.Contains(term, StringComparison)` is not translatable either** —
+only the single-argument overload is, which SQL Server renders as `LIKE '%term%'`.
+
+The dangerous part is the failure mode. Every handler test in this codebase runs on the InMemory
+provider, which evaluates the expression in C#, where both forms work perfectly. The helper would
+have passed every test and 500'd all 25 endpoints in production. That is phase-25's captured-`Func`
+gotcha (a validator selector that 500s every endpoint it guards, invisible to handler tests) arriving
+through a different door.
+
+Each handler therefore writes `x.Code.Contains(term)` inline, and `SearchableQuery.cs` carries a
+comment saying why the duplication must stay.
+
+**The related trap:** the single-argument `Contains` matches **case-insensitively** on SQL Server
+(the collation does it, not the expression) and **case-sensitively** on InMemory. A handler test must
+search with the stored casing, or it is asserting a behaviour the real database does not have — in
+either direction.
+
+---
+
+## Seeding traps added by phase 34b's E2E
+
+Three request-shape traps and one shell trap, all of which surface as errors that name the wrong
+thing:
+
+- **`POST /products` takes `primaryUnitId`**, not `unitOfMeasurementId`. The wrong name is a 400
+  naming `PrimaryUnitId`, which reads like the unit was never created rather than like a typo.
+- **`POST /accounts` takes `{name, groupId, kind}` and nothing else.** There is no `code` (the
+  numbering engine generates it) and no `openingBalance`, and `kind` is an `AccountKind`
+  (`Other`/`Bank`/`Cash`) — sending `"Normal"` makes the whole body fail to deserialise, and the 400
+  says only *"failed to read parameter CreateAccountRequest from the request body as JSON"*, naming
+  neither field.
+- **A fresh organization has no warehouse**, the same shape as phase-27a's "a fresh organization has
+  no chart of accounts".
+- **A bash helper that both prints and returns is a trap under `$( )`.** A `mkaccount` helper called
+  the shared `req` (which prints a status line) and then echoed the new id; captured as
+  `SALES=$(mkaccount ...)` it returned *the status line and the guid*. Fourteen malformed ids
+  produced a `PUT /accounting-defaults` that stored fourteen nulls, and the failure surfaced three
+  steps later as a 409 at Approve whose message named a missing Sales Account — i.e. it looked like a
+  product misconfiguration, in a completely different part of the seed. Have such a helper set a
+  global instead of echoing. (Same family as the earlier `BODY` trap: a function whose assignment is
+  discarded because `$( )` ran it in a subshell.)
+
+---
+
+## The browser pane's measurements lag the rendering under viewport emulation (phase 34b)
+
+After `resize_window` to a mobile preset on an already-rendered page, `getComputedStyle(rail).transform`
+reported the identity matrix and `getBoundingClientRect()` put the nav rail on screen at `left: 0` —
+while the screenshot showed it correctly tucked off-screen. The CSS rule was present, the media query
+matched, and the selector matched the element; only the measurement was stale.
+
+A fresh load at the emulated size agreed with the screenshot.
+
+**The rule:** in the browser pane, the screenshot is ground truth. Reload after emulating a viewport
+rather than trusting measurements taken across a resize — and when a measurement contradicts a
+screenshot, believe the screenshot. Related to the standing trap that the screenshot frame and
+`innerWidth` differ, so the scale factor must be read per tab and never reused.

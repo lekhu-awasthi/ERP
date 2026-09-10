@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using ErpApp.Domain.Identity;
 using FluentValidation;
@@ -42,6 +43,11 @@ public sealed class SetUserPreferenceCommandValidator : AbstractValidator<SetUse
             .Must(BeAValidCalendarChoice)
             .When(x => x.Key == UserPreferenceKeys.Calendar)
             .WithMessage("The calendar preference must be the JSON string \"AD\" or \"BS\".");
+
+        RuleFor(x => x.Value)
+            .Must(BeAValidDateRange)
+            .When(x => x.Key == UserPreferenceKeys.DateRange)
+            .WithMessage("The date range must be a JSON object with a preset and ISO from/to dates, from on or before to.");
     }
 
     private static bool BeAValidQuickLinksTray(string value)
@@ -85,6 +91,36 @@ public sealed class SetUserPreferenceCommandValidator : AbstractValidator<SetUse
         && !url.StartsWith("//", StringComparison.Ordinal)
         && !url.Contains('\\', StringComparison.Ordinal)
         && !url.Contains(':', StringComparison.Ordinal);
+
+    /// <summary>
+    /// The stored range is read back and used to filter list queries, so the two dates have to be
+    /// real dates in the right order -- a reversed pair would silently return nothing on every list
+    /// in the app, which reads like a data-loss bug rather than a bad preference.
+    /// </summary>
+    private static bool BeAValidDateRange(string value)
+    {
+        StoredDateRange? range;
+
+        try
+        {
+            range = JsonSerializer.Deserialize<StoredDateRange>(value, UserPreferenceJson.Options);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+
+        if (range is null || string.IsNullOrWhiteSpace(range.Preset) || range.Preset.Length > 40)
+        {
+            return false;
+        }
+
+        return DateOnly.TryParse(range.From, CultureInfo.InvariantCulture, out var from)
+            && DateOnly.TryParse(range.To, CultureInfo.InvariantCulture, out var to)
+            && from <= to;
+    }
+
+    private sealed record StoredDateRange(string? Preset, string? Label, string? From, string? To);
 
     private static bool BeAValidCalendarChoice(string value)
     {

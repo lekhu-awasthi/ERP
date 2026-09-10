@@ -1,31 +1,29 @@
 <div class="container py-5" style="max-width: 900px;">
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
-      <div class="d-flex align-items-center gap-3">
-        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
-          <i aria-hidden="true" class="bi bi-journal-text fs-4 d-flex"></i>
+  <app-list-chrome
+    heading="Chart of Accounts"
+    description="Accounts, grouped under the Chart of Accounts hierarchy"
+    icon="journal-text"
+    [totalCount]="totalCount()"
+    [loading]="loading()"
+    (searchChange)="onSearch($event)"
+  >
+    <div listActions class="d-flex align-items-center gap-2 flex-wrap">
+  <div class="d-flex gap-2">
+          <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'accounting', 'account-groups']">
+            <i aria-hidden="true" class="bi bi-diagram-3"></i> Account Groups
+          </a>
+          <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'accounting', 'journal-vouchers']">
+            <i aria-hidden="true" class="bi bi-journal-check"></i> Journal Vouchers
+          </a>
+          <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'accounting', 'cash-transfers']">
+            <i aria-hidden="true" class="bi bi-arrow-left-right"></i> Cash Transfers
+          </a>
+          <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'accounting', 'defaults']">
+            <i aria-hidden="true" class="bi bi-sliders"></i> Accounting Defaults
+          </a>
         </div>
-        <div>
-          <h1 class="h3 fw-bold mb-0 text-dark">Chart of Accounts</h1>
-          <p class="text-muted small mb-0">Accounts, grouped under the Chart of Accounts hierarchy</p>
-        </div>
-      </div>
-      <div class="d-flex gap-2">
-        <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'accounting', 'account-groups']">
-          <i aria-hidden="true" class="bi bi-diagram-3"></i> Account Groups
-        </a>
-        <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'accounting', 'journal-vouchers']">
-          <i aria-hidden="true" class="bi bi-journal-check"></i> Journal Vouchers
-        </a>
-        <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'accounting', 'cash-transfers']">
-          <i aria-hidden="true" class="bi bi-arrow-left-right"></i> Cash Transfers
-        </a>
-        <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'accounting', 'defaults']">
-          <i aria-hidden="true" class="bi bi-sliders"></i> Accounting Defaults
-        </a>
-      </div>
     </div>
-  </div>
+  </app-list-chrome>
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">

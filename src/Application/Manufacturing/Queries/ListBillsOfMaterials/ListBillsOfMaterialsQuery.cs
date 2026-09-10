@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Tenancy;
@@ -11,7 +12,7 @@ public sealed record ListBillsOfMaterialsQuery(
     bool? IsActive,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<BillOfMaterialsListItemDto>>, IRequirePermission, IOrganizationScoped, IRequireFeature
+    : IRequest<PagedResult<BillOfMaterialsListItemDto>>, IRequirePermission, IOrganizationScoped, IRequireFeature, ISearchableQuery
 {
     public string PermissionKey => PermissionKeys.BillOfMaterialsView;
 

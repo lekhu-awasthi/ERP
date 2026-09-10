@@ -622,6 +622,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    // Phase 34b -- the Reports catalogue. The left nav renders Reports as a single leaf (52 routes
+    // is more nav rows than every other area combined), and this is the screen it opens.
+    path: 'organizations/:id/reports',
+    loadComponent: () =>
+      import('./features/reports/report-index-page/report-index-page').then((m) => m.ReportIndexPage),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/reports/trial-balance',
     loadComponent: () =>
       import('./features/reports/trial-balance-page/trial-balance-page').then((m) => m.TrialBalancePage),

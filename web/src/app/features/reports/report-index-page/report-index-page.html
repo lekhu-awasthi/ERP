@@ -1,0 +1,70 @@
+<div class="container py-5">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i aria-hidden="true" class="bi bi-bar-chart-line-fill fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Reports</h1>
+          <p class="text-muted small mb-0">{{ totalCount() }} reports across accounting, receivables, payables, sales, purchase, tax and inventory</p>
+        </div>
+      </div>
+
+      <div style="min-width: 16rem;">
+        <label class="form-label small text-muted mb-1" for="report-index-filter">Find a report</label>
+        <input
+          id="report-index-filter"
+          type="search"
+          class="form-control form-control-sm"
+          placeholder="Type to filter…"
+          [value]="filter()"
+          (input)="onFilter($event)"
+        />
+      </div>
+    </div>
+  </div>
+
+  <!--
+    Phase 34a carried item #5 — `aria-live` existed on exactly one region in the whole app (global
+    search). Filtering this list changes what is on screen with no other announcement, so this is the
+    second, and the pattern the human pass generalises from.
+  -->
+  <p class="visually-hidden" aria-live="polite">
+    {{ matchCount() }} of {{ totalCount() }} reports shown
+  </p>
+
+  @if (visible().length === 0) {
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4 text-center py-5">
+        <div class="bg-light d-inline-flex p-4 rounded-circle mb-3 text-muted">
+          <i aria-hidden="true" class="bi bi-search fs-1"></i>
+        </div>
+        <h2 class="h5 fw-bold text-dark">No reports match “{{ filter() }}”</h2>
+        <p class="text-muted small mb-0">Clear the filter to see all {{ totalCount() }} reports.</p>
+      </div>
+    </div>
+  }
+
+  @for (group of visible(); track group.category) {
+    <section class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <h2 class="h6 fw-bold text-uppercase text-secondary-emphasis mb-3">{{ group.category }}</h2>
+
+        <div class="row g-2">
+          @for (report of group.reports; track report.url) {
+            <div class="col-12 col-md-6 col-xl-4">
+              <a
+                class="list-group-item list-group-item-action border rounded-3 p-3 h-100 d-flex align-items-center gap-3"
+                [routerLink]="linkFor(report.url)"
+              >
+                <i aria-hidden="true" class="bi bi-file-earmark-bar-graph text-primary fs-5"></i>
+                <span class="fw-semibold text-dark">{{ report.name }}</span>
+              </a>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+  }
+</div>

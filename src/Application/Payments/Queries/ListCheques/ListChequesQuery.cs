@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Payments;
@@ -15,8 +16,9 @@ public sealed record ListChequesQuery(
     DateOnly? FromDate = null,
     DateOnly? ToDate = null,
     int Page = 1,
-    int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<PagedResult<ChequeDto>>, IRequirePermission, IOrganizationScoped
+    int PageSize = PagingDefaults.DefaultPageSize,
+    string? Search = null)
+    : IRequest<PagedResult<ChequeDto>>, IRequirePermission, IOrganizationScoped, ISearchableQuery, IDateRangeFilteredQuery
 {
     public string PermissionKey => PermissionKeys.ChequeView;
 }

@@ -113,10 +113,10 @@ public static class OrganizationEndpoints
         });
 
         group.MapGet("/{organizationId:guid}/roles", async (
-            Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            Guid organizationId, int? page, int? pageSize, string? search, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListRolesQuery(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+                new ListRolesQuery(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize, search), ct);
             return Results.Ok(result);
         });
 
@@ -157,10 +157,10 @@ public static class OrganizationEndpoints
         });
 
         group.MapGet("/{organizationId:guid}/warehouses", async (
-            Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            Guid organizationId, int? page, int? pageSize, string? search, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListLookupsQuery<Warehouse>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+                new ListLookupsQuery<Warehouse>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize, search), ct);
             return Results.Ok(result);
         });
 
@@ -191,10 +191,10 @@ public static class OrganizationEndpoints
         // ConfigurationEndpoints. List/Delete ride the generic lookup pair; Create and Update are
         // concrete because each carries a rule the generic pair cannot express.
         group.MapGet("/{organizationId:guid}/currencies", async (
-            Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            Guid organizationId, int? page, int? pageSize, string? search, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListLookupsQuery<Currency>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+                new ListLookupsQuery<Currency>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize, search), ct);
             return Results.Ok(result);
         });
 

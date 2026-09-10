@@ -1,0 +1,63 @@
+<button
+  type="button"
+  class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2"
+  [attr.aria-expanded]="open()"
+  aria-controls="date-range-panel"
+  (click)="toggle()"
+>
+  <i aria-hidden="true" class="bi bi-calendar-range"></i>
+  <span class="d-none d-md-inline">{{ dateRange.label() }}</span>
+  <span class="visually-hidden">
+    Change global date range, currently {{ dateRange.label() }}, {{ dateRange.from() }} to {{ dateRange.to() }}
+  </span>
+  <i aria-hidden="true" class="bi bi-chevron-down small"></i>
+</button>
+
+<div id="date-range-panel" class="date-range-panel shadow" [hidden]="!open()">
+  <ul class="list-unstyled mb-0">
+    @for (option of presets; track option.preset) {
+      <li>
+        <button
+          type="button"
+          class="date-range-option"
+          [class.active]="dateRange.preset() === option.preset"
+          [attr.aria-current]="dateRange.preset() === option.preset ? 'true' : null"
+          (click)="choose(option.preset)"
+        >
+          <span class="fw-semibold">{{ option.label }}</span>
+          <span class="text-muted small">{{ boundsOf(option.preset) }}</span>
+        </button>
+      </li>
+    }
+  </ul>
+
+  <hr class="my-2" />
+
+  <div class="px-2 pb-1">
+    <h2 class="h6 fw-semibold mb-2">Custom Range</h2>
+
+    <div class="mb-2">
+      <label class="form-label small text-muted mb-1" for="date-range-custom-from">From</label>
+      <app-bs-date-input
+        [inputId]="'date-range-custom-from'"
+        inputClass="form-control form-control-sm"
+        [value]="customFrom()"
+        (valueChange)="customFrom.set($event)"
+      />
+    </div>
+
+    <div class="mb-2">
+      <label class="form-label small text-muted mb-1" for="date-range-custom-to">To</label>
+      <app-bs-date-input
+        [inputId]="'date-range-custom-to'"
+        inputClass="form-control form-control-sm"
+        [value]="customTo()"
+        (valueChange)="customTo.set($event)"
+      />
+    </div>
+
+    <button type="button" class="btn btn-sm btn-primary w-100" [disabled]="!customValid()" (click)="applyCustom()">
+      Apply
+    </button>
+  </div>
+</div>

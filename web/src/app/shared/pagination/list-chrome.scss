@@ -1,0 +1,14 @@
+// Phase 34b -- the shared list chrome.
+//
+// Almost everything here is Bootstrap utilities in the template; this file exists only for the two
+// things a utility class cannot express.
+
+// A `type="search"` input gets a WebKit clear button that duplicates the explicit one, and sits at a
+// different height. One control per action.
+input[type='search']::-webkit-search-cancel-button {
+  display: none;
+}
+
+:host {
+  display: block;
+}

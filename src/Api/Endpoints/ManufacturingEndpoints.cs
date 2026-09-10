@@ -59,6 +59,9 @@ public static class ManufacturingEndpoints
             Guid organizationId, string? search, bool? isActive, int? page, int? pageSize,
             ISender sender, CancellationToken ct) =>
         {
+            // Phase 34b: this endpoint has taken `search` since phase 25 -- it was one of the two
+            // lists in the codebase that already had one. It needs no new parameter, only the
+            // interface its query now declares.
             var result = await sender.Send(
                 new ListBillsOfMaterialsQuery(
                     organizationId, search, isActive, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
@@ -127,11 +130,11 @@ public static class ManufacturingEndpoints
     {
         group.MapGet("/production-orders", async (
             Guid organizationId, ProductionOrderStatus? status, int? page, int? pageSize,
-            ISender sender, CancellationToken ct) =>
+            string? search, DateOnly? fromDate, DateOnly? toDate, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ListProductionOrdersQuery(
-                    organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+                    organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate), ct);
             return Results.Ok(result);
         });
 
@@ -209,11 +212,11 @@ public static class ManufacturingEndpoints
     {
         group.MapGet("/production-journals", async (
             Guid organizationId, ProductionJournalStatus? status, int? page, int? pageSize,
-            ISender sender, CancellationToken ct) =>
+            string? search, DateOnly? fromDate, DateOnly? toDate, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ListProductionJournalsQuery(
-                    organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+                    organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate), ct);
             return Results.Ok(result);
         });
 

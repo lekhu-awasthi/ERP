@@ -1,0 +1,40 @@
+// Phase 34b -- the quick-create panel.
+//
+// It overlays the rail and spills to its right, which is what the reference product's does: measured
+// live at 848x255 anchored under a 233px-wide button, i.e. roughly 3.6x the rail's width.
+
+:host {
+  position: relative;
+  display: block;
+}
+
+.create-new-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  z-index: 1040;
+  width: 46rem;
+  max-width: calc(100vw - 1.5rem);
+  padding: 1.25rem;
+  background-color: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.5rem;
+}
+
+.create-new-link {
+  display: block;
+  padding: 0.3125rem 0;
+  color: var(--bs-body-color);
+  font-size: 0.875rem;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--bs-primary-text-emphasis);
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+  }
+}

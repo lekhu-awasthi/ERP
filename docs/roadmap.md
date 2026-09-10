@@ -64,6 +64,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 32b | Per-location permission scope (FR-3.3) -- the role editor's **second matrix**: *Organization-wide Permissions* ("Apply across all billing locations") and *Location-specific Permissions*, the **transaction keys alone** replicated per location (77 of this codebase's 222, derived from `DocumentMechanisms.LocationBearing`). A grant is a `RolePermission` row with a nullable **`LocationId` FK** -- null is the organization-wide grant, so no backfill and nothing seeded per location, which dissolves this roadmap's own seed-size warning. Enforced by one extra branch in **`AuthorizationBehavior`** (phase-27a's `AttachmentAccess` pattern, third use, promoted to the pipeline because it spans ~120 requests) plus four marker interfaces and a sweep guard. **And the confirm-live pass falsified what four documents recorded**: turning `LocationWiseReportPermission` ON does *not* pull the 52 Reports keys into the matrix -- it narrows report *rows*, and that is the consumer that shipped | `phase-32b-status.md` |
 | 33 | Platform chrome (the top bar this app never had): a **global search** (Ctrl + /) in the shell, a **History** popover, the personalisable **Quick Links** tray, and the thing all of it exists to decide -- **`UserPreference`, the per-user server store** (a row per `(OrganizationId, UserId, Key)` with an opaque JSON value), which also closes phase-23 Decision C's `localStorage`-only calendar choice. **Three of the four things this entry recorded were wrong**, and the confirm-live pass on both tenants is what showed it: History is **client-only `localStorage`** and lists **screens, one per module** rather than opened records; global search is **half a command palette**, whose navigation and create-action half is usually the majority of a result set and whose record half omits a whole collection (Accounts) from this entry's list; and a document is matched on its **number alone**, never through its contact's name. Search is filtered per collection *and* per billing location through 32b's existing `LocationAccessScope` seam -- building which surfaced a real defect: the two pre-32b inlined permission joins in the approval queue and the recent-activity feed still read location-scoped grants as organization-wide ones | `phase-33-status.md` |
 | 34a | Accessibility (NFR-6.2, WCAG 2.1 AA): the mechanisable half of the standard swept across all 161 templates and pinned by a guard spec — **page titles derived from the router** (0 of 141 routes had one; the app was `<title>Web</title>` throughout), 348 unnamed controls, **152 orphan labels of which 121 were date fields whose control lives inside a component and so was invisible to any scan for `<input>`**, 25 unnamed icon-only controls, 1035 unhidden decorative icons, 653 `<th>` with no scope, and 161 badge pairings at 3.4–3.9:1 — plus a skip link, the `<main>`/`<search>` landmarks and the ARIA combobox pattern global search had the keyboard model for but never exposed. **Bootstrap's stock brand tones fail AA on this app's own `#f8f9fa` body** (they clear 4.5:1 against pure white and only just), so the four text utilities are re-pointed at its `-600` shades. Decision A records which criteria a machine can decide and which need a person, and why the line falls there | `phase-34a-status.md` |
+| 34b | Consistency and the shell (NFR-6.1): the four controls phase 33 deferred by name — **left nav, Create New flyout, company switcher, global date filter** — plus a **Reports index page** (52 report routes, one nav leaf, which is what the reference product does) and the list chrome NFR-6.1 enumerates. Search went from **1 of 46 list screens to 21 of 21 paginated ones** and from **2 of 47 `List*Query` types to 25** (9 exempt *with reasons*, enforced by `SearchSweepGuardTests`), with a date range on the 16 that have a business `Date`. **The re-layout cost zero page templates**: all 130 already open with the same `<div class="container py-5">`, so a fixed rail plus a left inset was the whole layout change — the plan's choice between re-laying out 130 pages and an overlay was a false dichotomy that one grep dissolved. Three defects came from the browser pass and none from tests, the sharpest being **a chrome that displayed a date range it had not applied** (the range loads from the per-user store after the page has fetched), which is a wrong answer that looks checked. **The confirm-live pass falsified the module scan for the fourth phase running** — the global date filter scopes *list queries*, not dashboard figures — while the Create New flyout matched it verbatim | `phase-34b-status.md` |
 
 ---
 
@@ -344,21 +345,31 @@ retrofitted onto it.**
 
 #### 34a. Accessibility (NFR-6.2) — **DONE** (see `docs/phase-34a-status.md`)
 
-#### 34b. Consistency and the shell (NFR-6.1) — next
-- **The shell phase 33 deferred by name** (its carried item #5): left nav, Create New flyout, company
-  switcher, global date filter. `NavigationCatalog` drives it — it is already derived from
-  `Router.config` and already has two consumers (search/Quick Links, and 34a's `PageTitleStrategy`).
-- **The list-screen interaction model.** Measured on our side: of 46 list pages, 41 have an `<h1>`,
-  27 have a pager, **1** has a search box, 10 render a `<table>` and 36 a `list-group`; of 47
-  `List*Query` handlers, 43 paginate and **2** accept a search term. NFR-6.1 names "search,
-  pagination, filtering, row actions" explicitly, so the server-side search parameter is in scope.
-- **The reference product's own baseline is now observed, not inferred** (2026-09-10, three modules):
-  `+ ADD NEW` / `OPTIONS` / `Search For…` / the pager / the select-all column are uniform across
-  Contacts, Products and Chart of Accounts — but the module scan's "row-level ⋮ menu repeats across
-  nearly every module" is **false**: Contacts has no row menu at all.
-- Also here: 34a's carried item #1, the human accessibility pass (focus order, focus visibility,
-  error-message quality, label-in-name, status messages, reflow), which should run *after* the
-  re-layout rather than before it.
+#### 34b. Consistency and the shell (NFR-6.1) — **DONE** (see `docs/phase-34b-status.md`)
+
+**What shipped.** The four shell controls phase 33 deferred by name — left nav, Create New flyout,
+company switcher, global date filter — plus a **Reports index page** (52 routes were unreachable from
+a nav that renders Reports as one leaf, which is what the reference product does) and the list chrome
+NFR-6.1 names.
+
+| | before | after |
+|---|---|---|
+| list screens with a search box | 1 of 46 | 21 of 21 paginated ones |
+| `List*Query` accepting a search term | 2 of 47 | 25, with 9 exempt and reasons stated |
+| lists scoped by a date range | 1 | 16 document lists |
+| page templates edited for the re-layout | — | **0** |
+
+**Decision A's dichotomy was false**, and that is the entry worth remembering: all 130
+in-organization templates already open with `<div class="container py-5">`, so a fixed rail plus a
+left inset gave a permanent nav for no page edits at all. Decision B took the full server-side search
+sweep over a client-side filter of the current page, which on `Skip`/`Take` lists would have been a
+worse feature wearing the same chrome. Decision C kept `list-group` rows and moved sorting into the
+chrome, stating the price. Decision D scoped the date range to aggregates with a business `Date`
+rather than copying the reference product's own inconsistency.
+
+**The confirm-live pass falsified the module scan again** (fourth phase running): the global date
+filter scopes *list queries*, not dashboard figures. The Create New flyout, by contrast, matched the
+scan verbatim.
 
 #### 34c. Scale (NFR-5.1/5.2) — after 34b
 - The dataset and the measurement are already decided in `phase-34a-status.md`'s Decision C:

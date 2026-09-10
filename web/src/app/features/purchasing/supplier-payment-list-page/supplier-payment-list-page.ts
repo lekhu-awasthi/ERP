@@ -8,6 +8,9 @@ import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { ListChrome } from '../../../shared/pagination/list-chrome';
+import { ListFilter } from '../../../shared/pagination/list-query-options';
+import { DateRangeService } from '../../../shared/platform/date-range.service';
 
 type StatusFilter = PaymentStatus | 'All';
 
@@ -15,12 +18,15 @@ type StatusFilter = PaymentStatus | 'All';
  * Payment aggregate/endpoint, see payments.models.ts's PaymentDirection doc comment. */
 @Component({
   selector: 'app-supplier-payment-list-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, NepaliDatePipe],
+  imports: [RouterLink, PaginationControl, AmountPipe, NepaliDatePipe, ListChrome],
   templateUrl: './supplier-payment-list-page.html',
 })
 export class SupplierPaymentListPage {
   private readonly route = inject(ActivatedRoute);
   private readonly paymentsService = inject(PaymentsService);
+
+  /** Phase 34b -- the screen's search term plus the shell's global date range. */
+  protected readonly filter = new ListFilter(inject(DateRangeService), () => this.reloadForDateRange());
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -60,7 +66,7 @@ export class SupplierPaymentListPage {
     this.loading.set(true);
     const status = this.statusFilter();
     this.paymentsService
-      .listPayments(this.organizationId, status === 'All' ? undefined : status, 'Paid', this.page(), this.pageSize())
+      .listPayments(this.organizationId, status === 'All' ? undefined : status, 'Paid', this.page(), this.pageSize(), this.filter.options())
       .subscribe({
         next: (result) => {
           this.items.set(result.items);
@@ -73,4 +79,25 @@ export class SupplierPaymentListPage {
         },
       });
   }
+  /**
+   * Phase 34b -- the shared list chrome's search box. Resets to page 1, because staying on page 4
+   * of a result set the filter has just shrunk to one page shows an empty list and reads as
+   * "search found nothing".
+   */
+  protected onSearch(term: string): void {
+    this.filter.search.set(term);
+    this.page.set(1);
+    this.load();
+  }
+
+  /**
+   * Phase 34b -- the shell's global date range changed under an open list. Reload from page 1: the
+   * window that produced the current page no longer applies, and the chrome is already showing the
+   * new one.
+   */
+  private reloadForDateRange(): void {
+    this.page.set(1);
+    this.load();
+  }
+
 }

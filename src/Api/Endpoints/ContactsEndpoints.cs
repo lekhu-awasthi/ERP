@@ -49,10 +49,10 @@ public static class ContactsEndpoints
 
     private static void MapContactGroupEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/contact-groups", async (Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+        group.MapGet("/contact-groups", async (Guid organizationId, int? page, int? pageSize, string? search, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListLookupsQuery<ContactGroup>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+                new ListLookupsQuery<ContactGroup>(organizationId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize, search), ct);
             return Results.Ok(result);
         });
 
@@ -83,10 +83,10 @@ public static class ContactsEndpoints
     private static void MapContactEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/contacts", async (
-            Guid organizationId, ContactType? type, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            Guid organizationId, ContactType? type, int? page, int? pageSize, string? search, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListContactsQuery(organizationId, type, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+                new ListContactsQuery(organizationId, type, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search), ct);
             return Results.Ok(result);
         });
 

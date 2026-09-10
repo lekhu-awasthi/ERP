@@ -67,4 +67,6 @@ export interface UserPreferenceDto {
 export const UserPreferenceKeys = {
   quickLinks: 'quick-links',
   calendar: 'calendar',
+  /** Phase 34b -- the top bar's global date range. See `shared/platform/date-range.service.ts`. */
+  dateRange: 'date-range',
 } as const;

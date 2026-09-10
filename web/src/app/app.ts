@@ -6,8 +6,11 @@ import { filter } from 'rxjs/operators';
 import { environment } from '../environments/environment';
 import { DatePreferenceService } from './shared/formatting/date-preference';
 import { HistoryService } from './shared/navigation/history.service';
+import { DateRangePicker } from './shared/platform/date-range-picker';
+import { DateRangeService } from './shared/platform/date-range.service';
 import { GlobalSearch } from './shared/platform/global-search';
 import { HistoryMenu } from './shared/platform/history-menu';
+import { LeftNav } from './shared/platform/left-nav';
 
 /**
  * The application shell.
@@ -29,7 +32,7 @@ import { HistoryMenu } from './shared/platform/history-menu';
  */
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, GlobalSearch, HistoryMenu],
+  imports: [RouterOutlet, GlobalSearch, HistoryMenu, LeftNav, DateRangePicker],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -44,6 +47,7 @@ export class App implements OnInit {
   private readonly router = inject(Router);
   private readonly history = inject(HistoryService);
   private readonly datePreference = inject(DatePreferenceService);
+  private readonly dateRange = inject(DateRangeService);
 
   ngOnInit(): void {
     this.http.get<{ status: string }>(`${environment.apiBaseUrl}/health`).subscribe({
@@ -71,6 +75,10 @@ export class App implements OnInit {
     // move behind an endpoint; phase 33 built the endpoint, and this is the call that uses it.
     if (organizationId) {
       this.datePreference.activate(organizationId);
+
+      // Phase 34b — the same seam for the global date range. Both are per-user, per-organization
+      // rows in the store phase 33 built.
+      this.dateRange.activate(organizationId);
     }
   }
 }

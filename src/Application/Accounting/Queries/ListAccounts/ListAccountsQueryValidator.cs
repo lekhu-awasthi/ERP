@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Pagination;
 using FluentValidation;
 
@@ -8,5 +9,6 @@ public sealed class ListAccountsQueryValidator : AbstractValidator<ListAccountsQ
     public ListAccountsQueryValidator()
     {
         this.ValidatePaging(x => x.Page, x => x.PageSize);
+        this.ValidateSearch(x => x.Search);
     }
 }

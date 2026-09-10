@@ -98,6 +98,12 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 34a: the WCAG 2.1 AA sweep (page titles, control names, `th scope`, icon names, contrast)
   and `a11y-sweep-guard.spec.ts`. Before adding a template, choosing a colour, writing a guard that
   reads a file, or scripting an edit with a lazy match between two anchors — `docs/phase-34a-status.md`
+- Phase 34b: the shell (left nav, Create New flyout, company switcher, global date filter) built on
+  `NavigationCatalog` for **zero page-template edits**, a Reports index page, and NFR-6.1's list
+  chrome — a search term on 25 `List*Query` types and a date range on 16. Before adding a paginated
+  list query, before a filter a screen displays but does not own, before putting `overflow` on a
+  layout container, or before trusting a measurement taken across a viewport resize —
+  `docs/phase-34b-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -170,6 +176,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `EF.Functions.Like` cannot be translated by InMemory; write `String.Contains`, which SQL Server turns into the same `LIKE`.
 - An extraction is not done until the copies it replaced are deleted: `GrantedPermissionReader` said it had replaced two inlined joins and had not, so both missed phase-32b's `LocationId == null` filter and read a branch grant as organization-wide. Before writing copy N+1 of a pattern, grep that copies 1..N were retired (phase-33).
 - An expression tree does not short-circuit, so `!flag || list.Contains(x)` hands EF a **null** list to translate — and only on the unrestricted branch, i.e. almost every caller. Compose a second `.Where()` (phase-33).
+- A shared matcher cannot live inside a LINQ predicate: a **static call** is untranslatable and so is `Contains(term, StringComparison)` — and InMemory evaluates both in C#, so every handler test passes while all 25 endpoints 500 (phase-34b, phase-25's captured-`Func` through another door).
+- Single-argument `Contains` is case-**insensitive** on SQL Server (collation) and case-**sensitive** on InMemory; a handler test must search with the stored casing or it pins a behaviour production lacks (phase-34b).
 - Read a handler's `Where` before assuming it matches its request — `ListPaymentsQueryHandler` shipped with a hardcoded `Direction == Received` (phase-6 bug #2).
 - A store-side aggregate (`GroupBy...Count()`) must run after the `SaveChangesAsync` that persists what it counts; tracked-but-unsaved rows are invisible to it (phase-21a).
 - A Domain factory/mutator can stay `internal` only while its sole caller is in the Domain assembly (phase-7 bug #1).
@@ -273,6 +281,10 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A sweep over `<input>/<select>/<textarea>` cannot see a control a **component** wraps: 121 date fields had a label, an input and nothing joining them. Ask the mirror question — which labels name no control? (phase-34a).
 - Bootstrap's brand tones clear WCAG's 4.5:1 against **pure white** and only just, so they fail on this app's `#f8f9fa` body; the four text utilities are re-pointed at its `-600` shades in `styles.scss`, and `contrast-rules.ts` is the measured palette the guard derives from (phase-34a).
 - Bootstrap's JS is not loaded, so nothing sets `aria-expanded` for free — every signal-driven popup must set it itself (phase-34a, extending phase-22's gotcha).
+- A filter a screen **displays but did not apply** is worse than no filter: anything global a screen both shows and sends must reload that screen when it changes, from the first version (phase-34b).
+- An `effect()` cannot tell "the write already being acted on" from "a write needing action" — if the handler that wrote the signal already schedules the response, an effect over it is a race (phase-34b).
+- Never put `overflow` on a layout container without asking what is anchored inside it; the rail's `overflow: hidden` clipped a 46rem flyout to 240px, silently (phase-34b, phase-22's gotcha in a second container).
+- Deriving beats listing for a **catalogue** (a missing nav entry is an unreachable screen); listing beats deriving for a **curated tray** (deriving loses the curation that is the feature). Guard both the same way — every url must resolve to a real route (phase-34b).
 
 **Multi-way switches on a document-attached mechanism**
 - A shared UI *panel* is not evidence of a shared *model*: the reference product shows email templates inside its Custom Templates panel but serves them from a different resource with six extra fields and a disjoint type vocabulary, so `EmailTemplate` is its own aggregate and phase 27b's placeholder `CustomTemplateType.Email` was deleted rather than left dead (phase-30).
@@ -288,6 +300,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A test suite that passes with **fewer** tests than the previous run is a failure — check what a rewriting script produced by counting it, not by whether the build is green (phase-27b).
 - A guard must assert its input is **non-empty**, not merely defined: Vite returns an empty string for `?raw`/`?inline` on a compiled `.scss`, so `toBeDefined()` passed and every assertion over it was vacuous (phase-34a).
 - Prove a guard bites by injecting a regression — but back the file up and restore it **by hash**, never `git checkout --`, which reverts the phase's own work on that file too (phase-34a).
+- A uniform sweep is worth more than its subject: asking one question of every paginated list found two queries with **no validator at all** and one whose search term had reached a `LIKE` uncapped since phase 25 (phase-34b).
+- `POST /products` takes **`primaryUnitId`**; `POST /accounts` takes **`{name, groupId, kind}`** only (no `code`, and `kind` is an `AccountKind` — `"Normal"` fails to deserialise with a 400 naming no field); a fresh organization has **no warehouse** (phase-34b).
+- A bash helper that both **prints and returns** is a trap under `$( )` — it returns the printed line too; fourteen malformed ids became a `PUT` storing nulls that surfaced as a 409 three steps later. Have it set a global (phase-34b, same family as a function whose assignment a subshell discards).
 - Map one enum onto another **by name** (`Enum.TryParse`), never by ordinal, and add a test asserting every member has a counterpart — an ordinal cast compiles, works today, and silently reports the wrong value the first time a member is inserted (phase-26a).
 - A shared reader that several reports agree through is worth more than each report deriving its own figure: Invoice Age's total balance equals Customer Receivable Summary's closing balance *by construction* because both read `ContactLedgerReader` (phase-26b).
 - A curl seed script that pipes approvals to `/dev/null` hides its own failures — the first report just comes back empty. Print every approval's status code. Two live traps: `POST /api/organizations` returns `organizationId`, not `id`, and the GL defaults are **one** `PUT /accounting-defaults` taking all eleven accounts (phase-26c).
@@ -317,66 +332,69 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A `cat > file <<'EOF'` heredoc in the Bash tool is silently truncated or mis-parsed well below the ~8 KB figure; use the Write tool, or write a small patch script and run it (phase-26a).
 - A lazy `.*?` between two anchors spans the instances in between (it expands past `</label>` to reach a later match), silently merging them; exclude the closing marker — `((?:(?!</label>).)*?)`. The tell is two independent counts disagreeing, so derive the expected number a second way (phase-34a, on top of phase-32's assert-before-writing rule).
 - A positional derivation (column index → header text) is *confidently wrong* where the position lies — a `colspan` cell, a cell with its own label. A wrong accessible name is worse than none; audit for the shapes the first pass cannot see (phase-34a).
-- `sed -i` also flips the CRLF of the file you *aimed* it at, after which every `
+- In the browser pane the **screenshot is ground truth**: after a viewport resize, `getComputedStyle`/`getBoundingClientRect` can lag the rendering (a drawer measured on-screen while the screenshot showed it tucked away). Reload after emulating a viewport (phase-34b).
+- `sed -i` also flips the CRLF of the file you *aimed* it at, after which every `
 `-anchored patch script fails its assertion with the anchor looking correct; use Edit for a single substitution, or read the file's own newline (phase-33).
 - A `sed -i` over a glob rewrites **every** file it matches, and on Windows that flips CRLF to LF even where the pattern never fires — `git diff` stays empty while `git status` shows a hundred extra modified files. Undoing it needs `rm` *then* `git checkout --`; restrict the file list instead (phase-30).
 - When a generator script emits Angular templates through `str.format`, interpolation braces need escaping in the *format string* but not in a substituted value — `{{{{ x }}}}` in a value ships literally and fails as NG5002 (phase-26b).
 
 ## Current status
 
-**Phases 0-33 are complete, and phase 34 has been split: 34a (accessibility) is done, 34b
-(consistency + the shell) and 34c (scale) remain.** 34a swept the mechanisable half of WCAG 2.1 AA
-across all 161 templates and pinned it with `shared/a11y/a11y-sweep-guard.spec.ts`: **page titles
-derived from the router** (the app was `<title>Web</title>` on all 141 routes, so every navigation
-announced the same word), 348 controls with no accessible name, **152 orphan labels**, 25 unnamed
-icon-only controls, 1035 unhidden decorative icons, 653 `<th>` with no `scope`, and 161 badge
-pairings at 3.4-3.9:1 -- plus a skip link, the `<main>`/`<search>` landmarks, and the ARIA combobox
-pattern global search had the keyboard model for since phase 33 but never exposed.
+**Phases 0-34b are complete; 34c (scale) is the last entry on the roadmap.** 34a swept the
+mechanisable half of WCAG 2.1 AA across all 161 templates and pinned it with
+`shared/a11y/a11y-sweep-guard.spec.ts`. **34b built the shell phase 33 deferred by name and the list
+chrome NFR-6.1 asks for**: a left nav, the Create New flyout, a company switcher and a global date
+filter, plus a Reports index page, a search term on 25 `List*Query` types and a date range on 16.
 
-**Three findings are worth carrying forward.** *A component boundary hides a control from a
-control-shaped scan*: 121 date fields had a visible label, a real input and nothing joining them,
-and only the mirror check (which labels name no control?) could find them. *Bootstrap's contrast
-margin is the white in the worked example*: its brand tones clear 4.5:1 against `#fff` by nothing at
-all, and fail on this app's own `#f8f9fa` body -- found by **computing** the palette rather than
-listing forbidden class pairs, which is the whole argument for `contrast-rules.ts` existing. And *an
-accessibility defect and a consistency defect can be the same defect*: the codebase paired
-`bg-*-subtle` with `-emphasis` 50 times and with the plain tone 161 times, which is WCAG 1.4.3 and
-NFR-6.1 seen from two directions.
+**The headline finding is a number that stayed at zero: page templates edited for the re-layout.**
+The plan framed the shell as a choice between re-laying out 130 templates and an offcanvas overlay
+that leaves them alone; one grep dissolved it, because all 130 already open with the same
+`<div class="container py-5">` and a centred container re-centres inside a narrower `<main>`. A fixed
+rail plus a left inset on two shell elements was the whole layout change. The other measured moves:
+list screens with a search box **1 of 46 → 21 of 21 paginated ones**, `List*Query` accepting a term
+**2 of 47 → 25** (9 exempt *with reasons*, enforced by `SearchSweepGuardTests`), and Reports from 52
+routes with no index to one nav leaf over a catalogue of 8 headings.
 
-**The phase split is a decision about order, not size** (`phase-34a-status.md` Decision B): the
-template-level work is layout-independent and survives 34b's re-layout untouched, while the small
-landmark-level part is better built *into* the new shell than retrofitted onto it. Decision A records
-which WCAG criteria a machine can decide and which need a person, and why -- the six it cannot are
-34b's opening act. Decisions C and D settle 34c's dataset and measurement **before** any rewrite is
-chosen, keeping the 25,000-row export cap and the OpenXml SAX writer as a re-entry condition rather
-than a schedule.
+**Three things are worth carrying forward.** *A filter a screen displays but did not apply is worse
+than no filter* — the chrome rendered "Last 30 days: 2026-08-11 – 2026-09-10" above an invoice dated
+2026-07-20, because the range loads from the per-user store after the page has already fetched; it
+looked checked and it was wrong. *An `effect()` cannot tell the write already being acted on from a
+new one* — one added to make clearing the search box feel instant cancelled the very emit that did
+it, so clearing never restored the list. And *a uniform sweep is worth more than its subject*: asking
+one question of every paginated list found two queries with no validator at all and one whose term
+had reached a `LIKE` uncapped since phase 25. All three came from the browser pass and the sweep, not
+from tests.
 
-**What comes next** is **34b** -- the left nav, Create New flyout, company switcher and global date
-filter phase 33 deferred by name, driven by `NavigationCatalog` (already router-derived, now with two
-consumers), plus the list-screen interaction model NFR-6.1 actually names. The measured baseline:
-of 46 list pages, 41 have an `<h1>`, 27 a pager, **1** a search box, 10 a `<table>` and 36 a
-`list-group`; of 47 `List*Query` handlers, 43 paginate and **2** take a search term. The reference
-product's own baseline is now **observed** (2026-09-10, three modules): its `+ ADD NEW` / `OPTIONS` /
-search / pager / select-all column really are uniform, but the module scan's "row-level ⋮ menu
-repeats across nearly every module" is **false** -- Contacts has none. Then **34c** closes the
-roadmap.
+**The confirm-live pass falsified the module scan for the fourth phase running.** The global date
+filter does not "scope dashboard figures" — instrumenting `fetch`/`XHR` showed it scoping *every list
+query*, and switching the preset re-issued the open list. It is also not uniform even there
+(`products` and `contact-groups` get no range), which is why this codebase's rule is the one a schema
+can state: an aggregate with a business `Date` is scoped, master data is not. Counterweight worth
+keeping: the Create New flyout matched the scan **verbatim** — the rule is that an unoperated
+description is not *settled*, not that it is wrong.
 
-**When 34c lands the roadmap is finished, and what is left is the carried-item backlog** -- which is
-now long enough that triaging it is a piece of work in its own right, not a paragraph. It spans
-phases 25-34a (25's multi-level BOM explosion; 26a's two; 26b's two; 26c's two; 27b's rich-text
-editor; 28's five; 29's five; 30's five; 31's six; 32's six; 32b's five; 33's six; 34a's five), plus
-`docs/roadmap.md`'s deliberate post-v1 deferrals (POS, IRD e-filing, Marketplace, Delivery
-Note/GRN). Two of 33's remain the highest-value: an **Account or Contact hit in search has nowhere to
-go** (no per-account detail page, and `reports/detail-general-ledger` takes no account route
-parameter), and **Tigg Subscriptions' three dead fields**. 34a adds: the human accessibility pass,
-`role="radiogroup"` on two radio sets, two pre-existing `NG8113` warnings, the contrast guard's
-utility-class-only scope, and the fact that `aria-live` exists on exactly one region in the app.
+**What comes next is 34c**, and its dataset and measurement are already decided in
+`phase-34a-status.md`'s Decision C: 50,000 invoices / 50,000 contacts / 20,000 products seeded by
+direct `INSERT`, p95 over each list's first *and last* page, the three financial statements, the two
+heaviest registers and global search. The 25,000-row export cap and the OpenXml SAX writer stay a
+re-entry condition, not a schedule. 34b hands it one new measurable: the initial bundle grew
+**640 kB → 726 kB** (transfer 141 kB) because the shell is eagerly imported, and `@defer`ing it would
+move ~46 kB off the login path — deliberately left for the phase that measures before rewriting.
 
-Tests: Domain 443, Application.UnitTests 921, Api.IntegrationTests 18, **Angular 246** (+21);
+**When 34c lands the roadmap is finished, and the carried-item backlog is a piece of work in its own
+right.** It spans phases 25-34b, plus `docs/roadmap.md`'s deliberate post-v1 deferrals (POS, IRD
+e-filing, Marketplace, Delivery Note/GRN). Highest-value entries: an **Account or Contact hit in
+global search still has nowhere to go** (phase 33), **Tigg Subscriptions' three dead fields**, and
+34a's remaining **human accessibility pass** — narrowed by 34b to error-message quality and
+label-in-name over the pre-existing templates, since the new chrome was built conformant. 34b adds
+five of its own, of which the honest one is that the list chrome's **sort control has no consumer**:
+it is the seam Decision C promised in place of sortable column headers, and no screen populates it.
+
+Tests: Domain 443, Application.UnitTests **931**, Api.IntegrationTests 18, **Angular 271**;
 `dotnet build` / `dotnet test` / `ng build` / `ng test` all clean. `ng build` still warns that the
-initial bundle exceeds its 500 kB budget -- **pre-existing** (637 kB before this phase, 640 after;
-the 3 kB is the title strategy and the skip link). Note `tsc --noEmit` does **not** cover
-`web/src/app` -- `ng build` is the check that does (phase-28).
+initial bundle exceeds its 500 kB budget — pre-existing, and now larger for the reason above. Note
+`tsc --noEmit` does **not** cover `web/src/app` — `ng build` is the check that does (phase-28).
+
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

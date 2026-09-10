@@ -1,4 +1,5 @@
 import { HttpClient } from '@angular/common/http';
+import { ListQueryOptions, applyListOptions } from '../../shared/pagination/list-query-options';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
@@ -74,8 +75,9 @@ export class ContactsService {
     return this.http.delete<void>(`${this.baseUrl(organizationId)}/contact-groups/${id}`, { withCredentials: true });
   }
 
-  listContacts(organizationId: string, type?: ContactType, page = 1, pageSize = 50): Observable<PagedResult<Contact>> {
+  listContacts(organizationId: string, type?: ContactType, page = 1, pageSize = 50, options?: ListQueryOptions): Observable<PagedResult<Contact>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
     if (type) params['type'] = type;
     return this.http.get<PagedResult<Contact>>(`${this.baseUrl(organizationId)}/contacts`, { withCredentials: true, params });
   }
