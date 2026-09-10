@@ -1,4 +1,4 @@
-﻿# ErpApp
+# ErpApp
 
 A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQRS (MediatR) on .NET 10 (LTS), Angular 21 (LTS) frontend, SQL Server via EF Core.
 
@@ -50,60 +50,20 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 23: Nepali localization (dates stored AD, BS is presentation only, range 2000–2092). Before rendering any date/amount or any app-wide sweep — `docs/phase-23-status.md`
 - Phase 24: variants are Products with a parent pointer. Before a second "child of a Product" concept or appending to a tracked parent's collection — `docs/phase-24-status.md`
 - Phase 25: manufacturing (BOM → Production Order → Production Journal, perpetual-inventory posting). Before a value-transforming posting rule, a shared FluentValidation helper, or a browser pass in a non-interactive session — `docs/phase-25-status.md`
-- Phase 26a: the five missing Accounting reports + FR-9.1's Compare column on the three financial statements. Before adding a period-over-period comparison, or any report that reads `GlLine` back to its source document — `docs/phase-26a-status.md`
-- Phase 26b: Receivable/Payable + Sales/Purchase analytics (13 reports, 7 shared handlers) and the server-side BS calendar. Before ageing anything, or any report keyed by a fiscal year — `docs/phase-26b-status.md`
-- Phase 26c: the Reports catalogue completed — 4 inventory reports, both return registers, Net Trading Assets, Exceptional Report, User Log. Before a report over stock, a second report that must agree with a register, or anything written on an unauthenticated path — `docs/phase-26c-status.md`
-- Phase 27a: swept Custom Fields/Custom Status/Reporting Tags/Tasks-Documents-Activity across every document type, generalized `Comment` to a polymorphic parent. Before adding a `DocumentType` member, or building a second cross-cutting mechanism sweep — `docs/phase-27a-status.md`
-- Phase 27b: print/PDF for all 15 document types on one generic section layout, BS dates in server-rendered PDFs/`.xlsx`, the last three pagers, wizard Turnstile, a feature-flag route guard, and `CustomTemplate`'s first two consumers. Before adding a type to the print pipeline, rendering a date in server-produced output, or giving a `CustomTemplate` type a consumer — `docs/phase-27b-status.md`
-- Phase 28: multi-currency — a tenant `Currency` list, `CurrencyCode`/`ExchangeRate` on 12 document types,
-  the base-currency fold on posting-rule *inputs*, and a realised forex rule on Payment allocation. Before
-  converting anything into the general ledger, before gating a feature flag, or before trusting a
-  confirm-live pass to be possible — `docs/phase-28-status.md`
-- Phase 29: landed cost — an Additional Cost section on the Purchase Bill, allocated at Approve by
-  Value or Quantity across the bill's *goods* lines and capitalised into the received FIFO layers'
-  unit cost, against a new Landed Cost Clearing account. Before capitalising anything into a stock
-  layer, before adding a tenant-default GL account, or before asking to run a confirm-live *write* —
-  `docs/phase-29-status.md`
-- Phase 30: Communications — a **Send Email** dialog on 6 document types plus the Contact page, an
-  Email Logs tab with data behind it, an Email Templates config page, `AlertMedium.Sms`. Before
-  wiring a Send Email action, before a background job that *reads* through a permission-gated
-  request, before assuming a `CustomTemplateType` member is the right home, or before trusting an
-  earlier phase's "one enum member and a branch" estimate — `docs/phase-30-status.md`
-- Phase 31: credit control — `Contact.CreditLimit`/`CreditTermId`/`AcceptsReverseTransactions` and a
-  **Credit Limit Exceeds** policy at Invoice Approve, plus the **Configurations > General** screen
-  that made all five behaviour settings reachable for the first time; Negative Cash Balance,
-  Suggest Selling Price and Product Price Basis enforced; a stored `DueDate`; a bounced cheque that
-  voids its payment; subscription expiry. Before enforcing a tenant setting, before adding a second
-  confirmable warning to a document, before adding a non-nullable column to a populated table, or
-  before writing a test that needs a state only time can produce — `docs/phase-31-status.md`
-- Phase 32: Billing Locations — a `BillingLocation` aggregate with **HeadOffice seeded
-  unconditionally** and `MultipleLocations` as a cap at one, nullable `LocationId` on all 17
-  location-bearing types, the **Advanced** panel that makes location scope a runtime tenant setting,
-  location-wise numbering, and the location filter/column on the Invoice list and Sales Master
-  Report. Before deciding a screen cannot be confirm-lived, before letting a setting choose which
-  types store a field, or before adding the filter to a unique index over a nullable column —
-  `docs/phase-32-status.md`
-- Phase 32b: per-location permission scope — the role editor's second matrix (the 77 transaction
-  keys per location), a nullable `RolePermission.LocationId` where **null is the organization-wide
-  grant**, and enforcement as one extra branch inside `AuthorizationBehavior`. Before enforcing a
-  permission that depends on a row the handler has not read yet, before re-confirming a screen an
-  earlier phase already confirmed, or before adding a request over a location-bearing document type
-  — `docs/phase-32b-status.md`
-- Phase 33: platform chrome — a **global search** (Ctrl + /) in the shell, a **History** popover, the
-  **Quick Links** tray, and `UserPreference`, the per-user store (a row per
-  `(OrganizationId, UserId, Key)`). Before adding a per-user setting, before a request that searches
-  across document types, or before trusting a recorded description of a control nobody operated —
-  `docs/phase-33-status.md`
-
-- Phase 34a: the WCAG 2.1 AA sweep (page titles, control names, `th scope`, icon names, contrast)
-  and `a11y-sweep-guard.spec.ts`. Before adding a template, choosing a colour, writing a guard that
-  reads a file, or scripting an edit with a lazy match between two anchors — `docs/phase-34a-status.md`
-- Phase 34b: the shell (left nav, Create New flyout, company switcher, global date filter) built on
-  `NavigationCatalog` for **zero page-template edits**, a Reports index page, and NFR-6.1's list
-  chrome — a search term on 25 `List*Query` types and a date range on 16. Before adding a paginated
-  list query, before a filter a screen displays but does not own, before putting `overflow` on a
-  layout container, or before trusting a measurement taken across a viewport resize —
-  `docs/phase-34b-status.md`
+- Phase 26a: the five missing Accounting reports + FR-9.1's Compare column. Before a period-over-period comparison, or a report joining `GlLine` back to its document — `docs/phase-26a-status.md`
+- Phase 26b: Receivable/Payable + Sales/Purchase analytics (13 reports), server-side BS calendar. Before ageing anything, or a fiscal-year-keyed report — `docs/phase-26b-status.md`
+- Phase 26c: Reports catalogue completed (inventory reports, return registers, Net Trading Assets, Exceptional, User Log). Before a stock report, a report that must agree with a register, or a write on an unauthenticated path — `docs/phase-26c-status.md`
+- Phase 27a: Custom Fields/Status/Reporting Tags/Tasks-Documents-Activity swept to every type; polymorphic `Comment`. Before adding a `DocumentType` member or a second mechanism sweep — `docs/phase-27a-status.md`
+- Phase 27b: print for all 15 types, BS dates in server output, last pagers, wizard Turnstile, feature route guard, first `CustomTemplate` consumers. Before adding a print type, a server-rendered date, or a template consumer — `docs/phase-27b-status.md`
+- Phase 28: multi-currency (Currency list, rate on 12 types, fold on posting-rule inputs, realised forex on allocation). Before converting anything into the GL or gating a feature flag — `docs/phase-28-status.md`
+- Phase 29: landed cost (Additional Cost on the Purchase Bill, capitalised into FIFO layers, Landed Cost Clearing account). Before capitalising into a stock layer or adding a tenant-default GL account — `docs/phase-29-status.md`
+- Phase 30: Communications (Send Email on 6 types + Contact, Email Logs, Email Templates, `AlertMedium.Sms`). Before wiring Send Email, or a job that reads through a permission-gated request — `docs/phase-30-status.md`
+- Phase 31: credit control + the Configurations > General screen; three dead settings enforced; stored `DueDate`; cheque bounce voids its payment; subscription expiry. Before enforcing a tenant setting, a second confirmable warning, or a NOT NULL column on a populated table — `docs/phase-31-status.md`
+- Phase 32: Billing Locations (HeadOffice seeded, cap at one, nullable `LocationId` on 17 types, Advanced panel, location-wise numbering). Before declaring a screen un-confirm-liveable, or letting a setting choose which types store a field — `docs/phase-32-status.md`
+- Phase 32b: per-location permission scope (second matrix, nullable `RolePermission.LocationId`, one branch in `AuthorizationBehavior`). Before a permission that depends on an unread row, or a request over a location-bearing type — `docs/phase-32b-status.md`
+- Phase 33: platform chrome (global search, History, Quick Links, the `UserPreference` per-user store). Before a per-user setting or a cross-type search — `docs/phase-33-status.md`
+- Phase 34a: WCAG 2.1 AA sweep + `a11y-sweep-guard.spec.ts`. Before adding a template, choosing a colour, or scripting an edit between two anchors — `docs/phase-34a-status.md`
+- Phase 34b: the shell on `NavigationCatalog` (zero page-template edits), Reports index, list chrome (search on 25 queries, date range on 16). Before a paginated list query, a displayed-but-unowned filter, or `overflow` on a layout container — `docs/phase-34b-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -203,41 +163,16 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Build a capitalisation leg from the value the ledger actually received (`layer value created − goods amount`), never the figure the user typed, and round each unit cost **once** at the ledger's own scale from the line's total landed value; the gap is the named residue (phase-29, phase-25's rule on a second aggregate).
 - When a phase adds a tenant-default GL account, grep `web/` for the field name before calling it done — phase 25's and phase 28's three accounts reached the API and no screen, so they could not be configured at all (phase-29; phase-23 bug #1 in reverse).
 
-- A tenant-level field is reachable only if you can name the **command** that writes it and the
-  screen that calls it; being *read* by a handler proves the read path and makes the missing write
-  path invisible (phase-31, extending phase-29's grep-`web/` rule).
-- Two confirmable warnings on one document need two override flags and a `warningKind` on the 422,
-  or confirming the first silently waives the second (phase-31).
-- Adding a **non-nullable** column to a populated table needs its backfill written by hand: the
-  scaffold's `DEFAULT '0001-01-01'` back-dates every historical row and leaves a stray constraint
-  (phase-31, extending the replace-or-retype rule).
-- A permission whose applicability depends on the **requested value** as well as the loaded row is
-  phase-27a's `AttachmentAccess` pattern again; the E2E must show 404 on a missing row *and* 403 on
-  a real one, or it has proved nothing (phase-31's cheque bounce).
-- Never weaken a Domain invariant so a test can reach a state only time produces; reach through EF's
-  change tracker instead (phase-31's expired `TenantSubscription`).
-- Before applying the nullable-unique-index filter rule, ask what a NULL in that column *means*: when
-  NULL is a sentinel with an at-most-one invariant, the **unfiltered** index is the enforcement and
-  EF's automatic `IS NOT NULL` filter destroys it — `HasFilter(null)` is load-bearing (phase-32's
-  numbering counter, inverting the standing gotcha).
-- When a tenant setting selects among *sets* of document types, the schema owes the **widest** set,
-  not the current one — otherwise flipping the setting is a lie until a later phase ships the columns
-  (phase-32's `LocationScopeMode`, phase-31 lesson (a) inside out).
-- The `AttachmentAccess` pattern stops being a per-handler re-check at the point where missing one
-  instance is an open door rather than a bug: phase 32b's ~120 requests moved the check *into*
-  `AuthorizationBehavior` (not a sixth behavior — the two halves must share one decision, and a
-  scoped context between behaviors is corrupted by a nested `ISender.Send`), behind four marker
-  interfaces and a sweep guard that fails the build on any location-scopable request declaring none
-  of them (phase-32b).
-- **A confirm-live pass can falsify an earlier confirm-live pass.** Four documents recorded that
-  `LocationWiseReportPermission` pulls the 52 Reports keys into the per-location matrix; flipping it
-  on the live tenant showed the matrix unchanged — it scopes report *rows*. A screen someone already
-  read is not settled when what was recorded is an inference about a control nobody operated
-  (phase-32b, extending 32's another-tenant rule).
-- Reuse a marker interface by **reading** it, not by merging it: phase-31 lesson (c) applies only
-  when the sets match, and `ILockDateSensitiveDocument`'s is narrower than a location grant's (a
-  lock date never gates a read). Reading it from the resolver spared all thirty Approve/Void
-  commands an edit, with a guard test pinning that the reuse still covers them (phase-32b).
+- A tenant-level field is reachable only if you can name the command that writes it and the screen that calls it; a read path proves nothing about the write path (phase-31).
+- Two confirmable warnings on one document need two override flags and a `warningKind` on the 422, or confirming the first waives the second (phase-31).
+- A non-nullable column on a populated table needs a hand-written backfill; the scaffold's `DEFAULT '0001-01-01'` back-dates every row and leaves a stray constraint (phase-31).
+- A permission that depends on the requested value as well as the loaded row is the `AttachmentAccess` pattern; the E2E must show 404 on a missing row and 403 on a real one (phase-31's cheque bounce).
+- Never weaken a Domain invariant so a test can reach a state only time produces; reach through EF's change tracker (phase-31's expired `TenantSubscription`).
+- When NULL in a unique-indexed column is an at-most-one sentinel, the unfiltered index is the enforcement and EF's automatic `IS NOT NULL` filter destroys it; `HasFilter(null)` is load-bearing (phase-32's numbering counter).
+- When a tenant setting selects among sets of document types, the schema owes the widest set, or flipping the setting is a lie until later columns ship (phase-32's `LocationScopeMode`).
+- Once missing one per-handler re-check is an open door, the check moves into `AuthorizationBehavior` (not a sixth behavior; a nested `ISender.Send` corrupts a scoped context) behind marker interfaces and a build-failing sweep guard (phase-32b).
+- A confirm-live pass can falsify an earlier one: a recorded inference about a control nobody operated is not settled (phase-32b's `LocationWiseReportPermission` scopes report rows, not keys).
+- Reuse a marker interface by reading it, not merging it, when its member set is narrower than the new grant's (`ILockDateSensitiveDocument`, phase-32b).
 
 **Background jobs**
 - A singleton `BackgroundService` cannot inject scoped services; take `IServiceScopeFactory`, read options via `IOptionsMonitor`, and never let a tick's exception escape `ExecuteAsync` (`AlertSchedulerHostedService`).
@@ -312,19 +247,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `tsc --noEmit -p tsconfig.json` does not typecheck `web/src/app`; it came back clean while `ng build` reported 22 `TS2339` errors. `ng build` is the real check (phase-28).
 - A Goods line consumes stock regardless of `TrackInventory`, so on a tenant without that feature a Goods product cannot be invoiced at all (403 on opening stock, 409 on approve); seed a **Service** line when an E2E just needs an approved sales document (phase-30).
 - curl cannot read a file for `-F` upload here — every path form gives exit 26 and HTTP `000`, which reads like a server fault; drive the file leg from a short Python `urllib` script (phase-30).
-- `POST /api/organizations` also needs `industry` and a **non-empty** `turnstileToken` (any string
-  passes against the dummy secret); accept-invitation is `/api/organizations/memberships/{id}/accept-invitation`
-  with **no org segment**, and calling it with one returns a 404 that reads like a bad membership id
-  while the membership silently stays `Invited` — which makes any later Member-403 proof meaningless;
-  units are `/units-of-measurement` (field `shortName`); credit terms are under `/configuration/`
-  (phase-31).
-- `POST /accounts` takes `groupId`, not `accountGroupId`; and `POST /products` takes **`type`, not
-  `productType`** — the wrong name silently yields a *Goods* product whose line then consumes stock
-  and 409s at Approve with a message about the warehouse, which reads like a seeding fault rather
-  than a typo (phase-32).
-- A scripted multi-file edit must assert its **anchor count** before writing (and preserve each
-  file's CRLF/BOM); phase 32's sweep touched 32 commands safely that way, and the one edit that
-  matched three records where two were meant was caught by exactly that check.
+- `POST /api/organizations` needs `industry` and a non-empty `turnstileToken`; accept-invitation is `/api/organizations/memberships/{id}/accept-invitation` with no org segment (with one, a 404 leaves the membership `Invited`); units are `/units-of-measurement` (`shortName`); credit terms are under `/configuration/` (phase-31).
+- `POST /accounts` takes `groupId`; `POST /products` takes `type`, not `productType`, and the wrong name silently yields a Goods product that 409s at Approve about the warehouse (phase-32).
+- A scripted multi-file edit must assert its anchor count before writing and preserve each file's CRLF/BOM (phase-32).
 - `dotnet run --project src/Api` with no `--launch-profile` binds **5155 only**, not the 7104 the Angular dev environment calls; and a stale listener on 5155 makes the https profile fail to start (phase-30).
 
 **Tooling and shell**
@@ -340,63 +265,27 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-34b are complete; 34c (scale) is the last entry on the roadmap.** 34a swept the
-mechanisable half of WCAG 2.1 AA across all 161 templates and pinned it with
-`shared/a11y/a11y-sweep-guard.spec.ts`. **34b built the shell phase 33 deferred by name and the list
-chrome NFR-6.1 asks for**: a left nav, the Create New flyout, a company switcher and a global date
-filter, plus a Reports index page, a search term on 25 `List*Query` types and a date range on 16.
+**Phases 0–34b are complete; 34c (scale, NFR-5.1/5.2) is in progress and is the last entry of the
+parity sequence.** Its dataset and measurement are fixed by `phase-34a-status.md` Decision C: 50,000
+invoices / 50,000 contacts / 20,000 products seeded by direct `INSERT`, p95 on each list's first and
+last page, the three financial statements, the two heaviest registers and global search. The
+25,000-row export cap and the OpenXml SAX writer stay a re-entry condition. 34b handed it one more
+measurable: the initial bundle grew 640 kB → 726 kB because the shell is eagerly imported, and
+`@defer`ing it on `organizationId` would move about 46 kB off the login path. Uncommitted 34c work
+(two `Phase34c*` migrations, `TenantIndexConvention`, `tools/scale/`) is in the tree.
 
-**The headline finding is a number that stayed at zero: page templates edited for the re-layout.**
-The plan framed the shell as a choice between re-laying out 130 templates and an offcanvas overlay
-that leaves them alone; one grep dissolved it, because all 130 already open with the same
-`<div class="container py-5">` and a centred container re-centres inside a narrower `<main>`. A fixed
-rail plus a left inset on two shell elements was the whole layout change. The other measured moves:
-list screens with a search box **1 of 46 → 21 of 21 paginated ones**, `List*Query` accepting a term
-**2 of 47 → 25** (9 exempt *with reasons*, enforced by `SearchSweepGuardTests`), and Reports from 52
-routes with no index to one nav leaf over a catalogue of 8 headings.
+**After 34c:** phases 35–41 in `docs/roadmap.md`, a 2026-09-10 plan built from the carried-item
+backlog of phases 25–34b plus the remaining reference-product gaps. The second reference tenant
+(`cadehi.tigg.app`, Billing Location enabled) was read on 2026-09-10; findings are in
+`docs/erp-module-scan.md` under "Second reference tenant".
 
-**Three things are worth carrying forward.** *A filter a screen displays but did not apply is worse
-than no filter* — the chrome rendered "Last 30 days: 2026-08-11 – 2026-09-10" above an invoice dated
-2026-07-20, because the range loads from the per-user store after the page has already fetched; it
-looked checked and it was wrong. *An `effect()` cannot tell the write already being acted on from a
-new one* — one added to make clearing the search box feel instant cancelled the very emit that did
-it, so clearing never restored the list. And *a uniform sweep is worth more than its subject*: asking
-one question of every paginated list found two queries with no validator at all and one whose term
-had reached a `LIKE` uncapped since phase 25. All three came from the browser pass and the sweep, not
-from tests.
-
-**The confirm-live pass falsified the module scan for the fourth phase running.** The global date
-filter does not "scope dashboard figures" — instrumenting `fetch`/`XHR` showed it scoping *every list
-query*, and switching the preset re-issued the open list. It is also not uniform even there
-(`products` and `contact-groups` get no range), which is why this codebase's rule is the one a schema
-can state: an aggregate with a business `Date` is scoped, master data is not. Counterweight worth
-keeping: the Create New flyout matched the scan **verbatim** — the rule is that an unoperated
-description is not *settled*, not that it is wrong.
-
-**What comes next is 34c**, and its dataset and measurement are already decided in
-`phase-34a-status.md`'s Decision C: 50,000 invoices / 50,000 contacts / 20,000 products seeded by
-direct `INSERT`, p95 over each list's first *and last* page, the three financial statements, the two
-heaviest registers and global search. The 25,000-row export cap and the OpenXml SAX writer stay a
-re-entry condition, not a schedule. 34b hands it one new measurable: the initial bundle grew
-**640 kB → 726 kB** (transfer 141 kB) because the shell is eagerly imported, and `@defer`ing it would
-move ~46 kB off the login path — deliberately left for the phase that measures before rewriting.
-
-**When 34c lands the roadmap is finished, and the carried-item backlog is a piece of work in its own
-right.** It spans phases 25-34b, plus `docs/roadmap.md`'s deliberate post-v1 deferrals (POS, IRD
-e-filing, Marketplace, Delivery Note/GRN). Highest-value entries: an **Account or Contact hit in
-global search still has nowhere to go** (phase 33), **Tigg Subscriptions' three dead fields**, and
-34a's remaining **human accessibility pass** — narrowed by 34b to error-message quality and
-label-in-name over the pre-existing templates, since the new chrome was built conformant. 34b adds
-five of its own, of which the honest one is that the list chrome's **sort control has no consumer**:
-it is the seam Decision C promised in place of sortable column headers, and no screen populates it.
-
-Tests: Domain 443, Application.UnitTests **931**, Api.IntegrationTests 18, **Angular 271**;
-`dotnet build` / `dotnet test` / `ng build` / `ng test` all clean. `ng build` still warns that the
-initial bundle exceeds its 500 kB budget — pre-existing, and now larger for the reason above. Note
-`tsc --noEmit` does **not** cover `web/src/app` — `ng build` is the check that does (phase-28).
-
+Tests at last count: Domain 443, Application.UnitTests 931, Api.IntegrationTests 18, Angular 271;
+`dotnet build` / `dotnet test` / `ng build` / `ng test` all clean. `ng build` warns the initial
+bundle exceeds its 500 kB budget (pre-existing). `tsc --noEmit` does not cover `web/src/app`;
+`ng build` is the check (phase-28).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a
 short orientation (what is done, what is next, test counts) — the phase's own story belongs in its
-`docs/phase-N-status.md`, never here.
+`docs/phase-N-status.md`, never here. Gotchas stay one line here; the narrative goes in
+`docs/known-gotchas.md`.

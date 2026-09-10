@@ -1,4 +1,4 @@
-﻿# Phase lessons — the "read this before touching X" index
+# Phase lessons — the "read this before touching X" index
 
 One paragraph per phase, moved verbatim out of `CLAUDE.md` (2026-09-02) so the root file stays small.
 Each bullet names the situation in which a future session must open that phase's status doc first,
@@ -562,3 +562,64 @@ one that had accepted a term since phase 25 with no length cap on it. Phase-33's
 drawer measured as on-screen with an identity transform while the screenshot showed it correctly
 tucked away, and a fresh load at the emulated size agreed with the screenshot. Reload after emulating
 a viewport rather than trusting measurements taken across a resize.
+
+---
+
+## Phase index entries as written in CLAUDE.md before the 2026-09-10 trim (26a–34b)
+
+Moved verbatim; the one-line versions in CLAUDE.md keep the same "before X" hooks in fewer words.
+
+- Phase 26a: the five missing Accounting reports + FR-9.1's Compare column on the three financial statements. Before adding a period-over-period comparison, or any report that reads `GlLine` back to its source document — `docs/phase-26a-status.md`
+- Phase 26b: Receivable/Payable + Sales/Purchase analytics (13 reports, 7 shared handlers) and the server-side BS calendar. Before ageing anything, or any report keyed by a fiscal year — `docs/phase-26b-status.md`
+- Phase 26c: the Reports catalogue completed — 4 inventory reports, both return registers, Net Trading Assets, Exceptional Report, User Log. Before a report over stock, a second report that must agree with a register, or anything written on an unauthenticated path — `docs/phase-26c-status.md`
+- Phase 27a: swept Custom Fields/Custom Status/Reporting Tags/Tasks-Documents-Activity across every document type, generalized `Comment` to a polymorphic parent. Before adding a `DocumentType` member, or building a second cross-cutting mechanism sweep — `docs/phase-27a-status.md`
+- Phase 27b: print/PDF for all 15 document types on one generic section layout, BS dates in server-rendered PDFs/`.xlsx`, the last three pagers, wizard Turnstile, a feature-flag route guard, and `CustomTemplate`'s first two consumers. Before adding a type to the print pipeline, rendering a date in server-produced output, or giving a `CustomTemplate` type a consumer — `docs/phase-27b-status.md`
+- Phase 28: multi-currency — a tenant `Currency` list, `CurrencyCode`/`ExchangeRate` on 12 document types,
+  the base-currency fold on posting-rule *inputs*, and a realised forex rule on Payment allocation. Before
+  converting anything into the general ledger, before gating a feature flag, or before trusting a
+  confirm-live pass to be possible — `docs/phase-28-status.md`
+- Phase 29: landed cost — an Additional Cost section on the Purchase Bill, allocated at Approve by
+  Value or Quantity across the bill's *goods* lines and capitalised into the received FIFO layers'
+  unit cost, against a new Landed Cost Clearing account. Before capitalising anything into a stock
+  layer, before adding a tenant-default GL account, or before asking to run a confirm-live *write* —
+  `docs/phase-29-status.md`
+- Phase 30: Communications — a **Send Email** dialog on 6 document types plus the Contact page, an
+  Email Logs tab with data behind it, an Email Templates config page, `AlertMedium.Sms`. Before
+  wiring a Send Email action, before a background job that *reads* through a permission-gated
+  request, before assuming a `CustomTemplateType` member is the right home, or before trusting an
+  earlier phase's "one enum member and a branch" estimate — `docs/phase-30-status.md`
+- Phase 31: credit control — `Contact.CreditLimit`/`CreditTermId`/`AcceptsReverseTransactions` and a
+  **Credit Limit Exceeds** policy at Invoice Approve, plus the **Configurations > General** screen
+  that made all five behaviour settings reachable for the first time; Negative Cash Balance,
+  Suggest Selling Price and Product Price Basis enforced; a stored `DueDate`; a bounced cheque that
+  voids its payment; subscription expiry. Before enforcing a tenant setting, before adding a second
+  confirmable warning to a document, before adding a non-nullable column to a populated table, or
+  before writing a test that needs a state only time can produce — `docs/phase-31-status.md`
+- Phase 32: Billing Locations — a `BillingLocation` aggregate with **HeadOffice seeded
+  unconditionally** and `MultipleLocations` as a cap at one, nullable `LocationId` on all 17
+  location-bearing types, the **Advanced** panel that makes location scope a runtime tenant setting,
+  location-wise numbering, and the location filter/column on the Invoice list and Sales Master
+  Report. Before deciding a screen cannot be confirm-lived, before letting a setting choose which
+  types store a field, or before adding the filter to a unique index over a nullable column —
+  `docs/phase-32-status.md`
+- Phase 32b: per-location permission scope — the role editor's second matrix (the 77 transaction
+  keys per location), a nullable `RolePermission.LocationId` where **null is the organization-wide
+  grant**, and enforcement as one extra branch inside `AuthorizationBehavior`. Before enforcing a
+  permission that depends on a row the handler has not read yet, before re-confirming a screen an
+  earlier phase already confirmed, or before adding a request over a location-bearing document type
+  — `docs/phase-32b-status.md`
+- Phase 33: platform chrome — a **global search** (Ctrl + /) in the shell, a **History** popover, the
+  **Quick Links** tray, and `UserPreference`, the per-user store (a row per
+  `(OrganizationId, UserId, Key)`). Before adding a per-user setting, before a request that searches
+  across document types, or before trusting a recorded description of a control nobody operated —
+  `docs/phase-33-status.md`
+
+- Phase 34a: the WCAG 2.1 AA sweep (page titles, control names, `th scope`, icon names, contrast)
+  and `a11y-sweep-guard.spec.ts`. Before adding a template, choosing a colour, writing a guard that
+  reads a file, or scripting an edit with a lazy match between two anchors — `docs/phase-34a-status.md`
+- Phase 34b: the shell (left nav, Create New flyout, company switcher, global date filter) built on
+  `NavigationCatalog` for **zero page-template edits**, a Reports index page, and NFR-6.1's list
+  chrome — a search term on 25 `List*Query` types and a date range on 16. Before adding a paginated
+  list query, before a filter a screen displays but does not own, before putting `overflow` on a
+  layout container, or before trusting a measurement taken across a viewport resize —
+  `docs/phase-34b-status.md`

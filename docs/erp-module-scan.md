@@ -884,3 +884,57 @@ other — read `innerWidth` per tab rather than reusing a recorded number. The s
 `tabindex="-1"`, so a synthetic `.focus()` types into it but the results dropdown only renders after
 a **real** click; setting `.value` through React's native setter fires the request without the
 dropdown, which is the faster way to read raw payloads and the wrong way to read the rendered row.
+
+---
+
+## Second reference tenant: Cadehi Enterprises (`cadehi.tigg.app`, read-only, 2026-09-10)
+
+A fresh 15-day trial tenant (accounting start 15-07-2026, zero transactions, one Admin user), read after
+the user logged in. Nothing was entered or saved; two modals were opened and dismissed. It differs
+from Moonbeam in entitlements, which is what made it worth reading.
+
+- **Billing Location is Enabled** (Tigg Subscriptions: Location Enabled = Yes). `Organization >
+  Features` lists three seeded locations — **HO HeadOffice (warehouse: Main Warehouse), 1002 POS
+  Restaurant, 1003 POS Retail** — with "+ ADD NEW LOCATION" and an **Advanced** panel:
+  *Enable Location in Sales Transactions Only* (Default; label: "Invoice, Sales Order, POS, Credit
+  Note"), *Enable Location in All Transactions* (checked on this tenant), *Implement Location Wise
+  Permission for Report View*. Exactly the shape phase 32 built.
+- **Quotation and location, settled:** the sales-only label does not name Quotation, and under All
+  Transactions the New Quotation form shows the "HeadOffice (HO)" picker in its header, as the New
+  Invoice form does. So Quotation belongs to the All-Transactions scope only — phase 32's exclusion
+  from the sales-only scope stands (its carried item #3 closes).
+- **The location's warehouse defaults the document's warehouse:** the New Invoice form opened with
+  Warehouse pre-set to Main Warehouse, HeadOffice's warehouse (phase 32 carried item #6 has its answer).
+- **A Product carries a Location selector** (multi-select, default *All*) on the New Product form —
+  a product can be scoped to locations. Not modelled here; new item for phase 35.
+- **Users screen has no location column**; the role carries scope (phase 32b carried item #4
+  confirmed: per-user location assignment stays deferred).
+- **Multiple Currency is seeded with the full catalogue** (NPR, USD, GBP, EUR, CNY, JPY, INR, CAD,
+  CHF …), unlike Moonbeam's NPR-only list; phase 28's seeded-catalogue decision matches.
+- **Configurations > General has "Mode of Inventory Tracking"** — *Physical Movement* ("Inventory
+  balance is calculated based on Delivery Notes and Goods Received Notes") / *Accounting Movement*
+  (selected). So the setting the scan recorded and Moonbeam lacks is entitlement- or plan-dependent,
+  not removed. Selected values on this fresh tenant: Fixed Selling Price; Product Price Basis
+  unselected; Accounting Movement; Negative Cash / Negative Item / Credit Limit Exceeds all *Do
+  Nothing*; VAT on Purchase and VAT on Sales both mapped to "Value Added Tax (CL0001)".
+- **No Delivery Note / GRN anywhere while Accounting Movement is selected:** absent from the Sales
+  and Inventory nav (Sales: Quotations, Sales Orders, Invoice, Credit Notes, Customer Payment,
+  Customers, Allocate Customer Payment; Inventory: Products, Variant Products, Variant Attributes,
+  Product Category, Units Of Measurement, Warehouse Transfer, Inventory Adjustment, Bills Of
+  Materials, Production Order, Production Journal), from the Create New flyout, and from Document
+  Numbering (16 transaction rows, no DO/GRN — Moonbeam had both at next-number 1). Reading the
+  physical-movement screens needs the mode switched, which is a config write on this tenant.
+- **Product form, full:** Type (Goods/Services), Name, Code (auto P0001), Category, Tax, Primary
+  Unit, HS Code, Location, Available For Sale; under "Add More Details": Selling Price, Purchase
+  Price, Sales / Purchase / Sales Return / Purchase Return Account, Valuation Method, Reorder Level,
+  Track Inventory. **No batch, lot, serial or expiry field** — the login banner's "product
+  traceability" is not on this tenant's form; on Moonbeam those exist only as user-made Custom Fields.
+- **Reports catalogue is identical** to Moonbeam's 52 entries — no branch-level reports were added.
+- **Organization tabs:** Overview, Tasks, Documents, Features, Migration, **Backup** ("Export all
+  your essential data, including product lists, contacts, charts of accounts, ledger transactions,
+  and product movement records" — FR-2.8's five categories, as phase 21b built — with a BACKUP TIME /
+  USER / STATUS / DOWNLOAD LINK history). Moonbeam shows Developer Mode in that slot instead.
+- Dashboard carries a **Location: All** filter beside the date preset; Quick Links tray is the same
+  seven-card default. Trial banner: "12 days remaining in your trial account. Upgrade now…" with a
+  CONTACT US action — subscription expiry is a hard trial, not a plan purchase flow (phase 41's
+  product decision has its first evidence).

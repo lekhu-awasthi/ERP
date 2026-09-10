@@ -1,4 +1,4 @@
-﻿# Known gotchas — full narrative
+# Known gotchas — full narrative
 
 The one-sentence rules live in `CLAUDE.md`'s Known gotchas section; this file holds each rule's full
 story (symptom, cause, how it was caught, the fix), moved verbatim out of `CLAUDE.md` on 2026-09-02 and
@@ -565,7 +565,7 @@ branch you were not testing.
 CLAUDE.md already records that `sed -i` over a glob rewrites every file it matches and flips CRLF to
 LF even where the pattern never fires. The narrower case is worth its own line: it does that to the
 **intended** file too. A one-token fix (`VatRate.Zero` → `VatRate.NoVat`) silently converted a
-newly-written test file from CRLF to LF, after which every subsequent `
+newly-written test file from CRLF to LF, after which every subsequent `
 `-anchored patch script
 failed its assertion with no explanation — the anchor was right, the line endings were not. Prefer
 the Edit tool for a single substitution, and if a script must patch a file, read its existing
@@ -800,3 +800,23 @@ A fresh load at the emulated size agreed with the screenshot.
 rather than trusting measurements taken across a resize — and when a measurement contradicts a
 screenshot, believe the screenshot. Related to the standing trap that the screenshot frame and
 `innerWidth` differ, so the scale factor must be read per tab and never reused.
+
+---
+
+## Gotcha entries as written in CLAUDE.md before the 2026-09-10 trim (phases 31–32b)
+
+These thirteen entries had grown past one line in CLAUDE.md; they were shortened there on 2026-09-10 and are kept here verbatim. Their full narratives are the phase-31/32/32b headings above.
+
+- A tenant-level field is reachable only if you can name the **command** that writes it and the screen that calls it; being *read* by a handler proves the read path and makes the missing write path invisible (phase-31, extending phase-29's grep-`web/` rule).
+- Two confirmable warnings on one document need two override flags and a `warningKind` on the 422, or confirming the first silently waives the second (phase-31).
+- Adding a **non-nullable** column to a populated table needs its backfill written by hand: the scaffold's `DEFAULT '0001-01-01'` back-dates every historical row and leaves a stray constraint (phase-31, extending the replace-or-retype rule).
+- A permission whose applicability depends on the **requested value** as well as the loaded row is phase-27a's `AttachmentAccess` pattern again; the E2E must show 404 on a missing row *and* 403 on a real one, or it has proved nothing (phase-31's cheque bounce).
+- Never weaken a Domain invariant so a test can reach a state only time produces; reach through EF's change tracker instead (phase-31's expired `TenantSubscription`).
+- Before applying the nullable-unique-index filter rule, ask what a NULL in that column *means*: when NULL is a sentinel with an at-most-one invariant, the **unfiltered** index is the enforcement and EF's automatic `IS NOT NULL` filter destroys it — `HasFilter(null)` is load-bearing (phase-32's numbering counter, inverting the standing gotcha).
+- When a tenant setting selects among *sets* of document types, the schema owes the **widest** set, not the current one — otherwise flipping the setting is a lie until a later phase ships the columns (phase-32's `LocationScopeMode`, phase-31 lesson (a) inside out).
+- The `AttachmentAccess` pattern stops being a per-handler re-check at the point where missing one instance is an open door rather than a bug: phase 32b's ~120 requests moved the check *into* `AuthorizationBehavior` (not a sixth behavior — the two halves must share one decision, and a scoped context between behaviors is corrupted by a nested `ISender.Send`), behind four marker interfaces and a sweep guard that fails the build on any location-scopable request declaring none of them (phase-32b).
+- **A confirm-live pass can falsify an earlier confirm-live pass.** Four documents recorded that `LocationWiseReportPermission` pulls the 52 Reports keys into the per-location matrix; flipping it on the live tenant showed the matrix unchanged — it scopes report *rows*. A screen someone already read is not settled when what was recorded is an inference about a control nobody operated (phase-32b, extending 32's another-tenant rule).
+- Reuse a marker interface by **reading** it, not by merging it: phase-31 lesson (c) applies only when the sets match, and `ILockDateSensitiveDocument`'s is narrower than a location grant's (a lock date never gates a read). Reading it from the resolver spared all thirty Approve/Void commands an edit, with a guard test pinning that the reuse still covers them (phase-32b).
+- `POST /api/organizations` also needs `industry` and a **non-empty** `turnstileToken` (any string passes against the dummy secret); accept-invitation is `/api/organizations/memberships/{id}/accept-invitation` with **no org segment**, and calling it with one returns a 404 that reads like a bad membership id while the membership silently stays `Invited` — which makes any later Member-403 proof meaningless; units are `/units-of-measurement` (field `shortName`); credit terms are under `/configuration/` (phase-31).
+- `POST /accounts` takes `groupId`, not `accountGroupId`; and `POST /products` takes **`type`, not `productType`** — the wrong name silently yields a *Goods* product whose line then consumes stock and 409s at Approve with a message about the warehouse, which reads like a seeding fault rather than a typo (phase-32).
+- A scripted multi-file edit must assert its **anchor count** before writing (and preserve each file's CRLF/BOM); phase 32's sweep touched 32 commands safely that way, and the one edit that matched three records where two were meant was caught by exactly that check.
