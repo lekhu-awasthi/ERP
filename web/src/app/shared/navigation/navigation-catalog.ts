@@ -154,12 +154,12 @@ function entry(path: string, kind: QuickLinkKind, url: string, name?: string): Q
   return { name: name ?? titleOf(path), area: areaOf(path), kind, url };
 }
 
-function areaOf(path: string): string {
+export function areaOf(path: string): string {
   const [head] = path.split('/');
   return SEGMENT_AREAS[head] ?? BARE_AREAS[path] ?? 'Organization';
 }
 
-function titleOf(path: string): string {
+export function titleOf(path: string): string {
   const override = TITLE_OVERRIDES[path];
 
   if (override) {

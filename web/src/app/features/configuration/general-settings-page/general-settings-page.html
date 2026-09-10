@@ -3,7 +3,7 @@
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
         <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
-          <i class="bi bi-sliders fs-4 d-flex"></i>
+          <i aria-hidden="true" class="bi bi-sliders fs-4 d-flex"></i>
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">General</h1>
@@ -11,7 +11,7 @@
         </div>
       </div>
       <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'configuration']">
-        <i class="bi bi-arrow-left"></i> Configurations
+        <i aria-hidden="true" class="bi bi-arrow-left"></i> Configurations
       </a>
     </div>
   </div>
@@ -151,7 +151,7 @@
           </div>
         }
         <p class="text-muted small mb-0 mt-2">
-          <i class="bi bi-info-circle"></i>
+          <i aria-hidden="true" class="bi bi-info-circle"></i>
           Stock is never actually driven negative: a shortfall that gets past this setting still fails when the
           FIFO ledger is asked to consume more than it holds.
         </p>

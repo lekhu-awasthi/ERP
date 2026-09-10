@@ -1,7 +1,7 @@
 <div>
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-3" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -17,7 +17,7 @@
 
   @if (subTab() === 'Comments') {
     <div class="mb-3">
-      <textarea
+      <textarea aria-label="Comment"
         class="form-control form-control-sm"
         rows="2"
         placeholder="Write comment here..."
@@ -96,10 +96,10 @@
         <table class="table table-sm align-middle">
           <thead>
             <tr class="text-muted small">
-              <th>Sent</th>
-              <th>Title</th>
-              <th>Content</th>
-              <th class="text-end">Credits</th>
+              <th scope="col">Sent</th>
+              <th scope="col">Title</th>
+              <th scope="col">Content</th>
+              <th scope="col" class="text-end">Credits</th>
             </tr>
           </thead>
           <tbody>
@@ -129,7 +129,7 @@
       <p class="text-muted small mb-0">Loading...</p>
     } @else if (emailRows().length === 0) {
       <div class="text-center py-4">
-        <i class="bi bi-envelope-slash fs-2 text-muted mb-2 d-block"></i>
+        <i aria-hidden="true" class="bi bi-envelope-slash fs-2 text-muted mb-2 d-block"></i>
         <p class="text-muted small mb-0">No Emails Available</p>
       </div>
     } @else {

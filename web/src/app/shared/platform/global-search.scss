@@ -18,7 +18,9 @@
     background-color: rgba(13, 110, 253, 0.08);
   }
 
-  &:disabled {
+  // Phase 34a: the row is an `option` in a listbox now rather than a button, so the unavailable
+  // state is a class plus `aria-disabled` instead of the `:disabled` pseudo-class.
+  &.is-unavailable {
     cursor: default;
     opacity: 0.75;
   }

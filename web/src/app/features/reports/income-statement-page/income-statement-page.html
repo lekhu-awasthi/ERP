@@ -3,7 +3,7 @@
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
         <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
-          <i class="bi bi-graph-up fs-4 d-flex"></i>
+          <i aria-hidden="true" class="bi bi-graph-up fs-4 d-flex"></i>
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">Income Statement</h1>
@@ -12,10 +12,10 @@
       </div>
       <div class="d-flex gap-2">
         <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" (click)="exportReport()" [disabled]="exporting()">
-          <i class="bi bi-file-earmark-spreadsheet"></i> {{ exporting() ? 'Exporting...' : 'Export' }}
+          <i aria-hidden="true" class="bi bi-file-earmark-spreadsheet"></i> {{ exporting() ? 'Exporting...' : 'Export' }}
         </button>
         <a [routerLink]="['/organizations', organizationId, 'reports', 'balance-sheet']" class="btn btn-outline-secondary btn-sm fw-bold">
-          <i class="bi bi-bank"></i> Balance Sheet
+          <i aria-hidden="true" class="bi bi-bank"></i> Balance Sheet
         </a>
       </div>
     </div>
@@ -23,7 +23,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -32,16 +32,16 @@
     <div class="card-body p-4">
       <div class="row g-3">
         <div class="col-12 col-sm-6">
-          <label class="form-label small fw-semibold">From Date</label>
-          <app-bs-date-input
+          <label class="form-label small fw-semibold" for="income-statement-page-from-date">From Date</label>
+          <app-bs-date-input [inputId]="'income-statement-page-from-date'"
             [inputClass]="'form-control'"
             [value]="fromDate()"
             (valueChange)="onFromDateChange($event)"
           />
         </div>
         <div class="col-12 col-sm-6">
-          <label class="form-label small fw-semibold">To Date</label>
-          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
+          <label class="form-label small fw-semibold" for="income-statement-page-to-date">To Date</label>
+          <app-bs-date-input [inputId]="'income-statement-page-to-date'" [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
         <div class="col-12">
           <div class="form-check">
@@ -79,9 +79,9 @@
             @if (is.compareFromDate; as compareFromDate) {
               <thead>
                 <tr class="text-muted small">
-                  <th></th>
-                  <th class="text-end">{{ is.fromDate | nepaliDate }} – {{ is.toDate | nepaliDate }}</th>
-                  <th class="text-end border-start">
+                  <th scope="col"></th>
+                  <th scope="col" class="text-end">{{ is.fromDate | nepaliDate }} – {{ is.toDate | nepaliDate }}</th>
+                  <th scope="col" class="text-end border-start">
                     {{ compareFromDate | nepaliDate }} – {{ is.compareToDate | nepaliDate }}
                   </th>
                 </tr>
@@ -118,9 +118,9 @@
             @if (is.compareFromDate; as compareFromDate) {
               <thead>
                 <tr class="text-muted small">
-                  <th></th>
-                  <th class="text-end">{{ is.fromDate | nepaliDate }} – {{ is.toDate | nepaliDate }}</th>
-                  <th class="text-end border-start">
+                  <th scope="col"></th>
+                  <th scope="col" class="text-end">{{ is.fromDate | nepaliDate }} – {{ is.toDate | nepaliDate }}</th>
+                  <th scope="col" class="text-end border-start">
                     {{ compareFromDate | nepaliDate }} – {{ is.compareToDate | nepaliDate }}
                   </th>
                 </tr>
@@ -154,15 +154,15 @@
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4 text-end">
         @if (is.compareNetIncome !== null) {
-          <span class="badge bg-secondary-subtle text-secondary fs-6 me-2">
+          <span class="badge bg-secondary-subtle text-secondary-emphasis fs-6 me-2">
             {{ is.compareFromDate | nepaliDate }} – {{ is.compareToDate | nepaliDate }}:
             {{ (is.compareNetIncome | amount) }}
           </span>
         }
         @if (is.netIncome >= 0) {
-          <span class="badge bg-success-subtle text-success fs-6">Net Income: {{ (is.netIncome | amount) }}</span>
+          <span class="badge bg-success-subtle text-success-emphasis fs-6">Net Income: {{ (is.netIncome | amount) }}</span>
         } @else {
-          <span class="badge bg-danger-subtle text-danger fs-6">Net Loss: {{ ((-is.netIncome) | amount) }}</span>
+          <span class="badge bg-danger-subtle text-danger-emphasis fs-6">Net Loss: {{ ((-is.netIncome) | amount) }}</span>
         }
       </div>
     </div>

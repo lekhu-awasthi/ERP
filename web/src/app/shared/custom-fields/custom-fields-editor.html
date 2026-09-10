@@ -10,10 +10,10 @@
       <div class="row g-3">
         @for (definition of definitions(); track definition.id) {
           <div class="col-12 col-sm-6 col-lg-4">
-            <label class="form-label small fw-semibold">{{ definition.name }}</label>
+            <label [for]="'custom-field-' + definition.id" class="form-label small fw-semibold">{{ definition.name }}</label>
             @switch (definition.type) {
               @case ('Number') {
-                <input
+                <input [id]="'custom-field-' + definition.id"
                   type="number"
                   class="form-control"
                   [value]="valueFor(definition.id)"
@@ -21,7 +21,7 @@
                 />
               }
               @case ('Description') {
-                <textarea
+                <textarea [id]="'custom-field-' + definition.id"
                   class="form-control"
                   rows="2"
                   [value]="valueFor(definition.id)"
@@ -29,7 +29,7 @@
                 ></textarea>
               }
               @case ('Choices') {
-                <select class="form-select" (change)="onValueChange(definition.id, $event)">
+                <select [id]="'custom-field-' + definition.id" class="form-select" (change)="onValueChange(definition.id, $event)">
                   <option value="" [selected]="!valueFor(definition.id)">—</option>
                   @for (option of definition.choiceOptions; track option) {
                     <option [value]="option" [selected]="option === valueFor(definition.id)">{{ option }}</option>
@@ -37,7 +37,7 @@
                 </select>
               }
               @default {
-                <input
+                <input [id]="'custom-field-' + definition.id"
                   type="text"
                   class="form-control"
                   [value]="valueFor(definition.id)"

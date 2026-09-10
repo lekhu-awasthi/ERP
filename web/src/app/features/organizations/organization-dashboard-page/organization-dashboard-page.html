@@ -4,7 +4,7 @@
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
         <div class="bg-success bg-gradient text-white p-2.5 rounded-3">
-          <i class="bi bi-speedometer2 fs-4 d-flex"></i>
+          <i aria-hidden="true" class="bi bi-speedometer2 fs-4 d-flex"></i>
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">{{ organization()?.name ?? 'Organization' }}</h1>
@@ -14,7 +14,7 @@
       <div class="d-flex align-items-center gap-3">
         <a class="btn btn-success btn-sm fw-bold d-flex align-items-center gap-1"
            [routerLink]="['/organizations', organizationId(), 'home']">
-          <i class="bi bi-house-door"></i> Home dashboard
+          <i aria-hidden="true" class="bi bi-house-door"></i> Home dashboard
         </a>
         <!-- NFR-1.1: the global AD/BS calendar choice, in the user block -- the closest thing this
              app has to the reference product's profile menu, where it lives there. -->
@@ -29,7 +29,7 @@
           </div>
         }
         <button type="button" class="btn btn-outline-danger btn-sm fw-bold d-flex align-items-center gap-1" (click)="logout()">
-          <i class="bi bi-box-arrow-right"></i> Log out
+          <i aria-hidden="true" class="bi bi-box-arrow-right"></i> Log out
         </button>
       </div>
     </div>
@@ -38,7 +38,7 @@
   <!-- Global Alert Error Message -->
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -58,7 +58,7 @@
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
           <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 320px;">
             <label for="orgSwitcher" class="form-label text-muted small fw-bold mb-0 text-nowrap">
-              <i class="bi bi-arrow-left-right me-1"></i> Switch:
+              <i aria-hidden="true" class="bi bi-arrow-left-right me-1"></i> Switch:
             </label>
             <select
               id="orgSwitcher"
@@ -74,67 +74,67 @@
           </div>
           <div class="d-flex gap-2">
             <a [routerLink]="['/organizations', organizationId(), 'contacts']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-people"></i> Contacts
+              <i aria-hidden="true" class="bi bi-people"></i> Contacts
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'products']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-box-seam"></i> Products
+              <i aria-hidden="true" class="bi bi-box-seam"></i> Products
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'sales', 'quotations']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-file-earmark-text"></i> Quotations
+              <i aria-hidden="true" class="bi bi-file-earmark-text"></i> Quotations
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'sales', 'sales-orders']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-cart-check"></i> Sales Orders
+              <i aria-hidden="true" class="bi bi-cart-check"></i> Sales Orders
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'sales', 'invoices']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-receipt"></i> Invoices
+              <i aria-hidden="true" class="bi bi-receipt"></i> Invoices
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'sms']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-chat-dots"></i> SMS
+              <i aria-hidden="true" class="bi bi-chat-dots"></i> SMS
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'payments']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-cash-coin"></i> Payments
+              <i aria-hidden="true" class="bi bi-cash-coin"></i> Payments
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'quick-receipt']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-lightning-charge"></i> Quick Receipt
+              <i aria-hidden="true" class="bi bi-lightning-charge"></i> Quick Receipt
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'quick-payment']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-lightning-charge"></i> Quick Payment
+              <i aria-hidden="true" class="bi bi-lightning-charge"></i> Quick Payment
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'allocate-customer-payment']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-diagram-3"></i> Allocate Customer Payment
+              <i aria-hidden="true" class="bi bi-diagram-3"></i> Allocate Customer Payment
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'allocate-supplier-payment']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-diagram-3"></i> Allocate Supplier Payment
+              <i aria-hidden="true" class="bi bi-diagram-3"></i> Allocate Supplier Payment
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'workflow', 'document-inbox']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-inbox"></i> Document Inbox
+              <i aria-hidden="true" class="bi bi-inbox"></i> Document Inbox
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'workflow', 'transaction-approval-queue']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-check2-square"></i> Approval Queue
+              <i aria-hidden="true" class="bi bi-check2-square"></i> Approval Queue
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'purchasing', 'purchase-orders']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-cart"></i> Purchase Orders
+              <i aria-hidden="true" class="bi bi-cart"></i> Purchase Orders
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'purchasing', 'purchase-bills']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-receipt-cutoff"></i> Purchase Bills
+              <i aria-hidden="true" class="bi bi-receipt-cutoff"></i> Purchase Bills
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'purchasing', 'expenses']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-wallet2"></i> Expenses
+              <i aria-hidden="true" class="bi bi-wallet2"></i> Expenses
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'purchasing', 'debit-notes']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-arrow-return-left"></i> Debit Notes
+              <i aria-hidden="true" class="bi bi-arrow-return-left"></i> Debit Notes
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'purchasing', 'supplier-payments']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-cash-stack"></i> Supplier Payments
+              <i aria-hidden="true" class="bi bi-cash-stack"></i> Supplier Payments
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'accounting', 'accounts']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-journal-text"></i> Accounting
+              <i aria-hidden="true" class="bi bi-journal-text"></i> Accounting
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'accounting', 'bank-accounts']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-bank"></i> Bank Accounts
+              <i aria-hidden="true" class="bi bi-bank"></i> Bank Accounts
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'accounting', 'cheque-register']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-postcard"></i> Cheque Register
+              <i aria-hidden="true" class="bi bi-postcard"></i> Cheque Register
             </a>
             <!-- Phase 20f (FR-2.6): Inventory-context entries are gated on the tenant's opted-in
                  Accounting Features, mirroring FeatureGateBehavior. Warehouse Transfers needs both
@@ -142,15 +142,15 @@
                  (Products, Categories, Units) are deliberately never gated. -->
             @if (hasFeature('TrackInventory') && hasFeature('MultipleWarehouses')) {
               <a [routerLink]="['/organizations', organizationId(), 'inventory', 'warehouse-transfers']" class="btn btn-outline-secondary btn-sm fw-bold">
-                <i class="bi bi-arrow-left-right"></i> Warehouse Transfers
+                <i aria-hidden="true" class="bi bi-arrow-left-right"></i> Warehouse Transfers
               </a>
             }
             @if (hasFeature('TrackInventory')) {
               <a [routerLink]="['/organizations', organizationId(), 'inventory', 'inventory-adjustments']" class="btn btn-outline-secondary btn-sm fw-bold">
-                <i class="bi bi-sliders"></i> Inventory Adjustments
+                <i aria-hidden="true" class="bi bi-sliders"></i> Inventory Adjustments
               </a>
               <a [routerLink]="['/organizations', organizationId(), 'inventory', 'stock-position']" class="btn btn-outline-secondary btn-sm fw-bold">
-                <i class="bi bi-boxes"></i> Stock Position
+                <i aria-hidden="true" class="bi bi-boxes"></i> Stock Position
               </a>
             }
             <!-- Phase 25 (FR-8.8/8.9): Manufacturing needs both entitlements, exactly as every
@@ -159,201 +159,201 @@
                  becomes unable to do, so a hard block is right here. -->
             @if (hasFeature('TrackInventory') && hasFeature('Manufacturing')) {
               <a [routerLink]="['/organizations', organizationId(), 'manufacturing', 'bills-of-materials']" class="btn btn-outline-secondary btn-sm fw-bold">
-                <i class="bi bi-diagram-3"></i> Bills Of Materials
+                <i aria-hidden="true" class="bi bi-diagram-3"></i> Bills Of Materials
               </a>
               <a [routerLink]="['/organizations', organizationId(), 'manufacturing', 'production-orders']" class="btn btn-outline-secondary btn-sm fw-bold">
-                <i class="bi bi-clipboard-check"></i> Production Orders
+                <i aria-hidden="true" class="bi bi-clipboard-check"></i> Production Orders
               </a>
               <a [routerLink]="['/organizations', organizationId(), 'manufacturing', 'production-journals']" class="btn btn-outline-secondary btn-sm fw-bold">
-                <i class="bi bi-gear-wide-connected"></i> Production Journals
+                <i aria-hidden="true" class="bi bi-gear-wide-connected"></i> Production Journals
               </a>
               <a [routerLink]="['/organizations', organizationId(), 'reports', 'production-summary']" class="btn btn-outline-secondary btn-sm fw-bold">
-                <i class="bi bi-clipboard-data"></i> Production Summary Report
+                <i aria-hidden="true" class="bi bi-clipboard-data"></i> Production Summary Report
               </a>
               <a [routerLink]="['/organizations', organizationId(), 'reports', 'production-variance']" class="btn btn-outline-secondary btn-sm fw-bold">
-                <i class="bi bi-graph-up-arrow"></i> Production Variance Report
+                <i aria-hidden="true" class="bi bi-graph-up-arrow"></i> Production Variance Report
               </a>
               <a [routerLink]="['/organizations', organizationId(), 'reports', 'production-planning']" class="btn btn-outline-secondary btn-sm fw-bold">
-                <i class="bi bi-calendar3-range"></i> Production Planning Report
+                <i aria-hidden="true" class="bi bi-calendar3-range"></i> Production Planning Report
               </a>
             }
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'trial-balance']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-journal-text"></i> Trial Balance
+              <i aria-hidden="true" class="bi bi-journal-text"></i> Trial Balance
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'balance-sheet']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-bank"></i> Balance Sheet
+              <i aria-hidden="true" class="bi bi-bank"></i> Balance Sheet
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'income-statement']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-graph-up"></i> Income Statement
+              <i aria-hidden="true" class="bi bi-graph-up"></i> Income Statement
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'sales-master-report']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-cart-check"></i> Sales Master Report
+              <i aria-hidden="true" class="bi bi-cart-check"></i> Sales Master Report
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'purchase-master-report']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-cart"></i> Purchase Master Report
+              <i aria-hidden="true" class="bi bi-cart"></i> Purchase Master Report
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'vat-summary']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-receipt"></i> VAT Summary Report
+              <i aria-hidden="true" class="bi bi-receipt"></i> VAT Summary Report
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'tds-report']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-file-earmark-minus"></i> TDS Report
+              <i aria-hidden="true" class="bi bi-file-earmark-minus"></i> TDS Report
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'annex-thirteen']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-journal-text"></i> Annex 13 Report
+              <i aria-hidden="true" class="bi bi-journal-text"></i> Annex 13 Report
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'annex-five']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-journal-check"></i> Annex 5 Report
+              <i aria-hidden="true" class="bi bi-journal-check"></i> Annex 5 Report
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'customer-ageing-summary']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-hourglass-split"></i> Customer Ageing Summary
+              <i aria-hidden="true" class="bi bi-hourglass-split"></i> Customer Ageing Summary
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'customer-statement']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-journal-text"></i> Customer Statement
+              <i aria-hidden="true" class="bi bi-journal-text"></i> Customer Statement
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'supplier-ageing-summary']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-hourglass-split"></i> Supplier Ageing Summary
+              <i aria-hidden="true" class="bi bi-hourglass-split"></i> Supplier Ageing Summary
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'supplier-statement']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-journal-text"></i> Supplier Statement
+              <i aria-hidden="true" class="bi bi-journal-text"></i> Supplier Statement
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'journal-report']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-journal-bookmark"></i> Journal Report
+              <i aria-hidden="true" class="bi bi-journal-bookmark"></i> Journal Report
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'general-ledger-summary']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-columns-gap"></i> General Ledger Summary
+              <i aria-hidden="true" class="bi bi-columns-gap"></i> General Ledger Summary
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'detail-general-ledger']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-list-nested"></i> Detail General Ledger
+              <i aria-hidden="true" class="bi bi-list-nested"></i> Detail General Ledger
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'general-ledger-master']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-grid-3x3"></i> GL Master Report
+              <i aria-hidden="true" class="bi bi-grid-3x3"></i> GL Master Report
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'transaction-list']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-list-columns-reverse"></i> Transaction List
+              <i aria-hidden="true" class="bi bi-list-columns-reverse"></i> Transaction List
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'customer-receivable-summary']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-cash-stack"></i> Customer Receivable Summary
+              <i aria-hidden="true" class="bi bi-cash-stack"></i> Customer Receivable Summary
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'supplier-payable-summary']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-cash-coin"></i> Supplier Payable Summary
+              <i aria-hidden="true" class="bi bi-cash-coin"></i> Supplier Payable Summary
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'invoice-age']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-clock-history"></i> Invoice Age
+              <i aria-hidden="true" class="bi bi-clock-history"></i> Invoice Age
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'purchase-bill-age']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-clock"></i> Purchase Bill Age
+              <i aria-hidden="true" class="bi bi-clock"></i> Purchase Bill Age
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'sales-by-customer']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-people"></i> Sales By Customer
+              <i aria-hidden="true" class="bi bi-people"></i> Sales By Customer
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'sales-by-item']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-box-seam"></i> Sales By Item
+              <i aria-hidden="true" class="bi bi-box-seam"></i> Sales By Item
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'sales-by-customer-monthly']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-calendar3"></i> Sales By Customer (Monthly)
+              <i aria-hidden="true" class="bi bi-calendar3"></i> Sales By Customer (Monthly)
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'sales-by-item-monthly']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-calendar-range"></i> Sales By Item (Monthly)
+              <i aria-hidden="true" class="bi bi-calendar-range"></i> Sales By Item (Monthly)
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'sales-summary']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-graph-up"></i> Sales Summary Report
+              <i aria-hidden="true" class="bi bi-graph-up"></i> Sales Summary Report
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'purchase-by-supplier']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-truck"></i> Purchase By Supplier
+              <i aria-hidden="true" class="bi bi-truck"></i> Purchase By Supplier
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'purchase-by-item']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-boxes"></i> Purchase By Item
+              <i aria-hidden="true" class="bi bi-boxes"></i> Purchase By Item
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'purchase-by-supplier-monthly']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-calendar3"></i> Purchase By Supplier (Monthly)
+              <i aria-hidden="true" class="bi bi-calendar3"></i> Purchase By Supplier (Monthly)
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'purchase-by-item-monthly']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-calendar-range"></i> Purchase By Item (Monthly)
+              <i aria-hidden="true" class="bi bi-calendar-range"></i> Purchase By Item (Monthly)
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'system-audit']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-clock-history"></i> System Audit
+              <i aria-hidden="true" class="bi bi-clock-history"></i> System Audit
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'cash-flow-summary']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-cash-coin"></i> Cash Flow Summary
+              <i aria-hidden="true" class="bi bi-cash-coin"></i> Cash Flow Summary
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'sales-register']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-journal-text"></i> Sales Register
+              <i aria-hidden="true" class="bi bi-journal-text"></i> Sales Register
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'purchase-register']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-journal-text"></i> Purchase Register
+              <i aria-hidden="true" class="bi bi-journal-text"></i> Purchase Register
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'migrated-sales-register']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-clock-history"></i> Migrated Sales Register
+              <i aria-hidden="true" class="bi bi-clock-history"></i> Migrated Sales Register
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'migrated-purchase-register']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-clock-history"></i> Migrated Purchase Register
+              <i aria-hidden="true" class="bi bi-clock-history"></i> Migrated Purchase Register
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'stock-ageing']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-hourglass-split"></i> Stock Ageing
+              <i aria-hidden="true" class="bi bi-hourglass-split"></i> Stock Ageing
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'product-profitability']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-graph-up-arrow"></i> Product Profitability
+              <i aria-hidden="true" class="bi bi-graph-up-arrow"></i> Product Profitability
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'ratio-analysis']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-calculator"></i> Ratio Analysis
+              <i aria-hidden="true" class="bi bi-calculator"></i> Ratio Analysis
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'sales-return-register']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-arrow-return-left"></i> Sales Return Register
+              <i aria-hidden="true" class="bi bi-arrow-return-left"></i> Sales Return Register
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'purchase-return-register']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-arrow-return-right"></i> Purchase Return Register
+              <i aria-hidden="true" class="bi bi-arrow-return-right"></i> Purchase Return Register
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'inventory-position']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-boxes"></i> Inventory Position
+              <i aria-hidden="true" class="bi bi-boxes"></i> Inventory Position
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'inventory-movement']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-arrow-left-right"></i> Inventory Movement
+              <i aria-hidden="true" class="bi bi-arrow-left-right"></i> Inventory Movement
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'inventory-ledger']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-list-columns"></i> Inventory Ledger
+              <i aria-hidden="true" class="bi bi-list-columns"></i> Inventory Ledger
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'inventory-master']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-table"></i> Inventory Master Report
+              <i aria-hidden="true" class="bi bi-table"></i> Inventory Master Report
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'net-trading-assets']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-clipboard-data"></i> Net Trading Assets
+              <i aria-hidden="true" class="bi bi-clipboard-data"></i> Net Trading Assets
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'exceptional-report']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-exclamation-diamond"></i> Exceptional Report
+              <i aria-hidden="true" class="bi bi-exclamation-diamond"></i> Exceptional Report
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'reports', 'user-log']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-person-check"></i> User Log
+              <i aria-hidden="true" class="bi bi-person-check"></i> User Log
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'warehouses']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-building"></i> Warehouses
+              <i aria-hidden="true" class="bi bi-building"></i> Warehouses
             </a>
             @if (hasFeature('MultiCurrency')) {
               <a [routerLink]="['/organizations', organizationId(), 'currencies']" class="btn btn-outline-secondary btn-sm fw-bold">
-                <i class="bi bi-currency-exchange"></i> Currencies
+                <i aria-hidden="true" class="bi bi-currency-exchange"></i> Currencies
               </a>
             }
             @if (hasFeature('MultipleLocations')) {
               <a [routerLink]="['/organizations', organizationId(), 'billing-locations']" class="btn btn-outline-secondary btn-sm fw-bold">
-                <i class="bi bi-geo-alt"></i> Billing Locations
+                <i aria-hidden="true" class="bi bi-geo-alt"></i> Billing Locations
               </a>
             }
             <a [routerLink]="['/organizations', organizationId(), 'roles']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-shield-lock"></i> Role Reference
+              <i aria-hidden="true" class="bi bi-shield-lock"></i> Role Reference
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'lock-date']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-lock"></i> Lock Date
+              <i aria-hidden="true" class="bi bi-lock"></i> Lock Date
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'features']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-toggles"></i> Subscription &amp; Features
+              <i aria-hidden="true" class="bi bi-toggles"></i> Subscription &amp; Features
             </a>
             <a [routerLink]="['/organizations', organizationId(), 'configuration']" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-gear"></i> Configurations
+              <i aria-hidden="true" class="bi bi-gear"></i> Configurations
             </a>
             <a routerLink="/organizations" class="btn btn-outline-secondary btn-sm fw-bold">
-              <i class="bi bi-list-task"></i> All Organizations
+              <i aria-hidden="true" class="bi bi-list-task"></i> All Organizations
             </a>
             <a routerLink="/organizations/new" class="btn btn-success btn-sm fw-bold">
-              <i class="bi bi-plus-circle"></i> Add New
+              <i aria-hidden="true" class="bi bi-plus-circle"></i> Add New
             </a>
           </div>
         </div>
@@ -373,7 +373,7 @@
                 <!-- Subdomain Parameter -->
                 <div class="d-flex align-items-center gap-3">
                   <div class="bg-light text-muted p-2.5 rounded text-center" style="width: 44px; height: 44px;">
-                    <i class="bi bi-globe fs-5"></i>
+                    <i aria-hidden="true" class="bi bi-globe fs-5"></i>
                   </div>
                   <div>
                     <span class="text-muted small d-block">SUBDOMAIN</span>
@@ -384,7 +384,7 @@
                 <!-- Industry Parameter -->
                 <div class="d-flex align-items-center gap-3">
                   <div class="bg-light text-muted p-2.5 rounded text-center" style="width: 44px; height: 44px;">
-                    <i class="bi bi-tag fs-5"></i>
+                    <i aria-hidden="true" class="bi bi-tag fs-5"></i>
                   </div>
                   <div>
                     <span class="text-muted small d-block">INDUSTRY</span>
@@ -395,11 +395,11 @@
                 <!-- Role Parameter -->
                 <div class="d-flex align-items-center gap-3">
                   <div class="bg-light text-muted p-2.5 rounded text-center" style="width: 44px; height: 44px;">
-                    <i class="bi bi-shield-check fs-5"></i>
+                    <i aria-hidden="true" class="bi bi-shield-check fs-5"></i>
                   </div>
                   <div>
                     <span class="text-muted small d-block">YOUR WORKSPACE ROLE</span>
-                    <span class="badge bg-success-subtle text-success px-2.5 py-1 rounded-pill fw-bold">
+                    <span class="badge bg-success-subtle text-success-emphasis px-2.5 py-1 rounded-pill fw-bold">
                       {{ org.role }}
                     </span>
                   </div>
@@ -424,7 +424,7 @@
                     <label for="inviteEmail" class="form-label fw-semibold text-secondary small">Email Address *</label>
                     <div class="input-group">
                       <span class="input-group-text bg-white border-end-0 text-muted">
-                        <i class="bi bi-envelope"></i>
+                        <i aria-hidden="true" class="bi bi-envelope"></i>
                       </span>
                       <input
                         id="inviteEmail"
@@ -447,7 +447,7 @@
                     <label for="inviteRole" class="form-label fw-semibold text-secondary small">Access Role *</label>
                     <div class="input-group">
                       <span class="input-group-text bg-white border-end-0 text-muted">
-                        <i class="bi bi-sliders"></i>
+                        <i aria-hidden="true" class="bi bi-sliders"></i>
                       </span>
                       <select id="inviteRole" formControlName="roleId" class="form-select border-start-0 ps-0">
                         @for (r of roles(); track r.id) {
@@ -466,13 +466,13 @@
                   <!-- Invite Message Signals -->
                   @if (inviteMessage()) {
                     <div class="alert alert-success d-flex align-items-center gap-2 small py-2 px-3 mb-4" role="status">
-                      <i class="bi bi-check-circle-fill flex-shrink-0"></i>
+                      <i aria-hidden="true" class="bi bi-check-circle-fill flex-shrink-0"></i>
                       <div>{{ inviteMessage() }}</div>
                     </div>
                   }
                   @if (inviteError()) {
                     <div class="alert alert-danger d-flex align-items-center gap-2 small py-2 px-3 mb-4" role="alert">
-                      <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+                      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
                       <div>{{ inviteError() }}</div>
                     </div>
                   }
@@ -483,7 +483,7 @@
                       <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                       <span>Sending Invitation...</span>
                     } @else {
-                      <i class="bi bi-person-plus"></i>
+                      <i aria-hidden="true" class="bi bi-person-plus"></i>
                       <span>Send Invitation</span>
                     }
                   </button>
@@ -494,7 +494,7 @@
             <div class="card border-0 shadow-sm h-100 bg-light text-center py-5">
               <div class="card-body p-5">
                 <div class="d-inline-flex p-3 rounded-circle bg-white text-muted mb-3 shadow-sm">
-                  <i class="bi bi-shield-lock-fill fs-2"></i>
+                  <i aria-hidden="true" class="bi bi-shield-lock-fill fs-2"></i>
                 </div>
                 <h5 class="fw-bold text-dark mb-2">Member Workspace View</h5>
                 <p class="text-muted small mx-auto mb-0" style="max-width: 320px;">
@@ -523,7 +523,7 @@
       <div class="card border-0 shadow-sm py-5 text-center bg-light border">
         <div class="card-body">
           <div class="d-inline-flex p-3 rounded-circle bg-white text-muted mb-3">
-            <i class="bi bi-exclamation-circle-fill fs-2"></i>
+            <i aria-hidden="true" class="bi bi-exclamation-circle-fill fs-2"></i>
           </div>
           <h5 class="fw-bold text-dark">Workspace Not Found</h5>
           <p class="text-muted small mx-auto mb-3" style="max-width: 360px;">

@@ -1,10 +1,10 @@
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body p-4">
-    <h2 class="h6 fw-bold mb-3"><i class="bi bi-paperclip"></i> Converting from: {{ prefill().fileName }}</h2>
+    <h2 class="h6 fw-bold mb-3"><i aria-hidden="true" class="bi bi-paperclip"></i> Converting from: {{ prefill().fileName }}</h2>
 
     @if (prefill().hasExtraction) {
       <div class="alert alert-warning">
-        <div class="fw-bold mb-1"><i class="bi bi-stars"></i> Some fields below were read by AI</div>
+        <div class="fw-bold mb-1"><i aria-hidden="true" class="bi bi-stars"></i> Some fields below were read by AI</div>
         <p class="small mb-2">
           These are <strong>suggestions, not data</strong>. Check every one against the document beside them and
           correct anything that is wrong before you save. Nothing reaches your books until you press Save.

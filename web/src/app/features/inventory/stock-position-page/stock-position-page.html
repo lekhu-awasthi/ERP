@@ -3,7 +3,7 @@
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
         <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
-          <i class="bi bi-boxes fs-4 d-flex"></i>
+          <i aria-hidden="true" class="bi bi-boxes fs-4 d-flex"></i>
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">Stock Position</h1>
@@ -11,14 +11,14 @@
         </div>
       </div>
       <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'inventory', 'ledger']">
-        <i class="bi bi-journal-text"></i> Inventory Ledger
+        <i aria-hidden="true" class="bi bi-journal-text"></i> Inventory Ledger
       </a>
     </div>
   </div>
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -27,8 +27,8 @@
     <div class="card-body p-4">
       <div class="row g-3">
         <div class="col-12 col-sm-6">
-          <label class="form-label small fw-semibold">Product</label>
-          <select class="form-select" (change)="onProductFilterChange($event)">
+          <label class="form-label small fw-semibold" for="stock-position-page-product">Product</label>
+          <select id="stock-position-page-product" class="form-select" (change)="onProductFilterChange($event)">
             <option value="" [selected]="!productFilter()">All products</option>
             @for (product of products(); track product.id) {
               <option [value]="product.id" [selected]="product.id === productFilter()">{{ product.code }} — {{ product.name }}</option>
@@ -36,8 +36,8 @@
           </select>
         </div>
         <div class="col-12 col-sm-6">
-          <label class="form-label small fw-semibold">Warehouse</label>
-          <select class="form-select" (change)="onWarehouseFilterChange($event)">
+          <label class="form-label small fw-semibold" for="stock-position-page-warehouse">Warehouse</label>
+          <select id="stock-position-page-warehouse" class="form-select" (change)="onWarehouseFilterChange($event)">
             <option value="" [selected]="!warehouseFilter()">All warehouses</option>
             @for (warehouse of warehouses(); track warehouse.id) {
               <option [value]="warehouse.id" [selected]="warehouse.id === warehouseFilter()">{{ warehouse.name }}</option>
@@ -58,7 +58,7 @@
       } @else if (positions().length === 0) {
         <div class="text-center py-5">
           <div class="bg-light d-inline-flex p-4 rounded-circle mb-3 text-muted">
-            <i class="bi bi-boxes fs-1"></i>
+            <i aria-hidden="true" class="bi bi-boxes fs-1"></i>
           </div>
           <h5 class="fw-bold text-dark">No Stock Movement Yet</h5>
           <p class="text-muted small mb-0">Approve a Purchase Bill with Goods lines to see stock here.</p>
@@ -68,13 +68,13 @@
           <table class="table align-middle mb-0">
             <thead>
               <tr class="text-muted small">
-                <th>Product</th>
-                <th>Warehouse</th>
-                <th class="text-end">Opening</th>
-                <th class="text-end">In</th>
-                <th class="text-end">Out</th>
-                <th class="text-end">Balance</th>
-                <th style="width: 48px;"></th>
+                <th scope="col">Product</th>
+                <th scope="col">Warehouse</th>
+                <th scope="col" class="text-end">Opening</th>
+                <th scope="col" class="text-end">In</th>
+                <th scope="col" class="text-end">Out</th>
+                <th scope="col" class="text-end">Balance</th>
+                <th scope="col" style="width: 48px;"></th>
               </tr>
             </thead>
             <tbody>
@@ -93,7 +93,7 @@
                       [queryParams]="{ productId: position.productId, warehouseId: position.warehouseId }"
                       title="View Inventory Ledger"
                     >
-                      <i class="bi bi-journal-text"></i>
+                      <i aria-hidden="true" class="bi bi-journal-text"></i>
                     </a>
                   </td>
                 </tr>

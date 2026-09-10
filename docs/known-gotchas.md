@@ -570,3 +570,105 @@ newly-written test file from CRLF to LF, after which every subsequent `
 failed its assertion with no explanation — the anchor was right, the line endings were not. Prefer
 the Edit tool for a single substitution, and if a script must patch a file, read its existing
 newline (`io.open(..., newline='')`) rather than assuming one.
+
+## A control a control-shaped scan cannot see (phase 34a)
+
+The accessibility sweep enumerated every `<input>`, `<select>` and `<textarea>` with no accessible
+name, found 348, and fixed all of them. It was complete, and it had missed **121 date fields** whose
+visible label sat right above a real text input with nothing joining the two -- because the input is
+inside `<app-bs-date-input>`, and a scan for control elements does not see a control element that a
+component wraps. `BsDateInput` had accepted an `inputId` since phase 23; the app passed it **once in
+122 uses**, so 121 labels pointed at nothing and 121 inputs had no name.
+
+No refinement of the original scan finds these. What finds them is the **mirror** question -- not
+"which controls have no label?" but "which labels name no control?" -- and the two together are what
+make the rule total, because every wrapped case shows up on exactly one side. `a11y-sweep-guard.spec.ts`
+asserts both directions, plus a third that keeps the pair honest: every caller of
+`<app-bs-date-input>` must pass `[inputId]`, because that component is the one entry on the
+"needs no name" allow-list *on the grounds that its caller names it*.
+
+The general form: **whenever a sweep enumerates one side of a relationship, ask what enumerating the
+other side would find.** The difference between the two counts is where the indirection is hiding.
+
+## Bootstrap's contrast margin is the white in the worked example (phase 34a)
+
+Bootstrap's brand colours are chosen to clear WCAG 1.4.3's 4.5:1 against **pure white**, and they
+clear it by nothing: `text-primary` (#0d6efd) is 4.50:1, `text-danger` and `text-success` 4.53:1.
+This app's page background is `#f8f9fa`, not `#fff`, and on that ground the very same colours are
+4.27-4.45:1 -- failing. Any Bootstrap app with a tinted body has this, invisibly.
+
+Phase 34a re-points `.text-primary`, `.text-secondary`, `.text-success` and `.text-danger` (and
+`--bs-link-color`) at Bootstrap's own `-600` shades in `styles.scss`, which clear 6.1:1 on both
+grounds. **Text utilities only** -- `bg-primary`, `btn-primary` and the rest keep the brand colour,
+because white-on-colour is a separate pairing that already passes.
+
+Two things about how this was found matter more than the fix:
+
+* **It was found by computing, not by auditing.** The sweep began as a hand-written rule ("never pair
+  `bg-*-subtle` with the plain tone"), which would have fixed the 161 badges and never looked at the
+  page ground. `contrast-rules.ts` records the *palette* and derives which pairs fail; a written-down
+  list keeps the answer and loses the reason, so it cannot be extended and cannot be checked.
+* **The defect was also a consistency defect.** The codebase paired `bg-*-subtle` with `-emphasis`
+  50 times and with the plain tone 161 times -- one screen right, the rest wrong. WCAG 1.4.3 and
+  NFR-6.1 were the same bug seen from two directions.
+
+The guard covers colours that come from utility classes, which today is all of them. An inline
+`style` or a component stylesheet is outside it, and nothing will announce when that changes.
+
+## A positional derivation is confidently wrong where the position lies (phase 34a)
+
+Naming the 96 line-item grid controls from their own column header -- walk back to the enclosing
+`<td>`, count `<td>`s since the `<tr>`, take that `<th>` -- is right for a per-column data cell and
+wrong for the two shapes it cannot see: a control inside a `<td colspan="5">` expansion row (index 0
+is the whole row, not the first column), and a cell that carries its own visible label. Six of the 96
+came out wrong, including an **Amount** field announced as "Name".
+
+**A confidently wrong accessible name is worse than no name at all.** A missing name announces as
+"edit text" and the user knows they are missing something; a wrong one is indistinguishable from the
+truth. So the remedy is not a more careful first pass but a **second pass that audits for what the
+first could not see**, and refuses to write until it reports zero -- which is how these six were
+found and converted into real `for`/`id` pairs.
+
+## A guard must assert its input is non-empty, not merely present (phase 34a)
+
+The test that keeps `styles.scss` in step with the palette `contrast-rules.ts` measures read the
+stylesheet with `import.meta.glob('/src/styles.scss', { query: '?raw', … })`. **Vite compiles SCSS,
+so `?raw` returns an empty string** -- not an error, not `undefined`. `expect(stylesheet).toBeDefined()`
+passed on `''`, and every assertion over the contents was vacuously true. `?inline` does the same.
+
+This happened inside the very file whose header sets out the three rules that make a guard real, the
+first of which is "assert the glob matched a plausible number of templates first, so a broken glob
+cannot make every other assertion pass vacuously". That rule is not about globs. **It is about every
+input a guard reads**, and the check has to be on the *content* (`length > 500`), never on presence.
+It was caught only because the failure message happened to print the length.
+
+The fix reads through `node:fs`. This project has no `@types/node`, and rather than add a dependency
+for one `readFileSync` there is a two-declaration shim in `src/testing/node-shims.d.ts`, which
+`tsconfig.app.json` excludes -- so the app build cannot see it and no application file can start
+importing `node:fs` and still typecheck.
+
+## A lazy `.*?` spans the instances between its anchors (phase 34a)
+
+A sweep associating date-field labels matched
+`<label…>(.*?)</label>\s*<app-bs-date-input`. Where a label was *not* followed by a date input, the
+regex engine did not give up: it expanded the lazy group across that label's own `</label>` until it
+reached a later label that was, **merging two labels and rewriting everything between them**. The
+body has to exclude the closing marker itself -- `((?:(?!</label>).)*?)`.
+
+The tell was not the regex. It was that **two independent counts disagreed**: an ad-hoc scan said 121
+labels were followed by a date input, the sweep's own tally said 99. Phase-32's rule is that a
+scripted multi-file edit asserts its anchor count before writing; this adds that the expected number
+is worth deriving a **second way**, because a sweep that miscounts will also mis-edit, and its own
+tally is not independent evidence of anything.
+
+## Reverting one file to undo a test regression reverts the phase's work on it (phase 34a)
+
+Proving the accessibility guard actually bites means injecting a regression into a real template and
+watching the assertion fail. Undoing that with `git checkout -- <file>` restores **HEAD**, which
+silently threw away that file's contrast, `th scope`, `aria-hidden` and label edits along with the
+injected damage -- and the suite went green again, because the guard reads every template and the
+only offences it would have reported were the ones just removed.
+
+Back the file up to the scratchpad first and restore it by **SHA-256**, which is also what makes a
+before/after measurement trustworthy: the same before/after toggle was then used to measure one badge
+at 3.49:1 on HEAD's markup and 10.35:1 on the phase's, in the same running app, on the same element.

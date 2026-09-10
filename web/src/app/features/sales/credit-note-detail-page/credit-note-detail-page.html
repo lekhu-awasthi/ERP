@@ -1,14 +1,14 @@
 <div class="container py-5" style="max-width: 1100px;">
   <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
     <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'sales', 'credit-notes']">
-      <i class="bi bi-arrow-left"></i> Credit Notes
+      <i aria-hidden="true" class="bi bi-arrow-left"></i> Credit Notes
     </a>
     <h1 class="h4 fw-bold mb-0 text-dark">{{ isNew() ? 'New Credit Note' : (creditNote()?.code ?? 'Credit Note') }}</h1>
     @if (creditNote(); as cn) {
       @if (cn.status === 'Approved') {
-        <span class="badge bg-success-subtle text-success">Approved</span>
+        <span class="badge bg-success-subtle text-success-emphasis">Approved</span>
       } @else if (cn.status === 'Void') {
-        <span class="badge bg-secondary-subtle text-secondary">Void</span>
+        <span class="badge bg-secondary-subtle text-secondary-emphasis">Void</span>
       } @else {
         <span class="badge bg-warning-subtle text-warning-emphasis">Draft</span>
       }
@@ -17,17 +17,17 @@
           @if (printing()) {
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
           } @else {
-            <i class="bi bi-printer"></i> Print
+            <i aria-hidden="true" class="bi bi-printer"></i> Print
           }
         </button>
       <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" (click)="emailDialog.show()">
-        <i class="bi bi-envelope"></i> Send Email
+        <i aria-hidden="true" class="bi bi-envelope"></i> Send Email
       </button>
         <button type="button" class="btn btn-outline-danger btn-sm fw-bold" [disabled]="voiding()" (click)="voidCreditNote()">
           @if (voiding()) {
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
           } @else {
-            <i class="bi bi-x-circle"></i> Void
+            <i aria-hidden="true" class="bi bi-x-circle"></i> Void
           }
         </button>
       }
@@ -58,7 +58,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -73,8 +73,8 @@
       <div class="card-body p-4">
         <div class="row g-3">
           <div class="col-12 col-sm-6">
-            <label class="form-label small fw-semibold">Customer</label>
-            <select
+            <label class="form-label small fw-semibold" for="credit-note-detail-page-customer">Customer</label>
+            <select id="credit-note-detail-page-customer"
               class="form-select"
               [value]="contactId()"
               (change)="contactId.set($any($event.target).value)"
@@ -87,8 +87,8 @@
             </select>
           </div>
           <div class="col-12 col-sm-6">
-            <label class="form-label small fw-semibold">Date</label>
-            <app-bs-date-input
+            <label class="form-label small fw-semibold" for="credit-note-detail-page-date">Date</label>
+            <app-bs-date-input [inputId]="'credit-note-detail-page-date'"
               [inputClass]="'form-control'"
               [value]="date()"
               (valueChange)="date.set($event)"
@@ -96,8 +96,8 @@
             />
           </div>
           <div class="col-12">
-            <label class="form-label small fw-semibold">Reference</label>
-            <input
+            <label class="form-label small fw-semibold" for="credit-note-detail-page-reference">Reference</label>
+            <input id="credit-note-detail-page-reference"
               type="text"
               class="form-control"
               [value]="reference()"
@@ -127,7 +127,7 @@
           <h6 class="fw-bold text-dark mb-0">Lines</h6>
           @if (isDraft() && !isLinkedToSource()) {
             <button type="button" class="btn btn-outline-primary btn-sm" (click)="addLine()">
-              <i class="bi bi-plus-lg"></i> Add Line
+              <i aria-hidden="true" class="bi bi-plus-lg"></i> Add Line
             </button>
           }
         </div>
@@ -143,14 +143,14 @@
           <table class="table align-middle">
             <thead>
               <tr class="text-muted small">
-                <th style="min-width: 240px;">Product</th>
-                <th style="width: 110px;" class="text-end">Qty</th>
-                <th style="width: 130px;" class="text-end">Rate</th>
-                <th style="width: 110px;" class="text-end">Discount %</th>
-                <th style="width: 150px;">VAT</th>
-                <th style="width: 120px;" class="text-end">Amount</th>
+                <th scope="col" style="min-width: 240px;">Product</th>
+                <th scope="col" style="width: 110px;" class="text-end">Qty</th>
+                <th scope="col" style="width: 130px;" class="text-end">Rate</th>
+                <th scope="col" style="width: 110px;" class="text-end">Discount %</th>
+                <th scope="col" style="width: 150px;">VAT</th>
+                <th scope="col" style="width: 120px;" class="text-end">Amount</th>
                 @if (isDraft()) {
-                  <th style="width: 48px;"></th>
+                  <th scope="col" style="width: 48px;"></th>
                 }
               </tr>
             </thead>
@@ -159,7 +159,7 @@
                 <tr>
                   <td>
                     @if (isDraft() && !isLinkedToSource()) {
-                      <select class="form-select form-select-sm" (change)="onProductChange(line.key, $event)">
+                      <select aria-label="Product" class="form-select form-select-sm" (change)="onProductChange(line.key, $event)">
                         <option value="" disabled [selected]="!line.productId">Select a product</option>
                         @for (product of products(); track product.id) {
                           <option [value]="product.id" [selected]="product.id === line.productId">{{ product.code }} — {{ product.name }}</option>
@@ -171,7 +171,7 @@
                   </td>
                   <td class="text-end">
                     @if (isDraft()) {
-                      <input
+                      <input aria-label="Qty"
                         type="number"
                         class="form-control form-control-sm text-end"
                         min="0"
@@ -185,7 +185,7 @@
                   </td>
                   <td class="text-end">
                     @if (isDraft() && !isLinkedToSource()) {
-                      <input
+                      <input aria-label="Rate"
                         type="number"
                         class="form-control form-control-sm text-end"
                         min="0"
@@ -199,7 +199,7 @@
                   </td>
                   <td class="text-end">
                     @if (isDraft() && !isLinkedToSource()) {
-                      <input
+                      <input aria-label="Discount %"
                         type="number"
                         class="form-control form-control-sm text-end"
                         min="0"
@@ -214,7 +214,7 @@
                   </td>
                   <td>
                     @if (isDraft() && !isLinkedToSource()) {
-                      <select class="form-select form-select-sm" (change)="onVatRateChange(line.key, $event)">
+                      <select aria-label="VAT" class="form-select form-select-sm" (change)="onVatRateChange(line.key, $event)">
                         @for (rate of vatRates; track rate) {
                           <option [value]="rate" [selected]="rate === line.vatRate">{{ rate }}</option>
                         }
@@ -226,8 +226,8 @@
                   <td class="text-end">{{ ((line.quantity * line.rate * (1 - line.discountPct / 100)) | amount) }}</td>
                   @if (isDraft()) {
                     <td>
-                      <button type="button" class="btn btn-outline-danger btn-sm" (click)="removeLine(line.key)">
-                        <i class="bi bi-trash"></i>
+                      <button aria-label="Remove line" type="button" class="btn btn-outline-danger btn-sm" (click)="removeLine(line.key)">
+                        <i aria-hidden="true" class="bi bi-trash"></i>
                       </button>
                     </td>
                   }
@@ -248,7 +248,7 @@
                 <td class="text-end fw-semibold">
                   Discount %
                   @if (isDraft() && !isLinkedToSource()) {
-                    <input
+                    <input aria-label="Qty"
                       type="number"
                       class="form-control form-control-sm text-end d-inline-block ms-2"
                       style="width: 80px;"
@@ -310,7 +310,7 @@
               @if (saving()) {
                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
               } @else {
-                <i class="bi bi-save"></i> Save Draft
+                <i aria-hidden="true" class="bi bi-save"></i> Save Draft
               }
             </button>
             @if (!isNew()) {
@@ -318,7 +318,7 @@
                 @if (approving()) {
                   <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                 } @else {
-                  <i class="bi bi-check2-circle"></i> Approve
+                  <i aria-hidden="true" class="bi bi-check2-circle"></i> Approve
                 }
               </button>
             }
@@ -335,15 +335,15 @@
         <div class="card border-0 shadow-sm">
           <div class="card-body p-4">
             <h6 class="fw-bold text-dark mb-3">
-              <i class="bi bi-diagram-2"></i> GL Transactions
+              <i aria-hidden="true" class="bi bi-diagram-2"></i> GL Transactions
             </h6>
             <div class="table-responsive">
               <table class="table align-middle mb-0">
                 <thead>
                   <tr class="text-muted small">
-                    <th>Account</th>
-                    <th class="text-end">Debit</th>
-                    <th class="text-end">Credit</th>
+                    <th scope="col">Account</th>
+                    <th scope="col" class="text-end">Debit</th>
+                    <th scope="col" class="text-end">Credit</th>
                   </tr>
                 </thead>
                 <tbody>

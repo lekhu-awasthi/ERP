@@ -1,6 +1,6 @@
 <div class="container py-5" style="max-width: 1000px;">
   <a class="btn btn-link btn-sm text-decoration-none mb-3 ps-0" [routerLink]="['/organizations', organizationId]">
-    <i class="bi bi-arrow-left"></i> Back to Organization
+    <i aria-hidden="true" class="bi bi-arrow-left"></i> Back to Organization
   </a>
 
   <div class="card border-0 shadow-sm mb-4">
@@ -60,7 +60,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }

@@ -8,20 +8,20 @@
         </p>
       </div>
       <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" (click)="startEditAttributes()">
-        <i class="bi bi-sliders"></i> {{ attributesUsed().length === 0 ? 'Set Up Variants' : 'Edit Attributes' }}
+        <i aria-hidden="true" class="bi bi-sliders"></i> {{ attributesUsed().length === 0 ? 'Set Up Variants' : 'Edit Attributes' }}
       </button>
     </div>
 
     @if (errorMessage()) {
       <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
-        <i class="bi bi-exclamation-triangle-fill"></i>
+        <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
         <div>{{ errorMessage() }}</div>
       </div>
     }
 
     @if (notice()) {
       <div class="alert alert-success d-flex align-items-center gap-2" role="alert">
-        <i class="bi bi-check-circle-fill"></i>
+        <i aria-hidden="true" class="bi bi-check-circle-fill"></i>
         <div>{{ notice() }}</div>
       </div>
     }
@@ -101,10 +101,10 @@
           <h6 class="fw-semibold small text-uppercase text-muted mb-0">Variant Details</h6>
           <div class="d-flex gap-2">
             <button type="button" class="btn btn-outline-primary btn-sm" [disabled]="saving()" (click)="generate()">
-              <i class="bi bi-grid-3x3-gap"></i> Generate All ({{ matrixSize() }})
+              <i aria-hidden="true" class="bi bi-grid-3x3-gap"></i> Generate All ({{ matrixSize() }})
             </button>
             <button type="button" class="btn btn-primary btn-sm fw-bold" (click)="startAddVariant()">
-              <i class="bi bi-plus-lg"></i> Add
+              <i aria-hidden="true" class="bi bi-plus-lg"></i> Add
             </button>
           </div>
         </div>
@@ -115,8 +115,8 @@
               @if (addingVariant()) {
                 @for (attribute of attributesUsed(); track attribute.attributeId) {
                   <div class="col-12 col-md-3">
-                    <label class="form-label small fw-semibold">{{ attribute.attributeName }}</label>
-                    <select class="form-select" (change)="chooseOption(attribute.attributeId, $event)">
+                    <label class="form-label small fw-semibold" [attr.for]="'variant-attr-' + attribute.attributeId">{{ attribute.attributeName }}</label>
+                    <select [id]="'variant-attr-' + attribute.attributeId" class="form-select" (change)="chooseOption(attribute.attributeId, $event)">
                       <option value="" [selected]="chosenOption(attribute.attributeId) === ''">Select…</option>
                       @for (option of attribute.options; track option.optionId) {
                         <option
@@ -205,13 +205,13 @@
             <table class="table table-sm align-middle mb-0">
               <thead>
                 <tr class="text-muted small">
-                  <th style="min-width: 200px;">Name</th>
-                  <th style="min-width: 160px;">Combination</th>
-                  <th>Code</th>
-                  <th>SKU / Barcode</th>
-                  <th class="text-end">Selling Price</th>
-                  <th class="text-end">Purchase Price</th>
-                  <th style="width: 150px;"></th>
+                  <th scope="col" style="min-width: 200px;">Name</th>
+                  <th scope="col" style="min-width: 160px;">Combination</th>
+                  <th scope="col">Code</th>
+                  <th scope="col">SKU / Barcode</th>
+                  <th scope="col" class="text-end">Selling Price</th>
+                  <th scope="col" class="text-end">Purchase Price</th>
+                  <th scope="col" style="width: 150px;"></th>
                 </tr>
               </thead>
               <tbody>
@@ -242,11 +242,11 @@
                           Cancel
                         </button>
                       } @else {
-                        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="startEditVariant(variant)">
-                          <i class="bi bi-pencil"></i>
+                        <button aria-label="Edit variant" type="button" class="btn btn-outline-secondary btn-sm" (click)="startEditVariant(variant)">
+                          <i aria-hidden="true" class="bi bi-pencil"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-danger btn-sm ms-1" (click)="requestDelete(variant)">
-                          <i class="bi bi-trash"></i>
+                        <button aria-label="Delete variant" type="button" class="btn btn-outline-danger btn-sm ms-1" (click)="requestDelete(variant)">
+                          <i aria-hidden="true" class="bi bi-trash"></i>
                         </button>
                       }
                     </td>

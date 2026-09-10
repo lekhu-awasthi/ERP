@@ -1,7 +1,31 @@
-
 /* Phase 33 -- the platform chrome sits above the page and stays put while it scrolls. */
 .platform-bar {
   position: sticky;
   top: 0;
   z-index: 1020;
+}
+
+/*
+  Phase 34a -- the skip link (WCAG 2.4.1). Bootstrap's `.visually-hidden-focusable` handles the
+  hide-until-focused half; this positions it over the header once it appears, and gives it a real
+  focus ring. z-index sits above `.platform-bar` so the sticky header cannot cover it.
+*/
+.skip-link:focus {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 1080;
+  padding: 0.5rem 1rem;
+  background-color: #fff;
+  border-radius: 0.25rem;
+  box-shadow: 0 0 0 0.25rem rgb(13 110 253 / 50%);
+  text-decoration: none;
+}
+
+/*
+  `<main tabindex="-1">` is focusable by script but not by Tab, so it must never look focused --
+  the visible focus ring belongs on the control the user actually tabbed to (WCAG 2.4.7).
+*/
+.shell:focus {
+  outline: none;
 }

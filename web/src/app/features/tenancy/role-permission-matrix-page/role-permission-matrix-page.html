@@ -3,7 +3,7 @@
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
         <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
-          <i class="bi bi-list-check fs-4 d-flex"></i>
+          <i aria-hidden="true" class="bi bi-list-check fs-4 d-flex"></i>
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">{{ matrix()?.roleName ?? 'Role' }} Permissions</h1>
@@ -17,21 +17,21 @@
         </div>
       </div>
       <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'roles']">
-        <i class="bi bi-arrow-left"></i> Roles
+        <i aria-hidden="true" class="bi bi-arrow-left"></i> Roles
       </a>
     </div>
   </div>
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
 
   @if (saved()) {
     <div class="alert alert-success d-flex align-items-center gap-2 mb-4" role="status">
-      <i class="bi bi-check-circle-fill"></i>
+      <i aria-hidden="true" class="bi bi-check-circle-fill"></i>
       <div>Permissions saved.</div>
     </div>
   }
@@ -51,7 +51,7 @@
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
             Saving...
           } @else {
-            <i class="bi bi-save"></i> Save Permissions
+            <i aria-hidden="true" class="bi bi-save"></i> Save Permissions
           }
         </button>
       </div>
@@ -116,7 +116,7 @@
           <div class="card-header bg-white p-3 border-0 d-flex justify-content-between align-items-center">
             <button type="button" class="btn btn-link p-0 text-decoration-none fw-bold text-dark"
               (click)="toggleLocationOpen(section.locationId)">
-              <i class="bi" [class.bi-chevron-right]="!isLocationOpen(section.locationId)"
+              <i aria-hidden="true" class="bi" [class.bi-chevron-right]="!isLocationOpen(section.locationId)"
                 [class.bi-chevron-down]="isLocationOpen(section.locationId)"></i>
               {{ section.locationName }} ({{ section.locationCode }})
               <span class="text-muted small fw-normal ms-2">

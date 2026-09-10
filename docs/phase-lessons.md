@@ -451,3 +451,61 @@ single seam to move behind an endpoint if that changes". Quick Links made the ta
 so the second consumer cost one `activate()` call — with `localStorage` kept as the *synchronous
 cache* so the first paint never flashes the wrong calendar. **A well-named seam is what makes a
 declined decision cheap to reverse later**, which is the argument for writing the decline down.
+
+## Phase 34a — accessibility: the WCAG 2.1 AA sweep and the guard that keeps it done
+
+**Read `docs/phase-34a-status.md` before adding any template, before choosing a colour, before
+writing a guard that reads a file off disk, and before scripting an edit anchored on two markers with
+a lazy match between them.**
+
+**(a) A component boundary hides a control from a control-shaped scan.** The sweep for
+`<input>`/`<select>`/`<textarea>` with no accessible name found 348 and fixed them, and was
+*complete and wrong*: 121 date fields had a visible label, a real input, and nothing joining them,
+because the input lives inside `<app-bs-date-input>`. Nothing about a better version of that scan
+would have found them. The **mirror** check did — every `<label>` must be associated with something —
+and the pair is what makes the rule total. Whenever a sweep enumerates one side of a relationship,
+ask what the other side would enumerate; the difference is where the wrapped cases hide.
+
+**(b) A palette's margin can be the white in the worked example.** Bootstrap's brand tones are built
+to clear WCAG's 4.5:1 against pure white and only just — `text-primary` is 4.50:1. This app's page
+background is `#f8f9fa`, where the same four colours fall to 4.27–4.45:1 and fail. **It was the
+computation that found this, not the audit**: had the contrast rule been written down as a list of
+forbidden class pairs (which is what the sweep started as) it would have recorded the badge defect
+and never looked at the page ground. Record the *palette* and derive the conclusion; a list keeps the
+answer and loses the reason.
+
+**(c) A confidently wrong accessible name is worse than none.** Naming 96 line-item controls from
+their column `<th>` by counting `<td>`s got six wrong — they sat in a `<td colspan="5">` expansion
+row, where index 0 is the whole row — so an *Amount* field announced as "Name". A screen-reader user
+is then told something false rather than nothing, and has no way to detect it. Any positional
+derivation needs an audit for the shapes the position cannot see, and the audit is a second pass, not
+a careful first one.
+
+**(d) A guard that reads a file must assert the file is non-empty, not merely defined.** The test
+keeping `styles.scss` in step with the measured palette read it via `import.meta.glob(…, '?raw')`;
+Vite compiles SCSS and returns an **empty string** — not an error. `toBeDefined()` passed on `''` and
+every assertion over the contents was vacuously true. This happened *inside the file whose own header
+warns about vacuous guards*, and was caught only because a failure message printed the length. The
+rule phase-23 Decision D wrote for globs ("assert it matched a plausible number first") is really a
+rule about every input a guard reads.
+
+**(e) A lazy `.*?` between two anchors silently spans the instances in between.** A sweep matching
+`<label…>(.*?)</label>\s*<app-bs-date-input` merged pairs of labels wherever the first was not
+followed by a date input, because the engine expands `.*?` across the intervening `</label>` to
+satisfy the trailing anchor. Exclude the closing marker explicitly — `((?:(?!</label>).)*?)`. **The
+tell was two independent counts disagreeing (99 against 121)**, which is the argument for deriving a
+sweep's expected number twice rather than trusting the sweep's own tally, on top of phase-32's rule
+that it must be asserted before anything is written.
+
+**(f) Splitting a phase is a question about order, not only about size.** Phase 34 was three sweeps
+and a 130-route re-layout. The obvious order — re-layout first, audit the final layout once — is
+wrong, because the template-level accessibility work (a label's `for`, a `<th scope>`, a colour
+class, an icon's `aria-hidden`) is **layout-independent** and survives the re-layout untouched, while
+the small landmark-level part is better built *into* the new shell than retrofitted onto it. The
+split that minimises rework is therefore per-template now, per-layout with the layout — and the guard
+spec built first is what makes the next phase's markup conformant on the day it lands.
+
+**(g) An accessibility defect and a consistency defect can be the same defect.** The codebase paired
+`bg-*-subtle` with the plain tone 161 times (3.4–3.9:1) and with `-emphasis` 50 times (7.2–10.5:1):
+one screen was doing it right, every other screen was doing it wrong, and that is simultaneously
+WCAG 1.4.3 and NFR-6.1. Expect more of these when 34b measures the list screens.

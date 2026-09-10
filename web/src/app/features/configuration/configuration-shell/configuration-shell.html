@@ -3,7 +3,7 @@
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
         <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
-          <i class="bi bi-gear-fill fs-4 d-flex"></i>
+          <i aria-hidden="true" class="bi bi-gear-fill fs-4 d-flex"></i>
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">Configurations</h1>
@@ -11,7 +11,7 @@
         </div>
       </div>
       <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId]">
-        <i class="bi bi-arrow-left"></i> Dashboard
+        <i aria-hidden="true" class="bi bi-arrow-left"></i> Dashboard
       </a>
     </div>
   </div>
@@ -25,14 +25,14 @@
         >
           <div class="d-flex align-items-center gap-3">
             <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
-              <i class="bi bi-sliders fs-4"></i>
+              <i aria-hidden="true" class="bi bi-sliders fs-4"></i>
             </div>
             <div>
               <h5 class="fw-bold mb-1 text-dark">General</h5>
               <span class="text-muted small">Selling-price suggestion, VAT basis, negative-balance &amp; credit-limit actions</span>
             </div>
           </div>
-          <i class="bi bi-chevron-right text-muted"></i>
+          <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
         </a>
         <a
           [routerLink]="['/organizations', organizationId, 'configuration', 'credit-terms']"
@@ -40,14 +40,14 @@
         >
           <div class="d-flex align-items-center gap-3">
             <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
-              <i class="bi bi-calendar-check fs-4"></i>
+              <i aria-hidden="true" class="bi bi-calendar-check fs-4"></i>
             </div>
             <div>
               <h5 class="fw-bold mb-1 text-dark">Credit Terms</h5>
               <span class="text-muted small">Payment due-day terms, e.g. Net 30</span>
             </div>
           </div>
-          <i class="bi bi-chevron-right text-muted"></i>
+          <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
         </a>
         <a
           [routerLink]="['/organizations', organizationId, 'configuration', 'cost-terms']"
@@ -55,14 +55,14 @@
         >
           <div class="d-flex align-items-center gap-3">
             <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
-              <i class="bi bi-cash-stack fs-4"></i>
+              <i aria-hidden="true" class="bi bi-cash-stack fs-4"></i>
             </div>
             <div>
               <h5 class="fw-bold mb-1 text-dark">Cost Terms</h5>
               <span class="text-muted small">Landed-cost &amp; production-cost terms, e.g. Freight</span>
             </div>
           </div>
-          <i class="bi bi-chevron-right text-muted"></i>
+          <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
         </a>
         <a
           [routerLink]="['/organizations', organizationId, 'configuration', 'payment-modes']"
@@ -70,14 +70,14 @@
         >
           <div class="d-flex align-items-center gap-3">
             <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
-              <i class="bi bi-credit-card fs-4"></i>
+              <i aria-hidden="true" class="bi bi-credit-card fs-4"></i>
             </div>
             <div>
               <h5 class="fw-bold mb-1 text-dark">Payment Modes</h5>
               <span class="text-muted small">Cash, Bank Transfer, Cheque, ...</span>
             </div>
           </div>
-          <i class="bi bi-chevron-right text-muted"></i>
+          <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
         </a>
         <a
           [routerLink]="['/organizations', organizationId, 'configuration', 'banks']"
@@ -85,14 +85,14 @@
         >
           <div class="d-flex align-items-center gap-3">
             <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
-              <i class="bi bi-bank fs-4"></i>
+              <i aria-hidden="true" class="bi bi-bank fs-4"></i>
             </div>
             <div>
               <h5 class="fw-bold mb-1 text-dark">Banks</h5>
               <span class="text-muted small">Banking institutions for Bank Accounts</span>
             </div>
           </div>
-          <i class="bi bi-chevron-right text-muted"></i>
+          <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
         </a>
         <a
           [routerLink]="['/organizations', organizationId, 'configuration', 'opening-balances']"
@@ -100,14 +100,14 @@
         >
           <div class="d-flex align-items-center gap-3">
             <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
-              <i class="bi bi-clipboard2-data fs-4"></i>
+              <i aria-hidden="true" class="bi bi-clipboard2-data fs-4"></i>
             </div>
             <div>
               <h5 class="fw-bold mb-1 text-dark">Opening Balances</h5>
               <span class="text-muted small">Day-zero Account and Product balances</span>
             </div>
           </div>
-          <i class="bi bi-chevron-right text-muted"></i>
+          <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
         </a>
         <a
           [routerLink]="['/organizations', organizationId, 'configuration', 'tds-types']"
@@ -115,14 +115,14 @@
         >
           <div class="d-flex align-items-center gap-3">
             <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
-              <i class="bi bi-percent fs-4"></i>
+              <i aria-hidden="true" class="bi bi-percent fs-4"></i>
             </div>
             <div>
               <h5 class="fw-bold mb-1 text-dark">TDS Types</h5>
               <span class="text-muted small">Nepal IRD withholding-tax categories</span>
             </div>
           </div>
-          <i class="bi bi-chevron-right text-muted"></i>
+          <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
         </a>
         <a
           [routerLink]="['/organizations', organizationId, 'configuration', 'reporting-tags']"
@@ -130,14 +130,14 @@
         >
           <div class="d-flex align-items-center gap-3">
             <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
-              <i class="bi bi-tags fs-4"></i>
+              <i aria-hidden="true" class="bi bi-tags fs-4"></i>
             </div>
             <div>
               <h5 class="fw-bold mb-1 text-dark">Reporting Tags</h5>
               <span class="text-muted small">Custom categories &amp; tags for slicing reports</span>
             </div>
           </div>
-          <i class="bi bi-chevron-right text-muted"></i>
+          <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
         </a>
         <a
           [routerLink]="['/organizations', organizationId, 'configuration', 'printing-templates']"
@@ -145,14 +145,14 @@
         >
           <div class="d-flex align-items-center gap-3">
             <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
-              <i class="bi bi-file-earmark-richtext fs-4"></i>
+              <i aria-hidden="true" class="bi bi-file-earmark-richtext fs-4"></i>
             </div>
             <div>
               <h5 class="fw-bold mb-1 text-dark">Printing Templates</h5>
               <span class="text-muted small">Named print layouts per document type</span>
             </div>
           </div>
-          <i class="bi bi-chevron-right text-muted"></i>
+          <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
         </a>
         <a
           [routerLink]="['/organizations', organizationId, 'configuration', 'email-templates']"
@@ -160,14 +160,14 @@
         >
           <div class="d-flex align-items-center gap-3">
             <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
-              <i class="bi bi-envelope fs-4"></i>
+              <i aria-hidden="true" class="bi bi-envelope fs-4"></i>
             </div>
             <div>
               <h5 class="fw-bold mb-1 text-dark">Email Templates</h5>
               <span class="text-muted small">Subject, body and merge fields for the Send Email dialog</span>
             </div>
           </div>
-          <i class="bi bi-chevron-right text-muted"></i>
+          <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
         </a>
         <a
           [routerLink]="['/organizations', organizationId, 'configuration', 'custom-templates']"
@@ -175,14 +175,14 @@
         >
           <div class="d-flex align-items-center gap-3">
             <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
-              <i class="bi bi-envelope-paper fs-4"></i>
+              <i aria-hidden="true" class="bi bi-envelope-paper fs-4"></i>
             </div>
             <div>
               <h5 class="fw-bold mb-1 text-dark">Custom Templates</h5>
               <span class="text-muted small">Balance confirmation &amp; terms text templates</span>
             </div>
           </div>
-          <i class="bi bi-chevron-right text-muted"></i>
+          <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
         </a>
         <a
           [routerLink]="['/organizations', organizationId, 'configuration', 'alerts']"
@@ -190,14 +190,14 @@
         >
           <div class="d-flex align-items-center gap-3">
             <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
-              <i class="bi bi-bell fs-4"></i>
+              <i aria-hidden="true" class="bi bi-bell fs-4"></i>
             </div>
             <div>
               <h5 class="fw-bold mb-1 text-dark">Alert Scheduler</h5>
               <span class="text-muted small">Scheduled daily email alerts &amp; their send history</span>
             </div>
           </div>
-          <i class="bi bi-chevron-right text-muted"></i>
+          <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
         </a>
         <a
           [routerLink]="['/organizations', organizationId, 'configuration', 'import']"
@@ -205,14 +205,14 @@
         >
           <div class="d-flex align-items-center gap-3">
             <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
-              <i class="bi bi-upload fs-4"></i>
+              <i aria-hidden="true" class="bi bi-upload fs-4"></i>
             </div>
             <div>
               <h5 class="fw-bold mb-1 text-dark">Import / Export</h5>
               <span class="text-muted small">Bulk-load Products, Customers &amp; Suppliers from a spreadsheet</span>
             </div>
           </div>
-          <i class="bi bi-chevron-right text-muted"></i>
+          <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
         </a>
         <a
           [routerLink]="['/organizations', organizationId, 'configuration', 'migration']"
@@ -220,14 +220,14 @@
         >
           <div class="d-flex align-items-center gap-3">
             <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
-              <i class="bi bi-clock-history fs-4"></i>
+              <i aria-hidden="true" class="bi bi-clock-history fs-4"></i>
             </div>
             <div>
               <h5 class="fw-bold mb-1 text-dark">Migration</h5>
               <span class="text-muted small">Import your previous system's Sales &amp; Purchase register history</span>
             </div>
           </div>
-          <i class="bi bi-chevron-right text-muted"></i>
+          <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
         </a>
       </div>
     </div>

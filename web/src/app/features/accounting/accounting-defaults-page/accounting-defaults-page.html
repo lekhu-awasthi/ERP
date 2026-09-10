@@ -1,7 +1,7 @@
 <div class="container py-5" style="max-width: 700px;">
   <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
     <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'accounting', 'accounts']">
-      <i class="bi bi-arrow-left"></i> Accounting
+      <i aria-hidden="true" class="bi bi-arrow-left"></i> Accounting
     </a>
     <h1 class="h4 fw-bold mb-0 text-dark">Accounting Defaults</h1>
   </div>
@@ -13,13 +13,13 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
   @if (successMessage()) {
     <div class="alert alert-success d-flex align-items-center gap-2 mb-4" role="status">
-      <i class="bi bi-check-circle-fill"></i>
+      <i aria-hidden="true" class="bi bi-check-circle-fill"></i>
       <div>{{ successMessage() }}</div>
     </div>
   }
@@ -33,8 +33,8 @@
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4">
         <div class="mb-3">
-          <label class="form-label small fw-semibold">Default Sales Account</label>
-          <select
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-sales-account">Default Sales Account</label>
+          <select id="accounting-defaults-page-default-sales-account"
             class="form-select"
             (change)="defaultSalesAccountId.set($any($event.target).value)"
           >
@@ -47,8 +47,8 @@
         </div>
 
         <div class="mb-3">
-          <label class="form-label small fw-semibold">Default Accounts Receivable</label>
-          <select
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-accounts-receivable">Default Accounts Receivable</label>
+          <select id="accounting-defaults-page-default-accounts-receivable"
             class="form-select"
             (change)="defaultAccountsReceivableId.set($any($event.target).value)"
           >
@@ -61,8 +61,8 @@
         </div>
 
         <div class="mb-4">
-          <label class="form-label small fw-semibold">Default VAT Payable Account</label>
-          <select
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-vat-payable-account">Default VAT Payable Account</label>
+          <select id="accounting-defaults-page-default-vat-payable-account"
             class="form-select"
             (change)="defaultVatPayableAccountId.set($any($event.target).value)"
           >
@@ -78,8 +78,8 @@
         <h6 class="fw-bold text-dark mb-3">Purchase-Side Defaults</h6>
 
         <div class="mb-3">
-          <label class="form-label small fw-semibold">Default Purchase Account</label>
-          <select
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-purchase-account">Default Purchase Account</label>
+          <select id="accounting-defaults-page-default-purchase-account"
             class="form-select"
             (change)="defaultPurchaseAccountId.set($any($event.target).value)"
           >
@@ -95,8 +95,8 @@
         </div>
 
         <div class="mb-3">
-          <label class="form-label small fw-semibold">Default Accounts Payable</label>
-          <select
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-accounts-payable">Default Accounts Payable</label>
+          <select id="accounting-defaults-page-default-accounts-payable"
             class="form-select"
             (change)="defaultAccountsPayableId.set($any($event.target).value)"
           >
@@ -109,8 +109,8 @@
         </div>
 
         <div class="mb-3">
-          <label class="form-label small fw-semibold">Default VAT Receivable Account</label>
-          <select
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-vat-receivable-account">Default VAT Receivable Account</label>
+          <select id="accounting-defaults-page-default-vat-receivable-account"
             class="form-select"
             (change)="defaultVatReceivableAccountId.set($any($event.target).value)"
           >
@@ -125,8 +125,8 @@
         </div>
 
         <div class="mb-4">
-          <label class="form-label small fw-semibold">Default TDS Payable Account</label>
-          <select
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-tds-payable-account">Default TDS Payable Account</label>
+          <select id="accounting-defaults-page-default-tds-payable-account"
             class="form-select"
             (change)="defaultTdsPayableAccountId.set($any($event.target).value)"
           >
@@ -142,8 +142,8 @@
         <h6 class="fw-bold text-dark mb-3">Inventory-Side Defaults</h6>
 
         <div class="mb-3">
-          <label class="form-label small fw-semibold">Default Inventory Account</label>
-          <select
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-inventory-account">Default Inventory Account</label>
+          <select id="accounting-defaults-page-default-inventory-account"
             class="form-select"
             (change)="defaultInventoryAccountId.set($any($event.target).value)"
           >
@@ -156,8 +156,8 @@
         </div>
 
         <div class="mb-3">
-          <label class="form-label small fw-semibold">Default COGS Account</label>
-          <select
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-cogs-account">Default COGS Account</label>
+          <select id="accounting-defaults-page-default-cogs-account"
             class="form-select"
             (change)="defaultCogsAccountId.set($any($event.target).value)"
           >
@@ -170,8 +170,8 @@
         </div>
 
         <div class="mb-4">
-          <label class="form-label small fw-semibold">Default Inventory Adjustment Account</label>
-          <select
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-inventory-adjustment-account">Default Inventory Adjustment Account</label>
+          <select id="accounting-defaults-page-default-inventory-adjustment-account"
             class="form-select"
             (change)="defaultInventoryAdjustmentAccountId.set($any($event.target).value)"
           >
@@ -184,8 +184,8 @@
         </div>
 
         <div class="mb-4">
-          <label class="form-label small fw-semibold">Default Production Cost Account</label>
-          <select
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-production-cost-account">Default Production Cost Account</label>
+          <select id="accounting-defaults-page-default-production-cost-account"
             class="form-select"
             (change)="defaultProductionCostAccountId.set($any($event.target).value)"
           >
@@ -198,8 +198,8 @@
         </div>
 
         <div class="mb-4">
-          <label class="form-label small fw-semibold">Default Forex Gain Account</label>
-          <select
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-forex-gain-account">Default Forex Gain Account</label>
+          <select id="accounting-defaults-page-default-forex-gain-account"
             class="form-select"
             (change)="defaultForexGainAccountId.set($any($event.target).value)"
           >
@@ -212,8 +212,8 @@
         </div>
 
         <div class="mb-4">
-          <label class="form-label small fw-semibold">Default Forex Loss Account</label>
-          <select
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-forex-loss-account">Default Forex Loss Account</label>
+          <select id="accounting-defaults-page-default-forex-loss-account"
             class="form-select"
             (change)="defaultForexLossAccountId.set($any($event.target).value)"
           >
@@ -226,8 +226,8 @@
         </div>
 
         <div class="mb-4">
-          <label class="form-label small fw-semibold">Default Landed Cost Clearing Account</label>
-          <select
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-landed-cost-clearing-account">Default Landed Cost Clearing Account</label>
+          <select id="accounting-defaults-page-default-landed-cost-clearing-account"
             class="form-select"
             (change)="defaultLandedCostClearingAccountId.set($any($event.target).value)"
           >
@@ -243,7 +243,7 @@
           @if (saving()) {
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
           } @else {
-            <i class="bi bi-save"></i> Save
+            <i aria-hidden="true" class="bi bi-save"></i> Save
           }
         </button>
       </div>

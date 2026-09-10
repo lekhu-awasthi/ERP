@@ -1,7 +1,20 @@
+<!--
+  Phase 34a -- the ARIA combobox pattern (WCAG 4.1.2 Name, Role, Value).
+
+  The keyboard model was already right in phase 33: arrows move a highlight, Enter opens it, Escape
+  dismisses. What was missing is that none of it was *exposed*. A screen-reader user typing here was
+  told nothing -- not that a result list had appeared, not how many rows, not which one the arrow
+  keys had landed on -- because the highlight is a CSS class on a button that never receives DOM
+  focus, and a class is invisible to assistive technology.
+
+  `aria-activedescendant` is the mechanism for exactly this shape: focus stays in the text box while
+  the box points at the id of the row currently highlighted, and the row is an `option` in a
+  `listbox` rather than a button, because an option must not contain its own focusable control.
+-->
 <div class="global-search position-relative">
   <div class="input-group input-group-sm">
     <span class="input-group-text bg-white border-end-0">
-      <i class="bi bi-search text-muted"></i>
+      <i aria-hidden="true" class="bi bi-search text-muted"></i>
     </span>
     <input
       #box
@@ -9,6 +22,11 @@
       class="form-control border-start-0 border-end-0"
       placeholder="Search contacts, products, accounts, document numbers…"
       aria-label="Global search"
+      role="combobox"
+      aria-autocomplete="list"
+      aria-controls="global-search-listbox"
+      [attr.aria-expanded]="isOpen()"
+      [attr.aria-activedescendant]="activeOptionId()"
       autocomplete="off"
       (input)="onInput($event)"
       (keydown)="onKeydown($event)"
@@ -16,7 +34,15 @@
     <span class="input-group-text bg-white border-start-0 text-muted small">Ctrl + /</span>
   </div>
 
-  @if (open() && term().trim().length > 0) {
+  <!--
+    Announces the outcome of a search to a screen reader, which otherwise gets nothing at all: the
+    result rows appear silently, and `aria-activedescendant` only speaks once a row is highlighted.
+    Kept outside the @if so the live region is present in the DOM before it has anything to say --
+    a region inserted *with* its message is frequently not announced at all.
+  -->
+  <p class="visually-hidden" aria-live="polite" role="status">{{ resultAnnouncement() }}</p>
+
+  @if (isOpen()) {
     <div class="global-search-results shadow-sm border rounded bg-white">
       @if (rows().length === 0) {
         <div class="p-3 text-muted small">
@@ -27,25 +53,26 @@
           }
         </div>
       } @else {
-        <ul class="list-unstyled mb-0">
+        <ul id="global-search-listbox" role="listbox" aria-label="Search results" class="list-unstyled mb-0">
           @for (row of rows(); track $index) {
-            <li>
-              <button
-                type="button"
-                class="global-search-row d-flex align-items-center gap-2 w-100 text-start border-0 bg-transparent px-3 py-2"
-                [class.is-highlighted]="$index === highlighted()"
-                [disabled]="!row.link"
-                (mouseenter)="highlighted.set($index)"
-                (click)="go(row)">
-                <span class="badge text-bg-light border flex-shrink-0">{{ row.kindBadge }}</span>
-                <span class="flex-grow-1 text-truncate">
-                  <span class="d-block text-dark">{{ row.label }}</span>
-                  <span class="d-block text-muted small">{{ row.description }}</span>
-                </span>
-                @if (!row.link) {
-                  <span class="text-muted small flex-shrink-0">no detail page</span>
-                }
-              </button>
+            <li
+              role="option"
+              [id]="'global-search-option-' + $index"
+              [attr.aria-selected]="$index === highlighted()"
+              [attr.aria-disabled]="row.link ? null : true"
+              class="global-search-row d-flex align-items-center gap-2 w-100 text-start px-3 py-2"
+              [class.is-highlighted]="$index === highlighted()"
+              [class.is-unavailable]="!row.link"
+              (mouseenter)="highlighted.set($index)"
+              (click)="go(row)">
+              <span class="badge text-bg-light border flex-shrink-0">{{ row.kindBadge }}</span>
+              <span class="flex-grow-1 text-truncate">
+                <span class="d-block text-dark">{{ row.label }}</span>
+                <span class="d-block text-muted small">{{ row.description }}</span>
+              </span>
+              @if (!row.link) {
+                <span class="text-muted small flex-shrink-0">no detail page</span>
+              }
             </li>
           }
         </ul>

@@ -1,14 +1,14 @@
 <div class="container py-5" style="max-width: 1000px;">
   <div class="d-flex align-items-center gap-3 mb-4">
     <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'contacts']">
-      <i class="bi bi-arrow-left"></i> Contacts
+      <i aria-hidden="true" class="bi bi-arrow-left"></i> Contacts
     </a>
     <h1 class="h4 fw-bold mb-0 text-dark">{{ isNew() ? 'New Contact' : (contact()?.name ?? 'Contact') }}</h1>
   </div>
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -25,7 +25,7 @@
         <div class="card border-0 shadow-sm mb-3">
           <div class="card-body p-4 text-center">
             <div class="bg-primary bg-opacity-10 text-primary d-inline-flex p-3 rounded-circle mb-3">
-              <i class="bi bi-person fs-2"></i>
+              <i aria-hidden="true" class="bi bi-person fs-2"></i>
             </div>
             @if (isNew()) {
               <h6 class="fw-bold text-dark mb-1">New Contact</h6>
@@ -33,11 +33,11 @@
             } @else if (contact(); as c) {
               <h6 class="fw-bold text-dark mb-1">{{ c.name }}</h6>
               <p class="text-muted small mb-2">{{ c.code }}</p>
-              <span class="badge bg-primary-subtle text-primary me-1">{{ c.type }}</span>
+              <span class="badge bg-primary-subtle text-primary-emphasis me-1">{{ c.type }}</span>
               @if (c.isActive) {
-                <span class="badge bg-success-subtle text-success">Active</span>
+                <span class="badge bg-success-subtle text-success-emphasis">Active</span>
               } @else {
-                <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
+                <span class="badge bg-secondary-subtle text-secondary-emphasis">Inactive</span>
               }
             }
           </div>
@@ -51,7 +51,7 @@
               [class.active]="activeTab() === 'Overview'"
               (click)="switchTab('Overview')"
             >
-              <i class="bi bi-info-circle me-2"></i> Overview
+              <i aria-hidden="true" class="bi bi-info-circle me-2"></i> Overview
             </button>
             @if (!isNew()) {
               <button
@@ -60,7 +60,7 @@
                 [class.active]="activeTab() === 'Personnel'"
                 (click)="switchTab('Personnel')"
               >
-                <i class="bi bi-person-lines-fill me-2"></i> Contact Personnel
+                <i aria-hidden="true" class="bi bi-person-lines-fill me-2"></i> Contact Personnel
               </button>
             }
             @if (!isNew()) {
@@ -70,7 +70,7 @@
                 [class.active]="activeTab() === 'Tasks'"
                 (click)="switchTab('Tasks')"
               >
-                <i class="bi bi-check2-square me-2"></i> Tasks
+                <i aria-hidden="true" class="bi bi-check2-square me-2"></i> Tasks
               </button>
             }
             @if (!isNew() && contact()?.type !== 'Supplier') {
@@ -80,7 +80,7 @@
                 [class.active]="activeTab() === 'Deals'"
                 (click)="switchTab('Deals')"
               >
-                <i class="bi bi-currency-exchange me-2"></i> Deals
+                <i aria-hidden="true" class="bi bi-currency-exchange me-2"></i> Deals
               </button>
             }
             @if (!isNew()) {
@@ -90,7 +90,7 @@
                 [class.active]="activeTab() === 'Documents'"
                 (click)="switchTab('Documents')"
               >
-                <i class="bi bi-folder2-open me-2"></i> Documents
+                <i aria-hidden="true" class="bi bi-folder2-open me-2"></i> Documents
               </button>
             }
             @if (!isNew()) {
@@ -100,7 +100,7 @@
                 [class.active]="activeTab() === 'Activity'"
                 (click)="switchTab('Activity')"
               >
-                <i class="bi bi-clock-history me-2"></i> Activity
+                <i aria-hidden="true" class="bi bi-clock-history me-2"></i> Activity
               </button>
             }
           </div>
@@ -159,18 +159,18 @@
                   <button
                     type="button"
                     class="btn btn-outline-secondary btn-sm"
-                    (click)="optionsOpen.set(!optionsOpen())"
+                    (click)="optionsOpen.set(!optionsOpen())" [attr.aria-expanded]="optionsOpen()" aria-haspopup="true"
                   >
-                    Options <i class="bi bi-three-dots-vertical"></i>
+                    Options <i aria-hidden="true" class="bi bi-three-dots-vertical"></i>
                   </button>
                   @if (optionsOpen()) {
                     <div class="dropdown-menu show" style="position: absolute; right: 0;">
                       <button type="button" class="dropdown-item" (click)="startEdit()">
-                        <i class="bi bi-pencil me-2"></i> Edit
+                        <i aria-hidden="true" class="bi bi-pencil me-2"></i> Edit
                       </button>
                       @if (contact()?.isActive) {
                         <button type="button" class="dropdown-item text-danger" (click)="deactivate()">
-                          <i class="bi bi-slash-circle me-2"></i> Deactivate
+                          <i aria-hidden="true" class="bi bi-slash-circle me-2"></i> Deactivate
                         </button>
                       }
                       <div class="dropdown-divider"></div>
@@ -182,22 +182,22 @@
                         class="dropdown-item"
                         (click)="optionsOpen.set(false); emailDialog.show()"
                       >
-                        <i class="bi bi-envelope me-2"></i> Send Email
+                        <i aria-hidden="true" class="bi bi-envelope me-2"></i> Send Email
                       </button>
                       <button type="button" class="dropdown-item" (click)="sendSms()">
-                        <i class="bi bi-chat-dots me-2"></i> Send SMS
+                        <i aria-hidden="true" class="bi bi-chat-dots me-2"></i> Send SMS
                       </button>
                       <button type="button" class="dropdown-item" (click)="recordPayment()">
-                        <i class="bi bi-cash-coin me-2"></i> Record Payment
+                        <i aria-hidden="true" class="bi bi-cash-coin me-2"></i> Record Payment
                       </button>
                       <button type="button" class="dropdown-item" (click)="createInvoice()">
-                        <i class="bi bi-receipt me-2"></i> Create Invoice
+                        <i aria-hidden="true" class="bi bi-receipt me-2"></i> Create Invoice
                       </button>
                       <button type="button" class="dropdown-item" (click)="createQuotation()">
-                        <i class="bi bi-file-earmark-text me-2"></i> Create Quotation
+                        <i aria-hidden="true" class="bi bi-file-earmark-text me-2"></i> Create Quotation
                       </button>
                       <button type="button" class="dropdown-item" (click)="createSalesOrder()">
-                        <i class="bi bi-cart-check me-2"></i> Create Sales Order
+                        <i aria-hidden="true" class="bi bi-cart-check me-2"></i> Create Sales Order
                       </button>
                     </div>
                   }
@@ -219,8 +219,8 @@
               <form [formGroup]="form" (ngSubmit)="save()">
                 <div class="row g-3">
                   <div class="col-12">
-                    <label class="form-label small fw-semibold">Type</label>
-                    <div class="btn-group w-100" role="group">
+                    <span class="form-label small fw-semibold" id="contact-type-group">Type</span>
+                    <div class="btn-group w-100" role="group" aria-labelledby="contact-type-group">
                       @for (type of types; track type) {
                         <input
                           type="radio"
@@ -236,12 +236,12 @@
                     </div>
                   </div>
                   <div class="col-12 col-sm-6">
-                    <label class="form-label small fw-semibold">Name</label>
-                    <input type="text" class="form-control" formControlName="name" />
+                    <label class="form-label small fw-semibold" for="contact-detail-page-name">Name</label>
+                    <input id="contact-detail-page-name" type="text" class="form-control" formControlName="name" />
                   </div>
                   <div class="col-12 col-sm-6">
-                    <label class="form-label small fw-semibold">Group</label>
-                    <select class="form-select" formControlName="groupId">
+                    <label class="form-label small fw-semibold" for="contact-detail-page-group">Group</label>
+                    <select id="contact-detail-page-group" class="form-select" formControlName="groupId">
                       <option value="">None</option>
                       @for (row of groupRows(); track row.item.id) {
                         <option [value]="row.item.id">{{ '— '.repeat(row.depth) }}{{ row.item.name }}</option>
@@ -249,24 +249,24 @@
                     </select>
                   </div>
                   <div class="col-12 col-sm-6">
-                    <label class="form-label small fw-semibold">Address</label>
-                    <input type="text" class="form-control" formControlName="address" />
+                    <label class="form-label small fw-semibold" for="contact-detail-page-address">Address</label>
+                    <input id="contact-detail-page-address" type="text" class="form-control" formControlName="address" />
                   </div>
                   <div class="col-12 col-sm-6">
-                    <label class="form-label small fw-semibold">PAN</label>
-                    <input type="text" class="form-control" formControlName="pan" />
+                    <label class="form-label small fw-semibold" for="contact-detail-page-pan">PAN</label>
+                    <input id="contact-detail-page-pan" type="text" class="form-control" formControlName="pan" />
                   </div>
                   <div class="col-12 col-sm-6">
-                    <label class="form-label small fw-semibold">Phone</label>
-                    <input type="text" class="form-control" formControlName="phone" />
+                    <label class="form-label small fw-semibold" for="contact-detail-page-phone">Phone</label>
+                    <input id="contact-detail-page-phone" type="text" class="form-control" formControlName="phone" />
                   </div>
                   <div class="col-12 col-sm-6">
-                    <label class="form-label small fw-semibold">Email</label>
-                    <input type="email" class="form-control" formControlName="email" />
+                    <label class="form-label small fw-semibold" for="contact-detail-page-email">Email</label>
+                    <input id="contact-detail-page-email" type="email" class="form-control" formControlName="email" />
                   </div>
                   <div class="col-12 col-sm-6">
-                    <label class="form-label small fw-semibold">Opening Balance</label>
-                    <input type="number" class="form-control" formControlName="openingBalance" min="0" />
+                    <label class="form-label small fw-semibold" for="contact-detail-page-opening-balance">Opening Balance</label>
+                    <input id="contact-detail-page-opening-balance" type="number" class="form-control" formControlName="openingBalance" min="0" />
                   </div>
 
                   <!-- Phase 31: the live "+ Add More Details" block. A Lead has none of it. -->
@@ -276,8 +276,8 @@
                       <p class="text-muted small mb-0 fw-semibold text-uppercase">Additional Details</p>
                     </div>
                     <div class="col-12 col-sm-6">
-                      <label class="form-label small fw-semibold">Credit Terms</label>
-                      <select class="form-select" formControlName="creditTermId">
+                      <label class="form-label small fw-semibold" for="contact-detail-page-credit-terms">Credit Terms</label>
+                      <select id="contact-detail-page-credit-terms" class="form-select" formControlName="creditTermId">
                         <option value="">None</option>
                         @for (term of creditTerms(); track term.id) {
                           <option [value]="term.id">{{ term.name }} ({{ term.dueDays }} days)</option>
@@ -286,8 +286,8 @@
                       <div class="form-text">Prefills the Due Date on a new invoice or bill for this contact.</div>
                     </div>
                     <div class="col-12 col-sm-6">
-                      <label class="form-label small fw-semibold">Credit Limit</label>
-                      <input type="number" class="form-control" formControlName="creditLimit" min="0" />
+                      <label class="form-label small fw-semibold" for="contact-detail-page-credit-limit">Credit Limit</label>
+                      <input id="contact-detail-page-credit-limit" type="number" class="form-control" formControlName="creditLimit" min="0" />
                       <div class="form-text">0 means no limit.</div>
                     </div>
                     <div class="col-12">
@@ -361,14 +361,14 @@
                     [routerLink]="['/organizations', organizationId, 'reports', route]"
                     [queryParams]="{ contactId: routeContactId }"
                   >
-                    View Full Statement <i class="bi bi-arrow-right"></i>
+                    View Full Statement <i aria-hidden="true" class="bi bi-arrow-right"></i>
                   </a>
                 }
               </div>
 
               @if (overviewError()) {
                 <div class="alert alert-danger d-flex align-items-center gap-2 mb-3" role="alert">
-                  <i class="bi bi-exclamation-triangle-fill"></i>
+                  <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
                   <div>{{ overviewError() }}</div>
                 </div>
               } @else if (overviewLoading()) {
@@ -405,11 +405,11 @@
                     <table class="table table-sm align-middle mb-0">
                       <thead>
                         <tr class="text-muted small">
-                          <th>Date</th>
-                          <th>Type</th>
-                          <th>No</th>
-                          <th class="text-end">Debit</th>
-                          <th class="text-end">Credit</th>
+                          <th scope="col">Date</th>
+                          <th scope="col">Type</th>
+                          <th scope="col">No</th>
+                          <th scope="col" class="text-end">Debit</th>
+                          <th scope="col" class="text-end">Credit</th>
                         </tr>
                       </thead>
                       <tbody>

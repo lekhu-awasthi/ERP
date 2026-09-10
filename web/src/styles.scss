@@ -223,3 +223,47 @@ body {
     font-size: 0.9rem;
   }
 }
+
+/*
+  Phase 34a -- WCAG 2.1 **1.4.3 Contrast (Minimum), Level AA**: 4.5:1 for normal-size text.
+
+  Bootstrap's default brand tones are built to clear 4.5:1 against pure white, and they only just
+  do -- `text-primary` is 4.50:1 on #fff. This app's page background is #f8f9fa, not #fff, and on
+  that ground the very same colours fall to 4.27-4.45:1 and fail. The margin was never there; it was
+  the white in the worked example.
+
+  So the four foreground utilities are re-pointed at Bootstrap's own -600 shades, which clear 6.1:1
+  on both grounds. This changes only the *text* utilities: .bg-primary, .btn-primary and the rest
+  keep the brand colour, because a filled button's white-on-colour contrast is a separate pairing
+  that already passes.
+
+  These are the values `contrast-rules.ts` measures, and `a11y-sweep-guard.spec.ts` fails the build
+  if a template ever pairs colours that do not reach the threshold.
+*/
+.text-primary {
+  --bs-text-opacity: 1;
+  color: #0a58ca !important;
+}
+
+.text-secondary {
+  --bs-text-opacity: 1;
+  color: #565e64 !important;
+}
+
+.text-success {
+  --bs-text-opacity: 1;
+  color: #146c43 !important;
+}
+
+.text-danger {
+  --bs-text-opacity: 1;
+  color: #b02a37 !important;
+}
+
+/* A link is text too, and `$link-color` defaults to the same too-light $primary. */
+:root {
+  --bs-link-color: #0a58ca;
+  --bs-link-color-rgb: 10, 88, 202;
+  --bs-link-hover-color: #084298;
+  --bs-link-hover-color-rgb: 8, 66, 152;
+}

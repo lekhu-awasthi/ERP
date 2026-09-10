@@ -1,14 +1,14 @@
 <div class="container py-5" style="max-width: 1200px;">
   <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
     <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'purchasing', 'purchase-bills']">
-      <i class="bi bi-arrow-left"></i> Purchase Bills
+      <i aria-hidden="true" class="bi bi-arrow-left"></i> Purchase Bills
     </a>
     <h1 class="h4 fw-bold mb-0 text-dark">{{ isNew() ? 'New Purchase Bill' : (purchaseBill()?.code ?? 'Purchase Bill') }}</h1>
     @if (purchaseBill(); as bill) {
       @if (bill.status === 'Approved') {
-        <span class="badge bg-success-subtle text-success">Approved</span>
+        <span class="badge bg-success-subtle text-success-emphasis">Approved</span>
       } @else if (bill.status === 'Void') {
-        <span class="badge bg-secondary-subtle text-secondary">Void</span>
+        <span class="badge bg-secondary-subtle text-secondary-emphasis">Void</span>
       } @else {
         <span class="badge bg-warning-subtle text-warning-emphasis">Draft</span>
       }
@@ -18,21 +18,21 @@
         @if (printing()) {
           <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
         } @else {
-          <i class="bi bi-printer"></i> Print
+          <i aria-hidden="true" class="bi bi-printer"></i> Print
         }
       </button>
       <button type="button" class="btn btn-primary btn-sm fw-bold" [disabled]="converting()" (click)="convertToDebitNote()">
         @if (converting()) {
           <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
         } @else {
-          <i class="bi bi-arrow-return-left"></i> Convert to Debit Note
+          <i aria-hidden="true" class="bi bi-arrow-return-left"></i> Convert to Debit Note
         }
       </button>
       <button type="button" class="btn btn-outline-danger btn-sm fw-bold" [disabled]="voiding()" (click)="voidPurchaseBill()">
         @if (voiding()) {
           <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
         } @else {
-          <i class="bi bi-x-circle"></i> Void
+          <i aria-hidden="true" class="bi bi-x-circle"></i> Void
         }
       </button>
     }
@@ -62,7 +62,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -90,8 +90,8 @@
       <div class="card-body p-4">
         <div class="row g-3">
           <div class="col-12 col-sm-6">
-            <label class="form-label small fw-semibold">Supplier</label>
-            <select
+            <label class="form-label small fw-semibold" for="purchase-bill-detail-page-supplier">Supplier</label>
+            <select id="purchase-bill-detail-page-supplier"
               class="form-select"
               (change)="onContactChange($any($event.target).value)"
               [disabled]="!isDraft()"
@@ -103,8 +103,8 @@
             </select>
           </div>
           <div class="col-12 col-sm-6">
-            <label class="form-label small fw-semibold">Warehouse *</label>
-            <select
+            <label class="form-label small fw-semibold" for="purchase-bill-detail-page-warehouse">Warehouse *</label>
+            <select id="purchase-bill-detail-page-warehouse"
               class="form-select"
               (change)="warehouseId.set($any($event.target).value)"
               [disabled]="!isDraft()"
@@ -121,8 +121,8 @@
             }
           </div>
           <div class="col-12 col-sm-4">
-            <label class="form-label small fw-semibold">Date</label>
-            <app-bs-date-input
+            <label class="form-label small fw-semibold" for="purchase-bill-detail-page-date">Date</label>
+            <app-bs-date-input [inputId]="'purchase-bill-detail-page-date'"
               [inputClass]="'form-control'"
               [value]="date()"
               (valueChange)="date.set($event)"
@@ -130,8 +130,8 @@
             />
           </div>
           <div class="col-12 col-sm-4">
-            <label class="form-label small fw-semibold">Due Date</label>
-            <app-bs-date-input
+            <label class="form-label small fw-semibold" for="purchase-bill-detail-page-due-date">Due Date</label>
+            <app-bs-date-input [inputId]="'purchase-bill-detail-page-due-date'"
               [inputClass]="'form-control'"
               [value]="dueDate()"
               (valueChange)="dueDate.set($event)"
@@ -139,8 +139,8 @@
             />
           </div>
           <div class="col-12 col-sm-4">
-            <label class="form-label small fw-semibold">Supplier Invoice Reference</label>
-            <input
+            <label class="form-label small fw-semibold" for="purchase-bill-detail-page-supplier-invoice-reference">Supplier Invoice Reference</label>
+            <input id="purchase-bill-detail-page-supplier-invoice-reference"
               type="text"
               class="form-control"
               [value]="supplierInvoiceReference()"
@@ -150,8 +150,8 @@
             />
           </div>
           <div class="col-12 col-sm-4">
-            <label class="form-label small fw-semibold">Reference</label>
-            <input
+            <label class="form-label small fw-semibold" for="purchase-bill-detail-page-reference">Reference</label>
+            <input id="purchase-bill-detail-page-reference"
               type="text"
               class="form-control"
               [value]="reference()"
@@ -188,8 +188,8 @@
 
           @if (isImport()) {
             <div class="col-12 col-sm-4">
-              <label class="form-label small fw-semibold">Import Country</label>
-              <input
+              <label class="form-label small fw-semibold" for="purchase-bill-detail-page-import-country">Import Country</label>
+              <input id="purchase-bill-detail-page-import-country"
                 type="text"
                 class="form-control"
                 [value]="importCountry()"
@@ -198,8 +198,8 @@
               />
             </div>
             <div class="col-12 col-sm-4">
-              <label class="form-label small fw-semibold">Import Date</label>
-              <app-bs-date-input
+              <label class="form-label small fw-semibold" for="purchase-bill-detail-page-import-date">Import Date</label>
+              <app-bs-date-input [inputId]="'purchase-bill-detail-page-import-date'"
                 [inputClass]="'form-control'"
                 [value]="importDate()"
                 (valueChange)="importDate.set($event)"
@@ -207,8 +207,8 @@
               />
             </div>
             <div class="col-12 col-sm-4">
-              <label class="form-label small fw-semibold">Import Document No</label>
-              <input
+              <label class="form-label small fw-semibold" for="purchase-bill-detail-page-import-document-no">Import Document No</label>
+              <input id="purchase-bill-detail-page-import-document-no"
                 type="text"
                 class="form-control"
                 [value]="importDocumentNo()"
@@ -219,8 +219,8 @@
           }
 
           <div class="col-12 col-sm-6">
-            <label class="form-label small fw-semibold">TDS Type</label>
-            <select
+            <label class="form-label small fw-semibold" for="purchase-bill-detail-page-tds-type">TDS Type</label>
+            <select id="purchase-bill-detail-page-tds-type"
               class="form-select"
               (change)="tdsTypeId.set($any($event.target).value)"
               [disabled]="!isDraft()"
@@ -235,8 +235,8 @@
           @if (purchaseBill(); as bill) {
             @if (bill.tdsTypeId) {
               <div class="col-12 col-sm-6">
-                <label class="form-label small fw-semibold">TDS Amount</label>
-                <input type="text" class="form-control" [value]="(bill.tdsAmount | amount)" disabled />
+                <label class="form-label small fw-semibold" for="purchase-bill-detail-page-tds-amount">TDS Amount</label>
+                <input id="purchase-bill-detail-page-tds-amount" type="text" class="form-control" [value]="(bill.tdsAmount | amount)" disabled />
               </div>
             }
           }
@@ -250,7 +250,7 @@
           <h6 class="fw-bold text-dark mb-0">Lines</h6>
           @if (isDraft()) {
             <button type="button" class="btn btn-outline-primary btn-sm" (click)="addLine()">
-              <i class="bi bi-plus-lg"></i> Add Line
+              <i aria-hidden="true" class="bi bi-plus-lg"></i> Add Line
             </button>
           }
         </div>
@@ -259,15 +259,15 @@
           <table class="table align-middle">
             <thead>
               <tr class="text-muted small">
-                <th style="min-width: 220px;">Product</th>
-                <th style="width: 100px;" class="text-end">Qty</th>
-                <th style="width: 120px;" class="text-end">Rate</th>
-                <th style="width: 100px;" class="text-end">Discount %</th>
-                <th style="width: 140px;">VAT</th>
-                <th style="width: 140px;">Classification</th>
-                <th style="width: 110px;" class="text-end">Amount</th>
+                <th scope="col" style="min-width: 220px;">Product</th>
+                <th scope="col" style="width: 100px;" class="text-end">Qty</th>
+                <th scope="col" style="width: 120px;" class="text-end">Rate</th>
+                <th scope="col" style="width: 100px;" class="text-end">Discount %</th>
+                <th scope="col" style="width: 140px;">VAT</th>
+                <th scope="col" style="width: 140px;">Classification</th>
+                <th scope="col" style="width: 110px;" class="text-end">Amount</th>
                 @if (isDraft()) {
-                  <th style="width: 48px;"></th>
+                  <th scope="col" style="width: 48px;"></th>
                 }
               </tr>
             </thead>
@@ -276,7 +276,7 @@
                 <tr>
                   <td>
                     @if (isDraft()) {
-                      <select class="form-select form-select-sm" (change)="onProductChange(line.key, $event)">
+                      <select aria-label="Product" class="form-select form-select-sm" (change)="onProductChange(line.key, $event)">
                         <option value="" disabled [selected]="!line.productId">Select a product</option>
                         @for (product of products(); track product.id) {
                           <option [value]="product.id" [selected]="product.id === line.productId">{{ product.code }} — {{ product.name }}</option>
@@ -288,7 +288,7 @@
                   </td>
                   <td class="text-end">
                     @if (isDraft()) {
-                      <input
+                      <input aria-label="Qty"
                         type="number"
                         class="form-control form-control-sm text-end"
                         min="0"
@@ -302,7 +302,7 @@
                   </td>
                   <td class="text-end">
                     @if (isDraft()) {
-                      <input
+                      <input aria-label="Rate"
                         type="number"
                         class="form-control form-control-sm text-end"
                         min="0"
@@ -316,7 +316,7 @@
                   </td>
                   <td class="text-end">
                     @if (isDraft()) {
-                      <input
+                      <input aria-label="Discount %"
                         type="number"
                         class="form-control form-control-sm text-end"
                         min="0"
@@ -331,7 +331,7 @@
                   </td>
                   <td>
                     @if (isDraft()) {
-                      <select class="form-select form-select-sm" (change)="onVatRateChange(line.key, $event)">
+                      <select aria-label="VAT" class="form-select form-select-sm" (change)="onVatRateChange(line.key, $event)">
                         @for (rate of vatRates; track rate) {
                           <option [value]="rate" [selected]="rate === line.vatRate">{{ rate }}</option>
                         }
@@ -342,7 +342,7 @@
                   </td>
                   <td>
                     @if (isDraft()) {
-                      <select class="form-select form-select-sm" (change)="onExpenditureClassificationChange(line.key, $event)">
+                      <select aria-label="Classification" class="form-select form-select-sm" (change)="onExpenditureClassificationChange(line.key, $event)">
                         @for (c of expenditureClassifications; track c) {
                           <option [value]="c" [selected]="c === line.expenditureClassification">{{ c }}</option>
                         }
@@ -354,8 +354,8 @@
                   <td class="text-end">{{ ((line.quantity * line.rate * (1 - line.discountPct / 100)) | amount) }}</td>
                   @if (isDraft()) {
                     <td>
-                      <button type="button" class="btn btn-outline-danger btn-sm" (click)="removeLine(line.key)">
-                        <i class="bi bi-trash"></i>
+                      <button aria-label="Remove line" type="button" class="btn btn-outline-danger btn-sm" (click)="removeLine(line.key)">
+                        <i aria-hidden="true" class="bi bi-trash"></i>
                       </button>
                     </td>
                   }
@@ -376,7 +376,7 @@
                 <td class="text-end fw-semibold">
                   Discount %
                   @if (isDraft()) {
-                    <input
+                    <input aria-label="Qty"
                       type="number"
                       class="form-control form-control-sm text-end d-inline-block ms-2"
                       style="width: 80px;"
@@ -465,18 +465,18 @@
                 <table class="table table-sm align-middle mb-0">
                   <thead>
                     <tr class="text-muted small">
-                      <th style="min-width: 180px;">Cost Terms</th>
-                      <th style="min-width: 180px;">Product</th>
-                      <th style="min-width: 120px;">Method</th>
-                      <th class="text-end" style="min-width: 120px;">Amount</th>
-                      <th style="width: 40px;"></th>
+                      <th scope="col" style="min-width: 180px;">Cost Terms</th>
+                      <th scope="col" style="min-width: 180px;">Product</th>
+                      <th scope="col" style="min-width: 120px;">Method</th>
+                      <th scope="col" class="text-end" style="min-width: 120px;">Amount</th>
+                      <th scope="col" style="width: 40px;"></th>
                     </tr>
                   </thead>
                   <tbody>
                     @for (cost of additionalCosts(); track cost.key) {
                       <tr>
                         <td>
-                          <select class="form-select form-select-sm" (change)="onAdditionalCostTermChange(cost.key, $event)">
+                          <select aria-label="Cost Terms" class="form-select form-select-sm" (change)="onAdditionalCostTermChange(cost.key, $event)">
                             <option value="" [selected]="!cost.costTermId">Select Cost Term</option>
                             @for (term of additionalCostTerms(); track term.id) {
                               <option [value]="term.id" [selected]="term.id === cost.costTermId">{{ term.name }}</option>
@@ -484,7 +484,7 @@
                           </select>
                         </td>
                         <td>
-                          <select class="form-select form-select-sm" (change)="onAdditionalCostProductChange(cost.key, $event)">
+                          <select aria-label="Product" class="form-select form-select-sm" (change)="onAdditionalCostProductChange(cost.key, $event)">
                             @if (!isProductWiseAdditionalCost()) {
                               <option value="" [selected]="!cost.productId">All Product</option>
                             }
@@ -494,14 +494,14 @@
                           </select>
                         </td>
                         <td>
-                          <select class="form-select form-select-sm" (change)="onAdditionalCostMethodChange(cost.key, $event)">
+                          <select aria-label="Method" class="form-select form-select-sm" (change)="onAdditionalCostMethodChange(cost.key, $event)">
                             @for (method of additionalCostMethods; track method) {
                               <option [value]="method" [selected]="method === cost.method">{{ method }}</option>
                             }
                           </select>
                         </td>
                         <td>
-                          <input
+                          <input aria-label="Amount"
                             type="number"
                             class="form-control form-control-sm text-end"
                             min="0"
@@ -517,7 +517,7 @@
                             aria-label="Remove additional cost"
                             (click)="removeAdditionalCost(cost.key)"
                           >
-                            <i class="bi bi-trash"></i>
+                            <i aria-hidden="true" class="bi bi-trash"></i>
                           </button>
                         </td>
                       </tr>
@@ -535,7 +535,7 @@
 
               <div class="mt-2">
                 <button type="button" class="btn btn-outline-secondary btn-sm" (click)="addAdditionalCost()">
-                  <i class="bi bi-plus-lg"></i> Add Row
+                  <i aria-hidden="true" class="bi bi-plus-lg"></i> Add Row
                 </button>
               </div>
               <div class="form-text">
@@ -554,9 +554,9 @@
               <table class="table table-sm align-middle mb-0">
                 <thead>
                   <tr class="text-muted small">
-                    <th>Products</th>
+                    <th scope="col">Products</th>
                     @for (column of matrix.columns; track column.costTermId) {
-                      <th class="text-end">{{ column.name }}</th>
+                      <th scope="col" class="text-end">{{ column.name }}</th>
                     }
                   </tr>
                 </thead>
@@ -589,7 +589,7 @@
               @if (previewingGl()) {
                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
               } @else {
-                <i class="bi bi-eye"></i> Preview GL Posting
+                <i aria-hidden="true" class="bi bi-eye"></i> Preview GL Posting
               }
             </button>
           </div>
@@ -598,9 +598,9 @@
               <table class="table table-sm align-middle mb-0">
                 <thead>
                   <tr class="text-muted small">
-                    <th>Account</th>
-                    <th class="text-end">Debit</th>
-                    <th class="text-end">Credit</th>
+                    <th scope="col">Account</th>
+                    <th scope="col" class="text-end">Debit</th>
+                    <th scope="col" class="text-end">Credit</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -623,7 +623,7 @@
               @if (saving()) {
                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
               } @else {
-                <i class="bi bi-save"></i> Save Draft
+                <i aria-hidden="true" class="bi bi-save"></i> Save Draft
               }
             </button>
             @if (!isNew()) {
@@ -631,7 +631,7 @@
                 @if (approving()) {
                   <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                 } @else {
-                  <i class="bi bi-check2-circle"></i> Approve
+                  <i aria-hidden="true" class="bi bi-check2-circle"></i> Approve
                 }
               </button>
             }
@@ -648,15 +648,15 @@
         <div class="card border-0 shadow-sm">
           <div class="card-body p-4">
             <h6 class="fw-bold text-dark mb-3">
-              <i class="bi bi-diagram-2"></i> GL Transactions
+              <i aria-hidden="true" class="bi bi-diagram-2"></i> GL Transactions
             </h6>
             <div class="table-responsive">
               <table class="table align-middle mb-0">
                 <thead>
                   <tr class="text-muted small">
-                    <th>Account</th>
-                    <th class="text-end">Debit</th>
-                    <th class="text-end">Credit</th>
+                    <th scope="col">Account</th>
+                    <th scope="col" class="text-end">Debit</th>
+                    <th scope="col" class="text-end">Credit</th>
                   </tr>
                 </thead>
                 <tbody>

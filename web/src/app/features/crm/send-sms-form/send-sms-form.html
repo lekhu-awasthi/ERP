@@ -1,13 +1,13 @@
 <div>
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-3" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
   @if (successResult(); as result) {
     <div class="alert alert-success d-flex align-items-center gap-2 mb-3" role="alert">
-      <i class="bi bi-check-circle-fill"></i>
+      <i aria-hidden="true" class="bi bi-check-circle-fill"></i>
       <div>
         Sent to {{ result.recipientCount }} recipient(s), used {{ result.creditsUsed }} credit(s). Remaining balance:
         {{ result.remainingBalance }}.
@@ -15,11 +15,11 @@
     </div>
   }
 
-  <div class="mb-3">
-    <label class="form-label small fw-semibold">Audience</label>
+  <div class="mb-3" role="group" aria-labelledby="sms-audience-group">
+    <span class="form-label small fw-semibold" id="sms-audience-group">Audience</span>
     @if (isLocked()) {
       <div class="form-control-plaintext small">
-        <span class="badge bg-primary-subtle text-primary">{{ lockedContactLabel() }}</span>
+        <span class="badge bg-primary-subtle text-primary-emphasis">{{ lockedContactLabel() }}</span>
       </div>
     } @else {
       <div class="btn-group w-100 mb-2" role="group">
@@ -37,7 +37,7 @@
       </div>
 
       @if (audienceMode() === 'ContactGroup') {
-        <select class="form-select form-select-sm" (change)="onContactGroupChange($event)">
+        <select aria-label="Contact group" class="form-select form-select-sm" (change)="onContactGroupChange($event)">
           <option value="" [selected]="!contactGroupId()">Select a group</option>
           @for (group of contactGroups(); track group.id) {
             <option [value]="group.id" [selected]="group.id === contactGroupId()">{{ group.name }}</option>
@@ -68,8 +68,8 @@
   </div>
 
   <div class="mb-3">
-    <label class="form-label small fw-semibold">Template (optional)</label>
-    <select class="form-select form-select-sm" (change)="onTemplateChange($event)">
+    <label class="form-label small fw-semibold" for="send-sms-form-template-optional">Template (optional)</label>
+    <select id="send-sms-form-template-optional" class="form-select form-select-sm" (change)="onTemplateChange($event)">
       <option value="" [selected]="!templateId()">None -- write your own</option>
       @for (template of templates(); track template.id) {
         <option [value]="template.id" [selected]="template.id === templateId()">{{ template.title }}</option>
@@ -78,13 +78,13 @@
   </div>
 
   <div class="mb-3">
-    <label class="form-label small fw-semibold">Title</label>
-    <input type="text" class="form-control form-control-sm" [value]="title()" (input)="onTitleChange($event)" />
+    <label class="form-label small fw-semibold" for="send-sms-form-title">Title</label>
+    <input id="send-sms-form-title" type="text" class="form-control form-control-sm" [value]="title()" (input)="onTitleChange($event)" />
   </div>
 
   <div class="mb-2">
-    <label class="form-label small fw-semibold">Content</label>
-    <textarea class="form-control form-control-sm" rows="4" [value]="content()" (input)="onContentChange($event)"></textarea>
+    <label class="form-label small fw-semibold" for="send-sms-form-content">Content</label>
+    <textarea id="send-sms-form-content" class="form-control form-control-sm" rows="4" [value]="content()" (input)="onContentChange($event)"></textarea>
   </div>
   <p class="text-muted small mb-3">
     Use <code>$[name]$</code>, <code>$[balance]$</code>, <code>$[balance_date]$</code> to personalize each message --
@@ -95,7 +95,7 @@
     @if (sending()) {
       <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
     } @else {
-      <i class="bi bi-send"></i> Send SMS
+      <i aria-hidden="true" class="bi bi-send"></i> Send SMS
     }
   </button>
 </div>

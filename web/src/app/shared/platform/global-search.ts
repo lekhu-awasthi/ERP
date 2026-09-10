@@ -119,6 +119,38 @@ export class GlobalSearch {
     });
   }
 
+  /**
+   * Whether the dropdown is showing. Phase 33's template repeated this condition inline; phase 34a
+   * needs the same truth in three places (`aria-expanded`, `aria-activedescendant` and the panel
+   * itself), and three copies of a condition are three chances for the exposed state to disagree
+   * with the visible one.
+   */
+  protected readonly isOpen = computed(() => this.open() && this.term().trim().length > 0);
+
+  /**
+   * The id of the highlighted row, or null when there is nothing to point at -- WCAG 4.1.2. An
+   * `aria-activedescendant` naming an element that is not in the DOM is worse than none at all:
+   * the screen reader announces nothing and the user cannot tell the difference from a broken box.
+   */
+  protected readonly activeOptionId = computed(() =>
+    this.isOpen() && this.rows().length > 0 ? `global-search-option-${this.highlighted()}` : null,
+  );
+
+  /** What the live region says: the only signal a screen-reader user gets that results arrived. */
+  protected readonly resultAnnouncement = computed(() => {
+    if (!this.isOpen()) {
+      return '';
+    }
+
+    if (this.searching()) {
+      return 'Searching…';
+    }
+
+    const count = this.rows().length;
+
+    return count === 0 ? 'No matches.' : `${count} result${count === 1 ? '' : 's'} available.`;
+  });
+
   protected onInput(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
     this.term.set(value);

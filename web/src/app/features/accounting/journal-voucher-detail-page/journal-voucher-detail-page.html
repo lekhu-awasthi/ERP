@@ -1,14 +1,14 @@
 <div class="container py-5" style="max-width: 1100px;">
   <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
     <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'accounting', 'journal-vouchers']">
-      <i class="bi bi-arrow-left"></i> Journal Vouchers
+      <i aria-hidden="true" class="bi bi-arrow-left"></i> Journal Vouchers
     </a>
     <h1 class="h4 fw-bold mb-0 text-dark">{{ isNew() ? 'New Journal Voucher' : (journalVoucher()?.code ?? 'Journal Voucher') }}</h1>
     @if (journalVoucher(); as jv) {
       @if (jv.status === 'Approved') {
-        <span class="badge bg-success-subtle text-success">Approved</span>
+        <span class="badge bg-success-subtle text-success-emphasis">Approved</span>
       } @else if (jv.status === 'Void') {
-        <span class="badge bg-secondary-subtle text-secondary">Void</span>
+        <span class="badge bg-secondary-subtle text-secondary-emphasis">Void</span>
       } @else {
         <span class="badge bg-warning-subtle text-warning-emphasis">Draft</span>
       }
@@ -17,14 +17,14 @@
           @if (printing()) {
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
           } @else {
-            <i class="bi bi-printer"></i> Print
+            <i aria-hidden="true" class="bi bi-printer"></i> Print
           }
         </button>
         <button type="button" class="btn btn-outline-danger btn-sm fw-bold" [disabled]="voiding()" (click)="voidJournalVoucher()">
           @if (voiding()) {
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
           } @else {
-            <i class="bi bi-x-circle"></i> Void
+            <i aria-hidden="true" class="bi bi-x-circle"></i> Void
           }
         </button>
       }
@@ -55,7 +55,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -70,8 +70,8 @@
       <div class="card-body p-4">
         <div class="row g-3">
           <div class="col-12 col-sm-4">
-            <label class="form-label small fw-semibold">Date</label>
-            <app-bs-date-input
+            <label class="form-label small fw-semibold" for="journal-voucher-detail-page-date">Date</label>
+            <app-bs-date-input [inputId]="'journal-voucher-detail-page-date'"
               [inputClass]="'form-control'"
               [value]="date()"
               (valueChange)="date.set($event)"
@@ -79,8 +79,8 @@
             />
           </div>
           <div class="col-12 col-sm-8">
-            <label class="form-label small fw-semibold">Reference</label>
-            <input
+            <label class="form-label small fw-semibold" for="journal-voucher-detail-page-reference">Reference</label>
+            <input id="journal-voucher-detail-page-reference"
               type="text"
               class="form-control"
               [value]="reference()"
@@ -110,7 +110,7 @@
           <h6 class="fw-bold text-dark mb-0">Lines</h6>
           @if (isDraft()) {
             <button type="button" class="btn btn-outline-primary btn-sm" (click)="addLine()">
-              <i class="bi bi-plus-lg"></i> Add Line
+              <i aria-hidden="true" class="bi bi-plus-lg"></i> Add Line
             </button>
           }
         </div>
@@ -119,12 +119,12 @@
           <table class="table align-middle">
             <thead>
               <tr class="text-muted small">
-                <th style="min-width: 260px;">Account</th>
-                <th style="min-width: 200px;">Contact</th>
-                <th style="width: 160px;" class="text-end">Debit</th>
-                <th style="width: 160px;" class="text-end">Credit</th>
+                <th scope="col" style="min-width: 260px;">Account</th>
+                <th scope="col" style="min-width: 200px;">Contact</th>
+                <th scope="col" style="width: 160px;" class="text-end">Debit</th>
+                <th scope="col" style="width: 160px;" class="text-end">Credit</th>
                 @if (isDraft()) {
-                  <th style="width: 48px;"></th>
+                  <th scope="col" style="width: 48px;"></th>
                 }
               </tr>
             </thead>
@@ -133,7 +133,7 @@
                 <tr>
                   <td>
                     @if (isDraft()) {
-                      <select class="form-select form-select-sm" (change)="onAccountChange(line.key, $event)">
+                      <select aria-label="Account" class="form-select form-select-sm" (change)="onAccountChange(line.key, $event)">
                         <option value="" disabled [selected]="!line.accountId">Select an account</option>
                         @for (account of sortedAccounts(); track account.id) {
                           <option [value]="account.id" [selected]="account.id === line.accountId">{{ account.code }} — {{ account.name }}</option>
@@ -145,7 +145,7 @@
                   </td>
                   <td>
                     @if (isDraft()) {
-                      <select class="form-select form-select-sm" (change)="onContactChange(line.key, $event)">
+                      <select aria-label="Contact" class="form-select form-select-sm" (change)="onContactChange(line.key, $event)">
                         <option value="" [selected]="!line.contactId">— None —</option>
                         @for (contact of sortedContacts(); track contact.id) {
                           <option [value]="contact.id" [selected]="contact.id === line.contactId">{{ contact.name }}</option>
@@ -157,7 +157,7 @@
                   </td>
                   <td class="text-end">
                     @if (isDraft()) {
-                      <input
+                      <input aria-label="Debit"
                         type="number"
                         class="form-control form-control-sm text-end"
                         min="0"
@@ -171,7 +171,7 @@
                   </td>
                   <td class="text-end">
                     @if (isDraft()) {
-                      <input
+                      <input aria-label="Credit"
                         type="number"
                         class="form-control form-control-sm text-end"
                         min="0"
@@ -185,8 +185,8 @@
                   </td>
                   @if (isDraft()) {
                     <td>
-                      <button type="button" class="btn btn-outline-danger btn-sm" (click)="removeLine(line.key)">
-                        <i class="bi bi-trash"></i>
+                      <button aria-label="Remove line" type="button" class="btn btn-outline-danger btn-sm" (click)="removeLine(line.key)">
+                        <i aria-hidden="true" class="bi bi-trash"></i>
                       </button>
                     </td>
                   }
@@ -205,9 +205,9 @@
               <tr>
                 <td colspan="5" class="text-end">
                   @if (difference() === 0) {
-                    <span class="badge bg-success-subtle text-success">Difference: 0.00</span>
+                    <span class="badge bg-success-subtle text-success-emphasis">Difference: 0.00</span>
                   } @else {
-                    <span class="badge bg-danger-subtle text-danger">Difference: {{ (difference() | amount) }}</span>
+                    <span class="badge bg-danger-subtle text-danger-emphasis">Difference: {{ (difference() | amount) }}</span>
                   }
                 </td>
               </tr>
@@ -221,7 +221,7 @@
               @if (saving()) {
                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
               } @else {
-                <i class="bi bi-save"></i> Save Draft
+                <i aria-hidden="true" class="bi bi-save"></i> Save Draft
               }
             </button>
             @if (!isNew()) {
@@ -229,7 +229,7 @@
                 @if (approving()) {
                   <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                 } @else {
-                  <i class="bi bi-check2-circle"></i> Approve
+                  <i aria-hidden="true" class="bi bi-check2-circle"></i> Approve
                 }
               </button>
             }
@@ -246,15 +246,15 @@
         <div class="card border-0 shadow-sm">
           <div class="card-body p-4">
             <h6 class="fw-bold text-dark mb-3">
-              <i class="bi bi-diagram-2"></i> GL Transactions
+              <i aria-hidden="true" class="bi bi-diagram-2"></i> GL Transactions
             </h6>
             <div class="table-responsive">
               <table class="table align-middle mb-0">
                 <thead>
                   <tr class="text-muted small">
-                    <th>Account</th>
-                    <th class="text-end">Debit</th>
-                    <th class="text-end">Credit</th>
+                    <th scope="col">Account</th>
+                    <th scope="col" class="text-end">Debit</th>
+                    <th scope="col" class="text-end">Credit</th>
                   </tr>
                 </thead>
                 <tbody>

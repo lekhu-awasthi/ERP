@@ -3,7 +3,7 @@
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
         <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
-          <i class="bi bi-clock-history fs-4 d-flex"></i>
+          <i aria-hidden="true" class="bi bi-clock-history fs-4 d-flex"></i>
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">Invoice Age</h1>
@@ -12,10 +12,10 @@
       </div>
       <div class="d-flex align-items-center gap-2">
         <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportCurrentView()">
-          <i class="bi bi-download"></i> Export Current View
+          <i aria-hidden="true" class="bi bi-download"></i> Export Current View
         </button>
         <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
-          <i class="bi bi-download"></i> Export Full Dataset
+          <i aria-hidden="true" class="bi bi-download"></i> Export Full Dataset
         </button>
       </div>
     </div>
@@ -23,7 +23,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -32,16 +32,16 @@
     <div class="card-body p-4">
       <div class="row g-3">
         <div class="col-12 col-sm-6 col-lg-3">
-          <label class="form-label small fw-semibold">From Date</label>
-          <app-bs-date-input [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
+          <label class="form-label small fw-semibold" for="invoice-age-page-from-date">From Date</label>
+          <app-bs-date-input [inputId]="'invoice-age-page-from-date'" [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
         </div>
         <div class="col-12 col-sm-6 col-lg-3">
-          <label class="form-label small fw-semibold">As Of Date</label>
-          <app-bs-date-input [inputClass]="'form-control'" [value]="asOfDate()" (valueChange)="onAsOfDateChange($event)" />
+          <label class="form-label small fw-semibold" for="invoice-age-page-as-of-date">As Of Date</label>
+          <app-bs-date-input [inputId]="'invoice-age-page-as-of-date'" [inputClass]="'form-control'" [value]="asOfDate()" (valueChange)="onAsOfDateChange($event)" />
         </div>
         <div class="col-12 col-sm-6 col-lg-3">
-          <label class="form-label small fw-semibold">Customer</label>
-          <select class="form-select" (change)="onContactChange($event)">
+          <label class="form-label small fw-semibold" for="invoice-age-page-customer">Customer</label>
+          <select id="invoice-age-page-customer" class="form-select" (change)="onContactChange($event)">
             <option value="" [selected]="!contactId()">All Customers</option>
             @for (contact of contacts(); track contact.id) {
               <option [value]="contact.id" [selected]="contact.id === contactId()">{{ contact.name }}</option>
@@ -49,8 +49,8 @@
           </select>
         </div>
         <div class="col-12 col-lg-3">
-          <label class="form-label small fw-semibold">Txn Type</label>
-          <div class="d-flex flex-wrap gap-3 pt-1">
+          <span class="form-label small fw-semibold" id="invoice-age-types-group">Txn Type</span>
+          <div class="d-flex flex-wrap gap-3 pt-1" role="group" aria-labelledby="invoice-age-types-group">
             @for (type of ageableTypes; track type) {
               <div class="form-check">
                 <input class="form-check-input" type="checkbox" [id]="'txn-' + type"
@@ -81,18 +81,18 @@
             <table class="table align-middle mb-0">
               <thead>
                 <tr class="text-muted small">
-                  <th>Invoice Date</th>
-                  <th>Due Date</th>
-                  <th>Txn Type</th>
-                  <th>#No</th>
-                  <th>Reference No</th>
-                  <th>Customer</th>
-                  <th>Contact Group</th>
-                  <th class="text-end">Invoice Amount</th>
-                  <th class="text-end">Paid</th>
-                  <th class="text-end">Balance</th>
-                  <th>Status</th>
-                  <th class="text-end">Age Days</th>
+                  <th scope="col">Invoice Date</th>
+                  <th scope="col">Due Date</th>
+                  <th scope="col">Txn Type</th>
+                  <th scope="col">#No</th>
+                  <th scope="col">Reference No</th>
+                  <th scope="col">Customer</th>
+                  <th scope="col">Contact Group</th>
+                  <th scope="col" class="text-end">Invoice Amount</th>
+                  <th scope="col" class="text-end">Paid</th>
+                  <th scope="col" class="text-end">Balance</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" class="text-end">Age Days</th>
                 </tr>
               </thead>
               <tbody>

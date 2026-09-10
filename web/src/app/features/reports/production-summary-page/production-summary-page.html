@@ -1,6 +1,6 @@
 <div class="container py-5" style="max-width: 1200px;">
   <a class="btn btn-link btn-sm text-decoration-none mb-3 ps-0" [routerLink]="['/organizations', organizationId]">
-    <i class="bi bi-arrow-left"></i> Back to Organization
+    <i aria-hidden="true" class="bi bi-arrow-left"></i> Back to Organization
   </a>
 
   <div class="card border-0 shadow-sm mb-4">
@@ -12,12 +12,12 @@
 
       <div class="row g-3 align-items-end">
         <div class="col-12 col-sm-3">
-          <label class="form-label small fw-semibold">From</label>
-          <app-bs-date-input [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="fromDate.set($event)" />
+          <label class="form-label small fw-semibold" for="production-summary-page-from">From</label>
+          <app-bs-date-input [inputId]="'production-summary-page-from'" [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="fromDate.set($event)" />
         </div>
         <div class="col-12 col-sm-3">
-          <label class="form-label small fw-semibold">To</label>
-          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="toDate.set($event)" />
+          <label class="form-label small fw-semibold" for="production-summary-page-to">To</label>
+          <app-bs-date-input [inputId]="'production-summary-page-to'" [inputClass]="'form-control'" [value]="toDate()" (valueChange)="toDate.set($event)" />
         </div>
         <div class="col-12 col-sm-4">
           <label class="form-label small fw-semibold" for="ps-product">Product</label>
@@ -41,7 +41,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -49,7 +49,7 @@
   @if (!generated()) {
     <div class="card border-0 shadow-sm">
       <div class="card-body p-5 text-center text-muted">
-        <i class="bi bi-clipboard-data fs-1 d-block mb-3"></i>
+        <i aria-hidden="true" class="bi bi-clipboard-data fs-1 d-block mb-3"></i>
         Select a period and click Generate to load the report.
       </div>
     </div>

@@ -2,7 +2,7 @@
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4 d-flex align-items-center gap-3">
       <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
-        <i class="bi bi-chat-dots fs-4 d-flex"></i>
+        <i aria-hidden="true" class="bi bi-chat-dots fs-4 d-flex"></i>
       </div>
       <div>
         <h1 class="h3 fw-bold mb-0 text-dark">SMS</h1>
@@ -13,7 +13,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -34,7 +34,7 @@
             <h3 class="fw-bold text-dark mb-0">{{ balance() }}</h3>
           </div>
           <button type="button" class="btn btn-primary btn-sm fw-bold" (click)="showSendForm.set(!showSendForm())">
-            <i class="bi bi-send"></i> {{ showSendForm() ? 'Cancel' : 'Send SMS' }}
+            <i aria-hidden="true" class="bi bi-send"></i> {{ showSendForm() ? 'Cancel' : 'Send SMS' }}
           </button>
         </div>
 
@@ -56,11 +56,11 @@
             <table class="table table-sm align-middle mb-0">
               <thead>
                 <tr class="text-muted small">
-                  <th>Sent</th>
-                  <th>Contact</th>
-                  <th>Title</th>
-                  <th>Phone</th>
-                  <th class="text-end">Credits</th>
+                  <th scope="col">Sent</th>
+                  <th scope="col">Contact</th>
+                  <th scope="col">Title</th>
+                  <th scope="col">Phone</th>
+                  <th scope="col" class="text-end">Credits</th>
                 </tr>
               </thead>
               <tbody>
@@ -96,12 +96,12 @@
             <table class="table table-sm align-middle">
               <thead>
                 <tr class="text-muted small">
-                  <th>Sent</th>
-                  <th>Contact</th>
-                  <th>Title</th>
-                  <th>Content</th>
-                  <th>Phone</th>
-                  <th class="text-end">Credits</th>
+                  <th scope="col">Sent</th>
+                  <th scope="col">Contact</th>
+                  <th scope="col">Title</th>
+                  <th scope="col">Content</th>
+                  <th scope="col">Phone</th>
+                  <th scope="col" class="text-end">Credits</th>
                 </tr>
               </thead>
               <tbody>
@@ -137,7 +137,7 @@
           <h6 class="fw-bold text-dark mb-0">Templates</h6>
           @if (!showTemplateForm()) {
             <button type="button" class="btn btn-outline-primary btn-sm" (click)="startCreateTemplate()">
-              <i class="bi bi-plus-lg"></i> New Template
+              <i aria-hidden="true" class="bi bi-plus-lg"></i> New Template
             </button>
           }
         </div>
@@ -145,12 +145,12 @@
         @if (showTemplateForm()) {
           <form [formGroup]="templateForm" (ngSubmit)="saveTemplate()" class="border rounded-3 p-3 mb-3">
             <div class="mb-2">
-              <label class="form-label small fw-semibold">Title</label>
-              <input type="text" class="form-control form-control-sm" formControlName="title" />
+              <label class="form-label small fw-semibold" for="sms-shell-page-title">Title</label>
+              <input id="sms-shell-page-title" type="text" class="form-control form-control-sm" formControlName="title" />
             </div>
             <div class="mb-2">
-              <label class="form-label small fw-semibold">Content</label>
-              <textarea class="form-control form-control-sm" rows="3" formControlName="content"></textarea>
+              <label class="form-label small fw-semibold" for="sms-shell-page-content">Content</label>
+              <textarea id="sms-shell-page-content" class="form-control form-control-sm" rows="3" formControlName="content"></textarea>
               <p class="text-muted small mt-1 mb-0">
                 Use <code>$[name]$</code>, <code>$[balance]$</code>, <code>$[balance_date]$</code> to personalize.
               </p>
@@ -183,11 +183,11 @@
                   <p class="text-muted small mb-0">{{ row.content }}</p>
                 </div>
                 <div class="d-flex gap-2 flex-shrink-0">
-                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="startEditTemplate(row)">
-                    <i class="bi bi-pencil"></i>
+                  <button aria-label="Edit SMS template" type="button" class="btn btn-outline-secondary btn-sm" (click)="startEditTemplate(row)">
+                    <i aria-hidden="true" class="bi bi-pencil"></i>
                   </button>
-                  <button type="button" class="btn btn-outline-danger btn-sm" (click)="deleteTemplate(row)">
-                    <i class="bi bi-trash"></i>
+                  <button aria-label="Delete SMS template" type="button" class="btn btn-outline-danger btn-sm" (click)="deleteTemplate(row)">
+                    <i aria-hidden="true" class="bi bi-trash"></i>
                   </button>
                 </div>
               </div>
@@ -214,7 +214,7 @@
             <h3 class="fw-bold text-dark mb-0">{{ ledgerBalance() }}</h3>
           </div>
           <button type="button" class="btn btn-outline-primary btn-sm fw-bold" (click)="showAdjustForm.set(!showAdjustForm())">
-            <i class="bi bi-sliders"></i> {{ showAdjustForm() ? 'Cancel' : 'Adjust Credit' }}
+            <i aria-hidden="true" class="bi bi-sliders"></i> {{ showAdjustForm() ? 'Cancel' : 'Adjust Credit' }}
           </button>
         </div>
 
@@ -222,13 +222,13 @@
           <form [formGroup]="adjustForm" (ngSubmit)="saveAdjustment()" class="border rounded-3 p-3 mb-3">
             <div class="row g-2">
               <div class="col-4">
-                <label class="form-label small fw-semibold">Change Amount</label>
-                <input type="number" class="form-control form-control-sm" formControlName="changeAmount" step="1" />
+                <label class="form-label small fw-semibold" for="sms-shell-page-change-amount">Change Amount</label>
+                <input id="sms-shell-page-change-amount" type="number" class="form-control form-control-sm" formControlName="changeAmount" step="1" />
                 <p class="text-muted small mt-1 mb-0">Positive to add, negative to deduct.</p>
               </div>
               <div class="col-8">
-                <label class="form-label small fw-semibold">Reason</label>
-                <input type="text" class="form-control form-control-sm" formControlName="reason" />
+                <label class="form-label small fw-semibold" for="sms-shell-page-reason">Reason</label>
+                <input id="sms-shell-page-reason" type="text" class="form-control form-control-sm" formControlName="reason" />
               </div>
             </div>
             <div class="d-flex gap-2 mt-2">
@@ -254,11 +254,11 @@
             <table class="table table-sm align-middle">
               <thead>
                 <tr class="text-muted small">
-                  <th>Date</th>
-                  <th>Type</th>
-                  <th class="text-end">Change</th>
-                  <th>Reason</th>
-                  <th>By</th>
+                  <th scope="col">Date</th>
+                  <th scope="col">Type</th>
+                  <th scope="col" class="text-end">Change</th>
+                  <th scope="col">Reason</th>
+                  <th scope="col">By</th>
                 </tr>
               </thead>
               <tbody>

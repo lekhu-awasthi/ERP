@@ -1,14 +1,14 @@
 <div class="container py-5" style="max-width: 1100px;">
   <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
     <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'sales', 'invoices']">
-      <i class="bi bi-arrow-left"></i> Invoices
+      <i aria-hidden="true" class="bi bi-arrow-left"></i> Invoices
     </a>
     <h1 class="h4 fw-bold mb-0 text-dark">{{ isNew() ? 'New Invoice' : (invoice()?.code ?? 'Invoice') }}</h1>
     @if (invoice(); as inv) {
       @if (inv.status === 'Approved') {
-        <span class="badge bg-success-subtle text-success">Approved</span>
+        <span class="badge bg-success-subtle text-success-emphasis">Approved</span>
       } @else if (inv.status === 'Void') {
-        <span class="badge bg-secondary-subtle text-secondary">Void</span>
+        <span class="badge bg-secondary-subtle text-secondary-emphasis">Void</span>
       } @else {
         <span class="badge bg-warning-subtle text-warning-emphasis">Draft</span>
       }
@@ -44,24 +44,24 @@
         @if (printing()) {
           <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
         } @else {
-          <i class="bi bi-printer"></i> Print
+          <i aria-hidden="true" class="bi bi-printer"></i> Print
         }
       </button>
       <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" (click)="emailDialog.show()">
-        <i class="bi bi-envelope"></i> Send Email
+        <i aria-hidden="true" class="bi bi-envelope"></i> Send Email
       </button>
       <button type="button" class="btn btn-primary btn-sm fw-bold" [disabled]="converting()" (click)="convertToCreditNote()">
         @if (converting()) {
           <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
         } @else {
-          <i class="bi bi-arrow-return-left"></i> Convert to Credit Note
+          <i aria-hidden="true" class="bi bi-arrow-return-left"></i> Convert to Credit Note
         }
       </button>
       <button type="button" class="btn btn-outline-danger btn-sm fw-bold" [disabled]="voiding()" (click)="voidInvoice()">
         @if (voiding()) {
           <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
         } @else {
-          <i class="bi bi-x-circle"></i> Void
+          <i aria-hidden="true" class="bi bi-x-circle"></i> Void
         }
       </button>
     }
@@ -81,7 +81,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -108,8 +108,8 @@
       <div class="card-body p-4">
         <div class="row g-3">
           <div class="col-12 col-sm-6">
-            <label class="form-label small fw-semibold">Customer</label>
-            <select
+            <label class="form-label small fw-semibold" for="invoice-detail-page-customer">Customer</label>
+            <select id="invoice-detail-page-customer"
               class="form-select"
               (change)="onContactChange($any($event.target).value)"
               [disabled]="!isDraft()"
@@ -121,8 +121,8 @@
             </select>
           </div>
           <div class="col-12 col-sm-6">
-            <label class="form-label small fw-semibold">Warehouse *</label>
-            <select
+            <label class="form-label small fw-semibold" for="invoice-detail-page-warehouse">Warehouse *</label>
+            <select id="invoice-detail-page-warehouse"
               class="form-select"
               (change)="warehouseId.set($any($event.target).value)"
               [disabled]="!isDraft()"
@@ -139,8 +139,8 @@
             }
           </div>
           <div class="col-12 col-sm-6">
-            <label class="form-label small fw-semibold">Date</label>
-            <app-bs-date-input
+            <label class="form-label small fw-semibold" for="invoice-detail-page-date">Date</label>
+            <app-bs-date-input [inputId]="'invoice-detail-page-date'"
               [inputClass]="'form-control'"
               [value]="date()"
               (valueChange)="date.set($event)"
@@ -148,8 +148,8 @@
             />
           </div>
           <div class="col-12 col-sm-6">
-            <label class="form-label small fw-semibold">Due Date</label>
-            <app-bs-date-input
+            <label class="form-label small fw-semibold" for="invoice-detail-page-due-date">Due Date</label>
+            <app-bs-date-input [inputId]="'invoice-detail-page-due-date'"
               [inputClass]="'form-control'"
               [value]="dueDate()"
               (valueChange)="dueDate.set($event)"
@@ -157,8 +157,8 @@
             />
           </div>
           <div class="col-12 col-sm-6">
-            <label class="form-label small fw-semibold">Reference</label>
-            <input
+            <label class="form-label small fw-semibold" for="invoice-detail-page-reference">Reference</label>
+            <input id="invoice-detail-page-reference"
               type="text"
               class="form-control"
               [value]="reference()"
@@ -200,8 +200,8 @@
           @if (isExport()) {
             <div class="row g-3 mt-1">
               <div class="col-12 col-sm-4">
-                <label class="form-label small fw-semibold">Country</label>
-                <input
+                <label class="form-label small fw-semibold" for="invoice-detail-page-country">Country</label>
+                <input id="invoice-detail-page-country"
                   type="text"
                   class="form-control"
                   [value]="exportCountry()"
@@ -211,8 +211,8 @@
                 />
               </div>
               <div class="col-12 col-sm-4">
-                <label class="form-label small fw-semibold">Date</label>
-                <app-bs-date-input
+                <label class="form-label small fw-semibold" for="invoice-detail-page-date-2">Date</label>
+                <app-bs-date-input [inputId]="'invoice-detail-page-date-2'"
                   [inputClass]="'form-control'"
                   [value]="exportDeclarationDate()"
                   (valueChange)="exportDeclarationDate.set($event)"
@@ -220,8 +220,8 @@
                 />
               </div>
               <div class="col-12 col-sm-4">
-                <label class="form-label small fw-semibold">Document No</label>
-                <input
+                <label class="form-label small fw-semibold" for="invoice-detail-page-document-no">Document No</label>
+                <input id="invoice-detail-page-document-no"
                   type="text"
                   class="form-control"
                   [value]="exportDeclarationNo()"
@@ -255,7 +255,7 @@
           <h6 class="fw-bold text-dark mb-0">Lines</h6>
           @if (isDraft()) {
             <button type="button" class="btn btn-outline-primary btn-sm" (click)="addLine()">
-              <i class="bi bi-plus-lg"></i> Add Line
+              <i aria-hidden="true" class="bi bi-plus-lg"></i> Add Line
             </button>
           }
         </div>
@@ -264,14 +264,14 @@
           <table class="table align-middle">
             <thead>
               <tr class="text-muted small">
-                <th style="min-width: 240px;">Product</th>
-                <th style="width: 110px;" class="text-end">Qty</th>
-                <th style="width: 130px;" class="text-end">Rate</th>
-                <th style="width: 110px;" class="text-end">Discount %</th>
-                <th style="width: 150px;">VAT</th>
-                <th style="width: 120px;" class="text-end">Amount</th>
+                <th scope="col" style="min-width: 240px;">Product</th>
+                <th scope="col" style="width: 110px;" class="text-end">Qty</th>
+                <th scope="col" style="width: 130px;" class="text-end">Rate</th>
+                <th scope="col" style="width: 110px;" class="text-end">Discount %</th>
+                <th scope="col" style="width: 150px;">VAT</th>
+                <th scope="col" style="width: 120px;" class="text-end">Amount</th>
                 @if (isDraft()) {
-                  <th style="width: 48px;"></th>
+                  <th scope="col" style="width: 48px;"></th>
                 }
               </tr>
             </thead>
@@ -280,7 +280,7 @@
                 <tr>
                   <td>
                     @if (isDraft()) {
-                      <select class="form-select form-select-sm" (change)="onProductChange(line.key, $event)">
+                      <select aria-label="Product" class="form-select form-select-sm" (change)="onProductChange(line.key, $event)">
                         <option value="" disabled [selected]="!line.productId">Select a product</option>
                         @for (product of products(); track product.id) {
                           <option [value]="product.id" [selected]="product.id === line.productId">{{ product.code }} — {{ product.name }}</option>
@@ -292,7 +292,7 @@
                   </td>
                   <td class="text-end">
                     @if (isDraft()) {
-                      <input
+                      <input aria-label="Qty"
                         type="number"
                         class="form-control form-control-sm text-end"
                         min="0"
@@ -306,7 +306,7 @@
                   </td>
                   <td class="text-end">
                     @if (isDraft()) {
-                      <input
+                      <input aria-label="Rate"
                         type="number"
                         class="form-control form-control-sm text-end"
                         min="0"
@@ -320,7 +320,7 @@
                   </td>
                   <td class="text-end">
                     @if (isDraft()) {
-                      <input
+                      <input aria-label="Discount %"
                         type="number"
                         class="form-control form-control-sm text-end"
                         min="0"
@@ -337,7 +337,7 @@
                     @if (isDraft()) {
                       <!-- Pinned to 0 Vat on an export sale: the choice is not merely overridden
                            server-side, the live form does not offer it at all. -->
-                      <select
+                      <select aria-label="VAT"
                         class="form-select form-select-sm"
                         [disabled]="isExport()"
                         (change)="onVatRateChange(line.key, $event)"
@@ -353,8 +353,8 @@
                   <td class="text-end">{{ ((line.quantity * line.rate * (1 - line.discountPct / 100)) | amount) }}</td>
                   @if (isDraft()) {
                     <td>
-                      <button type="button" class="btn btn-outline-danger btn-sm" (click)="removeLine(line.key)">
-                        <i class="bi bi-trash"></i>
+                      <button aria-label="Remove line" type="button" class="btn btn-outline-danger btn-sm" (click)="removeLine(line.key)">
+                        <i aria-hidden="true" class="bi bi-trash"></i>
                       </button>
                     </td>
                   }
@@ -375,7 +375,7 @@
                 <td class="text-end fw-semibold">
                   Discount %
                   @if (isDraft()) {
-                    <input
+                    <input aria-label="Qty"
                       type="number"
                       class="form-control form-control-sm text-end d-inline-block ms-2"
                       style="width: 80px;"
@@ -437,7 +437,7 @@
               @if (saving()) {
                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
               } @else {
-                <i class="bi bi-save"></i> Save Draft
+                <i aria-hidden="true" class="bi bi-save"></i> Save Draft
               }
             </button>
             @if (!isNew()) {
@@ -445,7 +445,7 @@
                 @if (approving()) {
                   <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                 } @else {
-                  <i class="bi bi-check2-circle"></i> Approve
+                  <i aria-hidden="true" class="bi bi-check2-circle"></i> Approve
                 }
               </button>
             }
@@ -462,15 +462,15 @@
         <div class="card border-0 shadow-sm">
           <div class="card-body p-4">
             <h6 class="fw-bold text-dark mb-3">
-              <i class="bi bi-diagram-2"></i> GL Transactions
+              <i aria-hidden="true" class="bi bi-diagram-2"></i> GL Transactions
             </h6>
             <div class="table-responsive">
               <table class="table align-middle mb-0">
                 <thead>
                   <tr class="text-muted small">
-                    <th>Account</th>
-                    <th class="text-end">Debit</th>
-                    <th class="text-end">Credit</th>
+                    <th scope="col">Account</th>
+                    <th scope="col" class="text-end">Debit</th>
+                    <th scope="col" class="text-end">Credit</th>
                   </tr>
                 </thead>
                 <tbody>

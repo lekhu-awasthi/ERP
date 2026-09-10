@@ -4,7 +4,7 @@
       <h6 class="fw-bold text-dark mb-0">Reporting Tags</h6>
       @if (editable() && !editing()) {
         <button type="button" class="btn btn-outline-primary btn-sm" (click)="startEditing()">
-          <i class="bi bi-pencil"></i> Add/Edit
+          <i aria-hidden="true" class="bi bi-pencil"></i> Add/Edit
         </button>
       }
     </div>
@@ -14,7 +14,7 @@
     }
 
     @if (editing()) {
-      <select class="form-select" multiple size="5" (change)="onSelectionChange($event)">
+      <select aria-label="Reporting tags" class="form-select" multiple size="5" (change)="onSelectionChange($event)">
         @for (option of allOptions(); track option.id) {
           <option [value]="option.id" [selected]="selectedIds().includes(option.id)">{{ option.name }}</option>
         }
@@ -36,7 +36,7 @@
     } @else {
       <div class="d-flex flex-wrap gap-2">
         @for (tag of tags(); track tag.tagOptionId) {
-          <span class="badge bg-secondary-subtle text-secondary">{{ tag.categoryName }}: {{ tag.tagOptionName }}</span>
+          <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ tag.categoryName }}: {{ tag.tagOptionName }}</span>
         }
       </div>
     }

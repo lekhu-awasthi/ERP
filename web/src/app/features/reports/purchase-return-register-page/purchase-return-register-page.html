@@ -3,7 +3,7 @@
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
         <div class="bg-warning bg-gradient text-white p-2.5 rounded-3">
-          <i class="bi bi-arrow-return-right fs-4 d-flex"></i>
+          <i aria-hidden="true" class="bi bi-arrow-return-right fs-4 d-flex"></i>
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">Purchase Return Register</h1>
@@ -12,23 +12,23 @@
       </div>
       <div class="d-flex align-items-center gap-2">
         <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportCurrentView()">
-          <i class="bi bi-download"></i> Export Current View
+          <i aria-hidden="true" class="bi bi-download"></i> Export Current View
         </button>
         <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
-          <i class="bi bi-download"></i> Export Full Dataset
+          <i aria-hidden="true" class="bi bi-download"></i> Export Full Dataset
         </button>
         <a [routerLink]="['/organizations', organizationId, 'reports', 'purchase-register']" class="btn btn-outline-secondary btn-sm fw-bold">
-          <i class="bi bi-journal-text"></i> Purchase Register
+          <i aria-hidden="true" class="bi bi-journal-text"></i> Purchase Register
         </a>
         <a [routerLink]="['/organizations', organizationId, 'reports', 'sales-return-register']" class="btn btn-outline-secondary btn-sm fw-bold">
-          <i class="bi bi-arrow-return-left"></i> Sales Return Register
+          <i aria-hidden="true" class="bi bi-arrow-return-left"></i> Sales Return Register
         </a>
       </div>
     </div>
   </div>
 
   <div class="alert alert-info d-flex align-items-start gap-2 mb-4" role="alert">
-    <i class="bi bi-info-circle-fill mt-1"></i>
+    <i aria-hidden="true" class="bi bi-info-circle-fill mt-1"></i>
     <div class="small">
       These debit notes also appear in the <strong>Purchase Register</strong> as negative rows. The
       Capital and Import classification of each return is inherited from the Purchase Bill it
@@ -38,7 +38,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -47,16 +47,16 @@
     <div class="card-body p-4">
       <div class="row g-3">
         <div class="col-12 col-sm-6 col-lg-3">
-          <label class="form-label small fw-semibold">From Date</label>
-          <app-bs-date-input [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
+          <label class="form-label small fw-semibold" for="purchase-return-register-page-from-date">From Date</label>
+          <app-bs-date-input [inputId]="'purchase-return-register-page-from-date'" [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
         </div>
         <div class="col-12 col-sm-6 col-lg-3">
-          <label class="form-label small fw-semibold">To Date</label>
-          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
+          <label class="form-label small fw-semibold" for="purchase-return-register-page-to-date">To Date</label>
+          <app-bs-date-input [inputId]="'purchase-return-register-page-to-date'" [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
         <div class="col-12 col-sm-6 col-lg-4">
-          <label class="form-label small fw-semibold">Supplier</label>
-          <select class="form-select" (change)="onContactChange($event)">
+          <label class="form-label small fw-semibold" for="purchase-return-register-page-supplier">Supplier</label>
+          <select id="purchase-return-register-page-supplier" class="form-select" (change)="onContactChange($event)">
             <option value="" [selected]="!contactId()">All Suppliers</option>
             @for (supplier of suppliers(); track supplier.id) {
               <option [value]="supplier.id" [selected]="supplier.id === contactId()">{{ supplier.code }} — {{ supplier.name }}</option>
@@ -80,19 +80,19 @@
           <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
               <tr>
-                <th>Date</th>
-                <th>Debit Note No</th>
-                <th>Declaration No</th>
-                <th>Supplier Name</th>
-                <th>Supplier PAN</th>
-                <th class="text-end">Total Return Value</th>
-                <th class="text-end">Tax-Exempt Return / Import</th>
-                <th class="text-end">Taxable Return Value</th>
-                <th class="text-end">Taxable Return Tax</th>
-                <th class="text-end">Taxable Import Return Value</th>
-                <th class="text-end">Taxable Import Return Tax</th>
-                <th class="text-end">Capital Return Value</th>
-                <th class="text-end">Capital Return Tax</th>
+                <th scope="col">Date</th>
+                <th scope="col">Debit Note No</th>
+                <th scope="col">Declaration No</th>
+                <th scope="col">Supplier Name</th>
+                <th scope="col">Supplier PAN</th>
+                <th scope="col" class="text-end">Total Return Value</th>
+                <th scope="col" class="text-end">Tax-Exempt Return / Import</th>
+                <th scope="col" class="text-end">Taxable Return Value</th>
+                <th scope="col" class="text-end">Taxable Return Tax</th>
+                <th scope="col" class="text-end">Taxable Import Return Value</th>
+                <th scope="col" class="text-end">Taxable Import Return Tax</th>
+                <th scope="col" class="text-end">Capital Return Value</th>
+                <th scope="col" class="text-end">Capital Return Tax</th>
               </tr>
             </thead>
             <tbody>

@@ -3,7 +3,7 @@
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
         <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
-          <i class="bi bi-hourglass-split fs-4 d-flex"></i>
+          <i aria-hidden="true" class="bi bi-hourglass-split fs-4 d-flex"></i>
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">Stock Ageing</h1>
@@ -12,13 +12,13 @@
       </div>
       <div class="d-flex align-items-center gap-2">
         <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportCurrentView()">
-          <i class="bi bi-download"></i> Export Current View
+          <i aria-hidden="true" class="bi bi-download"></i> Export Current View
         </button>
         <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
-          <i class="bi bi-download"></i> Export Full Dataset
+          <i aria-hidden="true" class="bi bi-download"></i> Export Full Dataset
         </button>
         <a [routerLink]="['/organizations', organizationId, 'reports', 'product-profitability']" class="btn btn-outline-secondary btn-sm fw-bold">
-          <i class="bi bi-graph-up-arrow"></i> Product Profitability
+          <i aria-hidden="true" class="bi bi-graph-up-arrow"></i> Product Profitability
         </a>
       </div>
     </div>
@@ -26,7 +26,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -35,16 +35,16 @@
     <div class="card-body p-4">
       <div class="row g-3">
         <div class="col-12 col-sm-6 col-lg-2">
-          <label class="form-label small fw-semibold">As Of Date</label>
-          <app-bs-date-input
+          <label class="form-label small fw-semibold" for="stock-ageing-page-as-of-date">As Of Date</label>
+          <app-bs-date-input [inputId]="'stock-ageing-page-as-of-date'"
             [inputClass]="'form-control'"
             [value]="asOfDate()"
             (valueChange)="onAsOfDateChange($event)"
           />
         </div>
         <div class="col-12 col-sm-6 col-lg-3">
-          <label class="form-label small fw-semibold">Category</label>
-          <select class="form-select" (change)="onCategoryChange($event)">
+          <label class="form-label small fw-semibold" for="stock-ageing-page-category">Category</label>
+          <select id="stock-ageing-page-category" class="form-select" (change)="onCategoryChange($event)">
             <option value="" [selected]="!productCategoryId()">All Categories</option>
             @for (category of categories(); track category.id) {
               <option [value]="category.id" [selected]="category.id === productCategoryId()">{{ category.name }}</option>
@@ -52,8 +52,8 @@
           </select>
         </div>
         <div class="col-12 col-sm-6 col-lg-4">
-          <label class="form-label small fw-semibold">Product</label>
-          <select class="form-select" (change)="onProductChange($event)">
+          <label class="form-label small fw-semibold" for="stock-ageing-page-product">Product</label>
+          <select id="stock-ageing-page-product" class="form-select" (change)="onProductChange($event)">
             <option value="" [selected]="!productId()">All Products</option>
             @for (product of products(); track product.id) {
               <option [value]="product.id" [selected]="product.id === productId()">{{ product.code }} — {{ product.name }}</option>
@@ -61,8 +61,8 @@
           </select>
         </div>
         <div class="col-12 col-sm-6 col-lg-3">
-          <label class="form-label small fw-semibold">Warehouse</label>
-          <select class="form-select" (change)="onWarehouseChange($event)">
+          <label class="form-label small fw-semibold" for="stock-ageing-page-warehouse">Warehouse</label>
+          <select id="stock-ageing-page-warehouse" class="form-select" (change)="onWarehouseChange($event)">
             <option value="" [selected]="!warehouseId()">All Warehouses</option>
             @for (warehouse of warehouses(); track warehouse.id) {
               <option [value]="warehouse.id" [selected]="warehouse.id === warehouseId()">{{ warehouse.name }}</option>
@@ -89,15 +89,15 @@
           <table class="table align-middle mb-0">
             <thead>
               <tr class="text-muted small">
-                <th>Product</th>
-                <th>Category</th>
-                <th class="text-end">1-30 Days</th>
-                <th class="text-end">31-60 Days</th>
-                <th class="text-end">61-90 Days</th>
-                <th class="text-end">91+ Days</th>
-                <th class="text-end">Total</th>
-                <th class="text-end">Rate</th>
-                <th class="text-end">Amount</th>
+                <th scope="col">Product</th>
+                <th scope="col">Category</th>
+                <th scope="col" class="text-end">1-30 Days</th>
+                <th scope="col" class="text-end">31-60 Days</th>
+                <th scope="col" class="text-end">61-90 Days</th>
+                <th scope="col" class="text-end">91+ Days</th>
+                <th scope="col" class="text-end">Total</th>
+                <th scope="col" class="text-end">Rate</th>
+                <th scope="col" class="text-end">Amount</th>
               </tr>
             </thead>
             <tbody>

@@ -3,7 +3,7 @@
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
         <div class="bg-info bg-gradient text-white p-2.5 rounded-3">
-          <i class="bi bi-arrow-left-right fs-4 d-flex"></i>
+          <i aria-hidden="true" class="bi bi-arrow-left-right fs-4 d-flex"></i>
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">Inventory Movement</h1>
@@ -12,16 +12,16 @@
       </div>
       <div class="d-flex align-items-center gap-2">
         <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportCurrentView()">
-          <i class="bi bi-download"></i> Export Current View
+          <i aria-hidden="true" class="bi bi-download"></i> Export Current View
         </button>
         <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
-          <i class="bi bi-download"></i> Export Full Dataset
+          <i aria-hidden="true" class="bi bi-download"></i> Export Full Dataset
         </button>
         <a [routerLink]="['/organizations', organizationId, 'reports', 'inventory-position']" class="btn btn-outline-secondary btn-sm fw-bold">
-          <i class="bi bi-boxes"></i> Inventory Position
+          <i aria-hidden="true" class="bi bi-boxes"></i> Inventory Position
         </a>
         <a [routerLink]="['/organizations', organizationId, 'reports', 'inventory-ledger']" class="btn btn-outline-secondary btn-sm fw-bold">
-          <i class="bi bi-list-columns"></i> Inventory Ledger
+          <i aria-hidden="true" class="bi bi-list-columns"></i> Inventory Ledger
         </a>
       </div>
     </div>
@@ -29,7 +29,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -38,16 +38,16 @@
     <div class="card-body p-4">
       <div class="row g-3">
         <div class="col-12 col-sm-6 col-lg-2">
-          <label class="form-label small fw-semibold">From Date</label>
-          <app-bs-date-input [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
+          <label class="form-label small fw-semibold" for="inventory-movement-page-from-date">From Date</label>
+          <app-bs-date-input [inputId]="'inventory-movement-page-from-date'" [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
         </div>
         <div class="col-12 col-sm-6 col-lg-2">
-          <label class="form-label small fw-semibold">To Date</label>
-          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
+          <label class="form-label small fw-semibold" for="inventory-movement-page-to-date">To Date</label>
+          <app-bs-date-input [inputId]="'inventory-movement-page-to-date'" [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
         <div class="col-12 col-sm-6 col-lg-3">
-          <label class="form-label small fw-semibold">Product Category</label>
-          <select class="form-select" (change)="onCategoryChange($event)">
+          <label class="form-label small fw-semibold" for="inventory-movement-page-product-category">Product Category</label>
+          <select id="inventory-movement-page-product-category" class="form-select" (change)="onCategoryChange($event)">
             <option value="" [selected]="!categoryId()">All</option>
             @for (category of categories(); track category.id) {
               <option [value]="category.id" [selected]="category.id === categoryId()">{{ category.name }}</option>
@@ -55,8 +55,8 @@
           </select>
         </div>
         <div class="col-12 col-sm-6 col-lg-3">
-          <label class="form-label small fw-semibold">Product</label>
-          <select class="form-select" (change)="onProductChange($event)">
+          <label class="form-label small fw-semibold" for="inventory-movement-page-product">Product</label>
+          <select id="inventory-movement-page-product" class="form-select" (change)="onProductChange($event)">
             <option value="" [selected]="!productId()">All</option>
             @for (product of products(); track product.id) {
               <option [value]="product.id" [selected]="product.id === productId()">{{ product.name }}</option>
@@ -64,8 +64,8 @@
           </select>
         </div>
         <div class="col-12 col-sm-6 col-lg-2">
-          <label class="form-label small fw-semibold">Warehouse</label>
-          <select class="form-select" (change)="onWarehouseChange($event)">
+          <label class="form-label small fw-semibold" for="inventory-movement-page-warehouse">Warehouse</label>
+          <select id="inventory-movement-page-warehouse" class="form-select" (change)="onWarehouseChange($event)">
             <option value="" [selected]="!warehouseId()">All</option>
             @for (warehouse of warehouses(); track warehouse.id) {
               <option [value]="warehouse.id" [selected]="warehouse.id === warehouseId()">{{ warehouse.name }}</option>
@@ -89,26 +89,26 @@
           <table class="table table-hover align-middle mb-0 small">
             <thead class="table-light">
               <tr>
-                <th rowspan="2" class="align-bottom">Code/Goods</th>
-                <th rowspan="2" class="align-bottom">Category</th>
-                <th colspan="3" class="text-center border-start">Opening</th>
-                <th colspan="3" class="text-center border-start">In</th>
-                <th colspan="3" class="text-center border-start">Out</th>
-                <th colspan="3" class="text-center border-start">Balance</th>
+                <th scope="col" rowspan="2" class="align-bottom">Code/Goods</th>
+                <th scope="col" rowspan="2" class="align-bottom">Category</th>
+                <th scope="colgroup" colspan="3" class="text-center border-start">Opening</th>
+                <th scope="colgroup" colspan="3" class="text-center border-start">In</th>
+                <th scope="colgroup" colspan="3" class="text-center border-start">Out</th>
+                <th scope="colgroup" colspan="3" class="text-center border-start">Balance</th>
               </tr>
               <tr>
-                <th class="text-end border-start">Quantity</th>
-                <th class="text-end">Rate</th>
-                <th class="text-end">Value</th>
-                <th class="text-end border-start">Quantity</th>
-                <th class="text-end">Rate</th>
-                <th class="text-end">Value</th>
-                <th class="text-end border-start">Quantity</th>
-                <th class="text-end">Rate</th>
-                <th class="text-end">Value</th>
-                <th class="text-end border-start">Quantity</th>
-                <th class="text-end">Rate</th>
-                <th class="text-end">Value</th>
+                <th scope="col" class="text-end border-start">Quantity</th>
+                <th scope="col" class="text-end">Rate</th>
+                <th scope="col" class="text-end">Value</th>
+                <th scope="col" class="text-end border-start">Quantity</th>
+                <th scope="col" class="text-end">Rate</th>
+                <th scope="col" class="text-end">Value</th>
+                <th scope="col" class="text-end border-start">Quantity</th>
+                <th scope="col" class="text-end">Rate</th>
+                <th scope="col" class="text-end">Value</th>
+                <th scope="col" class="text-end border-start">Quantity</th>
+                <th scope="col" class="text-end">Rate</th>
+                <th scope="col" class="text-end">Value</th>
               </tr>
             </thead>
             <tbody>

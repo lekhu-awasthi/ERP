@@ -4,7 +4,7 @@
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
         <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
-          <i class="bi bi-grid-fill fs-4 d-flex"></i>
+          <i aria-hidden="true" class="bi bi-grid-fill fs-4 d-flex"></i>
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">Organizations</h1>
@@ -19,7 +19,7 @@
           </div>
         }
         <button type="button" class="btn btn-outline-danger btn-sm fw-bold d-flex align-items-center gap-1" (click)="logout()">
-          <i class="bi bi-box-arrow-right"></i> Log out
+          <i aria-hidden="true" class="bi bi-box-arrow-right"></i> Log out
         </button>
       </div>
     </div>
@@ -37,7 +37,7 @@
               (click)="setTab('organizations')"
               type="button"
             >
-              <i class="bi bi-building"></i> Your Organizations
+              <i aria-hidden="true" class="bi bi-building"></i> Your Organizations
             </button>
           </li>
           <li class="nav-item" role="presentation">
@@ -47,7 +47,7 @@
               (click)="setTab('requests')"
               type="button"
             >
-              <i class="bi bi-person-check"></i> Requests
+              <i aria-hidden="true" class="bi bi-person-check"></i> Requests
             </button>
           </li>
           <li class="nav-item" role="presentation">
@@ -57,12 +57,12 @@
               (click)="setTab('invitations')"
               type="button"
             >
-              <i class="bi bi-envelope-open"></i> Invitations
+              <i aria-hidden="true" class="bi bi-envelope-open"></i> Invitations
             </button>
           </li>
         </ul>
         <a class="btn btn-primary btn-sm fw-bold px-3 d-flex align-items-center gap-1" routerLink="/organizations/new">
-          <i class="bi bi-plus-circle-fill"></i> Add New Organization
+          <i aria-hidden="true" class="bi bi-plus-circle-fill"></i> Add New Organization
         </a>
       </div>
     </div>
@@ -71,7 +71,7 @@
   <!-- Global Alert Error Message -->
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -91,14 +91,14 @@
             @if (result.organizations.length === 0) {
               <div class="text-center py-5">
                 <div class="bg-light d-inline-flex p-4 rounded-circle mb-3 text-muted">
-                  <i class="bi bi-building-dash fs-1"></i>
+                  <i aria-hidden="true" class="bi bi-building-dash fs-1"></i>
                 </div>
                 <h4 class="fw-bold text-dark">Create Your First Organization</h4>
                 <p class="text-muted small mx-auto mb-4" style="max-width: 380px;">
                   Let's set up your first workspace and start managing your bookkeeping and inventory.
                 </p>
                 <a routerLink="/organizations/new" class="btn btn-primary fw-bold">
-                  <i class="bi bi-plus-circle"></i> Add New Organization
+                  <i aria-hidden="true" class="bi bi-plus-circle"></i> Add New Organization
                 </a>
               </div>
             } @else {
@@ -111,21 +111,21 @@
                   >
                     <div class="d-flex align-items-center gap-3">
                       <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle d-none d-sm-block">
-                        <i class="bi bi-building fs-4"></i>
+                        <i aria-hidden="true" class="bi bi-building fs-4"></i>
                       </div>
                       <div>
                         <h5 class="fw-bold mb-1 text-dark">{{ org.name }}</h5>
                         <div class="d-flex flex-wrap gap-2 text-muted small align-items-center">
                           <span class="badge bg-light text-dark border">
-                            <i class="bi bi-globe me-1"></i> {{ org.workspaceName }}.erpapp
+                            <i aria-hidden="true" class="bi bi-globe me-1"></i> {{ org.workspaceName }}.erpapp
                           </span>
                           <span class="badge bg-light text-dark border">
-                            <i class="bi bi-tag me-1"></i> {{ org.industry }}
+                            <i aria-hidden="true" class="bi bi-tag me-1"></i> {{ org.industry }}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill fw-bold">
+                    <span class="badge bg-success-subtle text-success-emphasis px-3 py-2 rounded-pill fw-bold">
                       {{ org.role }}
                     </span>
                   </div>
@@ -139,7 +139,7 @@
             @if (result.requests.length === 0) {
               <div class="text-center py-5">
                 <div class="bg-light d-inline-flex p-4 rounded-circle mb-3 text-muted">
-                  <i class="bi bi-clipboard-x fs-1"></i>
+                  <i aria-hidden="true" class="bi bi-clipboard-x fs-1"></i>
                 </div>
                 <h5 class="fw-bold text-dark">No Pending Requests</h5>
                 <p class="text-muted small mb-0">When you request to join an organization, they will show up here.</p>
@@ -150,7 +150,7 @@
                   <div class="list-group-item border rounded-3 mb-3 p-3 d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center gap-3">
                       <div class="bg-secondary bg-opacity-10 text-secondary p-2 rounded-circle">
-                        <i class="bi bi-send fs-5"></i>
+                        <i aria-hidden="true" class="bi bi-send fs-5"></i>
                       </div>
                       <div>
                         <h6 class="fw-bold mb-1 text-dark">{{ r.organizationName }}</h6>
@@ -171,7 +171,7 @@
             @if (result.invitations.length === 0) {
               <div class="text-center py-5">
                 <div class="bg-light d-inline-flex p-4 rounded-circle mb-3 text-muted">
-                  <i class="bi bi-envelope-open-heart fs-1"></i>
+                  <i aria-hidden="true" class="bi bi-envelope-open-heart fs-1"></i>
                 </div>
                 <h5 class="fw-bold text-dark">No Pending Invitations!</h5>
                 <p class="text-muted small mb-0">You don't have any pending invites to join other organizations.</p>
@@ -182,7 +182,7 @@
                   <div class="list-group-item border rounded-3 mb-3 p-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div class="d-flex align-items-center gap-3">
                       <div class="bg-success bg-opacity-10 text-success p-2 rounded-circle">
-                        <i class="bi bi-envelope-plus fs-5"></i>
+                        <i aria-hidden="true" class="bi bi-envelope-plus fs-5"></i>
                       </div>
                       <div>
                         <h6 class="fw-bold mb-1 text-dark">{{ i.organizationName }}</h6>
@@ -199,7 +199,7 @@
                         <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                         <span>Accepting...</span>
                       } @else {
-                        <i class="bi bi-check2"></i>
+                        <i aria-hidden="true" class="bi bi-check2"></i>
                         <span>Accept Invitation</span>
                       }
                     </button>

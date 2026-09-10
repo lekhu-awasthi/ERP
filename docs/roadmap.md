@@ -63,6 +63,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 32 | Billing Locations (FR-2.3/FR-3.3) — **and the phase this roadmap said could not be confirm-lived, was.** A second tenant with `Location Enabled = Yes` turned the whole phase from derived to observed, correcting four things this entry had assumed. A `BillingLocation` aggregate with a **HeadOffice row seeded unconditionally** and `MultipleLocations` as a **cap at one** (phase-20f Decision #4's shape, third instance); the **Advanced** panel that makes location scope a *runtime tenant setting* (Sales-only by default, All-Transactions opt-in) — which is why nullable `LocationId` went onto **all 17** location-bearing types in one hand-written seed-and-backfill migration rather than the four the default names; a document-**header** location picker (not a body field); **location-wise numbering** consumed at last; and the location filter/column on the Invoice list and Sales Master Report. `LocationType` is system-assigned — the live create dialog has no such field | `phase-32-status.md` |
 | 32b | Per-location permission scope (FR-3.3) -- the role editor's **second matrix**: *Organization-wide Permissions* ("Apply across all billing locations") and *Location-specific Permissions*, the **transaction keys alone** replicated per location (77 of this codebase's 222, derived from `DocumentMechanisms.LocationBearing`). A grant is a `RolePermission` row with a nullable **`LocationId` FK** -- null is the organization-wide grant, so no backfill and nothing seeded per location, which dissolves this roadmap's own seed-size warning. Enforced by one extra branch in **`AuthorizationBehavior`** (phase-27a's `AttachmentAccess` pattern, third use, promoted to the pipeline because it spans ~120 requests) plus four marker interfaces and a sweep guard. **And the confirm-live pass falsified what four documents recorded**: turning `LocationWiseReportPermission` ON does *not* pull the 52 Reports keys into the matrix -- it narrows report *rows*, and that is the consumer that shipped | `phase-32b-status.md` |
 | 33 | Platform chrome (the top bar this app never had): a **global search** (Ctrl + /) in the shell, a **History** popover, the personalisable **Quick Links** tray, and the thing all of it exists to decide -- **`UserPreference`, the per-user server store** (a row per `(OrganizationId, UserId, Key)` with an opaque JSON value), which also closes phase-23 Decision C's `localStorage`-only calendar choice. **Three of the four things this entry recorded were wrong**, and the confirm-live pass on both tenants is what showed it: History is **client-only `localStorage`** and lists **screens, one per module** rather than opened records; global search is **half a command palette**, whose navigation and create-action half is usually the majority of a result set and whose record half omits a whole collection (Accounts) from this entry's list; and a document is matched on its **number alone**, never through its contact's name. Search is filtered per collection *and* per billing location through 32b's existing `LocationAccessScope` seam -- building which surfaced a real defect: the two pre-32b inlined permission joins in the approval queue and the recent-activity feed still read location-scoped grants as organization-wide ones | `phase-33-status.md` |
+| 34a | Accessibility (NFR-6.2, WCAG 2.1 AA): the mechanisable half of the standard swept across all 161 templates and pinned by a guard spec — **page titles derived from the router** (0 of 141 routes had one; the app was `<title>Web</title>` throughout), 348 unnamed controls, **152 orphan labels of which 121 were date fields whose control lives inside a component and so was invisible to any scan for `<input>`**, 25 unnamed icon-only controls, 1035 unhidden decorative icons, 653 `<th>` with no scope, and 161 badge pairings at 3.4–3.9:1 — plus a skip link, the `<main>`/`<search>` landmarks and the ARIA combobox pattern global search had the keyboard model for but never exposed. **Bootstrap's stock brand tones fail AA on this app's own `#f8f9fa` body** (they clear 4.5:1 against pure white and only just), so the four text utilities are re-pointed at its `-600` shades. Decision A records which criteria a machine can decide and which need a person, and why the line falls there | `phase-34a-status.md` |
 
 ---
 
@@ -333,10 +334,43 @@ confirmed live** (2026-09-07), so this phase starts from an observed design, not
     the three fields it lacks (Amount, the two quotas, IRD Verified) have no writer and no reader,
     which is phase-31's lesson in reverse. Re-entry condition: a billing feature that sets them.
 
-### 34. Hardening — accessibility, consistency, scale
-- NFR-6.2 (WCAG 2.1 AA) and NFR-6.1 (one interaction model across every list, detail and entry
-  screen) have never had a phase; NFR-5.1/5.2 get a measured pass on a tenant-sized dataset. The
-  streaming export writer (OpenXml SAX) replaces the 25,000-row cap if any tenant has hit it.
+### 34. Hardening — accessibility, consistency, scale — **SPLIT into 34a / 34b / 34c**
+
+This entry was three sweeps and a ~130-route re-layout in one phase. It was split by agreement on
+2026-09-10; `phase-34a-status.md`'s Decision B records why, and why accessibility went first even
+though the re-layout comes later: **the template-level sweep is layout-independent and survives 34b
+untouched, while the landmark-level work is small and is better built *into* the new shell than
+retrofitted onto it.**
+
+#### 34a. Accessibility (NFR-6.2) — **DONE** (see `docs/phase-34a-status.md`)
+
+#### 34b. Consistency and the shell (NFR-6.1) — next
+- **The shell phase 33 deferred by name** (its carried item #5): left nav, Create New flyout, company
+  switcher, global date filter. `NavigationCatalog` drives it — it is already derived from
+  `Router.config` and already has two consumers (search/Quick Links, and 34a's `PageTitleStrategy`).
+- **The list-screen interaction model.** Measured on our side: of 46 list pages, 41 have an `<h1>`,
+  27 have a pager, **1** has a search box, 10 render a `<table>` and 36 a `list-group`; of 47
+  `List*Query` handlers, 43 paginate and **2** accept a search term. NFR-6.1 names "search,
+  pagination, filtering, row actions" explicitly, so the server-side search parameter is in scope.
+- **The reference product's own baseline is now observed, not inferred** (2026-09-10, three modules):
+  `+ ADD NEW` / `OPTIONS` / `Search For…` / the pager / the select-all column are uniform across
+  Contacts, Products and Chart of Accounts — but the module scan's "row-level ⋮ menu repeats across
+  nearly every module" is **false**: Contacts has no row menu at all.
+- Also here: 34a's carried item #1, the human accessibility pass (focus order, focus visibility,
+  error-message quality, label-in-name, status messages, reflow), which should run *after* the
+  re-layout rather than before it.
+
+#### 34c. Scale (NFR-5.1/5.2) — after 34b
+- The dataset and the measurement are already decided in `phase-34a-status.md`'s Decision C:
+  **50,000 invoices / 50,000 contacts / 20,000 products**, seeded by direct `INSERT` (not through the
+  API — that would measure the seeder), with p95 taken for each list's first *and last* page, the
+  three financial statements, the two heaviest registers, and global search.
+- **The export rewrite is conditional and the condition is still unmet.** The 25,000-row cap and the
+  OpenXml SAX streaming writer wait on a tenant having hit the cap; there are no tenants. 34c decides
+  it *after* the measurement — phase-8f's "omit rather than fake" in a new shape.
+- Phase-33 carried item #4 (global search's per-collection cap of 5 and its 18-query fan-out) is
+  measured in the same pass, and stays carried until then: against today's two invoices any number
+  would be meaningless.
 
 **Recommended drop list (decided, not silently omitted):** `Organization > Developer Mode` and
 `> Documents` (phase-25's recommendation), `Product.PrintProfileId` (20d), the Marketplace flag,

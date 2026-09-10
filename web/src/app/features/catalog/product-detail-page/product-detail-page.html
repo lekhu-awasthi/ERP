@@ -1,14 +1,14 @@
 <div class="container py-5" style="max-width: 1000px;">
   <div class="d-flex align-items-center gap-3 mb-4">
     <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'products']">
-      <i class="bi bi-arrow-left"></i> Products
+      <i aria-hidden="true" class="bi bi-arrow-left"></i> Products
     </a>
     <h1 class="h4 fw-bold mb-0 text-dark">{{ isNew() ? 'New Product' : (product()?.name ?? 'Product') }}</h1>
   </div>
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -25,7 +25,7 @@
         <div class="card border-0 shadow-sm mb-3">
           <div class="card-body p-4 text-center">
             <div class="bg-primary bg-opacity-10 text-primary d-inline-flex p-3 rounded-circle mb-3">
-              <i class="bi bi-box-seam fs-2"></i>
+              <i aria-hidden="true" class="bi bi-box-seam fs-2"></i>
             </div>
             @if (isNew()) {
               <h6 class="fw-bold text-dark mb-1">New Product</h6>
@@ -33,11 +33,11 @@
             } @else if (product(); as p) {
               <h6 class="fw-bold text-dark mb-1">{{ p.name }}</h6>
               <p class="text-muted small mb-2">{{ p.code }}</p>
-              <span class="badge bg-primary-subtle text-primary me-1">{{ p.type }}</span>
+              <span class="badge bg-primary-subtle text-primary-emphasis me-1">{{ p.type }}</span>
               @if (p.isActive) {
-                <span class="badge bg-success-subtle text-success">Active</span>
+                <span class="badge bg-success-subtle text-success-emphasis">Active</span>
               } @else {
-                <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
+                <span class="badge bg-secondary-subtle text-secondary-emphasis">Inactive</span>
               }
             }
           </div>
@@ -46,7 +46,7 @@
         <div class="card border-0 shadow-sm">
           <div class="list-group list-group-flush">
             <button type="button" class="list-group-item list-group-item-action active fw-semibold">
-              <i class="bi bi-info-circle me-2"></i> Overview
+              <i aria-hidden="true" class="bi bi-info-circle me-2"></i> Overview
             </button>
           </div>
         </div>
@@ -60,7 +60,7 @@
               <h6 class="fw-bold text-dark mb-0">Overview</h6>
               @if (!isNew() && !editing()) {
                 <button type="button" class="btn btn-outline-secondary btn-sm" (click)="startEdit()">
-                  <i class="bi bi-pencil"></i> Edit
+                  <i aria-hidden="true" class="bi bi-pencil"></i> Edit
                 </button>
               }
             </div>
@@ -69,8 +69,8 @@
               <form [formGroup]="form" (ngSubmit)="save()">
                 <div class="row g-3">
                   <div class="col-12">
-                    <label class="form-label small fw-semibold">Type</label>
-                    <div class="btn-group w-100" role="group">
+                    <span class="form-label small fw-semibold" id="product-type-group">Type</span>
+                    <div class="btn-group w-100" role="group" aria-labelledby="product-type-group">
                       @for (type of types; track type) {
                         <input
                           type="radio"
@@ -85,12 +85,12 @@
                     </div>
                   </div>
                   <div class="col-12 col-sm-6">
-                    <label class="form-label small fw-semibold">Name</label>
-                    <input type="text" class="form-control" formControlName="name" />
+                    <label class="form-label small fw-semibold" for="product-detail-page-name">Name</label>
+                    <input id="product-detail-page-name" type="text" class="form-control" formControlName="name" />
                   </div>
                   <div class="col-12 col-sm-6">
-                    <label class="form-label small fw-semibold">Category</label>
-                    <select class="form-select" formControlName="categoryId">
+                    <label class="form-label small fw-semibold" for="product-detail-page-category">Category</label>
+                    <select id="product-detail-page-category" class="form-select" formControlName="categoryId">
                       <option value="" disabled>Select a category</option>
                       @for (row of categoryRows(); track row.item.id) {
                         <option [value]="row.item.id">{{ '— '.repeat(row.depth) }}{{ row.item.name }}</option>
@@ -98,8 +98,8 @@
                     </select>
                   </div>
                   <div class="col-12 col-sm-6">
-                    <label class="form-label small fw-semibold">Primary Unit</label>
-                    <select class="form-select" formControlName="primaryUnitId">
+                    <label class="form-label small fw-semibold" for="product-detail-page-primary-unit">Primary Unit</label>
+                    <select id="product-detail-page-primary-unit" class="form-select" formControlName="primaryUnitId">
                       <option value="" disabled>Select a unit</option>
                       @for (unit of units(); track unit.id) {
                         <option [value]="unit.id">{{ unit.name }} ({{ unit.shortName }})</option>
@@ -107,28 +107,28 @@
                     </select>
                   </div>
                   <div class="col-12 col-sm-6">
-                    <label class="form-label small fw-semibold">HS Code</label>
-                    <input type="text" class="form-control" formControlName="hsCode" />
+                    <label class="form-label small fw-semibold" for="product-detail-page-hs-code">HS Code</label>
+                    <input id="product-detail-page-hs-code" type="text" class="form-control" formControlName="hsCode" />
                   </div>
                   <div class="col-6 col-sm-3">
-                    <label class="form-label small fw-semibold">Selling Price</label>
-                    <input type="number" class="form-control" formControlName="sellingPrice" min="0" step="0.01" />
+                    <label class="form-label small fw-semibold" for="product-detail-page-selling-price">Selling Price</label>
+                    <input id="product-detail-page-selling-price" type="number" class="form-control" formControlName="sellingPrice" min="0" step="0.01" />
                   </div>
                   <div class="col-6 col-sm-3">
-                    <label class="form-label small fw-semibold">Purchase Price</label>
-                    <input type="number" class="form-control" formControlName="purchasePrice" min="0" step="0.01" />
+                    <label class="form-label small fw-semibold" for="product-detail-page-purchase-price">Purchase Price</label>
+                    <input id="product-detail-page-purchase-price" type="number" class="form-control" formControlName="purchasePrice" min="0" step="0.01" />
                   </div>
                   <div class="col-12 col-sm-6">
-                    <label class="form-label small fw-semibold">Tax</label>
-                    <select class="form-select" formControlName="vatRate">
+                    <label class="form-label small fw-semibold" for="product-detail-page-tax">Tax</label>
+                    <select id="product-detail-page-tax" class="form-select" formControlName="vatRate">
                       @for (rate of vatRates; track rate) {
                         <option [value]="rate">{{ rate }}</option>
                       }
                     </select>
                   </div>
                   <div class="col-6 col-sm-3">
-                    <label class="form-label small fw-semibold">Re-Order Level</label>
-                    <input type="number" class="form-control" formControlName="reOrderLevel" min="0" />
+                    <label class="form-label small fw-semibold" for="product-detail-page-re-order-level">Re-Order Level</label>
+                    <input id="product-detail-page-re-order-level" type="number" class="form-control" formControlName="reOrderLevel" min="0" />
                   </div>
                   <div class="col-12 col-sm-6 d-flex align-items-center gap-4 pt-4">
                     <div class="form-check">
@@ -150,8 +150,8 @@
                       </p>
                     </div>
                     <div class="col-12 col-sm-6">
-                      <label class="form-label small fw-semibold">Sales Account</label>
-                      <select class="form-select" formControlName="salesAccountId">
+                      <label class="form-label small fw-semibold" for="product-detail-page-sales-account">Sales Account</label>
+                      <select id="product-detail-page-sales-account" class="form-select" formControlName="salesAccountId">
                         <option value="">— Use default —</option>
                         @for (account of sortedAccounts(); track account.id) {
                           <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
@@ -159,8 +159,8 @@
                       </select>
                     </div>
                     <div class="col-12 col-sm-6">
-                      <label class="form-label small fw-semibold">Sales Return Account</label>
-                      <select class="form-select" formControlName="salesReturnAccountId">
+                      <label class="form-label small fw-semibold" for="product-detail-page-sales-return-account">Sales Return Account</label>
+                      <select id="product-detail-page-sales-return-account" class="form-select" formControlName="salesReturnAccountId">
                         <option value="">— Not set —</option>
                         @for (account of sortedAccounts(); track account.id) {
                           <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
@@ -168,8 +168,8 @@
                       </select>
                     </div>
                     <div class="col-12 col-sm-6">
-                      <label class="form-label small fw-semibold">Purchase Account</label>
-                      <select class="form-select" formControlName="purchaseAccountId">
+                      <label class="form-label small fw-semibold" for="product-detail-page-purchase-account">Purchase Account</label>
+                      <select id="product-detail-page-purchase-account" class="form-select" formControlName="purchaseAccountId">
                         <option value="">— Not set —</option>
                         @for (account of sortedAccounts(); track account.id) {
                           <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
@@ -180,8 +180,8 @@
                       }
                     </div>
                     <div class="col-12 col-sm-6">
-                      <label class="form-label small fw-semibold">Purchase Return Account</label>
-                      <select class="form-select" formControlName="purchaseReturnAccountId">
+                      <label class="form-label small fw-semibold" for="product-detail-page-purchase-return-account">Purchase Return Account</label>
+                      <select id="product-detail-page-purchase-return-account" class="form-select" formControlName="purchaseReturnAccountId">
                         <option value="">— Not set —</option>
                         @for (account of sortedAccounts(); track account.id) {
                           <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
@@ -244,7 +244,7 @@
                 <h6 class="fw-bold text-dark mb-0">Secondary Units</h6>
                 @if (!addingSecondaryUnit()) {
                   <button type="button" class="btn btn-outline-secondary btn-sm" (click)="startAddSecondaryUnit()">
-                    <i class="bi bi-plus-lg"></i> Add
+                    <i aria-hidden="true" class="bi bi-plus-lg"></i> Add
                   </button>
                 }
               </div>
@@ -252,8 +252,8 @@
               @if (addingSecondaryUnit()) {
                 <form [formGroup]="secondaryUnitForm" (ngSubmit)="saveSecondaryUnit()" class="row g-2 align-items-end mb-3">
                   <div class="col-6 col-sm-3">
-                    <label class="form-label small fw-semibold">Unit</label>
-                    <select class="form-select form-select-sm" formControlName="unitId">
+                    <label class="form-label small fw-semibold" for="product-detail-page-unit">Unit</label>
+                    <select id="product-detail-page-unit" class="form-select form-select-sm" formControlName="unitId">
                       <option value="" disabled>Select</option>
                       @for (unit of units(); track unit.id) {
                         <option [value]="unit.id">{{ unit.name }}</option>
@@ -261,16 +261,16 @@
                     </select>
                   </div>
                   <div class="col-6 col-sm-3">
-                    <label class="form-label small fw-semibold">Conversion Rate</label>
-                    <input type="number" class="form-control form-control-sm" formControlName="conversionRate" min="0.000001" step="0.000001" />
+                    <label class="form-label small fw-semibold" for="product-detail-page-conversion-rate">Conversion Rate</label>
+                    <input id="product-detail-page-conversion-rate" type="number" class="form-control form-control-sm" formControlName="conversionRate" min="0.000001" step="0.000001" />
                   </div>
                   <div class="col-6 col-sm-2">
-                    <label class="form-label small fw-semibold">Selling Price</label>
-                    <input type="number" class="form-control form-control-sm" formControlName="sellingPrice" min="0" step="0.01" />
+                    <label class="form-label small fw-semibold" for="product-detail-page-selling-price-15">Selling Price</label>
+                    <input id="product-detail-page-selling-price-15" type="number" class="form-control form-control-sm" formControlName="sellingPrice" min="0" step="0.01" />
                   </div>
                   <div class="col-6 col-sm-2">
-                    <label class="form-label small fw-semibold">Purchase Price</label>
-                    <input type="number" class="form-control form-control-sm" formControlName="purchasePrice" min="0" step="0.01" />
+                    <label class="form-label small fw-semibold" for="product-detail-page-purchase-price-17">Purchase Price</label>
+                    <input id="product-detail-page-purchase-price-17" type="number" class="form-control form-control-sm" formControlName="purchasePrice" min="0" step="0.01" />
                   </div>
                   <div class="col-12 col-sm-2 d-flex gap-2">
                     <button type="submit" class="btn btn-primary btn-sm flex-fill" [disabled]="secondaryUnitSaving()">Save</button>
@@ -287,10 +287,10 @@
                 <table class="table table-sm">
                   <thead>
                     <tr class="text-muted small">
-                      <th>Unit</th>
-                      <th>Conversion Rate</th>
-                      <th>Selling Price</th>
-                      <th>Purchase Price</th>
+                      <th scope="col">Unit</th>
+                      <th scope="col">Conversion Rate</th>
+                      <th scope="col">Selling Price</th>
+                      <th scope="col">Purchase Price</th>
                     </tr>
                   </thead>
                   <tbody>

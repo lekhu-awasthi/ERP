@@ -95,6 +95,10 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
   across document types, or before trusting a recorded description of a control nobody operated —
   `docs/phase-33-status.md`
 
+- Phase 34a: the WCAG 2.1 AA sweep (page titles, control names, `th scope`, icon names, contrast)
+  and `a11y-sweep-guard.spec.ts`. Before adding a template, choosing a colour, writing a guard that
+  reads a file, or scripting an edit with a lazy match between two anchors — `docs/phase-34a-status.md`
+
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
 - Frontend: Angular 21 (LTS), in `web/`.
@@ -266,6 +270,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - When a phase starts populating a previously-dead DTO field, grep the templates that consume it — `SalesRegisterQuery`'s export columns were filled and invisible (phase-23 bug #1).
 - `<iframe [src]>` needs `DomSanitizer.bypassSecurityTrustResourceUrl` (safe only because the URL is API base + route GUID), while `<img [src]>` with the same string is fine (phase-22).
 - `AmountPipe` renders two decimals by default; pass `| amount: 4` for figures legitimately smaller than a cent (phase-25).
+- A sweep over `<input>/<select>/<textarea>` cannot see a control a **component** wraps: 121 date fields had a label, an input and nothing joining them. Ask the mirror question — which labels name no control? (phase-34a).
+- Bootstrap's brand tones clear WCAG's 4.5:1 against **pure white** and only just, so they fail on this app's `#f8f9fa` body; the four text utilities are re-pointed at its `-600` shades in `styles.scss`, and `contrast-rules.ts` is the measured palette the guard derives from (phase-34a).
+- Bootstrap's JS is not loaded, so nothing sets `aria-expanded` for free — every signal-driven popup must set it itself (phase-34a, extending phase-22's gotcha).
 
 **Multi-way switches on a document-attached mechanism**
 - A shared UI *panel* is not evidence of a shared *model*: the reference product shows email templates inside its Custom Templates panel but serves them from a different resource with six extra fields and a disjoint type vocabulary, so `EmailTemplate` is its own aggregate and phase 27b's placeholder `CustomTemplateType.Email` was deleted rather than left dead (phase-30).
@@ -279,6 +286,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A browser pass in a non-interactive session works by exporting the ASP.NET dev cert, starting the `erp-web-ssl` profile, and transplanting curl's `erp_auth` cookie via `document.cookie` (phase-25 Step 3).
 - A registered user has no verification code until `POST /api/auth/request-verification-code`; a Member-role user is the only way to prove a document-scoped 403, since Admin is seeded with every key (phase-27b).
 - A test suite that passes with **fewer** tests than the previous run is a failure — check what a rewriting script produced by counting it, not by whether the build is green (phase-27b).
+- A guard must assert its input is **non-empty**, not merely defined: Vite returns an empty string for `?raw`/`?inline` on a compiled `.scss`, so `toBeDefined()` passed and every assertion over it was vacuous (phase-34a).
+- Prove a guard bites by injecting a regression — but back the file up and restore it **by hash**, never `git checkout --`, which reverts the phase's own work on that file too (phase-34a).
 - Map one enum onto another **by name** (`Enum.TryParse`), never by ordinal, and add a test asserting every member has a counterpart — an ordinal cast compiles, works today, and silently reports the wrong value the first time a member is inserted (phase-26a).
 - A shared reader that several reports agree through is worth more than each report deriving its own figure: Invoice Age's total balance equals Customer Receivable Summary's closing balance *by construction* because both read `ContactLedgerReader` (phase-26b).
 - A curl seed script that pipes approvals to `/dev/null` hides its own failures — the first report just comes back empty. Print every approval's status code. Two live traps: `POST /api/organizations` returns `organizationId`, not `id`, and the GL defaults are **one** `PUT /accounting-defaults` taking all eleven accounts (phase-26c).
@@ -306,6 +315,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 **Tooling and shell**
 - `nvm use` from a shell that cannot create the symlink deletes `C:\nvm4w\nodejs` and reports success; recreate it with `cmd /c 'mklink /J "C:\nvm4w\nodejs" "%LOCALAPPDATA%\nvm\v24.11.0"'`.
 - A `cat > file <<'EOF'` heredoc in the Bash tool is silently truncated or mis-parsed well below the ~8 KB figure; use the Write tool, or write a small patch script and run it (phase-26a).
+- A lazy `.*?` between two anchors spans the instances in between (it expands past `</label>` to reach a later match), silently merging them; exclude the closing marker — `((?:(?!</label>).)*?)`. The tell is two independent counts disagreeing, so derive the expected number a second way (phase-34a, on top of phase-32's assert-before-writing rule).
+- A positional derivation (column index → header text) is *confidently wrong* where the position lies — a `colspan` cell, a cell with its own label. A wrong accessible name is worse than none; audit for the shapes the first pass cannot see (phase-34a).
 - `sed -i` also flips the CRLF of the file you *aimed* it at, after which every `
 `-anchored patch script fails its assertion with the anchor looking correct; use Edit for a single substitution, or read the file's own newline (phase-33).
 - A `sed -i` over a glob rewrites **every** file it matches, and on Windows that flips CRLF to LF even where the pattern never fires — `git diff` stays empty while `git status` shows a hundred extra modified files. Undoing it needs `rm` *then* `git checkout --`; restrict the file list instead (phase-30).
@@ -313,62 +324,59 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-32b are complete, and phase 33 (platform chrome) is done.** The app now has the top bar it
-never had: a **global search** (Ctrl + /) in the shell on every in-organization screen, a **History**
-popover, and the personalisable **Quick Links** tray phase 23 recorded as "still not built". Behind
-all three, the phase's real deliverable -- **`UserPreference`, the per-user server store**, decided
-once: a row per `(OrganizationId, UserId, Key)` holding that setting's JSON, not one blob per user
-(two tabs saving two settings would clobber each other) and not a column per preference (every new
-one would be a migration). Phase-23 Decision C's calendar boolean moved behind it, keeping
-`localStorage` as the synchronous cache so the first paint never flashes the wrong calendar.
+**Phases 0-33 are complete, and phase 34 has been split: 34a (accessibility) is done, 34b
+(consistency + the shell) and 34c (scale) remain.** 34a swept the mechanisable half of WCAG 2.1 AA
+across all 161 templates and pinned it with `shared/a11y/a11y-sweep-guard.spec.ts`: **page titles
+derived from the router** (the app was `<title>Web</title>` on all 141 routes, so every navigation
+announced the same word), 348 controls with no accessible name, **152 orphan labels**, 25 unnamed
+icon-only controls, 1035 unhidden decorative icons, 653 `<th>` with no `scope`, and 161 badge
+pairings at 3.4-3.9:1 -- plus a skip link, the `<main>`/`<search>` landmarks, and the ARIA combobox
+pattern global search had the keyboard model for since phase 33 but never exposed.
 
-**The confirm-live pass overturned three of the four things that were written down.** History is
-**client-only `localStorage`** -- no request on open *or* on navigate -- and lists **screens, one per
-module**, not "recently opened records"; it stores a record url but derives the label from the
-route, so a contact detail page renders as "CRM - Contacts". Global search is **half a command
-palette**: its navigation and create-action half is usually the majority of a result set, and the
-recorded list omitted a whole collection (Accounts). And a document is matched on its **number
-alone** -- it carries no name at all, so searching a customer's name never surfaces that customer's
-invoices. Only "Quick Links is per-user and server-stored" survived, which is what made the store
-worth building.
+**Three findings are worth carrying forward.** *A component boundary hides a control from a
+control-shaped scan*: 121 date fields had a visible label, a real input and nothing joining them,
+and only the mirror check (which labels name no control?) could find them. *Bootstrap's contrast
+margin is the white in the worked example*: its brand tones clear 4.5:1 against `#fff` by nothing at
+all, and fail on this app's own `#f8f9fa` body -- found by **computing** the palette rather than
+listing forbidden class pairs, which is the whole argument for `contrast-rules.ts` existing. And *an
+accessibility defect and a consistency defect can be the same defect*: the codebase paired
+`bg-*-subtle` with `-emphasis` 50 times and with the plain tone 161 times, which is WCAG 1.4.3 and
+NFR-6.1 seen from two directions.
 
-Search is filtered per collection against each one's own `*.View` key and per billing location
-through 32b's existing `LocationAccessScope.ForKeyAsync` -- and building it **found a real defect**:
-`TransactionApprovalQueryHandler` and `RecentTransactionsQueryHandler` still carried the pre-32b
-inlined permission joins that `GrantedPermissionReader`'s own doc comment claims to have replaced, so
-a branch-scoped grant read as an organization-wide one in the approval queue and the Home feed. Both
-fixed. Five things generalise: **a confirm-live pass can falsify several claims at once**, and a
-cost argument can be wrong where an observation of the shipped product cannot; **an extraction is not
-done until its copies are deleted** -- grep, don't trust the doc comment; **an expression tree has no
-short-circuit**, so an optional filter must be a composed `.Where()`; **derive a catalogue from the
-router** rather than writing one down (no second copy of the route table on either side of the wire);
-and **a well-named seam is what makes a declined decision cheap to reverse** -- phase 23 named
-`DatePreferenceService` as exactly that, and the reversal cost one call. Full story in
-`docs/phase-33-status.md`.
+**The phase split is a decision about order, not size** (`phase-34a-status.md` Decision B): the
+template-level work is layout-independent and survives 34b's re-layout untouched, while the small
+landmark-level part is better built *into* the new shell than retrofitted onto it. Decision A records
+which WCAG criteria a machine can decide and which need a person, and why -- the six it cannot are
+34b's opening act. Decisions C and D settle 34c's dataset and measurement **before** any rewrite is
+chosen, keeping the 25,000-row export cap and the OpenXml SAX writer as a re-entry condition rather
+than a schedule.
 
-**What comes next** is **phase 34** (hardening -- NFR-6.2's WCAG 2.1 AA pass, NFR-6.1's one
-interaction model across every screen, and NFR-5.1/5.2 measured on a tenant-sized dataset), the last
-entry in `docs/roadmap.md`. Note phase 33 deliberately did **not** build the full left-nav shell: the
-bar it added is search + History only, and the re-layout is 34's subject. Still recorded separately:
-- the deferred post-v1 list in `docs/roadmap.md` (POS, IRD e-filing, Marketplace);
-- carried items. Phase 25's multi-level BOM explosion; 26a's two; 26b's remaining two; 26c's
-  remaining two; 27b's rich-text editor; 28's five; 29's five; 30's five; 31's six; 32's remaining
-  six; 32b's five (the first of which -- no report but the Sales Master Report can restrict by
-  location -- is still gated on 32's carried item #4); and **phase 33's own six**, of which two
-  matter most: an **Account (or Contact) hit has nowhere to go**, because the Chart of Accounts has
-  no per-account detail page and `reports/detail-general-ledger` does not take an account as a route
-  parameter -- the reference product's row offers *View Ledger*; and **Tigg Subscriptions ships as
-  carried**, since `organizations/:id/features` already covers plan, expiry and seven entitlement
-  flags while its three remaining fields (Amount, the two quotas, IRD Verified) have no writer and no
-  reader, which is phase-31's lesson in reverse. Then: Quick Links reorders by buttons rather than
-  drag; per-user-vs-per-tenant Quick Links is derived rather than observed (one account per tenant
-  made the experiment impossible); and search has no result-kind filter or see-all page.
+**What comes next** is **34b** -- the left nav, Create New flyout, company switcher and global date
+filter phase 33 deferred by name, driven by `NavigationCatalog` (already router-derived, now with two
+consumers), plus the list-screen interaction model NFR-6.1 actually names. The measured baseline:
+of 46 list pages, 41 have an `<h1>`, 27 a pager, **1** a search box, 10 a `<table>` and 36 a
+`list-group`; of 47 `List*Query` handlers, 43 paginate and **2** take a search term. The reference
+product's own baseline is now **observed** (2026-09-10, three modules): its `+ ADD NEW` / `OPTIONS` /
+search / pager / select-all column really are uniform, but the module scan's "row-level ⋮ menu
+repeats across nearly every module" is **false** -- Contacts has none. Then **34c** closes the
+roadmap.
 
-Tests at last count: Domain 443, Application.UnitTests 921, Api.IntegrationTests 18, Angular 225;
-`dotnet build` / `dotnet test` / `ng build` / `ng test` all clean. `ng build` warns that the initial
-bundle exceeds its 500 kB budget -- that is **pre-existing** (621 kB before this phase, 637 after),
-and is the global stylesheet plus the framework chunk, not app code. Note `tsc --noEmit` does **not**
-cover `web/src/app` -- `ng build` is the check that does (phase-28).
+**When 34c lands the roadmap is finished, and what is left is the carried-item backlog** -- which is
+now long enough that triaging it is a piece of work in its own right, not a paragraph. It spans
+phases 25-34a (25's multi-level BOM explosion; 26a's two; 26b's two; 26c's two; 27b's rich-text
+editor; 28's five; 29's five; 30's five; 31's six; 32's six; 32b's five; 33's six; 34a's five), plus
+`docs/roadmap.md`'s deliberate post-v1 deferrals (POS, IRD e-filing, Marketplace, Delivery
+Note/GRN). Two of 33's remain the highest-value: an **Account or Contact hit in search has nowhere to
+go** (no per-account detail page, and `reports/detail-general-ledger` takes no account route
+parameter), and **Tigg Subscriptions' three dead fields**. 34a adds: the human accessibility pass,
+`role="radiogroup"` on two radio sets, two pre-existing `NG8113` warnings, the contrast guard's
+utility-class-only scope, and the fact that `aria-live` exists on exactly one region in the app.
+
+Tests: Domain 443, Application.UnitTests 921, Api.IntegrationTests 18, **Angular 246** (+21);
+`dotnet build` / `dotnet test` / `ng build` / `ng test` all clean. `ng build` still warns that the
+initial bundle exceeds its 500 kB budget -- **pre-existing** (637 kB before this phase, 640 after;
+the 3 kB is the title strategy and the skip link). Note `tsc --noEmit` does **not** cover
+`web/src/app` -- `ng build` is the check that does (phase-28).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

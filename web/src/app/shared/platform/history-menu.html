@@ -3,9 +3,9 @@
     type="button"
     class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
     title="Recently visited screens"
-    aria-label="History"
+    aria-label="History" [attr.aria-expanded]="open()" aria-haspopup="true"
     (click)="toggle()">
-    <i class="bi bi-clock-history"></i>
+    <i aria-hidden="true" class="bi bi-clock-history"></i>
   </button>
 
   @if (open()) {

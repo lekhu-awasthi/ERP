@@ -3,7 +3,7 @@
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
         <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
-          <i class="bi bi-journal-text fs-4 d-flex"></i>
+          <i aria-hidden="true" class="bi bi-journal-text fs-4 d-flex"></i>
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">Trial Balance</h1>
@@ -12,10 +12,10 @@
       </div>
       <div class="d-flex gap-2">
         <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" (click)="exportReport()" [disabled]="exporting()">
-          <i class="bi bi-file-earmark-spreadsheet"></i> {{ exporting() ? 'Exporting...' : 'Export' }}
+          <i aria-hidden="true" class="bi bi-file-earmark-spreadsheet"></i> {{ exporting() ? 'Exporting...' : 'Export' }}
         </button>
         <a [routerLink]="['/organizations', organizationId, 'reports', 'balance-sheet']" class="btn btn-outline-secondary btn-sm fw-bold">
-          <i class="bi bi-bank"></i> Balance Sheet
+          <i aria-hidden="true" class="bi bi-bank"></i> Balance Sheet
         </a>
       </div>
     </div>
@@ -23,7 +23,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -32,8 +32,8 @@
     <div class="card-body p-4">
       <div class="row g-3 align-items-end">
         <div class="col-12 col-sm-6">
-          <label class="form-label small fw-semibold">As Of Date</label>
-          <app-bs-date-input
+          <label class="form-label small fw-semibold" for="trial-balance-page-as-of-date">As Of Date</label>
+          <app-bs-date-input [inputId]="'trial-balance-page-as-of-date'"
             [inputClass]="'form-control'"
             [value]="asOfDate()"
             (valueChange)="onAsOfDateChange($event)"
@@ -68,7 +68,7 @@
         @if (tb.rows.length === 0) {
           <div class="text-center py-5">
             <div class="bg-light d-inline-flex p-4 rounded-circle mb-3 text-muted">
-              <i class="bi bi-journal-text fs-1"></i>
+              <i aria-hidden="true" class="bi bi-journal-text fs-1"></i>
             </div>
             <h5 class="fw-bold text-dark">No Accounts Yet</h5>
             <p class="text-muted small mb-0">Set up a Chart of Accounts to see the Trial Balance here.</p>
@@ -78,13 +78,13 @@
             <table class="table align-middle mb-0">
               <thead>
                 <tr class="text-muted small">
-                  <th>Code</th>
-                  <th>Account</th>
-                  <th class="text-end">Debit</th>
-                  <th class="text-end">Credit</th>
+                  <th scope="col">Code</th>
+                  <th scope="col">Account</th>
+                  <th scope="col" class="text-end">Debit</th>
+                  <th scope="col" class="text-end">Credit</th>
                   @if (tb.compareAsOfDate; as compareAsOfDate) {
-                    <th class="text-end border-start">Debit ({{ compareAsOfDate | nepaliDate }})</th>
-                    <th class="text-end">Credit ({{ compareAsOfDate | nepaliDate }})</th>
+                    <th scope="col" class="text-end border-start">Debit ({{ compareAsOfDate | nepaliDate }})</th>
+                    <th scope="col" class="text-end">Credit ({{ compareAsOfDate | nepaliDate }})</th>
                   }
                 </tr>
               </thead>
@@ -115,9 +115,9 @@
                 <tr>
                   <td [attr.colspan]="tb.compareAsOfDate ? 6 : 4" class="text-end">
                     @if (tb.isBalanced) {
-                      <span class="badge bg-success-subtle text-success">Difference: 0.00</span>
+                      <span class="badge bg-success-subtle text-success-emphasis">Difference: 0.00</span>
                     } @else {
-                      <span class="badge bg-danger-subtle text-danger">
+                      <span class="badge bg-danger-subtle text-danger-emphasis">
                         Difference: {{ ((tb.totalDebit - tb.totalCredit) | amount) }}
                       </span>
                     }

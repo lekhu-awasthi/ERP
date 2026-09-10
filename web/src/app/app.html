@@ -1,16 +1,33 @@
+<!--
+  Phase 34a -- WCAG 2.1 **2.4.1 Bypass Blocks (Level A)**.
+
+  Phase 33 put a header on every in-organization screen, which means every keyboard user now tabs
+  through the History button and the search box before reaching the page they navigated to -- on
+  every single navigation. This is the mechanism that lets them skip it. It is visually hidden until
+  focused (`.visually-hidden-focusable`), so it costs the layout nothing and is the first thing Tab
+  reaches, which is the only position that makes it useful.
+-->
+<a class="skip-link visually-hidden-focusable" href="#main-content">Skip to main content</a>
+
 @if (organizationId(); as orgId) {
   <!-- Phase 33: the platform chrome. Present on every in-organization screen, exactly as the
-       reference product's own top bar is. See app.ts for why it lives in the shell. -->
+       reference product's own top bar is. See app.ts for why it lives in the shell.
+       Phase 34a: `banner` is implicit on a top-level <header>, and the search box is labelled as
+       its own landmark so a screen reader's landmark list distinguishes it from the page. -->
   <header class="platform-bar border-bottom bg-white">
     <div class="d-flex align-items-center gap-2 px-3 py-2">
       <app-history-menu />
-      <div class="flex-grow-1" style="max-width: 40rem;">
+      <search class="flex-grow-1" style="max-width: 40rem;">
         <app-global-search [organizationId]="orgId" />
-      </div>
+      </search>
     </div>
   </header>
 }
 
-<main class="shell">
+<!--
+  `tabindex="-1"` is what makes the skip link actually move focus: without it the browser scrolls to
+  the target and leaves focus on the link, so the next Tab goes straight back into the header.
+-->
+<main id="main-content" class="shell" tabindex="-1">
   <router-outlet />
 </main>

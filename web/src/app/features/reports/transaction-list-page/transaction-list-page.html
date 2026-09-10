@@ -3,7 +3,7 @@
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
         <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
-          <i class="bi bi-list-columns-reverse fs-4 d-flex"></i>
+          <i aria-hidden="true" class="bi bi-list-columns-reverse fs-4 d-flex"></i>
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">Transaction List</h1>
@@ -12,10 +12,10 @@
       </div>
       <div class="d-flex align-items-center gap-2">
         <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportCurrentView()">
-          <i class="bi bi-download"></i> Export Current View
+          <i aria-hidden="true" class="bi bi-download"></i> Export Current View
         </button>
         <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
-          <i class="bi bi-download"></i> Export Full Dataset
+          <i aria-hidden="true" class="bi bi-download"></i> Export Full Dataset
         </button>
       </div>
     </div>
@@ -23,7 +23,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -32,8 +32,8 @@
     <div class="card-body p-4">
       <div class="row g-3">
         <div class="col-12 col-lg-6">
-          <label class="form-label small fw-semibold">Txn Type</label>
-          <div class="d-flex flex-wrap gap-3">
+          <span class="form-label small fw-semibold" id="transaction-types-group">Txn Type</span>
+          <div class="d-flex flex-wrap gap-3" role="group" aria-labelledby="transaction-types-group">
             @for (dt of documentTypes; track dt) {
               <div class="form-check">
                 <input
@@ -50,8 +50,8 @@
           <p class="text-muted small mb-0 mt-1">Nothing ticked means every type.</p>
         </div>
         <div class="col-12 col-sm-6 col-lg-2">
-          <label class="form-label small fw-semibold">Transaction Status</label>
-          <div class="d-flex flex-wrap gap-3">
+          <span class="form-label small fw-semibold" id="transaction-statuses-group">Transaction Status</span>
+          <div class="d-flex flex-wrap gap-3" role="group" aria-labelledby="transaction-statuses-group">
             @for (s of statuses; track s) {
               <div class="form-check">
                 <input
@@ -67,16 +67,16 @@
           </div>
         </div>
         <div class="col-12 col-sm-6 col-lg-2">
-          <label class="form-label small fw-semibold">From Date</label>
-          <app-bs-date-input
+          <label class="form-label small fw-semibold" for="transaction-list-page-from-date">From Date</label>
+          <app-bs-date-input [inputId]="'transaction-list-page-from-date'"
             [inputClass]="'form-control'"
             [value]="fromDate()"
             (valueChange)="onFromDateChange($event)"
           />
         </div>
         <div class="col-12 col-sm-6 col-lg-2">
-          <label class="form-label small fw-semibold">To Date</label>
-          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
+          <label class="form-label small fw-semibold" for="transaction-list-page-to-date">To Date</label>
+          <app-bs-date-input [inputId]="'transaction-list-page-to-date'" [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
       </div>
     </div>
@@ -99,18 +99,18 @@
             <table class="table align-middle mb-0">
               <thead>
                 <tr class="text-muted small">
-                  <th>Transaction Date</th>
-                  <th>Txn Type</th>
-                  <th>Transaction No</th>
-                  <th>Reference No</th>
-                  <th>Status</th>
-                  <th class="text-end">Amount</th>
-                  <th>Created By</th>
-                  <th>Approved By</th>
-                  <th>Approved At</th>
-                  <th>Created At</th>
-                  <th>Description</th>
-                  <th></th>
+                  <th scope="col">Transaction Date</th>
+                  <th scope="col">Txn Type</th>
+                  <th scope="col">Transaction No</th>
+                  <th scope="col">Reference No</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" class="text-end">Amount</th>
+                  <th scope="col">Created By</th>
+                  <th scope="col">Approved By</th>
+                  <th scope="col">Approved At</th>
+                  <th scope="col">Created At</th>
+                  <th scope="col">Description</th>
+                  <th scope="col"></th>
                 </tr>
               </thead>
               <tbody>
@@ -121,7 +121,7 @@
                     <td>{{ row.code }}</td>
                     <td>{{ row.reference ?? '—' }}</td>
                     <td>
-                      <span class="badge bg-primary-subtle text-primary">{{ row.status }}</span>
+                      <span class="badge bg-primary-subtle text-primary-emphasis">{{ row.status }}</span>
                     </td>
                     <td class="text-end">{{ (row.amount | amount) }}</td>
                     <td>{{ row.createdByName ?? '—' }}</td>

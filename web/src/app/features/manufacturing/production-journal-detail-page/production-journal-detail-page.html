@@ -3,7 +3,7 @@
     class="btn btn-link btn-sm text-decoration-none mb-3 ps-0"
     [routerLink]="['/organizations', organizationId, 'manufacturing', 'production-journals']"
   >
-    <i class="bi bi-arrow-left"></i> Back to Production Journals
+    <i aria-hidden="true" class="bi bi-arrow-left"></i> Back to Production Journals
   </a>
 
   <!-- Phase 27a: the Tasks / Documents / Activity tabs every transactional detail page
@@ -30,7 +30,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -38,7 +38,7 @@
   @if (warningMessage()) {
     <div class="alert alert-warning d-flex justify-content-between align-items-center gap-2 mb-4" role="alert">
       <div class="d-flex align-items-center gap-2">
-        <i class="bi bi-exclamation-circle-fill"></i>
+        <i aria-hidden="true" class="bi bi-exclamation-circle-fill"></i>
         <div>{{ warningMessage() }}</div>
       </div>
       @if (!isNew() && isDraft()) {
@@ -73,9 +73,9 @@
           </div>
           @if (journal(); as doc) {
             @if (doc.status === 'Approved') {
-              <span class="badge bg-success-subtle text-success">Approved</span>
+              <span class="badge bg-success-subtle text-success-emphasis">Approved</span>
             } @else if (doc.status === 'Void') {
-              <span class="badge bg-secondary-subtle text-secondary">Void</span>
+              <span class="badge bg-secondary-subtle text-secondary-emphasis">Void</span>
             } @else {
               <span class="badge bg-warning-subtle text-warning-emphasis">Draft</span>
             }
@@ -84,8 +84,8 @@
 
         <div class="row g-3">
           <div class="col-12 col-sm-3">
-            <label class="form-label small fw-semibold">Date</label>
-            <app-bs-date-input
+            <label class="form-label small fw-semibold" for="production-journal-detail-page-date">Date</label>
+            <app-bs-date-input [inputId]="'production-journal-detail-page-date'"
               [inputClass]="'form-control'"
               [value]="date()"
               (valueChange)="onDate($event)"
@@ -154,7 +154,7 @@
                 [disabled]="!canLoadBom() || loadingBom()"
                 (click)="loadBom()"
               >
-                <i class="bi bi-arrow-repeat"></i> {{ loadingBom() ? 'Loading...' : 'Load BOM' }}
+                <i aria-hidden="true" class="bi bi-arrow-repeat"></i> {{ loadingBom() ? 'Loading...' : 'Load BOM' }}
               </button>
             }
           </div>
@@ -179,7 +179,7 @@
           <h2 class="h6 fw-bold mb-0 text-dark">Raw Materials (Input)</h2>
           @if (isDraft()) {
             <button type="button" class="btn btn-outline-primary btn-sm" (click)="addMaterial()">
-              <i class="bi bi-plus-lg"></i> Add
+              <i aria-hidden="true" class="bi bi-plus-lg"></i> Add
             </button>
           }
         </div>
@@ -201,7 +201,7 @@
                 @for (line of rawMaterials(); track line.key) {
                   <tr>
                     <td>
-                      <select class="form-select form-select-sm" (change)="onMaterialProduct(line.key, $event)">
+                      <select aria-label="Product" class="form-select form-select-sm" (change)="onMaterialProduct(line.key, $event)">
                         <option value="" [selected]="line.productId === ''">Select...</option>
                         @for (product of products(); track product.id) {
                           <option [value]="product.id" [selected]="product.id === line.productId">
@@ -211,7 +211,7 @@
                       </select>
                     </td>
                     <td>
-                      <input
+                      <input aria-label="Qty"
                         type="number"
                         min="0"
                         step="any"
@@ -227,7 +227,7 @@
                         aria-label="Remove raw material"
                         (click)="removeMaterial(line.key)"
                       >
-                        <i class="bi bi-trash"></i>
+                        <i aria-hidden="true" class="bi bi-trash"></i>
                       </button>
                     </td>
                   </tr>
@@ -271,7 +271,7 @@
           <h2 class="h6 fw-bold mb-0 text-dark">By Product (Output)</h2>
           @if (isDraft()) {
             <button type="button" class="btn btn-outline-primary btn-sm" (click)="addByProduct()">
-              <i class="bi bi-plus-lg"></i> Add
+              <i aria-hidden="true" class="bi bi-plus-lg"></i> Add
             </button>
           }
         </div>
@@ -294,7 +294,7 @@
                   @for (line of byProducts(); track line.key) {
                     <tr>
                       <td>
-                        <select class="form-select form-select-sm" (change)="onByProductProduct(line.key, $event)">
+                        <select aria-label="Product" class="form-select form-select-sm" (change)="onByProductProduct(line.key, $event)">
                           <option value="" [selected]="line.productId === ''">Select...</option>
                           @for (product of products(); track product.id) {
                             <option [value]="product.id" [selected]="product.id === line.productId">
@@ -304,7 +304,7 @@
                         </select>
                       </td>
                       <td>
-                        <input
+                        <input aria-label="% of Cost"
                           type="number"
                           min="0"
                           max="100"
@@ -315,7 +315,7 @@
                         />
                       </td>
                       <td>
-                        <input
+                        <input aria-label="Qty"
                           type="number"
                           min="0"
                           step="any"
@@ -331,7 +331,7 @@
                           aria-label="Remove by-product"
                           (click)="removeByProduct(line.key)"
                         >
-                          <i class="bi bi-trash"></i>
+                          <i aria-hidden="true" class="bi bi-trash"></i>
                         </button>
                       </td>
                     </tr>
@@ -389,7 +389,7 @@
           <h2 class="h6 fw-bold mb-0 text-dark">Production Expenses</h2>
           @if (isDraft()) {
             <button type="button" class="btn btn-outline-primary btn-sm" (click)="addExpense()">
-              <i class="bi bi-plus-lg"></i> Add
+              <i aria-hidden="true" class="bi bi-plus-lg"></i> Add
             </button>
           }
         </div>
@@ -411,7 +411,7 @@
                   @for (line of expenses(); track line.key) {
                     <tr>
                       <td>
-                        <select class="form-select form-select-sm" (change)="onExpenseTerm(line.key, $event)">
+                        <select aria-label="Production Cost Term" class="form-select form-select-sm" (change)="onExpenseTerm(line.key, $event)">
                           <option value="" [selected]="line.costTermId === ''">Select...</option>
                           @for (term of costTerms(); track term.id) {
                             <option [value]="term.id" [selected]="term.id === line.costTermId">{{ term.name }}</option>
@@ -419,7 +419,7 @@
                         </select>
                       </td>
                       <td>
-                        <input
+                        <input aria-label="Amount"
                           type="number"
                           min="0"
                           step="any"
@@ -435,7 +435,7 @@
                           aria-label="Remove expense"
                           (click)="removeExpense(line.key)"
                         >
-                          <i class="bi bi-trash"></i>
+                          <i aria-hidden="true" class="bi bi-trash"></i>
                         </button>
                       </td>
                     </tr>

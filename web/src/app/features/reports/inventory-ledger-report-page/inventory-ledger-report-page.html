@@ -3,7 +3,7 @@
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
         <div class="bg-info bg-gradient text-white p-2.5 rounded-3">
-          <i class="bi bi-list-columns fs-4 d-flex"></i>
+          <i aria-hidden="true" class="bi bi-list-columns fs-4 d-flex"></i>
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">Inventory Ledger</h1>
@@ -12,13 +12,13 @@
       </div>
       <div class="d-flex align-items-center gap-2">
         <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting() || !productId()" (click)="exportCurrentView()">
-          <i class="bi bi-download"></i> Export Current View
+          <i aria-hidden="true" class="bi bi-download"></i> Export Current View
         </button>
         <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting() || !productId()" (click)="exportFullDataset()">
-          <i class="bi bi-download"></i> Export Full Dataset
+          <i aria-hidden="true" class="bi bi-download"></i> Export Full Dataset
         </button>
         <a [routerLink]="['/organizations', organizationId, 'reports', 'inventory-movement']" class="btn btn-outline-secondary btn-sm fw-bold">
-          <i class="bi bi-arrow-left-right"></i> Inventory Movement
+          <i aria-hidden="true" class="bi bi-arrow-left-right"></i> Inventory Movement
         </a>
       </div>
     </div>
@@ -26,7 +26,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -35,16 +35,16 @@
     <div class="card-body p-4">
       <div class="row g-3">
         <div class="col-12 col-sm-6 col-lg-3">
-          <label class="form-label small fw-semibold">From Date</label>
-          <app-bs-date-input [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
+          <label class="form-label small fw-semibold" for="inventory-ledger-report-page-from-date">From Date</label>
+          <app-bs-date-input [inputId]="'inventory-ledger-report-page-from-date'" [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
         </div>
         <div class="col-12 col-sm-6 col-lg-3">
-          <label class="form-label small fw-semibold">To Date</label>
-          <app-bs-date-input [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
+          <label class="form-label small fw-semibold" for="inventory-ledger-report-page-to-date">To Date</label>
+          <app-bs-date-input [inputId]="'inventory-ledger-report-page-to-date'" [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
         <div class="col-12 col-sm-6 col-lg-4">
-          <label class="form-label small fw-semibold">Product <span class="text-danger">*</span></label>
-          <select class="form-select" (change)="onProductChange($event)">
+          <label class="form-label small fw-semibold" for="inventory-ledger-report-page-product">Product <span class="text-danger">*</span></label>
+          <select id="inventory-ledger-report-page-product" class="form-select" (change)="onProductChange($event)">
             <option value="" [selected]="!productId()">Select a product…</option>
             @for (product of products(); track product.id) {
               <option [value]="product.id" [selected]="product.id === productId()">{{ product.code }} — {{ product.name }}</option>
@@ -52,8 +52,8 @@
           </select>
         </div>
         <div class="col-12 col-sm-6 col-lg-2">
-          <label class="form-label small fw-semibold">Warehouse</label>
-          <select class="form-select" (change)="onWarehouseChange($event)">
+          <label class="form-label small fw-semibold" for="inventory-ledger-report-page-warehouse">Warehouse</label>
+          <select id="inventory-ledger-report-page-warehouse" class="form-select" (change)="onWarehouseChange($event)">
             <option value="" [selected]="!warehouseId()">All</option>
             @for (warehouse of warehouses(); track warehouse.id) {
               <option [value]="warehouse.id" [selected]="warehouse.id === warehouseId()">{{ warehouse.name }}</option>
@@ -68,7 +68,7 @@
     <div class="card-body p-0">
       @if (!productId()) {
         <div class="p-5 text-center text-muted">
-          <i class="bi bi-box-seam fs-1 d-block mb-3 opacity-50"></i>
+          <i aria-hidden="true" class="bi bi-box-seam fs-1 d-block mb-3 opacity-50"></i>
           Select a product to see its ledger.
         </div>
       } @else if (loading()) {
@@ -80,25 +80,25 @@
           <table class="table table-hover align-middle mb-0 small">
             <thead class="table-light">
               <tr>
-                <th rowspan="2" class="align-bottom">Date</th>
-                <th rowspan="2" class="align-bottom">Type</th>
-                <th rowspan="2" class="align-bottom">Contact</th>
-                <th rowspan="2" class="align-bottom">Warehouse</th>
-                <th rowspan="2" class="align-bottom">#No</th>
-                <th colspan="3" class="text-center border-start">In</th>
-                <th colspan="3" class="text-center border-start">Out</th>
-                <th colspan="3" class="text-center border-start">Balance</th>
+                <th scope="col" rowspan="2" class="align-bottom">Date</th>
+                <th scope="col" rowspan="2" class="align-bottom">Type</th>
+                <th scope="col" rowspan="2" class="align-bottom">Contact</th>
+                <th scope="col" rowspan="2" class="align-bottom">Warehouse</th>
+                <th scope="col" rowspan="2" class="align-bottom">#No</th>
+                <th scope="colgroup" colspan="3" class="text-center border-start">In</th>
+                <th scope="colgroup" colspan="3" class="text-center border-start">Out</th>
+                <th scope="colgroup" colspan="3" class="text-center border-start">Balance</th>
               </tr>
               <tr>
-                <th class="text-end border-start">Qty</th>
-                <th class="text-end">Rate</th>
-                <th class="text-end">Amount</th>
-                <th class="text-end border-start">Qty</th>
-                <th class="text-end">Rate</th>
-                <th class="text-end">Amount</th>
-                <th class="text-end border-start">Qty</th>
-                <th class="text-end">Rate</th>
-                <th class="text-end">Amount</th>
+                <th scope="col" class="text-end border-start">Qty</th>
+                <th scope="col" class="text-end">Rate</th>
+                <th scope="col" class="text-end">Amount</th>
+                <th scope="col" class="text-end border-start">Qty</th>
+                <th scope="col" class="text-end">Rate</th>
+                <th scope="col" class="text-end">Amount</th>
+                <th scope="col" class="text-end border-start">Qty</th>
+                <th scope="col" class="text-end">Rate</th>
+                <th scope="col" class="text-end">Amount</th>
               </tr>
             </thead>
             <tbody>

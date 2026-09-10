@@ -12,7 +12,7 @@
         <app-calendar-toggle />
       </div>
       <a class="btn btn-outline-secondary btn-sm" [routerLink]="['/organizations', organizationId]">
-        <i class="bi bi-grid"></i> All modules
+        <i aria-hidden="true" class="bi bi-grid"></i> All modules
       </a>
     </div>
   </div>
@@ -30,16 +30,16 @@
     <div class="card-body">
       <div class="row g-3 align-items-end">
         <div class="col-12 col-sm-3">
-          <label class="form-label small fw-semibold">From</label>
-          <app-bs-date-input
+          <label class="form-label small fw-semibold" for="home-dashboard-page-from">From</label>
+          <app-bs-date-input [inputId]="'home-dashboard-page-from'"
             [inputClass]="'form-control form-control-sm'"
             [value]="fromDate()"
             (valueChange)="onFromDateChange($event)"
           />
         </div>
         <div class="col-12 col-sm-3">
-          <label class="form-label small fw-semibold">To</label>
-          <app-bs-date-input
+          <label class="form-label small fw-semibold" for="home-dashboard-page-to">To</label>
+          <app-bs-date-input [inputId]="'home-dashboard-page-to'"
             [inputClass]="'form-control form-control-sm'"
             [value]="toDate()"
             (valueChange)="onToDateChange($event)"
@@ -75,7 +75,7 @@
                 <div class="fs-5 fw-bold mt-1">{{ kpi.current | amount }}</div>
                 @if (changePct(kpi); as pct) {
                   <div class="small" [class.text-success]="pct >= 0" [class.text-danger]="pct < 0">
-                    <i class="bi" [class.bi-arrow-up-right]="pct >= 0" [class.bi-arrow-down-right]="pct < 0"></i>
+                    <i aria-hidden="true" class="bi" [class.bi-arrow-up-right]="pct >= 0" [class.bi-arrow-down-right]="pct < 0"></i>
                     {{ pct >= 0 ? '+' : '' }}{{ pct | amount }}% vs prior period
                   </div>
                 } @else {
@@ -138,7 +138,7 @@
           @if (accountsTruncated()) {
             <!-- Suppressed rather than shown as a page subtotal: a footer total must cover the whole
                  filtered set, never just what is loaded (phase-16c bug #1). -->
-            <p class="form-text text-warning small mb-0">
+            <p class="form-text text-warning-emphasis small mb-0">
               More accounts exist than are shown here, so no total is displayed. Open Bank Accounts for the
               full list.
             </p>
@@ -184,18 +184,18 @@
             <table class="table table-sm align-middle mb-0">
               <thead>
                 <tr class="text-muted small">
-                  <th>Date</th>
-                  <th>Type</th>
-                  <th>Document No</th>
-                  <th>Contact</th>
-                  <th class="text-end">Amount</th>
+                  <th scope="col">Date</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Document No</th>
+                  <th scope="col">Contact</th>
+                  <th scope="col" class="text-end">Amount</th>
                 </tr>
               </thead>
               <tbody>
                 @for (row of feedRows(); track row.documentId) {
                   <tr>
                     <td>{{ row.date | nepaliDate }}</td>
-                    <td><span class="badge bg-secondary-subtle text-secondary">{{ feedLabel(row) }}</span></td>
+                    <td><span class="badge bg-secondary-subtle text-secondary-emphasis">{{ feedLabel(row) }}</span></td>
                     <td><a [routerLink]="feedRoute(row)">{{ row.documentCode }}</a></td>
                     <td>{{ row.contactName || '—' }}</td>
                     <td class="text-end">{{ row.amount | amount }}</td>

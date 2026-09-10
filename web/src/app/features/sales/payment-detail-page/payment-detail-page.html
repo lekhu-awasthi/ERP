@@ -1,14 +1,14 @@
 <div class="container py-5" style="max-width: 1100px;">
   <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
     <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'payments']">
-      <i class="bi bi-arrow-left"></i> Payments
+      <i aria-hidden="true" class="bi bi-arrow-left"></i> Payments
     </a>
     <h1 class="h4 fw-bold mb-0 text-dark">{{ isNew() ? 'New Payment' : (payment()?.code ?? 'Payment') }}</h1>
     @if (payment(); as p) {
       @if (p.status === 'Approved') {
-        <span class="badge bg-success-subtle text-success">Approved</span>
+        <span class="badge bg-success-subtle text-success-emphasis">Approved</span>
       } @else if (p.status === 'Void') {
-        <span class="badge bg-secondary-subtle text-secondary">Void</span>
+        <span class="badge bg-secondary-subtle text-secondary-emphasis">Void</span>
       } @else {
         <span class="badge bg-warning-subtle text-warning-emphasis">Draft</span>
       }
@@ -17,17 +17,17 @@
           @if (printing()) {
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
           } @else {
-            <i class="bi bi-printer"></i> Print
+            <i aria-hidden="true" class="bi bi-printer"></i> Print
           }
         </button>
       <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" (click)="emailDialog.show()">
-        <i class="bi bi-envelope"></i> Send Email
+        <i aria-hidden="true" class="bi bi-envelope"></i> Send Email
       </button>
         <button type="button" class="btn btn-outline-danger btn-sm fw-bold" [disabled]="voiding()" (click)="voidPayment()">
           @if (voiding()) {
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
           } @else {
-            <i class="bi bi-x-circle"></i> Void
+            <i aria-hidden="true" class="bi bi-x-circle"></i> Void
           }
         </button>
       }
@@ -58,7 +58,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -83,8 +83,8 @@
       <div class="card-body p-4">
         <div class="row g-3">
           <div class="col-12 col-sm-6">
-            <label class="form-label small fw-semibold">Customer</label>
-            <select
+            <label class="form-label small fw-semibold" for="payment-detail-page-customer">Customer</label>
+            <select id="payment-detail-page-customer"
               class="form-select"
               (change)="contactId.set($any($event.target).value)"
               [disabled]="!isDraft()"
@@ -96,8 +96,8 @@
             </select>
           </div>
           <div class="col-12 col-sm-6">
-            <label class="form-label small fw-semibold">Date</label>
-            <app-bs-date-input
+            <label class="form-label small fw-semibold" for="payment-detail-page-date">Date</label>
+            <app-bs-date-input [inputId]="'payment-detail-page-date'"
               [inputClass]="'form-control'"
               [value]="date()"
               (valueChange)="date.set($event)"
@@ -105,8 +105,8 @@
             />
           </div>
           <div class="col-12 col-sm-4">
-            <label class="form-label small fw-semibold">Payment Mode</label>
-            <select
+            <label class="form-label small fw-semibold" for="payment-detail-page-payment-mode">Payment Mode</label>
+            <select id="payment-detail-page-payment-mode"
               class="form-select"
               (change)="paymentModeId.set($any($event.target).value)"
               [disabled]="!isDraft()"
@@ -118,8 +118,8 @@
             </select>
           </div>
           <div class="col-12 col-sm-4">
-            <label class="form-label small fw-semibold">Deposit To Account *</label>
-            <select
+            <label class="form-label small fw-semibold" for="payment-detail-page-deposit-to-account">Deposit To Account *</label>
+            <select id="payment-detail-page-deposit-to-account"
               class="form-select"
               (change)="accountId.set($any($event.target).value)"
               [disabled]="!isDraft()"
@@ -131,8 +131,8 @@
             </select>
           </div>
           <div class="col-12 col-sm-4">
-            <label class="form-label small fw-semibold">Amount *</label>
-            <input
+            <label class="form-label small fw-semibold" for="payment-detail-page-amount">Amount *</label>
+            <input id="payment-detail-page-amount"
               type="number"
               class="form-control"
               min="0"
@@ -143,8 +143,8 @@
             />
           </div>
           <div class="col-12">
-            <label class="form-label small fw-semibold">Reference</label>
-            <input
+            <label class="form-label small fw-semibold" for="payment-detail-page-reference">Reference</label>
+            <input id="payment-detail-page-reference"
               type="text"
               class="form-control"
               [value]="reference()"
@@ -172,7 +172,7 @@
               @if (previewingGl()) {
                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
               } @else {
-                <i class="bi bi-eye"></i> Preview GL Posting
+                <i aria-hidden="true" class="bi bi-eye"></i> Preview GL Posting
               }
             </button>
           </div>
@@ -181,9 +181,9 @@
               <table class="table table-sm align-middle mb-0">
                 <thead>
                   <tr class="text-muted small">
-                    <th>Account</th>
-                    <th class="text-end">Debit</th>
-                    <th class="text-end">Credit</th>
+                    <th scope="col">Account</th>
+                    <th scope="col" class="text-end">Debit</th>
+                    <th scope="col" class="text-end">Credit</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -212,11 +212,11 @@
                 @if (suggesting()) {
                   <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                 } @else {
-                  <i class="bi bi-magic"></i> Suggest (FIFO)
+                  <i aria-hidden="true" class="bi bi-magic"></i> Suggest (FIFO)
                 }
               </button>
               <button type="button" class="btn btn-outline-primary btn-sm" (click)="addAllocation()">
-                <i class="bi bi-plus-lg"></i> Add Row
+                <i aria-hidden="true" class="bi bi-plus-lg"></i> Add Row
               </button>
             </div>
           }
@@ -228,10 +228,10 @@
           <table class="table align-middle">
             <thead>
               <tr class="text-muted small">
-                <th style="min-width: 220px;">Invoice</th>
-                <th style="width: 150px;" class="text-end">Amount</th>
+                <th scope="col" style="min-width: 220px;">Invoice</th>
+                <th scope="col" style="width: 150px;" class="text-end">Amount</th>
                 @if (isDraft()) {
-                  <th style="width: 48px;"></th>
+                  <th scope="col" style="width: 48px;"></th>
                 }
               </tr>
             </thead>
@@ -240,7 +240,7 @@
                 <tr>
                   <td>
                     @if (isDraft()) {
-                      <select class="form-select form-select-sm" (change)="onAllocationInvoiceChange(row.key, $event)">
+                      <select aria-label="Invoice" class="form-select form-select-sm" (change)="onAllocationInvoiceChange(row.key, $event)">
                         <option value="" disabled [selected]="!row.targetDocumentId">Select an invoice</option>
                         @for (invoice of customerInvoices(); track invoice.id) {
                           <option [value]="invoice.id" [selected]="invoice.id === row.targetDocumentId">{{ invoice.code }}</option>
@@ -252,7 +252,7 @@
                   </td>
                   <td class="text-end">
                     @if (isDraft()) {
-                      <input
+                      <input aria-label="Amount"
                         type="number"
                         class="form-control form-control-sm text-end"
                         min="0"
@@ -266,8 +266,8 @@
                   </td>
                   @if (isDraft()) {
                     <td>
-                      <button type="button" class="btn btn-outline-danger btn-sm" (click)="removeAllocation(row.key)">
-                        <i class="bi bi-trash"></i>
+                      <button aria-label="Remove allocation" type="button" class="btn btn-outline-danger btn-sm" (click)="removeAllocation(row.key)">
+                        <i aria-hidden="true" class="bi bi-trash"></i>
                       </button>
                     </td>
                   }
@@ -285,9 +285,9 @@
               <tr>
                 <td colspan="3">
                   @if (remaining() === 0) {
-                    <span class="badge bg-success-subtle text-success">Fully allocated</span>
+                    <span class="badge bg-success-subtle text-success-emphasis">Fully allocated</span>
                   } @else {
-                    <span class="badge bg-danger-subtle text-danger">Remaining: {{ (remaining() | amount) }}</span>
+                    <span class="badge bg-danger-subtle text-danger-emphasis">Remaining: {{ (remaining() | amount) }}</span>
                   }
                 </td>
               </tr>
@@ -301,7 +301,7 @@
               @if (saving()) {
                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
               } @else {
-                <i class="bi bi-save"></i> Save Draft
+                <i aria-hidden="true" class="bi bi-save"></i> Save Draft
               }
             </button>
             @if (!isNew()) {
@@ -309,7 +309,7 @@
                 @if (approving()) {
                   <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                 } @else {
-                  <i class="bi bi-check2-circle"></i> Approve
+                  <i aria-hidden="true" class="bi bi-check2-circle"></i> Approve
                 }
               </button>
             }
@@ -326,15 +326,15 @@
         <div class="card border-0 shadow-sm">
           <div class="card-body p-4">
             <h6 class="fw-bold text-dark mb-3">
-              <i class="bi bi-diagram-2"></i> GL Transactions
+              <i aria-hidden="true" class="bi bi-diagram-2"></i> GL Transactions
             </h6>
             <div class="table-responsive">
               <table class="table align-middle mb-0">
                 <thead>
                   <tr class="text-muted small">
-                    <th>Account</th>
-                    <th class="text-end">Debit</th>
-                    <th class="text-end">Credit</th>
+                    <th scope="col">Account</th>
+                    <th scope="col" class="text-end">Debit</th>
+                    <th scope="col" class="text-end">Credit</th>
                   </tr>
                 </thead>
                 <tbody>

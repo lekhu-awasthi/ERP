@@ -4,7 +4,7 @@
       type="text"
       [class]="inputClass()"
       [class.is-invalid]="draftInvalid()"
-      [id]="inputId() ?? ''"
+      [attr.id]="inputId()"
       [value]="bsText()"
       [disabled]="isDisabled()"
       placeholder="DD-MM-YYYY (BS)"
@@ -16,15 +16,15 @@
       type="button"
       class="btn btn-outline-secondary"
       [disabled]="isDisabled()"
-      aria-label="Open Bikram Sambat calendar"
+      aria-label="Open Bikram Sambat calendar" [attr.aria-expanded]="open()"
       (click)="togglePicker($event)"
     >
-      <i class="bi bi-calendar3"></i>
+      <i aria-hidden="true" class="bi bi-calendar3"></i>
     </button>
   </div>
 
   @if (outOfRange()) {
-    <div class="form-text text-warning small">
+    <div class="form-text text-warning-emphasis small">
       This date is outside the supported Bikram Sambat range, so it is shown in AD.
     </div>
   }
@@ -86,7 +86,7 @@
   <input
     type="date"
     [class]="inputClass()"
-    [id]="inputId() ?? ''"
+    [attr.id]="inputId()"
     [value]="current() ?? ''"
     [disabled]="isDisabled()"
     (change)="onAdChange($event)"

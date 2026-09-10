@@ -3,7 +3,7 @@
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
         <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
-          <i class="bi bi-cart-check fs-4 d-flex"></i>
+          <i aria-hidden="true" class="bi bi-cart-check fs-4 d-flex"></i>
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">Sales Orders</h1>
@@ -11,14 +11,14 @@
         </div>
       </div>
       <a class="btn btn-success btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'sales', 'sales-orders', 'new']">
-        <i class="bi bi-plus-lg"></i> New Sales Order
+        <i aria-hidden="true" class="bi bi-plus-lg"></i> New Sales Order
       </a>
     </div>
   </div>
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -47,7 +47,7 @@
       } @else if (items().length === 0) {
         <div class="text-center py-5">
           <div class="bg-light d-inline-flex p-4 rounded-circle mb-3 text-muted">
-            <i class="bi bi-cart-x fs-1"></i>
+            <i aria-hidden="true" class="bi bi-cart-x fs-1"></i>
           </div>
           <h5 class="fw-bold text-dark">No Sales Orders Yet</h5>
           <p class="text-muted small mb-0">Click "New Sales Order" to create one.</p>
@@ -61,7 +61,7 @@
             >
               <div class="d-flex align-items-center gap-3">
                 <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-circle">
-                  <i class="bi bi-cart-check fs-5"></i>
+                  <i aria-hidden="true" class="bi bi-cart-check fs-5"></i>
                 </div>
                 <div>
                   <h6 class="fw-bold mb-1 text-dark">{{ item.code }}</h6>
@@ -78,13 +78,13 @@
                   (statusChange)="onCustomStatusChange(item.id, $event)"
                 />
                 @if (item.status === 'Approved') {
-                  <span class="badge bg-success-subtle text-success">Approved</span>
+                  <span class="badge bg-success-subtle text-success-emphasis">Approved</span>
                 } @else if (item.status === 'Void') {
-                  <span class="badge bg-secondary-subtle text-secondary">Void</span>
+                  <span class="badge bg-secondary-subtle text-secondary-emphasis">Void</span>
                 } @else {
                   <span class="badge bg-warning-subtle text-warning-emphasis">Draft</span>
                 }
-                <i class="bi bi-chevron-right text-muted"></i>
+                <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
               </div>
             </a>
           }

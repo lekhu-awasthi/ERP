@@ -3,7 +3,7 @@
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
         <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
-          <i class="bi bi-graph-up fs-4 d-flex"></i>
+          <i aria-hidden="true" class="bi bi-graph-up fs-4 d-flex"></i>
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">Sales Summary Report</h1>
@@ -18,10 +18,10 @@
       </div>
       <div class="d-flex align-items-center gap-2">
         <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportCurrentView()">
-          <i class="bi bi-download"></i> Export Current View
+          <i aria-hidden="true" class="bi bi-download"></i> Export Current View
         </button>
         <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
-          <i class="bi bi-download"></i> Export Full Dataset
+          <i aria-hidden="true" class="bi bi-download"></i> Export Full Dataset
         </button>
       </div>
     </div>
@@ -29,7 +29,7 @@
 
   @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
       <div>{{ errorMessage() }}</div>
     </div>
   }
@@ -38,23 +38,23 @@
     <div class="card-body p-4">
       <div class="row g-3">
         <div class="col-12 col-sm-6 col-lg-3">
-          <label class="form-label small fw-semibold">Fiscal Year</label>
-          <select class="form-select" (change)="onFiscalYearChange($event)">
+          <label class="form-label small fw-semibold" for="sales-summary-report-page-fiscal-year">Fiscal Year</label>
+          <select id="sales-summary-report-page-fiscal-year" class="form-select" (change)="onFiscalYearChange($event)">
             @for (year of fiscalYears; track year) {
               <option [value]="year" [selected]="year === fiscalYear()">{{ fiscalYearLabel(year) }}</option>
             }
           </select>
         </div>
         <div class="col-12 col-sm-6 col-lg-3">
-          <label class="form-label small fw-semibold">Select Mode</label>
-          <select class="form-select" (change)="onModeChange($event)">
+          <label class="form-label small fw-semibold" for="sales-summary-report-page-select-mode">Select Mode</label>
+          <select id="sales-summary-report-page-select-mode" class="form-select" (change)="onModeChange($event)">
             <option value="Month" [selected]="mode() === 'Month'">Month</option>
             <option value="Date" [selected]="mode() === 'Date'">Date</option>
           </select>
         </div>
       </div>
       <p class="text-muted small mb-0 mt-3">
-        <i class="bi bi-info-circle"></i>
+        <i aria-hidden="true" class="bi bi-info-circle"></i>
         The reference product's <strong>Service Charge</strong> column is not shown: it is driven by a
         product-level flag this system does not model, so an always-empty column would be misleading.
       </p>
@@ -78,13 +78,13 @@
             <table class="table align-middle mb-0">
               <thead>
                 <tr class="text-muted small">
-                  <th>Date</th>
-                  <th class="text-end">Sub Total</th>
-                  <th class="text-end">Discount</th>
-                  <th class="text-end">Non Taxable Sales</th>
-                  <th class="text-end">Taxable Sales</th>
-                  <th class="text-end">VAT</th>
-                  <th class="text-end">Total</th>
+                  <th scope="col">Date</th>
+                  <th scope="col" class="text-end">Sub Total</th>
+                  <th scope="col" class="text-end">Discount</th>
+                  <th scope="col" class="text-end">Non Taxable Sales</th>
+                  <th scope="col" class="text-end">Taxable Sales</th>
+                  <th scope="col" class="text-end">VAT</th>
+                  <th scope="col" class="text-end">Total</th>
                 </tr>
               </thead>
               <tbody>
