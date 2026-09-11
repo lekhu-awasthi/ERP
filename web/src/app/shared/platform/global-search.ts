@@ -7,7 +7,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { GlobalSearchHitDto, QuickLinkDto } from '../../core/platform/platform.models';
 import { PlatformService } from '../../core/platform/platform.service';
 import { NavigationCatalog } from '../navigation/navigation-catalog';
-import { hitDescription, hitLabel, hitRouterLink } from '../navigation/search-routes';
+import { hitDescription, hitLabel, hitQueryParams, hitRouterLink } from '../navigation/search-routes';
 
 /** A row in the dropdown: either a stored record or a screen to navigate to. */
 interface ResultRow {
@@ -15,6 +15,9 @@ interface ResultRow {
   readonly description: string;
   readonly kindBadge: string;
   readonly link: unknown[] | null;
+  /** Phase 35a -- an Account's destination is a report *of* that account, so its subject rides in
+   * the url. Undefined for every other kind of row. */
+  readonly queryParams?: Record<string, string>;
 }
 
 /**
@@ -76,6 +79,7 @@ export class GlobalSearch {
       description: hitDescription(hit),
       kindBadge: hit.collection === 'Document' ? 'Document' : hit.collection,
       link: hitRouterLink(this.organizationId(), hit),
+      queryParams: hitQueryParams(hit),
     }));
 
     return [...records, ...screens];
@@ -195,7 +199,7 @@ export class GlobalSearch {
     }
 
     this.dismiss();
-    void this.router.navigate(row.link);
+    void this.router.navigate(row.link, row.queryParams ? { queryParams: row.queryParams } : undefined);
   }
 
   protected dismiss(): void {

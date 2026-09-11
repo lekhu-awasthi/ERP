@@ -44,6 +44,7 @@ public sealed class GetDebitNoteConversionTemplateQueryHandler(IAppDbContext db)
             DocumentType.PurchaseBill,
             purchaseBill.Id,
             purchaseBill.DiscountPct,
-            lines);
+            lines,
+            purchaseBill.LocationId);
     }
 }

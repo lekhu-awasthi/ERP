@@ -130,11 +130,11 @@ public static class ManufacturingEndpoints
     {
         group.MapGet("/production-orders", async (
             Guid organizationId, ProductionOrderStatus? status, int? page, int? pageSize,
-            string? search, DateOnly? fromDate, DateOnly? toDate, ISender sender, CancellationToken ct) =>
+            string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ListProductionOrdersQuery(
-                    organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate), ct);
+                    organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId), ct);
             return Results.Ok(result);
         });
 
@@ -212,11 +212,11 @@ public static class ManufacturingEndpoints
     {
         group.MapGet("/production-journals", async (
             Guid organizationId, ProductionJournalStatus? status, int? page, int? pageSize,
-            string? search, DateOnly? fromDate, DateOnly? toDate, ISender sender, CancellationToken ct) =>
+            string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ListProductionJournalsQuery(
-                    organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate), ct);
+                    organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId), ct);
             return Results.Ok(result);
         });
 

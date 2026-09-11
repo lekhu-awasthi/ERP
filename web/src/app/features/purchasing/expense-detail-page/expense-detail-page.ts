@@ -26,6 +26,7 @@ import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
 import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
+import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 
 interface EditableLine {
   key: number;
@@ -46,7 +47,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-expense-detail-page',
-  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields],
+  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker],
   templateUrl: './expense-detail-page.html',
 })
 export class ExpenseDetailPage {
@@ -92,6 +93,14 @@ export class ExpenseDetailPage {
   protected readonly dueDate = signal('');
   protected readonly supplierInvoiceReference = signal('');
   protected readonly notes = signal('');
+
+  /**
+   * Phase 35a (FR-2.3/FR-3.3) -- the billing location this document is raised from, shown by the
+   * header picker `app-document-location-picker` renders. Empty means "let the server pick the
+   * default", which `LocationResolver` turns into the tenant's HeadOffice, or into nothing when
+   * this document type is outside the tenant's `LocationScopeMode`.
+   */
+  protected readonly locationId = signal('');
   protected readonly tdsApplicable = signal(false);
   protected readonly tdsTypeId = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
@@ -140,6 +149,7 @@ this.exchangeRate.set(1);
         this.dueDate.set('');
         this.supplierInvoiceReference.set('');
         this.notes.set('');
+        this.locationId.set('');
         this.tdsApplicable.set(false);
         this.tdsTypeId.set('');
         this.lines.set([this.newLine()]);
@@ -278,7 +288,7 @@ this.exchangeRate.set(1);
 
       exchangeRate: this.exchangeRate(),
       contactId: this.contactId(),
-      date: this.date(),
+      date: this.date(), locationId: this.locationId() || null,
       dueDate: this.dueDate() || null,
       supplierInvoiceReference: this.supplierInvoiceReference() || null,
       notes: this.notes() || null,
@@ -397,6 +407,7 @@ this.exchangeRate.set(1);
         this.dueDate.set(expense.dueDate ?? '');
         this.supplierInvoiceReference.set(expense.supplierInvoiceReference ?? '');
         this.notes.set(expense.notes ?? '');
+        this.locationId.set(expense.locationId ?? '');
         this.tdsApplicable.set(expense.tdsApplicable);
         this.tdsTypeId.set(expense.tdsTypeId ?? '');
         this.lines.set(

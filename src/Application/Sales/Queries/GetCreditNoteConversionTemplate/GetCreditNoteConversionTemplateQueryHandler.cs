@@ -43,6 +43,7 @@ public sealed class GetCreditNoteConversionTemplateQueryHandler(IAppDbContext db
             DocumentType.Invoice,
             invoice.Id,
             invoice.DiscountPct,
-            lines);
+            lines,
+            invoice.LocationId);
     }
 }

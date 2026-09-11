@@ -114,6 +114,7 @@ export interface ProductionOrderListItem {
   // `status` above. The reference product labels this column STATUS on Production Order and STAGE on
   // Sales Order/Quotation, but it is the same control over the same CustomStatus lookup.
   customStatusId: string | null;
+  locationId: string | null;
 }
 
 export interface ProductionOrderRawMaterialLine {
@@ -157,6 +158,7 @@ export interface ProductionOrderDetail {
   rawMaterials: ProductionOrderRawMaterialLine[];
   byProducts: ProductionOrderByProductLine[];
   expenses: ProductionExpenseLine[];
+  locationId: string | null;
 }
 
 export interface ProductionOrderRequest {
@@ -169,6 +171,9 @@ export interface ProductionOrderRequest {
   rawMaterials: ProductionRawMaterialLineInput[];
   byProducts: ProductionByProductLineInput[];
   expenses: ProductionExpenseLineInput[];
+  /** Phase 32/35a -- omitting it (or null) means "the tenant's default location", which the server
+   * resolves to HeadOffice, or to nothing when this document type is out of the tenant's scope. */
+  locationId?: string | null;
 }
 
 export interface ProductionJournalConversionTemplate {
@@ -184,6 +189,9 @@ export interface ProductionJournalConversionTemplate {
   rawMaterials: ProductionRawMaterialLineInput[];
   byProducts: ProductionByProductLineInput[];
   expenses: ProductionExpenseLineInput[];
+  /** Phase 35a -- the source document's billing location, so a conversion keeps its branch
+   * instead of silently landing on the tenant default. */
+  locationId: string | null;
 }
 
 // ---- Production Journal ----
@@ -198,6 +206,7 @@ export interface ProductionJournalListItem {
   outputQuantity: number;
   finishedGoodsCost: number | null;
   status: ProductionJournalStatus;
+  locationId: string | null;
 }
 
 export interface ProductionJournalRawMaterialLine {
@@ -252,6 +261,7 @@ export interface ProductionJournalDetail {
   byProducts: ProductionJournalByProductLine[];
   expenses: ProductionExpenseLine[];
   glLines: ProductionGlLine[] | null;
+  locationId: string | null;
 }
 
 export interface ProductionJournalRequest {
@@ -267,6 +277,9 @@ export interface ProductionJournalRequest {
   rawMaterials: ProductionRawMaterialLineInput[];
   byProducts: ProductionByProductLineInput[];
   expenses: ProductionExpenseLineInput[];
+  /** Phase 32/35a -- omitting it (or null) means "the tenant's default location", which the server
+   * resolves to HeadOffice, or to nothing when this document type is out of the tenant's scope. */
+  locationId?: string | null;
 }
 
 export interface CreateDocumentResult {

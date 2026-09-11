@@ -23,15 +23,28 @@ public sealed class ListAllocatablePaymentsQueryHandler(IAppDbContext db, ICurre
         var allowedLocations = await LocationAccessScope.ForKeyAsync(
             db, currentUser, request.OrganizationId, request.PermissionKey, cancellationToken);
 
+        // Phase 35a -- the location restriction is composed onto each source set before the join,
+        // not folded into the `where` clause as `allowedLocations == null || …`. An expression tree
+        // does not short-circuit, so the folded form hands EF a null list to translate on the
+        // unrestricted branch — which is almost every caller (known-gotchas.md, phase 33). Both
+        // sides of this screen carried the folded form since phase 32b.
+        var payments = db.Payments.Where(x => x.OrganizationId == request.OrganizationId);
+        var journalVouchers = db.JournalVouchers.Where(x => x.OrganizationId == request.OrganizationId);
+
+        if (allowedLocations is not null)
+        {
+            payments = payments.Where(
+                x => x.LocationId != null && allowedLocations.Contains(x.LocationId.Value));
+            journalVouchers = journalVouchers.Where(
+                x => x.LocationId != null && allowedLocations.Contains(x.LocationId.Value));
+        }
+
         var paymentRows = await (
-                from payment in db.Payments
+                from payment in payments
                 join contact in db.Contacts on payment.ContactId equals contact.Id
-                where payment.OrganizationId == request.OrganizationId
-                    && payment.Direction == request.Direction
+                where payment.Direction == request.Direction
                     && payment.Status == PaymentStatus.Approved
                     && (request.ContactId == null || payment.ContactId == request.ContactId)
-                    && (allowedLocations == null
-                        || (payment.LocationId != null && allowedLocations.Contains(payment.LocationId.Value)))
                 select new { payment.Id, payment.Code, payment.Date, payment.ContactId, ContactName = contact.Name, payment.Amount })
             .ToListAsync(cancellationToken);
 
@@ -49,15 +62,11 @@ public sealed class ListAllocatablePaymentsQueryHandler(IAppDbContext db, ICurre
 
         var journalVoucherRows = await (
                 from line in db.JournalVoucherLines
-                join journalVoucher in db.JournalVouchers on line.JournalVoucherId equals journalVoucher.Id
+                join journalVoucher in journalVouchers on line.JournalVoucherId equals journalVoucher.Id
                 join contact in db.Contacts on line.ContactId equals contact.Id
-                where journalVoucher.OrganizationId == request.OrganizationId
-                    && journalVoucher.Status == JournalVoucherStatus.Approved
+                where journalVoucher.Status == JournalVoucherStatus.Approved
                     && contact.Type == contactType
                     && (request.ContactId == null || contact.Id == request.ContactId)
-                    && (allowedLocations == null
-                        || (journalVoucher.LocationId != null
-                            && allowedLocations.Contains(journalVoucher.LocationId.Value)))
                 select new
                 {
                     line.Id,

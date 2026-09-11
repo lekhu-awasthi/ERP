@@ -17,6 +17,7 @@ import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
+import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 
 interface EditableLine {
   key: number;
@@ -45,7 +46,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-journal-voucher-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker],
   templateUrl: './journal-voucher-detail-page.html',
 })
 export class JournalVoucherDetailPage {
@@ -79,6 +80,14 @@ export class JournalVoucherDetailPage {
 
   protected readonly date = signal(this.today());
   protected readonly reference = signal('');
+
+  /**
+   * Phase 35a (FR-2.3/FR-3.3) -- the billing location this document is raised from, shown by the
+   * header picker `app-document-location-picker` renders. Empty means "let the server pick the
+   * default", which `LocationResolver` turns into the tenant's HeadOffice, or into nothing when
+   * this document type is outside the tenant's `LocationScopeMode`.
+   */
+  protected readonly locationId = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
 
   protected routeJournalVoucherId = '';
@@ -120,6 +129,7 @@ export class JournalVoucherDetailPage {
         this.loading.set(false);
         this.date.set(this.today());
         this.reference.set('');
+        this.locationId.set('');
 this.currencyCode.set(BASE_CURRENCY_CODE);
 this.exchangeRate.set(1);
         this.lines.set([this.newLine(), this.newLine()]);
@@ -179,7 +189,7 @@ this.exchangeRate.set(1);
     this.saving.set(true);
     this.errorMessage.set(null);
 
-    const request = { currencyCode: this.currencyCode(), exchangeRate: this.exchangeRate(), date: this.date(), reference: this.reference() || null, lines };
+    const request = { currencyCode: this.currencyCode(), exchangeRate: this.exchangeRate(), date: this.date(), locationId: this.locationId() || null, reference: this.reference() || null, lines };
     const request$ = this.isNew()
       ? this.accountingService.createJournalVoucher(this.organizationId, request)
       : this.accountingService.updateJournalVoucher(this.organizationId, this.routeJournalVoucherId, request);
@@ -324,6 +334,7 @@ Approve anyway?`)) {
         this.journalVoucher.set(journalVoucher);
         this.date.set(journalVoucher.date);
         this.reference.set(journalVoucher.reference ?? '');
+        this.locationId.set(journalVoucher.locationId ?? '');
         this.currencyCode.set(journalVoucher.currencyCode);
         this.exchangeRate.set(journalVoucher.exchangeRate);
         this.lines.set(

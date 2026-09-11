@@ -17,7 +17,7 @@ import { Product, VatRate } from '../../../core/catalog/catalog.models';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
-import { BillingLocation, Warehouse } from '../../../core/organizations/organizations.models';
+import { Warehouse } from '../../../core/organizations/organizations.models';
 import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
@@ -32,6 +32,8 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
 import { TermsEditor } from '../../../shared/terms/terms-editor';
 import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
+import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
+import { defaultWarehouseSeed } from '../../../shared/locations/default-warehouse-seed';
 
 interface EditableLine {
   key: number;
@@ -50,7 +52,7 @@ let nextLineKey = 1;
  * own lines the way JournalVoucher's is. */
 @Component({
   selector: 'app-invoice-detail-page',
-  imports: [RouterLink, DatePipe, ReportingTagsEditor, CustomFieldsEditor, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, TermsEditor, CurrencyRateFields, SendEmailDialog],
+  imports: [RouterLink, DatePipe, ReportingTagsEditor, CustomFieldsEditor, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker],
   templateUrl: './invoice-detail-page.html',
 })
 export class InvoiceDetailPage {
@@ -99,22 +101,18 @@ export class InvoiceDetailPage {
   protected readonly contactId = signal('');
   protected readonly warehouseId = signal('');
 
+  /** Phase 35a (Decision D) -- seeds Warehouse from the billing location's default. See
+   * `defaultWarehouseSeed`: a prefill, never a constraint, and never reactive. */
+  protected readonly warehouseSeed = defaultWarehouseSeed(this.warehouseId, this.warehouses);
+
   /**
-   * Phase 32 (FR-2.3/FR-3.3) -- the billing location this invoice is raised from. Confirmed live
-   * 2026-09-07 on a location-enabled tenant: it is **not** a field in the form body but a borderless
-   * picker in the page header, immediately left of Save, rendering `Name (Code)` and defaulting to
-   * `HeadOffice (HO)`. Its dropdown lists every active location including the POS ones.
-   *
-   * Empty means "let the server pick the default", which LocationResolver turns into HeadOffice --
-   * so a tenant with one location never has to touch it, and a tenant whose scope setting excludes
-   * Invoice stores nothing.
+   * Phase 32 (FR-2.3/FR-3.3), extracted in phase 35a -- the billing location this invoice is raised
+   * from. The picker itself, the two reads behind it and the HeadOffice default all live in
+   * `app-document-location-picker` now; this page owns only the value, because its own save sends
+   * it. Empty means "let the server pick the default", which `LocationResolver` turns into
+   * HeadOffice.
    */
   protected readonly locationId = signal('');
-  protected readonly billingLocations = signal<BillingLocation[]>([]);
-
-  /** Whether this document type carries a location at all for this tenant, resolved server-side by
-   * DocumentLocationScope so no screen re-derives the rule (phase-30's "find the rule" lesson). */
-  protected readonly locationApplies = signal(false);
 
   protected readonly date = signal(this.today());
 
@@ -188,31 +186,13 @@ export class InvoiceDetailPage {
     this.contactsService.listAllContacts(this.organizationId, 'Customer').subscribe({ next: (c) => this.customers.set(c) });
     this.catalogService.listAllProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
     this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
-    this.organizationsService.listWarehouses(this.organizationId).subscribe({ next: (w) => this.warehouses.set(w) });
-
-    // Phase 32 -- the header location picker. Two calls rather than one because they answer
-    // different questions: the settings say whether an Invoice carries a location for THIS tenant
-    // (the server resolves DocumentLocationScope, so the client never re-derives the rule), and the
-    // list is what the picker is populated from. Both fail soft -- a tenant without the entitlement
-    // gets no picker rather than a broken form, which is the phase-20f rule applied to a control.
-    this.organizationsService.getBillingLocationSettings(this.organizationId).subscribe({
-      next: (settings) => this.locationApplies.set(settings.locationBearingDocumentTypes.includes('Invoice')),
-      error: () => this.locationApplies.set(false),
-    });
-    this.organizationsService.listBillingLocations(this.organizationId).subscribe({
-      next: (locations) => {
-        this.billingLocations.set(locations);
-
-        // Select HeadOffice explicitly rather than letting the first <option> win by sort order.
-        // The server would resolve an empty value to the same row, but a select showing one location
-        // while the request carries none is the phase-5 select-race in spirit: the display and the
-        // stored value must agree because they were made to, not because two orderings happen to.
-        if (!this.locationId()) {
-          this.locationId.set(locations.find((x) => x.isHeadOffice)?.id ?? locations[0]?.id ?? '');
-        }
+    this.organizationsService.listWarehouses(this.organizationId).subscribe({
+      next: (w) => {
+        this.warehouses.set(w);
+        this.warehouseSeed.retry();
       },
-      error: () => this.billingLocations.set([]),
     });
+
     this.configurationService.listCreditTerms(this.organizationId).subscribe({
       next: (terms) => this.creditTerms.set(terms),
       error: () => this.creditTerms.set([]),
@@ -235,6 +215,9 @@ export class InvoiceDetailPage {
           this.date.set(template.date);
           this.dueDate.set(template.date);
           this.reference.set(template.reference ?? '');
+          // Phase 35a -- a conversion keeps the source document's branch. Without this the new
+          // form's picker would fall back to the tenant default and move the document silently.
+          this.locationId.set(template.locationId ?? '');
           this.referrerType = template.referrerType;
           this.referrerId = template.referrerId;
           this.discountPct.set(template.discountPct);

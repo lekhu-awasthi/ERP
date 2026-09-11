@@ -634,3 +634,19 @@ Moved verbatim; the one-line versions in CLAUDE.md keep the same "before X" hook
   reliable here), and before believing a structural inference about multi-tenant cost — the
   `GlLine`-has-no-tenant-column story was refused by seeding a second tenant and re-measuring —
   `docs/phase-34c-status.md`
+- Phase 35a: ledger drill-down and the location dimension on documents. Phase 35 was split with the
+  user after a survey showed it was two phases (34a/b/c's precedent): 35a is the drill-down plus the
+  document-side sweep, 35b is the report half. Shipped `?accountId=` on Detail General Ledger with a
+  **View Ledger** row action on the Chart of Accounts and the global-search Account hit pointing at
+  it (closing phase-33 #1 — the reference product has no per-account page either), the location
+  picker extracted into `app-document-location-picker` and swept onto all 15 document forms, the
+  LOCATION cell and a Billing Location filter onto all 15 lists via `ListChrome`/`ListFilter`, and
+  `BillingLocation.WarehouseId` as a real prefill. **Read this before adding a field to many
+  aggregates at once**: phase 32's write-path sweep guard was green while 14 of 15 detail DTOs and
+  all 5 conversion templates dropped the field on the way back out, so a form could store a branch,
+  never show it, and overwrite it on the next save. Also before trusting a gotcha's generalisation —
+  the five handlers matching `known-gotchas.md`'s forbidden `x == null || …` predicate turned out
+  **not** to be broken on SQL Server, and only injecting the old shape and running it showed that —
+  and before a confirm-live pass over a catalogue, where reading all 49 report screens rather than
+  one per group is what made the six exceptions (one of which breaks the obvious rule) trustworthy —
+  `docs/phase-35a-status.md`

@@ -52,7 +52,20 @@ export class DetailGeneralLedgerPage {
 
   protected readonly fromDate = signal(this.firstOfMonth());
   protected readonly toDate = signal(this.today());
-  protected readonly accountId = signal<string>('');
+  /**
+   * Phase 35a -- prefilled from `?accountId=`, which is what the **View Ledger** row action on the
+   * Chart of Accounts and the global-search result both navigate to.
+   *
+   * <p>Phase 33 carried item #1: an Account hit in global search rendered "no detail page", because
+   * the Chart of Accounts has a list and no per-account page. The reference product does not have
+   * one either -- what its search result row and its account row both offer is **View Ledger**, and
+   * this report is that ledger. So the drill-down target is the report filtered to the account, not
+   * a new screen; see docs/phase-35a-status.md Decision A.</p>
+   *
+   * <p>Mirrors what `customer-statement-page` has taken since phase 10, deliberately: a report that
+   * can be reached with its subject already chosen needs one convention, not two.</p>
+   */
+  protected readonly accountId = signal<string>(this.route.snapshot.queryParamMap.get('accountId') ?? '');
 
   protected readonly page = signal(1);
   protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);

@@ -21,6 +21,8 @@ import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
+import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
+import { defaultWarehouseSeed } from '../../../shared/locations/default-warehouse-seed';
 
 interface EditableLine {
   key: number;
@@ -39,7 +41,7 @@ let nextLineKey = 1;
  * section once Approved, same as every GL-posting document type. */
 @Component({
   selector: 'app-inventory-adjustment-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, DocumentLocationPicker],
   templateUrl: './inventory-adjustment-detail-page.html',
 })
 export class InventoryAdjustmentDetailPage {
@@ -67,6 +69,18 @@ export class InventoryAdjustmentDetailPage {
   protected readonly warehouseId = signal('');
   protected readonly date = signal(this.today());
   protected readonly reference = signal('');
+
+  /**
+   * Phase 35a (FR-2.3/FR-3.3) -- the billing location this document is raised from, shown by the
+   * header picker `app-document-location-picker` renders. Empty means "let the server pick the
+   * default", which `LocationResolver` turns into the tenant's HeadOffice, or into nothing when
+   * this document type is outside the tenant's `LocationScopeMode`.
+   */
+  protected readonly locationId = signal('');
+
+  /** Phase 35a (Decision D) -- seeds Warehouse from the billing location's *default*. A prefill,
+   * never a constraint and never reactive; see `defaultWarehouseSeed`. */
+  protected readonly warehouseSeed = defaultWarehouseSeed(this.warehouseId, this.warehouses);
   protected readonly lines = signal<EditableLine[]>([]);
 
   protected readonly directions: InventoryAdjustmentDirection[] = ['Increase', 'Decrease'];
@@ -89,7 +103,14 @@ export class InventoryAdjustmentDetailPage {
 
   constructor() {
     this.catalogService.listAllProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
-    this.organizationsService.listWarehouses(this.organizationId).subscribe({ next: (w) => this.warehouses.set(w) });
+    this.organizationsService.listWarehouses(this.organizationId).subscribe({
+      next: (w) => {
+        this.warehouses.set(w);
+        // Phase 35a -- whichever of the two lists lands second completes the location's warehouse
+        // prefill; see `defaultWarehouseSeed`.
+        this.warehouseSeed.retry();
+      },
+    });
     this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
 
     this.route.paramMap.subscribe((params) => {
@@ -104,6 +125,7 @@ export class InventoryAdjustmentDetailPage {
         this.warehouseId.set('');
         this.date.set(this.today());
         this.reference.set('');
+        this.locationId.set('');
         this.lines.set([this.newLine()]);
       } else {
         this.load();
@@ -165,7 +187,7 @@ export class InventoryAdjustmentDetailPage {
 
     const request = {
       warehouseId: this.warehouseId(),
-      date: this.date(),
+      date: this.date(), locationId: this.locationId() || null,
       reference: this.reference() || null,
       lines,
     };
@@ -264,6 +286,7 @@ export class InventoryAdjustmentDetailPage {
         this.warehouseId.set(doc.warehouseId);
         this.date.set(doc.date);
         this.reference.set(doc.reference ?? '');
+        this.locationId.set(doc.locationId ?? '');
         this.lines.set(
           doc.lines.length > 0
             ? doc.lines.map((l) => ({

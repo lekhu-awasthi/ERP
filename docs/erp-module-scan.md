@@ -938,3 +938,115 @@ from Moonbeam in entitlements, which is what made it worth reading.
   seven-card default. Trial banner: "12 days remaining in your trial account. Upgrade now…" with a
   CONTACT US action — subscription expiry is a hard trial, not a plan purchase flow (phase 41's
   product decision has its first evidence).
+
+---
+
+## Confirm-live pass 3 on `cadehi.tigg.app` (2026-09-10, phase 35) — the location dimension, read exhaustively
+
+Read-only. Two modals opened and dismissed (New Product, Add New Location); one unsaved Add New
+Invoice form had its location picker switched and was navigated away from. Nothing saved, no row
+created, no setting changed.
+
+### Every report's filter bar, all 49 — a census, not a sample
+
+The reports index (`#/reports/new`) yields 49 anchors. Each was opened and its
+`.report-topbar-left-section` read. **43 carry a "Billing Location (All)" control; 6 do not:**
+
+| Without Billing Location | What it is |
+|---|---|
+| `vat-summary` — VAT Summary Report | an IRD return, filed once per PAN |
+| `tds-report` — TDS Report | an IRD return |
+| `annex-13-report` — Annex 13 Report | an IRD annex |
+| `ratio-analysis-report` — Ratio Analysis | ratios over the whole organization's statements |
+| `exceptional-report` — Exceptional Report | tenant-wide exception scan (its whole filter bar is a date range) |
+| `user-log` — User Log | login events; no document behind a row at all |
+
+**`annex-5-report` breaks the tax-report half of that pattern**: it *does* carry Billing Location,
+though it is as much an IRD annex as Annex 13. Recorded as observed, not reconciled — the sales-side
+annex has the filter and the purchase-side annex does not. Do not derive a rule that predicts
+otherwise; this is why the pass read all 49 rather than a family per group.
+
+**The consequence that matters: the accounting reports carry it too.** Trial Balance, Balance Sheet,
+Income Statement, Journal report, General Ledger Summary, Detail General Ledger, GL Master Report,
+Cash Flow Summary and Net Trading Assets all show `Billing Location All`. In this codebase those
+read `GlJournalEntry`, which **has no `LocationId`** — phase 32 put the column on the 15 documents
+plus the two opening-balance kinds and not on the GL entry. So a location filter on the accounting
+group is a schema question, not a query parameter (phase 35b).
+
+Other filter-bar facts worth carrying:
+
+- `sales-summary` carries a **`Group Wise location`** control beside its Billing Location filter — a
+  group-*by*-location, which no other report shows.
+- `inventory-moment-summary` (Inventory Ledger) has **both** Billing Location and Warehouse, so the
+  two are independent controls, not one standing in for the other.
+- **"Show Filters" reveals nothing.** It toggles the visibility of the filter row already described;
+  clicking it on Sales Master Report, Journal report, Sales Register, Inventory Position and Sales
+  Summary changed only its own label to "Hide Filters".
+- Three filters the roadmap carries from the Moonbeam read are **absent here**: Reporting Tags on the
+  Journal report, Reporting Tags and group-by-warehouse on Inventory Position, and Group By Bill /
+  Include Credit Note on the Sales Register. Cadehi's bars are date + Billing Location + Txn Type,
+  date + Billing Location + Product Category + Product, and date + Billing Location respectively.
+  Tenant- or entitlement-dependent; re-read on Moonbeam before building any of them.
+
+### `BillingLocation.WarehouseId` is a **default**, and the placeholder says so
+
+Phase 32 carried item #6 ("the live product's relationship between the two was not probed") is
+closed, by three observations that agree:
+
+1. **The Add New Location dialog's fourth field is `Warehouse *` with the placeholder
+   `Select Default Warehouse`.** Required on every user-created location. The word *Default* is the
+   answer.
+2. **Two of the three seeded locations have no warehouse at all.** The Features grid reads
+   `HO / HeadOffice / (no address) / Main Warehouse`, `1002 / POS Restaurant / — / —`,
+   `1003 / POS Retail / — / —`. So a location without a warehouse is a reachable state, and a
+   constraint would make those two locations unable to raise a stock document.
+3. **Switching the location on an open form does not touch the warehouse.** The New Invoice form
+   opened at `HeadOffice (HO)` with Warehouse = Main Warehouse; switching the header picker to
+   `POS Restaurant (1002)` — which has *no* warehouse — left Warehouse showing Main Warehouse,
+   uncleared and still editable.
+
+So: **a prefill when the form opens, never reactive to a later location change, and never a
+constraint on which warehouse may be chosen.** Undetermined, because this tenant has exactly one
+warehouse: whether the opening prefill comes from the location's default or simply from "the only
+warehouse there is". The two rules are indistinguishable here and separating them needs a second
+warehouse, i.e. a write.
+
+### A Product's Location selector is a checkbox multi-select, default All, not required
+
+`#/inventory/products` → `+ ADD NEW` → the New Product modal. Full field list: Type of Product\*
+(Goods/Services), Name\*, Code (auto `P0001`), Category\*, Tax, Primary Unit\*, HS Code,
+**Location**, Available For Sale, `+ Add More Details`, Save.
+
+The Location control is the same `dummy-multiselect-dropdown-new` widget the report filter bars use:
+a search box, **SELECT ALL / DESELECT ALL**, one checkbox per active location (HeadOffice, POS
+Restaurant, POS Retail), a **Reset to default** link and an **APPLY** button. It renders `All` when
+nothing is ticked, and carries **no required marker**.
+
+**What it restricts is still unobserved.** The Products list grid is `CODE/SKU | NAME | CATEGORY |
+TAX` — no LOCATION column and no location filter — so the selector is not there to drive the list.
+The plausible reading is that it filters the product picker on a document raised from a location,
+but separating that from "stored and unenforced" needs a product scoped to one location and an
+invoice raised at another, i.e. two writes on this tenant.
+
+### Every document list grid carries LOCATION in second position
+
+Sampled across four modules and all four agree, including Quotation (this tenant runs in All
+Transactions mode):
+
+| List | Columns |
+|---|---|
+| `#/sales/quotations` | CUSTOMER \| **LOCATION** \| QUOTE NO \| DATE \| AMOUNT \| EXPIRY DATE \| STAGE |
+| `#/sales/invoices` | CUSTOMER \| **LOCATION** \| INVOICE NO \| REFERENCE NO \| INVOICE DATE \| TOTAL |
+| `#/accounting/journal-voucher` | DATE \| **LOCATION** \| ENTRY NO \| REFERENCE \| ACCOUNT \| AMOUNT |
+| `#/purchases/purchases-bill` | SUPPLIER \| **LOCATION** \| BILL NO \| REFERENCE NO \| DATE \| TOTAL |
+| `#/inventory/warehouse-transfer` | DATE \| **LOCATION** \| ENTRY NO \| REFERENCE \| SOURCE WAREHOUSE \| DESTINATION WAREHOUSE |
+
+The list-level location filter is a **per-column funnel** on the LOCATION header, not a separate
+toolbar control — the same funnel CUSTOMER, INVOICE DATE and TOTAL carry.
+
+### The header picker is on the accounting forms too
+
+`#/accounting/journal-voucher/add` renders `HeadOffice (HO)` immediately left of Save, exactly as the
+Invoice form does — the All-Transactions scope reaches the accounting module, not only sales and
+purchase. Its body is `#JV | Date* | Reference | Currency | Exchange Rate To NPR* | Accounts grid |
+Note | + Add Reporting Tags`, with no location field anywhere in it.

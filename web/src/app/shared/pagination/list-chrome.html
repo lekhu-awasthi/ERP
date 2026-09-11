@@ -46,6 +46,18 @@
           </div>
         }
 
+        @if (locationDocumentType()) {
+          <div>
+            <span class="form-label small text-muted mb-1 d-block">Billing location</span>
+            <app-location-list-filter
+              [organizationId]="organizationId()"
+              [documentType]="locationDocumentType()"
+              [locationId]="locationId()"
+              (locationIdChange)="locationChange.emit($event)"
+            />
+          </div>
+        }
+
         @if (sortOptions().length > 0) {
           <div>
             <label class="form-label small text-muted mb-1" for="list-chrome-sort">Sort by</label>

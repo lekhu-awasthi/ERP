@@ -22,13 +22,22 @@ public sealed class ListProductOpeningBalancesQueryHandler(IAppDbContext db, ICu
         var allowedLocations = await LocationAccessScope.ForKeyAsync(
             db, currentUser, request.OrganizationId, request.PermissionKey, cancellationToken);
 
+        // Phase 35a -- composed onto the joined set; see the sibling
+        // ListAccountOpeningBalancesQueryHandler for why the folded `||` form was untranslatable on
+        // the unrestricted branch.
+        var openingLines = db.OpeningStockLines.Where(
+            x => x.OrganizationId == request.OrganizationId && x.WarehouseId == request.WarehouseId);
+
+        if (allowedLocations is not null)
+        {
+            openingLines = openingLines.Where(
+                x => x.LocationId != null && allowedLocations.Contains(x.LocationId.Value));
+        }
+
         var query =
             from product in db.Products
             join category in db.ProductCategories on product.CategoryId equals category.Id
-            join line in db.OpeningStockLines.Where(
-                    x => x.OrganizationId == request.OrganizationId && x.WarehouseId == request.WarehouseId
-                         && (allowedLocations == null
-                             || (x.LocationId != null && allowedLocations.Contains(x.LocationId.Value))))
+            join line in openingLines
                 on product.Id equals line.ProductId into lines
             from line in lines.DefaultIfEmpty()
             where product.OrganizationId == request.OrganizationId && product.TrackInventory

@@ -24,6 +24,7 @@ import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { TermsEditor } from '../../../shared/terms/terms-editor';
 import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
+import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 
 interface EditableLine {
   key: number;
@@ -41,7 +42,7 @@ let nextLineKey = 1;
  * Quotation. Approve posts CreditNotePostingRule's exact reverse of InvoicePostingRule. */
 @Component({
   selector: 'app-credit-note-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor, CurrencyRateFields, SendEmailDialog],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker],
   templateUrl: './credit-note-detail-page.html',
 })
 export class CreditNoteDetailPage {
@@ -79,6 +80,14 @@ export class CreditNoteDetailPage {
   protected readonly contactId = signal('');
   protected readonly date = signal(this.today());
   protected readonly reference = signal('');
+
+  /**
+   * Phase 35a (FR-2.3/FR-3.3) -- the billing location this document is raised from, shown by the
+   * header picker `app-document-location-picker` renders. Empty means "let the server pick the
+   * default", which `LocationResolver` turns into the tenant's HeadOffice, or into nothing when
+   * this document type is outside the tenant's `LocationScopeMode`.
+   */
+  protected readonly locationId = signal('');
   protected readonly terms = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
   protected readonly discountPct = signal(0);
@@ -147,6 +156,9 @@ export class CreditNoteDetailPage {
           this.contactId.set(template.contactId);
           this.date.set(template.date);
           this.reference.set(template.reference ?? '');
+          // Phase 35a -- a conversion keeps the source document's branch. Without this the new
+          // form's picker would fall back to the tenant default and move the document silently.
+          this.locationId.set(template.locationId ?? '');
           this.referrerType = template.referrerType;
           this.referrerId = template.referrerId;
           this.isLinkedToSource.set(true);
@@ -158,6 +170,7 @@ export class CreditNoteDetailPage {
           this.contactId.set('');
           this.date.set(this.today());
           this.reference.set('');
+        this.locationId.set('');
         this.currencyCode.set(BASE_CURRENCY_CODE);
         this.exchangeRate.set(1);
           this.terms.set('');
@@ -259,7 +272,7 @@ export class CreditNoteDetailPage {
 
       exchangeRate: this.exchangeRate(),
       contactId: this.contactId(),
-      date: this.date(),
+      date: this.date(), locationId: this.locationId() || null,
       reference: this.reference() || null,
       terms: this.terms() || null,
       referrerType: this.referrerType,
@@ -382,6 +395,7 @@ export class CreditNoteDetailPage {
         this.contactId.set(creditNote.contactId);
         this.date.set(creditNote.date);
         this.reference.set(creditNote.reference ?? '');
+        this.locationId.set(creditNote.locationId ?? '');
         this.currencyCode.set(creditNote.currencyCode);
         this.exchangeRate.set(creditNote.exchangeRate);
         this.terms.set(creditNote.terms ?? '');

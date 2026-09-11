@@ -43,6 +43,7 @@ public sealed class GetJournalVoucherQueryHandler(IAppDbContext db)
             journalVoucher.Lines.Select(x => new JournalVoucherLineDto(x.Id, x.AccountId, x.Debit, x.Credit, x.ContactId)).ToList(),
             glLines,
             journalVoucher.CurrencyCode,
-            journalVoucher.ExchangeRate);
+            journalVoucher.ExchangeRate,
+            journalVoucher.LocationId);
     }
 }

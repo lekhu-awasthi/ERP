@@ -65,6 +65,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 34a: WCAG 2.1 AA sweep + `a11y-sweep-guard.spec.ts`. Before adding a template, choosing a colour, or scripting an edit between two anchors — `docs/phase-34a-status.md`
 - Phase 34b: the shell on `NavigationCatalog` (zero page-template edits), Reports index, list chrome (search on 25 queries, date range on 16). Before a paginated list query, a displayed-but-unowned filter, or `overflow` on a layout container — `docs/phase-34b-status.md`
 - Phase 34c: scale (NFR-5.1/5.2) — the 50k-invoice dataset in `tools/scale/`, a p95 budget per class of screen, `TenantIndexConvention` (50 indexes from a rule), the shell `@defer`ed. Before adding an index, mapping a tenant-scoped entity, or quoting a performance number — `docs/phase-34c-status.md`
+- Phase 35a: ledger drill-down (`?accountId=` + a View Ledger row action) and the location picker/filter swept onto all 15 document forms and lists. Before adding a field to many aggregates at once, or trusting a gotcha's generalisation over an experiment — `docs/phase-35a-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -137,6 +138,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `EF.Functions.Like` cannot be translated by InMemory; write `String.Contains`, which SQL Server turns into the same `LIKE`.
 - An extraction is not done until the copies it replaced are deleted: `GrantedPermissionReader` said it had replaced two inlined joins and had not, so both missed phase-32b's `LocationId == null` filter and read a branch grant as organization-wide. Before writing copy N+1 of a pattern, grep that copies 1..N were retired (phase-33).
 - An expression tree does not short-circuit, so `!flag || list.Contains(x)` hands EF a **null** list to translate — and only on the unrestricted branch, i.e. almost every caller. Compose a second `.Where()` (phase-33).
+- …but that generalises only to a captured **bool**: `collection == null || collection.Contains(x)` is funcletized to a constant and folded away, and returns 200 on SQL Server. Compose anyway; don't call an instance of it broken without running it (phase-35a, correcting phase-33).
 - A shared matcher cannot live inside a LINQ predicate: a **static call** is untranslatable and so is `Contains(term, StringComparison)` — and InMemory evaluates both in C#, so every handler test passes while all 25 endpoints 500 (phase-34b, phase-25's captured-`Func` through another door).
 - Single-argument `Contains` is case-**insensitive** on SQL Server (collation) and case-**sensitive** on InMemory; a handler test must search with the stored casing or it pins a behaviour production lacks (phase-34b).
 - Every tenant-scoped table needs an index **leading on `OrganizationId`**; 18 had none, and they were exactly the documents, because master data got one free from its per-tenant uniqueness rule. `TenantIndexConvention` derives all three families and throws at model build for an entity it cannot classify (phase-34c).
@@ -201,6 +203,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 - A trailing optional parameter added to a command reaches nothing until the Api's own request record carries it too — it compiles, every test passes, and the field binds silently to `null` (phase-27b's `Terms`).
 - The mirror of that on the read side: a **list** query returning the aggregate exposes a new field for free, while a **detail** query projecting a DTO drops it silently — the write path looks perfect and the form can never show the stored value (phase-32's `GetInvoiceQuery`, caught only by an E2E that re-read what it wrote).
+- That read-side gap is the default, not the exception: phase 32's write-path sweep guard stayed green while **14 of 15 detail DTOs and all 5 conversion templates** dropped the same field, so a form stored a branch, never showed it, and overwrote it on the next save. Adding a field to many aggregates owes three assertions — write, read, and every prefill between (phase-35a).
 
 **Angular**
 - A component serving both `.../new` and `.../:id` must read the id from `route.paramMap` (an Observable) and re-derive "is new" on every emission (phase-3 bug #1).
@@ -209,6 +212,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Never bind `[value]` on a signal-fed native `<select>`; bind `[selected]` per `<option>` — this persisted wrong `WarehouseId`s, not just display glitches (phase-5/6/7).
 - Footer totals on paginated screens come from a server-computed field over the full filtered set, never a client-side reduce over one page (phase-16c bug #1).
 - The app is zoneless: a `computed()` over a plain `FormControl.value` caches forever; track UI-driving values in their own `signal()` written by the control's event handler (phase-17).
+- A cached signal created lazily inside a `computed()` throws `NG0600` the moment its source resolves **synchronously** (a test double); real HTTP hides it. `untracked()` the subscribe and the writes (phase-35a's `BillingLocationStore`).
 - Bootstrap's JavaScript is not loaded anywhere (`angular.json` has no `scripts`), so `data-bs-toggle` does nothing; drive menus from a signal (phase-22).
 - A `.dropdown-menu` inside `.table-responsive` is clipped by the implied `overflow-y`; render it `position: fixed` at coordinates captured on open (phase-22).
 - A pipe rendering from a global signal with an unchanging argument must be `pure: false` and memoize internally (`NepaliDatePipe`, phase-23).
@@ -250,6 +254,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A fresh Organization has zero Accounts and zero Account Groups — nothing seeds a chart of accounts — so any E2E needing a Journal Voucher, Cash Transfer, Payment or Expense line must `POST` its own account groups (one per `AccountRootType`, spelled `Asset`/`Liability`/`Equity`/`Income`/`Expense` — singular, unlike the plural `rootType` groupings a list response returns them under) before it can create an account (phase-27a).
 - `identity` is a reserved word in T-SQL — reading a verification code needs `[identity].VerificationCodes`, and every document-scoped 403 proof needs a Member user, which needs that code (phase-28).
 - `tsc --noEmit -p tsconfig.json` does not typecheck `web/src/app`; it came back clean while `ng build` reported 22 `TS2339` errors. `ng build` is the real check (phase-28).
+- Run `ng test` from `web/`, never as `npx --prefix web ng test` from the root: `a11y-sweep-guard.spec.ts` reads `src/styles.scss` via `process.cwd()` and fails for the wrong reason (phase-35a).
+- `POST /accounts`'s `kind` is `Other`/`Bank`/`Cash`; `POST /organizations` needs `accountingStartDate` + `workspaceName` and takes the entitlement flags directly; `POST /auth/register` needs `phone`; `grants` is a dictionary but `locationGrants` is a **list** of `{locationId, grants}`; master-data lists are paged, so it is `['items'][0]['id']` (phase-35a).
 - A Goods line consumes stock regardless of `TrackInventory`, so on a tenant without that feature a Goods product cannot be invoiced at all (403 on opening stock, 409 on approve); seed a **Service** line when an E2E just needs an approved sales document (phase-30).
 - curl cannot read a file for `-F` upload here — every path form gives exit 26 and HTTP `000`, which reads like a server fault; drive the file leg from a short Python `urllib` script (phase-30).
 - `POST /api/organizations` needs `industry` and a non-empty `turnstileToken`; accept-invitation is `/api/organizations/memberships/{id}/accept-invitation` with no org segment (with one, a 404 leaves the membership `Invited`); units are `/units-of-measurement` (`shortName`); credit terms are under `/configuration/` (phase-31).
@@ -260,6 +266,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 **Tooling and shell**
 - `nvm use` from a shell that cannot create the symlink deletes `C:\nvm4w\nodejs` and reports success; recreate it with `cmd /c 'mklink /J "C:\nvm4w\nodejs" "%LOCALAPPDATA%\nvm\v24.11.0"'`.
 - A `cat > file <<'EOF'` heredoc in the Bash tool is silently truncated or mis-parsed well below the ~8 KB figure; use the Write tool, or write a small patch script and run it (phase-26a).
+- A script inserting an import after "the last `
+import ` line" lands *inside* a multi-line `import { … }` block; anchor on the statement's closing line (phase-35a).
 - A lazy `.*?` between two anchors spans the instances in between (it expands past `</label>` to reach a later match), silently merging them; exclude the closing marker — `((?:(?!</label>).)*?)`. The tell is two independent counts disagreeing, so derive the expected number a second way (phase-34a, on top of phase-32's assert-before-writing rule).
 - A positional derivation (column index → header text) is *confidently wrong* where the position lies — a `colspan` cell, a cell with its own label. A wrong accessible name is worse than none; audit for the shapes the first pass cannot see (phase-34a).
 - In the browser pane the **screenshot is ground truth**: after a viewport resize, `getComputedStyle`/`getBoundingClientRect` can lag the rendering (a drawer measured on-screen while the screenshot showed it tucked away). Reload after emulating a viewport (phase-34b).
@@ -272,27 +280,35 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0–34c are complete.** 34c closed the parity sequence by measuring: a 50,000-invoice /
-50,000-contact / 20,000-product tenant seeded by direct `INSERT` (`tools/scale/`, committed), a p95
-budget per class of screen (500 ms for a list page or the search box, 2 s for a statement or a
-register), and 50 indexes derived from a rule rather than a list. `TenantIndexConvention` found
-**18 tenant-scoped tables with no index leading on `OrganizationId`** — exactly the transactional
-documents plus `GlJournalEntry`, because master data got one free from its per-tenant uniqueness rule.
-List first pages went **469 ms → 49–97 ms**; the shell was `@defer`ed for **724 kB → 649 kB**. Three
-things outlive that: an index added for the list path made *search* on the same table worse; a
-plausible multi-tenancy inference was refused by a second-tenant experiment; and the report layer's
-cost is the **period**, not `pageSize`.
+**Phases 0–34c and 35a are complete.** Phase 35 was split with the user after a survey showed it
+was two phases: **35a** (done) is the ledger drill-down plus the document-side location sweep;
+**35b** is the report half. 35a gave Detail General Ledger an `?accountId=` parameter and reached it
+from a **View Ledger** row action on the Chart of Accounts and from a global-search Account hit
+(phase-33 carried item #1 closed — the reference product has no per-account page either), extracted
+the location picker into `app-document-location-picker` and swept it onto **all 15 document forms**,
+put the LOCATION cell and a Billing Location filter on **all 15 lists** through `ListChrome` /
+`ListFilter`, and made `BillingLocation.WarehouseId` a real prefill.
 
-**Next: phases 35–41 in `docs/roadmap.md`** — the 2026-09-10 consolidation plan built from the
-carried-item backlog of phases 25–34b plus the second reference tenant (`cadehi.tigg.app`, findings
-in `docs/erp-module-scan.md`). 34c answers the three questions 38/39/40 leave to it: the export cap's
-condition is met (raise the cap before writing a SAX writer — ~2.5 kB of working set per row is the
-coefficient), global search's cap of 5 does bite, and the shell `@defer` is already done.
+The defect it existed to find: phase 32's write-path sweep guard was green while **14 of 15 detail
+DTOs and all 5 conversion templates dropped `LocationId` on the way back out** — every one of those
+forms could store a branch, never show it, and overwrite it on the next save. Two other things
+outlive the phase: five handlers matching `known-gotchas.md`'s forbidden `x == null || …` predicate
+turned out **not** to be broken on SQL Server (the gotcha's generalisation is narrower than written,
+and only injecting the old shape and running it showed that); and a confirm-live **census** of all
+49 report screens — not one per group — is what made its six exceptions trustworthy, one of which
+(Annex 5) breaks the obvious rule.
 
-Tests: Domain 443, Application.UnitTests 931, Api.IntegrationTests 18, Angular 273. `dotnet build` /
+**Next: phase 35b, then 36–41 in `docs/roadmap.md`.** 35b owns the report half, and its first
+decision is the one 35a surfaced: **43 of 49 live reports carry a Billing Location filter, including
+every GL report, and `GlJournalEntry` has no `LocationId`** — either it gains one stamped at post
+time, or every GL report joins back across 11 source types. Also 35b's: the Sales Master Report's
+filter still has no UI (server-side since phase 32), Product-to-location, and three filters that
+were absent on Cadehi and need re-reading on Moonbeam first.
+
+Tests: Domain 443, Application.UnitTests 969, Api.IntegrationTests 18, Angular 283. `dotnet build` /
 `dotnet test` / `ng build` / `ng test` all clean. `ng build` still warns the initial bundle exceeds
-its 500 kB budget (pre-existing, now 649 kB). `tsc --noEmit` does not cover `web/src/app`; `ng build`
-is the check (phase-28).
+its 500 kB budget (pre-existing, 649 kB). `tsc --noEmit` does not cover `web/src/app`; `ng build` is
+the check (phase-28), and `ng test` must be run from `web/` (phase-35a).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

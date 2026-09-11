@@ -160,6 +160,7 @@ export interface JournalVoucher {
   approvedByUserId: string | null;
   approvedAt: string | null;
   createdAt: string;
+  locationId: string | null;
 }
 
 export interface JournalVoucherLineDto {
@@ -193,6 +194,7 @@ export interface JournalVoucherDetail {
   createdAt: string;
   lines: JournalVoucherLineDto[];
   glLines: PostedGlLineDto[] | null;
+  locationId: string | null;
 }
 
 export interface JournalVoucherRequest {
@@ -202,6 +204,9 @@ export interface JournalVoucherRequest {
   date: string;
   reference: string | null;
   lines: JournalVoucherLineInput[];
+  /** Phase 32/35a -- omitting it (or null) means "the tenant's default location", which the server
+   * resolves to HeadOffice, or to nothing when this document type is out of the tenant's scope. */
+  locationId?: string | null;
 }
 
 export interface CreateJournalVoucherResult {
@@ -248,6 +253,7 @@ export interface CashTransfer {
   approvedByUserId: string | null;
   approvedAt: string | null;
   createdAt: string;
+  locationId: string | null;
 }
 
 export interface CashTransferLineDto {
@@ -273,6 +279,7 @@ export interface CashTransferDetail {
   createdAt: string;
   lines: CashTransferLineDto[];
   glLines: PostedGlLineDto[] | null;
+  locationId: string | null;
 }
 
 export interface CashTransferRequest {
@@ -283,6 +290,9 @@ export interface CashTransferRequest {
   reference: string | null;
   fromAccountId: string;
   lines: CashTransferLineInput[];
+  /** Phase 32/35a -- omitting it (or null) means "the tenant's default location", which the server
+   * resolves to HeadOffice, or to nothing when this document type is out of the tenant's scope. */
+  locationId?: string | null;
 }
 
 export interface CreateCashTransferResult {

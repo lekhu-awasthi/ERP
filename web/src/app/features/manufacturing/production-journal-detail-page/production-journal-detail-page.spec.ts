@@ -33,6 +33,7 @@ describe('ProductionJournalDetailPage', () => {
       unitName: 'pc',
       outputQuantity: 10,
       warehouseId: 'w-1',
+      locationId: null,
       billOfMaterialsId: null,
       notes: null,
       status: 'Approved',
@@ -96,7 +97,22 @@ describe('ProductionJournalDetailPage', () => {
         provideRouter([]),
         { provide: ManufacturingService, useValue: manufacturingService },
         { provide: CatalogService, useValue: { listAllProducts: () => of([]) } },
-        { provide: OrganizationsService, useValue: { listWarehouses: () => of([]) } },
+        {
+          // Phase 35a put the shared billing-location picker in every document form's header, and
+          // it reads both of these the moment it renders.
+          provide: OrganizationsService,
+          useValue: {
+            listWarehouses: () => of([]),
+            listBillingLocations: () => of([]),
+            getBillingLocationSettings: () =>
+              of({
+                locationScopeMode: 'SalesTransactionsOnly',
+                locationWiseReportPermission: false,
+                multipleLocationsEnabled: false,
+                locationBearingDocumentTypes: [],
+              }),
+          },
+        },
         { provide: AccountingService, useValue: { listAllAccounts: () => of([{ id: 'acc-inventory', code: '1200', name: 'Inventory' }]) } },
         {
           // Phase 27a put a custom-fields editor and a reporting-tags editor on this page, and both

@@ -62,6 +62,16 @@
             <h1 class="h4 fw-bold mb-1 text-dark">
               {{ isNew() ? 'New Production Journal' : journal()?.code }}
             </h1>
+    <!-- Phase 35a -- the billing location picker the reference product renders in the document
+         HEADER (confirmed live on Invoice 2026-09-07 and on Journal Voucher 2026-09-10). Renders
+         nothing when this type is outside the tenant's location scope. -->
+    <app-document-location-picker
+      [organizationId]="organizationId"
+      documentType="ProductionJournal"
+      [disabled]="!isDraft()"
+      [(locationId)]="locationId"
+      (defaultWarehouseId)="warehouseSeed.offer($event)"
+    />
             @if (journal(); as doc) {
               <span class="text-muted small">
                 Created {{ doc.createdAt | date: 'medium' }}

@@ -23,9 +23,24 @@ public sealed class ListProductionOrdersQueryHandler(IAppDbContext db, ICurrentU
         // sibling ListProductionJournalsQueryHandler for why that ordering is deliberate.
         var orders = db.ProductionOrders
             .Where(x => x.OrganizationId == request.OrganizationId)
-            .Where(x => request.Status == null || x.Status == request.Status)
-            .Where(x => allowedLocations == null
-                || (x.LocationId != null && allowedLocations.Contains(x.LocationId.Value)));
+            .Where(x => request.Status == null || x.Status == request.Status);
+
+        // Phase 35a -- a composed second `Where`, not `allowedLocations == null || …` folded into
+        // the predicate above. An expression tree does not short-circuit, so the `||` form hands EF
+        // a **null** list to translate on the unrestricted branch, which is almost every caller
+        // (known-gotchas.md, phase 33). This handler shipped with the folded form in phase 32b and
+        // no InMemory test could see it.
+        if (allowedLocations is not null)
+        {
+            orders = orders.Where(x => x.LocationId != null && allowedLocations.Contains(x.LocationId.Value));
+        }
+
+        // Phase 35a -- the user's own Billing Location filter, independent of the permission scope
+        // above: a caller may hold every location and still want one branch's rows.
+        if (request.LocationId is { } locationId)
+        {
+            orders = orders.Where(x => x.LocationId == locationId);
+        }
 
         if (SearchTerm.Normalize(request.Search) is { } term)
         {
@@ -48,7 +63,7 @@ public sealed class ListProductionOrdersQueryHandler(IAppDbContext db, ICurrentU
             orderby order.CreatedAt descending
             select new ProductionOrderListItemDto(
                 order.Id, order.Code, order.Date, order.Reference, order.ProductId, product.Name,
-                order.OutputQuantity, order.Status, order.CustomStatusId);
+                order.OutputQuantity, order.Status, order.CustomStatusId, order.LocationId);
 
         return await query.ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
     }

@@ -28,4 +28,9 @@ public sealed record InvoiceConversionTemplateDto(
     DocumentType ReferrerType,
     Guid ReferrerId,
     decimal DiscountPct,
-    IReadOnlyList<InvoiceLineInput> Lines);
+    IReadOnlyList<InvoiceLineInput> Lines,
+    // Phase 35a -- the source document's billing location, carried into the prefill. Without it a
+    // Quotation raised at a branch converted to an Invoice at HeadOffice, silently, because the new
+    // form's picker falls back to the tenant default. Same shape as the currency the conversion
+    // flow already carries verbatim.
+    Guid? LocationId);

@@ -27,6 +27,14 @@ public sealed class ListPurchaseOrdersQueryHandler(IAppDbContext db, ICurrentUse
             query = query.Where(x => x.LocationId != null && allowedLocations.Contains(x.LocationId.Value));
         }
 
+        // Phase 35a -- the user's own Billing Location filter, applied on top of the permission
+        // scope above rather than instead of it: a caller restricted to two branches who picks one
+        // of them sees that branch, and one who picks a third sees nothing.
+        if (request.LocationId is { } locationId)
+        {
+            query = query.Where(x => x.LocationId == locationId);
+        }
+
         if (request.Status is { } status)
         {
             query = query.Where(x => x.Status == status);

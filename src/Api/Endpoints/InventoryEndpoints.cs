@@ -71,10 +71,10 @@ public static class InventoryEndpoints
     private static void MapWarehouseTransferEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/warehouse-transfers", async (
-            Guid organizationId, WarehouseTransferStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, ISender sender, CancellationToken ct) =>
+            Guid organizationId, WarehouseTransferStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListWarehouseTransfersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate), ct);
+                new ListWarehouseTransfersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId), ct);
             return Results.Ok(result);
         });
 
@@ -126,10 +126,10 @@ public static class InventoryEndpoints
     {
         group.MapGet("/inventory-adjustments", async (
             Guid organizationId, InventoryAdjustmentStatus? status, int? page, int? pageSize,
-            string? search, DateOnly? fromDate, DateOnly? toDate, ISender sender, CancellationToken ct) =>
+            string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListInventoryAdjustmentsQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate), ct);
+                new ListInventoryAdjustmentsQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId), ct);
             return Results.Ok(result);
         });
 

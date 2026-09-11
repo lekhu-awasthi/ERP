@@ -146,10 +146,10 @@ public static class AccountingEndpoints
     private static void MapJournalVoucherEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/journal-vouchers", async (
-            Guid organizationId, JournalVoucherStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, ISender sender, CancellationToken ct) =>
+            Guid organizationId, JournalVoucherStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListJournalVouchersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate), ct);
+                new ListJournalVouchersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId), ct);
             return Results.Ok(result);
         });
 
@@ -208,10 +208,10 @@ public static class AccountingEndpoints
     private static void MapCashTransferEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/cash-transfers", async (
-            Guid organizationId, CashTransferStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, ISender sender, CancellationToken ct) =>
+            Guid organizationId, CashTransferStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListCashTransfersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate), ct);
+                new ListCashTransfersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId), ct);
             return Results.Ok(result);
         });
 

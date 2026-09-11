@@ -47,6 +47,7 @@ public sealed class GetCreditNoteQueryHandler(IAppDbContext db) : IRequestHandle
                 x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount)).ToList(),
             glLines,
             creditNote.CurrencyCode,
-            creditNote.ExchangeRate);
+            creditNote.ExchangeRate,
+            creditNote.LocationId);
     }
 }

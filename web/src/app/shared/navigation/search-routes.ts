@@ -32,10 +32,18 @@ const DOCUMENT_ROUTES: Readonly<Record<SearchDocumentType, readonly string[]>> =
 /**
  * The router link for one hit, or null when the app has no screen to open it on.
  *
- * The only null today is an Account: the Chart of Accounts has a list screen but no per-account
- * detail page, so an account hit is rendered without a link rather than pointed at a list of 175
- * rows pretending to be the one you asked for. Recorded as a carried item in phase-33-status.md —
- * the reference product does have somewhere to go here (its result row offers "View Ledger").
+ * <b>Phase 35a closed the one null.</b> Phase 33 left an Account hit unlinked — "no detail page" —
+ * because the Chart of Accounts has a list and nothing per account. The answer was not to build
+ * that page: the reference product does not have one either, and what its result row offers is a
+ * **View Ledger** action (module scan, global-search section: "Contacts and Accounts additionally
+ * carry a View Ledger quick-action button inside the result row"). So an Account resolves to the
+ * Detail General Ledger with the account already chosen, which is the same destination the Chart of
+ * Accounts row action now uses. See docs/phase-35a-status.md Decision A.
+ *
+ * A Contact keeps its own detail page as the primary target: it has one, and its Overview tab has
+ * carried a "View Full Statement" link to that contact's ledger since phase 10. The live row's
+ * second button is deliberately not reproduced here — the results list is an ARIA `listbox` and an
+ * interactive control inside a `role="option"` breaks the combobox pattern phase 33 built.
  */
 export function hitRouterLink(organizationId: string, hit: GlobalSearchHitDto): unknown[] | null {
   const prefix = ['/organizations', organizationId];
@@ -48,7 +56,7 @@ export function hitRouterLink(organizationId: string, hit: GlobalSearchHitDto): 
       return [...prefix, 'products', hit.id];
 
     case 'Account':
-      return null;
+      return [...prefix, 'reports', 'detail-general-ledger'];
 
     case 'Document': {
       if (!hit.documentType) {
@@ -73,6 +81,15 @@ export function hitRouterLink(organizationId: string, hit: GlobalSearchHitDto): 
  */
 function paymentRoute(direction: string | null): readonly string[] {
   return direction === 'Paid' ? ['purchasing', 'supplier-payments'] : ['payments'];
+}
+
+/**
+ * Phase 35a -- the query parameters a hit's route needs, or undefined. Only an Account has any: its
+ * destination is a report, and the account it is a report *of* rides in the url the way
+ * `customer-statement`'s subject has since phase 10.
+ */
+export function hitQueryParams(hit: GlobalSearchHitDto): Record<string, string> | undefined {
+  return hit.collection === 'Account' ? { accountId: hit.id } : undefined;
 }
 
 /** The second line of a result row: the sub-kind for master data, the document type for a document. */

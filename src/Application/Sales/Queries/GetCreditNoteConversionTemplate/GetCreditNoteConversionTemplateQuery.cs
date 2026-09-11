@@ -18,4 +18,9 @@ public sealed record GetCreditNoteConversionTemplateQuery(Guid OrganizationId, G
 
 public sealed record CreditNoteConversionTemplateDto(
     Guid ContactId, DateOnly Date, string? Reference, DocumentType ReferrerType, Guid ReferrerId, decimal DiscountPct,
-    IReadOnlyList<CreditNoteLineInput> Lines);
+    IReadOnlyList<CreditNoteLineInput> Lines,
+    // Phase 35a -- the source document's billing location, carried into the prefill. Without it a
+    // Quotation raised at a branch converted to an Invoice at HeadOffice, silently, because the new
+    // form's picker falls back to the tenant default. Same shape as the currency the conversion
+    // flow already carries verbatim.
+    Guid? LocationId);

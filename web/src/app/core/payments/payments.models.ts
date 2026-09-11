@@ -24,6 +24,7 @@ export interface Payment {
   approvedByUserId: string | null;
   approvedAt: string | null;
   createdAt: string;
+  locationId: string | null;
 }
 
 export interface PaymentAllocationDto extends PaymentAllocationInput {
@@ -60,6 +61,9 @@ export interface PaymentRequest {
   reference: string | null;
   allocations: PaymentAllocationInput[];
   chequeDetails?: ChequeDetailsInput | null;
+  /** Phase 32/35a -- omitting it (or null) means "the tenant's default location", which the server
+   * resolves to HeadOffice, or to nothing when this document type is out of the tenant's scope. */
+  locationId?: string | null;
 }
 
 export interface CreatePaymentResult {

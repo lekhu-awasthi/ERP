@@ -25,6 +25,7 @@ import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
 import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
+import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 
 interface EditableLine {
   key: number;
@@ -45,7 +46,7 @@ let nextLineKey = 1;
  * so a full reversal nets Accounts Payable and TDS Payable back to zero. */
 @Component({
   selector: 'app-debit-note-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker],
   templateUrl: './debit-note-detail-page.html',
 })
 export class DebitNoteDetailPage {
@@ -85,6 +86,14 @@ export class DebitNoteDetailPage {
   protected readonly contactId = signal('');
   protected readonly date = signal(this.today());
   protected readonly reference = signal('');
+
+  /**
+   * Phase 35a (FR-2.3/FR-3.3) -- the billing location this document is raised from, shown by the
+   * header picker `app-document-location-picker` renders. Empty means "let the server pick the
+   * default", which `LocationResolver` turns into the tenant's HeadOffice, or into nothing when
+   * this document type is outside the tenant's `LocationScopeMode`.
+   */
+  protected readonly locationId = signal('');
   protected readonly tdsTypeId = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
   protected readonly discountPct = signal(0);
@@ -154,6 +163,9 @@ export class DebitNoteDetailPage {
           this.contactId.set(template.contactId);
           this.date.set(template.date);
           this.reference.set(template.reference ?? '');
+          // Phase 35a -- a conversion keeps the source document's branch. Without this the new
+          // form's picker would fall back to the tenant default and move the document silently.
+          this.locationId.set(template.locationId ?? '');
           this.tdsTypeId.set(template.tdsTypeId ?? '');
           this.referrerType = template.referrerType;
           this.referrerId = template.referrerId;
@@ -166,6 +178,7 @@ export class DebitNoteDetailPage {
           this.contactId.set('');
           this.date.set(this.today());
           this.reference.set('');
+        this.locationId.set('');
           this.currencyCode.set(BASE_CURRENCY_CODE);
           this.exchangeRate.set(1);
           this.tdsTypeId.set('');
@@ -252,7 +265,7 @@ export class DebitNoteDetailPage {
 
       exchangeRate: this.exchangeRate(),
       contactId: this.contactId(),
-      date: this.date(),
+      date: this.date(), locationId: this.locationId() || null,
       reference: this.reference() || null,
       tdsTypeId: this.tdsTypeId() || null,
       referrerType: this.referrerType,
@@ -375,6 +388,7 @@ export class DebitNoteDetailPage {
         this.contactId.set(debitNote.contactId);
         this.date.set(debitNote.date);
         this.reference.set(debitNote.reference ?? '');
+        this.locationId.set(debitNote.locationId ?? '');
         this.currencyCode.set(debitNote.currencyCode);
         this.exchangeRate.set(debitNote.exchangeRate);
         this.tdsTypeId.set(debitNote.tdsTypeId ?? '');

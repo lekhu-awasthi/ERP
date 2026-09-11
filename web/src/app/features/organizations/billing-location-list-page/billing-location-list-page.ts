@@ -10,6 +10,7 @@ import {
   LocationScopeMode,
   Warehouse,
 } from '../../../core/organizations/organizations.models';
+import { BillingLocationStore } from '../../../shared/locations/billing-location-store';
 
 /**
  * Phase 32 (FR-2.3/FR-3.3) -- Organization > Features > Billing Location, as read live on
@@ -38,6 +39,7 @@ import {
 export class BillingLocationListPage {
   private readonly route = inject(ActivatedRoute);
   private readonly organizationsService = inject(OrganizationsService);
+  private readonly locationStore = inject(BillingLocationStore);
   private readonly fb = inject(FormBuilder);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
@@ -173,6 +175,9 @@ export class BillingLocationListPage {
         next: (updated) => {
           this.settings.set(updated);
           this.savingSettings.set(false);
+          // Phase 35a -- the scope mode decides which document types show a picker at all, and the
+          // store caches the resolved list; flipping the radio must reach every form.
+          this.locationStore.invalidate(this.organizationId);
         },
         error: (err: unknown) => {
           this.savingSettings.set(false);
@@ -185,6 +190,12 @@ export class BillingLocationListPage {
 
   private onSaved(): void {
     this.saving.set(false);
+
+    // Phase 35a -- this screen is the only writer of billing locations, and every document form,
+    // list filter and LOCATION cell in the app now reads them through one cached store. Without
+    // this, a location added here would be invisible everywhere else until a full page reload.
+    this.locationStore.invalidate(this.organizationId);
+
     this.startCreate();
     this.load();
   }

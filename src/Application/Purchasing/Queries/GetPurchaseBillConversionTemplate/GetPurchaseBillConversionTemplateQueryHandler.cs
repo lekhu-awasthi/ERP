@@ -35,6 +35,7 @@ public sealed class GetPurchaseBillConversionTemplateQueryHandler(IAppDbContext 
             DocumentType.PurchaseOrder,
             purchaseOrder.Id,
             purchaseOrder.DiscountPct,
-            lines);
+            lines,
+            purchaseOrder.LocationId);
     }
 }

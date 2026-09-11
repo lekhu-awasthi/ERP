@@ -26,6 +26,7 @@ import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-cus
 import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
+import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 
 interface EditableAllocation {
   key: number;
@@ -41,7 +42,7 @@ let nextAllocationKey = 1;
  * confirmed in erp-module-scan.md's hands-on pass. */
 @Component({
   selector: 'app-payment-detail-page',
-  imports: [RouterLink, DatePipe, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, SendEmailDialog],
+  imports: [RouterLink, DatePipe, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker],
   templateUrl: './payment-detail-page.html',
 })
 export class PaymentDetailPage {
@@ -86,6 +87,14 @@ export class PaymentDetailPage {
   protected readonly accountId = signal('');
   protected readonly amount = signal(0);
   protected readonly reference = signal('');
+
+  /**
+   * Phase 35a (FR-2.3/FR-3.3) -- the billing location this document is raised from, shown by the
+   * header picker `app-document-location-picker` renders. Empty means "let the server pick the
+   * default", which `LocationResolver` turns into the tenant's HeadOffice, or into nothing when
+   * this document type is outside the tenant's `LocationScopeMode`.
+   */
+  protected readonly locationId = signal('');
   protected readonly allocations = signal<EditableAllocation[]>([]);
 
   protected readonly printing = signal(false);
@@ -137,6 +146,7 @@ export class PaymentDetailPage {
         this.accountId.set('');
         this.amount.set(0);
         this.reference.set('');
+        this.locationId.set('');
         this.currencyCode.set(BASE_CURRENCY_CODE);
         this.exchangeRate.set(1);
         this.allocations.set([]);
@@ -262,7 +272,7 @@ export class PaymentDetailPage {
       exchangeRate: this.exchangeRate(),
       contactId: this.contactId(),
       direction: 'Received' as const,
-      date: this.date(),
+      date: this.date(), locationId: this.locationId() || null,
       paymentModeId: this.paymentModeId() || null,
       accountId: this.accountId(),
       amount: this.amount(),
@@ -374,6 +384,7 @@ Approve anyway?`)) {
         this.accountId.set(payment.accountId);
         this.amount.set(payment.amount);
         this.reference.set(payment.reference ?? '');
+        this.locationId.set(payment.locationId ?? '');
         this.currencyCode.set(payment.currencyCode);
         this.exchangeRate.set(payment.exchangeRate);
         this.allocations.set(

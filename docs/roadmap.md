@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–34b)
+## Completed phases (0–35a)
 
 Detail lives in each phase's own status doc — this table is the index, not the history.
 
@@ -66,6 +66,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 34a | WCAG 2.1 AA sweep over all 161 templates (titles, control names, `th scope`, icon names, contrast), pinned by `a11y-sweep-guard.spec.ts` | `phase-34a-status.md` |
 | 34b | The shell (left nav, Create New flyout, company switcher, global date filter) on `NavigationCatalog` with zero page-template edits, a Reports index page, search on 25 `List*Query` types and a date range on 16 | `phase-34b-status.md` |
 | 34c | Scale (NFR-5.1/5.2): the 50,000-invoice dataset seeded by direct `INSERT` (`tools/scale/`), a p95 budget per class of screen, and **50 indexes from a rule** — `TenantIndexConvention` found **18 tenant-scoped tables with no index leading on `OrganizationId`**, exactly the transactional documents plus `GlJournalEntry`, because every other table got one free from its per-tenant uniqueness rule. List first pages **469 ms → 49 ms**; the shell `@defer`ed for **724 kB → 649 kB**. Three findings outlive the speed-up: an index added for one access path made *search* on the same table worse; a plausible multi-tenancy inference (`GlLine` has no tenant column, so statements must pay for other tenants) was **refused by a second-tenant experiment**; and the report layer's cost is the **period**, not the page size — with `JournalReportQueryHandler` already in the repo as the shape that fixes it. The export cap's re-entry condition is **met by specification** and the constant deliberately unchanged | `phase-34c-status.md` |
+| 35a | Ledger drill-down (`?accountId=` + a View Ledger row action closing phase-33 #1) and the location dimension on documents: the picker extracted and swept onto all 15 forms, the LOCATION cell and filter onto all 15 lists via `ListChrome`/`ListFilter`, `BillingLocation.WarehouseId` as a prefill. Found phase 32's read-path gap — **14 of 15 detail DTOs and all 5 conversion templates dropped `LocationId`** — and corrected a `known-gotchas.md` generalisation by experiment | `phase-35a-status.md` |
 
 ---
 
@@ -125,24 +126,63 @@ The one new external input is the second reference tenant, `cadehi.tigg.app`, **
 Billing Location enabled, which settled three phase-32 questions, showed the inventory-tracking-mode
 setting Moonbeam lacks, and showed no native batch/lot/serial tracking despite the login banner.
 
-**Ordering rule.** Bugs and consistency fixes first (35–36), Domain-invariant changes next (37),
+**Ordering rule.** Bugs and consistency fixes first (35a/35b–36), Domain-invariant changes next (37),
 then breadth (38–39), then the two passes that need a person or a product decision (40–41).
 
-### 35. Ledger drill-down and the location dimension everywhere
-- **An Account or Contact hit in global search has nowhere to go** (phase 33 #1): give Detail
-  General Ledger an account route parameter and Contact Statement a contact one, link both from
-  search results and from a **View Ledger** row action on Chart of Accounts (the reference product's).
-- **Location reaches every report and picker** (phase 32 #2/#4/#6, 32b #1): the location
-  filter/column on the remaining registers and Master reports (which also makes 32b's row-scoping
-  real for them), the header picker on Sales Order, Credit Note and the eleven All-Transactions
-  types, and `BillingLocation.WarehouseId` defaulting a document's warehouse. **Quotation's
-  membership of the sales-only scope** (32 #3) is settled: Cadehi's own label names Invoice, Sales
-  Order, POS and Credit Note, and Quotation shows the picker only under All Transactions — the
-  exclusion stands. New from the same read: **a Product carries a Location selector** (multi-select,
-  default All), so product-to-location scoping joins this phase.
-- Report filters seen live and not built: Reporting Tags on the Journal report (26a), Reporting
-  Tags and group-by-warehouse on Inventory Position (26c), **Group By Bill** and the Include Credit
-  Note toggle on the Sales Register (31 #7, 26c). Each is a query parameter over an existing reader.
+### 35a. Ledger drill-down and the location dimension on documents — **DONE** (see `docs/phase-35a-status.md`)
+
+Phase 35 was split with the user before any code was written, on the 34a/b/c precedent, because the
+survey found far more than the entry assumed: **15 document forms and 15 lists** had no location
+picker at all (only Invoice did), the Sales Master Report's filter exists **server-side only**, and
+43 of 49 live reports carry the filter — **including every GL report**, over a `GlJournalEntry` that
+has no `LocationId`.
+
+**What shipped.** `?accountId=` on Detail General Ledger, reached from a **View Ledger** row action
+on the Chart of Accounts and from the global-search Account hit — phase 33 carried item #1 closed
+without building a per-account page, because the reference product does not have one either; its
+result row offers View Ledger and this codebase already had the report. The picker extracted into
+`app-document-location-picker` and swept onto all 15 forms; the LOCATION cell and a Billing Location
+filter onto all 15 lists, the filter living in `ListChrome` and its value in `ListFilter` so a page
+opts in with three bindings. `BillingLocation.WarehouseId` became a prefill (32 #6 answered:
+the live dialog's placeholder is literally `Select Default Warehouse`, two of three seeded locations
+have no warehouse, and switching a document's location leaves its warehouse untouched).
+
+**The defect it existed to find:** phase 32's write-path sweep guard was green while **14 of 15
+detail DTOs and all 5 conversion templates** dropped `LocationId` on the way back out — a form could
+store a branch, never show it, and overwrite it on the next save. `LocationReadPathSweepGuardTests`
+now asserts all three read paths from `DocumentMechanisms.LocationBearing`.
+
+**A correction carried forward:** five handlers matching `known-gotchas.md`'s forbidden
+`x == null || …` predicate were rewritten to compose — and were **not** broken. Injecting the old
+shape and running it against SQL Server returned 200 and the right row. The gotcha's generalisation
+holds for a captured bool, not for a captured collection compared to null.
+
+### 35b. The location dimension in the reports, and Product-to-location
+
+- **Decide first, because everything else depends on it:** the live product filters Trial Balance,
+  Balance Sheet, Income Statement, the Journal report and all three General Ledger reports by
+  Billing Location, and **`GlJournalEntry` carries no `LocationId`** (phase 32 sized the schema for
+  the 15 documents plus the two opening-balance kinds). Either the entry gains one stamped at post
+  time from its source document, or every GL report joins back across 11 types — phase-26a's
+  expensive shape, against 34c's finding that the report layer's cost is the period.
+- **The rule for which reports get the filter is now a census, not a guess** (confirm-live
+  2026-09-10, all 49 screens read): 43 carry it; the 6 that do not are VAT Summary, TDS Report and
+  Annex 13 (IRD filings), Ratio Analysis and Exceptional Report (whole-organization analytics), and
+  User Log. **Annex 5 carries one despite being an IRD annex** — observed, not reconciled; follow the
+  observation. Assert the set with a guard, the way `SearchSweepGuardTests` does.
+- **The Sales Master Report's filter has no UI**: query, DTO column and endpoint have carried
+  `locationId` since phase 32 and its Angular page sends nothing and shows no LOCATION column.
+- **Product-to-location** (32 #4's new sibling): a checkbox multi-select, default *All*, not
+  required, and the Products grid has no LOCATION column or filter — so what it restricts is
+  **unobserved**, and separating "filters the product picker on a location-scoped document" from
+  "stored and unenforced" needs two writes on the live tenant. Decide what it *does* before storing
+  it, or it is phase 31's dead-setting lesson again.
+- Report filters seen live on Moonbeam and **absent on Cadehi** — Reporting Tags on the Journal
+  report (26a), Reporting Tags and group-by-warehouse on Inventory Position (26c), Group By Bill and
+  the Include Credit Note toggle on the Sales Register (31 #7, 26c). Tenant- or entitlement-
+  dependent; re-read Moonbeam before building any of them.
+- New from the same pass: `sales-summary` carries a **Group Wise location** control — a group-*by*,
+  which no other report shows.
 
 ### 36. Allocation, forex and ageing consistency
 - **Bug first:** `featureGuard('MultipleWarehouses')` on `organizations/:id/warehouses` stops a

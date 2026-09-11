@@ -15,6 +15,13 @@ export interface ListQueryOptions {
   /** ISO `yyyy-MM-dd`. Only sent by screens over an aggregate with a business date. */
   readonly fromDate?: string;
   readonly toDate?: string;
+  /**
+   * Phase 35a — the screen's Billing Location filter. A third owner joins the two above: the
+   * *tenant's* configuration decides whether this dimension exists at all, which is why the control
+   * hides itself rather than the page deciding (see `LocationListFilter`). Only ever set by a list
+   * over a location-bearing document type; a master-data list leaves it undefined and sends nothing.
+   */
+  readonly locationId?: string;
 }
 
 /** Folds the options into an existing query-parameter bag, omitting anything unset. */
@@ -34,6 +41,10 @@ export function applyListOptions(
     params['toDate'] = options.toDate;
   }
 
+  if (options?.locationId) {
+    params['locationId'] = options.locationId;
+  }
+
   return params;
 }
 
@@ -50,6 +61,13 @@ export function applyListOptions(
  */
 export class ListFilter {
   readonly search = signal('');
+
+  /**
+   * Phase 35a — the screen's chosen billing location, empty for "All locations". Lives here beside
+   * the term for the same reason the term does: a reader of a `load()` sees everything that
+   * narrowed the result in one object, and fifteen list pages do not each hand-roll the signal.
+   */
+  readonly location = signal('');
 
   /**
    * @param dateRange the shell's global range, or null for a screen whose aggregate has no business
@@ -104,5 +122,6 @@ export class ListFilter {
     search: this.search() || undefined,
     fromDate: this.dateRange?.from(),
     toDate: this.dateRange?.to(),
+    locationId: this.location() || undefined,
   }));
 }

@@ -46,6 +46,7 @@ export interface PurchaseOrder {
   customStatusId: string | null;
   /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
   terms: string | null;
+  locationId: string | null;
 }
 
 export interface PurchaseOrderLineDto extends PurchaseOrderLineInput {
@@ -73,6 +74,9 @@ export interface PurchaseOrderRequest {
   discountPct: number;
   /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
   terms: string | null;
+  /** Phase 32/35a -- omitting it (or null) means "the tenant's default location", which the server
+   * resolves to HeadOffice, or to nothing when this document type is out of the tenant's scope. */
+  locationId?: string | null;
 }
 
 export interface CreatePurchaseOrderResult {
@@ -137,6 +141,7 @@ export interface PurchaseBill {
   referrerType: DocumentType | null;
   referrerId: string | null;
   discountPct: number;
+  locationId: string | null;
 }
 
 /** Phase 29 (FR-6.15) -- how one Additional Cost row spreads across the bill's goods lines.
@@ -210,6 +215,9 @@ export interface PurchaseBillRequest {
   /** Phase 29 (FR-6.15). Omitting these is "no additional cost". */
   additionalCosts?: PurchaseBillAdditionalCostInput[];
   isProductWiseAdditionalCost?: boolean;
+  /** Phase 32/35a -- omitting it (or null) means "the tenant's default location", which the server
+   * resolves to HeadOffice, or to nothing when this document type is out of the tenant's scope. */
+  locationId?: string | null;
 }
 
 export interface CreatePurchaseBillResult {
@@ -250,6 +258,9 @@ export interface PurchaseBillConversionTemplate {
   referrerId: string;
   discountPct: number;
   lines: PurchaseBillLineInput[];
+  /** Phase 35a -- the source document's billing location, so a conversion keeps its branch
+   * instead of silently landing on the tenant default. */
+  locationId: string | null;
 }
 
 // --- Expense ---
@@ -276,6 +287,7 @@ export interface Expense {
   approvedByUserId: string | null;
   approvedAt: string | null;
   createdAt: string;
+  locationId: string | null;
 }
 
 export interface ExpenseLineDto extends ExpenseLineInput {
@@ -305,6 +317,9 @@ export interface ExpenseRequest {
   tdsApplicable: boolean;
   tdsTypeId: string | null;
   lines: ExpenseLineInput[];
+  /** Phase 32/35a -- omitting it (or null) means "the tenant's default location", which the server
+   * resolves to HeadOffice, or to nothing when this document type is out of the tenant's scope. */
+  locationId?: string | null;
 }
 
 export interface CreateExpenseResult {
@@ -359,6 +374,7 @@ export interface DebitNote {
   referrerType: DocumentType | null;
   referrerId: string | null;
   discountPct: number;
+  locationId: string | null;
 }
 
 export interface DebitNoteLineDto extends DebitNoteLineInput {
@@ -388,6 +404,9 @@ export interface DebitNoteRequest {
   referrerType?: DocumentType | null;
   referrerId?: string | null;
   discountPct: number;
+  /** Phase 32/35a -- omitting it (or null) means "the tenant's default location", which the server
+   * resolves to HeadOffice, or to nothing when this document type is out of the tenant's scope. */
+  locationId?: string | null;
 }
 
 export interface CreateDebitNoteResult {
@@ -425,6 +444,9 @@ export interface DebitNoteConversionTemplate {
   referrerId: string;
   discountPct: number;
   lines: DebitNoteLineInput[];
+  /** Phase 35a -- the source document's billing location, so a conversion keeps its branch
+   * instead of silently landing on the tenant default. */
+  locationId: string | null;
 }
 
 // --- Purchase Master Report (Phase 8b) ---

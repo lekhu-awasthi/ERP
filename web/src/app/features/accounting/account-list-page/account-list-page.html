@@ -103,9 +103,24 @@
                   }
                 </div>
               </div>
-              <button type="button" class="btn btn-outline-secondary btn-sm" (click)="startEdit(item)">
-                <i aria-hidden="true" class="bi bi-pencil"></i> Edit
-              </button>
+              <div class="d-flex align-items-center gap-2">
+                <!--
+                  Phase 35a -- the reference product's own row action (module scan, global search:
+                  "Contacts and Accounts additionally carry a View Ledger quick-action button").
+                  There is no per-account detail page here or there; the ledger IS the drill-down,
+                  and the same destination a global-search Account hit now opens.
+                -->
+                <a
+                  class="btn btn-outline-secondary btn-sm"
+                  [routerLink]="['/organizations', organizationId, 'reports', 'detail-general-ledger']"
+                  [queryParams]="{ accountId: item.id }"
+                >
+                  <i aria-hidden="true" class="bi bi-journals"></i> View Ledger
+                </a>
+                <button type="button" class="btn btn-outline-secondary btn-sm" (click)="startEdit(item)">
+                  <i aria-hidden="true" class="bi bi-pencil"></i> Edit
+                </button>
+              </div>
             </div>
           }
         </div>

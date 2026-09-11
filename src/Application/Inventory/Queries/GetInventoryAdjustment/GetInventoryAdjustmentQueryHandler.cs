@@ -44,6 +44,7 @@ public sealed class GetInventoryAdjustmentQueryHandler(IAppDbContext db)
             inventoryAdjustment.Lines
                 .Select(x => new InventoryAdjustmentLineDto(x.Id, x.ProductId, x.Direction, x.Quantity, x.UnitCost))
                 .ToList(),
-            glLines);
+            glLines,
+            inventoryAdjustment.LocationId);
     }
 }

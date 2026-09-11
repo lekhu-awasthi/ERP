@@ -15,6 +15,7 @@ import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
 import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
+import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 
 interface EditableLine {
   key: number;
@@ -32,7 +33,7 @@ let nextLineKey = 1;
  * credit). */
 @Component({
   selector: 'app-cash-transfer-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker],
   templateUrl: './cash-transfer-detail-page.html',
 })
 export class CashTransferDetailPage {
@@ -63,6 +64,14 @@ export class CashTransferDetailPage {
 
   protected readonly date = signal(this.today());
   protected readonly reference = signal('');
+
+  /**
+   * Phase 35a (FR-2.3/FR-3.3) -- the billing location this document is raised from, shown by the
+   * header picker `app-document-location-picker` renders. Empty means "let the server pick the
+   * default", which `LocationResolver` turns into the tenant's HeadOffice, or into nothing when
+   * this document type is outside the tenant's `LocationScopeMode`.
+   */
+  protected readonly locationId = signal('');
   protected readonly fromAccountId = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
 
@@ -103,6 +112,7 @@ export class CashTransferDetailPage {
         this.loading.set(false);
         this.date.set(this.today());
         this.reference.set('');
+        this.locationId.set('');
 this.currencyCode.set(BASE_CURRENCY_CODE);
 this.exchangeRate.set(1);
         this.fromAccountId.set('');
@@ -151,7 +161,7 @@ this.exchangeRate.set(1);
     this.saving.set(true);
     this.errorMessage.set(null);
 
-    const request = { currencyCode: this.currencyCode(), exchangeRate: this.exchangeRate(), date: this.date(), reference: this.reference() || null, fromAccountId, lines };
+    const request = { currencyCode: this.currencyCode(), exchangeRate: this.exchangeRate(), date: this.date(), locationId: this.locationId() || null, reference: this.reference() || null, fromAccountId, lines };
     const request$ = this.isNew()
       ? this.accountingService.createCashTransfer(this.organizationId, request)
       : this.accountingService.updateCashTransfer(this.organizationId, this.routeCashTransferId, request);
@@ -262,6 +272,7 @@ Approve anyway?`)) {
         this.cashTransfer.set(cashTransfer);
         this.date.set(cashTransfer.date);
         this.reference.set(cashTransfer.reference ?? '');
+        this.locationId.set(cashTransfer.locationId ?? '');
         this.currencyCode.set(cashTransfer.currencyCode);
         this.exchangeRate.set(cashTransfer.exchangeRate);
         this.fromAccountId.set(cashTransfer.fromAccountId);

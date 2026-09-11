@@ -74,4 +74,11 @@ public sealed record PurchaseBillDetailDto(
     bool IsProductWiseAdditionalCost,
     decimal AdditionalCostTotal,
     decimal? CapitalisedAdditionalCost,
-    decimal? AdditionalCostRoundingAdjustment);
+    decimal? AdditionalCostRoundingAdjustment,
+    // Phase 35 -- the billing location this document was raised from, null when the tenant's
+    // LocationScopeMode excludes this type. Phase 32 put the column on all 17 types but the header
+    // picker on Invoice alone, so only InvoiceDetailDto ever carried it back: a detail query
+    // projecting a DTO silently drops a field the aggregate has, and the form would then post the
+    // picker's default over a stored location on every edit. Fourteen instances of phase-32's own
+    // carried gotcha.
+    Guid? LocationId);

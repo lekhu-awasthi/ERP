@@ -32,6 +32,7 @@ public sealed class GetQuotationQueryHandler(IAppDbContext db) : IRequestHandler
             quotation.Lines.Select(x => new QuotationLineDto(
                 x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount)).ToList(),
             quotation.CurrencyCode,
-            quotation.ExchangeRate);
+            quotation.ExchangeRate,
+            quotation.LocationId);
     }
 }

@@ -1,5 +1,9 @@
 <div class="container py-5" style="max-width: 900px;">
   <app-list-chrome
+    [organizationId]="organizationId"
+    locationDocumentType="InventoryAdjustment"
+    [locationId]="filter.location()"
+    (locationChange)="onLocation($event)"
     heading="Inventory Adjustments"
     description="Stock take, damage, and write-off corrections"
     icon="sliders"
@@ -64,6 +68,9 @@
                 </div>
                 <div>
                   <h6 class="fw-bold mb-1 text-dark">{{ item.code }}</h6>
+                  <!-- Phase 35a -- the LOCATION every live document grid carries in
+                       second position. Renders nothing when the row has none. -->
+                  <app-location-name [organizationId]="organizationId" [locationId]="item.locationId" />
                   <span class="text-muted small">{{ item.date | nepaliDate }}{{ item.reference ? ' · ' + item.reference : '' }}</span>
                 </div>
               </div>

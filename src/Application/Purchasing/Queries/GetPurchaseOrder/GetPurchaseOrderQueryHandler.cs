@@ -31,6 +31,7 @@ public sealed class GetPurchaseOrderQueryHandler(IAppDbContext db) : IRequestHan
             purchaseOrder.Lines.Select(x => new PurchaseOrderLineDto(
                 x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount)).ToList(),
             purchaseOrder.CurrencyCode,
-            purchaseOrder.ExchangeRate);
+            purchaseOrder.ExchangeRate,
+            purchaseOrder.LocationId);
     }
 }

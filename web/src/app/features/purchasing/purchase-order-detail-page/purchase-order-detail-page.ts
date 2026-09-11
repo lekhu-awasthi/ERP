@@ -21,6 +21,7 @@ import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
 import { TermsEditor } from '../../../shared/terms/terms-editor';
 import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
+import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 
 interface EditableLine {
   key: number;
@@ -37,7 +38,7 @@ let nextLineKey = 1;
  * "Convert to Bill" instead of "Convert to Invoice". */
 @Component({
   selector: 'app-purchase-order-detail-page',
-  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor, CurrencyRateFields, SendEmailDialog],
+  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker],
   templateUrl: './purchase-order-detail-page.html',
 })
 export class PurchaseOrderDetailPage {
@@ -75,6 +76,14 @@ export class PurchaseOrderDetailPage {
   protected readonly contactId = signal('');
   protected readonly date = signal(this.today());
   protected readonly reference = signal('');
+
+  /**
+   * Phase 35a (FR-2.3/FR-3.3) -- the billing location this document is raised from, shown by the
+   * header picker `app-document-location-picker` renders. Empty means "let the server pick the
+   * default", which `LocationResolver` turns into the tenant's HeadOffice, or into nothing when
+   * this document type is outside the tenant's `LocationScopeMode`.
+   */
+  protected readonly locationId = signal('');
   protected readonly terms = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
   protected readonly discountPct = signal(0);
@@ -133,6 +142,7 @@ export class PurchaseOrderDetailPage {
         this.contactId.set('');
         this.date.set(this.today());
         this.reference.set('');
+        this.locationId.set('');
         this.currencyCode.set(BASE_CURRENCY_CODE);
         this.exchangeRate.set(1);
         this.terms.set('');
@@ -217,7 +227,7 @@ export class PurchaseOrderDetailPage {
 
       exchangeRate: this.exchangeRate(),
       contactId: this.contactId(),
-      date: this.date(),
+      date: this.date(), locationId: this.locationId() || null,
       reference: this.reference() || null,
       terms: this.terms() || null,
       lines,
@@ -373,6 +383,7 @@ export class PurchaseOrderDetailPage {
         this.contactId.set(purchaseOrder.contactId);
         this.date.set(purchaseOrder.date);
         this.reference.set(purchaseOrder.reference ?? '');
+        this.locationId.set(purchaseOrder.locationId ?? '');
         this.currencyCode.set(purchaseOrder.currencyCode);
         this.exchangeRate.set(purchaseOrder.exchangeRate);
         this.terms.set(purchaseOrder.terms ?? '');

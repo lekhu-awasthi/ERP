@@ -1,6 +1,7 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 
 import { DateRangeService } from '../platform/date-range.service';
+import { LocationListFilter } from '../locations/location-list-filter';
 
 /**
  * Phase 34b (NFR-6.1) — the one interaction model every list screen presents.
@@ -23,7 +24,7 @@ import { DateRangeService } from '../platform/date-range.service';
  */
 @Component({
   selector: 'app-list-chrome',
-  imports: [],
+  imports: [LocationListFilter],
   templateUrl: './list-chrome.html',
   styleUrl: './list-chrome.scss',
 })
@@ -51,6 +52,20 @@ export class ListChrome {
 
   readonly sortOptions = input<readonly ListSortOption[]>([]);
   readonly sort = input<string>('');
+
+  /**
+   * Phase 35a — the screen's Billing Location filter, beside Search and Sort by.
+   *
+   * <p>Set `locationDocumentType` to the `DocumentType` this list shows and the control appears on
+   * a tenant that has more than one location and whose scope covers that type; leave it empty (the
+   * default) and nothing renders, which is what every master-data list gets. The chrome is where
+   * this belongs for the same reason the search box is: the question "does this list filter by
+   * location?" is then answered by one binding, not by thirty copies of a `<select>`.</p>
+   */
+  readonly locationDocumentType = input<string>('');
+  readonly organizationId = input<string>('');
+  readonly locationId = input<string>('');
+  readonly locationChange = output<string>();
 
   readonly searchChange = output<string>();
   readonly sortChange = output<string>();

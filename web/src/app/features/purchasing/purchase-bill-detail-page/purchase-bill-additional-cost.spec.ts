@@ -44,6 +44,7 @@ describe('PurchaseBillDetailPage — Additional Cost', () => {
       organizationId,
       contactId: 'c-1',
       warehouseId: 'w-1',
+      locationId: null,
       code: 'PB0001',
       date: '2026-01-10',
       dueDate: '2026-01-10',
@@ -132,6 +133,15 @@ describe('PurchaseBillDetailPage — Additional Cost', () => {
             listWarehouses: () => of([]),
             // Phase 28's shared currency/rate control reads the tenant's currency list on render.
             listCurrencies: () => of([{ code: 'NPR', name: 'Nepalese Rupee', symbol: 'Rs', isActive: true }]),
+            // Phase 35a's shared billing-location picker reads both of these on render.
+            listBillingLocations: () => of([]),
+            getBillingLocationSettings: () =>
+              of({
+                locationScopeMode: 'SalesTransactionsOnly',
+                locationWiseReportPermission: false,
+                multipleLocationsEnabled: false,
+                locationBearingDocumentTypes: [],
+              }),
           },
         },
         { provide: PrintingService, useValue: {} },

@@ -59,6 +59,7 @@ export interface Quotation {
   customStatusId: string | null;
   /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
   terms: string | null;
+  locationId: string | null;
 }
 
 export interface QuotationLineDto extends QuotationLineInput {
@@ -87,6 +88,9 @@ export interface QuotationRequest {
   discountPct: number;
   /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
   terms: string | null;
+  /** Phase 32/35a -- omitting it (or null) means "the tenant's default location", which the server
+   * resolves to HeadOffice, or to nothing when this document type is out of the tenant's scope. */
+  locationId?: string | null;
 }
 
 export interface CreateQuotationResult {
@@ -242,6 +246,9 @@ export interface InvoiceConversionTemplate {
   referrerId: string;
   discountPct: number;
   lines: InvoiceLineInput[];
+  /** Phase 35a -- the source document's billing location, so a conversion keeps its branch
+   * instead of silently landing on the tenant default. */
+  locationId: string | null;
 }
 
 export interface SalesOrderLineInput {
@@ -270,6 +277,7 @@ export interface SalesOrder {
   customStatusId: string | null;
   /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
   terms: string | null;
+  locationId: string | null;
 }
 
 export interface SalesOrderLineDto extends SalesOrderLineInput {
@@ -298,6 +306,9 @@ export interface SalesOrderRequest {
   discountPct: number;
   /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
   terms: string | null;
+  /** Phase 32/35a -- omitting it (or null) means "the tenant's default location", which the server
+   * resolves to HeadOffice, or to nothing when this document type is out of the tenant's scope. */
+  locationId?: string | null;
 }
 
 export interface CreateSalesOrderResult {
@@ -350,6 +361,7 @@ export interface CreditNote {
   discountPct: number;
   /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
   terms: string | null;
+  locationId: string | null;
 }
 
 export interface CreditNoteLineDto extends CreditNoteLineInput {
@@ -380,6 +392,9 @@ export interface CreditNoteRequest {
   discountPct: number;
   /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
   terms: string | null;
+  /** Phase 32/35a -- omitting it (or null) means "the tenant's default location", which the server
+   * resolves to HeadOffice, or to nothing when this document type is out of the tenant's scope. */
+  locationId?: string | null;
 }
 
 export interface CreateCreditNoteResult {
@@ -416,6 +431,9 @@ export interface CreditNoteConversionTemplate {
   referrerId: string;
   discountPct: number;
   lines: CreditNoteLineInput[];
+  /** Phase 35a -- the source document's billing location, so a conversion keeps its branch
+   * instead of silently landing on the tenant default. */
+  locationId: string | null;
 }
 
 // --- Sales Master Report (Phase 8b) ---

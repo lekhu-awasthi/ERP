@@ -70,6 +70,7 @@ public sealed class GetPurchaseBillQueryHandler(IAppDbContext db) : IRequestHand
             purchaseBill.IsProductWiseAdditionalCost,
             purchaseBill.AdditionalCostTotal,
             purchaseBill.CapitalisedAdditionalCost,
-            purchaseBill.AdditionalCostRoundingAdjustment);
+            purchaseBill.AdditionalCostRoundingAdjustment,
+            purchaseBill.LocationId);
     }
 }

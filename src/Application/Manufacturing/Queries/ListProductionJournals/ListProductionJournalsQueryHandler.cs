@@ -26,9 +26,21 @@ public sealed class ListProductionJournalsQueryHandler(IAppDbContext db, ICurren
         // first is the shape that keeps working.
         var journals = db.ProductionJournals
             .Where(x => x.OrganizationId == request.OrganizationId)
-            .Where(x => request.Status == null || x.Status == request.Status)
-            .Where(x => allowedLocations == null
-                || (x.LocationId != null && allowedLocations.Contains(x.LocationId.Value)));
+            .Where(x => request.Status == null || x.Status == request.Status);
+
+        // Phase 35a -- a composed second `Where`; see the sibling ListProductionOrdersQueryHandler
+        // for why the `allowedLocations == null || …` form this replaced was untranslatable on the
+        // unrestricted branch.
+        if (allowedLocations is not null)
+        {
+            journals = journals.Where(x => x.LocationId != null && allowedLocations.Contains(x.LocationId.Value));
+        }
+
+        // Phase 35a -- the user's own Billing Location filter.
+        if (request.LocationId is { } locationId)
+        {
+            journals = journals.Where(x => x.LocationId == locationId);
+        }
 
         if (SearchTerm.Normalize(request.Search) is { } term)
         {
@@ -51,7 +63,7 @@ public sealed class ListProductionJournalsQueryHandler(IAppDbContext db, ICurren
             orderby journal.CreatedAt descending
             select new ProductionJournalListItemDto(
                 journal.Id, journal.Code, journal.Date, journal.Reference, journal.ProductId, product.Name,
-                journal.OutputQuantity, journal.FinishedGoodsCost, journal.Status);
+                journal.OutputQuantity, journal.FinishedGoodsCost, journal.Status, journal.LocationId);
 
         return await query.ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
     }

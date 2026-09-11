@@ -70,6 +70,7 @@ public sealed class GetProductionOrderQueryHandler(IAppDbContext db)
                     product?.UnitName, line.CostAllocationPct, line.Quantity);
             })],
             [.. order.Expenses.Select(line => new ProductionOrderExpenseLineDto(
-                line.Id, line.CostTermId, costTerms.GetValueOrDefault(line.CostTermId) ?? string.Empty, line.Amount))]);
+                line.Id, line.CostTermId, costTerms.GetValueOrDefault(line.CostTermId) ?? string.Empty, line.Amount))],
+            order.LocationId);
     }
 }

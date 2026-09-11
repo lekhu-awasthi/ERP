@@ -51,6 +51,7 @@ public sealed class GetProductionJournalConversionTemplateQueryHandler(IAppDbCon
             order.Id,
             [.. order.RawMaterials.Select(x => new ProductionRawMaterialLineInput(x.ProductId, x.Quantity))],
             [.. order.ByProducts.Select(x => new ProductionByProductLineInput(x.ProductId, x.CostAllocationPct, x.Quantity))],
-            [.. order.Expenses.Select(x => new ProductionExpenseLineInput(x.CostTermId, x.Amount))]);
+            [.. order.Expenses.Select(x => new ProductionExpenseLineInput(x.CostTermId, x.Amount))],
+            order.LocationId);
     }
 }

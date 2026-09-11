@@ -78,6 +78,7 @@ public sealed class GetProductionJournalQueryHandler(IAppDbContext db)
             })],
             [.. journal.Expenses.Select(line => new ProductionJournalExpenseLineDto(
                 line.Id, line.CostTermId, costTerms.GetValueOrDefault(line.CostTermId) ?? string.Empty, line.Amount))],
-            glLines.Count > 0 ? glLines : null);
+            glLines.Count > 0 ? glLines : null,
+            journal.LocationId);
     }
 }

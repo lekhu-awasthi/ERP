@@ -973,3 +973,98 @@ schema.
 Two smaller frictions from the same session: `sqlcmd -W` and `-y`/`-Y` are mutually exclusive, and a
 `SELECT` naming a column present on two joined tables fails with `Ambiguous column name` rather than
 picking one.
+
+## A write-path guard proves nothing about the read path (phase 35a)
+
+Phase 32 put `LocationId` on all 17 location-bearing types and shipped
+`LocationBearingCommandSweepGuardTests`, which asserts by reflection that every one of them has a
+command able to *write* the field. It has been green ever since. Meanwhile **fourteen of the fifteen
+document detail queries dropped the field on the way back out**, and only `InvoiceDetailDto` named
+it.
+
+The asymmetry is structural and worth stating as a rule:
+
+- a **list** query returning the aggregate exposes a new column for free;
+- a **detail** query projecting an explicit DTO drops it unless told;
+- a **conversion template** is a read path wearing a different hat, and drops it the same way — all
+  five of this codebase's templates did, so converting a document raised at a branch produced one at
+  HeadOffice.
+
+The failure mode is worse than "the form cannot show the value". The header picker defaults to the
+tenant's HeadOffice when the DTO gives it nothing, so **opening a branch document and pressing Save
+moved it**. No test failed, and phase 32's own carried note predicted exactly this — for one type.
+
+So: a phase that adds a field to many aggregates owes **three** assertions, not one — write, read,
+and every prefill in between. `LocationReadPathSweepGuardTests` is that shape, derived from
+`DocumentMechanisms.LocationBearing` rather than listed.
+
+## The expression-tree gotcha is narrower than it was written (phase 35a, correcting phase 33)
+
+"An expression tree has no short-circuit (phase 33)" above ends with: *"The same applies to any
+`flag ? a : b` or `x == null || …` over a captured reference in a predicate."* **The second half of
+that is not true for a captured collection compared to null**, at least on EF Core 10 + SQL Server.
+
+Five phase-32b list handlers shipped with
+
+```csharp
+.Where(x => allowedLocations == null
+    || (x.LocationId != null && allowedLocations.Contains(x.LocationId.Value)));
+```
+
+which is the forbidden shape. Phase 35a rewrote them as composed `.Where()` calls and then, to
+demonstrate the bug, put the old shape back in one handler and ran it against SQL Server with real
+rows. It returned **200 and the correct row**.
+
+The worked example phase 33 measured used a captured **bool** (`!scoped || …`), and that one does
+throw. The likely difference — a hypothesis, not a measurement — is that EF parameterises a captured
+scalar, so `!@__scoped_0 || …` cannot be folded and both sides must translate against a null list,
+while `allowedLocations == null` is parameter-independent, funcletized to a constant, and the `||`
+optimised away before `Contains` is reached.
+
+**Keep composing** — it is the codebase's stated shape and immune to either mechanism. But do not
+describe an instance of the collection form as broken without running it: a gotcha's worked example
+is evidence, its closing generalisation is a hypothesis.
+
+## `ng test` must be run from `web/` (phase 35a)
+
+`a11y-sweep-guard.spec.ts` reads the shipped stylesheet with
+`readFileSync(resolve(process.cwd(), 'src/styles.scss'))`. Run it as `npx --prefix web ng test` from
+the repo root and that one test fails — with a message about the stylesheet reading back empty,
+which looks exactly like the phase-34a gotcha the assertion exists to prevent. `cd web && npx ng test`.
+
+## A lazily-created cached signal cannot be written by a synchronous source (phase 35a)
+
+`BillingLocationStore` creates its signal on first read and subscribes in the same call. Its first
+reader is always a `computed()` (a picker's `visible()`, a cell's `name()`), so a source that
+resolves **synchronously** writes the signal *inside* that computed and Angular throws
+`NG0600: Writing to signals is not allowed in a computed`.
+
+Real HTTP resolves on a later tick with no active consumer, so this never appears in the app and
+appears immediately under a test double returning `of([...])`. Wrap the subscribe and both writes in
+`untracked()`, which removes the difference between the two rather than papering over the test.
+
+## Seeding traps added by phase 35a's E2E
+
+- `POST /accounts` takes `kind` in **`Other` | `Bank` | `Cash`** — there is no `Normal`, and the 400
+  names no field (CLAUDE.md already warned that `"Normal"` fails; these are the real members).
+- `POST /organizations` needs `accountingStartDate` and `workspaceName`, and takes the entitlement
+  flags (`trackInventory`, `multipleLocations`, `multipleWarehouses`, `manufacturing`, …) directly —
+  there is no separate features PUT to make afterwards.
+- `POST /auth/register` requires **`phone`**; without it the 400 lists no missing field usefully.
+- `PUT /roles/{id}/permissions` takes `grants` as a **dictionary** and `locationGrants` as a **list**
+  of `{locationId, grants}` — the two halves have different shapes, and the mismatch surfaces as
+  "Failed to read parameter … as JSON" rather than a validation error.
+- Invitations are `POST /organizations/{id}/invitations`, not under `/memberships`.
+- Master-data list endpoints return a **paged** envelope, so it is `['items'][0]['id']`; a seed
+  script reading `[0]['id']` silently yields an empty id and the next POST fails as malformed JSON.
+- A **Service** product cannot be transferred, adjusted or produced — `ConsumeAsync` refuses it with
+  a 409. An E2E touching those three types needs a Goods product even when it never approves
+  anything.
+
+## A script that inserts an import after "the last import line" (phase 35a)
+
+The obvious way to add an import — find the last `\nimport ` and insert after that line — breaks on
+a **multi-line** `import { … } from '…'`, because the last such line is the `import {` of a braced
+block and the insertion lands inside it. The file then fails to parse with a cascade of TS1003 /
+TS1005 errors that name no useful location. Insert after the *closing* line of the last import
+statement, or assert the anchor line ends with `';`.

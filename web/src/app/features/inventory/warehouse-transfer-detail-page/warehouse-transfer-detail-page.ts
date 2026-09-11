@@ -14,6 +14,7 @@ import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
+import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 
 interface EditableLine {
   key: number;
@@ -28,7 +29,7 @@ let nextLineKey = 1;
  * or GL Transactions section here, unlike every other transactional detail page. */
 @Component({
   selector: 'app-warehouse-transfer-detail-page',
-  imports: [RouterLink, DatePipe, BsDateInput, DocumentTabs, ReportingTagsEditor],
+  imports: [RouterLink, DatePipe, BsDateInput, DocumentTabs, ReportingTagsEditor, DocumentLocationPicker],
   templateUrl: './warehouse-transfer-detail-page.html',
 })
 export class WarehouseTransferDetailPage {
@@ -55,6 +56,14 @@ export class WarehouseTransferDetailPage {
   protected readonly toWarehouseId = signal('');
   protected readonly date = signal(this.today());
   protected readonly reference = signal('');
+
+  /**
+   * Phase 35a (FR-2.3/FR-3.3) -- the billing location this document is raised from, shown by the
+   * header picker `app-document-location-picker` renders. Empty means "let the server pick the
+   * default", which `LocationResolver` turns into the tenant's HeadOffice, or into nothing when
+   * this document type is outside the tenant's `LocationScopeMode`.
+   */
+  protected readonly locationId = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
 
   protected readonly printing = signal(false);
@@ -92,6 +101,7 @@ export class WarehouseTransferDetailPage {
         this.toWarehouseId.set('');
         this.date.set(this.today());
         this.reference.set('');
+        this.locationId.set('');
         this.lines.set([this.newLine()]);
       } else {
         this.load();
@@ -148,7 +158,7 @@ export class WarehouseTransferDetailPage {
     const request = {
       fromWarehouseId: this.fromWarehouseId(),
       toWarehouseId: this.toWarehouseId(),
-      date: this.date(),
+      date: this.date(), locationId: this.locationId() || null,
       reference: this.reference() || null,
       lines,
     };
@@ -248,6 +258,7 @@ export class WarehouseTransferDetailPage {
         this.toWarehouseId.set(doc.toWarehouseId);
         this.date.set(doc.date);
         this.reference.set(doc.reference ?? '');
+        this.locationId.set(doc.locationId ?? '');
         this.lines.set(
           doc.lines.length > 0
             ? doc.lines.map((l) => ({ key: nextLineKey++, productId: l.productId, quantity: l.quantity }))

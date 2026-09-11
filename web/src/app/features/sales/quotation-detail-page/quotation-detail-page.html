@@ -4,6 +4,15 @@
       <i aria-hidden="true" class="bi bi-arrow-left"></i> Quotations
     </a>
     <h1 class="h4 fw-bold mb-0 text-dark">{{ isNew() ? 'New Quotation' : (quotation()?.code ?? 'Quotation') }}</h1>
+    <!-- Phase 35a -- the billing location picker the reference product renders in the document
+         HEADER (confirmed live on Invoice 2026-09-07 and on Journal Voucher 2026-09-10). Renders
+         nothing when this type is outside the tenant's location scope. -->
+    <app-document-location-picker
+      [organizationId]="organizationId"
+      documentType="Quotation"
+      [disabled]="!isDraft()"
+      [(locationId)]="locationId"
+    />
     @if (quotation(); as q) {
       @if (q.status === 'Approved') {
         <span class="badge bg-success-subtle text-success-emphasis">Approved</span>

@@ -4,6 +4,15 @@
       <i aria-hidden="true" class="bi bi-arrow-left"></i> Credit Notes
     </a>
     <h1 class="h4 fw-bold mb-0 text-dark">{{ isNew() ? 'New Credit Note' : (creditNote()?.code ?? 'Credit Note') }}</h1>
+    <!-- Phase 35a -- the billing location picker the reference product renders in the document
+         HEADER (confirmed live on Invoice 2026-09-07 and on Journal Voucher 2026-09-10). Renders
+         nothing when this type is outside the tenant's location scope. -->
+    <app-document-location-picker
+      [organizationId]="organizationId"
+      documentType="CreditNote"
+      [disabled]="!isDraft()"
+      [(locationId)]="locationId"
+    />
     @if (creditNote(); as cn) {
       @if (cn.status === 'Approved') {
         <span class="badge bg-success-subtle text-success-emphasis">Approved</span>

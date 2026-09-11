@@ -31,11 +31,11 @@ public static class PaymentsEndpoints
 
         group.MapGet("/payments", async (
             Guid organizationId, PaymentStatus? status, PaymentDirection? direction, int? page, int? pageSize,
-            string? search, DateOnly? fromDate, DateOnly? toDate, ISender sender, CancellationToken ct) =>
+            string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ListPaymentsQuery(
-                    organizationId, status, direction, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate),
+                    organizationId, status, direction, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId),
                 ct);
             return Results.Ok(result);
         });

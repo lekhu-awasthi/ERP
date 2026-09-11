@@ -27,6 +27,7 @@ public sealed class GetWarehouseTransferQueryHandler(IAppDbContext db)
             warehouseTransfer.ApprovedByUserId,
             warehouseTransfer.ApprovedAt,
             warehouseTransfer.CreatedAt,
-            warehouseTransfer.Lines.Select(x => new WarehouseTransferLineDto(x.Id, x.ProductId, x.Quantity)).ToList());
+            warehouseTransfer.Lines.Select(x => new WarehouseTransferLineDto(x.Id, x.ProductId, x.Quantity)).ToList(),
+            warehouseTransfer.LocationId);
     }
 }

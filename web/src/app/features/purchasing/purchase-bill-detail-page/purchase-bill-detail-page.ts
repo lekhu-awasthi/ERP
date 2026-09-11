@@ -38,6 +38,8 @@ import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
 import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
+import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
+import { defaultWarehouseSeed } from '../../../shared/locations/default-warehouse-seed';
 
 interface EditableLine {
   key: number;
@@ -70,7 +72,7 @@ let nextAdditionalCostKey = 1;
  * "Convert to Credit Note". */
 @Component({
   selector: 'app-purchase-bill-detail-page',
-  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields],
+  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker],
   templateUrl: './purchase-bill-detail-page.html',
 })
 export class PurchaseBillDetailPage {
@@ -130,6 +132,18 @@ export class PurchaseBillDetailPage {
   /** Phase 31 -- the tenant's credit terms, so picking a supplier can prefill Due Date. */
   protected readonly creditTerms = signal<CreditTerm[]>([]);
   protected readonly reference = signal('');
+
+  /**
+   * Phase 35a (FR-2.3/FR-3.3) -- the billing location this document is raised from, shown by the
+   * header picker `app-document-location-picker` renders. Empty means "let the server pick the
+   * default", which `LocationResolver` turns into the tenant's HeadOffice, or into nothing when
+   * this document type is outside the tenant's `LocationScopeMode`.
+   */
+  protected readonly locationId = signal('');
+
+  /** Phase 35a (Decision D) -- seeds Warehouse from the billing location's *default*. A prefill,
+   * never a constraint and never reactive; see `defaultWarehouseSeed`. */
+  protected readonly warehouseSeed = defaultWarehouseSeed(this.warehouseId, this.warehouses);
   protected readonly supplierInvoiceReference = signal('');
   protected readonly isImport = signal(false);
   protected readonly importCountry = signal('');
@@ -251,7 +265,14 @@ export class PurchaseBillDetailPage {
     });
     this.catalogService.listAllProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
     this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
-    this.organizationsService.listWarehouses(this.organizationId).subscribe({ next: (w) => this.warehouses.set(w) });
+    this.organizationsService.listWarehouses(this.organizationId).subscribe({
+      next: (w) => {
+        this.warehouses.set(w);
+        // Phase 35a -- whichever of the two lists lands second completes the location's warehouse
+        // prefill; see `defaultWarehouseSeed`.
+        this.warehouseSeed.retry();
+      },
+    });
     this.configurationService.listTdsTypes(this.organizationId).subscribe({ next: (t) => this.tdsTypes.set(t) });
     this.configurationService.listCostTerms(this.organizationId).subscribe({ next: (t) => this.costTerms.set(t) });
 
@@ -274,6 +295,9 @@ export class PurchaseBillDetailPage {
           this.date.set(template.date);
           this.dueDate.set(template.date);
           this.reference.set(template.reference ?? '');
+          // Phase 35a -- a conversion keeps the source document's branch. Without this the new
+          // form's picker would fall back to the tenant default and move the document silently.
+          this.locationId.set(template.locationId ?? '');
           this.referrerType = template.referrerType;
           this.referrerId = template.referrerId;
           this.discountPct.set(template.discountPct);
@@ -287,6 +311,7 @@ export class PurchaseBillDetailPage {
           this.date.set(this.today());
           this.dueDate.set(this.today());
           this.reference.set('');
+        this.locationId.set('');
           this.currencyCode.set(BASE_CURRENCY_CODE);
           this.exchangeRate.set(1);
           this.discountPct.set(0);
@@ -453,7 +478,7 @@ export class PurchaseBillDetailPage {
       exchangeRate: this.exchangeRate(),
       contactId: this.contactId(),
       warehouseId: this.warehouseId(),
-      date: this.date(),
+      date: this.date(), locationId: this.locationId() || null,
       dueDate: this.dueDate() || this.date(),
       reference: this.reference() || null,
       supplierInvoiceReference: this.supplierInvoiceReference() || null,
@@ -790,6 +815,7 @@ export class PurchaseBillDetailPage {
         this.date.set(bill.date);
         this.dueDate.set(bill.dueDate);
         this.reference.set(bill.reference ?? '');
+        this.locationId.set(bill.locationId ?? '');
         this.currencyCode.set(bill.currencyCode);
         this.exchangeRate.set(bill.exchangeRate);
         this.supplierInvoiceReference.set(bill.supplierInvoiceReference ?? '');

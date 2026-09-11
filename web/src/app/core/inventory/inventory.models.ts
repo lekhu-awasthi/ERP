@@ -31,6 +31,7 @@ export interface WarehouseTransfer {
   approvedByUserId: string | null;
   approvedAt: string | null;
   createdAt: string;
+  locationId: string | null;
 }
 
 export interface WarehouseTransferLineDto extends WarehouseTransferLineInput {
@@ -47,6 +48,9 @@ export interface WarehouseTransferRequest {
   date: string;
   reference: string | null;
   lines: WarehouseTransferLineInput[];
+  /** Phase 32/35a -- omitting it (or null) means "the tenant's default location", which the server
+   * resolves to HeadOffice, or to nothing when this document type is out of the tenant's scope. */
+  locationId?: string | null;
 }
 
 export interface CreateWarehouseTransferResult {
@@ -95,6 +99,7 @@ export interface InventoryAdjustment {
   approvedByUserId: string | null;
   approvedAt: string | null;
   createdAt: string;
+  locationId: string | null;
 }
 
 export interface InventoryAdjustmentLineDto extends InventoryAdjustmentLineInput {
@@ -111,6 +116,9 @@ export interface InventoryAdjustmentRequest {
   date: string;
   reference: string | null;
   lines: InventoryAdjustmentLineInput[];
+  /** Phase 32/35a -- omitting it (or null) means "the tenant's default location", which the server
+   * resolves to HeadOffice, or to nothing when this document type is out of the tenant's scope. */
+  locationId?: string | null;
 }
 
 export interface CreateInventoryAdjustmentResult {

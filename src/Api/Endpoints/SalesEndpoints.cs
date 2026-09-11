@@ -56,10 +56,10 @@ public static class SalesEndpoints
     private static void MapQuotationEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/quotations", async (
-            Guid organizationId, QuotationStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, ISender sender, CancellationToken ct) =>
+            Guid organizationId, QuotationStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListQuotationsQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate), ct);
+                new ListQuotationsQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId), ct);
             return Results.Ok(result);
         });
 
@@ -191,10 +191,10 @@ public static class SalesEndpoints
     private static void MapSalesOrderEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/sales-orders", async (
-            Guid organizationId, SalesOrderStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, ISender sender, CancellationToken ct) =>
+            Guid organizationId, SalesOrderStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListSalesOrdersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate), ct);
+                new ListSalesOrdersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId), ct);
             return Results.Ok(result);
         });
 
@@ -245,10 +245,10 @@ public static class SalesEndpoints
     private static void MapCreditNoteEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/credit-notes", async (
-            Guid organizationId, CreditNoteStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, ISender sender, CancellationToken ct) =>
+            Guid organizationId, CreditNoteStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListCreditNotesQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate), ct);
+                new ListCreditNotesQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId), ct);
             return Results.Ok(result);
         });
 

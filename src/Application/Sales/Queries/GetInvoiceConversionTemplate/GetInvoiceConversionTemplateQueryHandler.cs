@@ -34,6 +34,7 @@ public sealed class GetInvoiceConversionTemplateQueryHandler(IAppDbContext db)
             DocumentType.Quotation,
             quotation.Id,
             quotation.DiscountPct,
-            lines);
+            lines,
+            quotation.LocationId);
     }
 }

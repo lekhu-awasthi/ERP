@@ -21,6 +21,8 @@ import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
 import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
+import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
+import { defaultWarehouseSeed } from '../../../shared/locations/default-warehouse-seed';
 
 interface EditableMaterial {
   key: number;
@@ -55,7 +57,7 @@ let nextKey = 1;
  */
 @Component({
   selector: 'app-production-journal-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, DocumentLocationPicker],
   templateUrl: './production-journal-detail-page.html',
 })
 export class ProductionJournalDetailPage {
@@ -91,9 +93,21 @@ export class ProductionJournalDetailPage {
 
   protected readonly date = signal(this.today());
   protected readonly reference = signal('');
+
+  /**
+   * Phase 35a (FR-2.3/FR-3.3) -- the billing location this document is raised from, shown by the
+   * header picker `app-document-location-picker` renders. Empty means "let the server pick the
+   * default", which `LocationResolver` turns into the tenant's HeadOffice, or into nothing when
+   * this document type is outside the tenant's `LocationScopeMode`.
+   */
+  protected readonly locationId = signal('');
+
   protected readonly productId = signal('');
   protected readonly outputQuantity = signal(1);
   protected readonly warehouseId = signal('');
+  /** Phase 35a (Decision D) -- seeds Warehouse from the billing location's *default*. A prefill,
+   * never a constraint and never reactive; see `defaultWarehouseSeed`. */
+  protected readonly warehouseSeed = defaultWarehouseSeed(this.warehouseId, this.warehouses);
   protected readonly notes = signal('');
   protected readonly rawMaterials = signal<EditableMaterial[]>([]);
   protected readonly byProducts = signal<EditableByProduct[]>([]);
@@ -134,7 +148,14 @@ export class ProductionJournalDetailPage {
 
   constructor() {
     this.catalogService.listAllProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
-    this.organizationsService.listWarehouses(this.organizationId).subscribe({ next: (w) => this.warehouses.set(w) });
+    this.organizationsService.listWarehouses(this.organizationId).subscribe({
+      next: (w) => {
+        this.warehouses.set(w);
+        // Phase 35a -- whichever of the two lists lands second completes the location's warehouse
+        // prefill; see `defaultWarehouseSeed`.
+        this.warehouseSeed.retry();
+      },
+    });
     this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
     this.configurationService.listCostTerms(this.organizationId).subscribe({
       next: (terms) => this.costTerms.set(terms.filter((t) => t.category === 'ProductionCost' && t.isActive)),
@@ -301,7 +322,7 @@ export class ProductionJournalDetailPage {
     this.errorMessage.set(null);
 
     const request: ProductionJournalRequest = {
-      date: this.date(),
+      date: this.date(), locationId: this.locationId() || null,
       reference: this.reference().trim() || null,
       productId: this.productId(),
       outputQuantity: this.outputQuantity(),
@@ -397,6 +418,7 @@ export class ProductionJournalDetailPage {
   private resetForm(): void {
     this.date.set(this.today());
     this.reference.set('');
+        this.locationId.set('');
     this.productId.set('');
     this.outputQuantity.set(1);
     this.warehouseId.set('');
@@ -415,6 +437,9 @@ export class ProductionJournalDetailPage {
       next: (template) => {
         this.date.set(template.date);
         this.reference.set(template.reference ?? '');
+        // Phase 35a -- a conversion keeps the source document's branch. Without this the new
+        // form's picker would fall back to the tenant default and move the document silently.
+        this.locationId.set(template.locationId ?? '');
         this.productId.set(template.productId);
         this.outputQuantity.set(template.outputQuantity);
         this.notes.set(template.notes ?? '');
@@ -451,6 +476,7 @@ export class ProductionJournalDetailPage {
         this.journal.set(detail);
         this.date.set(detail.date);
         this.reference.set(detail.reference ?? '');
+        this.locationId.set(detail.locationId ?? '');
         this.productId.set(detail.productId);
         this.outputQuantity.set(detail.outputQuantity);
         this.warehouseId.set(detail.warehouseId);

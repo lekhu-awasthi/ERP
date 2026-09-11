@@ -20,6 +20,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { DocumentTabs } from '../../../shared/document-tabs/document-tabs';
 import { TermsEditor } from '../../../shared/terms/terms-editor';
 import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
+import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 
 interface EditableLine {
   key: number;
@@ -41,7 +42,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-quotation-detail-page',
-  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, AmountPipe, BsDateInput, DocumentTabs, TermsEditor, CurrencyRateFields, SendEmailDialog],
+  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, AmountPipe, BsDateInput, DocumentTabs, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker],
   templateUrl: './quotation-detail-page.html',
 })
 export class QuotationDetailPage {
@@ -77,6 +78,14 @@ export class QuotationDetailPage {
   protected readonly date = signal(this.today());
   protected readonly expiryDate = signal('');
   protected readonly reference = signal('');
+
+  /**
+   * Phase 35a (FR-2.3/FR-3.3) -- the billing location this document is raised from, shown by the
+   * header picker `app-document-location-picker` renders. Empty means "let the server pick the
+   * default", which `LocationResolver` turns into the tenant's HeadOffice, or into nothing when
+   * this document type is outside the tenant's `LocationScopeMode`.
+   */
+  protected readonly locationId = signal('');
   protected readonly terms = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
   protected readonly discountPct = signal(0);
@@ -136,6 +145,7 @@ export class QuotationDetailPage {
         this.date.set(this.today());
         this.expiryDate.set('');
         this.reference.set('');
+        this.locationId.set('');
         this.currencyCode.set(BASE_CURRENCY_CODE);
         this.exchangeRate.set(1);
         this.terms.set('');
@@ -245,7 +255,7 @@ export class QuotationDetailPage {
 
       exchangeRate: this.exchangeRate(),
       contactId: this.contactId(),
-      date: this.date(),
+      date: this.date(), locationId: this.locationId() || null,
       expiryDate: this.expiryDate() || null,
       reference: this.reference() || null,
       terms: this.terms() || null,
@@ -421,6 +431,7 @@ export class QuotationDetailPage {
         this.date.set(quotation.date);
         this.expiryDate.set(quotation.expiryDate ?? '');
         this.reference.set(quotation.reference ?? '');
+        this.locationId.set(quotation.locationId ?? '');
         this.currencyCode.set(quotation.currencyCode);
         this.exchangeRate.set(quotation.exchangeRate);
         this.terms.set(quotation.terms ?? '');
