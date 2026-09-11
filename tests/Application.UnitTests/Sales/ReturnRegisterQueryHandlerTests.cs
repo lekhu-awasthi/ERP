@@ -34,7 +34,7 @@ public class ReturnRegisterQueryHandlerTests
         var creditNote = await InventoryReportSeed.CreditNoteAsync(
             db, seed, PeriodStart.AddDays(3), 4m, 100m, invoice.Id, vatRate: VatRate.ThirteenPercentVat);
 
-        var result = await new SalesReturnRegisterQueryHandler(db).Handle(
+        var result = await new SalesReturnRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new SalesReturnRegisterQuery(seed.OrganizationId, PeriodStart, PeriodEnd, null),
             CancellationToken.None);
 
@@ -69,10 +69,10 @@ public class ReturnRegisterQueryHandlerTests
         await InventoryReportSeed.CreditNoteAsync(
             db, seed, PeriodStart.AddDays(3), 4m, 100m, invoice.Id, vatRate: VatRate.ThirteenPercentVat);
 
-        var register = await new SalesRegisterQueryHandler(db).Handle(
+        var register = await new SalesRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new SalesRegisterQuery(seed.OrganizationId, PeriodStart, PeriodEnd, null, null),
             CancellationToken.None);
-        var returns = await new SalesReturnRegisterQueryHandler(db).Handle(
+        var returns = await new SalesReturnRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new SalesReturnRegisterQuery(seed.OrganizationId, PeriodStart, PeriodEnd, null),
             CancellationToken.None);
 
@@ -106,7 +106,7 @@ public class ReturnRegisterQueryHandlerTests
         await InventoryReportSeed.DebitNoteAsync(
             db, seed, PeriodStart.AddDays(2), 3m, 100m, capitalImportBill.Id, vatRate: VatRate.ThirteenPercentVat);
 
-        var result = await new PurchaseReturnRegisterQueryHandler(db).Handle(
+        var result = await new PurchaseReturnRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new PurchaseReturnRegisterQuery(seed.OrganizationId, PeriodStart, PeriodEnd, null),
             CancellationToken.None);
 
@@ -133,10 +133,10 @@ public class ReturnRegisterQueryHandlerTests
         await InventoryReportSeed.DebitNoteAsync(
             db, seed, PeriodStart.AddDays(2), 3m, 100m, bill.Id, vatRate: VatRate.ThirteenPercentVat);
 
-        var register = await new PurchaseRegisterQueryHandler(db).Handle(
+        var register = await new PurchaseRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new PurchaseRegisterQuery(seed.OrganizationId, PeriodStart, PeriodEnd, null),
             CancellationToken.None);
-        var returns = await new PurchaseReturnRegisterQueryHandler(db).Handle(
+        var returns = await new PurchaseReturnRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new PurchaseReturnRegisterQuery(seed.OrganizationId, PeriodStart, PeriodEnd, null),
             CancellationToken.None);
 
@@ -165,7 +165,7 @@ public class ReturnRegisterQueryHandlerTests
                 DocumentType.Invoice, invoice.Id),
             CancellationToken.None);
 
-        var result = await new SalesReturnRegisterQueryHandler(db).Handle(
+        var result = await new SalesReturnRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new SalesReturnRegisterQuery(seed.OrganizationId, PeriodStart, PeriodEnd, null),
             CancellationToken.None);
 

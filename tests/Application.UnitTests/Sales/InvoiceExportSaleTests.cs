@@ -166,7 +166,7 @@ public class InvoiceExportSaleTests
 
         var exportInvoice = await CreateAndApproveAsync(db, seed, VatRate.ThirteenPercentVat, isExport: true);
 
-        var result = await new SalesRegisterQueryHandler(db).Handle(
+        var result = await new SalesRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new SalesRegisterQuery(seed.OrganizationId, Jan01, Jan31, null, null), CancellationToken.None);
 
         var row = Assert.Single(result.Items, r => r.DocumentCode == exportInvoice.Code);
@@ -198,7 +198,7 @@ public class InvoiceExportSaleTests
 
         var ordinary = await CreateAndApproveAsync(db, seed, VatRate.ThirteenPercentVat, isExport: false);
 
-        var result = await new SalesRegisterQueryHandler(db).Handle(
+        var result = await new SalesRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new SalesRegisterQuery(seed.OrganizationId, Jan01, Jan31, null, null), CancellationToken.None);
 
         var row = Assert.Single(result.Items, r => r.DocumentCode == ordinary.Code);

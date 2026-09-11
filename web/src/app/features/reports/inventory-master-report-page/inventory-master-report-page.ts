@@ -14,6 +14,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Phase 26c -- the denormalised line-level fact table: one row per document line across every
@@ -22,7 +23,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  */
 @Component({
   selector: 'app-inventory-master-report-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter],
   templateUrl: './inventory-master-report-page.html',
 })
 export class InventoryMasterReportPage {
@@ -32,6 +33,9 @@ export class InventoryMasterReportPage {
   private readonly contactsService = inject(ContactsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   /** The six types this report covers -- see InventoryMasterReportQuery for why not eight. */
   protected readonly documentTypes = [
@@ -118,6 +122,11 @@ export class InventoryMasterReportPage {
     this.runExport(true, 1, this.pageSize());
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    this.reload();
+  }
+
   private reload(): void {
     this.page.set(1);
     this.load();
@@ -129,6 +138,7 @@ export class InventoryMasterReportPage {
       .exportInventoryMaster(
         this.organizationId, this.fromDate(), this.toDate(), this.contactId() || null,
         this.productId() || null, this.documentType() || null, full, page, pageSize,
+        this.locationId(),
       )
       .subscribe({
         next: (blob) => {
@@ -150,6 +160,7 @@ export class InventoryMasterReportPage {
       .getInventoryMaster(
         this.organizationId, this.fromDate(), this.toDate(), this.contactId() || null,
         this.productId() || null, this.documentType() || null, this.page(), this.pageSize(),
+        this.locationId(),
       )
       .subscribe({
         next: (report) => {

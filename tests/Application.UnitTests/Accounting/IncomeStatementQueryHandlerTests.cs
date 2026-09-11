@@ -120,7 +120,7 @@ public class IncomeStatementQueryHandlerTests
             new FifoStockAvailabilityPolicy(db, stockLedgerService), stockLedgerService, new ContactCreditLimitPolicy(db))
             .Handle(new ApproveInvoiceCommand(organizationId, invoice.Id, OverrideWarning: false), CancellationToken.None);
 
-        var handler = new IncomeStatementQueryHandler(db);
+        var handler = new IncomeStatementQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new IncomeStatementQuery(organizationId, today.AddDays(-1), today.AddDays(1)), CancellationToken.None);
 
@@ -144,7 +144,7 @@ public class IncomeStatementQueryHandlerTests
         await ApproveJournalVoucherAsync(db, organizationId, cashAccountId, salesAccountId, 3000m);
         await ApproveJournalVoucherAsync(db, organizationId, rentExpenseAccountId, apAccountId, 2000m);
 
-        var handler = new IncomeStatementQueryHandler(db);
+        var handler = new IncomeStatementQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var result = await handler.Handle(
             new IncomeStatementQuery(organizationId, today.AddDays(-1), today.AddDays(1)), CancellationToken.None);
@@ -169,7 +169,7 @@ public class IncomeStatementQueryHandlerTests
         var (organizationId, cashAccountId, salesAccountId, _, _) = await SeedAccountsAsync(db);
         await ApproveJournalVoucherAsync(db, organizationId, cashAccountId, salesAccountId, 3000m);
 
-        var handler = new IncomeStatementQueryHandler(db);
+        var handler = new IncomeStatementQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var result = await handler.Handle(
             new IncomeStatementQuery(organizationId, today.AddDays(-10), today.AddDays(-2)), CancellationToken.None);

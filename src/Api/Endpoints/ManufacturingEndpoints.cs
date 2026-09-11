@@ -273,32 +273,32 @@ public static class ManufacturingEndpoints
     {
         group.MapGet("/reports/production-summary", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? productId, Guid? categoryId,
-            bool? exportAll, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool? exportAll, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ProductionSummaryQuery(
                     organizationId, fromDate, toDate, productId, categoryId, exportAll ?? false,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId), ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/production-variance", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? productId, Guid? categoryId,
-            bool? exportAll, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool? exportAll, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ProductionVarianceQuery(
                     organizationId, fromDate, toDate, productId, categoryId, exportAll ?? false,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId), ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/production-planning", async (
             Guid organizationId, Guid productId, decimal quantity, Guid? warehouseId,
-            ISender sender, CancellationToken ct) =>
+            Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ProductionPlanningQuery(organizationId, productId, quantity, warehouseId), ct);
+                new ProductionPlanningQuery(organizationId, productId, quantity, warehouseId, LocationId: locationId), ct);
             return Results.Ok(result);
         });
 
@@ -306,33 +306,33 @@ public static class ManufacturingEndpoints
         // at all, the only reports in the catalogue that could not leave the screen.
         group.MapGet("/reports/production-summary/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? productId, Guid? categoryId,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ProductionSummaryQuery(
                     organizationId, fromDate, toDate, productId, categoryId, full,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId), ct);
             return ReportSpreadsheetExporter.ExportProductionSummary(result, fromDate, toDate);
         });
 
         group.MapGet("/reports/production-variance/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? productId, Guid? categoryId,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ProductionVarianceQuery(
                     organizationId, fromDate, toDate, productId, categoryId, full,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId), ct);
             return ReportSpreadsheetExporter.ExportProductionVariance(result, fromDate, toDate);
         });
 
         // No `full`: a planning report is one product's explosion and was never paginated.
         group.MapGet("/reports/production-planning/export", async (
             Guid organizationId, Guid productId, decimal quantity, Guid? warehouseId,
-            ISender sender, CancellationToken ct) =>
+            Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ProductionPlanningQuery(organizationId, productId, quantity, warehouseId), ct);
+                new ProductionPlanningQuery(organizationId, productId, quantity, warehouseId, LocationId: locationId), ct);
             return ReportSpreadsheetExporter.ExportProductionPlanning(result);
         });
     }

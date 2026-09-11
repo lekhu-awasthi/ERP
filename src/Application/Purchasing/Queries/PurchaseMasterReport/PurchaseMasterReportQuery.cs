@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Catalog;
@@ -20,8 +21,10 @@ public sealed record PurchaseMasterReportQuery(
     Guid? WarehouseId,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize,
-    bool ExportAll = false)
-    : IRequest<PurchaseMasterReportDto>, IRequirePermission, IOrganizationScoped
+    bool ExportAll = false,
+    // Phase 35b -- the Billing Location filter; null is "All locations". See ILocationFilteredReport.
+    Guid? LocationId = null)
+    : IRequest<PurchaseMasterReportDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.PurchaseMasterReportView;
 }
@@ -41,6 +44,12 @@ public sealed record PurchaseMasterReportRowDto(
     string? ContactGroupName,
     Guid? WarehouseId,
     string? WarehouseName,
+    // Phase 35b -- the mirror of SalesMasterReportRowDto's Location columns (phase 32). The live
+    // column list was recorded for the Sales Master Report and not separately for this one, so this
+    // is inferred from the two being mirrors in every other column rather than observed -- named in
+    // docs/phase-35b-status.md as the one place this phase went past what the census settled.
+    Guid? LocationId,
+    string? LocationName,
     string EntryNo,
     string? ReferenceNo,
     DateOnly EntryDate,

@@ -1,5 +1,7 @@
 ﻿using ErpApp.Application.Accounting.Reports;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Application.Contacts.Queries.ContactStatement;
 using ErpApp.Application.Inventory.Reports;
 using ErpApp.Domain.Contacts;
@@ -8,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Accounting.Queries.NetTradingAssets;
 
-public sealed class NetTradingAssetsQueryHandler(IAppDbContext db)
+public sealed class NetTradingAssetsQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<NetTradingAssetsQuery, NetTradingAssetsDto>
 {
     /// <summary>The four leaf figures at one date, before they are grouped into rows.</summary>
@@ -21,14 +23,23 @@ public sealed class NetTradingAssetsQueryHandler(IAppDbContext db)
 
     public async Task<NetTradingAssetsDto> Handle(NetTradingAssetsQuery request, CancellationToken cancellationToken)
     {
-        var current = await PositionAsync(request.OrganizationId, request.ToDate, cancellationToken);
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
+        var current = await PositionAsync(
+            request.OrganizationId, request.ToDate, request.LocationId, reportLocations, cancellationToken);
 
         // One request, not two: the comparison window is a second pass inside this handler and is
         // merged into the same response. Lining two responses up in the browser would mean
         // re-deriving the row set and the grouping client-side -- phase-26a's rule.
         var compareAsOf = request.Compare ? ComparePeriod.PriorYearAsOf(request.ToDate) : (DateOnly?)null;
         var comparison = compareAsOf is { } date
-            ? await PositionAsync(request.OrganizationId, date, cancellationToken)
+            ? await PositionAsync(request.OrganizationId, date, request.LocationId, reportLocations, cancellationToken)
             : null;
 
         var rows = BuildRows(current, comparison, request.ExcludeAdvance);
@@ -37,15 +48,21 @@ public sealed class NetTradingAssetsQueryHandler(IAppDbContext db)
             request.FromDate, request.ToDate, request.ExcludeAdvance, compareAsOf, rows);
     }
 
-    private async Task<Position> PositionAsync(Guid organizationId, DateOnly asOf, CancellationToken cancellationToken)
+    private async Task<Position> PositionAsync(
+        Guid organizationId,
+        DateOnly asOf,
+        Guid? locationId,
+        IReadOnlyList<Guid>? reportLocations,
+        CancellationToken cancellationToken)
     {
         var (customerDebit, customerCredit) = await ContactSidesAsync(
-            organizationId, ContactType.Customer, asOf, cancellationToken);
+            organizationId, ContactType.Customer, asOf, locationId, reportLocations, cancellationToken);
         var (supplierDebit, supplierCredit) = await ContactSidesAsync(
-            organizationId, ContactType.Supplier, asOf, cancellationToken);
+            organizationId, ContactType.Supplier, asOf, locationId, reportLocations, cancellationToken);
 
         var movements = await StockFactReader.LoadMovementsAsync(
-            db, organizationId, productIds: null, warehouseId: null, asOf, cancellationToken);
+            db, organizationId, productIds: null, warehouseId: null, asOf, cancellationToken,
+            locationId, reportLocations);
         var inventory = StockFactReader.Summarise(movements, asOf).Sum(f => f.BalanceValue);
 
         // A positive signed balance means a debit for a customer and a credit for a supplier --
@@ -68,7 +85,12 @@ public sealed class NetTradingAssetsQueryHandler(IAppDbContext db)
     /// hide both.
     /// </summary>
     private async Task<(decimal Debit, decimal Credit)> ContactSidesAsync(
-        Guid organizationId, ContactType contactType, DateOnly asOf, CancellationToken cancellationToken)
+        Guid organizationId,
+        ContactType contactType,
+        DateOnly asOf,
+        Guid? locationId,
+        IReadOnlyList<Guid>? reportLocations,
+        CancellationToken cancellationToken)
     {
         var contacts = await db.Contacts
             .Where(x => x.OrganizationId == organizationId && x.Type == contactType)
@@ -76,7 +98,7 @@ public sealed class NetTradingAssetsQueryHandler(IAppDbContext db)
             .ToListAsync(cancellationToken);
 
         var events = await ContactLedgerReader.LoadAllContactEventsAsync(
-            db, organizationId, contactType, asOf, cancellationToken);
+            db, organizationId, contactType, asOf, cancellationToken, locationId, reportLocations);
         var movementByContact = events
             .GroupBy(x => x.ContactId)
             .ToDictionary(g => g.Key, g => g.Sum(x => x.SignedAmount));

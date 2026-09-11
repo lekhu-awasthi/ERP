@@ -51,6 +51,13 @@
             }
           </select>
         </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+          <app-report-location-filter
+            [organizationId]="organizationId"
+            [controlId]="'customer-ageing-summary-page-billing-location'"
+            (locationChange)="onLocationChange($event)"
+          />
+        </div>
       </div>
     </div>
   </div>

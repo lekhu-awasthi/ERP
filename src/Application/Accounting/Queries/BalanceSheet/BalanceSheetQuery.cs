@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using MediatR;
 
@@ -22,8 +23,8 @@ namespace ErpApp.Application.Accounting.Queries.BalanceSheet;
 /// what makes the two columns line up row-for-row by construction. Off by default; when off every
 /// Compare* field is null rather than zero.</para>
 /// </summary>
-public sealed record BalanceSheetQuery(Guid OrganizationId, DateOnly AsOfDate, bool Compare = false)
-    : IRequest<BalanceSheetDto>, IRequirePermission, IOrganizationScoped
+public sealed record BalanceSheetQuery(Guid OrganizationId, DateOnly AsOfDate, bool Compare = false, Guid? LocationId = null)
+    : IRequest<BalanceSheetDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.BalanceSheetView;
 }

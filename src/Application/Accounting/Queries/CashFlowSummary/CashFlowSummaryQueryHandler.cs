@@ -1,5 +1,7 @@
 using ErpApp.Application.Accounting.Reports;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
@@ -9,12 +11,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Accounting.Queries.CashFlowSummary;
 
-public sealed class CashFlowSummaryQueryHandler(IAppDbContext db) : IRequestHandler<CashFlowSummaryQuery, CashFlowSummaryDto>
+public sealed class CashFlowSummaryQueryHandler(IAppDbContext db, ICurrentUserService currentUser) : IRequestHandler<CashFlowSummaryQuery, CashFlowSummaryDto>
 {
     private sealed record BankLine(decimal Debit, decimal Credit, DateTimeOffset PostedAt, DocumentType SourceDocumentType, Guid SourceDocumentId);
 
     public async Task<CashFlowSummaryDto> Handle(CashFlowSummaryQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+        var entries = GlEntryLocations.ForReport(db, request.OrganizationId, request.LocationId, reportLocations);
+
         var fromUtc = GlDateBoundary.StartOfDayUtc(request.FromDate);
         var toUtc = GlDateBoundary.EndOfDayUtc(request.ToDate);
 
@@ -28,8 +38,8 @@ public sealed class CashFlowSummaryQueryHandler(IAppDbContext db) : IRequestHand
 
         var lines = await (
             from line in db.GlLines
-            join entry in db.GlJournalEntries on line.GlJournalEntryId equals entry.Id
-            where entry.OrganizationId == request.OrganizationId && bankAccountIds.Contains(line.AccountId) && entry.PostedAt <= toUtc
+            join entry in entries on line.GlJournalEntryId equals entry.Id
+            where bankAccountIds.Contains(line.AccountId) && entry.PostedAt <= toUtc
             select new BankLine(line.Debit, line.Credit, entry.PostedAt, entry.SourceDocumentType, entry.SourceDocumentId))
             .ToListAsync(cancellationToken);
 

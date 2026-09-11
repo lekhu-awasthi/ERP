@@ -21,7 +21,8 @@ public sealed class StockLedgerService(IAppDbContext db) : IStockLedgerService
         DocumentType sourceDocumentType,
         Guid sourceDocumentId,
         DateOnly transactionDate,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? locationId = null)
     {
         if (quantity < 0)
         {
@@ -34,12 +35,13 @@ public sealed class StockLedgerService(IAppDbContext db) : IStockLedgerService
         }
 
         var entry = StockLedgerEntry.Create(
-            organizationId, productId, warehouseId, quantity, unitCost, sourceDocumentType, sourceDocumentId, transactionDate);
+            organizationId, productId, warehouseId, quantity, unitCost, sourceDocumentType, sourceDocumentId,
+            transactionDate, locationId);
         db.StockLedgerEntries.Add(entry);
 
         db.StockMovements.Add(StockMovement.Create(
             organizationId, productId, warehouseId, StockMovementDirection.In, quantity, unitCost,
-            sourceDocumentType, sourceDocumentId, transactionDate));
+            sourceDocumentType, sourceDocumentId, transactionDate, locationId));
 
         return Task.CompletedTask;
     }
@@ -52,7 +54,8 @@ public sealed class StockLedgerService(IAppDbContext db) : IStockLedgerService
         DocumentType sourceDocumentType,
         Guid sourceDocumentId,
         DateOnly transactionDate,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? locationId = null)
     {
         if (quantity < 0)
         {
@@ -93,7 +96,7 @@ public sealed class StockLedgerService(IAppDbContext db) : IStockLedgerService
 
         db.StockMovements.Add(StockMovement.Create(
             organizationId, productId, warehouseId, StockMovementDirection.Out, quantity, averageUnitCost,
-            sourceDocumentType, sourceDocumentId, transactionDate));
+            sourceDocumentType, sourceDocumentId, transactionDate, locationId));
 
         return averageUnitCost;
     }
@@ -161,9 +164,13 @@ public sealed class StockLedgerService(IAppDbContext db) : IStockLedgerService
 
         foreach (var layer in layers)
         {
+            // Phase 35b -- the reversal takes the layer's own location, never a fresh argument.
+            // Same rule as GlJournalEntry.PostReversalOf: a release that landed somewhere else would
+            // leave the original branch's stock value permanently off while the organization-wide
+            // total still reconciled.
             db.StockMovements.Add(StockMovement.Create(
                 organizationId, layer.ProductId, layer.WarehouseId, StockMovementDirection.Out, layer.QuantityRemaining,
-                layer.UnitCost, sourceDocumentType, sourceDocumentId, transactionDate));
+                layer.UnitCost, sourceDocumentType, sourceDocumentId, transactionDate, layer.LocationId));
 
             layer.Consume(layer.QuantityRemaining);
         }

@@ -1,5 +1,7 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Application.Inventory.Reports;
 using ErpApp.Domain.Inventory;
 using MediatR;
@@ -7,18 +9,27 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Inventory.Queries.InventoryLedgerReport;
 
-public sealed class InventoryLedgerReportQueryHandler(IAppDbContext db)
+public sealed class InventoryLedgerReportQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<InventoryLedgerReportQuery, InventoryLedgerReportDto>
 {
     public async Task<InventoryLedgerReportDto> Handle(
         InventoryLedgerReportQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var products = await InventoryReportProducts.LoadAsync(
             db, request.OrganizationId, categoryId: null, request.ProductId, cancellationToken);
         var product = products.For(request.ProductId);
 
         var movements = await StockFactReader.LoadMovementsAsync(
-            db, request.OrganizationId, [request.ProductId], request.WarehouseId, request.ToDate, cancellationToken);
+            db, request.OrganizationId, [request.ProductId], request.WarehouseId, request.ToDate, cancellationToken,
+            request.LocationId, reportLocations);
 
         var facts = StockFactReader.Summarise(request.ProductId, movements, request.FromDate);
 

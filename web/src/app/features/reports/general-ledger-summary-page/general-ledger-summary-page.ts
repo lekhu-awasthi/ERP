@@ -13,6 +13,7 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { triggerBlobDownload } from '../../../shared/download-file';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 const EMPTY_REPORT: PagedResult<GeneralLedgerSummaryRowDto> = {
   items: [],
@@ -33,7 +34,7 @@ const EMPTY_REPORT: PagedResult<GeneralLedgerSummaryRowDto> = {
  */
 @Component({
   selector: 'app-general-ledger-summary-page',
-  imports: [PaginationControl, AmountPipe, BsDateInput],
+  imports: [PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter],
   templateUrl: './general-ledger-summary-page.html',
 })
 export class GeneralLedgerSummaryPage {
@@ -41,6 +42,9 @@ export class GeneralLedgerSummaryPage {
   private readonly accountingService = inject(AccountingService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -122,6 +126,7 @@ export class GeneralLedgerSummaryPage {
       .exportGeneralLedgerSummary(
         this.organizationId, this.fromDate(), this.toDate(), this.groupId() || null, this.accountId() || null,
         full, page, pageSize,
+        this.locationId(),
       )
       .subscribe({
         next: (blob) => {
@@ -135,6 +140,14 @@ export class GeneralLedgerSummaryPage {
       });
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    // Page 1: every other filter on this screen resets the page, and a narrowing filter applied
+    // while on a later page returns nothing at all.
+    this.page.set(1);
+    this.load();
+  }
+
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
@@ -143,6 +156,7 @@ export class GeneralLedgerSummaryPage {
       .getGeneralLedgerSummary(
         this.organizationId, this.fromDate(), this.toDate(), this.groupId() || null, this.accountId() || null,
         this.page(), this.pageSize(),
+        this.locationId(),
       )
       .subscribe({
         next: (report) => {

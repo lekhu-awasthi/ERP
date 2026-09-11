@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Catalog;
@@ -42,7 +43,7 @@ public sealed record SalesMasterReportQuery(
     // Contact, Product, GENERATE) under that label, not a reuse of the Warehouse picker. Optional and
     // trailing: null is "All", which is the live default and what every earlier caller keeps getting.
     Guid? LocationId = null)
-    : IRequest<SalesMasterReportDto>, IRequirePermission, IOrganizationScoped
+    : IRequest<SalesMasterReportDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.SalesMasterReportView;
 }

@@ -1,4 +1,5 @@
-﻿using ErpApp.Application.Common.Pagination;
+﻿using ErpApp.Application.Common.Locations;
+using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using MediatR;
@@ -23,8 +24,10 @@ public sealed record PurchaseRegisterQuery(
     Guid? ContactId,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize,
-    bool ExportAll = false)
-    : IRequest<PurchaseRegisterDto>, IRequirePermission, IOrganizationScoped
+    bool ExportAll = false,
+    // Phase 35b -- the Billing Location filter; null is "All locations". See ILocationFilteredReport.
+    Guid? LocationId = null)
+    : IRequest<PurchaseRegisterDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.PurchaseRegisterView;
 }

@@ -140,12 +140,13 @@ export class WorkflowService {
     toDate: string | null,
     page = 1,
     pageSize = 50,
+    locationId?: string,
   ): Observable<PagedResult<TransactionListRowDto>> {
     return this.http.get<PagedResult<TransactionListRowDto>>(
       `${this.baseUrl(organizationId)}/reports/transaction-list`,
       {
         withCredentials: true,
-        params: this.transactionListParams(documentTypes, statuses, fromDate, toDate, page, pageSize),
+        params: this.transactionListParams(documentTypes, statuses, fromDate, toDate, page, pageSize, locationId ?? null),
       },
     );
   }
@@ -159,10 +160,11 @@ export class WorkflowService {
     full: boolean,
     page: number,
     pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
     return this.http.get(`${this.baseUrl(organizationId)}/reports/transaction-list/export`, {
       withCredentials: true,
-      params: this.transactionListParams(documentTypes, statuses, fromDate, toDate, page, pageSize)
+      params: this.transactionListParams(documentTypes, statuses, fromDate, toDate, page, pageSize, locationId ?? null)
         .set('full', String(full)),
       responseType: 'blob',
     });
@@ -175,6 +177,7 @@ export class WorkflowService {
     toDate: string | null,
     page: number,
     pageSize: number,
+    locationId: string | null,
   ): HttpParams {
     let params = new HttpParams().set('page', String(page)).set('pageSize', String(pageSize));
     for (const documentType of documentTypes) {
@@ -189,6 +192,10 @@ export class WorkflowService {
     if (toDate) {
       params = params.set('toDate', toDate);
     }
+    if (locationId) {
+      params = params.set('locationId', locationId);
+    }
+
     return params;
   }
 

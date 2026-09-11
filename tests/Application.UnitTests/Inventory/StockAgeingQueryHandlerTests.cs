@@ -38,7 +38,7 @@ public class StockAgeingQueryHandlerTests
         await CreateAndApprovePurchaseBillAsync(db, seed, asOf.AddDays(-30), 10m, 50m); // age 30 -> 1-30, cost 500
         await CreateAndApprovePurchaseBillAsync(db, seed, asOf.AddDays(-61), 5m, 40m); // age 61 -> 61-90, cost 200
 
-        var handler = new StockAgeingQueryHandler(db);
+        var handler = new StockAgeingQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new StockAgeingQuery(seed.OrganizationId, asOf, null, null, null), CancellationToken.None);
 
@@ -66,7 +66,7 @@ public class StockAgeingQueryHandlerTests
         await CreateAndApprovePurchaseBillAsync(db, seed, asOf.AddDays(-10), 10m, 50m);
         await CreateAndApprovePurchaseBillAsync(db, seed, asOf.AddDays(10), 999m, 1m); // future -- excluded
 
-        var handler = new StockAgeingQueryHandler(db);
+        var handler = new StockAgeingQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new StockAgeingQuery(seed.OrganizationId, asOf, null, null, null), CancellationToken.None);
 

@@ -24,7 +24,8 @@ public interface IStockLedgerService
         DocumentType sourceDocumentType,
         Guid sourceDocumentId,
         DateOnly transactionDate,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        Guid? locationId = null);
 
     /// <summary>
     /// Walks existing layers for (ProductId, WarehouseId) oldest-TransactionDate-first (ties
@@ -45,7 +46,8 @@ public interface IStockLedgerService
         DocumentType sourceDocumentType,
         Guid sourceDocumentId,
         DateOnly transactionDate,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        Guid? locationId = null);
 
     /// <summary>Sum of QuantityRemaining across every layer for (ProductId, WarehouseId) -- the
     /// on-hand balance IStockAvailabilityPolicy compares a requested quantity against.</summary>

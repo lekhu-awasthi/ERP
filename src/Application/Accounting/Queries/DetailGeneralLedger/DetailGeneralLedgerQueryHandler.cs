@@ -1,18 +1,28 @@
 using ErpApp.Application.Accounting.Reports;
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Accounting.Queries.DetailGeneralLedger;
 
-public sealed class DetailGeneralLedgerQueryHandler(IAppDbContext db)
+public sealed class DetailGeneralLedgerQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<DetailGeneralLedgerQuery, PagedResult<DetailGeneralLedgerAccountDto>>
 {
     public async Task<PagedResult<DetailGeneralLedgerAccountDto>> Handle(
         DetailGeneralLedgerQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+        var entries = GlEntryLocations.ForReport(db, request.OrganizationId, request.LocationId, reportLocations);
+
         var openingCutoff = GlDateBoundary.EndOfDayUtc(request.FromDate.AddDays(-1));
         var periodFrom = GlDateBoundary.StartOfDayUtc(request.FromDate);
         var periodTo = GlDateBoundary.EndOfDayUtc(request.ToDate);
@@ -21,8 +31,8 @@ public sealed class DetailGeneralLedgerQueryHandler(IAppDbContext db)
 
         var openings = await (
             from line in db.GlLines
-            join entry in db.GlJournalEntries on line.GlJournalEntryId equals entry.Id
-            where entry.OrganizationId == request.OrganizationId && entry.PostedAt <= openingCutoff
+            join entry in entries on line.GlJournalEntryId equals entry.Id
+            where entry.PostedAt <= openingCutoff
             group line by line.AccountId into g
             select new { AccountId = g.Key, Net = g.Sum(x => x.Debit) - g.Sum(x => x.Credit) })
             .ToListAsync(cancellationToken);
@@ -30,9 +40,8 @@ public sealed class DetailGeneralLedgerQueryHandler(IAppDbContext db)
 
         var periodLines = await (
             from line in db.GlLines
-            join entry in db.GlJournalEntries on line.GlJournalEntryId equals entry.Id
-            where entry.OrganizationId == request.OrganizationId
-                  && entry.PostedAt >= periodFrom && entry.PostedAt <= periodTo
+            join entry in entries on line.GlJournalEntryId equals entry.Id
+            where entry.PostedAt >= periodFrom && entry.PostedAt <= periodTo
             select new
             {
                 line.Id,

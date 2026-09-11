@@ -52,11 +52,13 @@ public sealed class ApproveWarehouseTransferCommandHandler(
         {
             var averageUnitCost = await stockLedgerService.ConsumeAsync(
                 request.OrganizationId, line.ProductId, warehouseTransfer.FromWarehouseId, line.Quantity,
-                DocumentType.WarehouseTransfer, warehouseTransfer.Id, warehouseTransfer.Date, cancellationToken);
+                DocumentType.WarehouseTransfer, warehouseTransfer.Id, warehouseTransfer.Date, cancellationToken,
+                warehouseTransfer.LocationId);
 
             await stockLedgerService.IncrementAsync(
                 request.OrganizationId, line.ProductId, warehouseTransfer.ToWarehouseId, line.Quantity, averageUnitCost,
-                DocumentType.WarehouseTransfer, warehouseTransfer.Id, warehouseTransfer.Date, cancellationToken);
+                DocumentType.WarehouseTransfer, warehouseTransfer.Id, warehouseTransfer.Date, cancellationToken,
+                warehouseTransfer.LocationId);
         }
 
         await db.SaveChangesAsync(cancellationToken);

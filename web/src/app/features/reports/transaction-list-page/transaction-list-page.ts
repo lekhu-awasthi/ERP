@@ -14,6 +14,7 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { triggerBlobDownload } from '../../../shared/download-file';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 const EMPTY_REPORT: PagedResult<TransactionListRowDto> = {
   items: [],
@@ -47,7 +48,7 @@ const STATUSES: TransactionListStatus[] = ['Draft', 'Approved', 'Void', 'Convert
  */
 @Component({
   selector: 'app-transaction-list-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, NepaliDatePipe, BsDateInput],
+  imports: [RouterLink, PaginationControl, AmountPipe, NepaliDatePipe, BsDateInput, ReportLocationFilter],
   templateUrl: './transaction-list-page.html',
 })
 export class TransactionListPage {
@@ -55,6 +56,9 @@ export class TransactionListPage {
   private readonly workflowService = inject(WorkflowService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
   protected readonly documentTypes = DOCUMENT_TYPES;
   protected readonly statuses = STATUSES;
 
@@ -138,6 +142,7 @@ export class TransactionListPage {
       .exportTransactionList(
         this.organizationId, this.selectedTypes(), this.selectedStatuses(),
         this.fromDate() || null, this.toDate() || null, full, page, pageSize,
+        this.locationId(),
       )
       .subscribe({
         next: (blob) => {
@@ -151,6 +156,14 @@ export class TransactionListPage {
       });
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    // Page 1: every other filter on this screen resets the page, and a narrowing filter applied
+    // while on a later page returns nothing at all.
+    this.page.set(1);
+    this.load();
+  }
+
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
@@ -159,6 +172,7 @@ export class TransactionListPage {
       .getTransactionList(
         this.organizationId, this.selectedTypes(), this.selectedStatuses(),
         this.fromDate() || null, this.toDate() || null, this.page(), this.pageSize(),
+        this.locationId(),
       )
       .subscribe({
         next: (report) => {

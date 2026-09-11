@@ -73,14 +73,16 @@ public sealed class ApproveInventoryAdjustmentCommandHandler(
             {
                 await stockLedgerService.IncrementAsync(
                     request.OrganizationId, line.ProductId, inventoryAdjustment.WarehouseId, line.Quantity, line.UnitCost,
-                    DocumentType.InventoryAdjustment, inventoryAdjustment.Id, inventoryAdjustment.Date, cancellationToken);
+                    DocumentType.InventoryAdjustment, inventoryAdjustment.Id, inventoryAdjustment.Date, cancellationToken,
+                    inventoryAdjustment.LocationId);
                 increaseAmount += line.Quantity * line.UnitCost;
             }
             else
             {
                 var averageUnitCost = await stockLedgerService.ConsumeAsync(
                     request.OrganizationId, line.ProductId, inventoryAdjustment.WarehouseId, line.Quantity,
-                    DocumentType.InventoryAdjustment, inventoryAdjustment.Id, inventoryAdjustment.Date, cancellationToken);
+                    DocumentType.InventoryAdjustment, inventoryAdjustment.Id, inventoryAdjustment.Date, cancellationToken,
+                    inventoryAdjustment.LocationId);
                 line.RecordConsumedUnitCost(averageUnitCost);
                 decreaseAmount += line.Quantity * averageUnitCost;
             }
@@ -88,7 +90,9 @@ public sealed class ApproveInventoryAdjustmentCommandHandler(
 
         var postingInput = new InventoryAdjustmentPostingInput(inventoryAccountId, adjustmentAccountId, increaseAmount, decreaseAmount);
         var glLines = postingRule.BuildLines(postingInput);
-        var glEntry = GlJournalEntry.Post(request.OrganizationId, DocumentType.InventoryAdjustment, inventoryAdjustment.Id, glLines);
+        var glEntry = GlJournalEntry.Post(
+            request.OrganizationId, DocumentType.InventoryAdjustment, inventoryAdjustment.Id, glLines,
+            inventoryAdjustment.LocationId);
         db.GlJournalEntries.Add(glEntry);
 
         await db.SaveChangesAsync(cancellationToken);

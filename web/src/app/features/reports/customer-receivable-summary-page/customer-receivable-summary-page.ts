@@ -11,6 +11,7 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Customer Receivable Summary -- confirmed live 2026-09-03: filters Period and Contact Group; columns
@@ -23,7 +24,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
  */
 @Component({
   selector: 'app-customer-receivable-summary-page',
-  imports: [PaginationControl, AmountPipe, BsDateInput],
+  imports: [PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter],
   templateUrl: './customer-receivable-summary-page.html',
 })
 export class CustomerReceivableSummaryPage {
@@ -32,6 +33,9 @@ export class CustomerReceivableSummaryPage {
   private readonly reports = inject(TradeReportsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -85,6 +89,11 @@ export class CustomerReceivableSummaryPage {
     this.runExport(true, 1, this.pageSize());
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    this.reload();
+  }
+
   private reload(): void {
     this.page.set(1);
     this.load();
@@ -95,7 +104,7 @@ export class CustomerReceivableSummaryPage {
     this.reports
       .exportContactBalanceSummary(
         this.organizationId, 'customer-receivable-summary', this.fromDate(), this.toDate(),
-        this.contactGroupId() || null, full, page, pageSize)
+        this.contactGroupId() || null, full, page, pageSize, this.locationId())
       .subscribe({
         next: (blob) => {
           this.exporting.set(false);
@@ -115,7 +124,7 @@ export class CustomerReceivableSummaryPage {
     this.reports
       .getContactBalanceSummary(
         this.organizationId, 'customer-receivable-summary', this.fromDate(), this.toDate(),
-        this.contactGroupId() || null, this.page(), this.pageSize())
+        this.contactGroupId() || null, this.page(), this.pageSize(), this.locationId())
       .subscribe({
         next: (report) => {
           this.report.set(report);

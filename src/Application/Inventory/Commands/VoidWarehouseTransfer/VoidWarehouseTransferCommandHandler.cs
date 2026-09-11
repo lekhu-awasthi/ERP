@@ -49,7 +49,8 @@ public sealed class VoidWarehouseTransferCommandHandler(
         {
             await stockLedgerService.IncrementAsync(
                 request.OrganizationId, layer.ProductId, warehouseTransfer.FromWarehouseId, layer.QuantityIn, layer.UnitCost,
-                DocumentType.WarehouseTransfer, warehouseTransfer.Id, warehouseTransfer.Date, cancellationToken);
+                DocumentType.WarehouseTransfer, warehouseTransfer.Id, warehouseTransfer.Date, cancellationToken,
+                warehouseTransfer.LocationId);
         }
 
         await db.SaveChangesAsync(cancellationToken);

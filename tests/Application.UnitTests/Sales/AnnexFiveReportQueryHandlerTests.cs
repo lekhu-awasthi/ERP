@@ -44,7 +44,7 @@ public class AnnexFiveReportQueryHandlerTests
             db, seed, new DateOnly(2026, 1, 15),
             [(seed.ProductId, 10m, 100m, VatRate.ThirteenPercentVat), (seed.ProductId, 5m, 100m, VatRate.NoVat)]);
 
-        var handler = new AnnexFiveReportQueryHandler(db);
+        var handler = new AnnexFiveReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new AnnexFiveReportQuery(seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31)),
             CancellationToken.None);
@@ -73,7 +73,7 @@ public class AnnexFiveReportQueryHandlerTests
         var creditNote = await CreateAndApproveStandaloneCreditNoteAsync(
             db, seed, new DateOnly(2026, 1, 12), 2m, 100m, VatRate.ThirteenPercentVat);
 
-        var handler = new AnnexFiveReportQueryHandler(db);
+        var handler = new AnnexFiveReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new AnnexFiveReportQuery(seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31)),
             CancellationToken.None);
@@ -104,7 +104,7 @@ public class AnnexFiveReportQueryHandlerTests
         var outOfRange = await CreateAndApproveInvoiceAsync(
             db, seed, new DateOnly(2026, 3, 1), [(seed.ProductId, 1m, 100m, VatRate.NoVat)]);
 
-        var handler = new AnnexFiveReportQueryHandler(db);
+        var handler = new AnnexFiveReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new AnnexFiveReportQuery(seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31)),
             CancellationToken.None);

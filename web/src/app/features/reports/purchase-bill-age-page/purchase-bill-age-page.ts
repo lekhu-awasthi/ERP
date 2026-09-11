@@ -17,6 +17,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Purchase Bill Age -- confirmed live 2026-09-03. Every outstanding document with its own age, where
@@ -32,7 +33,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  */
 @Component({
   selector: 'app-purchase-bill-age-page',
-  imports: [PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe],
+  imports: [PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter],
   templateUrl: './purchase-bill-age-page.html',
 })
 export class PurchaseBillAgePage {
@@ -41,6 +42,9 @@ export class PurchaseBillAgePage {
   private readonly reports = inject(TradeReportsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
   protected readonly ageableTypes = SUPPLIER_AGEABLE_TYPES;
 
   protected readonly loading = signal(true);
@@ -109,6 +113,11 @@ export class PurchaseBillAgePage {
     this.runExport(true, 1, this.pageSize());
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    this.reload();
+  }
+
   private reload(): void {
     this.page.set(1);
     this.load();
@@ -119,7 +128,7 @@ export class PurchaseBillAgePage {
     this.reports
       .exportDocumentAge(
         this.organizationId, 'purchase-bill-age', this.fromDate(), this.asOfDate(),
-        this.contactId() || null, this.selectedTypes(), full, page, pageSize)
+        this.contactId() || null, this.selectedTypes(), full, page, pageSize, this.locationId())
       .subscribe({
         next: (blob) => {
           this.exporting.set(false);
@@ -139,7 +148,7 @@ export class PurchaseBillAgePage {
     this.reports
       .getDocumentAge(
         this.organizationId, 'purchase-bill-age', this.fromDate(), this.asOfDate(),
-        this.contactId() || null, this.selectedTypes(), this.page(), this.pageSize())
+        this.contactId() || null, this.selectedTypes(), this.page(), this.pageSize(), this.locationId())
       .subscribe({
         next: (report) => {
           this.report.set(report);

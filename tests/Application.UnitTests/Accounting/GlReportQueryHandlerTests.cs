@@ -38,7 +38,7 @@ public class GlReportQueryHandlerTests
         await PostAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
         await PostAsync(db, organizationId, cashAccountId, salesAccountId, 250m);
 
-        var result = await new JournalReportQueryHandler(db).Handle(
+        var result = await new JournalReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new JournalReportQuery(organizationId, From, To), CancellationToken.None);
 
         // Two documents, two blocks -- the pager counts documents, not lines.
@@ -62,9 +62,9 @@ public class GlReportQueryHandlerTests
         var (organizationId, cashAccountId, salesAccountId) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
         await PostAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
 
-        var matching = await new JournalReportQueryHandler(db).Handle(
+        var matching = await new JournalReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new JournalReportQuery(organizationId, From, To, DocumentType.JournalVoucher), CancellationToken.None);
-        var other = await new JournalReportQueryHandler(db).Handle(
+        var other = await new JournalReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new JournalReportQuery(organizationId, From, To, DocumentType.Invoice), CancellationToken.None);
 
         Assert.Single(matching.Items);
@@ -78,7 +78,7 @@ public class GlReportQueryHandlerTests
         var (organizationId, cashAccountId, salesAccountId) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
         await PostAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
 
-        var result = await new GeneralLedgerSummaryQueryHandler(db, new AccountGroupTreeQuery(db)).Handle(
+        var result = await new GeneralLedgerSummaryQueryHandler(db, new AccountGroupTreeQuery(db), new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new GeneralLedgerSummaryQuery(organizationId, From, To), CancellationToken.None);
 
         var cash = Assert.Single(result.Items, r => r.AccountId == cashAccountId);
@@ -109,7 +109,7 @@ public class GlReportQueryHandlerTests
         var db = TestAppDbContext.Create();
         var (organizationId, _, _) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
 
-        var result = await new GeneralLedgerSummaryQueryHandler(db, new AccountGroupTreeQuery(db)).Handle(
+        var result = await new GeneralLedgerSummaryQueryHandler(db, new AccountGroupTreeQuery(db), new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new GeneralLedgerSummaryQuery(organizationId, From, To), CancellationToken.None);
 
         Assert.Equal(2, result.TotalCount);
@@ -135,7 +135,7 @@ public class GlReportQueryHandlerTests
         await new CreateAccountCommandHandler(db, numberGenerator).Handle(
             new CreateAccountCommand(organizationId, "Sales Revenue", income.Id), CancellationToken.None);
 
-        var result = await new GeneralLedgerSummaryQueryHandler(db, new AccountGroupTreeQuery(db)).Handle(
+        var result = await new GeneralLedgerSummaryQueryHandler(db, new AccountGroupTreeQuery(db), new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new GeneralLedgerSummaryQuery(organizationId, From, To, GroupId: parent.Id), CancellationToken.None);
 
         // The account sits in a *sub*group of the filtered group, and must still appear.
@@ -153,7 +153,7 @@ public class GlReportQueryHandlerTests
         await PostAsync(db, organizationId, cashAccountId, salesAccountId, 600m);
         await PostAsync(db, organizationId, salesAccountId, cashAccountId, 100m);
 
-        var result = await new DetailGeneralLedgerQueryHandler(db).Handle(
+        var result = await new DetailGeneralLedgerQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new DetailGeneralLedgerQuery(organizationId, From, To, AccountId: cashAccountId), CancellationToken.None);
 
         var section = Assert.Single(result.Items);
@@ -187,7 +187,7 @@ public class GlReportQueryHandlerTests
             new CreateAccountCommand(organizationId, "Rent Expense", group.Id), CancellationToken.None);
         await PostAsync(db, organizationId, cashAccountId, salesAccountId, 600m);
 
-        var result = await new DetailGeneralLedgerQueryHandler(db).Handle(
+        var result = await new DetailGeneralLedgerQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new DetailGeneralLedgerQuery(organizationId, From, To), CancellationToken.None);
 
         Assert.Equal(2, result.TotalCount);
@@ -201,7 +201,7 @@ public class GlReportQueryHandlerTests
         var (organizationId, cashAccountId, salesAccountId) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
         await PostAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
 
-        var result = await new GeneralLedgerMasterQueryHandler(db).Handle(
+        var result = await new GeneralLedgerMasterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new GeneralLedgerMasterQuery(organizationId, From, To), CancellationToken.None);
 
         Assert.Equal(2, result.TotalCount);
@@ -227,7 +227,7 @@ public class GlReportQueryHandlerTests
         var (organizationId, cashAccountId, salesAccountId) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
         await PostAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
 
-        var result = await new GeneralLedgerMasterQueryHandler(db).Handle(
+        var result = await new GeneralLedgerMasterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new GeneralLedgerMasterQuery(organizationId, Today.AddDays(-10), Today.AddDays(-5)), CancellationToken.None);
 
         Assert.Empty(result.Items);

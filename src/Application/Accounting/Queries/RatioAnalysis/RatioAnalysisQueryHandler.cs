@@ -2,6 +2,7 @@ using ErpApp.Application.Accounting.Queries.BalanceSheet;
 using ErpApp.Application.Accounting.Queries.IncomeStatement;
 using ErpApp.Application.Accounting.Reports;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Application.Common.Trees;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Purchasing;
@@ -11,14 +12,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Accounting.Queries.RatioAnalysis;
 
-public sealed class RatioAnalysisQueryHandler(IAppDbContext db, ITreeQuery<AccountGroup> treeQuery)
+public sealed class RatioAnalysisQueryHandler(
+    IAppDbContext db, ITreeQuery<AccountGroup> treeQuery, ICurrentUserService currentUser)
     : IRequestHandler<RatioAnalysisQuery, RatioAnalysisDto>
 {
     public async Task<RatioAnalysisDto> Handle(RatioAnalysisQuery request, CancellationToken cancellationToken)
     {
-        var balanceSheet = await new BalanceSheetQueryHandler(db, treeQuery)
+        // Phase 35b -- Ratio Analysis is exempt from the Billing Location *filter* (the live census
+        // found no control on it, and a ratio of one branch's numbers to another's is not the same
+        // report), but it is NOT exempt from the location *permission scope*: the two statements it
+        // is built from now honour LocationWiseReportPermission, and passing currentUser through is
+        // what carries that. The two narrowings are different mechanisms for different reasons --
+        // one is a filter the user chooses, the other a restriction an Admin imposes.
+        var balanceSheet = await new BalanceSheetQueryHandler(db, treeQuery, currentUser)
             .Handle(new BalanceSheetQuery(request.OrganizationId, request.ToDate), cancellationToken);
-        var incomeStatement = await new IncomeStatementQueryHandler(db)
+        var incomeStatement = await new IncomeStatementQueryHandler(db, currentUser)
             .Handle(new IncomeStatementQuery(request.OrganizationId, request.FromDate, request.ToDate), cancellationToken);
 
         var settings = await db.TenantSettings

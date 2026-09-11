@@ -68,7 +68,7 @@ public class ManufacturingReportQueryHandlerTests
         await CreateAndApproveJournalAsync(db, seed, expenseAmount: 300m, byProductPct: 20m, byProductQuantity: 6m);
         await CreateAndApproveJournalAsync(db, seed, expenseAmount: 100m);
 
-        var report = await new ProductionSummaryQueryHandler(db).Handle(
+        var report = await new ProductionSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ProductionSummaryQuery(seed.OrganizationId, From, To, null, null), CancellationToken.None);
 
         Assert.Equal(2, report.Rows.Items.Count);
@@ -104,7 +104,7 @@ public class ManufacturingReportQueryHandlerTests
         await CreateAndApproveJournalAsync(db, seed, expenseAmount: 300m);
         await CreateAndApproveJournalAsync(db, seed, expenseAmount: 100m);
 
-        var report = await new ProductionSummaryQueryHandler(db).Handle(
+        var report = await new ProductionSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ProductionSummaryQuery(seed.OrganizationId, From, To, null, null, ExportAll: false, Page: 1, PageSize: 1),
             CancellationToken.None);
 
@@ -128,7 +128,7 @@ public class ManufacturingReportQueryHandlerTests
         await ManufacturingTestSeed.ReceiveStockAsync(db, seed, seed.RawProductId, 100m, 60m, Day1);
         await CreateAndApproveJournalAsync(db, seed, outputQuantity: 10m, rawQuantity: 8m, billOfMaterialsId: bomId);
 
-        var report = await new ProductionVarianceQueryHandler(db).Handle(
+        var report = await new ProductionVarianceQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ProductionVarianceQuery(seed.OrganizationId, From, To, null, null), CancellationToken.None);
 
         var line = Assert.Single(Assert.Single(report.Items).Lines);
@@ -150,7 +150,7 @@ public class ManufacturingReportQueryHandlerTests
         await ManufacturingTestSeed.ReceiveStockAsync(db, seed, seed.RawProductId, 100m, 60m, Day1);
         await CreateAndApproveJournalAsync(db, seed);
 
-        var report = await new ProductionVarianceQueryHandler(db).Handle(
+        var report = await new ProductionVarianceQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ProductionVarianceQuery(seed.OrganizationId, From, To, null, null), CancellationToken.None);
 
         Assert.Empty(report.Items);
@@ -165,7 +165,7 @@ public class ManufacturingReportQueryHandlerTests
         await CreateBomAsync(db, seed, outputQuantity: 12m, rawQuantity: 12m);
         await ManufacturingTestSeed.ReceiveStockAsync(db, seed, seed.RawProductId, 8896.5m, 60m, Day1);
 
-        var report = await new ProductionPlanningQueryHandler(db).Handle(
+        var report = await new ProductionPlanningQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ProductionPlanningQuery(seed.OrganizationId, seed.FinishedProductId, 10m, null), CancellationToken.None);
 
         // Exactly the live report's own BOTTLEE figures: 10 required, 8896.5 available, 8886.5 spare.
@@ -187,13 +187,13 @@ public class ManufacturingReportQueryHandlerTests
         await ManufacturingTestSeed.ReceiveStockAsync(
             db, seed, seed.RawProductId, 50m, 60m, Day1, seed.OtherWarehouseId);
 
-        var allWarehouses = await new ProductionPlanningQueryHandler(db).Handle(
+        var allWarehouses = await new ProductionPlanningQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ProductionPlanningQuery(seed.OrganizationId, seed.FinishedProductId, 10m, null), CancellationToken.None);
         Assert.Equal(55m, allWarehouses.Lines.Single().QuantityAvailable);
         Assert.Equal(35m, allWarehouses.Lines.Single().Surplus);
 
         // Narrowed to the warehouse the run would actually consume from, it is 15 short.
-        var oneWarehouse = await new ProductionPlanningQueryHandler(db).Handle(
+        var oneWarehouse = await new ProductionPlanningQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ProductionPlanningQuery(seed.OrganizationId, seed.FinishedProductId, 10m, seed.WarehouseId),
             CancellationToken.None);
         Assert.Equal(5m, oneWarehouse.Lines.Single().QuantityAvailable);

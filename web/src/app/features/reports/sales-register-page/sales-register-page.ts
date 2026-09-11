@@ -14,6 +14,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Read-only report screen -- Phase 19's SalesRegisterQuery, the Nepal IRD statutory Sales Book
@@ -23,7 +24,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  */
 @Component({
   selector: 'app-sales-register-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter],
   templateUrl: './sales-register-page.html',
 })
 export class SalesRegisterPage {
@@ -33,6 +34,9 @@ export class SalesRegisterPage {
   private readonly configurationService = inject(ConfigurationService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -128,6 +132,7 @@ export class SalesRegisterPage {
       .exportSalesRegister(
         this.organizationId, this.fromDate(), this.toDate(), this.contactId() || null,
         this.selectedTagOptionIds(), full, page, pageSize, this.includeCreditNotes(),
+        this.locationId(),
       )
       .subscribe({
         next: (blob) => {
@@ -141,6 +146,14 @@ export class SalesRegisterPage {
       });
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    // Page 1: every other filter on this screen resets the page, and a narrowing filter applied
+    // while on a later page returns nothing at all.
+    this.page.set(1);
+    this.load();
+  }
+
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
@@ -149,6 +162,7 @@ export class SalesRegisterPage {
       .getSalesRegister(
         this.organizationId, this.fromDate(), this.toDate(), this.contactId() || null,
         this.selectedTagOptionIds(), this.page(), this.pageSize(), this.includeCreditNotes(),
+        this.locationId(),
       )
       .subscribe({
         next: (report) => {

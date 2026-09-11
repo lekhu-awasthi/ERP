@@ -10,6 +10,7 @@ import { openBlankTabForPrint, openBlobInNewTab, triggerBlobDownload } from '../
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Read-only report screen -- roadmap Phase 9's ContactStatementQuery (ContactType=Supplier).
@@ -24,7 +25,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  */
 @Component({
   selector: 'app-supplier-statement-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter],
   templateUrl: './supplier-statement-page.html',
 })
 export class SupplierStatementPage {
@@ -32,6 +33,9 @@ export class SupplierStatementPage {
   private readonly contactsService = inject(ContactsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
@@ -109,7 +113,7 @@ export class SupplierStatementPage {
     const tab = openBlankTabForPrint();
 
     this.contactsService
-      .printBalanceConfirmation(this.organizationId, 'Supplier', this.contactId(), this.toDate())
+      .printBalanceConfirmation(this.organizationId, 'Supplier', this.contactId(), this.toDate(), this.locationId())
       .subscribe({
         next: (blob) => {
           this.confirming.set(false);
@@ -129,7 +133,7 @@ export class SupplierStatementPage {
     }
     this.exporting.set(true);
     this.contactsService
-      .exportSupplierStatement(this.organizationId, this.contactId(), this.fromDate(), this.toDate(), full, page, pageSize)
+      .exportSupplierStatement(this.organizationId, this.contactId(), this.fromDate(), this.toDate(), full, page, pageSize, this.locationId())
       .subscribe({
         next: (blob) => {
           this.exporting.set(false);
@@ -142,6 +146,14 @@ export class SupplierStatementPage {
       });
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    // Page 1: every other filter on this screen resets the page, and a narrowing filter applied
+    // while on a later page returns nothing at all.
+    this.page.set(1);
+    this.load();
+  }
+
   private load(): void {
     if (!this.contactId()) {
       this.statement.set(null);
@@ -152,7 +164,7 @@ export class SupplierStatementPage {
     this.errorMessage.set(null);
 
     this.contactsService
-      .getSupplierStatement(this.organizationId, this.contactId(), this.fromDate(), this.toDate(), this.page(), this.pageSize())
+      .getSupplierStatement(this.organizationId, this.contactId(), this.fromDate(), this.toDate(), this.page(), this.pageSize(), this.locationId())
       .subscribe({
         next: (statement) => {
           this.statement.set(statement);

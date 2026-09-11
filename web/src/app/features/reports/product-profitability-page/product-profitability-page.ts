@@ -11,6 +11,7 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Read-only report screen -- Phase 19's ProductProfitabilityQuery, a per-product-per-period
@@ -19,7 +20,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
  */
 @Component({
   selector: 'app-product-profitability-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter],
   templateUrl: './product-profitability-page.html',
 })
 export class ProductProfitabilityPage {
@@ -28,6 +29,9 @@ export class ProductProfitabilityPage {
   private readonly catalogService = inject(CatalogService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -104,6 +108,7 @@ export class ProductProfitabilityPage {
       .exportProductProfitability(
         this.organizationId, this.fromDate(), this.toDate(), this.productCategoryId() || null,
         this.productId() || null, full, page, pageSize,
+        this.locationId(),
       )
       .subscribe({
         next: (blob) => {
@@ -117,6 +122,14 @@ export class ProductProfitabilityPage {
       });
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    // Page 1: every other filter on this screen resets the page, and a narrowing filter applied
+    // while on a later page returns nothing at all.
+    this.page.set(1);
+    this.load();
+  }
+
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
@@ -125,6 +138,7 @@ export class ProductProfitabilityPage {
       .getProductProfitability(
         this.organizationId, this.fromDate(), this.toDate(), this.productCategoryId() || null,
         this.productId() || null, this.page(), this.pageSize(),
+        this.locationId(),
       )
       .subscribe({
         next: (report) => {

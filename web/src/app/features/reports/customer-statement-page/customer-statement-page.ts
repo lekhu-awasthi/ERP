@@ -10,6 +10,7 @@ import { openBlankTabForPrint, openBlobInNewTab, triggerBlobDownload } from '../
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Read-only report screen -- roadmap Phase 9's ContactStatementQuery (ContactType=Customer), the
@@ -25,7 +26,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  */
 @Component({
   selector: 'app-customer-statement-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter],
   templateUrl: './customer-statement-page.html',
 })
 export class CustomerStatementPage {
@@ -33,6 +34,9 @@ export class CustomerStatementPage {
   private readonly contactsService = inject(ContactsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
@@ -110,7 +114,7 @@ export class CustomerStatementPage {
     const tab = openBlankTabForPrint();
 
     this.contactsService
-      .printBalanceConfirmation(this.organizationId, 'Customer', this.contactId(), this.toDate())
+      .printBalanceConfirmation(this.organizationId, 'Customer', this.contactId(), this.toDate(), this.locationId())
       .subscribe({
         next: (blob) => {
           this.confirming.set(false);
@@ -130,7 +134,7 @@ export class CustomerStatementPage {
     }
     this.exporting.set(true);
     this.contactsService
-      .exportCustomerStatement(this.organizationId, this.contactId(), this.fromDate(), this.toDate(), full, page, pageSize)
+      .exportCustomerStatement(this.organizationId, this.contactId(), this.fromDate(), this.toDate(), full, page, pageSize, this.locationId())
       .subscribe({
         next: (blob) => {
           this.exporting.set(false);
@@ -143,6 +147,14 @@ export class CustomerStatementPage {
       });
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    // Page 1: every other filter on this screen resets the page, and a narrowing filter applied
+    // while on a later page returns nothing at all.
+    this.page.set(1);
+    this.load();
+  }
+
   private load(): void {
     if (!this.contactId()) {
       this.statement.set(null);
@@ -153,7 +165,7 @@ export class CustomerStatementPage {
     this.errorMessage.set(null);
 
     this.contactsService
-      .getCustomerStatement(this.organizationId, this.contactId(), this.fromDate(), this.toDate(), this.page(), this.pageSize())
+      .getCustomerStatement(this.organizationId, this.contactId(), this.fromDate(), this.toDate(), this.page(), this.pageSize(), this.locationId())
       .subscribe({
         next: (statement) => {
           this.statement.set(statement);

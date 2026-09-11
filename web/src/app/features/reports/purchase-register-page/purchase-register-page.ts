@@ -12,6 +12,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Read-only report screen -- Phase 19's PurchaseRegisterQuery, the Nepal IRD statutory Purchase
@@ -20,7 +21,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  */
 @Component({
   selector: 'app-purchase-register-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter],
   templateUrl: './purchase-register-page.html',
 })
 export class PurchaseRegisterPage {
@@ -29,6 +30,9 @@ export class PurchaseRegisterPage {
   private readonly contactsService = inject(ContactsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -99,7 +103,7 @@ export class PurchaseRegisterPage {
   private runExport(full: boolean, page: number, pageSize: number): void {
     this.exporting.set(true);
     this.purchasingService
-      .exportPurchaseRegister(this.organizationId, this.fromDate(), this.toDate(), this.contactId() || null, full, page, pageSize)
+      .exportPurchaseRegister(this.organizationId, this.fromDate(), this.toDate(), this.contactId() || null, full, page, pageSize, this.locationId())
       .subscribe({
         next: (blob) => {
           this.exporting.set(false);
@@ -112,12 +116,20 @@ export class PurchaseRegisterPage {
       });
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    // Page 1: every other filter on this screen resets the page, and a narrowing filter applied
+    // while on a later page returns nothing at all.
+    this.page.set(1);
+    this.load();
+  }
+
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
 
     this.purchasingService
-      .getPurchaseRegister(this.organizationId, this.fromDate(), this.toDate(), this.contactId() || null, this.page(), this.pageSize())
+      .getPurchaseRegister(this.organizationId, this.fromDate(), this.toDate(), this.contactId() || null, this.page(), this.pageSize(), this.locationId())
       .subscribe({
         next: (report) => {
           this.rows.set(report.items);

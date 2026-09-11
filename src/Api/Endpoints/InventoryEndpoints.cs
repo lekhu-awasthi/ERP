@@ -194,48 +194,48 @@ public static class InventoryEndpoints
 
         group.MapGet("/reports/stock-ageing", async (
             Guid organizationId, DateOnly asOfDate, Guid? productCategoryId, Guid? productId, Guid? warehouseId,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new StockAgeingQuery(
                     organizationId, asOfDate, productCategoryId, productId, warehouseId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/stock-ageing/export", async (
             Guid organizationId, DateOnly asOfDate, Guid? productCategoryId, Guid? productId, Guid? warehouseId,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new StockAgeingQuery(
                     organizationId, asOfDate, productCategoryId, productId, warehouseId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportStockAgeing(result);
         });
 
         group.MapGet("/reports/product-profitability", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? productCategoryId, Guid? productId,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ProductProfitabilityQuery(
                     organizationId, fromDate, toDate, productCategoryId, productId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/product-profitability/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? productCategoryId, Guid? productId,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ProductProfitabilityQuery(
                     organizationId, fromDate, toDate, productCategoryId, productId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportProductProfitability(result);
         });

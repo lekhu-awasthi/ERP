@@ -1,5 +1,7 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
@@ -8,10 +10,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Sales.Queries.AnnexFiveReport;
 
-public sealed class AnnexFiveReportQueryHandler(IAppDbContext db) : IRequestHandler<AnnexFiveReportQuery, AnnexFiveReportDto>
+public sealed class AnnexFiveReportQueryHandler(IAppDbContext db, ICurrentUserService currentUser) : IRequestHandler<AnnexFiveReportQuery, AnnexFiveReportDto>
 {
     public async Task<AnnexFiveReportDto> Handle(AnnexFiveReportQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         // Phase 16a: Approved-only used to be the entire filter, which meant IsActive below could
         // never actually be false -- a Void row never even reached this query. Now both statuses
         // are pulled so a voided Invoice/CreditNote still appears on the register with
@@ -20,6 +30,7 @@ public sealed class AnnexFiveReportQueryHandler(IAppDbContext db) : IRequestHand
             .Where(x => x.OrganizationId == request.OrganizationId
                 && (x.Status == InvoiceStatus.Approved || x.Status == InvoiceStatus.Void)
                 && x.Date >= request.FromDate && x.Date <= request.ToDate)
+            .AtLocations(request.LocationId, reportLocations)
             .Select(x => new { x.Id, x.ContactId, x.Code, x.Date, x.Status })
             .ToListAsync(cancellationToken);
         var invoiceLines = await db.InvoiceLines
@@ -31,6 +42,7 @@ public sealed class AnnexFiveReportQueryHandler(IAppDbContext db) : IRequestHand
             .Where(x => x.OrganizationId == request.OrganizationId
                 && (x.Status == CreditNoteStatus.Approved || x.Status == CreditNoteStatus.Void)
                 && x.Date >= request.FromDate && x.Date <= request.ToDate)
+            .AtLocations(request.LocationId, reportLocations)
             .Select(x => new { x.Id, x.ContactId, x.Code, x.Date, x.Status })
             .ToListAsync(cancellationToken);
         var creditNoteLines = await db.CreditNoteLines

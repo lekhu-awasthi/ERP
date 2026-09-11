@@ -42,7 +42,7 @@ public class SalesRegisterQueryHandlerTests
         var creditNote = await CreateAndApproveStandaloneCreditNoteAsync(db, seed, new DateOnly(2026, 1, 15), 20m, VatRate.ThirteenPercentVat);
         await CreateInvoiceAsync(db, seed, new DateOnly(2026, 1, 20), 999m, VatRate.NoVat); // Draft -- excluded
 
-        var handler = new SalesRegisterQueryHandler(db);
+        var handler = new SalesRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new SalesRegisterQuery(seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), null, null),
             CancellationToken.None);
@@ -93,7 +93,7 @@ public class SalesRegisterQueryHandlerTests
             new SetTransactionReportingTagsCommand(seed.OrganizationId, DocumentType.Invoice, taggedInvoice.Id, [tagOption.Id]),
             CancellationToken.None);
 
-        var handler = new SalesRegisterQueryHandler(db);
+        var handler = new SalesRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var unfiltered = await handler.Handle(
             new SalesRegisterQuery(seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), null, null),
             CancellationToken.None);

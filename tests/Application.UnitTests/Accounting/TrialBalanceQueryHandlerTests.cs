@@ -17,7 +17,7 @@ public class TrialBalanceQueryHandlerTests
         var (organizationId, cashAccountId, salesAccountId) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
         await ApproveJournalVoucherAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
 
-        var handler = new TrialBalanceQueryHandler(db);
+        var handler = new TrialBalanceQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new TrialBalanceQuery(organizationId, DateOnly.FromDateTime(DateTime.UtcNow)), CancellationToken.None);
 
@@ -41,7 +41,7 @@ public class TrialBalanceQueryHandlerTests
         var (organizationId, cashAccountId, salesAccountId) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
         await ApproveJournalVoucherAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
 
-        var handler = new TrialBalanceQueryHandler(db);
+        var handler = new TrialBalanceQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new TrialBalanceQuery(organizationId, DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1)), CancellationToken.None);
 
@@ -57,7 +57,7 @@ public class TrialBalanceQueryHandlerTests
         var db = TestAppDbContext.Create();
         var (organizationId, cashAccountId, salesAccountId) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
 
-        var handler = new TrialBalanceQueryHandler(db);
+        var handler = new TrialBalanceQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new TrialBalanceQuery(organizationId, DateOnly.FromDateTime(DateTime.UtcNow)), CancellationToken.None);
 

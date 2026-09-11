@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
@@ -37,8 +38,10 @@ public sealed record AnnexFiveReportQuery(
     DateOnly ToDate,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize,
-    bool ExportAll = false)
-    : IRequest<AnnexFiveReportDto>, IRequirePermission, IOrganizationScoped
+    bool ExportAll = false,
+    // Phase 35b -- the Billing Location filter; null is "All locations". See ILocationFilteredReport.
+    Guid? LocationId = null)
+    : IRequest<AnnexFiveReportDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.AnnexFiveView;
 }

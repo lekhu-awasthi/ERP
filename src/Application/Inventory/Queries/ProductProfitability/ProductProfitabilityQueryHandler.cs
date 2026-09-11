@@ -1,5 +1,7 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Sales;
 using ErpApp.Domain.Purchasing;
 using MediatR;
@@ -7,11 +9,19 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Inventory.Queries.ProductProfitability;
 
-public sealed class ProductProfitabilityQueryHandler(IAppDbContext db)
+public sealed class ProductProfitabilityQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<ProductProfitabilityQuery, ProductProfitabilityDto>
 {
     public async Task<ProductProfitabilityDto> Handle(ProductProfitabilityQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var productsQuery = db.Products.Where(x => x.OrganizationId == request.OrganizationId);
         if (request.ProductCategoryId is { } categoryId)
         {
@@ -33,12 +43,14 @@ public sealed class ProductProfitabilityQueryHandler(IAppDbContext db)
 
         var openingLayers = await db.StockLedgerEntries
             .Where(x => x.OrganizationId == request.OrganizationId && productIds.Contains(x.ProductId) && x.TransactionDate < request.FromDate)
+            .AtLocations(request.LocationId, reportLocations)
             .Select(x => new { x.ProductId, Value = x.QuantityRemaining * x.UnitCost })
             .ToListAsync(cancellationToken);
         var openingByProduct = openingLayers.GroupBy(x => x.ProductId).ToDictionary(g => g.Key, g => g.Sum(x => x.Value));
 
         var closingLayers = await db.StockLedgerEntries
             .Where(x => x.OrganizationId == request.OrganizationId && productIds.Contains(x.ProductId) && x.TransactionDate <= request.ToDate)
+            .AtLocations(request.LocationId, reportLocations)
             .Select(x => new { x.ProductId, Value = x.QuantityRemaining * x.UnitCost })
             .ToListAsync(cancellationToken);
         var closingByProduct = closingLayers.GroupBy(x => x.ProductId).ToDictionary(g => g.Key, g => g.Sum(x => x.Value));
@@ -46,6 +58,7 @@ public sealed class ProductProfitabilityQueryHandler(IAppDbContext db)
         var purchaseBillIds = await db.PurchaseBills
             .Where(x => x.OrganizationId == request.OrganizationId && x.Status == PurchaseBillStatus.Approved
                 && x.Date >= request.FromDate && x.Date <= request.ToDate)
+            .AtLocations(request.LocationId, reportLocations)
             .Select(x => x.Id)
             .ToListAsync(cancellationToken);
         var purchaseByProduct = await db.PurchaseBillLines
@@ -57,6 +70,7 @@ public sealed class ProductProfitabilityQueryHandler(IAppDbContext db)
         var invoiceIds = await db.Invoices
             .Where(x => x.OrganizationId == request.OrganizationId && x.Status == InvoiceStatus.Approved
                 && x.Date >= request.FromDate && x.Date <= request.ToDate)
+            .AtLocations(request.LocationId, reportLocations)
             .Select(x => x.Id)
             .ToListAsync(cancellationToken);
         var salesLines = await db.InvoiceLines

@@ -1,12 +1,14 @@
 using ErpApp.Application.Accounting.Reports;
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Accounting.Queries.JournalReport;
 
-public sealed class JournalReportQueryHandler(IAppDbContext db)
+public sealed class JournalReportQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<JournalReportQuery, PagedResult<JournalReportEntryDto>>
 {
     public async Task<PagedResult<JournalReportEntryDto>> Handle(
@@ -15,9 +17,15 @@ public sealed class JournalReportQueryHandler(IAppDbContext db)
         var fromUtc = GlDateBoundary.StartOfDayUtc(request.FromDate);
         var toUtc = GlDateBoundary.EndOfDayUtc(request.ToDate);
 
-        var entryQuery = db.GlJournalEntries
-            .Where(x => x.OrganizationId == request.OrganizationId
-                && x.PostedAt >= fromUtc && x.PostedAt <= toUtc);
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+        var entryQuery = GlEntryLocations
+            .ForReport(db, request.OrganizationId, request.LocationId, reportLocations)
+            .Where(x => x.PostedAt >= fromUtc && x.PostedAt <= toUtc);
 
         if (request.DocumentType is { } documentType)
         {

@@ -234,96 +234,96 @@ public static class ContactsEndpoints
     {
         group.MapGet("/reports/customer-ageing-summary", async (
             Guid organizationId, DateOnly asOfDate, Guid? contactGroupId, int? page, int? pageSize,
-            ISender sender, CancellationToken ct) =>
+            Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ContactAgeingSummaryQuery(
                     organizationId, ContactType.Customer, asOfDate, contactGroupId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/customer-ageing-summary/export", async (
             Guid organizationId, DateOnly asOfDate, Guid? contactGroupId, bool full, int? page, int? pageSize,
-            ISender sender, CancellationToken ct) =>
+            Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ContactAgeingSummaryQuery(
                     organizationId, ContactType.Customer, asOfDate, contactGroupId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportContactAgeingSummary(result, "Customer", asOfDate);
         });
 
         group.MapGet("/reports/supplier-ageing-summary", async (
             Guid organizationId, DateOnly asOfDate, Guid? contactGroupId, int? page, int? pageSize,
-            ISender sender, CancellationToken ct) =>
+            Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ContactAgeingSummaryQuery(
                     organizationId, ContactType.Supplier, asOfDate, contactGroupId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/supplier-ageing-summary/export", async (
             Guid organizationId, DateOnly asOfDate, Guid? contactGroupId, bool full, int? page, int? pageSize,
-            ISender sender, CancellationToken ct) =>
+            Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ContactAgeingSummaryQuery(
                     organizationId, ContactType.Supplier, asOfDate, contactGroupId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportContactAgeingSummary(result, "Supplier", asOfDate);
         });
 
         group.MapGet("/reports/customer-statement", async (
             Guid organizationId, Guid contactId, DateOnly fromDate, DateOnly toDate, int? page, int? pageSize,
-            ISender sender, CancellationToken ct) =>
+            Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ContactStatementQuery(
                     organizationId, ContactType.Customer, contactId, fromDate, toDate,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/customer-statement/export", async (
             Guid organizationId, Guid contactId, DateOnly fromDate, DateOnly toDate, bool full, int? page, int? pageSize,
-            ISender sender, CancellationToken ct) =>
+            Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ContactStatementQuery(
                     organizationId, ContactType.Customer, contactId, fromDate, toDate,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportContactStatement(result, "Customer");
         });
 
         group.MapGet("/reports/supplier-statement", async (
             Guid organizationId, Guid contactId, DateOnly fromDate, DateOnly toDate, int? page, int? pageSize,
-            ISender sender, CancellationToken ct) =>
+            Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ContactStatementQuery(
                     organizationId, ContactType.Supplier, contactId, fromDate, toDate,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/supplier-statement/export", async (
             Guid organizationId, Guid contactId, DateOnly fromDate, DateOnly toDate, bool full, int? page, int? pageSize,
-            ISender sender, CancellationToken ct) =>
+            Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ContactStatementQuery(
                     organizationId, ContactType.Supplier, contactId, fromDate, toDate,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportContactStatement(result, "Supplier");
         });
@@ -333,10 +333,10 @@ public static class ContactsEndpoints
         // the same two permission keys -- see PrintBalanceConfirmationQuery for why it has none of
         // its own.
         group.MapGet("/reports/customer-statement/confirmation", async (
-            Guid organizationId, Guid contactId, DateOnly asOfDate, ISender sender, CancellationToken ct) =>
+            Guid organizationId, Guid contactId, DateOnly asOfDate, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new PrintBalanceConfirmationQuery(organizationId, ContactType.Customer, contactId, asOfDate), ct);
+                new PrintBalanceConfirmationQuery(organizationId, ContactType.Customer, contactId, asOfDate, LocationId: locationId), ct);
             return Results.File(
                 BalanceConfirmationPdfRenderer.Render(result),
                 "application/pdf",
@@ -344,10 +344,10 @@ public static class ContactsEndpoints
         });
 
         group.MapGet("/reports/supplier-statement/confirmation", async (
-            Guid organizationId, Guid contactId, DateOnly asOfDate, ISender sender, CancellationToken ct) =>
+            Guid organizationId, Guid contactId, DateOnly asOfDate, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new PrintBalanceConfirmationQuery(organizationId, ContactType.Supplier, contactId, asOfDate), ct);
+                new PrintBalanceConfirmationQuery(organizationId, ContactType.Supplier, contactId, asOfDate, LocationId: locationId), ct);
             return Results.File(
                 BalanceConfirmationPdfRenderer.Render(result),
                 "application/pdf",
@@ -360,48 +360,48 @@ public static class ContactsEndpoints
 
         group.MapGet("/reports/customer-receivable-summary", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactGroupId,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ContactBalanceSummaryQuery(
                     organizationId, ContactType.Customer, fromDate, toDate, contactGroupId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/customer-receivable-summary/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactGroupId,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ContactBalanceSummaryQuery(
                     organizationId, ContactType.Customer, fromDate, toDate, contactGroupId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportContactBalanceSummary(result, "Customer", "Customer Receivable Summary");
         });
 
         group.MapGet("/reports/supplier-payable-summary", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactGroupId,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ContactBalanceSummaryQuery(
                     organizationId, ContactType.Supplier, fromDate, toDate, contactGroupId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/supplier-payable-summary/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactGroupId,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ContactBalanceSummaryQuery(
                     organizationId, ContactType.Supplier, fromDate, toDate, contactGroupId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportContactBalanceSummary(result, "Supplier", "Supplier Payable Summary");
         });
@@ -409,12 +409,12 @@ public static class ContactsEndpoints
         group.MapGet("/reports/invoice-age", async (
             Guid organizationId, DateOnly fromDate, DateOnly asOfDate, Guid? contactId,
             [FromQuery(Name = "documentType")] AgeableDocumentType[]? documentType,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new DocumentAgeQuery(
                     organizationId, ContactType.Customer, fromDate, asOfDate, contactId, documentType,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
@@ -422,12 +422,12 @@ public static class ContactsEndpoints
         group.MapGet("/reports/invoice-age/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly asOfDate, Guid? contactId,
             [FromQuery(Name = "documentType")] AgeableDocumentType[]? documentType,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new DocumentAgeQuery(
                     organizationId, ContactType.Customer, fromDate, asOfDate, contactId, documentType,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportDocumentAge(result, "Customer", "Invoice Age");
         });
@@ -435,12 +435,12 @@ public static class ContactsEndpoints
         group.MapGet("/reports/purchase-bill-age", async (
             Guid organizationId, DateOnly fromDate, DateOnly asOfDate, Guid? contactId,
             [FromQuery(Name = "documentType")] AgeableDocumentType[]? documentType,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new DocumentAgeQuery(
                     organizationId, ContactType.Supplier, fromDate, asOfDate, contactId, documentType,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
@@ -448,12 +448,12 @@ public static class ContactsEndpoints
         group.MapGet("/reports/purchase-bill-age/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly asOfDate, Guid? contactId,
             [FromQuery(Name = "documentType")] AgeableDocumentType[]? documentType,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new DocumentAgeQuery(
                     organizationId, ContactType.Supplier, fromDate, asOfDate, contactId, documentType,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportDocumentAge(result, "Supplier", "Purchase Bill Age");
         });

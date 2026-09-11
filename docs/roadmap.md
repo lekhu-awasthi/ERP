@@ -157,32 +157,29 @@ now asserts all three read paths from `DocumentMechanisms.LocationBearing`.
 shape and running it against SQL Server returned 200 and the right row. The gotcha's generalisation
 holds for a captured bool, not for a captured collection compared to null.
 
-### 35b. The location dimension in the reports, and Product-to-location
+### 35b. The location dimension in the reports — **done** (`docs/phase-35b-status.md`)
 
-- **Decide first, because everything else depends on it:** the live product filters Trial Balance,
-  Balance Sheet, Income Statement, the Journal report and all three General Ledger reports by
-  Billing Location, and **`GlJournalEntry` carries no `LocationId`** (phase 32 sized the schema for
-  the 15 documents plus the two opening-balance kinds). Either the entry gains one stamped at post
-  time from its source document, or every GL report joins back across 11 types — phase-26a's
-  expensive shape, against 34c's finding that the report layer's cost is the period.
-- **The rule for which reports get the filter is now a census, not a guess** (confirm-live
-  2026-09-10, all 49 screens read): 43 carry it; the 6 that do not are VAT Summary, TDS Report and
-  Annex 13 (IRD filings), Ratio Analysis and Exceptional Report (whole-organization analytics), and
-  User Log. **Annex 5 carries one despite being an IRD annex** — observed, not reconciled; follow the
-  observation. Assert the set with a guard, the way `SearchSweepGuardTests` does.
-- **The Sales Master Report's filter has no UI**: query, DTO column and endpoint have carried
-  `locationId` since phase 32 and its Angular page sends nothing and shows no LOCATION column.
-- **Product-to-location** (32 #4's new sibling): a checkbox multi-select, default *All*, not
-  required, and the Products grid has no LOCATION column or filter — so what it restricts is
-  **unobserved**, and separating "filters the product picker on a location-scoped document" from
-  "stored and unenforced" needs two writes on the live tenant. Decide what it *does* before storing
-  it, or it is phase 31's dead-setting lesson again.
-- Report filters seen live on Moonbeam and **absent on Cadehi** — Reporting Tags on the Journal
-  report (26a), Reporting Tags and group-by-warehouse on Inventory Position (26c), Group By Bill and
-  the Include Credit Note toggle on the Sales Register (31 #7, 26c). Tenant- or entitlement-
-  dependent; re-read Moonbeam before building any of them.
-- New from the same pass: `sales-summary` carries a **Group Wise location** control — a group-*by*,
-  which no other report shows.
+- **Decision B settled three columns, not one.** `GlJournalEntry` gained a `LocationId` stamped at
+  post time rather than every GL report joining back across 11 types — and `StockMovement` and
+  `StockLedgerEntry` turned out to have the identical gap, so all three follow one rule: an
+  append-only fact row carries the billing location of the document that created it, with reversals
+  inheriting. Two backfill migrations (11 and 8 producing types), no index (34c's re-measure rule).
+- The filter reached **36 report queries, their handlers and 86 endpoint constructions**, five shared
+  readers, and **43 report screens** through one `app-report-location-filter`. Nine exemptions with
+  reasons: the census's six, plus the two migrated registers and System Audit, whose rows carry no
+  location at all. Annex 5 keeps the filter, as observed.
+- The Sales Master Report's filter and LOCATION column are live (35a carried item #3), and the
+  Purchase Master Report gained the same column — inferred from the two being mirrors, and named as
+  the one place this phase went past the census.
+- `TenantSettings.LocationWiseReportPermission` now governs every report (32b carried item #1). The
+  E2E established what the mechanism actually is: a `Reports.*` key cannot be granted per location,
+  so the scope comes from the caller's **transaction** grants.
+- **Deferred with the user into phase 36:** Product-to-location (what the selector restricts is
+  unobserved; separating "filters the product picker" from "stored and unenforced" needs two writes
+  on the live tenant) and the three Moonbeam-only filters — Reporting Tags on the Journal report,
+  Reporting Tags + group-by-warehouse on Inventory Position, Group By Bill / Include Credit Note on
+  the Sales Register. `sales-summary`'s **Group Wise location** control (a group-*by*) is also still
+  unbuilt; 35b gave that report the filter, not the grouping.
 
 ### 36. Allocation, forex and ageing consistency
 - **Bug first:** `featureGuard('MultipleWarehouses')` on `organizations/:id/warehouses` stops a
@@ -197,6 +194,15 @@ holds for a captured bool, not for a captured collection compared to null.
   decide whether Quick Payment/Receipt are ageable (26b #2, a phase-17 Decision #7 consequence);
   the credit-limit comparison converts currency (31 #3); Credit Terms → `DueDate` becomes a
   server-side default so API-created documents get it too (31 #4).
+- **Carried in from 35b, deferred there by agreement:** **Product-to-location** — a checkbox
+  multi-select, default *All*, not required, and the Products grid has no LOCATION column or filter,
+  so what it restricts is **unobserved**. Separating "filters the product picker on a
+  location-scoped document" from "stored and unenforced" needs two writes on the live tenant (a
+  product scoped to one location, an invoice raised at another). Decide what it *does* before
+  storing it, or it is phase 31's dead-setting lesson again. Also the three filters read on Moonbeam
+  and absent on Cadehi (Reporting Tags on the Journal report, Reporting Tags + group-by-warehouse on
+  Inventory Position, Group By Bill / Include Credit Note on the Sales Register) and
+  `sales-summary`'s **Group Wise location** group-by — all needing a Moonbeam re-read first.
 
 ### 37. Inventory policy — negative stock, returns at cost, the clearing unwind
 - **Negative Item Balance for real** (31 #1, 26c): Warn and Do Nothing need a negative FIFO layer

@@ -28,10 +28,10 @@ public class InventoryReportQueryHandlerTests
         await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(3), 50m, 12m); // in 50 @ 12
         await InventoryReportSeed.SellAsync(db, seed, PeriodStart.AddDays(10), 30m, 20m); // out 30 @ FIFO 10
 
-        var position = await new InventoryPositionReportQueryHandler(db).Handle(
+        var position = await new InventoryPositionReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new InventoryPositionReportQuery(seed.OrganizationId, PeriodStart, PeriodEnd, null, null, null),
             CancellationToken.None);
-        var movement = await new InventoryMovementReportQueryHandler(db).Handle(
+        var movement = await new InventoryMovementReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new InventoryMovementReportQuery(seed.OrganizationId, PeriodStart, PeriodEnd, null, null, null),
             CancellationToken.None);
 
@@ -53,7 +53,7 @@ public class InventoryReportQueryHandlerTests
         await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(3), 50m, 12m);
         await InventoryReportSeed.SellAsync(db, seed, PeriodStart.AddDays(10), 30m, 20m);
 
-        var result = await new InventoryMovementReportQueryHandler(db).Handle(
+        var result = await new InventoryMovementReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new InventoryMovementReportQuery(seed.OrganizationId, PeriodStart, PeriodEnd, null, null, null),
             CancellationToken.None);
 
@@ -104,10 +104,10 @@ public class InventoryReportQueryHandlerTests
         await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(1), 4m, 5m, seed.SecondProductId);
         await InventoryReportSeed.SellAsync(db, seed, PeriodStart.AddDays(2), 4m, 9m, seed.SecondProductId);
 
-        var all = await new InventoryPositionReportQueryHandler(db).Handle(
+        var all = await new InventoryPositionReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new InventoryPositionReportQuery(seed.OrganizationId, PeriodStart, PeriodEnd, null, null, null),
             CancellationToken.None);
-        var positive = await new InventoryPositionReportQueryHandler(db).Handle(
+        var positive = await new InventoryPositionReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new InventoryPositionReportQuery(
                 seed.OrganizationId, PeriodStart, PeriodEnd, null, null, null, InventoryBalanceFilter.PositiveOnly),
             CancellationToken.None);
@@ -130,10 +130,10 @@ public class InventoryReportQueryHandlerTests
         await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(2), 10m, 15m);
         await InventoryReportSeed.SellAsync(db, seed, PeriodStart.AddDays(6), 20m, 30m);
 
-        var ledger = await new InventoryLedgerReportQueryHandler(db).Handle(
+        var ledger = await new InventoryLedgerReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new InventoryLedgerReportQuery(seed.OrganizationId, PeriodStart, PeriodEnd, seed.ProductId, null),
             CancellationToken.None);
-        var position = await new InventoryPositionReportQueryHandler(db).Handle(
+        var position = await new InventoryPositionReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new InventoryPositionReportQuery(
                 seed.OrganizationId, PeriodStart, PeriodEnd, null, seed.ProductId, null),
             CancellationToken.None);
@@ -160,7 +160,7 @@ public class InventoryReportQueryHandlerTests
 
         var bill = await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(1), 10m, 10m);
 
-        var ledger = await new InventoryLedgerReportQueryHandler(db).Handle(
+        var ledger = await new InventoryLedgerReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new InventoryLedgerReportQuery(seed.OrganizationId, PeriodStart, PeriodEnd, seed.ProductId, null),
             CancellationToken.None);
 
@@ -191,7 +191,7 @@ public class InventoryReportQueryHandlerTests
         var purchase = await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(4), 5m, 11m);
         await InventoryReportSeed.DebitNoteAsync(db, seed, PeriodStart.AddDays(5), 1m, 11m, purchase.Id);
 
-        var result = await new InventoryMasterReportQueryHandler(db).Handle(
+        var result = await new InventoryMasterReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new InventoryMasterReportQuery(seed.OrganizationId, PeriodStart, PeriodEnd, null, null, null),
             CancellationToken.None);
 
@@ -212,7 +212,7 @@ public class InventoryReportQueryHandlerTests
 
         await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(1), 100m, 10m);
 
-        var result = await new InventoryMasterReportQueryHandler(db).Handle(
+        var result = await new InventoryMasterReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new InventoryMasterReportQuery(
                 seed.OrganizationId, PeriodStart, PeriodEnd, null, null, DocumentType.PurchaseBill),
             CancellationToken.None);
@@ -231,7 +231,7 @@ public class InventoryReportQueryHandlerTests
         await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(1), 20m, 10m);
         await InventoryReportSeed.SellAsync(db, seed, PeriodStart.AddDays(2), 6m, 30m);
 
-        var result = await new InventoryMasterReportQueryHandler(db).Handle(
+        var result = await new InventoryMasterReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new InventoryMasterReportQuery(
                 seed.OrganizationId, PeriodStart, PeriodEnd, null, null, DocumentType.Invoice),
             CancellationToken.None);
@@ -247,7 +247,7 @@ public class InventoryReportQueryHandlerTests
 
         await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(1), 20m, 10m);
 
-        var result = await new InventoryPositionReportQueryHandler(db).Handle(
+        var result = await new InventoryPositionReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new InventoryPositionReportQuery(
                 seed.OrganizationId, PeriodStart, PeriodEnd, Guid.NewGuid(), null, null),
             CancellationToken.None);
@@ -264,7 +264,7 @@ public class InventoryReportQueryHandlerTests
         await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(1), 10m, 10m);
         await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(1), 20m, 5m, seed.SecondProductId);
 
-        var firstPage = await new InventoryPositionReportQueryHandler(db).Handle(
+        var firstPage = await new InventoryPositionReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new InventoryPositionReportQuery(
                 seed.OrganizationId, PeriodStart, PeriodEnd, null, null, null,
                 InventoryBalanceFilter.All, Page: 1, PageSize: 1),

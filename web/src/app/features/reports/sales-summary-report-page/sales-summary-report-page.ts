@@ -10,6 +10,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { currentFiscalYear, fiscalYearLabel, supportedFiscalYears } from '../../../shared/formatting/bs-fiscal-year';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Sales Summary Report -- confirmed live 2026-09-03.
@@ -28,7 +29,7 @@ import { currentFiscalYear, fiscalYearLabel, supportedFiscalYears } from '../../
  */
 @Component({
   selector: 'app-sales-summary-report-page',
-  imports: [PaginationControl, AmountPipe, NepaliDatePipe],
+  imports: [PaginationControl, AmountPipe, NepaliDatePipe, ReportLocationFilter],
   templateUrl: './sales-summary-report-page.html',
 })
 export class SalesSummaryReportPage {
@@ -36,6 +37,9 @@ export class SalesSummaryReportPage {
   private readonly reports = inject(TradeReportsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
   protected readonly fiscalYears = supportedFiscalYears();
   protected readonly fiscalYearLabel = fiscalYearLabel;
 
@@ -83,6 +87,11 @@ export class SalesSummaryReportPage {
     this.runExport(true, 1, this.pageSize());
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    this.reload();
+  }
+
   private reload(): void {
     this.page.set(1);
     this.load();
@@ -91,7 +100,7 @@ export class SalesSummaryReportPage {
   private runExport(full: boolean, page: number, pageSize: number): void {
     this.exporting.set(true);
     this.reports
-      .exportSalesSummaryReport(this.organizationId, this.fiscalYear(), this.mode(), full, page, pageSize)
+      .exportSalesSummaryReport(this.organizationId, this.fiscalYear(), this.mode(), full, page, pageSize, this.locationId())
       .subscribe({
         next: (blob) => {
           this.exporting.set(false);
@@ -109,7 +118,7 @@ export class SalesSummaryReportPage {
     this.errorMessage.set(null);
 
     this.reports
-      .getSalesSummaryReport(this.organizationId, this.fiscalYear(), this.mode(), this.page(), this.pageSize())
+      .getSalesSummaryReport(this.organizationId, this.fiscalYear(), this.mode(), this.page(), this.pageSize(), this.locationId())
       .subscribe({
         next: (report) => {
           this.report.set(report);

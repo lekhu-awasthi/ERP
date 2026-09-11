@@ -13,6 +13,7 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Phase 26c -- Inventory Movement: Opening / In / Out / Balance per product, each as a
@@ -20,7 +21,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
  */
 @Component({
   selector: 'app-inventory-movement-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter],
   templateUrl: './inventory-movement-page.html',
 })
 export class InventoryMovementPage {
@@ -30,6 +31,9 @@ export class InventoryMovementPage {
   private readonly organizationsService = inject(OrganizationsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -111,6 +115,11 @@ export class InventoryMovementPage {
     this.runExport(true, 1, this.pageSize());
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    this.reload();
+  }
+
   private reload(): void {
     this.page.set(1);
     this.load();
@@ -122,6 +131,7 @@ export class InventoryMovementPage {
       .exportInventoryMovement(
         this.organizationId, this.fromDate(), this.toDate(), this.categoryId() || null,
         this.productId() || null, this.warehouseId() || null, full, page, pageSize,
+        this.locationId(),
       )
       .subscribe({
         next: (blob) => {
@@ -143,6 +153,7 @@ export class InventoryMovementPage {
       .getInventoryMovement(
         this.organizationId, this.fromDate(), this.toDate(), this.categoryId() || null,
         this.productId() || null, this.warehouseId() || null, this.page(), this.pageSize(),
+        this.locationId(),
       )
       .subscribe({
         next: (report) => {

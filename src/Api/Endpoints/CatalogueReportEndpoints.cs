@@ -47,48 +47,48 @@ public static class CatalogueReportEndpoints
     {
         group.MapGet("/reports/sales-return-register", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesReturnRegisterQuery(
                     organizationId, fromDate, toDate, contactId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/sales-return-register/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesReturnRegisterQuery(
                     organizationId, fromDate, toDate, contactId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportSalesReturnRegister(result);
         });
 
         group.MapGet("/reports/purchase-return-register", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new PurchaseReturnRegisterQuery(
                     organizationId, fromDate, toDate, contactId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/purchase-return-register/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new PurchaseReturnRegisterQuery(
                     organizationId, fromDate, toDate, contactId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportPurchaseReturnRegister(result);
         });
@@ -99,13 +99,13 @@ public static class CatalogueReportEndpoints
         group.MapGet("/reports/inventory-position", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate,
             Guid? categoryId, Guid? productId, Guid? warehouseId, InventoryBalanceFilter? balanceFilter,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new InventoryPositionReportQuery(
                     organizationId, fromDate, toDate, categoryId, productId, warehouseId,
                     balanceFilter ?? InventoryBalanceFilter.All,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
@@ -113,13 +113,13 @@ public static class CatalogueReportEndpoints
         group.MapGet("/reports/inventory-position/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate,
             Guid? categoryId, Guid? productId, Guid? warehouseId, InventoryBalanceFilter? balanceFilter,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new InventoryPositionReportQuery(
                     organizationId, fromDate, toDate, categoryId, productId, warehouseId,
                     balanceFilter ?? InventoryBalanceFilter.All,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportInventoryPosition(result);
         });
@@ -127,12 +127,12 @@ public static class CatalogueReportEndpoints
         group.MapGet("/reports/inventory-movement", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate,
             Guid? categoryId, Guid? productId, Guid? warehouseId,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new InventoryMovementReportQuery(
                     organizationId, fromDate, toDate, categoryId, productId, warehouseId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
@@ -140,36 +140,36 @@ public static class CatalogueReportEndpoints
         group.MapGet("/reports/inventory-movement/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate,
             Guid? categoryId, Guid? productId, Guid? warehouseId,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new InventoryMovementReportQuery(
                     organizationId, fromDate, toDate, categoryId, productId, warehouseId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportInventoryMovement(result);
         });
 
         group.MapGet("/reports/inventory-ledger", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid productId, Guid? warehouseId,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new InventoryLedgerReportQuery(
                     organizationId, fromDate, toDate, productId, warehouseId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/inventory-ledger/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid productId, Guid? warehouseId,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new InventoryLedgerReportQuery(
                     organizationId, fromDate, toDate, productId, warehouseId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportInventoryLedgerReport(result);
         });
@@ -177,12 +177,12 @@ public static class CatalogueReportEndpoints
         group.MapGet("/reports/inventory-master", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate,
             Guid? contactId, Guid? productId, DocumentType? documentType,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new InventoryMasterReportQuery(
                     organizationId, fromDate, toDate, contactId, productId, documentType,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
@@ -190,12 +190,12 @@ public static class CatalogueReportEndpoints
         group.MapGet("/reports/inventory-master/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate,
             Guid? contactId, Guid? productId, DocumentType? documentType,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new InventoryMasterReportQuery(
                     organizationId, fromDate, toDate, contactId, productId, documentType,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportInventoryMasterReport(result);
         });
@@ -207,22 +207,22 @@ public static class CatalogueReportEndpoints
         // so there is nothing to page and no ExportAll to pass.
         group.MapGet("/reports/net-trading-assets", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, bool? compare, bool? excludeAdvance,
-            ISender sender, CancellationToken ct) =>
+            Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new NetTradingAssetsQuery(
-                    organizationId, fromDate, toDate, compare ?? false, excludeAdvance ?? false),
+                    organizationId, fromDate, toDate, compare ?? false, excludeAdvance ?? false, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/net-trading-assets/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, bool? compare, bool? excludeAdvance,
-            ISender sender, CancellationToken ct) =>
+            Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new NetTradingAssetsQuery(
-                    organizationId, fromDate, toDate, compare ?? false, excludeAdvance ?? false),
+                    organizationId, fromDate, toDate, compare ?? false, excludeAdvance ?? false, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportNetTradingAssets(result);
         });

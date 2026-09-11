@@ -9,6 +9,7 @@ import { Warehouse } from '../../../core/organizations/organizations.models';
 import { ProductionPlanningReport } from '../../../core/manufacturing/manufacturing.models';
 import { ManufacturingService } from '../../../core/manufacturing/manufacturing.service';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Production Planning Report -- <b>not</b> a period report. Pick a product and a quantity to make,
@@ -17,7 +18,7 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
  */
 @Component({
   selector: 'app-production-planning-page',
-  imports: [RouterLink, AmountPipe],
+  imports: [RouterLink, AmountPipe, ReportLocationFilter],
   templateUrl: './production-planning-page.html',
 })
 export class ProductionPlanningPage {
@@ -27,6 +28,9 @@ export class ProductionPlanningPage {
   private readonly organizationsService = inject(OrganizationsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
@@ -57,13 +61,17 @@ export class ProductionPlanningPage {
     this.quantity.set(Number((event.target as HTMLInputElement).value));
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+  }
+
   protected generate(): void {
     if (!this.canGenerate()) return;
 
     this.loading.set(true);
     this.errorMessage.set(null);
     this.manufacturingService
-      .productionPlanning(this.organizationId, this.productId(), this.quantity(), this.warehouseId() || undefined)
+      .productionPlanning(this.organizationId, this.productId(), this.quantity(), this.warehouseId() || undefined, this.locationId())
       .subscribe({
         next: (report) => {
           this.report.set(report);

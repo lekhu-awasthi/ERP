@@ -122,7 +122,7 @@ public sealed class ApproveInvoiceCommandHandler(
         {
             var averageUnitCost = await stockLedgerService.ConsumeAsync(
                 request.OrganizationId, line.ProductId, invoice.WarehouseId, line.Quantity,
-                DocumentType.Invoice, invoice.Id, invoice.Date, cancellationToken);
+                DocumentType.Invoice, invoice.Id, invoice.Date, cancellationToken, invoice.LocationId);
             line.RecordCogsUnitCost(averageUnitCost);
             totalCogs += line.Quantity * averageUnitCost;
         }
@@ -133,7 +133,8 @@ public sealed class ApproveInvoiceCommandHandler(
         }
 
         var glLines = postingRule.BuildLines(postingInput);
-        var glEntry = GlJournalEntry.Post(request.OrganizationId, DocumentType.Invoice, invoice.Id, glLines);
+        var glEntry = GlJournalEntry.Post(
+            request.OrganizationId, DocumentType.Invoice, invoice.Id, glLines, invoice.LocationId);
         db.GlJournalEntries.Add(glEntry);
 
         await db.SaveChangesAsync(cancellationToken);

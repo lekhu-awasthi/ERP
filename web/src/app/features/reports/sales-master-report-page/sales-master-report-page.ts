@@ -16,6 +16,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Read-only report screen -- roadmap Phase 8b's SalesMasterReportQuery, a flat unaggregated
@@ -26,7 +27,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  */
 @Component({
   selector: 'app-sales-master-report-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter],
   templateUrl: './sales-master-report-page.html',
 })
 export class SalesMasterReportPage {
@@ -37,6 +38,9 @@ export class SalesMasterReportPage {
   private readonly organizationsService = inject(OrganizationsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -125,6 +129,7 @@ export class SalesMasterReportPage {
         this.organizationId, this.fromDate(), this.toDate(),
         this.contactId() || null, this.productId() || null, this.warehouseId() || null,
         full, page, pageSize,
+        this.locationId(),
       )
       .subscribe({
         next: (blob) => {
@@ -136,6 +141,14 @@ export class SalesMasterReportPage {
           this.errorMessage.set(extractErrorMessage(err) ?? 'Could not export the Sales Master Report.');
         },
       });
+  }
+
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    // Page 1: every other filter on this screen resets the page, and a narrowing filter applied
+    // while on a later page returns nothing at all.
+    this.page.set(1);
+    this.load();
   }
 
   private load(): void {
@@ -152,6 +165,7 @@ export class SalesMasterReportPage {
         this.warehouseId() || null,
         this.page(),
         this.pageSize(),
+        this.locationId(),
       )
       .subscribe({
         next: (report) => {

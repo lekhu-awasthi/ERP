@@ -1,5 +1,7 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,13 +14,22 @@ namespace ErpApp.Application.Trade.Queries.TradeByItem;
 /// filtering to one category and grouping by Item is a legitimate run, and gives that category's
 /// products one row each.
 /// </summary>
-public sealed class TradeByItemQueryHandler(IAppDbContext db)
+public sealed class TradeByItemQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<TradeByItemQuery, TradeByItemDto>
 {
     public async Task<TradeByItemDto> Handle(TradeByItemQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var facts = await TradeLineReader.LoadAsync(
-            db, request.OrganizationId, request.Side, request.FromDate, request.ToDate, cancellationToken);
+            db, request.OrganizationId, request.Side, request.FromDate, request.ToDate, cancellationToken,
+            request.LocationId, reportLocations);
 
         var productIds = facts.Select(x => x.ProductId).Distinct().ToList();
 

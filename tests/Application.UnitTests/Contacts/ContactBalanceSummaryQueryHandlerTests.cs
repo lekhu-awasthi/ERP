@@ -26,7 +26,7 @@ public class ContactBalanceSummaryQueryHandlerTests
         var query = new ContactBalanceSummaryQuery(seed.OrganizationId, ContactType.Customer, From, To);
         Assert.Equal("Reports.CustomerReceivableSummary.View", query.PermissionKey);
 
-        var result = await new ContactBalanceSummaryQueryHandler(db).Handle(query, CancellationToken.None);
+        var result = await new ContactBalanceSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(query, CancellationToken.None);
 
         var row = Assert.Single(result.Rows);
         Assert.Equal("Acme Traders", row.ContactName);
@@ -57,7 +57,7 @@ public class ContactBalanceSummaryQueryHandlerTests
         await seed.ApproveContactJournalVoucherAsync(
             db, new DateOnly(2026, 2, 11), seed.SecondCustomerId, seed.ArAccountId, 200m, debitContact: false);
 
-        var result = await new ContactBalanceSummaryQueryHandler(db).Handle(
+        var result = await new ContactBalanceSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ContactBalanceSummaryQuery(seed.OrganizationId, ContactType.Customer, From, To),
             CancellationToken.None);
 
@@ -85,12 +85,12 @@ public class ContactBalanceSummaryQueryHandlerTests
         await seed.ApproveContactJournalVoucherAsync(
             db, new DateOnly(2026, 2, 10), seed.SupplierId, seed.ApAccountId, 900m, debitContact: false);
 
-        var customers = await new ContactBalanceSummaryQueryHandler(db).Handle(
+        var customers = await new ContactBalanceSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ContactBalanceSummaryQuery(seed.OrganizationId, ContactType.Customer, From, To),
             CancellationToken.None);
         Assert.Empty(customers.Rows);
 
-        var suppliers = await new ContactBalanceSummaryQueryHandler(db).Handle(
+        var suppliers = await new ContactBalanceSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ContactBalanceSummaryQuery(seed.OrganizationId, ContactType.Supplier, From, To),
             CancellationToken.None);
 
@@ -112,7 +112,7 @@ public class ContactBalanceSummaryQueryHandlerTests
         var query = new ContactBalanceSummaryQuery(seed.OrganizationId, ContactType.Supplier, From, To);
         Assert.Equal("Reports.SupplierPayableSummary.View", query.PermissionKey);
 
-        var result = await new ContactBalanceSummaryQueryHandler(db).Handle(query, CancellationToken.None);
+        var result = await new ContactBalanceSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(query, CancellationToken.None);
 
         var row = Assert.Single(result.Rows);
         Assert.Equal(1_500m, row.ClosingBalance);
@@ -131,7 +131,7 @@ public class ContactBalanceSummaryQueryHandlerTests
             db, new DateOnly(2026, 2, 20), PaymentDirection.Received, seed.CustomerId,
             [(ErpApp.Domain.Common.DocumentType.Invoice, invoice.Id, 400m)]);
 
-        var result = await new ContactBalanceSummaryQueryHandler(db).Handle(
+        var result = await new ContactBalanceSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ContactBalanceSummaryQuery(seed.OrganizationId, ContactType.Customer, From, To),
             CancellationToken.None);
 
@@ -148,13 +148,13 @@ public class ContactBalanceSummaryQueryHandlerTests
         await seed.ApproveInvoiceAsync(db, new DateOnly(2026, 2, 1), 300m);
         await seed.ApproveInvoiceAsync(db, new DateOnly(2026, 2, 2), 700m, seed.SecondCustomerId);
 
-        var all = await new ContactBalanceSummaryQueryHandler(db).Handle(
+        var all = await new ContactBalanceSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ContactBalanceSummaryQuery(seed.OrganizationId, ContactType.Customer, From, To),
             CancellationToken.None);
         Assert.Equal(2, all.Rows.Count);
         Assert.Equal(1_000m, all.TotalClosingBalance);
 
-        var grouped = await new ContactBalanceSummaryQueryHandler(db).Handle(
+        var grouped = await new ContactBalanceSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ContactBalanceSummaryQuery(seed.OrganizationId, ContactType.Customer, From, To, seed.CustomerGroupId),
             CancellationToken.None);
 
@@ -175,7 +175,7 @@ public class ContactBalanceSummaryQueryHandlerTests
         await seed.ApproveInvoiceAsync(db, new DateOnly(2025, 3, 1), 250m); // long before FromDate
         await seed.ApproveInvoiceAsync(db, new DateOnly(2026, 8, 1), 999m); // after ToDate
 
-        var result = await new ContactBalanceSummaryQueryHandler(db).Handle(
+        var result = await new ContactBalanceSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ContactBalanceSummaryQuery(seed.OrganizationId, ContactType.Customer, From, To),
             CancellationToken.None);
 

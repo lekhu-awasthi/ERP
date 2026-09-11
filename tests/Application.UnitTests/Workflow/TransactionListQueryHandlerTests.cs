@@ -33,7 +33,7 @@ public class TransactionListQueryHandlerTests
         await ApproveJournalVoucherAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
         await CreateDraftJournalVoucherAsync(db, organizationId, cashAccountId, salesAccountId, 250m);
 
-        var result = await new TransactionListQueryHandler(db).Handle(
+        var result = await new TransactionListQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new TransactionListQuery(organizationId), CancellationToken.None);
 
         // Unlike every register report, this one shows Drafts -- the live report's Status filter
@@ -51,7 +51,7 @@ public class TransactionListQueryHandlerTests
         await ApproveJournalVoucherAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
         await CreateDraftJournalVoucherAsync(db, organizationId, cashAccountId, salesAccountId, 250m);
 
-        var result = await new TransactionListQueryHandler(db).Handle(
+        var result = await new TransactionListQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new TransactionListQuery(organizationId, Statuses: [TransactionListStatus.Draft]), CancellationToken.None);
 
         var row = Assert.Single(result.Items);
@@ -66,9 +66,9 @@ public class TransactionListQueryHandlerTests
         var (organizationId, cashAccountId, salesAccountId) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
         await ApproveJournalVoucherAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
 
-        var matching = await new TransactionListQueryHandler(db).Handle(
+        var matching = await new TransactionListQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new TransactionListQuery(organizationId, DocumentTypes: [DocumentType.JournalVoucher]), CancellationToken.None);
-        var other = await new TransactionListQueryHandler(db).Handle(
+        var other = await new TransactionListQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new TransactionListQuery(organizationId, DocumentTypes: [DocumentType.Invoice]), CancellationToken.None);
 
         Assert.Single(matching.Items);
@@ -82,7 +82,7 @@ public class TransactionListQueryHandlerTests
         var (organizationId, cashAccountId, salesAccountId) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
         await ApproveJournalVoucherAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
 
-        var result = await new TransactionListQueryHandler(db).Handle(
+        var result = await new TransactionListQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new TransactionListQuery(organizationId), CancellationToken.None);
 
         var row = Assert.Single(result.Items);
@@ -98,7 +98,7 @@ public class TransactionListQueryHandlerTests
         var (organizationId, cashAccountId, salesAccountId) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
         var documentId = await CreateDraftJournalVoucherAsync(db, organizationId, cashAccountId, salesAccountId, 250m);
 
-        var withoutAudit = await new TransactionListQueryHandler(db).Handle(
+        var withoutAudit = await new TransactionListQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new TransactionListQuery(organizationId), CancellationToken.None);
 
         // No transactional aggregate stores a creator, so with no audit row there is nothing honest
@@ -110,7 +110,7 @@ public class TransactionListQueryHandlerTests
         db.Audits.Add(Audit.Create(organizationId, user.Id, "Create", DocumentType.JournalVoucher, documentId));
         await db.SaveChangesAsync(CancellationToken.None);
 
-        var withAudit = await new TransactionListQueryHandler(db).Handle(
+        var withAudit = await new TransactionListQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new TransactionListQuery(organizationId), CancellationToken.None);
 
         var row = Assert.Single(withAudit.Items);
@@ -125,10 +125,10 @@ public class TransactionListQueryHandlerTests
         var (organizationId, cashAccountId, salesAccountId) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
         await ApproveJournalVoucherAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
 
-        var inRange = await new TransactionListQueryHandler(db).Handle(
+        var inRange = await new TransactionListQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new TransactionListQuery(organizationId, FromDate: Today.AddDays(-1), ToDate: Today.AddDays(1)),
             CancellationToken.None);
-        var outOfRange = await new TransactionListQueryHandler(db).Handle(
+        var outOfRange = await new TransactionListQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new TransactionListQuery(organizationId, FromDate: Today.AddDays(-10), ToDate: Today.AddDays(-5)),
             CancellationToken.None);
 

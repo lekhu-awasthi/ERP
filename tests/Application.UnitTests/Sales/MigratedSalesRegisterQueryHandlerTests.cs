@@ -72,7 +72,7 @@ public class MigratedSalesRegisterQueryHandlerTests
         AddEntry(db, seed.OrganizationId, "OLD-9001", new DateOnly(2024, 3, 11), total: 113m, taxable: 100m, vat: 13m);
         await db.SaveChangesAsync(CancellationToken.None);
 
-        var live = await new SalesRegisterQueryHandler(db).Handle(
+        var live = await new SalesRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new SalesRegisterQuery(seed.OrganizationId, From, To, null, null), CancellationToken.None);
 
         var migrated = await Handle(db, seed.OrganizationId);

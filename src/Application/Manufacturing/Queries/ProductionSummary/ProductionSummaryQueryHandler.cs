@@ -1,23 +1,34 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Manufacturing;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Manufacturing.Queries.ProductionSummary;
 
-public sealed class ProductionSummaryQueryHandler(IAppDbContext db)
+public sealed class ProductionSummaryQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<ProductionSummaryQuery, ProductionSummaryReportDto>
 {
     public async Task<ProductionSummaryReportDto> Handle(
         ProductionSummaryQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         // Approved only: a Draft has no costs at all, and a Void one is a run that did not happen.
         var query = db.ProductionJournals
             .Include(x => x.RawMaterials).Include(x => x.ByProducts).Include(x => x.Expenses)
             .Where(x => x.OrganizationId == request.OrganizationId
                 && x.Status == ProductionJournalStatus.Approved
-                && x.Date >= request.FromDate && x.Date <= request.ToDate);
+                && x.Date >= request.FromDate && x.Date <= request.ToDate)
+            .AtLocations(request.LocationId, reportLocations);
 
         if (request.ProductId is { } productId)
         {

@@ -121,8 +121,9 @@ export class ContactsService {
     contactGroupId: string | null,
     page = 1,
     pageSize = 50,
+    locationId?: string,
   ): Observable<ContactAgeingSummaryDto> {
-    return this.getAgeingSummary(organizationId, 'customer-ageing-summary', asOfDate, contactGroupId, page, pageSize);
+    return this.getAgeingSummary(organizationId, 'customer-ageing-summary', asOfDate, contactGroupId, page, pageSize, locationId);
   }
 
   getSupplierAgeingSummary(
@@ -131,20 +132,23 @@ export class ContactsService {
     contactGroupId: string | null,
     page = 1,
     pageSize = 50,
+    locationId?: string,
   ): Observable<ContactAgeingSummaryDto> {
-    return this.getAgeingSummary(organizationId, 'supplier-ageing-summary', asOfDate, contactGroupId, page, pageSize);
+    return this.getAgeingSummary(organizationId, 'supplier-ageing-summary', asOfDate, contactGroupId, page, pageSize, locationId);
   }
 
   exportCustomerAgeingSummary(
     organizationId: string, asOfDate: string, contactGroupId: string | null, full: boolean, page: number, pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
-    return this.exportAgeingSummary(organizationId, 'customer-ageing-summary', asOfDate, contactGroupId, full, page, pageSize);
+    return this.exportAgeingSummary(organizationId, 'customer-ageing-summary', asOfDate, contactGroupId, full, page, pageSize, locationId);
   }
 
   exportSupplierAgeingSummary(
     organizationId: string, asOfDate: string, contactGroupId: string | null, full: boolean, page: number, pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
-    return this.exportAgeingSummary(organizationId, 'supplier-ageing-summary', asOfDate, contactGroupId, full, page, pageSize);
+    return this.exportAgeingSummary(organizationId, 'supplier-ageing-summary', asOfDate, contactGroupId, full, page, pageSize, locationId);
   }
 
   private getAgeingSummary(
@@ -154,9 +158,11 @@ export class ContactsService {
     contactGroupId: string | null,
     page: number,
     pageSize: number,
+    locationId?: string,
   ): Observable<ContactAgeingSummaryDto> {
     const params: Record<string, string> = { asOfDate, page: String(page), pageSize: String(pageSize) };
     if (contactGroupId) params['contactGroupId'] = contactGroupId;
+    if (locationId) params['locationId'] = locationId;
     return this.http.get<ContactAgeingSummaryDto>(`${this.baseUrl(organizationId)}/reports/${route}`, {
       withCredentials: true,
       params,
@@ -171,11 +177,13 @@ export class ContactsService {
     full: boolean,
     page: number,
     pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
     const params: Record<string, string> = {
       asOfDate, full: String(full), page: String(page), pageSize: String(pageSize),
     };
     if (contactGroupId) params['contactGroupId'] = contactGroupId;
+    if (locationId) params['locationId'] = locationId;
     return this.http.get(`${this.baseUrl(organizationId)}/reports/${route}/export`, {
       withCredentials: true,
       params,
@@ -190,8 +198,9 @@ export class ContactsService {
     toDate: string,
     page = 1,
     pageSize = 50,
+    locationId?: string,
   ): Observable<ContactStatementDto> {
-    return this.getStatement(organizationId, 'customer-statement', contactId, fromDate, toDate, page, pageSize);
+    return this.getStatement(organizationId, 'customer-statement', contactId, fromDate, toDate, page, pageSize, locationId);
   }
 
   getSupplierStatement(
@@ -201,20 +210,23 @@ export class ContactsService {
     toDate: string,
     page = 1,
     pageSize = 50,
+    locationId?: string,
   ): Observable<ContactStatementDto> {
-    return this.getStatement(organizationId, 'supplier-statement', contactId, fromDate, toDate, page, pageSize);
+    return this.getStatement(organizationId, 'supplier-statement', contactId, fromDate, toDate, page, pageSize, locationId);
   }
 
   exportCustomerStatement(
     organizationId: string, contactId: string, fromDate: string, toDate: string, full: boolean, page: number, pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
-    return this.exportStatement(organizationId, 'customer-statement', contactId, fromDate, toDate, full, page, pageSize);
+    return this.exportStatement(organizationId, 'customer-statement', contactId, fromDate, toDate, full, page, pageSize, locationId);
   }
 
   exportSupplierStatement(
     organizationId: string, contactId: string, fromDate: string, toDate: string, full: boolean, page: number, pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
-    return this.exportStatement(organizationId, 'supplier-statement', contactId, fromDate, toDate, full, page, pageSize);
+    return this.exportStatement(organizationId, 'supplier-statement', contactId, fromDate, toDate, full, page, pageSize, locationId);
   }
 
   /**
@@ -227,13 +239,24 @@ export class ContactsService {
     contactType: 'Customer' | 'Supplier',
     contactId: string,
     asOfDate: string,
+    locationId?: string,
   ): Observable<Blob> {
     const route = contactType === 'Customer' ? 'customer-statement' : 'supplier-statement';
     return this.http.get(`${this.baseUrl(organizationId)}/reports/${route}/confirmation`, {
       withCredentials: true,
       responseType: 'blob',
-      params: { contactId, asOfDate },
+      params: this.withLocation({ contactId, asOfDate }, locationId),
     });
+  }
+
+  /**
+   * Phase 35b -- the Billing Location filter for the report routes that build their params inline.
+   * A function rather than a spread at each call site, so `Record<string, string>` stays the
+   * declared type: a union that includes `{}` silently resolves HttpClient.get to its arraybuffer
+   * overload (phase-3 bug #4).
+   */
+  private withLocation(params: Record<string, string>, locationId?: string): Record<string, string> {
+    return locationId ? { ...params, locationId } : params;
   }
 
   private getStatement(
@@ -244,10 +267,11 @@ export class ContactsService {
     toDate: string,
     page: number,
     pageSize: number,
+    locationId?: string,
   ): Observable<ContactStatementDto> {
     return this.http.get<ContactStatementDto>(`${this.baseUrl(organizationId)}/reports/${route}`, {
       withCredentials: true,
-      params: { contactId, fromDate, toDate, page: String(page), pageSize: String(pageSize) },
+      params: this.withLocation({ contactId, fromDate, toDate, page: String(page), pageSize: String(pageSize) }, locationId),
     });
   }
 
@@ -366,10 +390,14 @@ export class ContactsService {
     full: boolean,
     page: number,
     pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
     return this.http.get(`${this.baseUrl(organizationId)}/reports/${route}/export`, {
       withCredentials: true,
-      params: { contactId, fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize) },
+      params: this.withLocation(
+        { contactId, fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize) },
+        locationId,
+      ),
       responseType: 'blob',
     });
   }

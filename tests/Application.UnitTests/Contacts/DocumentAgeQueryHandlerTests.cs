@@ -22,7 +22,7 @@ public class DocumentAgeQueryHandlerTests
         var query = new DocumentAgeQuery(seed.OrganizationId, ContactType.Customer, From, AsOf);
         Assert.Equal("Reports.InvoiceAge.View", query.PermissionKey);
 
-        var result = await new DocumentAgeQueryHandler(db).Handle(query, CancellationToken.None);
+        var result = await new DocumentAgeQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(query, CancellationToken.None);
 
         var row = Assert.Single(result.Rows);
         Assert.Equal(AgeableDocumentType.Invoice, row.DocumentType);
@@ -51,7 +51,7 @@ public class DocumentAgeQueryHandlerTests
 
         await seed.ApproveInvoiceAsync(db, AsOf, 500m);
 
-        var result = await new DocumentAgeQueryHandler(db).Handle(
+        var result = await new DocumentAgeQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new DocumentAgeQuery(seed.OrganizationId, ContactType.Customer, From, AsOf), CancellationToken.None);
 
         var row = Assert.Single(result.Rows);
@@ -78,7 +78,7 @@ public class DocumentAgeQueryHandlerTests
             db, AsOf.AddDays(-1), PaymentDirection.Received, seed.CustomerId,
             [(DocumentType.Invoice, settled.Id, 600m)]);
 
-        var result = await new DocumentAgeQueryHandler(db).Handle(
+        var result = await new DocumentAgeQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new DocumentAgeQuery(seed.OrganizationId, ContactType.Customer, From, AsOf), CancellationToken.None);
 
         Assert.Equal(2, result.Rows.Count);
@@ -111,7 +111,7 @@ public class DocumentAgeQueryHandlerTests
         await seed.ApproveContactJournalVoucherAsync(
             db, AsOf.AddDays(-11), seed.SecondCustomerId, seed.ArAccountId, 90m, debitContact: false);
 
-        var result = await new DocumentAgeQueryHandler(db).Handle(
+        var result = await new DocumentAgeQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new DocumentAgeQuery(seed.OrganizationId, ContactType.Customer, From, AsOf), CancellationToken.None);
 
         var row = Assert.Single(result.Rows);
@@ -131,7 +131,7 @@ public class DocumentAgeQueryHandlerTests
         var db = TestAppDbContext.Create();
         var seed = await TradeReportSeed.CreateAsync(db, customerOpeningBalance: 2_500m);
 
-        var result = await new DocumentAgeQueryHandler(db).Handle(
+        var result = await new DocumentAgeQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new DocumentAgeQuery(seed.OrganizationId, ContactType.Customer, From, AsOf), CancellationToken.None);
 
         var row = Assert.Single(result.Rows);
@@ -154,12 +154,12 @@ public class DocumentAgeQueryHandlerTests
         await seed.ApproveContactJournalVoucherAsync(
             db, AsOf.AddDays(-9), seed.CustomerId, seed.ArAccountId, 300m, debitContact: true);
 
-        var all = await new DocumentAgeQueryHandler(db).Handle(
+        var all = await new DocumentAgeQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new DocumentAgeQuery(seed.OrganizationId, ContactType.Customer, From, AsOf), CancellationToken.None);
         Assert.Equal(3, all.Rows.Count);
         Assert.Equal(1_100m, all.TotalBalance);
 
-        var invoicesOnly = await new DocumentAgeQueryHandler(db).Handle(
+        var invoicesOnly = await new DocumentAgeQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new DocumentAgeQuery(
                 seed.OrganizationId, ContactType.Customer, From, AsOf,
                 DocumentTypes: [AgeableDocumentType.Invoice]),
@@ -179,7 +179,7 @@ public class DocumentAgeQueryHandlerTests
         await seed.ApproveInvoiceAsync(db, AsOf.AddDays(-10), 700m);
         await seed.ApproveInvoiceAsync(db, AsOf.AddDays(-10), 250m, seed.SecondCustomerId);
 
-        var result = await new DocumentAgeQueryHandler(db).Handle(
+        var result = await new DocumentAgeQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new DocumentAgeQuery(seed.OrganizationId, ContactType.Customer, From, AsOf, seed.SecondCustomerId),
             CancellationToken.None);
 
@@ -200,7 +200,7 @@ public class DocumentAgeQueryHandlerTests
         var query = new DocumentAgeQuery(seed.OrganizationId, ContactType.Supplier, From, AsOf);
         Assert.Equal("Reports.PurchaseBillAge.View", query.PermissionKey);
 
-        var result = await new DocumentAgeQueryHandler(db).Handle(query, CancellationToken.None);
+        var result = await new DocumentAgeQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(query, CancellationToken.None);
 
         var row = Assert.Single(result.Rows);
         Assert.Equal(AgeableDocumentType.PurchaseBill, row.DocumentType);
@@ -222,7 +222,7 @@ public class DocumentAgeQueryHandlerTests
         await seed.ApproveInvoiceAsync(db, new DateOnly(2025, 2, 1), 90m);
         await seed.ApproveInvoiceAsync(db, new DateOnly(2026, 9, 1), 60m); // after the as-of date
 
-        var result = await new DocumentAgeQueryHandler(db).Handle(
+        var result = await new DocumentAgeQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new DocumentAgeQuery(seed.OrganizationId, ContactType.Customer, From, AsOf), CancellationToken.None);
 
         var row = Assert.Single(result.Rows);
@@ -241,7 +241,7 @@ public class DocumentAgeQueryHandlerTests
         await seed.ApproveInvoiceAsync(db, AsOf.AddDays(-50), 20m);
         await seed.ApproveInvoiceAsync(db, AsOf.AddDays(-25), 30m);
 
-        var result = await new DocumentAgeQueryHandler(db).Handle(
+        var result = await new DocumentAgeQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new DocumentAgeQuery(seed.OrganizationId, ContactType.Customer, From, AsOf), CancellationToken.None);
 
         Assert.Equal([50, 25, 5], result.Rows.Select(x => x.AgeDays));

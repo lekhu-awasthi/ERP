@@ -58,7 +58,7 @@ public sealed class VoidDebitNoteCommandHandler(
             {
                 await stockLedgerService.IncrementAsync(
                     request.OrganizationId, line.ProductId, warehouseId, line.Quantity, line.ConsumedUnitCost!.Value,
-                    DocumentType.DebitNote, debitNote.Id, debitNote.Date, cancellationToken);
+                    DocumentType.DebitNote, debitNote.Id, debitNote.Date, cancellationToken, debitNote.LocationId);
             }
         }
 

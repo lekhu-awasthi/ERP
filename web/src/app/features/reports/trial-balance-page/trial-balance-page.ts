@@ -8,6 +8,7 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { triggerBlobDownload } from '../../../shared/download-file';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /** Read-only report screen -- roadmap Phase 8a's TrialBalanceQuery, every active Account's net
  * Debit/Credit balance as of a cutoff date.
@@ -20,7 +21,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
  * control value caches forever (phase-17). */
 @Component({
   selector: 'app-trial-balance-page',
-  imports: [RouterLink, AmountPipe, NepaliDatePipe, BsDateInput],
+  imports: [RouterLink, AmountPipe, NepaliDatePipe, BsDateInput, ReportLocationFilter],
   templateUrl: './trial-balance-page.html',
 })
 export class TrialBalancePage {
@@ -28,6 +29,9 @@ export class TrialBalancePage {
   private readonly accountingService = inject(AccountingService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -52,7 +56,7 @@ export class TrialBalancePage {
 
   protected exportReport(): void {
     this.exporting.set(true);
-    this.accountingService.exportTrialBalance(this.organizationId, this.asOfDate(), this.compare()).subscribe({
+    this.accountingService.exportTrialBalance(this.organizationId, this.asOfDate(), this.compare(), this.locationId()).subscribe({
       next: (blob) => {
         this.exporting.set(false);
         triggerBlobDownload(blob, `TrialBalance_${this.asOfDate()}.xlsx`);
@@ -64,11 +68,16 @@ export class TrialBalancePage {
     });
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    this.load();
+  }
+
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
 
-    this.accountingService.getTrialBalance(this.organizationId, this.asOfDate(), this.compare()).subscribe({
+    this.accountingService.getTrialBalance(this.organizationId, this.asOfDate(), this.compare(), this.locationId()).subscribe({
       next: (report) => {
         this.report.set(report);
         this.loading.set(false);

@@ -68,7 +68,7 @@ public class DocumentDueDateTests
         var seed = await CreditLimitTestSeed.SeedAsync(db);
         await ApproveAsync(db, seed, await DraftAsync(db, seed, DueDate));
 
-        var report = await new DocumentAgeQueryHandler(db).Handle(
+        var report = await new DocumentAgeQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new DocumentAgeQuery(
                 seed.OrganizationId, ContactType.Customer, new DateOnly(2026, 1, 1), new DateOnly(2026, 2, 19)),
             CancellationToken.None);
@@ -91,7 +91,7 @@ public class DocumentDueDateTests
         var seed = await CreditLimitTestSeed.SeedAsync(db);
         await ApproveAsync(db, seed, await DraftAsync(db, seed, DueDate));
 
-        var report = await new ContactAgeingSummaryQueryHandler(db).Handle(
+        var report = await new ContactAgeingSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ContactAgeingSummaryQuery(seed.OrganizationId, ContactType.Customer, new DateOnly(2026, 2, 19)),
             CancellationToken.None);
 
@@ -132,9 +132,9 @@ public class DocumentDueDateTests
         var from = new DateOnly(2026, 1, 1);
         var to = new DateOnly(2026, 12, 31);
 
-        var withNotes = await new SalesRegisterQueryHandler(db).Handle(
+        var withNotes = await new SalesRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new SalesRegisterQuery(seed.OrganizationId, from, to, null, null), CancellationToken.None);
-        var withoutNotes = await new SalesRegisterQueryHandler(db).Handle(
+        var withoutNotes = await new SalesRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new SalesRegisterQuery(seed.OrganizationId, from, to, null, null, IncludeCreditNotes: false),
             CancellationToken.None);
 

@@ -1,5 +1,7 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Application.Inventory.Reports;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Inventory;
@@ -10,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Inventory.Queries.InventoryMasterReport;
 
-public sealed class InventoryMasterReportQueryHandler(IAppDbContext db)
+public sealed class InventoryMasterReportQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<InventoryMasterReportQuery, InventoryMasterReportDto>
 {
     /// <summary>A line before its document-level and product-level facts are attached.</summary>
@@ -36,6 +38,14 @@ public sealed class InventoryMasterReportQueryHandler(IAppDbContext db)
     public async Task<InventoryMasterReportDto> Handle(
         InventoryMasterReportQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var wanted = request.DocumentType;
         bool Include(DocumentType type) => wanted is null || wanted == type;
 
@@ -43,22 +53,22 @@ public sealed class InventoryMasterReportQueryHandler(IAppDbContext db)
 
         if (Include(DocumentType.Invoice))
         {
-            lines.AddRange(await LoadSalesLinesAsync(request, sign: -1, cancellationToken));
+            lines.AddRange(await LoadSalesLinesAsync(request, sign: -1, reportLocations, cancellationToken));
         }
 
         if (Include(DocumentType.CreditNote))
         {
-            lines.AddRange(await LoadCreditNoteLinesAsync(request, cancellationToken));
+            lines.AddRange(await LoadCreditNoteLinesAsync(request, reportLocations, cancellationToken));
         }
 
         if (Include(DocumentType.PurchaseBill))
         {
-            lines.AddRange(await LoadPurchaseBillLinesAsync(request, cancellationToken));
+            lines.AddRange(await LoadPurchaseBillLinesAsync(request, reportLocations, cancellationToken));
         }
 
         if (Include(DocumentType.DebitNote))
         {
-            lines.AddRange(await LoadDebitNoteLinesAsync(request, cancellationToken));
+            lines.AddRange(await LoadDebitNoteLinesAsync(request, reportLocations, cancellationToken));
         }
 
         // The two non-trading types carry no counterparty and no money beyond a cost, so a contact
@@ -66,12 +76,12 @@ public sealed class InventoryMasterReportQueryHandler(IAppDbContext db)
         // by an adjustment nobody made with anybody.
         if (request.ContactId is null && Include(DocumentType.InventoryAdjustment))
         {
-            lines.AddRange(await LoadAdjustmentLinesAsync(request, cancellationToken));
+            lines.AddRange(await LoadAdjustmentLinesAsync(request, reportLocations, cancellationToken));
         }
 
         if (request.ContactId is null && Include(DocumentType.ProductionJournal))
         {
-            lines.AddRange(await LoadProductionJournalLinesAsync(request, cancellationToken));
+            lines.AddRange(await LoadProductionJournalLinesAsync(request, reportLocations, cancellationToken));
         }
 
         if (request.ProductId is { } productFilter)
@@ -130,11 +140,12 @@ public sealed class InventoryMasterReportQueryHandler(IAppDbContext db)
     }
 
     private async Task<List<Line>> LoadSalesLinesAsync(
-        InventoryMasterReportQuery request, int sign, CancellationToken cancellationToken)
+        InventoryMasterReportQuery request, int sign, IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
         var query = db.Invoices.Where(x =>
             x.OrganizationId == request.OrganizationId && x.Status == InvoiceStatus.Approved
-            && x.Date >= request.FromDate && x.Date <= request.ToDate);
+            && x.Date >= request.FromDate && x.Date <= request.ToDate)
+            .AtLocations(request.LocationId, reportLocations);
         if (request.ContactId is { } contactId)
         {
             query = query.Where(x => x.ContactId == contactId);
@@ -155,11 +166,12 @@ public sealed class InventoryMasterReportQueryHandler(IAppDbContext db)
     }
 
     private async Task<List<Line>> LoadCreditNoteLinesAsync(
-        InventoryMasterReportQuery request, CancellationToken cancellationToken)
+        InventoryMasterReportQuery request, IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
         var query = db.CreditNotes.Where(x =>
             x.OrganizationId == request.OrganizationId && x.Status == CreditNoteStatus.Approved
-            && x.Date >= request.FromDate && x.Date <= request.ToDate);
+            && x.Date >= request.FromDate && x.Date <= request.ToDate)
+            .AtLocations(request.LocationId, reportLocations);
         if (request.ContactId is { } contactId)
         {
             query = query.Where(x => x.ContactId == contactId);
@@ -181,11 +193,12 @@ public sealed class InventoryMasterReportQueryHandler(IAppDbContext db)
     }
 
     private async Task<List<Line>> LoadPurchaseBillLinesAsync(
-        InventoryMasterReportQuery request, CancellationToken cancellationToken)
+        InventoryMasterReportQuery request, IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
         var query = db.PurchaseBills.Where(x =>
             x.OrganizationId == request.OrganizationId && x.Status == PurchaseBillStatus.Approved
-            && x.Date >= request.FromDate && x.Date <= request.ToDate);
+            && x.Date >= request.FromDate && x.Date <= request.ToDate)
+            .AtLocations(request.LocationId, reportLocations);
         if (request.ContactId is { } contactId)
         {
             query = query.Where(x => x.ContactId == contactId);
@@ -206,11 +219,12 @@ public sealed class InventoryMasterReportQueryHandler(IAppDbContext db)
     }
 
     private async Task<List<Line>> LoadDebitNoteLinesAsync(
-        InventoryMasterReportQuery request, CancellationToken cancellationToken)
+        InventoryMasterReportQuery request, IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
         var query = db.DebitNotes.Where(x =>
             x.OrganizationId == request.OrganizationId && x.Status == DebitNoteStatus.Approved
-            && x.Date >= request.FromDate && x.Date <= request.ToDate);
+            && x.Date >= request.FromDate && x.Date <= request.ToDate)
+            .AtLocations(request.LocationId, reportLocations);
         if (request.ContactId is { } contactId)
         {
             query = query.Where(x => x.ContactId == contactId);
@@ -232,12 +246,13 @@ public sealed class InventoryMasterReportQueryHandler(IAppDbContext db)
     }
 
     private async Task<List<Line>> LoadAdjustmentLinesAsync(
-        InventoryMasterReportQuery request, CancellationToken cancellationToken)
+        InventoryMasterReportQuery request, IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
         var documents = await db.InventoryAdjustments
             .Where(x => x.OrganizationId == request.OrganizationId
                 && x.Status == InventoryAdjustmentStatus.Approved
                 && x.Date >= request.FromDate && x.Date <= request.ToDate)
+            .AtLocations(request.LocationId, reportLocations)
             .Select(x => new { x.Id, x.Date })
             .ToListAsync(cancellationToken);
         var ids = documents.Select(x => x.Id).ToList();
@@ -262,12 +277,13 @@ public sealed class InventoryMasterReportQueryHandler(IAppDbContext db)
     }
 
     private async Task<List<Line>> LoadProductionJournalLinesAsync(
-        InventoryMasterReportQuery request, CancellationToken cancellationToken)
+        InventoryMasterReportQuery request, IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
         var documents = await db.ProductionJournals
             .Where(x => x.OrganizationId == request.OrganizationId
                 && x.Status == Domain.Manufacturing.ProductionJournalStatus.Approved
                 && x.Date >= request.FromDate && x.Date <= request.ToDate)
+            .AtLocations(request.LocationId, reportLocations)
             .Select(x => new { x.Id, x.Date, x.ProductId, x.OutputQuantity, x.FinishedGoodsUnitCost })
             .ToListAsync(cancellationToken);
         var ids = documents.Select(x => x.Id).ToList();

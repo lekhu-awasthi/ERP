@@ -11,6 +11,7 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Sales By Item -- confirmed live 2026-09-03.
@@ -25,7 +26,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
  */
 @Component({
   selector: 'app-sales-by-item-page',
-  imports: [PaginationControl, AmountPipe, BsDateInput],
+  imports: [PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter],
   templateUrl: './sales-by-item-page.html',
 })
 export class SalesByItemPage {
@@ -34,6 +35,9 @@ export class SalesByItemPage {
   private readonly reports = inject(TradeReportsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -101,6 +105,11 @@ export class SalesByItemPage {
     this.runExport(true, 1, this.pageSize());
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    this.reload();
+  }
+
   private reload(): void {
     this.page.set(1);
     this.load();
@@ -111,7 +120,7 @@ export class SalesByItemPage {
     this.reports
       .exportTradeByItem(
         this.organizationId, 'sales-by-item', this.fromDate(), this.toDate(), this.groupBy(),
-        this.productCategoryId() || null, this.productId() || null, full, page, pageSize)
+        this.productCategoryId() || null, this.productId() || null, full, page, pageSize, this.locationId())
       .subscribe({
         next: (blob) => {
           this.exporting.set(false);
@@ -131,7 +140,7 @@ export class SalesByItemPage {
     this.reports
       .getTradeByItem(
         this.organizationId, 'sales-by-item', this.fromDate(), this.toDate(), this.groupBy(),
-        this.productCategoryId() || null, this.productId() || null, this.page(), this.pageSize())
+        this.productCategoryId() || null, this.productId() || null, this.page(), this.pageSize(), this.locationId())
       .subscribe({
         next: (report) => {
           this.report.set(report);

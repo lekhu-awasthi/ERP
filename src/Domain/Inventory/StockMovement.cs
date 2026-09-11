@@ -28,6 +28,24 @@ public sealed class StockMovement
     public DateOnly TransactionDate { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
 
+    /// <summary>
+    /// Phase 35b -- the <b>billing location</b> of the document that produced this row, stamped at
+    /// write time.
+    ///
+    /// <para>The same decision as <c>GlJournalEntry.LocationId</c>, taken for the same reason and
+    /// deliberately not taken twice: an append-only fact table that points back at its source with
+    /// (SourceDocumentType, SourceDocumentId) and nothing else cannot be filtered by location
+    /// without either a join across every producing type or a column. Six inventory reports carry a
+    /// Billing Location filter live, and a stock report aggregates a whole period before it pages,
+    /// so the join would run over every movement in the window on every request (phase 34c:
+    /// the report layer's cost is the period, not the page).</para>
+    ///
+    /// <para>Null means the producing document had no location -- raised while its type was outside
+    /// the tenant's <c>LocationScopeMode</c>, or older than this phase's backfill. A filter for a
+    /// specific location excludes those rows, because a null never equals a value.</para>
+    /// </summary>
+    public Guid? LocationId { get; private set; }
+
     private StockMovement()
     {
     }
@@ -44,7 +62,8 @@ public sealed class StockMovement
         decimal unitCost,
         DocumentType sourceDocumentType,
         Guid sourceDocumentId,
-        DateOnly transactionDate)
+        DateOnly transactionDate,
+        Guid? locationId = null)
     {
         return new StockMovement
         {
@@ -58,6 +77,7 @@ public sealed class StockMovement
             SourceDocumentType = sourceDocumentType,
             SourceDocumentId = sourceDocumentId,
             TransactionDate = transactionDate,
+            LocationId = locationId,
             CreatedAt = DateTimeOffset.UtcNow,
         };
     }

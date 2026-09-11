@@ -1,5 +1,6 @@
-using ErpApp.Domain.Accounting;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
+using ErpApp.Domain.Accounting;
 using MediatR;
 
 namespace ErpApp.Application.Accounting.Queries.IncomeStatement;
@@ -19,8 +20,8 @@ namespace ErpApp.Application.Accounting.Queries.IncomeStatement;
 /// hides exactly the change the reader opened the report to see. Off by default; when off every
 /// Compare* field is null rather than zero, and the row set is unchanged from Phase 8a's.</para>
 /// </summary>
-public sealed record IncomeStatementQuery(Guid OrganizationId, DateOnly FromDate, DateOnly ToDate, bool Compare = false)
-    : IRequest<IncomeStatementDto>, IRequirePermission, IOrganizationScoped
+public sealed record IncomeStatementQuery(Guid OrganizationId, DateOnly FromDate, DateOnly ToDate, bool Compare = false, Guid? LocationId = null)
+    : IRequest<IncomeStatementDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.IncomeStatementView;
 }

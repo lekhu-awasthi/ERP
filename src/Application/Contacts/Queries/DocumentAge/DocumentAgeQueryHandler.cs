@@ -1,5 +1,7 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
@@ -31,7 +33,7 @@ namespace ErpApp.Application.Contacts.Queries.DocumentAge;
 /// allocations -- a limitation phase-17 flagged and this report does not inherit; see
 /// docs/phase-26b-status.md's Decision B.</para>
 /// </summary>
-public sealed class DocumentAgeQueryHandler(IAppDbContext db)
+public sealed class DocumentAgeQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<DocumentAgeQuery, DocumentAgeDto>
 {
     private sealed record Candidate(
@@ -46,6 +48,14 @@ public sealed class DocumentAgeQueryHandler(IAppDbContext db)
 
     public async Task<DocumentAgeDto> Handle(DocumentAgeQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var contactsQuery = db.Contacts
             .Where(x => x.OrganizationId == request.OrganizationId && x.Type == request.ContactType);
 
@@ -65,8 +75,8 @@ public sealed class DocumentAgeQueryHandler(IAppDbContext db)
             .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
         var candidates = request.ContactType == ContactType.Customer
-            ? await LoadCustomerCandidatesAsync(request, cancellationToken)
-            : await LoadSupplierCandidatesAsync(request, cancellationToken);
+            ? await LoadCustomerCandidatesAsync(request, reportLocations, cancellationToken)
+            : await LoadSupplierCandidatesAsync(request, reportLocations, cancellationToken);
 
         candidates.AddRange(contacts.Values
             .Where(x => OpeningBalanceIsOutstanding(request.ContactType, x.OpeningBalance))
@@ -157,11 +167,19 @@ public sealed class DocumentAgeQueryHandler(IAppDbContext db)
     private static bool OpeningBalanceIsOutstanding(ContactType contactType, decimal openingBalance) =>
         openingBalance > 0;
 
-    private async Task<List<Candidate>> LoadCustomerCandidatesAsync(DocumentAgeQuery request, CancellationToken cancellationToken)
+    private async Task<List<Candidate>> LoadCustomerCandidatesAsync(
+        DocumentAgeQuery request, IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
+        // Phase 35b -- the Billing Location filter narrows the *ageable* documents only, never the
+        // settlements against them. A branch invoice settled by a payment or a credit note raised at
+        // head office is still settled: filtering the settlement side too would show that invoice as
+        // outstanding on the branch's ageing while the organization-wide report showed it paid, and
+        // the two would disagree about the same row. Allocations and returns are keyed to the
+        // filtered document ids, so they follow the narrowing without being narrowed.
         var invoices = await db.Invoices
             .Where(x => x.OrganizationId == request.OrganizationId
                 && x.Status == InvoiceStatus.Approved && x.Date <= request.AsOfDate)
+            .AtLocations(request.LocationId, reportLocations)
             .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate, x.Code, x.Reference })
             .ToListAsync(cancellationToken);
 
@@ -178,15 +196,17 @@ public sealed class DocumentAgeQueryHandler(IAppDbContext db)
                 totals.GetValueOrDefault(x.Id)))
             .ToList();
 
-        candidates.AddRange(await LoadJournalVoucherCandidatesAsync(request, cancellationToken));
+        candidates.AddRange(await LoadJournalVoucherCandidatesAsync(request, reportLocations, cancellationToken));
         return candidates;
     }
 
-    private async Task<List<Candidate>> LoadSupplierCandidatesAsync(DocumentAgeQuery request, CancellationToken cancellationToken)
+    private async Task<List<Candidate>> LoadSupplierCandidatesAsync(
+        DocumentAgeQuery request, IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
         var bills = await db.PurchaseBills
             .Where(x => x.OrganizationId == request.OrganizationId
                 && x.Status == PurchaseBillStatus.Approved && x.Date <= request.AsOfDate)
+            .AtLocations(request.LocationId, reportLocations)
             .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate, x.Code, x.Reference, x.TdsAmount })
             .ToListAsync(cancellationToken);
         var billIds = bills.Select(x => x.Id).ToList();
@@ -199,6 +219,7 @@ public sealed class DocumentAgeQueryHandler(IAppDbContext db)
         var expenses = await db.Expenses
             .Where(x => x.OrganizationId == request.OrganizationId
                 && x.Status == ExpenseStatus.Approved && x.Date <= request.AsOfDate)
+            .AtLocations(request.LocationId, reportLocations)
             .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate, x.Code, x.SupplierInvoiceReference, x.TdsAmount })
             .ToListAsync(cancellationToken);
         var expenseIds = expenses.Select(x => x.Id).ToList();
@@ -219,7 +240,7 @@ public sealed class DocumentAgeQueryHandler(IAppDbContext db)
             AgeableDocumentType.Expense, x.Id, x.ContactId, x.Date, x.DueDate ?? x.Date, x.Code, x.SupplierInvoiceReference,
             expenseTotals.GetValueOrDefault(x.Id) - x.TdsAmount)));
 
-        candidates.AddRange(await LoadJournalVoucherCandidatesAsync(request, cancellationToken));
+        candidates.AddRange(await LoadJournalVoucherCandidatesAsync(request, reportLocations, cancellationToken));
         return candidates;
     }
 
@@ -232,11 +253,13 @@ public sealed class DocumentAgeQueryHandler(IAppDbContext db)
     /// <para>The candidate's Id is the <b>voucher's</b> id, not the line's: the live report shows
     /// one row per voucher.</para>
     /// </summary>
-    private async Task<List<Candidate>> LoadJournalVoucherCandidatesAsync(DocumentAgeQuery request, CancellationToken cancellationToken)
+    private async Task<List<Candidate>> LoadJournalVoucherCandidatesAsync(
+        DocumentAgeQuery request, IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
         var vouchers = await db.JournalVouchers
             .Where(x => x.OrganizationId == request.OrganizationId
                 && x.Status == JournalVoucherStatus.Approved && x.Date <= request.AsOfDate)
+            .AtLocations(request.LocationId, reportLocations)
             .Select(x => new { x.Id, x.Date, x.Code, x.Reference })
             .ToListAsync(cancellationToken);
 

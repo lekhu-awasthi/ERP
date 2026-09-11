@@ -80,6 +80,13 @@
             </label>
           </div>
         </div>
+        <div class="col-12">
+          <app-report-location-filter
+            [organizationId]="organizationId"
+            [controlId]="'sales-register-page-billing-location'"
+            (locationChange)="onLocationChange($event)"
+          />
+        </div>
       </div>
     </div>
   </div>

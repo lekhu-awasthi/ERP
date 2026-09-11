@@ -112,7 +112,8 @@ public sealed class ApprovePaymentCommandHandler(
         payment.Approve(currentUser.UserId, code);
 
         var glLines = postingRule.BuildLines(postingInput);
-        var glEntry = GlJournalEntry.Post(request.OrganizationId, DocumentType.Payment, payment.Id, glLines);
+        var glEntry = GlJournalEntry.Post(
+            request.OrganizationId, DocumentType.Payment, payment.Id, glLines, payment.LocationId);
         db.GlJournalEntries.Add(glEntry);
 
         await db.SaveChangesAsync(cancellationToken);

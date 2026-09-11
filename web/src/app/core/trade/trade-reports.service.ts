@@ -42,9 +42,11 @@ export class TradeReportsService {
     contactGroupId: string | null,
     page = 1,
     pageSize = 50,
+    locationId?: string,
   ): Observable<ContactBalanceSummaryDto> {
     const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
     if (contactGroupId) params['contactGroupId'] = contactGroupId;
+    if (locationId) params['locationId'] = locationId;
     return this.http.get<ContactBalanceSummaryDto>(`${this.baseUrl(organizationId)}/reports/${route}`, {
       withCredentials: true,
       params,
@@ -60,11 +62,13 @@ export class TradeReportsService {
     full: boolean,
     page: number,
     pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
     const params: Record<string, string> = {
       fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
     };
     if (contactGroupId) params['contactGroupId'] = contactGroupId;
+    if (locationId) params['locationId'] = locationId;
     return this.http.get(`${this.baseUrl(organizationId)}/reports/${route}/export`, {
       withCredentials: true,
       params,
@@ -83,10 +87,11 @@ export class TradeReportsService {
     documentTypes: readonly AgeableDocumentType[],
     page = 1,
     pageSize = 50,
+    locationId?: string,
   ): Observable<DocumentAgeDto> {
     return this.http.get<DocumentAgeDto>(`${this.baseUrl(organizationId)}/reports/${route}`, {
       withCredentials: true,
-      params: this.ageParams(fromDate, asOfDate, contactId, documentTypes, page, pageSize),
+      params: this.ageParams(fromDate, asOfDate, contactId, documentTypes, page, pageSize, locationId ?? null),
     });
   }
 
@@ -100,8 +105,9 @@ export class TradeReportsService {
     full: boolean,
     page: number,
     pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
-    const params = this.ageParams(fromDate, asOfDate, contactId, documentTypes, page, pageSize);
+    const params = this.ageParams(fromDate, asOfDate, contactId, documentTypes, page, pageSize, locationId ?? null);
     params['full'] = String(full);
     return this.http.get(`${this.baseUrl(organizationId)}/reports/${route}/export`, {
       withCredentials: true,
@@ -119,12 +125,14 @@ export class TradeReportsService {
     documentTypes: readonly AgeableDocumentType[],
     page: number,
     pageSize: number,
+    locationId: string | null,
   ): Record<string, string | string[]> {
     const params: Record<string, string | string[]> = {
       fromDate, asOfDate, page: String(page), pageSize: String(pageSize),
     };
     if (contactId) params['contactId'] = contactId;
     if (documentTypes.length > 0) params['documentType'] = [...documentTypes];
+    if (locationId) params['locationId'] = locationId;
     return params;
   }
 
@@ -138,9 +146,11 @@ export class TradeReportsService {
     contactGroupId: string | null,
     page = 1,
     pageSize = 50,
+    locationId?: string,
   ): Observable<TradeByContactDto> {
     const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
     if (contactGroupId) params['contactGroupId'] = contactGroupId;
+    if (locationId) params['locationId'] = locationId;
     return this.http.get<TradeByContactDto>(`${this.baseUrl(organizationId)}/reports/${route}`, {
       withCredentials: true,
       params,
@@ -156,11 +166,13 @@ export class TradeReportsService {
     full: boolean,
     page: number,
     pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
     const params: Record<string, string> = {
       fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
     };
     if (contactGroupId) params['contactGroupId'] = contactGroupId;
+    if (locationId) params['locationId'] = locationId;
     return this.http.get(`${this.baseUrl(organizationId)}/reports/${route}/export`, {
       withCredentials: true,
       params,
@@ -180,10 +192,11 @@ export class TradeReportsService {
     productId: string | null,
     page = 1,
     pageSize = 50,
+    locationId?: string,
   ): Observable<TradeByItemDto> {
     return this.http.get<TradeByItemDto>(`${this.baseUrl(organizationId)}/reports/${route}`, {
       withCredentials: true,
-      params: this.itemParams(fromDate, toDate, groupBy, productCategoryId, productId, page, pageSize),
+      params: this.itemParams(fromDate, toDate, groupBy, productCategoryId, productId, page, pageSize, locationId ?? null),
     });
   }
 
@@ -198,8 +211,9 @@ export class TradeReportsService {
     full: boolean,
     page: number,
     pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
-    const params = this.itemParams(fromDate, toDate, groupBy, productCategoryId, productId, page, pageSize);
+    const params = this.itemParams(fromDate, toDate, groupBy, productCategoryId, productId, page, pageSize, locationId ?? null);
     params['full'] = String(full);
     return this.http.get(`${this.baseUrl(organizationId)}/reports/${route}/export`, {
       withCredentials: true,
@@ -216,12 +230,14 @@ export class TradeReportsService {
     productId: string | null,
     page: number,
     pageSize: number,
+    locationId: string | null,
   ): Record<string, string> {
     const params: Record<string, string> = {
       fromDate, toDate, groupBy, page: String(page), pageSize: String(pageSize),
     };
     if (productCategoryId) params['productCategoryId'] = productCategoryId;
     if (productId) params['productId'] = productId;
+    if (locationId) params['locationId'] = locationId;
     return params;
   }
 
@@ -234,11 +250,13 @@ export class TradeReportsService {
     contactGroupId: string | null,
     page = 1,
     pageSize = 50,
+    locationId?: string,
   ): Observable<TradeByContactMonthlyDto> {
     const params: Record<string, string> = {
       fiscalYear: String(fiscalYear), page: String(page), pageSize: String(pageSize),
     };
     if (contactGroupId) params['contactGroupId'] = contactGroupId;
+    if (locationId) params['locationId'] = locationId;
     return this.http.get<TradeByContactMonthlyDto>(`${this.baseUrl(organizationId)}/reports/${route}`, {
       withCredentials: true,
       params,
@@ -253,11 +271,13 @@ export class TradeReportsService {
     full: boolean,
     page: number,
     pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
     const params: Record<string, string> = {
       fiscalYear: String(fiscalYear), full: String(full), page: String(page), pageSize: String(pageSize),
     };
     if (contactGroupId) params['contactGroupId'] = contactGroupId;
+    if (locationId) params['locationId'] = locationId;
     return this.http.get(`${this.baseUrl(organizationId)}/reports/${route}/export`, {
       withCredentials: true,
       params,
@@ -271,10 +291,12 @@ export class TradeReportsService {
     fiscalYear: number,
     page = 1,
     pageSize = 50,
+    locationId?: string,
   ): Observable<TradeByItemMonthlyDto> {
     const params: Record<string, string> = {
       fiscalYear: String(fiscalYear), page: String(page), pageSize: String(pageSize),
     };
+    if (locationId) params['locationId'] = locationId;
     return this.http.get<TradeByItemMonthlyDto>(`${this.baseUrl(organizationId)}/reports/${route}`, {
       withCredentials: true,
       params,
@@ -288,10 +310,12 @@ export class TradeReportsService {
     full: boolean,
     page: number,
     pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
     const params: Record<string, string> = {
       fiscalYear: String(fiscalYear), full: String(full), page: String(page), pageSize: String(pageSize),
     };
+    if (locationId) params['locationId'] = locationId;
     return this.http.get(`${this.baseUrl(organizationId)}/reports/${route}/export`, {
       withCredentials: true,
       params,
@@ -307,10 +331,12 @@ export class TradeReportsService {
     mode: SalesSummaryMode,
     page = 1,
     pageSize = 50,
+    locationId?: string,
   ): Observable<SalesSummaryReportDto> {
     const params: Record<string, string> = {
       fiscalYear: String(fiscalYear), mode, page: String(page), pageSize: String(pageSize),
     };
+    if (locationId) params['locationId'] = locationId;
     return this.http.get<SalesSummaryReportDto>(`${this.baseUrl(organizationId)}/reports/sales-summary`, {
       withCredentials: true,
       params,
@@ -324,10 +350,12 @@ export class TradeReportsService {
     full: boolean,
     page: number,
     pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
     const params: Record<string, string> = {
       fiscalYear: String(fiscalYear), mode, full: String(full), page: String(page), pageSize: String(pageSize),
     };
+    if (locationId) params['locationId'] = locationId;
     return this.http.get(`${this.baseUrl(organizationId)}/reports/sales-summary/export`, {
       withCredentials: true,
       params,

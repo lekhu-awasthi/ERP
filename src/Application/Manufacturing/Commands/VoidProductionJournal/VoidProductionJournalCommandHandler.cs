@@ -65,7 +65,7 @@ public sealed class VoidProductionJournalCommandHandler(
         {
             await stockLedgerService.IncrementAsync(
                 request.OrganizationId, line.ProductId, journal.WarehouseId, line.Quantity, line.ConsumedUnitCost!.Value,
-                DocumentType.ProductionJournal, journal.Id, journal.Date, cancellationToken);
+                DocumentType.ProductionJournal, journal.Id, journal.Date, cancellationToken, journal.LocationId);
         }
 
         db.GlJournalEntries.Add(GlJournalEntry.PostReversalOf(originalEntry));

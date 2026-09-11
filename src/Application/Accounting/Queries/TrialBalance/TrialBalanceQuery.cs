@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using MediatR;
 
@@ -18,8 +19,8 @@ namespace ErpApp.Application.Accounting.Queries.TrialBalance;
 /// Compare* field is null rather than zero, so a screen can tell "not compared" from "compared and
 /// the balance was nil".</para>
 /// </summary>
-public sealed record TrialBalanceQuery(Guid OrganizationId, DateOnly AsOfDate, bool Compare = false)
-    : IRequest<TrialBalanceDto>, IRequirePermission, IOrganizationScoped
+public sealed record TrialBalanceQuery(Guid OrganizationId, DateOnly AsOfDate, bool Compare = false, Guid? LocationId = null)
+    : IRequest<TrialBalanceDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.TrialBalanceView;
 }

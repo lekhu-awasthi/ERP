@@ -67,7 +67,8 @@ public sealed class CreateOrUpdateOpeningBalanceLineCommandHandler(IAppDbContext
             ? new List<GlLineInput> { new(request.AccountId, debitBase, 0m), new(equityAccountId, 0m, debitBase) }
             : new List<GlLineInput> { new(equityAccountId, creditBase, 0m), new(request.AccountId, 0m, creditBase) };
 
-        db.GlJournalEntries.Add(GlJournalEntry.Post(request.OrganizationId, DocumentType.OpeningBalance, line.Id, lines));
+        db.GlJournalEntries.Add(GlJournalEntry.Post(
+            request.OrganizationId, DocumentType.OpeningBalance, line.Id, lines, line.LocationId));
 
         await db.SaveChangesAsync(cancellationToken);
 

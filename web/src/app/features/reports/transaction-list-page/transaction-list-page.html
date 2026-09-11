@@ -78,6 +78,13 @@
           <label class="form-label small fw-semibold" for="transaction-list-page-to-date">To Date</label>
           <app-bs-date-input [inputId]="'transaction-list-page-to-date'" [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+          <app-report-location-filter
+            [organizationId]="organizationId"
+            [controlId]="'transaction-list-page-billing-location'"
+            (locationChange)="onLocationChange($event)"
+          />
+        </div>
       </div>
     </div>
   </div>

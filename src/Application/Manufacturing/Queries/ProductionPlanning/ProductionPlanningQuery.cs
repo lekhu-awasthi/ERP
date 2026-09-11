@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Tenancy;
 using MediatR;
@@ -19,8 +20,10 @@ namespace ErpApp.Application.Manufacturing.Queries.ProductionPlanning;
 /// where the run will happen would otherwise be shown a number that cannot be consumed.</para>
 /// </summary>
 public sealed record ProductionPlanningQuery(
-    Guid OrganizationId, Guid ProductId, decimal Quantity, Guid? WarehouseId)
-    : IRequest<ProductionPlanningReportDto>, IRequirePermission, IOrganizationScoped, IRequireFeature
+    Guid OrganizationId, Guid ProductId, decimal Quantity, Guid? WarehouseId,
+    // Phase 35b -- the Billing Location filter; null is "All locations". See ILocationFilteredReport.
+    Guid? LocationId = null)
+    : IRequest<ProductionPlanningReportDto>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.ProductionReportView;
 

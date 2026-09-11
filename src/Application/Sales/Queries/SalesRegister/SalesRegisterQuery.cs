@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
@@ -33,8 +34,10 @@ public sealed record SalesRegisterQuery(
     // to 8 and re-totalled it (confirmed 2026-09-06). So it removes the credit-note rows from the
     // row set entirely, not merely from the footer. Defaults to true, which is both the live
     // default and the behaviour every caller had before this parameter existed.
-    bool IncludeCreditNotes = true)
-    : IRequest<SalesRegisterDto>, IRequirePermission, IOrganizationScoped
+    bool IncludeCreditNotes = true,
+    // Phase 35b -- the Billing Location filter; null is "All locations". See ILocationFilteredReport.
+    Guid? LocationId = null)
+    : IRequest<SalesRegisterDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.SalesRegisterView;
 }

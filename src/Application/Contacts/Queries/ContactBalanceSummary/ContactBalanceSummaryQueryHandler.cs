@@ -1,5 +1,7 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Application.Contacts.Queries.ContactStatement;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -22,11 +24,19 @@ namespace ErpApp.Application.Contacts.Queries.ContactBalanceSummary;
 /// contact list itself: a contact is in this report if its balance is non-zero on
 /// <c>ToDate</c>.</para>
 /// </summary>
-public sealed class ContactBalanceSummaryQueryHandler(IAppDbContext db)
+public sealed class ContactBalanceSummaryQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<ContactBalanceSummaryQuery, ContactBalanceSummaryDto>
 {
     public async Task<ContactBalanceSummaryDto> Handle(ContactBalanceSummaryQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var contactsQuery = db.Contacts
             .Where(x => x.OrganizationId == request.OrganizationId && x.Type == request.ContactType);
 
@@ -46,7 +56,8 @@ public sealed class ContactBalanceSummaryQueryHandler(IAppDbContext db)
             .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
         var events = await ContactLedgerReader.LoadAllContactEventsAsync(
-            db, request.OrganizationId, request.ContactType, request.ToDate, cancellationToken);
+            db, request.OrganizationId, request.ContactType, request.ToDate, cancellationToken,
+            request.LocationId, reportLocations);
 
         var movementByContact = events
             .GroupBy(x => x.ContactId)
@@ -56,6 +67,8 @@ public sealed class ContactBalanceSummaryQueryHandler(IAppDbContext db)
             .Select(c => new
             {
                 Contact = c,
+                // Phase 35b -- see ContactStatementQueryHandler: OpeningBalance carries no location,
+                // so a filtered balance is the carry-forward plus this branch's movements.
                 Balance = c.OpeningBalance + movementByContact.GetValueOrDefault(c.Id),
             })
             .Where(x => x.Balance != 0)

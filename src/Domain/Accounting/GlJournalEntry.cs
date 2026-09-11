@@ -23,6 +23,36 @@ public sealed class GlJournalEntry
     public Guid SourceDocumentId { get; private set; }
     public DateTimeOffset PostedAt { get; private set; }
 
+    /// <summary>
+    /// Phase 35b -- the <b>billing location</b> this entry was posted from, copied from its source
+    /// document at post time.
+    ///
+    /// <para><b>Why the entry carries one rather than every report joining back.</b> The reference
+    /// product filters Trial Balance, Balance Sheet, Income Statement, the Journal report and all
+    /// three General Ledger reports by Billing Location (confirm-live 2026-09-10, a census of all 49
+    /// report filter bars). Phase 32 sized the location schema for the 15 transactional types plus
+    /// the two opening-balance kinds and stopped there, so the alternative was an 11-way join from
+    /// GlLine back to whichever document each entry came from -- <c>GlSourceDocumentResolver</c>'s
+    /// shape (phase 26a), whose cost is linear in the <i>period</i> rather than the page (phase 34c).
+    /// A financial statement aggregates before it pages, so that join would run over every entry in
+    /// the window on every request, on nine reports. One nullable column stamped once at post time
+    /// turns all of them into a <c>Where</c>.</para>
+    ///
+    /// <para><b>Null is the honest answer, in three cases that must not be conflated with each
+    /// other:</b> an entry posted before this phase whose source document carries no location, an
+    /// entry whose document was raised while its type was outside the tenant's
+    /// <c>LocationScopeMode</c>, and a tenant that has never had the Billing Location entitlement.
+    /// All three mean "no location", and a filter for a specific location excludes them -- which is
+    /// what <c>x.LocationId == id</c> does, since a null never equals a value.</para>
+    ///
+    /// <para><b>A reversal inherits the original's location</b> -- see
+    /// <see cref="PostReversalOf"/>. Not a copy for tidiness: a void that landed at a different
+    /// location (or at none) would leave the original branch's Trial Balance permanently off by the
+    /// document's value while the organization-wide total still balanced -- phase-6 bug #3's failure
+    /// mode with the location as the axis instead of an account.</para>
+    /// </summary>
+    public Guid? LocationId { get; private set; }
+
     public IReadOnlyList<GlLine> Lines => _lines;
 
     private GlJournalEntry()
@@ -30,7 +60,11 @@ public sealed class GlJournalEntry
     }
 
     public static GlJournalEntry Post(
-        Guid organizationId, DocumentType sourceDocumentType, Guid sourceDocumentId, IReadOnlyList<GlLineInput> lines)
+        Guid organizationId,
+        DocumentType sourceDocumentType,
+        Guid sourceDocumentId,
+        IReadOnlyList<GlLineInput> lines,
+        Guid? locationId = null)
     {
         if (lines.Count == 0)
         {
@@ -49,6 +83,7 @@ public sealed class GlJournalEntry
             SourceDocumentType = sourceDocumentType,
             SourceDocumentId = sourceDocumentId,
             PostedAt = DateTimeOffset.UtcNow,
+            LocationId = locationId,
         };
 
         foreach (var line in lines)
@@ -81,6 +116,11 @@ public sealed class GlJournalEntry
             .Select(x => new GlLineInput(x.AccountId, x.Credit, x.Debit))
             .ToList();
 
-        return Post(original.OrganizationId, original.SourceDocumentType, original.SourceDocumentId, mirroredLines);
+        return Post(
+            original.OrganizationId,
+            original.SourceDocumentType,
+            original.SourceDocumentId,
+            mirroredLines,
+            original.LocationId);
     }
 }

@@ -1,5 +1,7 @@
 using ErpApp.Application.Accounting.Reports;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Application.Common.Trees;
 using ErpApp.Domain.Accounting;
 using MediatR;
@@ -7,7 +9,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Accounting.Queries.BalanceSheet;
 
-public sealed class BalanceSheetQueryHandler(IAppDbContext db, ITreeQuery<AccountGroup> treeQuery)
+public sealed class BalanceSheetQueryHandler(
+    IAppDbContext db, ITreeQuery<AccountGroup> treeQuery, ICurrentUserService currentUser)
     : IRequestHandler<BalanceSheetQuery, BalanceSheetDto>
 {
     /// <summary>The synthetic Equity plug row's id -- Guid.Empty, since it is not a real
@@ -16,6 +19,14 @@ public sealed class BalanceSheetQueryHandler(IAppDbContext db, ITreeQuery<Accoun
 
     public async Task<BalanceSheetDto> Handle(BalanceSheetQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+        var entries = GlEntryLocations.ForReport(db, request.OrganizationId, request.LocationId, reportLocations);
+
         var accounts = await db.Accounts
             .Where(a => a.OrganizationId == request.OrganizationId && a.IsActive)
             .Select(a => new AccountProjection(a.Id, a.RootType, a.GroupId))
@@ -29,13 +40,13 @@ public sealed class BalanceSheetQueryHandler(IAppDbContext db, ITreeQuery<Accoun
 
         var main = Compute(
             accounts, assetGroups, liabilityGroups, equityGroups,
-            await NetDebitsAsync(request.OrganizationId, request.AsOfDate, cancellationToken));
+            await NetDebitsAsync(entries, request.AsOfDate, cancellationToken));
 
         var compareAsOfDate = request.Compare ? ComparePeriod.PriorYearAsOf(request.AsOfDate) : (DateOnly?)null;
         var compare = compareAsOfDate is { } compareDate
             ? Compute(
                 accounts, assetGroups, liabilityGroups, equityGroups,
-                await NetDebitsAsync(request.OrganizationId, compareDate, cancellationToken))
+                await NetDebitsAsync(entries, compareDate, cancellationToken))
             : null;
 
         return new BalanceSheetDto(
@@ -57,14 +68,14 @@ public sealed class BalanceSheetQueryHandler(IAppDbContext db, ITreeQuery<Accoun
     /// <summary>Net debit (Debit minus Credit) per account at one cutoff -- run twice when Compare
     /// is on. Every balance below is derived from this one dictionary.</summary>
     private async Task<Dictionary<Guid, decimal>> NetDebitsAsync(
-        Guid organizationId, DateOnly asOfDate, CancellationToken cancellationToken)
+        IQueryable<GlJournalEntry> entries, DateOnly asOfDate, CancellationToken cancellationToken)
     {
         var cutoff = GlDateBoundary.EndOfDayUtc(asOfDate);
 
         var glTotals = await (
             from line in db.GlLines
-            join entry in db.GlJournalEntries on line.GlJournalEntryId equals entry.Id
-            where entry.OrganizationId == organizationId && entry.PostedAt <= cutoff
+            join entry in entries on line.GlJournalEntryId equals entry.Id
+            where entry.PostedAt <= cutoff
             group line by line.AccountId into g
             select new { AccountId = g.Key, Net = g.Sum(x => x.Debit) - g.Sum(x => x.Credit) })
             .ToListAsync(cancellationToken);

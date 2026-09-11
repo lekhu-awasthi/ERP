@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using MediatR;
 
@@ -41,8 +42,10 @@ public sealed record NetTradingAssetsQuery(
     DateOnly FromDate,
     DateOnly ToDate,
     bool Compare = false,
-    bool ExcludeAdvance = false)
-    : IRequest<NetTradingAssetsDto>, IRequirePermission, IOrganizationScoped
+    bool ExcludeAdvance = false,
+    // Phase 35b -- the Billing Location filter; null is "All locations". See ILocationFilteredReport.
+    Guid? LocationId = null)
+    : IRequest<NetTradingAssetsDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.NetTradingAssetsView;
 }

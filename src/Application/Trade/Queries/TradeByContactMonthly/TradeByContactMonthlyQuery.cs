@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using MediatR;
@@ -31,8 +32,10 @@ public sealed record TradeByContactMonthlyQuery(
     Guid? ContactGroupId = null,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize,
-    bool ExportAll = false)
-    : IRequest<TradeByContactMonthlyDto>, IRequirePermission, IOrganizationScoped
+    bool ExportAll = false,
+    // Phase 35b -- the Billing Location filter; null is "All locations". See ILocationFilteredReport.
+    Guid? LocationId = null)
+    : IRequest<TradeByContactMonthlyDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey =>
         Side == TradeSide.Sales

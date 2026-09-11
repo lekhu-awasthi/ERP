@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Common;
@@ -45,17 +46,26 @@ internal static class ContactLedgerReader
         string? Reference,
         decimal SignedAmount);
 
-    /// <summary>Every ledger event for one contact up to <paramref name="toDate"/>.</summary>
+    /// <summary>Every ledger event for one contact up to <paramref name="toDate"/>.
+    ///
+    /// <para><b>Phase 35b -- the two location arguments.</b> <paramref name="locationId"/> is the
+    /// report's own Billing Location filter and <paramref name="reportLocations"/> is the caller's
+    /// permission scope; both default to null, which is "All locations" and "unrestricted" and is
+    /// what every pre-35b caller keeps getting. They narrow the <b>documents</b> an event is built
+    /// from, because that is the only place a location exists -- a contact carries none, and neither
+    /// does their balance.</para></summary>
     internal static Task<List<Event>> LoadEventsAsync(
-        IAppDbContext db, Guid organizationId, ContactType contactType, Guid contactId, DateOnly toDate, CancellationToken cancellationToken) =>
-        LoadAsync(db, organizationId, contactType, contactId, toDate, cancellationToken);
+        IAppDbContext db, Guid organizationId, ContactType contactType, Guid contactId, DateOnly toDate,
+        CancellationToken cancellationToken, Guid? locationId = null, IReadOnlyList<Guid>? reportLocations = null) =>
+        LoadAsync(db, organizationId, contactType, contactId, toDate, cancellationToken, locationId, reportLocations);
 
     /// <summary>Every ledger event for <b>every</b> contact of this type up to
     /// <paramref name="toDate"/> -- what a per-contact summary needs, in the same number of round
     /// trips one contact costs rather than one round trip per contact.</summary>
     internal static Task<List<Event>> LoadAllContactEventsAsync(
-        IAppDbContext db, Guid organizationId, ContactType contactType, DateOnly toDate, CancellationToken cancellationToken) =>
-        LoadAsync(db, organizationId, contactType, null, toDate, cancellationToken);
+        IAppDbContext db, Guid organizationId, ContactType contactType, DateOnly toDate,
+        CancellationToken cancellationToken, Guid? locationId = null, IReadOnlyList<Guid>? reportLocations = null) =>
+        LoadAsync(db, organizationId, contactType, null, toDate, cancellationToken, locationId, reportLocations);
 
     internal static string BalanceType(ContactType contactType, decimal signedBalance) =>
         contactType == ContactType.Customer
@@ -63,17 +73,20 @@ internal static class ContactLedgerReader
             : (signedBalance >= 0 ? "CR" : "DR");
 
     private static Task<List<Event>> LoadAsync(
-        IAppDbContext db, Guid organizationId, ContactType contactType, Guid? contactId, DateOnly toDate, CancellationToken cancellationToken) =>
+        IAppDbContext db, Guid organizationId, ContactType contactType, Guid? contactId, DateOnly toDate,
+        CancellationToken cancellationToken, Guid? locationId, IReadOnlyList<Guid>? reportLocations) =>
         contactType == ContactType.Customer
-            ? LoadCustomerEventsAsync(db, organizationId, contactId, toDate, cancellationToken)
-            : LoadSupplierEventsAsync(db, organizationId, contactId, toDate, cancellationToken);
+            ? LoadCustomerEventsAsync(db, organizationId, contactId, toDate, cancellationToken, locationId, reportLocations)
+            : LoadSupplierEventsAsync(db, organizationId, contactId, toDate, cancellationToken, locationId, reportLocations);
 
     private static async Task<List<Event>> LoadCustomerEventsAsync(
-        IAppDbContext db, Guid organizationId, Guid? contactId, DateOnly toDate, CancellationToken cancellationToken)
+        IAppDbContext db, Guid organizationId, Guid? contactId, DateOnly toDate, CancellationToken cancellationToken,
+        Guid? locationId, IReadOnlyList<Guid>? reportLocations)
     {
         var invoices = await db.Invoices
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
                 && x.Status == InvoiceStatus.Approved && x.Date <= toDate)
+            .AtLocations(locationId, reportLocations)
             .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference })
             .ToListAsync(cancellationToken);
         var invoiceLines = await db.InvoiceLines
@@ -85,6 +98,7 @@ internal static class ContactLedgerReader
         var creditNotes = await db.CreditNotes
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
                 && x.Status == CreditNoteStatus.Approved && x.Date <= toDate)
+            .AtLocations(locationId, reportLocations)
             .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference })
             .ToListAsync(cancellationToken);
         var creditNoteLines = await db.CreditNoteLines
@@ -96,6 +110,7 @@ internal static class ContactLedgerReader
         var payments = await db.Payments
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
                 && x.Direction == PaymentDirection.Received && x.Status == PaymentStatus.Approved && x.Date <= toDate)
+            .AtLocations(locationId, reportLocations)
             .Select(x => new { x.ContactId, x.Date, x.Code, x.Reference, x.Amount })
             .ToListAsync(cancellationToken);
 
@@ -107,16 +122,18 @@ internal static class ContactLedgerReader
         events.AddRange(payments.Select(x =>
             new Event(x.ContactId, x.Date, DocumentType.Payment, x.Code, x.Reference, -x.Amount)));
         events.AddRange(await LoadJournalVoucherEventsAsync(
-            db, organizationId, ContactType.Customer, contactId, toDate, cancellationToken));
+            db, organizationId, ContactType.Customer, contactId, toDate, cancellationToken, locationId, reportLocations));
         return events;
     }
 
     private static async Task<List<Event>> LoadSupplierEventsAsync(
-        IAppDbContext db, Guid organizationId, Guid? contactId, DateOnly toDate, CancellationToken cancellationToken)
+        IAppDbContext db, Guid organizationId, Guid? contactId, DateOnly toDate, CancellationToken cancellationToken,
+        Guid? locationId, IReadOnlyList<Guid>? reportLocations)
     {
         var purchaseBills = await db.PurchaseBills
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
                 && x.Status == PurchaseBillStatus.Approved && x.Date <= toDate)
+            .AtLocations(locationId, reportLocations)
             .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference, x.TdsAmount })
             .ToListAsync(cancellationToken);
         var purchaseBillLines = await db.PurchaseBillLines
@@ -128,6 +145,7 @@ internal static class ContactLedgerReader
         var expenses = await db.Expenses
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
                 && x.Status == ExpenseStatus.Approved && x.Date <= toDate)
+            .AtLocations(locationId, reportLocations)
             .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.SupplierInvoiceReference, x.TdsAmount })
             .ToListAsync(cancellationToken);
         var expenseLines = await db.ExpenseLines
@@ -139,6 +157,7 @@ internal static class ContactLedgerReader
         var debitNotes = await db.DebitNotes
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
                 && x.Status == DebitNoteStatus.Approved && x.Date <= toDate)
+            .AtLocations(locationId, reportLocations)
             .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference, x.TdsAmount })
             .ToListAsync(cancellationToken);
         var debitNoteLines = await db.DebitNoteLines
@@ -150,6 +169,7 @@ internal static class ContactLedgerReader
         var payments = await db.Payments
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
                 && x.Direction == PaymentDirection.Paid && x.Status == PaymentStatus.Approved && x.Date <= toDate)
+            .AtLocations(locationId, reportLocations)
             .Select(x => new { x.ContactId, x.Date, x.Code, x.Reference, x.Amount })
             .ToListAsync(cancellationToken);
 
@@ -166,7 +186,7 @@ internal static class ContactLedgerReader
         events.AddRange(payments.Select(x =>
             new Event(x.ContactId, x.Date, DocumentType.Payment, x.Code, x.Reference, -x.Amount)));
         events.AddRange(await LoadJournalVoucherEventsAsync(
-            db, organizationId, ContactType.Supplier, contactId, toDate, cancellationToken));
+            db, organizationId, ContactType.Supplier, contactId, toDate, cancellationToken, locationId, reportLocations));
         return events;
     }
 
@@ -181,11 +201,13 @@ internal static class ContactLedgerReader
     /// to the movement rather than the balance.</para>
     /// </summary>
     private static async Task<List<Event>> LoadJournalVoucherEventsAsync(
-        IAppDbContext db, Guid organizationId, ContactType contactType, Guid? contactId, DateOnly toDate, CancellationToken cancellationToken)
+        IAppDbContext db, Guid organizationId, ContactType contactType, Guid? contactId, DateOnly toDate,
+        CancellationToken cancellationToken, Guid? locationId, IReadOnlyList<Guid>? reportLocations)
     {
         var vouchers = await db.JournalVouchers
             .Where(x => x.OrganizationId == organizationId
                 && x.Status == JournalVoucherStatus.Approved && x.Date <= toDate)
+            .AtLocations(locationId, reportLocations)
             .Select(x => new { x.Id, x.Date, x.Code, x.Reference })
             .ToListAsync(cancellationToken);
 

@@ -43,7 +43,7 @@ public class ProductProfitabilityQueryHandlerTests
         await CreateAndApprovePurchaseBillAsync(db, seed, new DateOnly(2026, 1, 1), 10m, 40m);
         var invoice = await CreateAndApproveInvoiceAsync(db, seed, new DateOnly(2026, 1, 10), 5m, 100m);
 
-        var handler = new ProductProfitabilityQueryHandler(db);
+        var handler = new ProductProfitabilityQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new ProductProfitabilityQuery(seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), null, null),
             CancellationToken.None);

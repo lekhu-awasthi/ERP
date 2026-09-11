@@ -102,7 +102,7 @@ public sealed class ApproveCreditNoteCommandHandler(
 
                 await stockLedgerService.IncrementAsync(
                     request.OrganizationId, line.ProductId, sourceInvoice.WarehouseId, line.Quantity, unitCost,
-                    DocumentType.CreditNote, creditNote.Id, creditNote.Date, cancellationToken);
+                    DocumentType.CreditNote, creditNote.Id, creditNote.Date, cancellationToken, creditNote.LocationId);
                 totalCogsReversal += line.Quantity * unitCost;
             }
         }
@@ -113,7 +113,8 @@ public sealed class ApproveCreditNoteCommandHandler(
         }
 
         var glLines = postingRule.BuildLines(postingInput);
-        var glEntry = GlJournalEntry.Post(request.OrganizationId, DocumentType.CreditNote, creditNote.Id, glLines);
+        var glEntry = GlJournalEntry.Post(
+            request.OrganizationId, DocumentType.CreditNote, creditNote.Id, glLines, creditNote.LocationId);
         db.GlJournalEntries.Add(glEntry);
 
         await db.SaveChangesAsync(cancellationToken);

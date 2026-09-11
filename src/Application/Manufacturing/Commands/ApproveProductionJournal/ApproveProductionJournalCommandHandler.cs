@@ -112,7 +112,7 @@ public sealed class ApproveProductionJournalCommandHandler(
         {
             var consumedUnitCost = await stockLedgerService.ConsumeAsync(
                 request.OrganizationId, line.ProductId, journal.WarehouseId, line.Quantity,
-                DocumentType.ProductionJournal, journal.Id, journal.Date, cancellationToken);
+                DocumentType.ProductionJournal, journal.Id, journal.Date, cancellationToken, journal.LocationId);
 
             // Multiply the UNROUNDED average, not the value the column will round on write --
             // this product is exactly what left the ledger.
@@ -128,13 +128,13 @@ public sealed class ApproveProductionJournalCommandHandler(
             await stockLedgerService.IncrementAsync(
                 request.OrganizationId, byProduct.ProductId, journal.WarehouseId, byProduct.Quantity,
                 byProduct.AllocatedUnitCost!.Value, DocumentType.ProductionJournal, journal.Id, journal.Date,
-                cancellationToken);
+                cancellationToken, journal.LocationId);
         }
 
         await stockLedgerService.IncrementAsync(
             request.OrganizationId, journal.ProductId, journal.WarehouseId, journal.OutputQuantity,
             journal.FinishedGoodsUnitCost!.Value, DocumentType.ProductionJournal, journal.Id, journal.Date,
-            cancellationToken);
+            cancellationToken, journal.LocationId);
 
         // Step 5 -- the GL, from the values actually created rather than the theoretical roll-up.
         var postingInput = new ProductionJournalPostingInput(
@@ -146,7 +146,8 @@ public sealed class ApproveProductionJournalCommandHandler(
 
         var glLines = postingRule.BuildLines(postingInput);
         db.GlJournalEntries.Add(
-            GlJournalEntry.Post(request.OrganizationId, DocumentType.ProductionJournal, journal.Id, glLines));
+            GlJournalEntry.Post(
+                request.OrganizationId, DocumentType.ProductionJournal, journal.Id, glLines, journal.LocationId));
 
         // Step 6 -- one transaction for the consumption, the creation and the posting.
         await db.SaveChangesAsync(cancellationToken);

@@ -32,7 +32,7 @@ public class FinancialStatementCompareTests
         var (organizationId, cashAccountId, salesAccountId) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
         await PostAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
 
-        var result = await new TrialBalanceQueryHandler(db).Handle(
+        var result = await new TrialBalanceQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new TrialBalanceQuery(organizationId, Today), CancellationToken.None);
 
         Assert.Null(result.CompareAsOfDate);
@@ -53,7 +53,7 @@ public class FinancialStatementCompareTests
         await PostAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
 
         var asOfDate = Today;
-        var result = await new TrialBalanceQueryHandler(db).Handle(
+        var result = await new TrialBalanceQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new TrialBalanceQuery(organizationId, asOfDate, Compare: true), CancellationToken.None);
 
         Assert.Equal(asOfDate.AddYears(-1), result.CompareAsOfDate);
@@ -75,7 +75,7 @@ public class FinancialStatementCompareTests
         await PostAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
 
         var asOfDate = Today;
-        var result = await new BalanceSheetQueryHandler(db, new AccountGroupTreeQuery(db)).Handle(
+        var result = await new BalanceSheetQueryHandler(db, new AccountGroupTreeQuery(db), new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new BalanceSheetQuery(organizationId, asOfDate, Compare: true), CancellationToken.None);
 
         Assert.Equal(asOfDate.AddYears(-1), result.CompareAsOfDate);
@@ -96,7 +96,7 @@ public class FinancialStatementCompareTests
         var (organizationId, cashAccountId, salesAccountId) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
         await PostAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
 
-        var result = await new BalanceSheetQueryHandler(db, new AccountGroupTreeQuery(db)).Handle(
+        var result = await new BalanceSheetQueryHandler(db, new AccountGroupTreeQuery(db), new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new BalanceSheetQuery(organizationId, Today), CancellationToken.None);
 
         Assert.Null(result.CompareAsOfDate);
@@ -116,7 +116,7 @@ public class FinancialStatementCompareTests
         var fromDate = Today.AddDays(1);
         var toDate = Today.AddDays(3);
 
-        var result = await new IncomeStatementQueryHandler(db).Handle(
+        var result = await new IncomeStatementQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new IncomeStatementQuery(organizationId, fromDate, toDate, Compare: true), CancellationToken.None);
 
         Assert.Equal(Today.AddDays(-2), result.CompareFromDate);
@@ -141,7 +141,7 @@ public class FinancialStatementCompareTests
         var (organizationId, cashAccountId, salesAccountId) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
         await PostAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
 
-        var result = await new IncomeStatementQueryHandler(db).Handle(
+        var result = await new IncomeStatementQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new IncomeStatementQuery(organizationId, Today.AddDays(1), Today.AddDays(3)), CancellationToken.None);
 
         Assert.Null(result.CompareFromDate);

@@ -51,6 +51,13 @@
             <label class="form-check-label small fw-semibold" for="ntaExcludeAdvance">Exclude Advance</label>
           </div>
         </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <app-report-location-filter
+            [organizationId]="organizationId"
+            [controlId]="'net-trading-assets-page-billing-location'"
+            (locationChange)="onLocationChange($event)"
+          />
+        </div>
       </div>
     </div>
   </div>

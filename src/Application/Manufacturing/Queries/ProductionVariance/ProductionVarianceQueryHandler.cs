@@ -1,23 +1,34 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Manufacturing;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Manufacturing.Queries.ProductionVariance;
 
-public sealed class ProductionVarianceQueryHandler(IAppDbContext db)
+public sealed class ProductionVarianceQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<ProductionVarianceQuery, PagedResult<ProductionVarianceRowDto>>
 {
     public async Task<PagedResult<ProductionVarianceRowDto>> Handle(
         ProductionVarianceQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var query = db.ProductionJournals
             .Include(x => x.RawMaterials).Include(x => x.ByProducts)
             .Where(x => x.OrganizationId == request.OrganizationId
                 && x.Status == ProductionJournalStatus.Approved
                 && x.BillOfMaterialsId != null
-                && x.Date >= request.FromDate && x.Date <= request.ToDate);
+                && x.Date >= request.FromDate && x.Date <= request.ToDate)
+            .AtLocations(request.LocationId, reportLocations);
 
         if (request.ProductId is { } productId)
         {

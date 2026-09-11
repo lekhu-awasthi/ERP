@@ -25,11 +25,11 @@ public class PrintBalanceConfirmationQueryHandlerTests
         var (organizationId, customerId) = await SeedCustomerWithAnInvoiceAsync(db);
         var asOf = new DateOnly(2026, 8, 31);
 
-        var statement = await new ContactStatementQueryHandler(db).Handle(
+        var statement = await new ContactStatementQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ContactStatementQuery(organizationId, ContactType.Customer, customerId, new DateOnly(2026, 1, 1), asOf),
             CancellationToken.None);
 
-        var confirmation = await new PrintBalanceConfirmationQueryHandler(db).Handle(
+        var confirmation = await new PrintBalanceConfirmationQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new PrintBalanceConfirmationQuery(organizationId, ContactType.Customer, customerId, asOf),
             CancellationToken.None);
 
@@ -49,7 +49,7 @@ public class PrintBalanceConfirmationQueryHandlerTests
         var db = TestAppDbContext.Create();
         var (organizationId, customerId) = await SeedCustomerWithAnInvoiceAsync(db);
 
-        var confirmation = await new PrintBalanceConfirmationQueryHandler(db).Handle(
+        var confirmation = await new PrintBalanceConfirmationQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new PrintBalanceConfirmationQuery(organizationId, ContactType.Customer, customerId, new DateOnly(2026, 8, 31)),
             CancellationToken.None);
 
@@ -76,7 +76,7 @@ public class PrintBalanceConfirmationQueryHandlerTests
             isDefault: true));
         await db.SaveChangesAsync(CancellationToken.None);
 
-        var confirmation = await new PrintBalanceConfirmationQueryHandler(db).Handle(
+        var confirmation = await new PrintBalanceConfirmationQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new PrintBalanceConfirmationQuery(organizationId, ContactType.Customer, customerId, new DateOnly(2026, 8, 31)),
             CancellationToken.None);
 
@@ -95,7 +95,7 @@ public class PrintBalanceConfirmationQueryHandlerTests
         try
         {
             RequestCalendar.Current = CalendarFormat.Bs;
-            var confirmation = await new PrintBalanceConfirmationQueryHandler(db).Handle(
+            var confirmation = await new PrintBalanceConfirmationQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
                 new PrintBalanceConfirmationQuery(organizationId, ContactType.Customer, customerId, new DateOnly(2026, 8, 31)),
                 CancellationToken.None);
 

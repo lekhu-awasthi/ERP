@@ -1,5 +1,7 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,13 +12,22 @@ namespace ErpApp.Application.Trade.Queries.TradeByContact;
 /// exactly zero across every column is dropped, the same rule the balance and ageing reports use --
 /// a row of five zeroes tells a reader nothing and pushes the rows that matter onto page two.
 /// </summary>
-public sealed class TradeByContactQueryHandler(IAppDbContext db)
+public sealed class TradeByContactQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<TradeByContactQuery, TradeByContactDto>
 {
     public async Task<TradeByContactDto> Handle(TradeByContactQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var facts = await TradeLineReader.LoadAsync(
-            db, request.OrganizationId, request.Side, request.FromDate, request.ToDate, cancellationToken);
+            db, request.OrganizationId, request.Side, request.FromDate, request.ToDate, cancellationToken,
+            request.LocationId, reportLocations);
 
         var contactIds = facts.Select(x => x.ContactId).Distinct().ToList();
 

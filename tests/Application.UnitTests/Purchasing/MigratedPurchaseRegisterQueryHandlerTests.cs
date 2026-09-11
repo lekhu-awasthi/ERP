@@ -52,7 +52,7 @@ public class MigratedPurchaseRegisterQueryHandlerTests
         AddEntry(db, organizationId, "BILL-001", new DateOnly(2024, 3, 1), local: 100m, localVat: 13m);
         await db.SaveChangesAsync(CancellationToken.None);
 
-        var live = await new PurchaseRegisterQueryHandler(db).Handle(
+        var live = await new PurchaseRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new PurchaseRegisterQuery(organizationId, From, To, null), CancellationToken.None);
 
         Assert.Empty(live.Items);

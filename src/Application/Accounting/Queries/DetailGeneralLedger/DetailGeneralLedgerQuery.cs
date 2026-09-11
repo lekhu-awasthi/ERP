@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
@@ -50,8 +51,10 @@ public sealed record DetailGeneralLedgerQuery(
     Guid? AccountId = null,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize,
-    bool ExportAll = false)
-    : IRequest<PagedResult<DetailGeneralLedgerAccountDto>>, IRequirePermission, IOrganizationScoped
+    bool ExportAll = false,
+    // Phase 35b -- the Billing Location filter; null is "All locations". See ILocationFilteredReport.
+    Guid? LocationId = null)
+    : IRequest<PagedResult<DetailGeneralLedgerAccountDto>>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.DetailGeneralLedgerView;
 }

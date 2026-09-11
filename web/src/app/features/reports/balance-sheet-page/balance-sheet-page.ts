@@ -8,6 +8,7 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { triggerBlobDownload } from '../../../shared/download-file';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /** Read-only report screen -- roadmap Phase 8a's BalanceSheetQuery, Asset/Liability/Equity
  * accounts grouped by top-level AccountGroup (full-subtree rollup) as of a cutoff date, with a
@@ -18,7 +19,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
  * back so the column header names the real date) and the .xlsx export this screen never had. */
 @Component({
   selector: 'app-balance-sheet-page',
-  imports: [RouterLink, AmountPipe, NepaliDatePipe, BsDateInput],
+  imports: [RouterLink, AmountPipe, NepaliDatePipe, BsDateInput, ReportLocationFilter],
   templateUrl: './balance-sheet-page.html',
 })
 export class BalanceSheetPage {
@@ -26,6 +27,9 @@ export class BalanceSheetPage {
   private readonly accountingService = inject(AccountingService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -50,7 +54,7 @@ export class BalanceSheetPage {
 
   protected exportReport(): void {
     this.exporting.set(true);
-    this.accountingService.exportBalanceSheet(this.organizationId, this.asOfDate(), this.compare()).subscribe({
+    this.accountingService.exportBalanceSheet(this.organizationId, this.asOfDate(), this.compare(), this.locationId()).subscribe({
       next: (blob) => {
         this.exporting.set(false);
         triggerBlobDownload(blob, `BalanceSheet_${this.asOfDate()}.xlsx`);
@@ -62,11 +66,16 @@ export class BalanceSheetPage {
     });
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    this.load();
+  }
+
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
 
-    this.accountingService.getBalanceSheet(this.organizationId, this.asOfDate(), this.compare()).subscribe({
+    this.accountingService.getBalanceSheet(this.organizationId, this.asOfDate(), this.compare(), this.locationId()).subscribe({
       next: (report) => {
         this.report.set(report);
         this.loading.set(false);

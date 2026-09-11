@@ -39,7 +39,7 @@ public class MigratedRegisterReportReachTests
         var db = TestAppDbContext.Create();
         var organizationId = await SeedMigratedOnlyTenantAsync(db);
 
-        var trialBalance = await new TrialBalanceQueryHandler(db).Handle(
+        var trialBalance = await new TrialBalanceQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new TrialBalanceQuery(organizationId, To), CancellationToken.None);
 
         Assert.Empty(await db.GlJournalEntries.Where(x => x.OrganizationId == organizationId).ToListAsync());
@@ -86,7 +86,7 @@ public class MigratedRegisterReportReachTests
         var db = TestAppDbContext.Create();
         var organizationId = await SeedMigratedOnlyTenantAsync(db);
 
-        var result = await new AnnexFiveReportQueryHandler(db).Handle(
+        var result = await new AnnexFiveReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new AnnexFiveReportQuery(organizationId, From, To), CancellationToken.None);
 
         Assert.Empty(result.Rows);

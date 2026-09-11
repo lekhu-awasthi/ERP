@@ -46,6 +46,13 @@
           <label class="form-label small fw-semibold" for="annex-five-report-page-to-date">To Date</label>
           <app-bs-date-input [inputId]="'annex-five-report-page-to-date'" [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
+        <div class="col-12 col-sm-6">
+          <app-report-location-filter
+            [organizationId]="organizationId"
+            [controlId]="'annex-five-report-page-billing-location'"
+            (locationChange)="onLocationChange($event)"
+          />
+        </div>
       </div>
     </div>
   </div>

@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using MediatR;
@@ -20,8 +21,10 @@ public sealed record TradeByItemMonthlyQuery(
     int FiscalYear,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize,
-    bool ExportAll = false)
-    : IRequest<TradeByItemMonthlyDto>, IRequirePermission, IOrganizationScoped
+    bool ExportAll = false,
+    // Phase 35b -- the Billing Location filter; null is "All locations". See ILocationFilteredReport.
+    Guid? LocationId = null)
+    : IRequest<TradeByItemMonthlyDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey =>
         Side == TradeSide.Sales ? PermissionKeys.SalesByItemMonthlyView : PermissionKeys.PurchaseByItemMonthlyView;

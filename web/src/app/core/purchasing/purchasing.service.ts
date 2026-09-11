@@ -261,8 +261,10 @@ export class PurchasingService {
     warehouseId: string | null,
     page = 1,
     pageSize = 50,
+    locationId?: string,
   ): Observable<PurchaseMasterReportDto> {
     const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
+    if (locationId) params['locationId'] = locationId;
     if (contactId) params['contactId'] = contactId;
     if (productId) params['productId'] = productId;
     if (warehouseId) params['warehouseId'] = warehouseId;
@@ -283,6 +285,7 @@ export class PurchasingService {
     full: boolean,
     page: number,
     pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
     const params: Record<string, string> = {
       fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
@@ -290,6 +293,7 @@ export class PurchasingService {
     if (contactId) params['contactId'] = contactId;
     if (productId) params['productId'] = productId;
     if (warehouseId) params['warehouseId'] = warehouseId;
+    if (locationId) params['locationId'] = locationId;
 
     return this.http.get(`${this.baseUrl(organizationId)}/reports/purchase-master-report/export`, {
       withCredentials: true,
@@ -354,9 +358,10 @@ export class PurchasingService {
   }
 
   getPurchaseRegister(
-    organizationId: string, fromDate: string, toDate: string, contactId: string | null, page = 1, pageSize = 50,
+    organizationId: string, fromDate: string, toDate: string, contactId: string | null, page = 1, pageSize = 50, locationId?: string,
   ): Observable<PurchaseRegisterDto> {
     const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
+    if (locationId) params['locationId'] = locationId;
     if (contactId) params['contactId'] = contactId;
 
     return this.http.get<PurchaseRegisterDto>(`${this.baseUrl(organizationId)}/reports/purchase-register`, {
@@ -367,11 +372,12 @@ export class PurchasingService {
 
   exportPurchaseRegister(
     organizationId: string, fromDate: string, toDate: string, contactId: string | null,
-    full: boolean, page: number, pageSize: number,
+    full: boolean, page: number, pageSize: number, locationId?: string,
   ): Observable<Blob> {
     const params: Record<string, string> = {
       fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
     };
+    if (locationId) params['locationId'] = locationId;
     if (contactId) params['contactId'] = contactId;
 
     return this.http.get(`${this.baseUrl(organizationId)}/reports/purchase-register/export`, {

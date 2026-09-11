@@ -54,7 +54,8 @@ public sealed class VoidInventoryAdjustmentCommandHandler(
         {
             await stockLedgerService.IncrementAsync(
                 request.OrganizationId, line.ProductId, inventoryAdjustment.WarehouseId, line.Quantity, line.ConsumedUnitCost!.Value,
-                DocumentType.InventoryAdjustment, inventoryAdjustment.Id, inventoryAdjustment.Date, cancellationToken);
+                DocumentType.InventoryAdjustment, inventoryAdjustment.Id, inventoryAdjustment.Date, cancellationToken,
+                inventoryAdjustment.LocationId);
         }
 
         db.GlJournalEntries.Add(GlJournalEntry.PostReversalOf(originalEntry));

@@ -52,7 +52,7 @@ public class PurchaseRegisterQueryHandlerTests
             db, seed, new DateOnly(2026, 1, 13), isImport: false, importDocumentNo: null,
             [(seed.ProductId, 1m, 1000m, VatRate.ThirteenPercentVat, ExpenditureClassification.Capital)]);
 
-        var handler = new PurchaseRegisterQueryHandler(db);
+        var handler = new PurchaseRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new PurchaseRegisterQuery(seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), null),
             CancellationToken.None);
@@ -97,7 +97,7 @@ public class PurchaseRegisterQueryHandlerTests
         var debitNote = await CreateAndApproveDebitNoteAsync(
             db, seed, new DateOnly(2026, 1, 15), 2m, 100m, bill.Id);
 
-        var handler = new PurchaseRegisterQueryHandler(db);
+        var handler = new PurchaseRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new PurchaseRegisterQuery(seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), null),
             CancellationToken.None);

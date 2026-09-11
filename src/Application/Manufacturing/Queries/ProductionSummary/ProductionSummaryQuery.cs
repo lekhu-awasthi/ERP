@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Tenancy;
@@ -26,8 +27,10 @@ public sealed record ProductionSummaryQuery(
     Guid? CategoryId,
     bool ExportAll = false,
     int Page = 1,
-    int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<ProductionSummaryReportDto>, IRequirePermission, IOrganizationScoped, IRequireFeature
+    int PageSize = PagingDefaults.DefaultPageSize,
+    // Phase 35b -- the Billing Location filter; null is "All locations". See ILocationFilteredReport.
+    Guid? LocationId = null)
+    : IRequest<ProductionSummaryReportDto>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.ProductionReportView;
 

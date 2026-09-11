@@ -53,7 +53,7 @@ public class BalanceSheetQueryHandlerTests
         await ApproveJournalVoucherAsync(db, organizationId, cash.Id, sales.Id, 3000m);
         await ApproveJournalVoucherAsync(db, organizationId, rent.Id, ap.Id, 2000m);
 
-        var handler = new BalanceSheetQueryHandler(db, new AccountGroupTreeQuery(db));
+        var handler = new BalanceSheetQueryHandler(db, new AccountGroupTreeQuery(db), new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new BalanceSheetQuery(organizationId, DateOnly.FromDateTime(DateTime.UtcNow)), CancellationToken.None);
 
@@ -83,7 +83,7 @@ public class BalanceSheetQueryHandlerTests
         var db = TestAppDbContext.Create();
         var (organizationId, _, _) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
 
-        var handler = new BalanceSheetQueryHandler(db, new AccountGroupTreeQuery(db));
+        var handler = new BalanceSheetQueryHandler(db, new AccountGroupTreeQuery(db), new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new BalanceSheetQuery(organizationId, DateOnly.FromDateTime(DateTime.UtcNow)), CancellationToken.None);
 

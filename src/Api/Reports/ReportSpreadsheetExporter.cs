@@ -116,6 +116,9 @@ public static partial class ReportSpreadsheetExporter
                 ("Contact Name", r => r.ContactName),
                 ("Contact Group", r => r.ContactGroupName),
                 ("Warehouse", r => r.WarehouseName),
+                // Phase 35b -- the mirror of the Sales Master Report's Location column above.
+                // Shifts Total Amount from index 18 to 19, and WriteTotalRow's index moves with it.
+                ("Location", r => r.LocationName),
                 ("Product Code", r => r.ProductCode),
                 ("Product Name", r => r.ProductName),
                 ("Quantity", r => r.Quantity),
@@ -129,7 +132,7 @@ public static partial class ReportSpreadsheetExporter
                 ("Total Amount", r => r.TotalAmount),
             ],
             report.Rows,
-            sheet => WriteTotalRow(sheet, report.Rows.Count, "Total Amount", 18, report.TotalAmount));
+            sheet => WriteTotalRow(sheet, report.Rows.Count, "Total Amount", 19, report.TotalAmount));
 
     public static IResult ExportAnnexFiveReport(AnnexFiveReportDto report, DateOnly fromDate, DateOnly toDate) =>
         ExportTable(

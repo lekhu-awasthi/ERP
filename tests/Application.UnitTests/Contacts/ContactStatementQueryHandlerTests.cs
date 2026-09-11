@@ -75,7 +75,7 @@ public class ContactStatementQueryHandlerTests
         var query = new ContactStatementQuery(seed.OrganizationId, ContactType.Customer, seed.CustomerId, fromDate, toDate);
         Assert.Equal("Reports.CustomerStatement.View", query.PermissionKey);
 
-        var handler = new ContactStatementQueryHandler(db);
+        var handler = new ContactStatementQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(query, CancellationToken.None);
 
         Assert.Equal(1500m, result.OpeningBalance); // 1000 (Contact.OpeningBalance) + 500 (pre-period Invoice)
@@ -133,7 +133,7 @@ public class ContactStatementQueryHandlerTests
         var query = new ContactStatementQuery(seed.OrganizationId, ContactType.Supplier, seed.SupplierId, fromDate, toDate);
         Assert.Equal("Reports.SupplierStatement.View", query.PermissionKey);
 
-        var handler = new ContactStatementQueryHandler(db);
+        var handler = new ContactStatementQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(query, CancellationToken.None);
 
         Assert.Equal(0m, result.OpeningBalance);
@@ -171,7 +171,7 @@ public class ContactStatementQueryHandlerTests
         var db = TestAppDbContext.Create();
         var seed = await SeedAsync(db);
 
-        var handler = new ContactStatementQueryHandler(db);
+        var handler = new ContactStatementQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
 
         await Assert.ThrowsAsync<NotFoundException>(() => handler.Handle(
             new ContactStatementQuery(

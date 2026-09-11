@@ -127,7 +127,7 @@ public class RatioAnalysisQueryHandlerTests
             new FifoStockAvailabilityPolicy(db, stockLedgerService), stockLedgerService, new ContactCreditLimitPolicy(db))
             .Handle(new ApproveInvoiceCommand(organizationId, invoice.Id, OverrideWarning: false), CancellationToken.None);
 
-        var handler = new RatioAnalysisQueryHandler(db, new AccountGroupTreeQuery(db));
+        var handler = new RatioAnalysisQueryHandler(db, new AccountGroupTreeQuery(db), new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(new RatioAnalysisQuery(organizationId, today, today), CancellationToken.None);
 
         // Receivables 3,000, Inventory 0, Cash&Bank 10,000, Payables 2,000.

@@ -1,5 +1,7 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Application.Configuration;
 using ErpApp.Application.Sales.Reports;
 using ErpApp.Domain.Common;
@@ -9,10 +11,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Sales.Queries.SalesRegister;
 
-public sealed class SalesRegisterQueryHandler(IAppDbContext db) : IRequestHandler<SalesRegisterQuery, SalesRegisterDto>
+public sealed class SalesRegisterQueryHandler(IAppDbContext db, ICurrentUserService currentUser) : IRequestHandler<SalesRegisterQuery, SalesRegisterDto>
 {
     public async Task<SalesRegisterDto> Handle(SalesRegisterQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var taggedInvoiceIds = await ReportingTagFilter.ResolveMatchingDocumentIdsAsync(
             db, DocumentType.Invoice, request.TagOptionIds, cancellationToken);
         var tagFilterActive = request.TagOptionIds is { Count: > 0 };
@@ -93,7 +103,8 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db) : IRequestHandle
             // Sales Register prints them parenthesised and nets its Total of them); the return
             // register renders them positive.
             var creditNotes = await SalesReturnReader.LoadAsync(
-                db, request.OrganizationId, request.FromDate, request.ToDate, request.ContactId, cancellationToken);
+                db, request.OrganizationId, request.FromDate, request.ToDate, request.ContactId, cancellationToken,
+                request.LocationId, reportLocations);
 
             var creditNoteContactIds = creditNotes.Select(x => x.ContactId).Distinct().ToList();
             var creditNoteContacts = await db.Contacts

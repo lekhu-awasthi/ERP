@@ -650,3 +650,23 @@ Moved verbatim; the one-line versions in CLAUDE.md keep the same "before X" hook
   and before a confirm-live pass over a catalogue, where reading all 49 report screens rather than
   one per group is what made the six exceptions (one of which breaks the obvious rule) trustworthy —
   `docs/phase-35a-status.md`
+- Phase 35b: the location dimension in the reports — the other half of 35. The gate was
+  `GlJournalEntry` carrying no `LocationId` while seven GL reports filter by one live, and the same
+  gap turned out to exist on `StockMovement` and `StockLedgerEntry`; all three are settled by one
+  rule — **an append-only fact row carries the billing location of the document that created it,
+  stamped at write time**, with reversals *inheriting* rather than re-deriving (a void landing
+  elsewhere leaves a branch's Trial Balance permanently off while the organization total still
+  balances). On top of that: the filter on 36 report queries, their handlers and 86 endpoint
+  constructions, five shared readers threaded, `app-report-location-filter` on 43 screens, the
+  LOCATION column on both Master reports, and `LocationWiseReportPermission` given every report it
+  was meant to govern. **Read this before filtering an append-only fact table** (the column-vs-join
+  argument is Decision B, with phase-34c's "the report layer's cost is the period" as the deciding
+  measurement), **before extracting a shared `Where` out of several handlers** (the first
+  `GlEntryLocations` took a pre-filtered queryable and left nine handlers each responsible for
+  `OrganizationId`, in a codebase with no global query filter — a helper must own every condition
+  the `Where` it replaced carried), and **before writing a test that proves a location permission**:
+  a `Reports.*` key cannot be granted per location at all, so a report's scope is derived from the
+  caller's *transaction* grants, and the first negative E2E asserted a grant shape the API refuses
+  outright. Also the reason both a server guard and a client guard exist — phase 32 is the worked
+  example of a query, DTO and `.xlsx` export all carrying `locationId` for three phases while the
+  screen sent nothing — `docs/phase-35b-status.md`

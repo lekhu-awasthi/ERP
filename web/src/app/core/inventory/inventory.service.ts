@@ -184,9 +184,10 @@ export class InventoryService {
 
   getStockAgeing(
     organizationId: string, asOfDate: string, productCategoryId: string | null, productId: string | null,
-    warehouseId: string | null, page = 1, pageSize = 50,
+    warehouseId: string | null, page = 1, pageSize = 50, locationId?: string,
   ): Observable<StockAgeingDto> {
     const params: Record<string, string> = { asOfDate, page: String(page), pageSize: String(pageSize) };
+    if (locationId) params['locationId'] = locationId;
     if (productCategoryId) params['productCategoryId'] = productCategoryId;
     if (productId) params['productId'] = productId;
     if (warehouseId) params['warehouseId'] = warehouseId;
@@ -199,9 +200,10 @@ export class InventoryService {
 
   exportStockAgeing(
     organizationId: string, asOfDate: string, productCategoryId: string | null, productId: string | null,
-    warehouseId: string | null, full: boolean, page: number, pageSize: number,
+    warehouseId: string | null, full: boolean, page: number, pageSize: number, locationId?: string,
   ): Observable<Blob> {
     const params: Record<string, string> = { asOfDate, full: String(full), page: String(page), pageSize: String(pageSize) };
+    if (locationId) params['locationId'] = locationId;
     if (productCategoryId) params['productCategoryId'] = productCategoryId;
     if (productId) params['productId'] = productId;
     if (warehouseId) params['warehouseId'] = warehouseId;
@@ -215,9 +217,10 @@ export class InventoryService {
 
   getProductProfitability(
     organizationId: string, fromDate: string, toDate: string, productCategoryId: string | null,
-    productId: string | null, page = 1, pageSize = 50,
+    productId: string | null, page = 1, pageSize = 50, locationId?: string,
   ): Observable<ProductProfitabilityDto> {
     const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
+    if (locationId) params['locationId'] = locationId;
     if (productCategoryId) params['productCategoryId'] = productCategoryId;
     if (productId) params['productId'] = productId;
 
@@ -229,11 +232,12 @@ export class InventoryService {
 
   exportProductProfitability(
     organizationId: string, fromDate: string, toDate: string, productCategoryId: string | null,
-    productId: string | null, full: boolean, page: number, pageSize: number,
+    productId: string | null, full: boolean, page: number, pageSize: number, locationId?: string,
   ): Observable<Blob> {
     const params: Record<string, string> = {
       fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
     };
+    if (locationId) params['locationId'] = locationId;
     if (productCategoryId) params['productCategoryId'] = productCategoryId;
     if (productId) params['productId'] = productId;
 

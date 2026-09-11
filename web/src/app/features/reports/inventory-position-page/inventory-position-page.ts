@@ -16,6 +16,7 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Phase 26c -- Inventory Position: quantity, rate and value per product as at the period end.
@@ -25,7 +26,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
  */
 @Component({
   selector: 'app-inventory-position-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter],
   templateUrl: './inventory-position-page.html',
 })
 export class InventoryPositionPage {
@@ -35,6 +36,9 @@ export class InventoryPositionPage {
   private readonly organizationsService = inject(OrganizationsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -120,6 +124,11 @@ export class InventoryPositionPage {
     this.runExport(true, 1, this.pageSize());
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    this.reload();
+  }
+
   private reload(): void {
     this.page.set(1);
     this.load();
@@ -131,6 +140,7 @@ export class InventoryPositionPage {
       .exportInventoryPosition(
         this.organizationId, this.fromDate(), this.toDate(), this.categoryId() || null,
         this.productId() || null, this.warehouseId() || null, this.balanceFilter(), full, page, pageSize,
+        this.locationId(),
       )
       .subscribe({
         next: (blob) => {
@@ -153,6 +163,7 @@ export class InventoryPositionPage {
         this.organizationId, this.fromDate(), this.toDate(), this.categoryId() || null,
         this.productId() || null, this.warehouseId() || null, this.balanceFilter(),
         this.page(), this.pageSize(),
+        this.locationId(),
       )
       .subscribe({
         next: (report) => {

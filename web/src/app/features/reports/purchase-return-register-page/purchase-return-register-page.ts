@@ -12,6 +12,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Phase 26c -- the Nepal IRD statutory Purchase Return Book, one row per approved Debit Note.
@@ -22,7 +23,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  */
 @Component({
   selector: 'app-purchase-return-register-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter],
   templateUrl: './purchase-return-register-page.html',
 })
 export class PurchaseReturnRegisterPage {
@@ -31,6 +32,9 @@ export class PurchaseReturnRegisterPage {
   private readonly contactsService = inject(ContactsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -104,6 +108,7 @@ export class PurchaseReturnRegisterPage {
     this.reports
       .exportPurchaseReturnRegister(
         this.organizationId, this.fromDate(), this.toDate(), this.contactId() || null, full, page, pageSize,
+        this.locationId(),
       )
       .subscribe({
         next: (blob) => {
@@ -117,6 +122,14 @@ export class PurchaseReturnRegisterPage {
       });
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    // Page 1: every other filter on this screen resets the page, and a narrowing filter applied
+    // while on a later page returns nothing at all.
+    this.page.set(1);
+    this.load();
+  }
+
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
@@ -125,6 +138,7 @@ export class PurchaseReturnRegisterPage {
       .getPurchaseReturnRegister(
         this.organizationId, this.fromDate(), this.toDate(), this.contactId() || null,
         this.page(), this.pageSize(),
+        this.locationId(),
       )
       .subscribe({
         next: (report) => {

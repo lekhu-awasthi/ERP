@@ -1,16 +1,26 @@
 using ErpApp.Application.Common.Exceptions;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Manufacturing.Queries.ProductionPlanning;
 
-public sealed class ProductionPlanningQueryHandler(IAppDbContext db)
+public sealed class ProductionPlanningQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<ProductionPlanningQuery, ProductionPlanningReportDto>
 {
     public async Task<ProductionPlanningReportDto> Handle(
         ProductionPlanningQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var product = await db.Products
             .Where(x => x.Id == request.ProductId && x.OrganizationId == request.OrganizationId)
             .Select(x => new { x.Name })
@@ -48,6 +58,7 @@ public sealed class ProductionPlanningQueryHandler(IAppDbContext db)
             .Where(x => x.OrganizationId == request.OrganizationId
                 && rawProductIds.Contains(x.ProductId)
                 && (request.WarehouseId == null || x.WarehouseId == request.WarehouseId))
+            .AtLocations(request.LocationId, reportLocations)
             .GroupBy(x => x.ProductId)
             .Select(g => new { ProductId = g.Key, Quantity = g.Sum(x => x.QuantityRemaining) })
             .ToDictionaryAsync(x => x.ProductId, x => x.Quantity, cancellationToken);

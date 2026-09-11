@@ -43,7 +43,7 @@ public class CashFlowSummaryQueryHandlerTests
         await CreateAndApproveJournalVoucherAsync(db, seed, today, debitCash: true, 300m); // Other Receipts
         await CreateAndApproveJournalVoucherAsync(db, seed, today, debitCash: false, 150m); // Other Payments
 
-        var handler = new CashFlowSummaryQueryHandler(db);
+        var handler = new CashFlowSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new CashFlowSummaryQuery(seed.OrganizationId, today, today, null),
             CancellationToken.None);
@@ -71,7 +71,7 @@ public class CashFlowSummaryQueryHandlerTests
 
         await CreateAndApprovePaymentAsync(db, seed, today, PaymentDirection.Received, seed.CustomerId, 1000m);
 
-        var handler = new CashFlowSummaryQueryHandler(db);
+        var handler = new CashFlowSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new CashFlowSummaryQuery(seed.OrganizationId, today.AddDays(1), today.AddDays(30), null),
             CancellationToken.None);
@@ -95,7 +95,7 @@ public class CashFlowSummaryQueryHandlerTests
         await CreateAndApprovePaymentAsync(
             db, seed, today, PaymentDirection.Received, seed.CustomerId, 900m, secondCashAccount.Id);
 
-        var handler = new CashFlowSummaryQueryHandler(db);
+        var handler = new CashFlowSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new CashFlowSummaryQuery(seed.OrganizationId, today, today, seed.CashAccountId),
             CancellationToken.None);

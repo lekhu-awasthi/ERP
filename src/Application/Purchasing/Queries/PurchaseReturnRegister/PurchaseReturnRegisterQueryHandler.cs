@@ -1,19 +1,30 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Application.Purchasing.Reports;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Purchasing.Queries.PurchaseReturnRegister;
 
-public sealed class PurchaseReturnRegisterQueryHandler(IAppDbContext db)
+public sealed class PurchaseReturnRegisterQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<PurchaseReturnRegisterQuery, PurchaseReturnRegisterDto>
 {
     public async Task<PurchaseReturnRegisterDto> Handle(
         PurchaseReturnRegisterQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var debitNotes = await PurchaseReturnReader.LoadAsync(
-            db, request.OrganizationId, request.FromDate, request.ToDate, request.ContactId, cancellationToken);
+            db, request.OrganizationId, request.FromDate, request.ToDate, request.ContactId, cancellationToken,
+            request.LocationId, reportLocations);
 
         var contactIds = debitNotes.Select(x => x.ContactId).Distinct().ToList();
         var contacts = await db.Contacts

@@ -10,6 +10,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Read-only report screen -- roadmap Phase 8f's AnnexFiveReportQuery, a flat Sales bill register
@@ -23,7 +24,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  */
 @Component({
   selector: 'app-annex-five-report-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter],
   templateUrl: './annex-five-report-page.html',
 })
 export class AnnexFiveReportPage {
@@ -31,6 +32,9 @@ export class AnnexFiveReportPage {
   private readonly salesService = inject(SalesService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -79,7 +83,7 @@ export class AnnexFiveReportPage {
 
   private runExport(full: boolean, page: number, pageSize: number): void {
     this.exporting.set(true);
-    this.salesService.exportAnnexFiveReport(this.organizationId, this.fromDate(), this.toDate(), full, page, pageSize).subscribe({
+    this.salesService.exportAnnexFiveReport(this.organizationId, this.fromDate(), this.toDate(), full, page, pageSize, this.locationId()).subscribe({
       next: (blob) => {
         this.exporting.set(false);
         triggerBlobDownload(blob, `AnnexFiveReport_${this.fromDate()}_${this.toDate()}.xlsx`);
@@ -91,12 +95,20 @@ export class AnnexFiveReportPage {
     });
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    // Page 1: every other filter on this screen resets the page, and a narrowing filter applied
+    // while on a later page returns nothing at all.
+    this.page.set(1);
+    this.load();
+  }
+
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
 
     this.salesService
-      .getAnnexFiveReport(this.organizationId, this.fromDate(), this.toDate(), this.page(), this.pageSize())
+      .getAnnexFiveReport(this.organizationId, this.fromDate(), this.toDate(), this.page(), this.pageSize(), this.locationId())
       .subscribe({
         next: (report) => {
           this.report.set(report);

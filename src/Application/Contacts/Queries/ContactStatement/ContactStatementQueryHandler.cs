@@ -1,6 +1,8 @@
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Contacts;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -17,18 +19,33 @@ namespace ErpApp.Application.Contacts.Queries.ContactStatement;
 /// Event loading lives in ContactLedgerReader (extracted in Phase 10 once ContactOverviewQueryHandler
 /// became a second caller needing the exact same signed deltas) -- see that file's own doc comment.
 /// </summary>
-public sealed class ContactStatementQueryHandler(IAppDbContext db) : IRequestHandler<ContactStatementQuery, ContactStatementDto>
+public sealed class ContactStatementQueryHandler(IAppDbContext db, ICurrentUserService currentUser) : IRequestHandler<ContactStatementQuery, ContactStatementDto>
 {
     public async Task<ContactStatementDto> Handle(ContactStatementQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var contact = await db.Contacts.SingleOrDefaultAsync(
                 x => x.Id == request.ContactId && x.OrganizationId == request.OrganizationId && x.Type == request.ContactType,
                 cancellationToken)
             ?? throw new NotFoundException($"{request.ContactType} not found.");
 
         var events = await ContactLedgerReader.LoadEventsAsync(
-            db, request.OrganizationId, request.ContactType, request.ContactId, request.ToDate, cancellationToken);
+            db, request.OrganizationId, request.ContactType, request.ContactId, request.ToDate, cancellationToken,
+            request.LocationId, reportLocations);
 
+        // Phase 35b -- Contact.OpeningBalance is a contact-level migration figure with no billing
+        // location of its own (it predates every document), so a location-filtered balance is
+        // "opening carry-forward plus this branch's movements", not "this branch's share of the
+        // opening". Nothing in the schema could make it the latter, and splitting one number across
+        // branches by guesswork would be worse than saying so. Named here rather than left for a
+        // reader to notice a total that does not add up across branches.
         var openingBalance = contact.OpeningBalance + events
             .Where(x => x.Date < request.FromDate)
             .Sum(x => x.SignedAmount);

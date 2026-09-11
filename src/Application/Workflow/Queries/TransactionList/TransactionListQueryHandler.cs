@@ -1,5 +1,7 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Inventory;
@@ -11,7 +13,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Workflow.Queries.TransactionList;
 
-public sealed class TransactionListQueryHandler(IAppDbContext db)
+public sealed class TransactionListQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<TransactionListQuery, PagedResult<TransactionListRowDto>>
 {
     /// <summary>A row before its Amount, Description and user names have been resolved -- the same
@@ -35,6 +37,14 @@ public sealed class TransactionListQueryHandler(IAppDbContext db)
     public async Task<PagedResult<TransactionListRowDto>> Handle(
         TransactionListQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var organizationId = request.OrganizationId;
         var from = request.FromDate;
         var to = request.ToDate;
@@ -46,6 +56,11 @@ public sealed class TransactionListQueryHandler(IAppDbContext db)
 
         // One concrete block per document type. Not a generic Func-parameterised helper -- see the
         // query's own doc comment and phase-9 bug #1.
+        //
+        // Phase 35b -- every one of the thirteen blocks ends with the same AtLocations call, because
+        // every type this report lists is location-bearing. AtLocations is generic over EF.Property
+        // precisely so thirteen types cost one line each here rather than thirteen typed overloads
+        // (see ReportLocationFilter).
 
         if (Wants(DocumentType.Quotation))
         {
@@ -54,6 +69,7 @@ public sealed class TransactionListQueryHandler(IAppDbContext db)
             if (statuses is not null) query = query.Where(x => statuses.Contains(x.Status));
             if (from is { } f) query = query.Where(x => x.Date >= f);
             if (to is { } t) query = query.Where(x => x.Date <= t);
+            query = query.AtLocations(request.LocationId, reportLocations);
             var items = await query
                 .Select(x => new { x.Id, x.Code, x.Date, x.Reference, x.Status, x.ApprovedByUserId, x.ApprovedAt, x.CreatedAt, x.ContactId })
                 .ToListAsync(cancellationToken);
@@ -69,6 +85,7 @@ public sealed class TransactionListQueryHandler(IAppDbContext db)
             if (statuses is not null) query = query.Where(x => statuses.Contains(x.Status));
             if (from is { } f) query = query.Where(x => x.Date >= f);
             if (to is { } t) query = query.Where(x => x.Date <= t);
+            query = query.AtLocations(request.LocationId, reportLocations);
             var items = await query
                 .Select(x => new { x.Id, x.Code, x.Date, x.Reference, x.Status, x.ApprovedByUserId, x.ApprovedAt, x.CreatedAt, x.ContactId })
                 .ToListAsync(cancellationToken);
@@ -84,6 +101,7 @@ public sealed class TransactionListQueryHandler(IAppDbContext db)
             if (statuses is not null) query = query.Where(x => statuses.Contains(x.Status));
             if (from is { } f) query = query.Where(x => x.Date >= f);
             if (to is { } t) query = query.Where(x => x.Date <= t);
+            query = query.AtLocations(request.LocationId, reportLocations);
             var items = await query
                 .Select(x => new { x.Id, x.Code, x.Date, x.Reference, x.Status, x.ApprovedByUserId, x.ApprovedAt, x.CreatedAt, x.ContactId })
                 .ToListAsync(cancellationToken);
@@ -99,6 +117,7 @@ public sealed class TransactionListQueryHandler(IAppDbContext db)
             if (statuses is not null) query = query.Where(x => statuses.Contains(x.Status));
             if (from is { } f) query = query.Where(x => x.Date >= f);
             if (to is { } t) query = query.Where(x => x.Date <= t);
+            query = query.AtLocations(request.LocationId, reportLocations);
             var items = await query
                 .Select(x => new { x.Id, x.Code, x.Date, x.Reference, x.Status, x.ApprovedByUserId, x.ApprovedAt, x.CreatedAt, x.ContactId })
                 .ToListAsync(cancellationToken);
@@ -114,6 +133,7 @@ public sealed class TransactionListQueryHandler(IAppDbContext db)
             if (statuses is not null) query = query.Where(x => statuses.Contains(x.Status));
             if (from is { } f) query = query.Where(x => x.Date >= f);
             if (to is { } t) query = query.Where(x => x.Date <= t);
+            query = query.AtLocations(request.LocationId, reportLocations);
             var items = await query
                 .Select(x => new { x.Id, x.Code, x.Date, x.Reference, x.Status, x.ApprovedByUserId, x.ApprovedAt, x.CreatedAt, x.ContactId })
                 .ToListAsync(cancellationToken);
@@ -129,6 +149,7 @@ public sealed class TransactionListQueryHandler(IAppDbContext db)
             if (statuses is not null) query = query.Where(x => statuses.Contains(x.Status));
             if (from is { } f) query = query.Where(x => x.Date >= f);
             if (to is { } t) query = query.Where(x => x.Date <= t);
+            query = query.AtLocations(request.LocationId, reportLocations);
             var items = await query
                 .Select(x => new { x.Id, x.Code, x.Date, x.Reference, x.Status, x.ApprovedByUserId, x.ApprovedAt, x.CreatedAt, x.ContactId })
                 .ToListAsync(cancellationToken);
@@ -148,6 +169,7 @@ public sealed class TransactionListQueryHandler(IAppDbContext db)
             if (statuses is not null) query = query.Where(x => statuses.Contains(x.Status));
             if (from is { } f) query = query.Where(x => x.Date >= f);
             if (to is { } t) query = query.Where(x => x.Date <= t);
+            query = query.AtLocations(request.LocationId, reportLocations);
             var items = await query
                 .Select(x => new
                 {
@@ -167,6 +189,7 @@ public sealed class TransactionListQueryHandler(IAppDbContext db)
             if (statuses is not null) query = query.Where(x => statuses.Contains(x.Status));
             if (from is { } f) query = query.Where(x => x.Date >= f);
             if (to is { } t) query = query.Where(x => x.Date <= t);
+            query = query.AtLocations(request.LocationId, reportLocations);
             var items = await query
                 .Select(x => new { x.Id, x.Code, x.Date, x.Reference, x.Status, x.ApprovedByUserId, x.ApprovedAt, x.CreatedAt, x.ContactId })
                 .ToListAsync(cancellationToken);
@@ -182,6 +205,7 @@ public sealed class TransactionListQueryHandler(IAppDbContext db)
             if (statuses is not null) query = query.Where(x => statuses.Contains(x.Status));
             if (from is { } f) query = query.Where(x => x.Date >= f);
             if (to is { } t) query = query.Where(x => x.Date <= t);
+            query = query.AtLocations(request.LocationId, reportLocations);
             var items = await query
                 .Select(x => new { x.Id, x.Code, x.Date, x.Reference, x.Status, x.ApprovedByUserId, x.ApprovedAt, x.CreatedAt })
                 .ToListAsync(cancellationToken);
@@ -197,6 +221,7 @@ public sealed class TransactionListQueryHandler(IAppDbContext db)
             if (statuses is not null) query = query.Where(x => statuses.Contains(x.Status));
             if (from is { } f) query = query.Where(x => x.Date >= f);
             if (to is { } t) query = query.Where(x => x.Date <= t);
+            query = query.AtLocations(request.LocationId, reportLocations);
             var items = await query
                 .Select(x => new { x.Id, x.Code, x.Date, x.Reference, x.Status, x.ApprovedByUserId, x.ApprovedAt, x.CreatedAt })
                 .ToListAsync(cancellationToken);
@@ -212,6 +237,7 @@ public sealed class TransactionListQueryHandler(IAppDbContext db)
             if (statuses is not null) query = query.Where(x => statuses.Contains(x.Status));
             if (from is { } f) query = query.Where(x => x.Date >= f);
             if (to is { } t) query = query.Where(x => x.Date <= t);
+            query = query.AtLocations(request.LocationId, reportLocations);
             var items = await query
                 .Select(x => new { x.Id, x.Code, x.Date, x.Reference, x.Status, x.ApprovedByUserId, x.ApprovedAt, x.CreatedAt })
                 .ToListAsync(cancellationToken);
@@ -227,6 +253,7 @@ public sealed class TransactionListQueryHandler(IAppDbContext db)
             if (statuses is not null) query = query.Where(x => statuses.Contains(x.Status));
             if (from is { } f) query = query.Where(x => x.Date >= f);
             if (to is { } t) query = query.Where(x => x.Date <= t);
+            query = query.AtLocations(request.LocationId, reportLocations);
             var items = await query
                 .Select(x => new { x.Id, x.Code, x.Date, x.Reference, x.Status, x.ApprovedByUserId, x.ApprovedAt, x.CreatedAt })
                 .ToListAsync(cancellationToken);
@@ -242,6 +269,7 @@ public sealed class TransactionListQueryHandler(IAppDbContext db)
             if (statuses is not null) query = query.Where(x => statuses.Contains(x.Status));
             if (from is { } f) query = query.Where(x => x.Date >= f);
             if (to is { } t) query = query.Where(x => x.Date <= t);
+            query = query.AtLocations(request.LocationId, reportLocations);
             var items = await query
                 .Select(x => new
                 {

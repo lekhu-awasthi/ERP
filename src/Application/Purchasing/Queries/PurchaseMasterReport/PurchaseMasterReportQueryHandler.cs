@@ -1,5 +1,7 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Purchasing;
 using MediatR;
@@ -7,11 +9,19 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Purchasing.Queries.PurchaseMasterReport;
 
-public sealed class PurchaseMasterReportQueryHandler(IAppDbContext db)
+public sealed class PurchaseMasterReportQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<PurchaseMasterReportQuery, PurchaseMasterReportDto>
 {
     public async Task<PurchaseMasterReportDto> Handle(PurchaseMasterReportQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var purchaseBillQuery = db.PurchaseBills.Where(x =>
             x.OrganizationId == request.OrganizationId && x.Status == PurchaseBillStatus.Approved
             && x.Date >= request.FromDate && x.Date <= request.ToDate);
@@ -20,13 +30,19 @@ public sealed class PurchaseMasterReportQueryHandler(IAppDbContext db)
             purchaseBillQuery = purchaseBillQuery.Where(x => x.ContactId == purchaseBillContactId);
         }
 
+        // Phase 35b -- the Billing Location filter and the caller's report scope, applied to both
+        // document queries directly. A Debit Note carries its own LocationId (it is in the
+        // AllTransactions scope), so unlike its warehouse there is no referrer lookup to fall back
+        // on -- the same call SalesMasterReportQueryHandler made in phase 32.
+        purchaseBillQuery = purchaseBillQuery.AtLocations(request.LocationId, reportLocations);
+
         if (request.WarehouseId is { } purchaseBillWarehouseId)
         {
             purchaseBillQuery = purchaseBillQuery.Where(x => x.WarehouseId == purchaseBillWarehouseId);
         }
 
         var purchaseBills = await purchaseBillQuery
-            .Select(x => new { x.Id, x.ContactId, x.WarehouseId, x.Code, x.Reference, x.Date })
+            .Select(x => new { x.Id, x.ContactId, x.WarehouseId, x.LocationId, x.Code, x.Reference, x.Date })
             .ToListAsync(cancellationToken);
         var purchaseBillIds = purchaseBills.Select(x => x.Id).ToList();
 
@@ -48,8 +64,10 @@ public sealed class PurchaseMasterReportQueryHandler(IAppDbContext db)
             debitNoteQuery = debitNoteQuery.Where(x => x.ContactId == debitNoteContactId);
         }
 
+        debitNoteQuery = debitNoteQuery.AtLocations(request.LocationId, reportLocations);
+
         var debitNotes = await debitNoteQuery
-            .Select(x => new { x.Id, x.ContactId, x.Code, x.Reference, x.Date, x.ReferrerType, x.ReferrerId })
+            .Select(x => new { x.Id, x.ContactId, x.LocationId, x.Code, x.Reference, x.Date, x.ReferrerType, x.ReferrerId })
             .ToListAsync(cancellationToken);
         var debitNoteIds = debitNotes.Select(x => x.Id).ToList();
 
@@ -100,6 +118,22 @@ public sealed class PurchaseMasterReportQueryHandler(IAppDbContext db)
                 .Select(x => new { x.Id, x.Name })
                 .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
+        // Phase 35b -- one lookup for the LOCATION column, the same shape SalesMasterReportQueryHandler
+        // has used since phase 32. Unlike WarehouseId a Debit Note carries its own LocationId, so there
+        // is no referrer lookup to fall back on.
+        var locationIds = purchaseBills.Select(x => x.LocationId)
+            .Concat(debitNotes.Select(x => x.LocationId))
+            .Where(x => x is not null)
+            .Select(x => x!.Value)
+            .Distinct()
+            .ToList();
+        var locationNames = locationIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await db.BillingLocations
+                .Where(x => x.OrganizationId == request.OrganizationId && locationIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.Name })
+                .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+
         var productIds = purchaseBillLines.Select(x => x.ProductId).Concat(debitNoteLines.Select(x => x.ProductId)).Distinct().ToList();
         var products = await db.Products
             .Where(x => x.OrganizationId == request.OrganizationId && productIds.Contains(x.Id))
@@ -126,6 +160,8 @@ public sealed class PurchaseMasterReportQueryHandler(IAppDbContext db)
                 contact.Id, contact.Code, contact.Name, DocumentType.PurchaseBill,
                 contact.GroupId, contact.GroupId is { } groupId ? groupNames.GetValueOrDefault(groupId) : null,
                 purchaseBill.WarehouseId, warehouseNames.GetValueOrDefault(purchaseBill.WarehouseId),
+                purchaseBill.LocationId,
+                purchaseBill.LocationId is { } billLocation ? locationNames.GetValueOrDefault(billLocation) : null,
                 purchaseBill.Code, purchaseBill.Reference, purchaseBill.Date,
                 product.Id, product.Code, product.Name,
                 line.Quantity, line.Rate, netAfterLineDiscount, itemDiscount, transactionDiscount, line.Amount,
@@ -160,6 +196,8 @@ public sealed class PurchaseMasterReportQueryHandler(IAppDbContext db)
                 contact.Id, contact.Code, contact.Name, DocumentType.DebitNote,
                 contact.GroupId, contact.GroupId is { } groupId ? groupNames.GetValueOrDefault(groupId) : null,
                 resolvedWarehouseId, resolvedWarehouseId is { } wId ? warehouseNames.GetValueOrDefault(wId) : null,
+                debitNote.LocationId,
+                debitNote.LocationId is { } noteLocation ? locationNames.GetValueOrDefault(noteLocation) : null,
                 debitNote.Code, debitNote.Reference, debitNote.Date,
                 product.Id, product.Code, product.Name,
                 line.Quantity, line.Rate, netAfterLineDiscount, itemDiscount, transactionDiscount, line.Amount,

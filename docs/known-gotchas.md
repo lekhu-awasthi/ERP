@@ -1068,3 +1068,130 @@ a **multi-line** `import { … } from '…'`, because the last such line is the 
 block and the insertion lands inside it. The file then fails to parse with a cascade of TS1003 /
 TS1005 errors that name no useful location. Insert after the *closing* line of the last import
 statement, or assert the anchor line ends with `';`.
+
+## A shared helper must own every condition the `Where` it replaced carried (phase 35b)
+
+Nine GL report handlers each wrote the same join:
+
+```csharp
+from line in db.GlLines
+join entry in db.GlJournalEntries on line.GlJournalEntryId equals entry.Id
+where entry.OrganizationId == request.OrganizationId && entry.PostedAt <= cutoff
+```
+
+Phase 35b needed a Billing Location narrowing in all nine, so it extracted `GlEntryLocations`. The
+first version took an `IQueryable<GlJournalEntry>` and applied only the location conditions — which
+meant each handler had to keep `entry.OrganizationId == …` in its own `where` while everything around
+it moved. **This codebase has no EF global query filter**; CLAUDE.md states the rule plainly (every
+handler filters by `OrganizationId` in LINQ, by hand), so nothing would have caught a miss but a
+reader. Nine rewrites is nine chances.
+
+The fix is a signature, not discipline: the helper takes the organization and builds the base query
+itself.
+
+```csharp
+internal static IQueryable<GlJournalEntry> ForReport(
+    IAppDbContext db, Guid organizationId, Guid? requested, IReadOnlyList<Guid>? scope)
+{
+    var entries = db.GlJournalEntries.Where(x => x.OrganizationId == organizationId);
+    ...
+}
+```
+
+The general form: **when an extraction removes a `Where` from N call sites, it inherits every
+condition that `Where` carried, not only the one the extraction is about.** The tell is a diff that
+deletes a predicate the new helper never mentions.
+
+## An append-only fact table can only be filtered by a column (phase 35b)
+
+`GlJournalEntry`, `StockMovement` and `StockLedgerEntry` all point back at their origin with
+`(SourceDocumentType, SourceDocumentId)` and nothing else. That is enough to *display* a document's
+number or date — `GlSourceDocumentResolver` (phase 26a) does exactly that, over one page — and not
+enough to *filter*, because a filter has to run before aggregation, and a report aggregates its whole
+period before it pages (phase 34c). An 11-way join would therefore run over every row in the window
+on every request, on nine reports.
+
+So: **an append-only fact row carries the billing location of the document that created it, stamped
+at write time.** Three things the rule owes, all of which have bitten before in other forms:
+
+- **A reversal inherits, never re-derives.** `GlJournalEntry.PostReversalOf` copies the original's
+  `LocationId`; `StockLedgerService.ReverseIncrementAsync` takes `layer.LocationId`. A void landing
+  at a different location leaves the original branch's Trial Balance permanently off by the
+  document's value while the organization-wide total still balances — phase-6 bug #3 with the
+  location as the axis instead of an account.
+- **The backfill is per producing type, and the sets are not the same.** The GL has 11 producers and
+  the stock tables have 8; `JournalVoucher`, `CashTransfer`, `Expense` and `Payment` post no stock,
+  while `WarehouseTransfer` and `OpeningStock` post no GL. Copying one list into the other silently
+  under- or over-reaches.
+- **Null means three different things** — older than the backfill, raised while the type was out of
+  the tenant's scope, or a tenant without the entitlement — and all three are correctly excluded by
+  `x.LocationId == id`, because a null never equals a value.
+
+No index was added on any of the three: the location is always applied alongside the period, so the
+seek is the date index that already exists and the location is a residual. Phase 34c measured what a
+second index over the same table does to the paths that do not use it.
+
+## A `Reports.*` permission cannot be granted per location (phase 35b)
+
+Every location proof in this codebase since phase 32b uses the same grant shape: the key **false
+organization-wide and true at one location**, because an organization-wide grant makes
+`LocationAccessScope` return "unrestricted" and the test passes without the mechanism firing. Phase
+35b's first negative E2E applied that shape to `Reports.TrialBalance.View` and got a 400:
+
+> `'Reports.TrialBalance.View'` cannot be granted per location. Only transaction permissions are
+> location-scoped; General, Settings and Reports permissions are organization-wide.
+
+`LocationScopedPermissions.IsLocationScopable` admits only keys whose document type is in
+`LocationBearing`, and `LocationAccessScope.ForReportsAsync` says so in its own doc comment — the
+toggle's label is *"Restrict users to view reports only for locations they have access to"*, and a
+user's locations are the ones their role holds **transaction** grants at
+(`AnyGrantedLocationsAsync`). There is no per-location report grant to store.
+
+So a report-scope proof needs:
+
+- the report key held **organization-wide** (or the caller cannot open the report at all), and
+- a *transaction* key — e.g. `Sales.Invoice.View` — false organization-wide and true at the branch,
+- with `TenantSettings.LocationWiseReportPermission` on.
+
+The lesson beyond the mechanics: a convention that holds in fifteen places is not a rule, and the one
+place it does not hold is exactly where the test belongs.
+
+## A swept-in change handler must copy its neighbours, not a template (phase 35b)
+
+Phase 35b generated an `onLocationChange` for 43 report pages:
+
+```ts
+protected onLocationChange(value: string): void {
+  this.locationId.set(value);
+  this.load();
+}
+```
+
+Correct on 23 of them and subtly wrong on 20. Report pages come in two shapes: some have a
+`reload()` that does `page.set(1); load();`, and some only have `load()` — and on *those*, every
+individual filter handler resets the page itself. Without the reset, narrowing to a branch while on
+page 3 returns an empty page, which reads as "this branch has no data" rather than "you are past the
+end".
+
+Nothing failed. The separation was made by asking each file what its own sibling handlers do
+(`this.page.set(1)` present, and `load()` not already resetting) rather than by classifying pages
+from a template. **A sweep copies the behaviour beside it; it does not impose one.**
+
+## Seeding traps added by phase 35b's E2E
+
+Four more, each of which fails in a way that points somewhere else:
+
+- **`POST /organizations` takes `multipleLocations` / `multipleWarehouses` / `trackInventory`.** An
+  `...Enabled` suffix binds to `false` with a 201, and the failure surfaces several calls later as a
+  403 saying the feature is not enabled — which reads as a permission problem.
+- **`POST /billing-locations` requires `address`**, despite the API request record defaulting it to
+  null. The validator is the authority, not the record.
+- **Inviting is `POST /organizations/{id}/invitations`** (not `/memberships/invite`) and it returns
+  **`membershipId`**, not `id`.
+- **`POST /products` needs the whole record, and `vatRate` is `ThirteenPercentVat`.** A wrong enum
+  member fails as `Failed to read parameter "CreateProductRequest request" from the request body as
+  JSON` — naming no field, exactly the phase-34b `AccountKind` trap.
+
+Also: **`sqlcmd -Q` prints "(N rows affected)" into a captured value.** `SET NOCOUNT ON` belongs
+beside phase-34c's `SET QUOTED_IDENTIFIER ON` at the top of every script — otherwise a count comes
+back as `1(1rowsaffected)` and the assertion fails for a formatting reason.

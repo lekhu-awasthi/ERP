@@ -331,26 +331,26 @@ public static class SalesEndpoints
 
         group.MapGet("/reports/sales-register", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid[]? tagOptionIds,
-            bool? includeCreditNotes, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool? includeCreditNotes, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesRegisterQuery(
                     organizationId, fromDate, toDate, contactId, tagOptionIds,
                     page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize,
-                    IncludeCreditNotes: includeCreditNotes ?? true),
+                    IncludeCreditNotes: includeCreditNotes ?? true, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/sales-register/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid[]? tagOptionIds,
-            bool full, bool? includeCreditNotes, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, bool? includeCreditNotes, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesRegisterQuery(
                     organizationId, fromDate, toDate, contactId, tagOptionIds,
                     page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full,
-                    IncludeCreditNotes: includeCreditNotes ?? true),
+                    IncludeCreditNotes: includeCreditNotes ?? true, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportSalesRegister(result);
         });
@@ -384,20 +384,20 @@ public static class SalesEndpoints
 
         group.MapGet("/reports/annex-five", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, int? page, int? pageSize,
-            ISender sender, CancellationToken ct) =>
+            Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new AnnexFiveReportQuery(organizationId, fromDate, toDate, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+                new AnnexFiveReportQuery(organizationId, fromDate, toDate, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId), ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/annex-five/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, bool full, int? page, int? pageSize,
-            ISender sender, CancellationToken ct) =>
+            Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new AnnexFiveReportQuery(
-                    organizationId, fromDate, toDate, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    organizationId, fromDate, toDate, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportAnnexFiveReport(result, fromDate, toDate);
         });

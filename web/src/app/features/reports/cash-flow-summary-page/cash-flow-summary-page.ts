@@ -8,6 +8,7 @@ import { CashFlowSummaryDto } from '../../../core/accounting/accounting.models';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Read-only report screen -- Phase 19's CashFlowSummaryQuery, a direct-method summary of actual
@@ -16,7 +17,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
  */
 @Component({
   selector: 'app-cash-flow-summary-page',
-  imports: [RouterLink, AmountPipe, BsDateInput],
+  imports: [RouterLink, AmountPipe, BsDateInput, ReportLocationFilter],
   templateUrl: './cash-flow-summary-page.html',
 })
 export class CashFlowSummaryPage {
@@ -24,6 +25,9 @@ export class CashFlowSummaryPage {
   private readonly accountingService = inject(AccountingService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -61,7 +65,7 @@ export class CashFlowSummaryPage {
   protected export(): void {
     this.exporting.set(true);
     this.accountingService
-      .exportCashFlowSummary(this.organizationId, this.fromDate(), this.toDate(), this.bankAccountId() || null)
+      .exportCashFlowSummary(this.organizationId, this.fromDate(), this.toDate(), this.bankAccountId() || null, this.locationId())
       .subscribe({
         next: (blob) => {
           this.exporting.set(false);
@@ -74,12 +78,17 @@ export class CashFlowSummaryPage {
       });
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    this.load();
+  }
+
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
 
     this.accountingService
-      .getCashFlowSummary(this.organizationId, this.fromDate(), this.toDate(), this.bankAccountId() || null)
+      .getCashFlowSummary(this.organizationId, this.fromDate(), this.toDate(), this.bankAccountId() || null, this.locationId())
       .subscribe({
         next: (report) => {
           this.report.set(report);

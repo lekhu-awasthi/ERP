@@ -70,7 +70,7 @@ public sealed class VoidInvoiceCommandHandler(IAppDbContext db, ICurrentUserServ
         {
             await stockLedgerService.IncrementAsync(
                 request.OrganizationId, line.ProductId, invoice.WarehouseId, line.Quantity, line.CogsUnitCost!.Value,
-                DocumentType.Invoice, invoice.Id, invoice.Date, cancellationToken);
+                DocumentType.Invoice, invoice.Id, invoice.Date, cancellationToken, invoice.LocationId);
         }
 
         db.GlJournalEntries.Add(GlJournalEntry.PostReversalOf(originalEntry));

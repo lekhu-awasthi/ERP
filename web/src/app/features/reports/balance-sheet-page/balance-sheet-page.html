@@ -56,6 +56,13 @@
             </label>
           </div>
         </div>
+        <div class="col-12 col-sm-6">
+          <app-report-location-filter
+            [organizationId]="organizationId"
+            [controlId]="'balance-sheet-page-billing-location'"
+            (locationChange)="onLocationChange($event)"
+          />
+        </div>
       </div>
     </div>
   </div>

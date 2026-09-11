@@ -43,7 +43,7 @@ public class PurchaseMasterReportQueryHandlerTests
 
         var debitNote = await CreateAndApproveStandaloneDebitNoteAsync(db, seed, new DateOnly(2026, 1, 18), 1m, 40m);
 
-        var handler = new PurchaseMasterReportQueryHandler(db);
+        var handler = new PurchaseMasterReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
             new PurchaseMasterReportQuery(seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), null, null, null),
             CancellationToken.None);
@@ -92,7 +92,7 @@ public class PurchaseMasterReportQueryHandlerTests
             CancellationToken.None);
         var billForOtherSupplier = await ApprovePurchaseBillAsync(db, seed, createdForOtherSupplier.Id);
 
-        var handler = new PurchaseMasterReportQueryHandler(db);
+        var handler = new PurchaseMasterReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
 
         var byContact = await handler.Handle(
             new PurchaseMasterReportQuery(
@@ -134,7 +134,7 @@ public class PurchaseMasterReportQueryHandlerTests
             new DebitNotePostingRule(), new StockLedgerService(db))
             .Handle(new ApproveDebitNoteCommand(seed.OrganizationId, debitNote.Id), CancellationToken.None);
 
-        var handler = new PurchaseMasterReportQueryHandler(db);
+        var handler = new PurchaseMasterReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
 
         var byOriginalWarehouse = await handler.Handle(
             new PurchaseMasterReportQuery(

@@ -9,6 +9,7 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Read-only report screen -- roadmap Phase 9's ContactAgeingSummaryQuery (ContactType=Customer).
@@ -20,7 +21,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
  */
 @Component({
   selector: 'app-customer-ageing-summary-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter],
   templateUrl: './customer-ageing-summary-page.html',
 })
 export class CustomerAgeingSummaryPage {
@@ -28,6 +29,9 @@ export class CustomerAgeingSummaryPage {
   private readonly contactsService = inject(ContactsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -80,7 +84,7 @@ export class CustomerAgeingSummaryPage {
   private runExport(full: boolean, page: number, pageSize: number): void {
     this.exporting.set(true);
     this.contactsService
-      .exportCustomerAgeingSummary(this.organizationId, this.asOfDate(), this.contactGroupId() || null, full, page, pageSize)
+      .exportCustomerAgeingSummary(this.organizationId, this.asOfDate(), this.contactGroupId() || null, full, page, pageSize, this.locationId())
       .subscribe({
         next: (blob) => {
           this.exporting.set(false);
@@ -93,13 +97,21 @@ export class CustomerAgeingSummaryPage {
       });
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    // Page 1: every other filter on this screen resets the page, and a narrowing filter applied
+    // while on a later page returns nothing at all.
+    this.page.set(1);
+    this.load();
+  }
+
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
 
     this.contactsService
       .getCustomerAgeingSummary(
-        this.organizationId, this.asOfDate(), this.contactGroupId() || null, this.page(), this.pageSize())
+        this.organizationId, this.asOfDate(), this.contactGroupId() || null, this.page(), this.pageSize(), this.locationId())
       .subscribe({
         next: (report) => {
           this.report.set(report);

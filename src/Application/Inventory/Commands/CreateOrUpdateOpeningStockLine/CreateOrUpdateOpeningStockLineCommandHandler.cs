@@ -74,7 +74,8 @@ public sealed class CreateOrUpdateOpeningStockLineCommandHandler(IAppDbContext d
 
         await stockLedger.IncrementAsync(
             request.OrganizationId, request.ProductId, request.WarehouseId, request.Quantity, request.Rate,
-            DocumentType.OpeningStock, line.Id, organization.AccountingStartDate, cancellationToken);
+            DocumentType.OpeningStock, line.Id, organization.AccountingStartDate, cancellationToken,
+            line.LocationId);
 
         await db.SaveChangesAsync(cancellationToken);
 

@@ -1,29 +1,39 @@
 using ErpApp.Application.Accounting.Reports;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Accounting;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Accounting.Queries.IncomeStatement;
 
-public sealed class IncomeStatementQueryHandler(IAppDbContext db) : IRequestHandler<IncomeStatementQuery, IncomeStatementDto>
+public sealed class IncomeStatementQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
+    : IRequestHandler<IncomeStatementQuery, IncomeStatementDto>
 {
     public async Task<IncomeStatementDto> Handle(IncomeStatementQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+        var entries = GlEntryLocations.ForReport(db, request.OrganizationId, request.LocationId, reportLocations);
+
         var accounts = await db.Accounts
             .Where(a => a.OrganizationId == request.OrganizationId
                 && (a.RootType == AccountRootType.Income || a.RootType == AccountRootType.Expense))
             .Select(a => new { a.Id, a.Code, a.Name, a.RootType })
             .ToListAsync(cancellationToken);
 
-        var movement = await MovementAsync(
-            request.OrganizationId, request.FromDate, request.ToDate, cancellationToken);
+        var movement = await MovementAsync(entries, request.FromDate, request.ToDate, cancellationToken);
 
         var comparePeriod = request.Compare
             ? ComparePeriod.SameLengthPrior(request.FromDate, request.ToDate)
             : ((DateOnly FromDate, DateOnly ToDate)?)null;
         var compareMovement = comparePeriod is { } period
-            ? await MovementAsync(request.OrganizationId, period.FromDate, period.ToDate, cancellationToken)
+            ? await MovementAsync(entries, period.FromDate, period.ToDate, cancellationToken)
             : null;
 
         // Only accounts with actual movement -- this is a period-scoped P&L, not a full Chart of
@@ -61,15 +71,15 @@ public sealed class IncomeStatementQueryHandler(IAppDbContext db) : IRequestHand
 
     /// <summary>Debit/Credit movement per account over one window -- run twice when Compare is on.</summary>
     private async Task<Dictionary<Guid, (decimal Debit, decimal Credit)>> MovementAsync(
-        Guid organizationId, DateOnly fromDate, DateOnly toDate, CancellationToken cancellationToken)
+        IQueryable<GlJournalEntry> entries, DateOnly fromDate, DateOnly toDate, CancellationToken cancellationToken)
     {
         var fromUtc = GlDateBoundary.StartOfDayUtc(fromDate);
         var toUtc = GlDateBoundary.EndOfDayUtc(toDate);
 
         var glTotals = await (
             from line in db.GlLines
-            join entry in db.GlJournalEntries on line.GlJournalEntryId equals entry.Id
-            where entry.OrganizationId == organizationId && entry.PostedAt >= fromUtc && entry.PostedAt <= toUtc
+            join entry in entries on line.GlJournalEntryId equals entry.Id
+            where entry.PostedAt >= fromUtc && entry.PostedAt <= toUtc
             group line by line.AccountId into g
             select new { AccountId = g.Key, Debit = g.Sum(x => x.Debit), Credit = g.Sum(x => x.Credit) })
             .ToListAsync(cancellationToken);

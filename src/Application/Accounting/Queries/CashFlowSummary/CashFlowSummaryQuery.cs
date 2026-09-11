@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using MediatR;
 
@@ -11,8 +12,8 @@ namespace ErpApp.Application.Accounting.Queries.CashFlowSummary;
 /// classification field on Account/AccountGroup. BankAccountId narrows to one Account; null means
 /// every Bank/Cash account (the live screen's "All").
 /// </summary>
-public sealed record CashFlowSummaryQuery(Guid OrganizationId, DateOnly FromDate, DateOnly ToDate, Guid? BankAccountId)
-    : IRequest<CashFlowSummaryDto>, IRequirePermission, IOrganizationScoped
+public sealed record CashFlowSummaryQuery(Guid OrganizationId, DateOnly FromDate, DateOnly ToDate, Guid? BankAccountId, Guid? LocationId = null)
+    : IRequest<CashFlowSummaryDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.CashFlowSummaryView;
 }

@@ -54,6 +54,13 @@
             {{ loading() ? 'Loading...' : 'Generate' }}
           </button>
         </div>
+        <div class="col-12 col-sm-2">
+          <app-report-location-filter
+            [organizationId]="organizationId"
+            [controlId]="'production-planning-page-billing-location'"
+            (locationChange)="onLocationChange($event)"
+          />
+        </div>
       </div>
     </div>
   </div>

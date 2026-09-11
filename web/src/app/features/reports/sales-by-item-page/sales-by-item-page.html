@@ -64,6 +64,13 @@
             }
           </select>
         </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <app-report-location-filter
+            [organizationId]="organizationId"
+            [controlId]="'sales-by-item-page-billing-location'"
+            (locationChange)="onLocationChange($event)"
+          />
+        </div>
       </div>
     </div>
   </div>

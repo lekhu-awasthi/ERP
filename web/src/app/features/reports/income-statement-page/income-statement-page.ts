@@ -8,6 +8,7 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { triggerBlobDownload } from '../../../shared/download-file';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /** Read-only report screen -- roadmap Phase 8a's IncomeStatementQuery, Income minus Expense
  * accounts with activity in [fromDate, toDate].
@@ -18,7 +19,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
  * widens to the union of accounts with movement in either window (see IncomeStatementQuery). */
 @Component({
   selector: 'app-income-statement-page',
-  imports: [RouterLink, AmountPipe, NepaliDatePipe, BsDateInput],
+  imports: [RouterLink, AmountPipe, NepaliDatePipe, BsDateInput, ReportLocationFilter],
   templateUrl: './income-statement-page.html',
 })
 export class IncomeStatementPage {
@@ -26,6 +27,9 @@ export class IncomeStatementPage {
   private readonly accountingService = inject(AccountingService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -57,7 +61,7 @@ export class IncomeStatementPage {
   protected exportReport(): void {
     this.exporting.set(true);
     this.accountingService
-      .exportIncomeStatement(this.organizationId, this.fromDate(), this.toDate(), this.compare())
+      .exportIncomeStatement(this.organizationId, this.fromDate(), this.toDate(), this.compare(), this.locationId())
       .subscribe({
         next: (blob) => {
           this.exporting.set(false);
@@ -70,12 +74,17 @@ export class IncomeStatementPage {
       });
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    this.load();
+  }
+
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
 
     this.accountingService
-      .getIncomeStatement(this.organizationId, this.fromDate(), this.toDate(), this.compare())
+      .getIncomeStatement(this.organizationId, this.fromDate(), this.toDate(), this.compare(), this.locationId())
       .subscribe({
         next: (report) => {
           this.report.set(report);

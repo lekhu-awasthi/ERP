@@ -90,7 +90,7 @@ public class ContactAgeingSummaryQueryHandlerTests
         var query = new ContactAgeingSummaryQuery(seed.OrganizationId, ContactType.Customer, asOf);
         Assert.Equal("Reports.CustomerAgeingSummary.View", query.PermissionKey);
 
-        var handler = new ContactAgeingSummaryQueryHandler(db);
+        var handler = new ContactAgeingSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(query, CancellationToken.None);
 
         var row = Assert.Single(result.Rows, r => r.ContactId == seed.CustomerId);
@@ -135,7 +135,7 @@ public class ContactAgeingSummaryQueryHandlerTests
         var query = new ContactAgeingSummaryQuery(seed.OrganizationId, ContactType.Supplier, asOf, seed.SupplierGroupId);
         Assert.Equal("Reports.SupplierAgeingSummary.View", query.PermissionKey);
 
-        var handler = new ContactAgeingSummaryQueryHandler(db);
+        var handler = new ContactAgeingSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(query, CancellationToken.None);
 
         var row = Assert.Single(result.Rows);

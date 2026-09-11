@@ -120,7 +120,7 @@ public sealed class ApproveDebitNoteCommandHandler(
             {
                 var averageUnitCost = await stockLedgerService.ConsumeAsync(
                     request.OrganizationId, line.ProductId, purchaseBill.WarehouseId, line.Quantity,
-                    DocumentType.DebitNote, debitNote.Id, debitNote.Date, cancellationToken);
+                    DocumentType.DebitNote, debitNote.Id, debitNote.Date, cancellationToken, debitNote.LocationId);
                 line.RecordConsumedUnitCost(averageUnitCost);
 
                 if (allocationByLineKey.TryGetValue(
@@ -139,7 +139,8 @@ public sealed class ApproveDebitNoteCommandHandler(
         }
 
         var glLines = postingRule.BuildLines(postingInput);
-        var glEntry = GlJournalEntry.Post(request.OrganizationId, DocumentType.DebitNote, debitNote.Id, glLines);
+        var glEntry = GlJournalEntry.Post(
+            request.OrganizationId, DocumentType.DebitNote, debitNote.Id, glLines, debitNote.LocationId);
         db.GlJournalEntries.Add(glEntry);
 
         await db.SaveChangesAsync(cancellationToken);

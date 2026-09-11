@@ -460,6 +460,9 @@ export interface PurchaseMasterReportRowDto {
   contactGroupName: string | null;
   warehouseId: string | null;
   warehouseName: string | null;
+  /** Phase 35b -- the mirror of the Sales Master Report's Location column. */
+  locationId: string | null;
+  locationName: string | null;
   entryNo: string;
   referenceNo: string | null;
   entryDate: string;

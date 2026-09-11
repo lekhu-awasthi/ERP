@@ -1,5 +1,7 @@
 ﻿using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Application.Purchasing.Reports;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Purchasing;
@@ -8,10 +10,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Purchasing.Queries.PurchaseRegister;
 
-public sealed class PurchaseRegisterQueryHandler(IAppDbContext db) : IRequestHandler<PurchaseRegisterQuery, PurchaseRegisterDto>
+public sealed class PurchaseRegisterQueryHandler(IAppDbContext db, ICurrentUserService currentUser) : IRequestHandler<PurchaseRegisterQuery, PurchaseRegisterDto>
 {
     public async Task<PurchaseRegisterDto> Handle(PurchaseRegisterQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var rows = new List<PurchaseRegisterRowDto>();
 
         var purchaseBillQuery = db.PurchaseBills.Where(x =>
@@ -47,7 +57,8 @@ public sealed class PurchaseRegisterQueryHandler(IAppDbContext db) : IRequestHan
         // the same notes by construction rather than by two implementations agreeing. This register
         // renders them negative; the return register renders them positive.
         var debitNotes = await PurchaseReturnReader.LoadAsync(
-            db, request.OrganizationId, request.FromDate, request.ToDate, request.ContactId, cancellationToken);
+            db, request.OrganizationId, request.FromDate, request.ToDate, request.ContactId, cancellationToken,
+            request.LocationId, reportLocations);
 
         var contactIds = purchaseBills.Select(x => x.ContactId).Concat(debitNotes.Select(x => x.ContactId)).Distinct().ToList();
         var contacts = await db.Contacts

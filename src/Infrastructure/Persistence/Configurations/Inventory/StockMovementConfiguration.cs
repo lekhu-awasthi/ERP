@@ -22,6 +22,12 @@ public sealed class StockMovementConfiguration : IEntityTypeConfiguration<StockM
         builder.Property(x => x.SourceDocumentId).IsRequired();
         builder.Property(x => x.TransactionDate).IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
+        // Phase 35b -- nullable, and un-indexed for the same reason as GlJournalEntry.LocationId:
+        // every stock report applies this alongside its period and its product/warehouse narrowing,
+        // so the seek is already the (OrganizationId, ProductId, WarehouseId, TransactionDate) index
+        // below and the location is a residual predicate over what that has narrowed. Phase 34c
+        // measured what a second index over the same table does to the paths that do not use it.
+        builder.Property(x => x.LocationId);
 
         builder.HasOne<Product>().WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Warehouse>().WithMany().HasForeignKey(x => x.WarehouseId).OnDelete(DeleteBehavior.Restrict);

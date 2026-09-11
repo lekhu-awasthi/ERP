@@ -14,11 +14,11 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
 {
     public async Task<SalesMasterReportDto> Handle(SalesMasterReportQuery request, CancellationToken cancellationToken)
     {
-        // Phase 32b -- TenantSettings.LocationWiseReportPermission's only consumer: "Restrict users
-        // to view reports only for locations they have access to." Null unless the tenant has turned
-        // the toggle on AND the caller's role carries location-specific grants, so no existing tenant
-        // changes. This is the ONE report with a location dimension to restrict -- see
-        // LocationAccessScope, and docs/phase-32b-status.md's carried item for the rest.
+        // Phase 32b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null unless the tenant has turned the toggle on
+        // AND the caller's role carries location-specific grants, so no existing tenant changes.
+        // This was the only consumer for three phases; phase 35b gave the setting the other 35
+        // reports it was always meant to govern, closing phase-32b's carried item #1.
         var reportLocations = await LocationAccessScope.ForReportsAsync(
             db, currentUser, request.OrganizationId, cancellationToken);
 
@@ -37,17 +37,9 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
 
         // Phase 32 -- the Billing Location filter. Applied to both document queries directly, because
         // unlike WarehouseId a Credit Note carries its own LocationId (it is in the default sales-only
-        // scope), so there is no referrer lookup to fall back on.
-        if (request.LocationId is { } invoiceLocationId)
-        {
-            invoiceQuery = invoiceQuery.Where(x => x.LocationId == invoiceLocationId);
-        }
-
-        if (reportLocations is not null)
-        {
-            invoiceQuery = invoiceQuery.Where(
-                x => x.LocationId != null && reportLocations.Contains(x.LocationId.Value));
-        }
+        // scope), so there is no referrer lookup to fall back on. Phase 35b moved the two conditions
+        // into ReportLocationFilter, which is now the one place 27 reports state them.
+        invoiceQuery = invoiceQuery.AtLocations(request.LocationId, reportLocations);
 
         var invoices = await invoiceQuery
             .Select(x => new { x.Id, x.ContactId, x.WarehouseId, x.LocationId, x.Code, x.Reference, x.Date })
@@ -72,16 +64,7 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
             creditNoteQuery = creditNoteQuery.Where(x => x.ContactId == creditNoteContactId);
         }
 
-        if (request.LocationId is { } creditNoteLocationId)
-        {
-            creditNoteQuery = creditNoteQuery.Where(x => x.LocationId == creditNoteLocationId);
-        }
-
-        if (reportLocations is not null)
-        {
-            creditNoteQuery = creditNoteQuery.Where(
-                x => x.LocationId != null && reportLocations.Contains(x.LocationId.Value));
-        }
+        creditNoteQuery = creditNoteQuery.AtLocations(request.LocationId, reportLocations);
 
         var creditNotes = await creditNoteQuery
             .Select(x => new { x.Id, x.ContactId, x.LocationId, x.Code, x.Reference, x.Date, x.ReferrerType, x.ReferrerId })

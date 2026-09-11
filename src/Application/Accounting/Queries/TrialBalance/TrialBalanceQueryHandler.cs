@@ -1,24 +1,36 @@
 using ErpApp.Application.Accounting.Reports;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
+using ErpApp.Domain.Accounting;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Accounting.Queries.TrialBalance;
 
-public sealed class TrialBalanceQueryHandler(IAppDbContext db) : IRequestHandler<TrialBalanceQuery, TrialBalanceDto>
+public sealed class TrialBalanceQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
+    : IRequestHandler<TrialBalanceQuery, TrialBalanceDto>
 {
     public async Task<TrialBalanceDto> Handle(TrialBalanceQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+        var entries = GlEntryLocations.ForReport(db, request.OrganizationId, request.LocationId, reportLocations);
+
         var accounts = await db.Accounts
             .Where(a => a.OrganizationId == request.OrganizationId && a.IsActive)
             .Select(a => new { a.Id, a.Code, a.Name })
             .ToListAsync(cancellationToken);
 
-        var netByAccount = await NetBalancesAsync(request.OrganizationId, request.AsOfDate, cancellationToken);
+        var netByAccount = await NetBalancesAsync(entries, request.AsOfDate, cancellationToken);
 
         var compareAsOfDate = request.Compare ? ComparePeriod.PriorYearAsOf(request.AsOfDate) : (DateOnly?)null;
         var compareNetByAccount = compareAsOfDate is { } compareDate
-            ? await NetBalancesAsync(request.OrganizationId, compareDate, cancellationToken)
+            ? await NetBalancesAsync(entries, compareDate, cancellationToken)
             : null;
 
         var rows = accounts
@@ -46,14 +58,14 @@ public sealed class TrialBalanceQueryHandler(IAppDbContext db) : IRequestHandler
     /// <summary>One GL aggregation at one cutoff -- run twice when Compare is on (see
     /// ComparePeriod). Returns net debit (positive) / net credit (negative) per account.</summary>
     private async Task<Dictionary<Guid, decimal>> NetBalancesAsync(
-        Guid organizationId, DateOnly asOfDate, CancellationToken cancellationToken)
+        IQueryable<GlJournalEntry> entries, DateOnly asOfDate, CancellationToken cancellationToken)
     {
         var cutoff = GlDateBoundary.EndOfDayUtc(asOfDate);
 
         var glTotals = await (
             from line in db.GlLines
-            join entry in db.GlJournalEntries on line.GlJournalEntryId equals entry.Id
-            where entry.OrganizationId == organizationId && entry.PostedAt <= cutoff
+            join entry in entries on line.GlJournalEntryId equals entry.Id
+            where entry.PostedAt <= cutoff
             group line by line.AccountId into g
             select new { AccountId = g.Key, Net = g.Sum(x => x.Debit) - g.Sum(x => x.Credit) })
             .ToListAsync(cancellationToken);

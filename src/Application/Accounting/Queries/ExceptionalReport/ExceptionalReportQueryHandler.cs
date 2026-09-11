@@ -1,5 +1,7 @@
 using ErpApp.Application.Accounting.Reports;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Application.Contacts.Queries.ContactStatement;
 using ErpApp.Application.Inventory.Reports;
 using ErpApp.Domain.Accounting;
@@ -9,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Accounting.Queries.ExceptionalReport;
 
-public sealed class ExceptionalReportQueryHandler(IAppDbContext db)
+public sealed class ExceptionalReportQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<ExceptionalReportQuery, ExceptionalReportDto>
 {
     /// <summary>
@@ -26,11 +28,23 @@ public sealed class ExceptionalReportQueryHandler(IAppDbContext db)
 
     public async Task<ExceptionalReportDto> Handle(ExceptionalReportQuery request, CancellationToken cancellationToken)
     {
-        var balances = await AccountBalancesAsync(request.OrganizationId, request.ToDate, cancellationToken);
-        var customers = await ContactSidesAsync(request.OrganizationId, ContactType.Customer, request.ToDate, cancellationToken);
-        var suppliers = await ContactSidesAsync(request.OrganizationId, ContactType.Supplier, request.ToDate, cancellationToken);
+        // Phase 35b -- the Exceptional Report is exempt from the Billing Location *filter* (the live
+        // census found no control on it; its whole filter bar is a date range) but not from the
+        // location *permission scope*. The two are different mechanisms: one is a filter the user
+        // chooses, the other a restriction an Admin imposes through
+        // TenantSettings.LocationWiseReportPermission, and a report with no filter is exactly the
+        // kind that would otherwise leak an organization-wide figure to a branch-scoped user.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
+        var balances = await AccountBalancesAsync(
+            request.OrganizationId, request.ToDate, reportLocations, cancellationToken);
+        var customers = await ContactSidesAsync(
+            request.OrganizationId, ContactType.Customer, request.ToDate, reportLocations, cancellationToken);
+        var suppliers = await ContactSidesAsync(
+            request.OrganizationId, ContactType.Supplier, request.ToDate, reportLocations, cancellationToken);
         var (inactiveStockValue, negativeStockQuantity) = await StockExceptionsAsync(
-            request.OrganizationId, request.ToDate, cancellationToken);
+            request.OrganizationId, request.ToDate, reportLocations, cancellationToken);
 
         // Each account row is a predicate over the one pass above. Net is a signed net debit, so
         // "> 0" reads as a debit balance and "< 0" as a credit balance throughout.
@@ -90,7 +104,7 @@ public sealed class ExceptionalReportQueryHandler(IAppDbContext db)
         new(particulars, GlBalanceMarker.Magnitude(net), GlBalanceMarker.For(net));
 
     private async Task<List<AccountBalance>> AccountBalancesAsync(
-        Guid organizationId, DateOnly asOf, CancellationToken cancellationToken)
+        Guid organizationId, DateOnly asOf, IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
         // Inactive accounts are deliberately included -- the first row exists to find them.
         var accounts = await db.Accounts
@@ -101,8 +115,9 @@ public sealed class ExceptionalReportQueryHandler(IAppDbContext db)
         var cutoff = GlDateBoundary.EndOfDayUtc(asOf);
         var glTotals = await (
             from line in db.GlLines
-            join entry in db.GlJournalEntries on line.GlJournalEntryId equals entry.Id
-            where entry.OrganizationId == organizationId && entry.PostedAt <= cutoff
+            join entry in GlEntryLocations.ForReport(db, organizationId, requested: null, reportLocations)
+                on line.GlJournalEntryId equals entry.Id
+            where entry.PostedAt <= cutoff
             group line by line.AccountId into g
             select new { AccountId = g.Key, Net = g.Sum(x => x.Debit) - g.Sum(x => x.Credit) })
             .ToListAsync(cancellationToken);
@@ -119,7 +134,11 @@ public sealed class ExceptionalReportQueryHandler(IAppDbContext db)
     /// customers.
     /// </summary>
     private async Task<(decimal Debit, decimal Credit)> ContactSidesAsync(
-        Guid organizationId, ContactType contactType, DateOnly asOf, CancellationToken cancellationToken)
+        Guid organizationId,
+        ContactType contactType,
+        DateOnly asOf,
+        IReadOnlyList<Guid>? reportLocations,
+        CancellationToken cancellationToken)
     {
         var contacts = await db.Contacts
             .Where(x => x.OrganizationId == organizationId && x.Type == contactType)
@@ -127,7 +146,7 @@ public sealed class ExceptionalReportQueryHandler(IAppDbContext db)
             .ToListAsync(cancellationToken);
 
         var events = await ContactLedgerReader.LoadAllContactEventsAsync(
-            db, organizationId, contactType, asOf, cancellationToken);
+            db, organizationId, contactType, asOf, cancellationToken, locationId: null, reportLocations);
         var movementByContact = events
             .GroupBy(x => x.ContactId)
             .ToDictionary(g => g.Key, g => g.Sum(x => x.SignedAmount));
@@ -155,13 +174,14 @@ public sealed class ExceptionalReportQueryHandler(IAppDbContext db)
     /// magnitude, since the row's own name already says which way it points).
     /// </summary>
     private async Task<(decimal InactiveValue, decimal NegativeQuantity)> StockExceptionsAsync(
-        Guid organizationId, DateOnly asOf, CancellationToken cancellationToken)
+        Guid organizationId, DateOnly asOf, IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
         var products = await InventoryReportProducts.LoadAsync(
             db, organizationId, categoryId: null, productId: null, cancellationToken);
 
         var movements = await StockFactReader.LoadMovementsAsync(
-            db, organizationId, productIds: null, warehouseId: null, asOf, cancellationToken);
+            db, organizationId, productIds: null, warehouseId: null, asOf, cancellationToken,
+            locationId: null, reportLocations);
         var facts = StockFactReader.Summarise(movements, asOf);
 
         decimal inactiveValue = 0, negativeQuantity = 0;

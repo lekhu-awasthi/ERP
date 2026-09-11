@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Purchasing;
@@ -51,23 +52,31 @@ internal static class TradeLineReader
         public decimal TotalAmount => NetAmount + VatAmount;
     }
 
+    /// <para><b>Phase 35b</b> -- <paramref name="locationId"/> is the report's own Billing Location
+    /// filter (null = "All locations") and <paramref name="reportLocations"/> the caller's permission
+    /// scope (null = unrestricted). Both narrow the source documents, which is where a location
+    /// lives.</para>
     internal static Task<List<Fact>> LoadAsync(
         IAppDbContext db,
         Guid organizationId,
         TradeSide side,
         DateOnly fromDate,
         DateOnly toDate,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken,
+        Guid? locationId = null,
+        IReadOnlyList<Guid>? reportLocations = null) =>
         side == TradeSide.Sales
-            ? LoadSalesAsync(db, organizationId, fromDate, toDate, cancellationToken)
-            : LoadPurchaseAsync(db, organizationId, fromDate, toDate, cancellationToken);
+            ? LoadSalesAsync(db, organizationId, fromDate, toDate, cancellationToken, locationId, reportLocations)
+            : LoadPurchaseAsync(db, organizationId, fromDate, toDate, cancellationToken, locationId, reportLocations);
 
     private static async Task<List<Fact>> LoadSalesAsync(
-        IAppDbContext db, Guid organizationId, DateOnly fromDate, DateOnly toDate, CancellationToken cancellationToken)
+        IAppDbContext db, Guid organizationId, DateOnly fromDate, DateOnly toDate, CancellationToken cancellationToken,
+        Guid? locationId, IReadOnlyList<Guid>? reportLocations)
     {
         var invoices = await db.Invoices
             .Where(x => x.OrganizationId == organizationId && x.Status == InvoiceStatus.Approved
                 && x.Date >= fromDate && x.Date <= toDate)
+            .AtLocations(locationId, reportLocations)
             .Select(x => new { x.Id, x.ContactId, x.Date })
             .ToListAsync(cancellationToken);
         var invoiceIds = invoices.Select(x => x.Id).ToList();
@@ -79,6 +88,7 @@ internal static class TradeLineReader
         var creditNotes = await db.CreditNotes
             .Where(x => x.OrganizationId == organizationId && x.Status == CreditNoteStatus.Approved
                 && x.Date >= fromDate && x.Date <= toDate)
+            .AtLocations(locationId, reportLocations)
             .Select(x => new { x.Id, x.ContactId, x.Date })
             .ToListAsync(cancellationToken);
         var creditNoteIds = creditNotes.Select(x => x.Id).ToList();
@@ -112,11 +122,13 @@ internal static class TradeLineReader
     }
 
     private static async Task<List<Fact>> LoadPurchaseAsync(
-        IAppDbContext db, Guid organizationId, DateOnly fromDate, DateOnly toDate, CancellationToken cancellationToken)
+        IAppDbContext db, Guid organizationId, DateOnly fromDate, DateOnly toDate, CancellationToken cancellationToken,
+        Guid? locationId, IReadOnlyList<Guid>? reportLocations)
     {
         var bills = await db.PurchaseBills
             .Where(x => x.OrganizationId == organizationId && x.Status == PurchaseBillStatus.Approved
                 && x.Date >= fromDate && x.Date <= toDate)
+            .AtLocations(locationId, reportLocations)
             .Select(x => new { x.Id, x.ContactId, x.Date })
             .ToListAsync(cancellationToken);
         var billIds = bills.Select(x => x.Id).ToList();
@@ -128,6 +140,7 @@ internal static class TradeLineReader
         var debitNotes = await db.DebitNotes
             .Where(x => x.OrganizationId == organizationId && x.Status == DebitNoteStatus.Approved
                 && x.Date >= fromDate && x.Date <= toDate)
+            .AtLocations(locationId, reportLocations)
             .Select(x => new { x.Id, x.ContactId, x.Date })
             .ToListAsync(cancellationToken);
         var debitNoteIds = debitNotes.Select(x => x.Id).ToList();

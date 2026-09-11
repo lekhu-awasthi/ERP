@@ -71,7 +71,8 @@ public sealed class ApproveJournalVoucherCommandHandler(
         var glLines = await GlCurrencyConversion.ToBaseAsync(
             db, request.OrganizationId, postingRule.BuildLines(journalVoucher), journalVoucher.ExchangeRate,
             cancellationToken);
-        var glEntry = GlJournalEntry.Post(request.OrganizationId, DocumentType.JournalVoucher, journalVoucher.Id, glLines);
+        var glEntry = GlJournalEntry.Post(
+            request.OrganizationId, DocumentType.JournalVoucher, journalVoucher.Id, glLines, journalVoucher.LocationId);
         db.GlJournalEntries.Add(glEntry);
 
         await db.SaveChangesAsync(cancellationToken);

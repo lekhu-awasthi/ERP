@@ -294,8 +294,9 @@ export class AccountingService {
    * response this screen had before, and the comparison window itself is never sent, only echoed
    * back (see TrialBalanceDto). Params are typed Record<string, string> deliberately: a union
    * including `{}` silently resolves HttpClient.get to its arraybuffer overload (phase-3 bug #4). */
-  getTrialBalance(organizationId: string, asOfDate: string, compare = false): Observable<TrialBalanceDto> {
+  getTrialBalance(organizationId: string, asOfDate: string, compare = false, locationId?: string): Observable<TrialBalanceDto> {
     const params: Record<string, string> = { asOfDate };
+    if (locationId) params['locationId'] = locationId;
     if (compare) params['compare'] = 'true';
     return this.http.get<TrialBalanceDto>(`${this.baseUrl(organizationId)}/reports/trial-balance`, {
       withCredentials: true,
@@ -303,8 +304,9 @@ export class AccountingService {
     });
   }
 
-  exportTrialBalance(organizationId: string, asOfDate: string, compare = false): Observable<Blob> {
+  exportTrialBalance(organizationId: string, asOfDate: string, compare = false, locationId?: string): Observable<Blob> {
     const params: Record<string, string> = { asOfDate };
+    if (locationId) params['locationId'] = locationId;
     if (compare) params['compare'] = 'true';
     return this.http.get(`${this.baseUrl(organizationId)}/reports/trial-balance/export`, {
       withCredentials: true,
@@ -313,8 +315,9 @@ export class AccountingService {
     });
   }
 
-  getBalanceSheet(organizationId: string, asOfDate: string, compare = false): Observable<BalanceSheetDto> {
+  getBalanceSheet(organizationId: string, asOfDate: string, compare = false, locationId?: string): Observable<BalanceSheetDto> {
     const params: Record<string, string> = { asOfDate };
+    if (locationId) params['locationId'] = locationId;
     if (compare) params['compare'] = 'true';
     return this.http.get<BalanceSheetDto>(`${this.baseUrl(organizationId)}/reports/balance-sheet`, {
       withCredentials: true,
@@ -322,8 +325,9 @@ export class AccountingService {
     });
   }
 
-  exportBalanceSheet(organizationId: string, asOfDate: string, compare = false): Observable<Blob> {
+  exportBalanceSheet(organizationId: string, asOfDate: string, compare = false, locationId?: string): Observable<Blob> {
     const params: Record<string, string> = { asOfDate };
+    if (locationId) params['locationId'] = locationId;
     if (compare) params['compare'] = 'true';
     return this.http.get(`${this.baseUrl(organizationId)}/reports/balance-sheet/export`, {
       withCredentials: true,
@@ -333,9 +337,10 @@ export class AccountingService {
   }
 
   getIncomeStatement(
-    organizationId: string, fromDate: string, toDate: string, compare = false,
+    organizationId: string, fromDate: string, toDate: string, compare = false, locationId?: string,
   ): Observable<IncomeStatementDto> {
     const params: Record<string, string> = { fromDate, toDate };
+    if (locationId) params['locationId'] = locationId;
     if (compare) params['compare'] = 'true';
     return this.http.get<IncomeStatementDto>(`${this.baseUrl(organizationId)}/reports/income-statement`, {
       withCredentials: true,
@@ -344,9 +349,10 @@ export class AccountingService {
   }
 
   exportIncomeStatement(
-    organizationId: string, fromDate: string, toDate: string, compare = false,
+    organizationId: string, fromDate: string, toDate: string, compare = false, locationId?: string,
   ): Observable<Blob> {
     const params: Record<string, string> = { fromDate, toDate };
+    if (locationId) params['locationId'] = locationId;
     if (compare) params['compare'] = 'true';
     return this.http.get(`${this.baseUrl(organizationId)}/reports/income-statement/export`, {
       withCredentials: true,
@@ -373,9 +379,10 @@ export class AccountingService {
   }
 
   getCashFlowSummary(
-    organizationId: string, fromDate: string, toDate: string, bankAccountId: string | null,
+    organizationId: string, fromDate: string, toDate: string, bankAccountId: string | null, locationId?: string,
   ): Observable<CashFlowSummaryDto> {
     const params: Record<string, string> = { fromDate, toDate };
+    if (locationId) params['locationId'] = locationId;
     if (bankAccountId) params['bankAccountId'] = bankAccountId;
     return this.http.get<CashFlowSummaryDto>(`${this.baseUrl(organizationId)}/reports/cash-flow-summary`, {
       withCredentials: true,
@@ -384,9 +391,10 @@ export class AccountingService {
   }
 
   exportCashFlowSummary(
-    organizationId: string, fromDate: string, toDate: string, bankAccountId: string | null,
+    organizationId: string, fromDate: string, toDate: string, bankAccountId: string | null, locationId?: string,
   ): Observable<Blob> {
     const params: Record<string, string> = { fromDate, toDate };
+    if (locationId) params['locationId'] = locationId;
     if (bankAccountId) params['bankAccountId'] = bankAccountId;
     return this.http.get(`${this.baseUrl(organizationId)}/reports/cash-flow-summary/export`, {
       withCredentials: true,
@@ -402,20 +410,22 @@ export class AccountingService {
   getJournalReport(
     organizationId: string, fromDate: string, toDate: string, documentType: GlSourceDocumentType | null,
     page = 1, pageSize = 50,
+    locationId?: string,
   ): Observable<PagedResult<JournalReportEntryDto>> {
     return this.http.get<PagedResult<JournalReportEntryDto>>(
       `${this.baseUrl(organizationId)}/reports/journal-report`,
-      { withCredentials: true, params: this.glReportParams(fromDate, toDate, page, pageSize, { documentType }) },
+      { withCredentials: true, params: this.glReportParams(fromDate, toDate, page, pageSize, { documentType, locationId }) },
     );
   }
 
   exportJournalReport(
     organizationId: string, fromDate: string, toDate: string, documentType: GlSourceDocumentType | null,
     full: boolean, page: number, pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
     return this.http.get(`${this.baseUrl(organizationId)}/reports/journal-report/export`, {
       withCredentials: true,
-      params: { ...this.glReportParams(fromDate, toDate, page, pageSize, { documentType }), full: String(full) },
+      params: { ...this.glReportParams(fromDate, toDate, page, pageSize, { documentType, locationId }), full: String(full) },
       responseType: 'blob',
     });
   }
@@ -423,20 +433,22 @@ export class AccountingService {
   getGeneralLedgerSummary(
     organizationId: string, fromDate: string, toDate: string, groupId: string | null, accountId: string | null,
     page = 1, pageSize = 50,
+    locationId?: string,
   ): Observable<PagedResult<GeneralLedgerSummaryRowDto>> {
     return this.http.get<PagedResult<GeneralLedgerSummaryRowDto>>(
       `${this.baseUrl(organizationId)}/reports/general-ledger-summary`,
-      { withCredentials: true, params: this.glReportParams(fromDate, toDate, page, pageSize, { groupId, accountId }) },
+      { withCredentials: true, params: this.glReportParams(fromDate, toDate, page, pageSize, { groupId, accountId, locationId }) },
     );
   }
 
   exportGeneralLedgerSummary(
     organizationId: string, fromDate: string, toDate: string, groupId: string | null, accountId: string | null,
     full: boolean, page: number, pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
     return this.http.get(`${this.baseUrl(organizationId)}/reports/general-ledger-summary/export`, {
       withCredentials: true,
-      params: { ...this.glReportParams(fromDate, toDate, page, pageSize, { groupId, accountId }), full: String(full) },
+      params: { ...this.glReportParams(fromDate, toDate, page, pageSize, { groupId, accountId, locationId }), full: String(full) },
       responseType: 'blob',
     });
   }
@@ -444,20 +456,22 @@ export class AccountingService {
   getDetailGeneralLedger(
     organizationId: string, fromDate: string, toDate: string, accountId: string | null,
     page = 1, pageSize = 50,
+    locationId?: string,
   ): Observable<PagedResult<DetailGeneralLedgerAccountDto>> {
     return this.http.get<PagedResult<DetailGeneralLedgerAccountDto>>(
       `${this.baseUrl(organizationId)}/reports/detail-general-ledger`,
-      { withCredentials: true, params: this.glReportParams(fromDate, toDate, page, pageSize, { accountId }) },
+      { withCredentials: true, params: this.glReportParams(fromDate, toDate, page, pageSize, { accountId, locationId }) },
     );
   }
 
   exportDetailGeneralLedger(
     organizationId: string, fromDate: string, toDate: string, accountId: string | null,
     full: boolean, page: number, pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
     return this.http.get(`${this.baseUrl(organizationId)}/reports/detail-general-ledger/export`, {
       withCredentials: true,
-      params: { ...this.glReportParams(fromDate, toDate, page, pageSize, { accountId }), full: String(full) },
+      params: { ...this.glReportParams(fromDate, toDate, page, pageSize, { accountId, locationId }), full: String(full) },
       responseType: 'blob',
     });
   }
@@ -465,20 +479,22 @@ export class AccountingService {
   getGeneralLedgerMaster(
     organizationId: string, fromDate: string, toDate: string, documentType: GlSourceDocumentType | null,
     page = 1, pageSize = 50,
+    locationId?: string,
   ): Observable<PagedResult<GeneralLedgerMasterRowDto>> {
     return this.http.get<PagedResult<GeneralLedgerMasterRowDto>>(
       `${this.baseUrl(organizationId)}/reports/general-ledger-master`,
-      { withCredentials: true, params: this.glReportParams(fromDate, toDate, page, pageSize, { documentType }) },
+      { withCredentials: true, params: this.glReportParams(fromDate, toDate, page, pageSize, { documentType, locationId }) },
     );
   }
 
   exportGeneralLedgerMaster(
     organizationId: string, fromDate: string, toDate: string, documentType: GlSourceDocumentType | null,
     full: boolean, page: number, pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
     return this.http.get(`${this.baseUrl(organizationId)}/reports/general-ledger-master/export`, {
       withCredentials: true,
-      params: { ...this.glReportParams(fromDate, toDate, page, pageSize, { documentType }), full: String(full) },
+      params: { ...this.glReportParams(fromDate, toDate, page, pageSize, { documentType, locationId }), full: String(full) },
       responseType: 'blob',
     });
   }

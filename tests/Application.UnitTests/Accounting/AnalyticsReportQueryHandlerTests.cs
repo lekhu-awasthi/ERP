@@ -27,7 +27,7 @@ public class AnalyticsReportQueryHandlerTests
         await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(1), 100m, 10m); // 1,000 payable, 1,000 stock
         await InventoryReportSeed.SellAsync(db, seed, PeriodStart.AddDays(2), 40m, 25m); // 1,000 receivable, 400 stock out
 
-        var result = await new NetTradingAssetsQueryHandler(db).Handle(
+        var result = await new NetTradingAssetsQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new NetTradingAssetsQuery(seed.OrganizationId, PeriodStart, PeriodEnd),
             CancellationToken.None);
 
@@ -61,13 +61,13 @@ public class AnalyticsReportQueryHandlerTests
         await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(1), 100m, 10m);
         await InventoryReportSeed.SellAsync(db, seed, PeriodStart.AddDays(2), 40m, 25m);
 
-        var netTradingAssets = await new NetTradingAssetsQueryHandler(db).Handle(
+        var netTradingAssets = await new NetTradingAssetsQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new NetTradingAssetsQuery(seed.OrganizationId, PeriodStart, PeriodEnd), CancellationToken.None);
-        var receivableSummary = await new ContactBalanceSummaryQueryHandler(db).Handle(
+        var receivableSummary = await new ContactBalanceSummaryQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ContactBalanceSummaryQuery(
                 seed.OrganizationId, ContactType.Customer, PeriodStart, PeriodEnd, null),
             CancellationToken.None);
-        var position = await new InventoryPositionReportQueryHandler(db).Handle(
+        var position = await new InventoryPositionReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new InventoryPositionReportQuery(seed.OrganizationId, PeriodStart, PeriodEnd, null, null, null),
             CancellationToken.None);
 
@@ -89,9 +89,9 @@ public class AnalyticsReportQueryHandlerTests
         await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(1), 100m, 10m);
         await InventoryReportSeed.SellAsync(db, seed, PeriodStart.AddDays(2), 40m, 25m);
 
-        var withAdvance = await new NetTradingAssetsQueryHandler(db).Handle(
+        var withAdvance = await new NetTradingAssetsQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new NetTradingAssetsQuery(seed.OrganizationId, PeriodStart, PeriodEnd), CancellationToken.None);
-        var withoutAdvance = await new NetTradingAssetsQueryHandler(db).Handle(
+        var withoutAdvance = await new NetTradingAssetsQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new NetTradingAssetsQuery(seed.OrganizationId, PeriodStart, PeriodEnd, ExcludeAdvance: true),
             CancellationToken.None);
 
@@ -115,9 +115,9 @@ public class AnalyticsReportQueryHandlerTests
 
         await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(1), 100m, 10m);
 
-        var plain = await new NetTradingAssetsQueryHandler(db).Handle(
+        var plain = await new NetTradingAssetsQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new NetTradingAssetsQuery(seed.OrganizationId, PeriodStart, PeriodEnd), CancellationToken.None);
-        var compared = await new NetTradingAssetsQueryHandler(db).Handle(
+        var compared = await new NetTradingAssetsQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new NetTradingAssetsQuery(seed.OrganizationId, PeriodStart, PeriodEnd, Compare: true),
             CancellationToken.None);
 
@@ -137,7 +137,7 @@ public class AnalyticsReportQueryHandlerTests
         var db = TestAppDbContext.Create();
         var seed = await InventoryReportSeed.CreateAsync(db);
 
-        var result = await new ExceptionalReportQueryHandler(db).Handle(
+        var result = await new ExceptionalReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ExceptionalReportQuery(seed.OrganizationId, PeriodStart, PeriodEnd), CancellationToken.None);
 
         Assert.Equal(12, result.Rows.Count);
@@ -156,7 +156,7 @@ public class AnalyticsReportQueryHandlerTests
         var db = TestAppDbContext.Create();
         var seed = await InventoryReportSeed.CreateAsync(db);
 
-        var result = await new ExceptionalReportQueryHandler(db).Handle(
+        var result = await new ExceptionalReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ExceptionalReportQuery(seed.OrganizationId, PeriodStart, PeriodEnd), CancellationToken.None);
 
         var unmarked = result.Rows.Where(r => r.BalanceType is null).ToList();
@@ -172,7 +172,7 @@ public class AnalyticsReportQueryHandlerTests
         var db = TestAppDbContext.Create();
         var seed = await InventoryReportSeed.CreateAsync(db);
 
-        var result = await new ExceptionalReportQueryHandler(db).Handle(
+        var result = await new ExceptionalReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ExceptionalReportQuery(seed.OrganizationId, PeriodStart, PeriodEnd), CancellationToken.None);
 
         var unmodelled = Assert.Single(result.Rows, r => !r.IsModelled);
@@ -198,7 +198,7 @@ public class AnalyticsReportQueryHandlerTests
         await InventoryReportSeed.PurchaseAsync(db, seed, today.AddDays(-2), 100m, 10m);
         await InventoryReportSeed.CreditNoteAsync(db, seed, today.AddDays(-1), 5m, 40m, vatRate: VatRate.NoVat);
 
-        var result = await new ExceptionalReportQueryHandler(db).Handle(
+        var result = await new ExceptionalReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new ExceptionalReportQuery(seed.OrganizationId, today.AddDays(-7), today.AddDays(1)),
             CancellationToken.None);
 

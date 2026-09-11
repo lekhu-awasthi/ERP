@@ -15,6 +15,7 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { currentFiscalYear, fiscalYearLabel, supportedFiscalYears } from '../../../shared/formatting/bs-fiscal-year';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Sales By Customer (Monthly) -- confirmed live 2026-09-03.
@@ -29,7 +30,7 @@ import { currentFiscalYear, fiscalYearLabel, supportedFiscalYears } from '../../
  */
 @Component({
   selector: 'app-sales-by-customer-monthly-page',
-  imports: [PaginationControl, AmountPipe],
+  imports: [PaginationControl, AmountPipe, ReportLocationFilter],
   templateUrl: './sales-by-customer-monthly-page.html',
 })
 export class SalesByCustomerMonthlyPage {
@@ -38,6 +39,9 @@ export class SalesByCustomerMonthlyPage {
   private readonly reports = inject(TradeReportsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
   protected readonly fiscalYears = supportedFiscalYears();
   protected readonly fiscalYearLabel = fiscalYearLabel;
 
@@ -113,6 +117,11 @@ export class SalesByCustomerMonthlyPage {
     this.runExport(true, 1, this.pageSize());
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    this.reload();
+  }
+
   private reload(): void {
     this.page.set(1);
     this.load();
@@ -121,7 +130,7 @@ export class SalesByCustomerMonthlyPage {
   private runExport(full: boolean, page: number, pageSize: number): void {
     this.exporting.set(true);
     this.reports
-      .exportTradeByContactMonthly(this.organizationId, 'sales-by-customer-monthly', this.fiscalYear(), this.contactGroupId() || null, full, page, pageSize)
+      .exportTradeByContactMonthly(this.organizationId, 'sales-by-customer-monthly', this.fiscalYear(), this.contactGroupId() || null, full, page, pageSize, this.locationId())
       .subscribe({
         next: (blob) => {
           this.exporting.set(false);
@@ -139,7 +148,7 @@ export class SalesByCustomerMonthlyPage {
     this.errorMessage.set(null);
 
     this.reports
-      .getTradeByContactMonthly(this.organizationId, 'sales-by-customer-monthly', this.fiscalYear(), this.contactGroupId() || null, this.page(), this.pageSize())
+      .getTradeByContactMonthly(this.organizationId, 'sales-by-customer-monthly', this.fiscalYear(), this.contactGroupId() || null, this.page(), this.pageSize(), this.locationId())
       .subscribe({
         next: (report) => {
           this.report.set(report);

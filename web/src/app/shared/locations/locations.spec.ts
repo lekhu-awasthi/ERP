@@ -7,6 +7,7 @@ import { OrganizationsService } from '../../core/organizations/organizations.ser
 import { BillingLocationStore } from './billing-location-store';
 import { defaultWarehouseSeed } from './default-warehouse-seed';
 import { DocumentLocationPicker } from './document-location-picker';
+import { ReportLocationFilter } from './report-location-filter';
 
 const organizationId = '11111111-1111-1111-1111-111111111111';
 
@@ -34,11 +35,11 @@ const branch: BillingLocation = {
   isActive: true,
 };
 
-function settings(types: string[]): BillingLocationSettings {
+function settings(types: string[], multipleLocationsEnabled = true): BillingLocationSettings {
   return {
     locationScopeMode: 'AllTransactions',
     locationWiseReportPermission: false,
-    multipleLocationsEnabled: true,
+    multipleLocationsEnabled,
     locationBearingDocumentTypes: types,
   };
 }
@@ -244,5 +245,95 @@ describe('defaultWarehouseSeed', () => {
     seed.offer('wh-retired');
 
     expect(warehouseId()).toBe('');
+  });
+});
+
+@Component({
+  selector: 'app-report-filter-host',
+  imports: [ReportLocationFilter],
+  template: `
+    <app-report-location-filter
+      [organizationId]="organizationId"
+      [controlId]="'spec-billing-location'"
+      (locationChange)="seen.push($event)"
+    />
+  `,
+})
+class ReportFilterHost {
+  readonly organizationId = organizationId;
+  readonly seen: string[] = [];
+}
+
+/**
+ * Phase 35b. The report filter is deliberately not the list filter: a report spans many document
+ * types at once (the Trial Balance reads eleven), so it cannot ask "is *this* type in scope?" the
+ * way `LocationListFilter` does. What it can ask is whether the tenant has the entitlement and more
+ * than one location -- and those two questions are what these tests pin.
+ */
+describe('ReportLocationFilter', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  function reportHost(
+    locations: BillingLocation[] = [headOffice, branch],
+    multipleLocationsEnabled = true,
+  ) {
+    TestBed.configureTestingModule({
+      imports: [ReportFilterHost],
+      providers: [
+        {
+          provide: OrganizationsService,
+          useValue: {
+            listBillingLocations: () => of(locations),
+            getBillingLocationSettings: () => of(settings([], multipleLocationsEnabled)),
+          },
+        },
+      ],
+    });
+
+    const fixture = TestBed.createComponent(ReportFilterHost);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  /** "All locations" is the live default, and it is what every pre-35b caller keeps sending. */
+  it('offers All locations first and starts there', () => {
+    const fixture = reportHost();
+    const select = (fixture.nativeElement as HTMLElement).querySelector('select')!;
+
+    expect(select.options.length).toBe(3);
+    expect(select.options[0].value).toBe('');
+    expect(select.options[0].selected).toBe(true);
+    expect(fixture.componentInstance.seen).toEqual([]);
+  });
+
+  it('emits the chosen location so the page can reload itself', () => {
+    const fixture = reportHost();
+    const select = (fixture.nativeElement as HTMLElement).querySelector('select')!;
+
+    select.value = 'loc-br1';
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.seen).toEqual(['loc-br1']);
+  });
+
+  /**
+   * A tenant with one location has no choice to make, and a tenant without the entitlement has no
+   * dimension at all -- in both cases the control would be chrome over a column every row shares.
+   * These are the only two reasons it hides; unlike the list filter it never asks about a document
+   * type, because a report has no single one.
+   */
+  it('renders nothing below two locations, or without the entitlement', () => {
+    expect((reportHost([headOffice]).nativeElement as HTMLElement).querySelector('select')).toBeNull();
+    TestBed.resetTestingModule();
+    expect((reportHost([headOffice, branch], false).nativeElement as HTMLElement).querySelector('select')).toBeNull();
+  });
+
+  /** WCAG 1.3.1 -- the label has to name this page's control, not some other page's (phase 34a). */
+  it('gives the select the caller supplied id so its label can name it', () => {
+    const element = reportHost().nativeElement as HTMLElement;
+
+    expect(element.querySelector('select')!.id).toBe('spec-billing-location');
+    expect(element.querySelector('label')!.getAttribute('for')).toBe('spec-billing-location');
   });
 });

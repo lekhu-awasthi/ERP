@@ -55,7 +55,8 @@ public sealed class ApproveExpenseCommandHandler(
         expense.Approve(currentUser.UserId, code);
 
         var glLines = postingRule.BuildLines(postingInput);
-        var glEntry = GlJournalEntry.Post(request.OrganizationId, DocumentType.Expense, expense.Id, glLines);
+        var glEntry = GlJournalEntry.Post(
+            request.OrganizationId, DocumentType.Expense, expense.Id, glLines, expense.LocationId);
         db.GlJournalEntries.Add(glEntry);
 
         await db.SaveChangesAsync(cancellationToken);

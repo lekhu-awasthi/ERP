@@ -346,47 +346,47 @@ public static class PurchasingEndpoints
     {
         group.MapGet("/reports/purchase-master-report", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid? productId, Guid? warehouseId,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new PurchaseMasterReportQuery(
                     organizationId, fromDate, toDate, contactId, productId, warehouseId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/purchase-master-report/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid? productId, Guid? warehouseId,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new PurchaseMasterReportQuery(
                     organizationId, fromDate, toDate, contactId, productId, warehouseId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportPurchaseMasterReport(result, fromDate, toDate);
         });
 
         group.MapGet("/reports/purchase-register", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new PurchaseRegisterQuery(
-                    organizationId, fromDate, toDate, contactId, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    organizationId, fromDate, toDate, contactId, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/purchase-register/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new PurchaseRegisterQuery(
                     organizationId, fromDate, toDate, contactId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportPurchaseRegister(result);
         });

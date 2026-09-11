@@ -154,7 +154,8 @@ public sealed class ApprovePurchaseBillCommandHandler(
 
             await stockLedgerService.IncrementAsync(
                 request.OrganizationId, line.ProductId, purchaseBill.WarehouseId, line.Quantity,
-                unitCost, DocumentType.PurchaseBill, purchaseBill.Id, purchaseBill.Date, cancellationToken);
+                unitCost, DocumentType.PurchaseBill, purchaseBill.Id, purchaseBill.Date, cancellationToken,
+                purchaseBill.LocationId);
         }
 
         if (purchaseBill.AdditionalCosts.Count > 0)
@@ -172,7 +173,8 @@ public sealed class ApprovePurchaseBillCommandHandler(
         }
 
         var glLines = postingRule.BuildLines(postingInput);
-        var glEntry = GlJournalEntry.Post(request.OrganizationId, DocumentType.PurchaseBill, purchaseBill.Id, glLines);
+        var glEntry = GlJournalEntry.Post(
+            request.OrganizationId, DocumentType.PurchaseBill, purchaseBill.Id, glLines, purchaseBill.LocationId);
         db.GlJournalEntries.Add(glEntry);
 
         await db.SaveChangesAsync(cancellationToken);

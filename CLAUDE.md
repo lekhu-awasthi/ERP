@@ -66,6 +66,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 34b: the shell on `NavigationCatalog` (zero page-template edits), Reports index, list chrome (search on 25 queries, date range on 16). Before a paginated list query, a displayed-but-unowned filter, or `overflow` on a layout container — `docs/phase-34b-status.md`
 - Phase 34c: scale (NFR-5.1/5.2) — the 50k-invoice dataset in `tools/scale/`, a p95 budget per class of screen, `TenantIndexConvention` (50 indexes from a rule), the shell `@defer`ed. Before adding an index, mapping a tenant-scoped entity, or quoting a performance number — `docs/phase-34c-status.md`
 - Phase 35a: ledger drill-down (`?accountId=` + a View Ledger row action) and the location picker/filter swept onto all 15 document forms and lists. Before adding a field to many aggregates at once, or trusting a gotcha's generalisation over an experiment — `docs/phase-35a-status.md`
+- Phase 35b: the location dimension in the reports — `LocationId` stamped on `GlJournalEntry`/`StockMovement`/`StockLedgerEntry`, the filter on 36 queries and 43 screens, `LocationWiseReportPermission` made real. Before filtering an append-only fact table, extracting a shared `Where`, or proving a location permission — `docs/phase-35b-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -137,6 +138,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - SQL Server treats NULLs as equal in a unique index; a unique index over a nullable column needs `.HasFilter("[Col] IS NOT NULL")`, and InMemory enforces neither half.
 - `EF.Functions.Like` cannot be translated by InMemory; write `String.Contains`, which SQL Server turns into the same `LIKE`.
 - An extraction is not done until the copies it replaced are deleted: `GrantedPermissionReader` said it had replaced two inlined joins and had not, so both missed phase-32b's `LocationId == null` filter and read a branch grant as organization-wide. Before writing copy N+1 of a pattern, grep that copies 1..N were retired (phase-33).
+- A shared helper replacing a per-handler `Where` must own **every** condition that `Where` carried, not just the interesting one — there is no global query filter here, so nine handlers rewritten is nine chances to drop `OrganizationId`; take the organization as an argument (phase-35b).
+- An append-only fact row (`GlJournalEntry`, `StockMovement`, `StockLedgerEntry`) points back with `(SourceDocumentType, SourceDocumentId)` and nothing else, so it cannot be filtered by any of its document's attributes without a column; stamp at write time and have reversals **inherit** rather than re-derive (phase-35b).
 - An expression tree does not short-circuit, so `!flag || list.Contains(x)` hands EF a **null** list to translate — and only on the unrestricted branch, i.e. almost every caller. Compose a second `.Where()` (phase-33).
 - …but that generalises only to a captured **bool**: `collection == null || collection.Contains(x)` is funcletized to a constant and folded away, and returns 200 on SQL Server. Compose anyway; don't call an instance of it broken without running it (phase-35a, correcting phase-33).
 - A shared matcher cannot live inside a LINQ predicate: a **static call** is untranslatable and so is `Contains(term, StringComparison)` — and InMemory evaluates both in C#, so every handler test passes while all 25 endpoints 500 (phase-34b, phase-25's captured-`Func` through another door).
@@ -226,6 +229,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Bootstrap's brand tones clear WCAG's 4.5:1 against **pure white** and only just, so they fail on this app's `#f8f9fa` body; the four text utilities are re-pointed at its `-600` shades in `styles.scss`, and `contrast-rules.ts` is the measured palette the guard derives from (phase-34a).
 - Bootstrap's JS is not loaded, so nothing sets `aria-expanded` for free — every signal-driven popup must set it itself (phase-34a, extending phase-22's gotcha).
 - A filter a screen **displays but did not apply** is worse than no filter: anything global a screen both shows and sends must reload that screen when it changes, from the first version (phase-34b).
+- A swept-in filter handler must copy what the **sibling** handlers on that page do, not a template: on a paginated page whose reload is `load()` rather than `reload()`, every other filter also calls `page.set(1)`, and without it a narrowing filter applied on page 3 reads as "this branch has no data" (phase-35b).
 - An `effect()` cannot tell "the write already being acted on" from "a write needing action" — if the handler that wrote the signal already schedules the response, an effect over it is a race (phase-34b).
 - Never put `overflow` on a layout container without asking what is anchored inside it; the rail's `overflow: hidden` clipped a 46rem flyout to 240px, silently (phase-34b, phase-22's gotcha in a second container).
 - Deriving beats listing for a **catalogue** (a missing nav entry is an unreachable screen); listing beats deriving for a **curated tray** (deriving loses the curation that is the feature). Guard both the same way — every url must resolve to a real route (phase-34b).
@@ -256,6 +260,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `tsc --noEmit -p tsconfig.json` does not typecheck `web/src/app`; it came back clean while `ng build` reported 22 `TS2339` errors. `ng build` is the real check (phase-28).
 - Run `ng test` from `web/`, never as `npx --prefix web ng test` from the root: `a11y-sweep-guard.spec.ts` reads `src/styles.scss` via `process.cwd()` and fails for the wrong reason (phase-35a).
 - `POST /accounts`'s `kind` is `Other`/`Bank`/`Cash`; `POST /organizations` needs `accountingStartDate` + `workspaceName` and takes the entitlement flags directly; `POST /auth/register` needs `phone`; `grants` is a dictionary but `locationGrants` is a **list** of `{locationId, grants}`; master-data lists are paged, so it is `['items'][0]['id']` (phase-35a).
+- A `Reports.*` key **cannot be granted per location** (400: "Only transaction permissions are location-scoped") — a report's location scope comes from the caller's *transaction* grants via `AnyGrantedLocationsAsync`, so the report key is organization-wide and the branch grant goes on e.g. `Sales.Invoice.View` (phase-35b).
+- `POST /organizations`'s entitlement flags are `multipleLocations`/`multipleWarehouses`/`trackInventory` — an `...Enabled` suffix binds to false silently and surfaces three steps later as a feature 403; `POST /billing-locations` requires `address`; the invite route is `POST /organizations/{id}/invitations` returning **`membershipId`**; `vatRate` is `ThirteenPercentVat` (a wrong enum member fails as "Failed to read parameter … as JSON", naming no field) (phase-35b).
+- `sqlcmd -Q` prints "(N rows affected)" into a captured value; `SET NOCOUNT ON` belongs beside `SET QUOTED_IDENTIFIER ON` at the top of every script (phase-35b).
 - A Goods line consumes stock regardless of `TrackInventory`, so on a tenant without that feature a Goods product cannot be invoiced at all (403 on opening stock, 409 on approve); seed a **Service** line when an E2E just needs an approved sales document (phase-30).
 - curl cannot read a file for `-F` upload here — every path form gives exit 26 and HTTP `000`, which reads like a server fault; drive the file leg from a short Python `urllib` script (phase-30).
 - `POST /api/organizations` needs `industry` and a non-empty `turnstileToken`; accept-invitation is `/api/organizations/memberships/{id}/accept-invitation` with no org segment (with one, a 404 leaves the membership `Invited`); units are `/units-of-measurement` (`shortName`); credit terms are under `/configuration/` (phase-31).
@@ -280,35 +287,40 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–34c and 35a are complete.** Phase 35 was split with the user after a survey showed it
-was two phases: **35a** (done) is the ledger drill-down plus the document-side location sweep;
-**35b** is the report half. 35a gave Detail General Ledger an `?accountId=` parameter and reached it
-from a **View Ledger** row action on the Chart of Accounts and from a global-search Account hit
-(phase-33 carried item #1 closed — the reference product has no per-account page either), extracted
-the location picker into `app-document-location-picker` and swept it onto **all 15 document forms**,
-put the LOCATION cell and a Billing Location filter on **all 15 lists** through `ListChrome` /
-`ListFilter`, and made `BillingLocation.WarehouseId` a real prefill.
+**Phases 0–34c, 35a and 35b are complete.** Phase 35 was split with the user into **35a** (the
+document side) and **35b** (the report side); both are done, and with them the Billing Location
+dimension reaches every screen that has one.
 
-The defect it existed to find: phase 32's write-path sweep guard was green while **14 of 15 detail
-DTOs and all 5 conversion templates dropped `LocationId` on the way back out** — every one of those
-forms could store a branch, never show it, and overwrite it on the next save. Two other things
-outlive the phase: five handlers matching `known-gotchas.md`'s forbidden `x == null || …` predicate
-turned out **not** to be broken on SQL Server (the gotcha's generalisation is narrower than written,
-and only injecting the old shape and running it showed that); and a confirm-live **census** of all
-49 report screens — not one per group — is what made its six exceptions trustworthy, one of which
-(Annex 5) breaks the obvious rule.
+35b's gate was `GlJournalEntry` having no `LocationId` while seven GL reports filter by one live —
+and it turned out the same gap existed on `StockMovement` and `StockLedgerEntry`. All three are
+settled by one rule: **an append-only fact row carries the billing location of the document that
+created it, stamped at write time** (11 GL posting sites, 15 stock-ledger sites, reversals
+inheriting rather than re-deriving, two backfill migrations). On top of that the phase put the filter
+on **36 report queries, their handlers and 86 endpoint constructions**, threaded five shared readers,
+swept the control onto **43 report screens** through one `app-report-location-filter`, put the
+LOCATION column on both Master reports (closing 35a carried item #3), and gave
+`TenantSettings.LocationWiseReportPermission` — one consumer for three phases — every report it was
+always meant to govern (closing 32b carried item #1). Nine exemptions are recorded with reasons, six
+from the live census and three because the underlying row has no location at all.
 
-**Next: phase 35b, then 36–41 in `docs/roadmap.md`.** 35b owns the report half, and its first
-decision is the one 35a surfaced: **43 of 49 live reports carry a Billing Location filter, including
-every GL report, and `GlJournalEntry` has no `LocationId`** — either it gains one stamped at post
-time, or every GL report joins back across 11 source types. Also 35b's: the Sales Master Report's
-filter still has no UI (server-side since phase 32), Product-to-location, and three filters that
-were absent on Cadehi and need re-reading on Moonbeam first.
+Two findings outlive the phase. A shared helper replacing a per-handler `Where` must own **every**
+condition that `Where` carried: the first `GlEntryLocations` took a pre-filtered queryable and left
+nine handlers each responsible for `OrganizationId`, in a codebase with no global query filter. And
+a `Reports.*` key **cannot be granted per location at all** — a report's location scope is derived
+from the caller's *transaction* grants — which only running the E2E revealed, because the first
+negative script asserted a grant shape the API refuses outright.
 
-Tests: Domain 443, Application.UnitTests 969, Api.IntegrationTests 18, Angular 283. `dotnet build` /
+**Next: phases 36–41 in `docs/roadmap.md`.** Phase 36 opens with a one-line bug that should not wait
+behind the rest of it: `featureGuard('MultipleWarehouses')` on `organizations/:id/warehouses` stops a
+flag-off tenant creating its *first* warehouse, which Invoice and Purchase Bill both require.
+Deferred out of 35b by agreement and carried into 36: **Product-to-location** (what the selector
+restricts is unobserved; probing it needs two writes on the live tenant) and the three Moonbeam-only
+report filters.
+
+Tests: Domain 443, Application.UnitTests 978, Api.IntegrationTests 18, Angular 291. `dotnet build` /
 `dotnet test` / `ng build` / `ng test` all clean. `ng build` still warns the initial bundle exceeds
-its 500 kB budget (pre-existing, 649 kB). `tsc --noEmit` does not cover `web/src/app`; `ng build` is
-the check (phase-28), and `ng test` must be run from `web/` (phase-35a).
+its 500 kB budget (pre-existing). `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
+check (phase-28), and `ng test` must be run from `web/` (phase-35a).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

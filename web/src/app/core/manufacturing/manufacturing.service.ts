@@ -230,8 +230,10 @@ export class ManufacturingService {
     productId?: string,
     page = 1,
     pageSize = 50,
+    locationId?: string,
   ): Observable<ProductionSummaryReport> {
     const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
+    if (locationId) params['locationId'] = locationId;
     if (productId) params['productId'] = productId;
     return this.http.get<ProductionSummaryReport>(`${this.baseUrl(organizationId)}/reports/production-summary`, {
       withCredentials: true,
@@ -246,8 +248,10 @@ export class ManufacturingService {
     productId?: string,
     page = 1,
     pageSize = 50,
+    locationId?: string,
   ): Observable<PagedResult<ProductionVarianceRow>> {
     const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
+    if (locationId) params['locationId'] = locationId;
     if (productId) params['productId'] = productId;
     return this.http.get<PagedResult<ProductionVarianceRow>>(
       `${this.baseUrl(organizationId)}/reports/production-variance`,
@@ -260,8 +264,10 @@ export class ManufacturingService {
     productId: string,
     quantity: number,
     warehouseId?: string,
+    locationId?: string,
   ): Observable<ProductionPlanningReport> {
     const params: Record<string, string> = { productId, quantity: String(quantity) };
+    if (locationId) params['locationId'] = locationId;
     if (warehouseId) params['warehouseId'] = warehouseId;
     return this.http.get<ProductionPlanningReport>(`${this.baseUrl(organizationId)}/reports/production-planning`, {
       withCredentials: true,

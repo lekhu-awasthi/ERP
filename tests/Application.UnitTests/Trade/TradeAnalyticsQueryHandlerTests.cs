@@ -31,7 +31,7 @@ public class TradeAnalyticsQueryHandlerTests
         var query = new TradeByContactQuery(seed.OrganizationId, TradeSide.Sales, From, To);
         Assert.Equal("Reports.SalesByCustomer.View", query.PermissionKey);
 
-        var result = await new TradeByContactQueryHandler(db).Handle(query, CancellationToken.None);
+        var result = await new TradeByContactQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(query, CancellationToken.None);
 
         var row = Assert.Single(result.Rows);
         Assert.Equal("Acme Traders", row.ContactName);
@@ -58,7 +58,7 @@ public class TradeAnalyticsQueryHandlerTests
         var invoice = await seed.ApproveInvoiceAsync(db, new DateOnly(2026, 3, 1), 1_000m);
         await seed.ApproveCreditNoteAsync(db, new DateOnly(2026, 4, 1), 0.3m, 1_000m, invoice.Id);
 
-        var result = await new TradeByContactQueryHandler(db).Handle(
+        var result = await new TradeByContactQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new TradeByContactQuery(seed.OrganizationId, TradeSide.Sales, From, To), CancellationToken.None);
 
         var row = Assert.Single(result.Rows);
@@ -78,7 +78,7 @@ public class TradeAnalyticsQueryHandlerTests
         var query = new TradeByContactQuery(seed.OrganizationId, TradeSide.Purchase, From, To);
         Assert.Equal("Reports.PurchaseBySupplier.View", query.PermissionKey);
 
-        var result = await new TradeByContactQueryHandler(db).Handle(query, CancellationToken.None);
+        var result = await new TradeByContactQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(query, CancellationToken.None);
 
         var row = Assert.Single(result.Rows);
         Assert.Equal("Global Supplies", row.ContactName);
@@ -98,7 +98,7 @@ public class TradeAnalyticsQueryHandlerTests
         var query = new TradeByItemQuery(seed.OrganizationId, TradeSide.Sales, From, To);
         Assert.Equal("Reports.SalesByItem.View", query.PermissionKey);
 
-        var result = await new TradeByItemQueryHandler(db).Handle(query, CancellationToken.None);
+        var result = await new TradeByItemQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(query, CancellationToken.None);
 
         Assert.Equal(2, result.Rows.Count);
 
@@ -124,7 +124,7 @@ public class TradeAnalyticsQueryHandlerTests
         await seed.ApproveVatInvoiceAsync(db, new DateOnly(2026, 3, 2), 400m); // Services too
         await seed.ApproveInvoiceAsync(db, new DateOnly(2026, 3, 5), 50m, productId: seed.SecondProductId); // Consumables
 
-        var result = await new TradeByItemQueryHandler(db).Handle(
+        var result = await new TradeByItemQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new TradeByItemQuery(seed.OrganizationId, TradeSide.Sales, From, To, TradeItemGrouping.Category),
             CancellationToken.None);
 
@@ -147,7 +147,7 @@ public class TradeAnalyticsQueryHandlerTests
         await seed.ApproveInvoiceAsync(db, new DateOnly(2026, 3, 1), 100m);
         await seed.ApproveInvoiceAsync(db, new DateOnly(2026, 3, 5), 50m, productId: seed.SecondProductId);
 
-        var result = await new TradeByItemQueryHandler(db).Handle(
+        var result = await new TradeByItemQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new TradeByItemQuery(
                 seed.OrganizationId, TradeSide.Sales, From, To, TradeItemGrouping.Item,
                 ProductCategoryId: seed.SecondCategoryId),
@@ -182,7 +182,7 @@ public class TradeAnalyticsQueryHandlerTests
         var query = new TradeByContactMonthlyQuery(seed.OrganizationId, TradeSide.Sales, 2083);
         Assert.Equal("Reports.SalesByCustomerMonthly.View", query.PermissionKey);
 
-        var result = await new TradeByContactMonthlyQueryHandler(db).Handle(query, CancellationToken.None);
+        var result = await new TradeByContactMonthlyQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(query, CancellationToken.None);
 
         Assert.Equal(12, result.Columns.Count);
         Assert.Equal("Shrawan 2083", result.Columns[0].Label);
@@ -223,14 +223,14 @@ public class TradeAnalyticsQueryHandlerTests
         await seed.ApproveInvoiceAsync(db, firstDay.AddDays(-1), 999m);
         await seed.ApproveInvoiceAsync(db, firstDay, 111m);
 
-        var result = await new TradeByContactMonthlyQueryHandler(db).Handle(
+        var result = await new TradeByContactMonthlyQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new TradeByContactMonthlyQuery(seed.OrganizationId, TradeSide.Sales, 2083), CancellationToken.None);
 
         var row = Assert.Single(result.Rows);
         Assert.Equal(111m, row.Total);
         Assert.Equal(111m, row.Monthly[0]);
 
-        var previous = await new TradeByContactMonthlyQueryHandler(db).Handle(
+        var previous = await new TradeByContactMonthlyQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new TradeByContactMonthlyQuery(seed.OrganizationId, TradeSide.Sales, 2082), CancellationToken.None);
 
         Assert.Equal(999m, Assert.Single(previous.Rows).Total);
@@ -249,7 +249,7 @@ public class TradeAnalyticsQueryHandlerTests
         var query = new TradeByItemMonthlyQuery(seed.OrganizationId, TradeSide.Sales, 2083);
         Assert.Equal("Reports.SalesByItemMonthly.View", query.PermissionKey);
 
-        var result = await new TradeByItemMonthlyQueryHandler(db).Handle(query, CancellationToken.None);
+        var result = await new TradeByItemMonthlyQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(query, CancellationToken.None);
 
         Assert.Equal(2, result.Rows.Count);
         Assert.Equal(200m, result.Rows.Single(x => x.ProductName == "Consulting").Monthly[0]);
@@ -264,7 +264,7 @@ public class TradeAnalyticsQueryHandlerTests
         var seed = await TradeReportSeed.CreateAsync(db);
 
         await Assert.ThrowsAsync<ErpApp.Application.Common.Exceptions.NotFoundException>(
-            () => new TradeByItemMonthlyQueryHandler(db).Handle(
+            () => new TradeByItemMonthlyQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
                 new TradeByItemMonthlyQuery(seed.OrganizationId, TradeSide.Sales, BsCalendar.LastYear + 5),
                 CancellationToken.None));
     }
@@ -288,7 +288,7 @@ public class TradeAnalyticsQueryHandlerTests
         var query = new SalesSummaryReportQuery(seed.OrganizationId, 2083);
         Assert.Equal("Reports.SalesSummaryReport.View", query.PermissionKey);
 
-        var result = await new SalesSummaryReportQueryHandler(db).Handle(query, CancellationToken.None);
+        var result = await new SalesSummaryReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(query, CancellationToken.None);
 
         var row = Assert.Single(result.Rows);
         Assert.Equal("Shrawan, 2083", row.Label);
@@ -315,7 +315,7 @@ public class TradeAnalyticsQueryHandlerTests
         await seed.ApproveInvoiceAsync(db, BsCalendar.ToGregorian(new BsDate(2083, 4, 5))!.Value, 100m);
         await seed.ApproveInvoiceAsync(db, BsCalendar.ToGregorian(new BsDate(2083, 6, 5))!.Value, 200m);
 
-        var result = await new SalesSummaryReportQueryHandler(db).Handle(
+        var result = await new SalesSummaryReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new SalesSummaryReportQuery(seed.OrganizationId, 2083), CancellationToken.None);
 
         Assert.Equal(2, result.Rows.Count);
@@ -336,7 +336,7 @@ public class TradeAnalyticsQueryHandlerTests
         await seed.ApproveInvoiceAsync(db, early, 100m);
         await seed.ApproveInvoiceAsync(db, late, 300m);
 
-        var result = await new SalesSummaryReportQueryHandler(db).Handle(
+        var result = await new SalesSummaryReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new SalesSummaryReportQuery(seed.OrganizationId, 2083, SalesSummaryMode.Date), CancellationToken.None);
 
         Assert.Equal(2, result.Rows.Count);
@@ -359,7 +359,7 @@ public class TradeAnalyticsQueryHandlerTests
         var invoice = await seed.ApproveInvoiceAsync(db, shrawan, 1_000m);
         await seed.ApproveCreditNoteAsync(db, bhadra, 1m, 1_000m, invoice.Id);
 
-        var result = await new SalesSummaryReportQueryHandler(db).Handle(
+        var result = await new SalesSummaryReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
             new SalesSummaryReportQuery(seed.OrganizationId, 2083), CancellationToken.None);
 
         Assert.Equal(2, result.Rows.Count);

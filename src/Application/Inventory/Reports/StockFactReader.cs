@@ -1,4 +1,5 @@
-﻿using ErpApp.Application.Common.Persistence;
+﻿using ErpApp.Application.Common.Locations;
+using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Inventory;
 using Microsoft.EntityFrameworkCore;
 
@@ -98,10 +99,16 @@ internal static class StockFactReader
         IReadOnlyCollection<Guid>? productIds,
         Guid? warehouseId,
         DateOnly toDate,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? locationId = null,
+        IReadOnlyList<Guid>? reportLocations = null)
     {
+        // Phase 35b -- Billing Location and Warehouse are independent controls, confirmed live: the
+        // Inventory Ledger screen carries both at once. So this composes onto the warehouse filter
+        // rather than standing in for it.
         var query = db.StockMovements
-            .Where(m => m.OrganizationId == organizationId && m.TransactionDate <= toDate);
+            .Where(m => m.OrganizationId == organizationId && m.TransactionDate <= toDate)
+            .AtLocations(locationId, reportLocations);
 
         if (productIds is not null)
         {

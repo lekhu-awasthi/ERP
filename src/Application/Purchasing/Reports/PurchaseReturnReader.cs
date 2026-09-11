@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Purchasing;
@@ -63,7 +64,9 @@ internal static class PurchaseReturnReader
         DateOnly fromDate,
         DateOnly toDate,
         Guid? contactId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? locationId = null,
+        IReadOnlyList<Guid>? reportLocations = null)
     {
         var query = db.DebitNotes.Where(x =>
             x.OrganizationId == organizationId && x.Status == DebitNoteStatus.Approved
@@ -72,6 +75,11 @@ internal static class PurchaseReturnReader
         {
             query = query.Where(x => x.ContactId == filter);
         }
+
+        // Phase 35b -- the Billing Location filter and the caller's report scope. Applied to the
+        // DebitNote itself: it carries its own LocationId, so unlike its warehouse there is no
+        // referrer lookup to fall back on.
+        query = query.AtLocations(locationId, reportLocations);
 
         var debitNotes = await query
             .Select(x => new { x.Id, x.ContactId, x.Code, x.Date, x.ReferrerType, x.ReferrerId })

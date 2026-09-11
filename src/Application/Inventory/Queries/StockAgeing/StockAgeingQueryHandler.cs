@@ -1,16 +1,27 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Inventory.Queries.StockAgeing;
 
-public sealed class StockAgeingQueryHandler(IAppDbContext db) : IRequestHandler<StockAgeingQuery, StockAgeingDto>
+public sealed class StockAgeingQueryHandler(IAppDbContext db, ICurrentUserService currentUser) : IRequestHandler<StockAgeingQuery, StockAgeingDto>
 {
     public async Task<StockAgeingDto> Handle(StockAgeingQuery request, CancellationToken cancellationToken)
     {
-        var query = db.StockLedgerEntries.Where(x =>
-            x.OrganizationId == request.OrganizationId && x.TransactionDate <= request.AsOfDate);
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
+        var query = db.StockLedgerEntries
+            .Where(x => x.OrganizationId == request.OrganizationId && x.TransactionDate <= request.AsOfDate)
+            .AtLocations(request.LocationId, reportLocations);
 
         if (request.ProductId is { } productId)
         {

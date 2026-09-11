@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Contacts;
 using MediatR;
@@ -24,8 +25,10 @@ namespace ErpApp.Application.Contacts.Queries.PrintBalanceConfirmation;
 /// document -- phase-26b's shared-reader lesson applied where it matters most.</para>
 /// </summary>
 public sealed record PrintBalanceConfirmationQuery(
-    Guid OrganizationId, ContactType ContactType, Guid ContactId, DateOnly AsOfDate)
-    : IRequest<BalanceConfirmationDto>, IRequirePermission, IOrganizationScoped
+    Guid OrganizationId, ContactType ContactType, Guid ContactId, DateOnly AsOfDate,
+    // Phase 35b -- the Billing Location filter; null is "All locations". See ILocationFilteredReport.
+    Guid? LocationId = null)
+    : IRequest<BalanceConfirmationDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey =>
         ContactType == ContactType.Customer ? PermissionKeys.CustomerStatementView : PermissionKeys.SupplierStatementView;

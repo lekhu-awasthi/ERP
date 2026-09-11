@@ -268,8 +268,10 @@ export class SalesService {
     warehouseId: string | null,
     page = 1,
     pageSize = 50,
+    locationId?: string,
   ): Observable<SalesMasterReportDto> {
     const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
+    if (locationId) params['locationId'] = locationId;
     if (contactId) params['contactId'] = contactId;
     if (productId) params['productId'] = productId;
     if (warehouseId) params['warehouseId'] = warehouseId;
@@ -290,6 +292,7 @@ export class SalesService {
     full: boolean,
     page: number,
     pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
     const params: Record<string, string> = {
       fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
@@ -297,6 +300,7 @@ export class SalesService {
     if (contactId) params['contactId'] = contactId;
     if (productId) params['productId'] = productId;
     if (warehouseId) params['warehouseId'] = warehouseId;
+    if (locationId) params['locationId'] = locationId;
 
     return this.http.get(`${this.baseUrl(organizationId)}/reports/sales-master-report/export`, {
       withCredentials: true,
@@ -306,9 +310,10 @@ export class SalesService {
   }
 
   getAnnexFiveReport(
-    organizationId: string, fromDate: string, toDate: string, page = 1, pageSize = 50,
+    organizationId: string, fromDate: string, toDate: string, page = 1, pageSize = 50, locationId?: string,
   ): Observable<AnnexFiveReportDto> {
     const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
+    if (locationId) params['locationId'] = locationId;
     return this.http.get<AnnexFiveReportDto>(`${this.baseUrl(organizationId)}/reports/annex-five`, {
       withCredentials: true,
       params,
@@ -317,10 +322,13 @@ export class SalesService {
 
   exportAnnexFiveReport(
     organizationId: string, fromDate: string, toDate: string, full: boolean, page: number, pageSize: number,
+    locationId?: string,
   ): Observable<Blob> {
     return this.http.get(`${this.baseUrl(organizationId)}/reports/annex-five/export`, {
       withCredentials: true,
-      params: { fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize) },
+      params: locationId
+        ? { fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize), locationId }
+        : { fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize) },
       responseType: 'blob',
     });
   }
@@ -330,11 +338,12 @@ export class SalesService {
    *  (confirmed live 2026-09-06: 19 rows to 8). Defaults to true, the live default. */
   getSalesRegister(
     organizationId: string, fromDate: string, toDate: string, contactId: string | null, tagOptionIds: string[],
-    page = 1, pageSize = 50, includeCreditNotes = true,
+    page = 1, pageSize = 50, includeCreditNotes = true, locationId?: string,
   ): Observable<SalesRegisterDto> {
     const params: Record<string, string | string[]> = {
       fromDate, toDate, page: String(page), pageSize: String(pageSize), includeCreditNotes: String(includeCreditNotes),
     };
+    if (locationId) params['locationId'] = locationId;
     if (contactId) params['contactId'] = contactId;
     if (tagOptionIds.length > 0) params['tagOptionIds'] = tagOptionIds;
 
@@ -346,12 +355,13 @@ export class SalesService {
 
   exportSalesRegister(
     organizationId: string, fromDate: string, toDate: string, contactId: string | null, tagOptionIds: string[],
-    full: boolean, page: number, pageSize: number, includeCreditNotes = true,
+    full: boolean, page: number, pageSize: number, includeCreditNotes = true, locationId?: string,
   ): Observable<Blob> {
     const params: Record<string, string | string[]> = {
       fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
       includeCreditNotes: String(includeCreditNotes),
     };
+    if (locationId) params['locationId'] = locationId;
     if (contactId) params['contactId'] = contactId;
     if (tagOptionIds.length > 0) params['tagOptionIds'] = tagOptionIds;
 

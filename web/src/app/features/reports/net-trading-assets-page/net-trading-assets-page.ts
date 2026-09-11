@@ -8,6 +8,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 
 /**
  * Phase 26c -- Net Trading Assets: Receivables less Payables plus Inventory, each grouped row
@@ -19,7 +20,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  */
 @Component({
   selector: 'app-net-trading-assets-page',
-  imports: [RouterLink, AmountPipe, BsDateInput, NepaliDatePipe],
+  imports: [RouterLink, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter],
   templateUrl: './net-trading-assets-page.html',
 })
 export class NetTradingAssetsPage {
@@ -27,6 +28,9 @@ export class NetTradingAssetsPage {
   private readonly reports = inject(CatalogueReportsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
+  protected readonly locationId = signal('');
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -73,6 +77,7 @@ export class NetTradingAssetsPage {
     this.reports
       .exportNetTradingAssets(
         this.organizationId, this.fromDate(), this.toDate(), this.compare(), this.excludeAdvance(),
+        this.locationId(),
       )
       .subscribe({
         next: (blob) => {
@@ -86,6 +91,11 @@ export class NetTradingAssetsPage {
       });
   }
 
+  protected onLocationChange(value: string): void {
+    this.locationId.set(value);
+    this.load();
+  }
+
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
@@ -93,6 +103,7 @@ export class NetTradingAssetsPage {
     this.reports
       .getNetTradingAssets(
         this.organizationId, this.fromDate(), this.toDate(), this.compare(), this.excludeAdvance(),
+        this.locationId(),
       )
       .subscribe({
         next: (report) => {

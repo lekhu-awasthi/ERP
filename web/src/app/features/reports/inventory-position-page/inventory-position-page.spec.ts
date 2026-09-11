@@ -64,7 +64,22 @@ describe('InventoryPositionPage', () => {
           provide: CatalogService,
           useValue: { listProductCategories: () => of([]), listAllProducts: () => of([]) },
         },
-        { provide: OrganizationsService, useValue: { listWarehouses: () => of([]) } },
+        {
+          // Phase 35b -- the shared Billing Location filter reads both of these through
+          // BillingLocationStore, so a double that answers only listWarehouses now throws inside the
+          // filter's own computed() rather than failing an assertion.
+          provide: OrganizationsService,
+          useValue: {
+            listWarehouses: () => of([]),
+            listBillingLocations: () => of([]),
+            getBillingLocationSettings: () => of({
+              locationScopeMode: 'SalesTransactionsOnly',
+              locationWiseReportPermission: false,
+              multipleLocationsEnabled: false,
+              locationBearingDocumentTypes: [],
+            }),
+          },
+        },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => organizationId } } } },
       ],
     });

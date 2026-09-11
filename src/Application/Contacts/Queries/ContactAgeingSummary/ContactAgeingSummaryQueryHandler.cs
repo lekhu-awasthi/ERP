@@ -1,5 +1,7 @@
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
@@ -41,16 +43,24 @@ namespace ErpApp.Application.Contacts.Queries.ContactAgeingSummary;
 /// phase-9-status.md's scope decision for the reasoning (this is the one place Ageing and Statement's
 /// totals can legitimately diverge for a Contact with a standalone reversal on file).
 /// </summary>
-public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db)
+public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<ContactAgeingSummaryQuery, ContactAgeingSummaryDto>
 {
     private sealed record Bill(Guid Id, Guid ContactId, DateOnly Date, DateOnly DueDate, decimal NetAmount);
 
     public async Task<ContactAgeingSummaryDto> Handle(ContactAgeingSummaryQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var bills = request.ContactType == ContactType.Customer
-            ? await LoadCustomerBillsAsync(request, cancellationToken)
-            : await LoadSupplierBillsAsync(request, cancellationToken);
+            ? await LoadCustomerBillsAsync(request, reportLocations, cancellationToken)
+            : await LoadSupplierBillsAsync(request, reportLocations, cancellationToken);
 
         var reductionsByBillId = request.ContactType == ContactType.Customer
             ? await LoadCreditNoteReductionsAsync(request, bills, cancellationToken)
@@ -164,10 +174,18 @@ public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db)
             rows.Sum(r => r.Days1To30), rows.Sum(r => r.Days31To60), rows.Sum(r => r.Days61To90), rows.Sum(r => r.Days91Plus));
     }
 
-    private async Task<List<Bill>> LoadCustomerBillsAsync(ContactAgeingSummaryQuery request, CancellationToken cancellationToken)
+    private async Task<List<Bill>> LoadCustomerBillsAsync(
+        ContactAgeingSummaryQuery request, IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
+        // Phase 35b -- the Billing Location filter narrows the *ageable* documents only, never the
+        // settlements against them. A branch invoice settled by a payment or a credit note raised at
+        // head office is still settled: filtering the settlement side too would show that invoice as
+        // outstanding on the branch's ageing while the organization-wide report showed it paid, and
+        // the two would disagree about the same row. Allocations and returns are keyed to the
+        // filtered document ids, so they follow the narrowing without being narrowed.
         var invoices = await db.Invoices
             .Where(x => x.OrganizationId == request.OrganizationId && x.Status == InvoiceStatus.Approved && x.Date <= request.AsOfDate)
+            .AtLocations(request.LocationId, reportLocations)
             .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate })
             .ToListAsync(cancellationToken);
 
@@ -183,10 +201,12 @@ public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db)
             .ToList();
     }
 
-    private async Task<List<Bill>> LoadSupplierBillsAsync(ContactAgeingSummaryQuery request, CancellationToken cancellationToken)
+    private async Task<List<Bill>> LoadSupplierBillsAsync(
+        ContactAgeingSummaryQuery request, IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
         var purchaseBills = await db.PurchaseBills
             .Where(x => x.OrganizationId == request.OrganizationId && x.Status == PurchaseBillStatus.Approved && x.Date <= request.AsOfDate)
+            .AtLocations(request.LocationId, reportLocations)
             .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate, x.TdsAmount })
             .ToListAsync(cancellationToken);
         var purchaseBillLines = await db.PurchaseBillLines
@@ -197,6 +217,7 @@ public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db)
 
         var expenses = await db.Expenses
             .Where(x => x.OrganizationId == request.OrganizationId && x.Status == ExpenseStatus.Approved && x.Date <= request.AsOfDate)
+            .AtLocations(request.LocationId, reportLocations)
             .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate, x.TdsAmount })
             .ToListAsync(cancellationToken);
         var expenseLines = await db.ExpenseLines

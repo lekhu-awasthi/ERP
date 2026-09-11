@@ -86,12 +86,12 @@ public static class WorkflowEndpoints
         group.MapGet("/reports/transaction-list", async (
             Guid organizationId, DocumentType[]? documentType, TransactionListStatus[]? status,
             DateOnly? fromDate, DateOnly? toDate, int? page, int? pageSize,
-            ISender sender, CancellationToken ct) =>
+            Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new TransactionListQuery(
                     organizationId, documentType, status, fromDate, toDate,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
@@ -99,12 +99,12 @@ public static class WorkflowEndpoints
         group.MapGet("/reports/transaction-list/export", async (
             Guid organizationId, DocumentType[]? documentType, TransactionListStatus[]? status,
             DateOnly? fromDate, DateOnly? toDate, bool full, int? page, int? pageSize,
-            ISender sender, CancellationToken ct) =>
+            Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new TransactionListQuery(
                     organizationId, documentType, status, fromDate, toDate,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportTransactionList(result);
         });

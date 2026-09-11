@@ -1,6 +1,8 @@
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,11 +13,19 @@ namespace ErpApp.Application.Trade.Queries.TradeByContactMonthly;
 /// range -- the calendar decides the window, the query does not take one -- then bucketed into the
 /// twelve month columns by <see cref="TradeMonthlyCrosstab"/>.
 /// </summary>
-public sealed class TradeByContactMonthlyQueryHandler(IAppDbContext db)
+public sealed class TradeByContactMonthlyQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<TradeByContactMonthlyQuery, TradeByContactMonthlyDto>
 {
     public async Task<TradeByContactMonthlyDto> Handle(TradeByContactMonthlyQuery request, CancellationToken cancellationToken)
     {
+        // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
+        // only for locations they have access to." Null (unrestricted) unless the tenant has turned
+        // the toggle on AND this caller's role carries location-specific grants, so no existing
+        // tenant's figures change. Narrows rows in addition to request.LocationId, which is the
+        // user's own filter -- two mechanisms, two reasons, both applied.
+        var reportLocations = await LocationAccessScope.ForReportsAsync(
+            db, currentUser, request.OrganizationId, cancellationToken);
+
         var months = TradeMonthlyCrosstab.Columns(request.FiscalYear)
             ?? throw new NotFoundException(
                 $"Fiscal year {request.FiscalYear} is outside the supported Bikram Sambat range.");
@@ -24,7 +34,8 @@ public sealed class TradeByContactMonthlyQueryHandler(IAppDbContext db)
         var toDate = months[^1].ToDate;
 
         var facts = await TradeLineReader.LoadAsync(
-            db, request.OrganizationId, request.Side, fromDate, toDate, cancellationToken);
+            db, request.OrganizationId, request.Side, fromDate, toDate, cancellationToken,
+            request.LocationId, reportLocations);
 
         var contactIds = facts.Select(x => x.ContactId).Distinct().ToList();
 

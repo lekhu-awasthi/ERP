@@ -284,44 +284,44 @@ public static class AccountingEndpoints
         // never a request parameter: it is derived server-side by ComparePeriod and echoed back on
         // the response, so the screen and the .xlsx label the extra columns with real dates.
         group.MapGet("/reports/trial-balance", async (
-            Guid organizationId, DateOnly asOfDate, bool? compare, ISender sender, CancellationToken ct) =>
+            Guid organizationId, DateOnly asOfDate, bool? compare, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new TrialBalanceQuery(organizationId, asOfDate, compare ?? false), ct);
+            var result = await sender.Send(new TrialBalanceQuery(organizationId, asOfDate, compare ?? false, LocationId: locationId), ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/trial-balance/export", async (
-            Guid organizationId, DateOnly asOfDate, bool? compare, ISender sender, CancellationToken ct) =>
+            Guid organizationId, DateOnly asOfDate, bool? compare, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new TrialBalanceQuery(organizationId, asOfDate, compare ?? false), ct);
+            var result = await sender.Send(new TrialBalanceQuery(organizationId, asOfDate, compare ?? false, LocationId: locationId), ct);
             return ReportSpreadsheetExporter.ExportTrialBalance(result);
         });
 
         group.MapGet("/reports/balance-sheet", async (
-            Guid organizationId, DateOnly asOfDate, bool? compare, ISender sender, CancellationToken ct) =>
+            Guid organizationId, DateOnly asOfDate, bool? compare, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new BalanceSheetQuery(organizationId, asOfDate, compare ?? false), ct);
+            var result = await sender.Send(new BalanceSheetQuery(organizationId, asOfDate, compare ?? false, LocationId: locationId), ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/balance-sheet/export", async (
-            Guid organizationId, DateOnly asOfDate, bool? compare, ISender sender, CancellationToken ct) =>
+            Guid organizationId, DateOnly asOfDate, bool? compare, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new BalanceSheetQuery(organizationId, asOfDate, compare ?? false), ct);
+            var result = await sender.Send(new BalanceSheetQuery(organizationId, asOfDate, compare ?? false, LocationId: locationId), ct);
             return ReportSpreadsheetExporter.ExportBalanceSheet(result);
         });
 
         group.MapGet("/reports/income-statement", async (
-            Guid organizationId, DateOnly fromDate, DateOnly toDate, bool? compare, ISender sender, CancellationToken ct) =>
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, bool? compare, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new IncomeStatementQuery(organizationId, fromDate, toDate, compare ?? false), ct);
+            var result = await sender.Send(new IncomeStatementQuery(organizationId, fromDate, toDate, compare ?? false, LocationId: locationId), ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/income-statement/export", async (
-            Guid organizationId, DateOnly fromDate, DateOnly toDate, bool? compare, ISender sender, CancellationToken ct) =>
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, bool? compare, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new IncomeStatementQuery(organizationId, fromDate, toDate, compare ?? false), ct);
+            var result = await sender.Send(new IncomeStatementQuery(organizationId, fromDate, toDate, compare ?? false, LocationId: locationId), ct);
             return ReportSpreadsheetExporter.ExportIncomeStatement(result);
         });
 
@@ -330,111 +330,111 @@ public static class AccountingEndpoints
         // Current-View-vs-Full-List split phase-16c established.
         group.MapGet("/reports/journal-report", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, DocumentType? documentType,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new JournalReportQuery(
                     organizationId, fromDate, toDate, documentType,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/journal-report/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, DocumentType? documentType,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new JournalReportQuery(
                     organizationId, fromDate, toDate, documentType,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportJournalReport(result, fromDate, toDate);
         });
 
         group.MapGet("/reports/general-ledger-summary", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? groupId, Guid? accountId,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new GeneralLedgerSummaryQuery(
                     organizationId, fromDate, toDate, groupId, accountId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/general-ledger-summary/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? groupId, Guid? accountId,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new GeneralLedgerSummaryQuery(
                     organizationId, fromDate, toDate, groupId, accountId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportGeneralLedgerSummary(result, fromDate, toDate);
         });
 
         group.MapGet("/reports/detail-general-ledger", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? accountId,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new DetailGeneralLedgerQuery(
                     organizationId, fromDate, toDate, accountId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/detail-general-ledger/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? accountId,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new DetailGeneralLedgerQuery(
                     organizationId, fromDate, toDate, accountId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportDetailGeneralLedger(result, fromDate, toDate);
         });
 
         group.MapGet("/reports/general-ledger-master", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, DocumentType? documentType,
-            int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new GeneralLedgerMasterQuery(
                     organizationId, fromDate, toDate, documentType,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/general-ledger-master/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, DocumentType? documentType,
-            bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new GeneralLedgerMasterQuery(
                     organizationId, fromDate, toDate, documentType,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportGeneralLedgerMaster(result, fromDate, toDate);
         });
 
         group.MapGet("/reports/cash-flow-summary", async (
-            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? bankAccountId, ISender sender, CancellationToken ct) =>
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? bankAccountId, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new CashFlowSummaryQuery(organizationId, fromDate, toDate, bankAccountId), ct);
+            var result = await sender.Send(new CashFlowSummaryQuery(organizationId, fromDate, toDate, bankAccountId, LocationId: locationId), ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/cash-flow-summary/export", async (
-            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? bankAccountId, ISender sender, CancellationToken ct) =>
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? bankAccountId, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new CashFlowSummaryQuery(organizationId, fromDate, toDate, bankAccountId), ct);
+            var result = await sender.Send(new CashFlowSummaryQuery(organizationId, fromDate, toDate, bankAccountId, LocationId: locationId), ct);
             return ReportSpreadsheetExporter.ExportCashFlowSummary(result);
         });
 
