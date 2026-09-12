@@ -17,7 +17,7 @@ namespace ErpApp.Domain.Payments;
 /// No status transition here ever touches GL -- decision #4 found no live-confirmable evidence
 /// that Bounced auto-reverses anything; the safe default is Bounced marks this Cheque (and, by
 /// extension, its linked Payment) for manual follow-up, and an actual reversal only happens through
-/// the linked Payment's own existing Void action (GlJournalEntry.PostReversalOf, unchanged from
+/// the linked Payment's own existing Void action (a netting reversal, unchanged from
 /// Phase 16a).
 /// </summary>
 public sealed class Cheque

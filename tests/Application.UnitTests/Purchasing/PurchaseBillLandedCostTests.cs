@@ -365,6 +365,141 @@ public class PurchaseBillLandedCostTests
         }
     }
 
+    /// <summary>
+    /// Phase 37 -- the modelling choice phase 6 made and phase 29 stopped widening. A return
+    /// relieves the FIFO ledger at the cost the units were <b>consumed</b> at, and FIFO consumes the
+    /// oldest layer, which need not belong to the bill being returned against. Here an earlier,
+    /// cheaper delivery is what actually leaves stock, so the goods cost 2,000 while the supplier
+    /// credits 2,400 and the freight unwind is 264 -- and the 664 difference is a real gain on the
+    /// return, not a rounding residue.
+    ///
+    /// <para>Before this phase Inventory was credited the return price plus the released freight,
+    /// 2,664, against a ledger that had only given up 2,000: the account drifted 664 above the FIFO
+    /// layers on this one document, permanently, with every report still balancing.</para>
+    /// </summary>
+    [Fact]
+    public async Task A_return_credits_inventory_what_the_layers_gave_up_not_what_the_supplier_credits()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        // An earlier, cheaper delivery: 10 @ 500, no freight. FIFO relieves from this one.
+        var firstBillId = await CreateAsync(
+            db, seed,
+            [new PurchaseBillLineInput(seed.GoodsAId, 10m, 500m, VatRate.NoVat, ExpenditureClassification.Others)],
+            []);
+        await ApproveAsync(db, seed, firstBillId);
+
+        var billId = await CreateAsync(
+            db, seed,
+            [new PurchaseBillLineInput(seed.GoodsAId, 10m, 600m, VatRate.NoVat, ExpenditureClassification.Others)],
+            [new PurchaseBillAdditionalCostInput(seed.FreightCostTermId, null, AdditionalCostMethod.Value, 660m)]);
+        await ApproveAsync(db, seed, billId);
+
+        var noteId = await ReturnAsync(db, seed, billId, 4m, 600m);
+
+        var noteLines = await db.GlJournalEntries.Include(x => x.Lines)
+            .Where(x => x.SourceDocumentType == DocumentType.DebitNote && x.SourceDocumentId == noteId)
+            .SelectMany(x => x.Lines).ToListAsync();
+
+        Assert.Equal(noteLines.Sum(x => x.Debit), noteLines.Sum(x => x.Credit));
+
+        Assert.Equal(2000m, noteLines.Where(x => x.AccountId == seed.InventoryAccountId).Sum(x => x.Credit - x.Debit));
+        Assert.Equal(264m, noteLines.Where(x => x.AccountId == seed.ClearingAccountId).Sum(x => x.Debit - x.Credit));
+        Assert.Equal(2400m, noteLines.Where(x => x.AccountId == seed.AccountsPayableId).Sum(x => x.Debit - x.Credit));
+        Assert.Equal(664m, noteLines.Where(x => x.AccountId == seed.StockAdjustmentAccountId).Sum(x => x.Credit - x.Debit));
+
+        await StockConservation.AssertHoldsAsync(db, seed.OrganizationId);
+    }
+
+    /// <summary>
+    /// The clearing unwind, stated in both the directions the phase owed: a full return takes the
+    /// account back to zero (proven above by
+    /// <see cref="A_full_return_nets_the_clearing_account_back_to_zero"/>), and a partial one leaves
+    /// exactly the share of the accrual the unreturned units still carry -- nothing rounded,
+    /// nothing stranded.
+    /// </summary>
+    [Fact]
+    public async Task A_partial_return_leaves_the_unreturned_units_share_in_the_clearing_account()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        var billId = await CreateAsync(
+            db, seed,
+            [new PurchaseBillLineInput(seed.GoodsAId, 10m, 600m, VatRate.NoVat, ExpenditureClassification.Others)],
+            [new PurchaseBillAdditionalCostInput(seed.FreightCostTermId, null, AdditionalCostMethod.Value, 660m)]);
+        await ApproveAsync(db, seed, billId);
+
+        var noteId = await ReturnAsync(db, seed, billId, 4m, 600m);
+
+        var allLines = await db.GlJournalEntries.Include(x => x.Lines)
+            .Where(x => (x.SourceDocumentType == DocumentType.PurchaseBill && x.SourceDocumentId == billId)
+                || (x.SourceDocumentType == DocumentType.DebitNote && x.SourceDocumentId == noteId))
+            .SelectMany(x => x.Lines)
+            .ToListAsync();
+
+        // 660 accrued, 264 unwound by the four units that went back: the six still on the shelf
+        // carry 396 of freight the carrier has yet to bill for.
+        Assert.Equal(396m, allLines.Where(x => x.AccountId == seed.ClearingAccountId).Sum(x => x.Credit - x.Debit));
+
+        // Nothing is left in the adjustment account, because this return's price and its FIFO cost
+        // are the same number -- the zero-variance case, which is the ordinary one.
+        Assert.Equal(0m, allLines.Where(x => x.AccountId == seed.StockAdjustmentAccountId).Sum(x => x.Debit - x.Credit));
+
+        await StockConservation.AssertHoldsAsync(db, seed.OrganizationId);
+    }
+
+    /// <summary>
+    /// A standalone debit note -- no source Purchase Bill -- consumes no stock at all, so it has no
+    /// relieved cost to credit and posts exactly what it always did. Worth pinning: the new rule
+    /// keys on the presence of a relieved cost, and a null there has to mean "unchanged", never
+    /// "zero".
+    /// </summary>
+    [Fact]
+    public async Task A_standalone_return_posts_unchanged_because_it_relieves_nothing()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        var note = await new CreateDebitNoteCommandHandler(db).Handle(
+            new CreateDebitNoteCommand(
+                seed.OrganizationId, seed.SupplierId, new DateOnly(2026, 1, 20), null, null,
+                [new DebitNoteLineInput(seed.GoodsAId, 4m, 600m, VatRate.NoVat)],
+                null, null),
+            CancellationToken.None);
+
+        await new ApproveDebitNoteCommandHandler(
+                db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new DebitNotePostingRule(),
+                new StockLedgerService(db))
+            .Handle(new ApproveDebitNoteCommand(seed.OrganizationId, note.Id), CancellationToken.None);
+
+        var noteLines = await db.GlJournalEntries.Include(x => x.Lines)
+            .Where(x => x.SourceDocumentType == DocumentType.DebitNote && x.SourceDocumentId == note.Id)
+            .SelectMany(x => x.Lines).ToListAsync();
+
+        Assert.Equal(2400m, noteLines.Where(x => x.AccountId == seed.InventoryAccountId).Sum(x => x.Credit - x.Debit));
+        Assert.DoesNotContain(noteLines, x => x.AccountId == seed.StockAdjustmentAccountId);
+    }
+
+    private static async Task<Guid> ReturnAsync(
+        IAppDbContext db, Seed seed, Guid sourceBillId, decimal quantity, decimal rate)
+    {
+        var note = await new CreateDebitNoteCommandHandler(db).Handle(
+            new CreateDebitNoteCommand(
+                seed.OrganizationId, seed.SupplierId, new DateOnly(2026, 1, 20), null, null,
+                [new DebitNoteLineInput(seed.GoodsAId, quantity, rate, VatRate.NoVat)],
+                DocumentType.PurchaseBill, sourceBillId),
+            CancellationToken.None);
+
+        await new ApproveDebitNoteCommandHandler(
+                db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new DebitNotePostingRule(),
+                new StockLedgerService(db))
+            .Handle(new ApproveDebitNoteCommand(seed.OrganizationId, note.Id), CancellationToken.None);
+
+        return note.Id;
+    }
+
     private static async Task<List<GlLine>> GlLinesForAsync(IAppDbContext db, Guid organizationId, Guid billId)
     {
         var entry = await db.GlJournalEntries.Include(x => x.Lines).SingleAsync(
@@ -400,7 +535,8 @@ public class PurchaseBillLandedCostTests
     private sealed record Seed(
         Guid OrganizationId, FakeDocumentNumberGenerator NumberGenerator, Guid SupplierId, Guid WarehouseId,
         Guid GoodsAId, Guid GoodsBId, Guid ServiceId, Guid InventoryAccountId, Guid AccountsPayableId,
-        Guid ClearingAccountId, Guid FreightCostTermId, Guid ProductionCostTermId);
+        Guid ClearingAccountId, Guid FreightCostTermId, Guid ProductionCostTermId,
+        Guid StockAdjustmentAccountId);
 
     private static async Task<Seed> SeedAsync(IAppDbContext db, bool withClearingAccount = true)
     {
@@ -451,6 +587,11 @@ public class PurchaseBillLandedCostTests
         var clearing = await new CreateAccountCommandHandler(db, numberGenerator).Handle(
             new CreateAccountCommand(organizationId, "Landed Cost Clearing", liabilityGroup.Id), CancellationToken.None);
 
+        // Phase 37 -- where the difference between a return's price and the cost of the goods it
+        // takes out of stock lands (DebitNotePostingRule).
+        var stockAdjustment = await new CreateAccountCommandHandler(db, numberGenerator).Handle(
+            new CreateAccountCommand(organizationId, "Inventory Adjustment", expenseGroup.Id), CancellationToken.None);
+
         var freight = await new CreateCostTermCommandHandler(db).Handle(
             new CreateCostTermCommand(organizationId, "Freight", CostTermCategory.AdditionalCost), CancellationToken.None);
         var labour = await new CreateCostTermCommandHandler(db).Handle(
@@ -458,12 +599,13 @@ public class PurchaseBillLandedCostTests
 
         var settings = TenantSettings.CreateDefault(organizationId);
         settings.SetAccountingDefaults(null, null, null, purchase.Id, ap.Id, null, null);
-        settings.SetInventoryDefaults(inventory.Id, cogs.Id, null, null, withClearingAccount ? clearing.Id : null);
+        settings.SetInventoryDefaults(
+            inventory.Id, cogs.Id, stockAdjustment.Id, null, withClearingAccount ? clearing.Id : null);
         db.TenantSettings.Add(settings);
         await db.SaveChangesAsync(CancellationToken.None);
 
         return new Seed(
             organizationId, numberGenerator, supplier.Id, warehouse.Id, goodsA.Id, goodsB.Id, service.Id,
-            inventory.Id, ap.Id, clearing.Id, freight.Id, labour.Id);
+            inventory.Id, ap.Id, clearing.Id, freight.Id, labour.Id, stockAdjustment.Id);
     }
 }

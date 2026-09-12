@@ -100,27 +100,14 @@ public class InventoryReportQueryHandlerTests
         Assert.Equal(row.Opening.Quantity + row.In.Quantity - row.Out.Quantity, row.Balance.Quantity);
     }
 
-    /// <summary>
-    /// Not a report test but the fact the report's negative-balance guard depends on, pinned here
-    /// because it is the reason that guard is unreachable and must not be quietly deleted:
-    /// <c>StockLedgerService.ConsumeAsync</c> throws rather than allowing an oversell, so no
-    /// approval path in this codebase can drive a stock balance below zero. The reference product's
-    /// "Negative Item Balance" setting (Reject / Warn / Do Nothing) is what makes negative rows
-    /// possible on its own tenant, and this codebase has not built it. If this test ever starts
-    /// failing, negative balances have become reachable and
-    /// <c>StockFactReader</c>'s zero-value branch is live -- see its remarks.
-    /// </summary>
-    [Fact]
-    public async Task Stock_cannot_go_negative_yet_which_is_why_the_readers_negative_balance_guard_is_unreachable()
-    {
-        var db = TestAppDbContext.Create();
-        var seed = await InventoryReportSeed.CreateAsync(db);
-
-        await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(1), 5m, 10m);
-
-        await Assert.ThrowsAsync<ConflictException>(() =>
-            InventoryReportSeed.SellAsync(db, seed, PeriodStart.AddDays(2), 8m, 20m));
-    }
+    // Phase 37 replaced this file's
+    // Stock_cannot_go_negative_yet_which_is_why_the_readers_negative_balance_guard_is_unreachable.
+    // It pinned a fact rather than a requirement -- ConsumeAsync threw on every oversell, so
+    // StockFactReader's zero-value branch could not be reached and had to be defended from being
+    // tidied away. The Negative Item Balance setting is real now, so the throw is one of three
+    // behaviours instead of the only one. Inventory/NegativeStockTests.cs carries the replacement:
+    // Reject still throws, Warn and Do Nothing reach the guard, and the guard's own output is
+    // asserted rather than merely protected.
 
     [Fact]
     public async Task The_balance_filter_narrows_to_products_that_still_hold_stock()

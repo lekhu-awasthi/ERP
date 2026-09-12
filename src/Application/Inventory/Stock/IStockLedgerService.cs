@@ -14,8 +14,17 @@ public interface IStockLedgerService
 {
     /// <summary>Creates one new StockLedgerEntry layer. A zero Quantity is a no-op (no layer
     /// created) -- defensive only, since every real caller already validates a positive line
-    /// quantity before reaching here.</summary>
-    Task IncrementAsync(
+    /// quantity before reaching here.
+    ///
+    /// <para><b>Phase 37 -- returns the cost catch-up.</b> If this (product, warehouse) owes stock
+    /// -- a shortfall layer left behind by an oversell -- the receipt pays that debt down before it
+    /// becomes stock on hand, and the returned amount is how much less the remaining stock is worth
+    /// than this receipt's own value implies: <c>filled x (unitCost - the cost the shortfall was
+    /// issued at)</c>. It is zero in every other case, which is every call on a tenant that has
+    /// never oversold. <b>A caller must post a non-zero result</b> -- <c>StockCostCatchUp.PostAsync</c>
+    /// is the one way to do that -- or the general ledger's Inventory balance drifts from the FIFO
+    /// layers by exactly this figure.</para></summary>
+    Task<decimal> IncrementAsync(
         Guid organizationId,
         Guid productId,
         Guid warehouseId,
@@ -33,10 +42,18 @@ public interface IStockLedgerService
     /// Returns the weighted-average UnitCost of what was actually consumed -- the COGS figure a
     /// caller multiplies back by Quantity to get the line's total cost of goods sold. A zero
     /// Quantity is a no-op, returning 0. Throws <see cref="Common.Exceptions.ConflictException"/>
-    /// (not a raw 500) if Quantity exceeds the total remaining across every layer -- this engine
-    /// never lets a layer, or the product/warehouse total, go negative; callers that want a
-    /// pre-flight check use <see cref="GetAvailableQuantityAsync"/> first (see
-    /// IStockAvailabilityPolicy).
+    /// (not a raw 500) if Quantity exceeds the total remaining across every layer and
+    /// <paramref name="allowNegative"/> is false; callers that want a pre-flight check use
+    /// <see cref="GetAvailableQuantityAsync"/> first (see IStockAvailabilityPolicy).
+    ///
+    /// <para><b>Phase 37 -- <paramref name="allowNegative"/> is the tenant's Negative Item Balance
+    /// setting, already decided.</b> This method does not read that setting: it is handed the
+    /// verdict <see cref="Sales.Stock.IStockAvailabilityPolicy"/> reached, because a Warn verdict
+    /// also has to have been confirmed by the user before the shortfall is allowed, and only the
+    /// command handler knows that. When true, the part of the request the layers cannot cover
+    /// becomes a <b>shortfall layer</b> (<see cref="Domain.Inventory.StockLedgerEntry.CreateShortfall"/>)
+    /// at the product's last known cost in that warehouse, and the returned weighted average blends
+    /// that assumed cost in -- so the caller's COGS leg still equals what the ledger lost.</para>
     /// </summary>
     Task<decimal> ConsumeAsync(
         Guid organizationId,
@@ -47,7 +64,8 @@ public interface IStockLedgerService
         Guid sourceDocumentId,
         DateOnly transactionDate,
         CancellationToken cancellationToken,
-        Guid? locationId = null);
+        Guid? locationId = null,
+        bool allowNegative = false);
 
     /// <summary>Sum of QuantityRemaining across every layer for (ProductId, WarehouseId) -- the
     /// on-hand balance IStockAvailabilityPolicy compares a requested quantity against.</summary>

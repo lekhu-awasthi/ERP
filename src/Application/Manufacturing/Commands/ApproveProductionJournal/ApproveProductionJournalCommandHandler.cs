@@ -112,7 +112,12 @@ public sealed class ApproveProductionJournalCommandHandler(
         {
             var consumedUnitCost = await stockLedgerService.ConsumeAsync(
                 request.OrganizationId, line.ProductId, journal.WarehouseId, line.Quantity,
-                DocumentType.ProductionJournal, journal.Id, journal.Date, cancellationToken, journal.LocationId);
+                DocumentType.ProductionJournal, journal.Id, journal.Date, cancellationToken, journal.LocationId,
+                // Phase 37 -- the availability gate above has already applied the tenant's Negative
+                // Item Balance setting and, on Warn, has already been confirmed; anything the layers
+                // cannot cover becomes a shortfall layer rather than a 409 from down here. A Reject
+                // tenant never reaches this line with a shortfall.
+                allowNegative: true);
 
             // Multiply the UNROUNDED average, not the value the column will round on write --
             // this product is exactly what left the ledger.
@@ -123,15 +128,17 @@ public sealed class ApproveProductionJournalCommandHandler(
         journal.ComputeAndRecordRollUp();
 
         // Step 4 -- create the new layers, by-products first (they were costed first).
+        var costCatchUp = 0m;
+
         foreach (var byProduct in journal.ByProducts)
         {
-            await stockLedgerService.IncrementAsync(
+            costCatchUp += await stockLedgerService.IncrementAsync(
                 request.OrganizationId, byProduct.ProductId, journal.WarehouseId, byProduct.Quantity,
                 byProduct.AllocatedUnitCost!.Value, DocumentType.ProductionJournal, journal.Id, journal.Date,
                 cancellationToken, journal.LocationId);
         }
 
-        await stockLedgerService.IncrementAsync(
+        costCatchUp += await stockLedgerService.IncrementAsync(
             request.OrganizationId, journal.ProductId, journal.WarehouseId, journal.OutputQuantity,
             journal.FinishedGoodsUnitCost!.Value, DocumentType.ProductionJournal, journal.Id, journal.Date,
             cancellationToken, journal.LocationId);
@@ -148,6 +155,13 @@ public sealed class ApproveProductionJournalCommandHandler(
         db.GlJournalEntries.Add(
             GlJournalEntry.Post(
                 request.OrganizationId, DocumentType.ProductionJournal, journal.Id, glLines, journal.LocationId));
+
+        // Phase 37 -- the finished goods (or a by-product) can land on a warehouse that owes stock
+        // of that very product, in which case the run's output pays the debt down and the gap
+        // between the cost it was issued at and this run's cost reaches the ledger here.
+        await StockCostCatchUp.PostAsync(
+            db, request.OrganizationId, DocumentType.ProductionJournal, journal.Id, journal.LocationId,
+            costCatchUp, cancellationToken);
 
         // Step 6 -- one transaction for the consumption, the creation and the posting.
         await db.SaveChangesAsync(cancellationToken);

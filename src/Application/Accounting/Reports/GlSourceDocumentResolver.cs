@@ -13,11 +13,12 @@ namespace ErpApp.Application.Accounting.Reports;
 /// <para><b>Why a resolver exists at all.</b> <c>GlJournalEntry</c> stores only
 /// SourceDocumentType, SourceDocumentId and PostedAt -- it deliberately carries no copy of the
 /// document's number or reference, because those belong to the document. Every report that shows
-/// them therefore has to join back, and there are eleven document types that post GL
+/// them therefore has to join back, and there are <b>thirteen</b> document types that post GL
 /// (grep-confirmed against every <c>GlJournalEntry.Post</c> call site: Invoice, CreditNote,
 /// PurchaseBill, Expense, DebitNote, JournalVoucher, CashTransfer, InventoryAdjustment, Payment,
-/// ProductionJournal, OpeningBalance -- Quotation, SalesOrder, PurchaseOrder and WarehouseTransfer
-/// post nothing). Writing that join out once here beats writing it three times.</para>
+/// ProductionJournal, OpeningBalance, and -- from phase 37, for a cost catch-up only --
+/// WarehouseTransfer and OpeningStock; Quotation, SalesOrder and PurchaseOrder post nothing).
+/// Writing that join out once here beats writing it three times.</para>
 ///
 /// <para><b>One batched round trip per type, not one per row.</b> Each type is its own concrete
 /// <c>Where(ids.Contains(...))</c> -- not a generic helper parameterised by a <c>Func</c>, for the
@@ -34,6 +35,9 @@ public sealed class GlSourceDocumentResolver
 {
     /// <summary>What an Opening Balance posting shows in the Txn No column.</summary>
     public const string OpeningBalanceLabel = "Opening Balance";
+
+    /// <summary>Phase 37 -- what an Opening Stock cost catch-up shows in the Txn No column.</summary>
+    public const string OpeningStockLabel = "Opening Stock";
 
     private readonly Dictionary<(DocumentType Type, Guid Id), SourceDocument> _documents;
 
@@ -194,9 +198,36 @@ public sealed class GlSourceDocumentResolver
             }
         }
 
+        // Phase 37 -- two types that posted nothing until this phase now can. A Warehouse Transfer
+        // and an Opening Stock line both move value without an accounting entry in the ordinary
+        // case, but either can be the receipt that covers a shortfall, and the cost catch-up that
+        // follows is a real posting against them (see StockCostCatchUp). Without these two blocks
+        // such a row rendered with an empty Txn No in the Journal report and the two general
+        // ledgers -- which the resolver degrades to rather than throwing, so nothing would have
+        // told us.
+        var warehouseTransferIds = IdsOf(DocumentType.WarehouseTransfer);
+        if (warehouseTransferIds.Count > 0)
+        {
+            var items = await db.WarehouseTransfers
+                .Where(x => x.OrganizationId == organizationId && warehouseTransferIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.Code, x.Reference })
+                .ToListAsync(cancellationToken);
+            foreach (var x in items)
+            {
+                documents[(DocumentType.WarehouseTransfer, x.Id)] = new SourceDocument(x.Code, x.Reference);
+            }
+        }
+
         foreach (var id in IdsOf(DocumentType.OpeningBalance))
         {
             documents[(DocumentType.OpeningBalance, id)] = new SourceDocument(OpeningBalanceLabel, null);
+        }
+
+        // An Opening Stock line is keyed by (Organization, Product, Warehouse) and, exactly like an
+        // Opening Balance line, is not a numbered document: it reports a literal label.
+        foreach (var id in IdsOf(DocumentType.OpeningStock))
+        {
+            documents[(DocumentType.OpeningStock, id)] = new SourceDocument(OpeningStockLabel, null);
         }
 
         return new GlSourceDocumentResolver(documents);

@@ -46,7 +46,7 @@ public sealed class GlJournalEntry
     /// what <c>x.LocationId == id</c> does, since a null never equals a value.</para>
     ///
     /// <para><b>A reversal inherits the original's location</b> -- see
-    /// <see cref="PostReversalOf"/>. Not a copy for tidiness: a void that landed at a different
+    /// a reversal. Not a copy for tidiness: a void that landed at a different
     /// location (or at none) would leave the original branch's Trial Balance permanently off by the
     /// document's value while the organization-wide total still balanced -- phase-6 bug #3's failure
     /// mode with the location as the axis instead of an account.</para>
@@ -94,33 +94,14 @@ public sealed class GlJournalEntry
         return entry;
     }
 
-    /// <summary>
-    /// Void lifecycle (roadmap Phase 16a): posts a second, mirror-image entry against the same
-    /// SourceDocumentType/SourceDocumentId -- every Debit/Credit swapped, line for line -- rather
-    /// than mutating or deleting <paramref name="original"/>. GlJournalEntry stays append-only
-    /// (no UPDATE/DELETE path exists anywhere in this codebase for a posted entry), and mirroring
-    /// the original's own already-posted lines exactly (not recomputing from a posting rule) is
-    /// foolproof against the Phase 6 bug #3 failure mode -- there is no way for a swap-every-line
-    /// mirror to leave any *individual* account it touched unbalanced, unlike a hand-written
-    /// reverse posting rule that has to remember every leg (TDS Payable, a separate Inventory
-    /// account, etc.) the original touched. Every existing report (Trial Balance/Balance Sheet/
-    /// Income Statement) sums GlLines by account with no per-document uniqueness assumption, so a
-    /// second entry for the same source document nets to zero by construction, with no report code
-    /// changed for this to work. GlJournalEntryConfiguration's own index on
-    /// (SourceDocumentType, SourceDocumentId) is non-unique, so a second entry for the same
-    /// document id is a schema no-op, not a migration.
-    /// </summary>
-    public static GlJournalEntry PostReversalOf(GlJournalEntry original)
-    {
-        var mirroredLines = original.Lines
-            .Select(x => new GlLineInput(x.AccountId, x.Credit, x.Debit))
-            .ToList();
-
-        return Post(
-            original.OrganizationId,
-            original.SourceDocumentType,
-            original.SourceDocumentId,
-            mirroredLines,
-            original.LocationId);
-    }
+    // Phase 37 removed PostReversalOf. It mirrored one entry's lines, Debit for Credit, and was
+    // the right shape while every approved document had exactly one entry -- which phase 36
+    // showed was a habit rather than an invariant, and phase 37 made routinely false (a receipt
+    // that covers a shortfall posts its cost catch-up against the same source document). Its
+    // replacement is Application.Accounting.Posting.SourceDocumentGlEntries.ReverseOutstandingAsync,
+    // which nets every entry a document has posted and reverses the net: identical output for the
+    // single-entry case it used to serve, and the only form that is also right for the others. It
+    // is deleted rather than left for a future caller to reach for, because the one-entry
+    // assumption is exactly what kept coming back (phase 33: a pattern is not replaced until its
+    // copies are gone).
 }

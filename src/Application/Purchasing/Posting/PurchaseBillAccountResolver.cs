@@ -54,7 +54,8 @@ internal static class PurchaseBillAccountResolver
             products.TryGetValue(line.ProductId, out var product);
 
             Guid debitAccountId;
-            if (product?.Type == ProductType.Goods)
+            var relievesStock = product?.Type == ProductType.Goods;
+            if (relievesStock)
             {
                 debitAccountId = settings.DefaultInventoryAccountId
                     ?? throw new ConflictException(
@@ -69,7 +70,7 @@ internal static class PurchaseBillAccountResolver
                         "Set a Purchase Account on the product, or configure a Default Purchase Account under Accounting Defaults.");
             }
 
-            postingLines.Add(new PurchaseBillPostingLineInput(debitAccountId, line.Amount, line.VatAmount));
+            postingLines.Add(new PurchaseBillPostingLineInput(debitAccountId, line.Amount, line.VatAmount, relievesStock));
         }
 
         if (settings.DefaultAccountsPayableId is not { } accountsPayableId)

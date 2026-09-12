@@ -26,7 +26,8 @@ namespace ErpApp.Application.Accounting.Posting;
 /// only form that is also correct when reversals are already present. Entries are grouped by
 /// <c>LocationId</c> first, so a document whose location changed between postings has each
 /// location's balance reversed where it was posted -- the rule
-/// <see cref="GlJournalEntry.PostReversalOf"/> states for a void, applied across entries.</para>
+/// phase 16a stated for a void, applied across entries. (Phase 37 deleted the single-entry
+/// mirror, <c>GlJournalEntry.PostReversalOf</c>, once this had taken its last caller.)</para>
 /// </summary>
 internal static class SourceDocumentGlEntries
 {

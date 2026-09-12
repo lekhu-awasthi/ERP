@@ -17,6 +17,7 @@ using ErpApp.Application.Sales.Commands.ApproveCreditNote;
 using ErpApp.Application.Sales.Commands.ApproveInvoice;
 using ErpApp.Application.Sales.Commands.CreateCreditNote;
 using ErpApp.Application.Sales.Commands.CreateInvoice;
+using ErpApp.Application.Sales.Commands.VoidInvoice;
 using ErpApp.Application.Sales.Credit;
 using ErpApp.Application.Sales.Posting;
 using ErpApp.Application.Sales.Stock;
@@ -103,11 +104,16 @@ internal static class InventoryReportSeed
         var purchase = await CreateAccountAsync(db, numberGenerator, organizationId, "Purchase Expense", expenseGroup.Id);
         var inventory = await CreateAccountAsync(db, numberGenerator, organizationId, "Inventory", assetGroup.Id);
         var cogs = await CreateAccountAsync(db, numberGenerator, organizationId, "Cost of Goods Sold", expenseGroup.Id);
+        var stockAdjustment = await CreateAccountAsync(db, numberGenerator, organizationId, "Inventory Adjustment", expenseGroup.Id);
 
         var settings = TenantSettings.CreateDefault(organizationId);
         settings.SetAccountingDefaults(
             sales.Id, receivable.Id, vatPayable.Id, purchase.Id, payable.Id, vatReceivable.Id, null);
-        settings.SetInventoryDefaults(inventory.Id, cogs.Id, null, null);
+        // Phase 37 -- the Inventory Adjustment account is no longer optional for a tenant that
+        // returns goods to a supplier: a purchase return credits Inventory the FIFO cost the
+        // layers gave up, and any difference between that and the price the supplier credits
+        // lands here (DebitNotePostingRule).
+        settings.SetInventoryDefaults(inventory.Id, cogs.Id, stockAdjustment.Id, null);
         db.TenantSettings.Add(settings);
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -157,6 +163,44 @@ internal static class InventoryReportSeed
 
         return (approved.Id, approved.Code);
     }
+
+    /// <summary>
+    /// Phase 37 -- the two halves of <see cref="SellAsync"/>, for the tests that need to see the
+    /// confirmable stock warning between them. <see cref="SellAsync"/> stays the one-call form every
+    /// report test uses.
+    /// </summary>
+    internal static async Task<Guid> DraftInvoiceAsync(
+        IAppDbContext db, Seed seed, DateOnly date, decimal quantity, decimal rate,
+        Guid? productId = null, VatRate vatRate = VatRate.NoVat)
+    {
+        var created = await new CreateInvoiceCommandHandler(db).Handle(
+            new CreateInvoiceCommand(
+                seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
+                [new InvoiceLineInput(productId ?? seed.ProductId, quantity, rate, vatRate)]),
+            CancellationToken.None);
+
+        return created.Id;
+    }
+
+    /// <inheritdoc cref="DraftInvoiceAsync"/>
+    internal static async Task<(Guid Id, string Code)> ApproveInvoiceAsync(
+        IAppDbContext db, Seed seed, Guid invoiceId, bool overrideWarning)
+    {
+        var stockLedgerService = new StockLedgerService(db);
+        var approved = await new ApproveInvoiceCommandHandler(
+                db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new InvoicePostingRule(),
+                new FifoStockAvailabilityPolicy(db, stockLedgerService), stockLedgerService, new ContactCreditLimitPolicy(db))
+            .Handle(
+                new ApproveInvoiceCommand(seed.OrganizationId, invoiceId, OverrideWarning: overrideWarning),
+                CancellationToken.None);
+
+        return (approved.Id, approved.Code);
+    }
+
+    /// <summary>Phase 37 -- unwinds a sale, stock and ledger both.</summary>
+    internal static async Task VoidInvoiceAsync(IAppDbContext db, Seed seed, Guid invoiceId) =>
+        await new VoidInvoiceCommandHandler(db, new FakeCurrentUserService(Guid.NewGuid()), new StockLedgerService(db))
+            .Handle(new VoidInvoiceCommand(seed.OrganizationId, invoiceId), CancellationToken.None);
 
     /// <summary>A sales return: stock back in, against the invoice it reverses.</summary>
     internal static async Task<(Guid Id, string Code)> CreditNoteAsync(

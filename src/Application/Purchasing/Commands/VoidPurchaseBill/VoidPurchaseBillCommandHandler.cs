@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
@@ -65,14 +66,15 @@ public sealed class VoidPurchaseBillCommandHandler(
         await stockLedgerService.ReverseIncrementAsync(
             request.OrganizationId, DocumentType.PurchaseBill, purchaseBill.Id, purchaseBill.Date, cancellationToken);
 
-        var originalEntry = await db.GlJournalEntries
-            .Include(x => x.Lines)
-            .SingleAsync(
-                x => x.SourceDocumentType == DocumentType.PurchaseBill && x.SourceDocumentId == purchaseBill.Id, cancellationToken);
-
         purchaseBill.Void(currentUser.UserId);
 
-        db.GlJournalEntries.Add(GlJournalEntry.PostReversalOf(originalEntry));
+        // Phase 37 -- a bill whose receipt covered a shortfall posted a second entry (the cost
+        // catch-up), so this reverses everything outstanding rather than mirroring one entry. In
+        // practice ReverseIncrementAsync above has already refused such a bill -- its layer was
+        // partly consumed by the fill -- but the reversal must not depend on that ordering to be
+        // right.
+        await SourceDocumentGlEntries.ReverseOutstandingAsync(
+            db, DocumentType.PurchaseBill, purchaseBill.Id, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

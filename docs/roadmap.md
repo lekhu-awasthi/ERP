@@ -209,20 +209,36 @@ holds for a captured bool, not for a captured collection compared to null.
   grouping.
 - **Found on the way:** editing an Opening Balance line twice had been a 500 since phase 17.
 
-### 37. Inventory policy — negative stock, returns at cost, the clearing unwind
-- **Negative Item Balance for real** (31 #1, 26c): Warn and Do Nothing need a negative FIFO layer
-  and its later fill, which is a Domain-invariant change — `StockLedgerService.ConsumeAsync` throws
-  today and phase-26c pinned that. Design the negative layer's cost catch-up before touching a line;
-  the phase-25 conservation law is the acceptance test, and `StockFactReader`'s zero-value guard is
-  waiting for it.
-- **Debit Note relieves inventory at consumed FIFO cost, not return price** — the phase-6/7
-  modelling choice phase 29 only stopped widening; and an unwind path for the Landed Cost Clearing
-  account that matches the carrier's bill to the capitalised amount (29).
-- Inventory Master gains WarehouseTransfer and OpeningStock rows after a live re-check of the
-  reference report's Txn Type filter (26c Decision D); **multi-UOM × variants** (24) — a secondary
-  unit's rates on a variant — designed once, with the sweep-guard allow-list reason retired.
-- Traceability: the Cadehi product form has no batch, lot, serial or expiry field, so it stays a
-  Custom Fields matter here as on Moonbeam; no 37b.
+### 37. Inventory policy — negative stock, returns at cost, the clearing unwind — **done** (`docs/phase-37-status.md`)
+- **Negative Item Balance is real.** An oversell leaves a **shortfall layer** (a `StockLedgerEntry`
+  negative on both quantities, carried at the product's last known cost in that warehouse, zero when
+  it has never been received there); the next receipt fills it before the goods become stock on hand.
+  Only Invoice and Production Journal can produce one — the two that already consult
+  `IStockAvailabilityPolicy`; Warehouse Transfer, Inventory Adjustment's Decrease side and Debit Note
+  stay hard rejects with a reason each.
+- **The cost catch-up** — `filled x (real cost - assumed cost)` — reaches all three views of stock
+  value, because any two can be patched into agreement: the FIFO layers, the Inventory account (its
+  **own** GL entry against the covering document, on phase 36's `SourceDocumentGlEntries`) and the
+  movement history (a value-only `StockMovement.ValueAdjustment` row, quantity zero). One migration.
+- **A purchase return credits Inventory what the layers gave up**, not the price the supplier
+  credits, with the difference derived as the plug that balances the entry and posted to the tenant's
+  Inventory Adjustment account. Phase 29's release leg keeps its clearing debit and loses its
+  Inventory credit (the single credit now carries the freight). Full return -> clearing zero; partial
+  -> the unreturned units' share.
+- **The Credit Note needed nothing, and the phase says why**: a sales return adds stock at the cost
+  its source invoice recorded, so ledger and COGS agree by construction. The problem is specific to
+  relieving, where FIFO chooses the layer.
+- **Swept on the way:** every void reverses what is *outstanding* and every detail query reads every
+  entry, so `GlJournalEntry.PostReversalOf` was deleted with its last caller; `WarehouseTransfer` and
+  `OpeningStock` joined `GlSourceDocumentResolver` (they can now post). Phase 26c's pinned oversell
+  test was **replaced** deliberately, and its replacement says what changed.
+- **Carried forward, named:** Inventory Master gaining WarehouseTransfer and OpeningStock rows (needs
+  a live re-check of the reference report's Txn Type filter, 26c Decision D); **multi-UOM x variants**
+  (24) — a secondary unit's rates on a variant, with the sweep-guard allow-list reason retired; and a
+  standalone Debit Note's Goods line, which still credits Inventory without touching the ledger
+  because `DebitNote` carries no warehouse of its own.
+- Traceability stays a Custom Fields matter (the Cadehi product form has no batch, lot, serial or
+  expiry field), as recorded before the phase: no 37b.
 
 ### 38. Import and export breadth
 - Importers for Account, Product Category and Account Group (intra-file parent ordering and cycle

@@ -122,6 +122,7 @@ public sealed class ApprovePurchaseBillCommandHandler(
         // absorbed.
         var goodsAmountBase = 0m;
         var layerValueCreated = 0m;
+        var costCatchUp = 0m;
 
         foreach (var line in purchaseBill.Lines)
         {
@@ -152,7 +153,7 @@ public sealed class ApprovePurchaseBillCommandHandler(
             goodsAmountBase += ExchangeRates.ToBase(line.Amount, purchaseBill.ExchangeRate);
             layerValueCreated += unitCost * line.Quantity;
 
-            await stockLedgerService.IncrementAsync(
+            costCatchUp += await stockLedgerService.IncrementAsync(
                 request.OrganizationId, line.ProductId, purchaseBill.WarehouseId, line.Quantity,
                 unitCost, DocumentType.PurchaseBill, purchaseBill.Id, purchaseBill.Date, cancellationToken,
                 purchaseBill.LocationId);
@@ -176,6 +177,14 @@ public sealed class ApprovePurchaseBillCommandHandler(
         var glEntry = GlJournalEntry.Post(
             request.OrganizationId, DocumentType.PurchaseBill, purchaseBill.Id, glLines, purchaseBill.LocationId);
         db.GlJournalEntries.Add(glEntry);
+
+        // Phase 37 -- the commonest fill of all: goods were invoiced before the supplier's bill
+        // arrived, so this receipt pays off the shortfall it left. The bill debits Inventory its
+        // own landed cost in full; the part that went straight back out again was issued at an
+        // assumed cost, and the difference is posted here rather than silently left in Inventory.
+        await StockCostCatchUp.PostAsync(
+            db, request.OrganizationId, DocumentType.PurchaseBill, purchaseBill.Id, purchaseBill.LocationId,
+            costCatchUp, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
@@ -35,11 +36,6 @@ public sealed class VoidDebitNoteCommandHandler(
             throw new ConflictException("Only an Approved debit note can be voided.");
         }
 
-        var originalEntry = await db.GlJournalEntries
-            .Include(x => x.Lines)
-            .SingleAsync(
-                x => x.SourceDocumentType == DocumentType.DebitNote && x.SourceDocumentId == debitNote.Id, cancellationToken);
-
         Guid? sourceWarehouseId = null;
         if (debitNote.ReferrerType == DocumentType.PurchaseBill && debitNote.ReferrerId is { } purchaseBillId
             && debitNote.Lines.Any(x => x.ConsumedUnitCost is not null))
@@ -52,17 +48,26 @@ public sealed class VoidDebitNoteCommandHandler(
 
         debitNote.Void(currentUser.UserId);
 
+        // Phase 37 -- reversed before the restock below, so a catch-up this void raises is not
+        // swept into its own reversal; and every entry, not "the" entry (phase 36).
+        await SourceDocumentGlEntries.ReverseOutstandingAsync(
+            db, DocumentType.DebitNote, debitNote.Id, cancellationToken);
+
+        var costCatchUp = 0m;
+
         if (sourceWarehouseId is { } warehouseId)
         {
             foreach (var line in debitNote.Lines.Where(x => x.ConsumedUnitCost is not null))
             {
-                await stockLedgerService.IncrementAsync(
+                costCatchUp += await stockLedgerService.IncrementAsync(
                     request.OrganizationId, line.ProductId, warehouseId, line.Quantity, line.ConsumedUnitCost!.Value,
                     DocumentType.DebitNote, debitNote.Id, debitNote.Date, cancellationToken, debitNote.LocationId);
             }
         }
 
-        db.GlJournalEntries.Add(GlJournalEntry.PostReversalOf(originalEntry));
+        await StockCostCatchUp.PostAsync(
+            db, request.OrganizationId, DocumentType.DebitNote, debitNote.Id, debitNote.LocationId,
+            costCatchUp, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
@@ -45,13 +46,24 @@ public sealed class VoidWarehouseTransferCommandHandler(
 
         warehouseTransfer.Void(currentUser.UserId);
 
+        // Phase 37 -- a transfer's own catch-up entry, if it had one, is reversed here; the restock
+        // below can raise a new one when the source warehouse has gone short in the meantime.
+        await SourceDocumentGlEntries.ReverseOutstandingAsync(
+            db, DocumentType.WarehouseTransfer, warehouseTransfer.Id, cancellationToken);
+
+        var costCatchUp = 0m;
+
         foreach (var layer in destinationLayers)
         {
-            await stockLedgerService.IncrementAsync(
+            costCatchUp += await stockLedgerService.IncrementAsync(
                 request.OrganizationId, layer.ProductId, warehouseTransfer.FromWarehouseId, layer.QuantityIn, layer.UnitCost,
                 DocumentType.WarehouseTransfer, warehouseTransfer.Id, warehouseTransfer.Date, cancellationToken,
                 warehouseTransfer.LocationId);
         }
+
+        await StockCostCatchUp.PostAsync(
+            db, request.OrganizationId, DocumentType.WarehouseTransfer, warehouseTransfer.Id,
+            warehouseTransfer.LocationId, costCatchUp, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
@@ -60,20 +61,30 @@ public sealed class VoidInvoiceCommandHandler(IAppDbContext db, ICurrentUserServ
             throw new ConflictException("Cannot void this invoice -- void the payment(s) allocated against it first.");
         }
 
-        var originalEntry = await db.GlJournalEntries
-            .Include(x => x.Lines)
-            .SingleAsync(x => x.SourceDocumentType == DocumentType.Invoice && x.SourceDocumentId == invoice.Id, cancellationToken);
-
         invoice.Void(currentUser.UserId);
+
+        // Phase 37 -- reversed before the restock, and across every entry rather than the one this
+        // used to assume (phase 36).
+        await SourceDocumentGlEntries.ReverseOutstandingAsync(
+            db, DocumentType.Invoice, invoice.Id, cancellationToken);
+
+        var costCatchUp = 0m;
 
         foreach (var line in invoice.Lines.Where(x => x.CogsUnitCost is not null))
         {
-            await stockLedgerService.IncrementAsync(
+            // Phase 37 -- an oversold invoice left a shortfall layer behind, and putting the stock
+            // back fills it: the restock's own cost is the blended figure this line was issued at,
+            // so filling its own shortfall usually catches up nothing. It catches up something when
+            // a *later* document's shortfall is the one still outstanding, which is exactly when it
+            // should.
+            costCatchUp += await stockLedgerService.IncrementAsync(
                 request.OrganizationId, line.ProductId, invoice.WarehouseId, line.Quantity, line.CogsUnitCost!.Value,
                 DocumentType.Invoice, invoice.Id, invoice.Date, cancellationToken, invoice.LocationId);
         }
 
-        db.GlJournalEntries.Add(GlJournalEntry.PostReversalOf(originalEntry));
+        await StockCostCatchUp.PostAsync(
+            db, request.OrganizationId, DocumentType.Invoice, invoice.Id, invoice.LocationId,
+            costCatchUp, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

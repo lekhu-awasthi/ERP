@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ErpApp.Application.Accounting.Commands.CreateOrUpdateOpeningBalanceLine;
 
 /// <summary>
-/// Editing an existing line reverses its own prior posting first (GlJournalEntry.PostReversalOf,
+/// Editing an existing line reverses its own prior posting first (SourceDocumentGlEntries,
 /// mirroring the posted lines exactly -- the same Phase 16a mechanism every Void already uses, not
 /// a hand-derived reversal) before posting the corrected one, so GlLines/TrialBalance always
 /// reflect only the latest value with no manual netting needed.

@@ -48,18 +48,33 @@ public sealed class ApproveWarehouseTransferCommandHandler(
 
         warehouseTransfer.Approve(currentUser.UserId, code);
 
+        var costCatchUp = 0m;
+
         foreach (var line in warehouseTransfer.Lines)
         {
+            // Phase 37 -- the source side stays a hard reject regardless of the tenant's Negative
+            // Item Balance setting (allowNegative left at its default). That setting exists so a
+            // business can sell goods it has not booked in yet; moving goods between its own
+            // shelves is not that, and a transfer out of stock that is not there would create a
+            // shortfall in one warehouse and value in another out of nothing.
             var averageUnitCost = await stockLedgerService.ConsumeAsync(
                 request.OrganizationId, line.ProductId, warehouseTransfer.FromWarehouseId, line.Quantity,
                 DocumentType.WarehouseTransfer, warehouseTransfer.Id, warehouseTransfer.Date, cancellationToken,
                 warehouseTransfer.LocationId);
 
-            await stockLedgerService.IncrementAsync(
+            costCatchUp += await stockLedgerService.IncrementAsync(
                 request.OrganizationId, line.ProductId, warehouseTransfer.ToWarehouseId, line.Quantity, averageUnitCost,
                 DocumentType.WarehouseTransfer, warehouseTransfer.Id, warehouseTransfer.Date, cancellationToken,
                 warehouseTransfer.LocationId);
         }
+
+        // Phase 37 -- a transfer posts nothing to the ledger in the ordinary case (it moves value
+        // between warehouses, not between accounts), so this is the one entry it can ever have:
+        // the destination warehouse owed stock, and the arriving goods cost something other than
+        // the cost that debt was issued at.
+        await StockCostCatchUp.PostAsync(
+            db, request.OrganizationId, DocumentType.WarehouseTransfer, warehouseTransfer.Id,
+            warehouseTransfer.LocationId, costCatchUp, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

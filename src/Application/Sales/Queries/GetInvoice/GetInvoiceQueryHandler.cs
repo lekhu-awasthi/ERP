@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Common;
@@ -20,12 +21,18 @@ public sealed class GetInvoiceQueryHandler(IAppDbContext db) : IRequestHandler<G
 
         if (invoice.Status == InvoiceStatus.Approved)
         {
-            var glEntry = await db.GlJournalEntries
-                .Include(x => x.Lines)
-                .SingleOrDefaultAsync(
-                    x => x.SourceDocumentType == DocumentType.Invoice && x.SourceDocumentId == invoice.Id, cancellationToken);
+            // Phase 37 -- every entry this document posted, not "the" entry (phase 36's
+            // finding, generalised): a cost catch-up rides on the same
+            // (SourceDocumentType, SourceDocumentId) pair, and SingleOrDefaultAsync throws on
+            // two rows exactly as SingleAsync does. The panel shows what the document really
+            // did to the ledger, so it shows all of it.
+            var glEntries = await SourceDocumentGlEntries.LoadAsync(
+                db, DocumentType.Invoice, invoice.Id, cancellationToken);
 
-            glLines = glEntry?.Lines.Select(x => new PostedGlLineDto(x.Id, x.AccountId, x.Debit, x.Credit)).ToList();
+            glLines = glEntries.Count == 0
+                ? null
+                : glEntries.SelectMany(e => e.Lines)
+                    .Select(x => new PostedGlLineDto(x.Id, x.AccountId, x.Debit, x.Credit)).ToList();
         }
 
         return new InvoiceDetailDto(

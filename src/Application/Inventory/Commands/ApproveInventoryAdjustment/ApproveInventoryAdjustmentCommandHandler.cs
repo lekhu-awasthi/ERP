@@ -66,12 +66,13 @@ public sealed class ApproveInventoryAdjustmentCommandHandler(
 
         var increaseAmount = 0m;
         var decreaseAmount = 0m;
+        var costCatchUp = 0m;
 
         foreach (var line in inventoryAdjustment.Lines)
         {
             if (line.Direction == InventoryAdjustmentDirection.Increase)
             {
-                await stockLedgerService.IncrementAsync(
+                costCatchUp += await stockLedgerService.IncrementAsync(
                     request.OrganizationId, line.ProductId, inventoryAdjustment.WarehouseId, line.Quantity, line.UnitCost,
                     DocumentType.InventoryAdjustment, inventoryAdjustment.Id, inventoryAdjustment.Date, cancellationToken,
                     inventoryAdjustment.LocationId);
@@ -94,6 +95,13 @@ public sealed class ApproveInventoryAdjustmentCommandHandler(
             request.OrganizationId, DocumentType.InventoryAdjustment, inventoryAdjustment.Id, glLines,
             inventoryAdjustment.LocationId);
         db.GlJournalEntries.Add(glEntry);
+
+        // Phase 37 -- an Increase line can land on a product this warehouse still owes stock for,
+        // in which case it pays the debt down first and the difference between the assumed cost and
+        // this line's own has to reach the ledger. See StockCostCatchUp.
+        await StockCostCatchUp.PostAsync(
+            db, request.OrganizationId, DocumentType.InventoryAdjustment, inventoryAdjustment.Id,
+            inventoryAdjustment.LocationId, costCatchUp, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

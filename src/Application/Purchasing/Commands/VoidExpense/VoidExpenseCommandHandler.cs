@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
@@ -27,13 +28,14 @@ public sealed class VoidExpenseCommandHandler(IAppDbContext db, ICurrentUserServ
             throw new ConflictException("Only an Approved expense can be voided.");
         }
 
-        var originalEntry = await db.GlJournalEntries
-            .Include(x => x.Lines)
-            .SingleAsync(x => x.SourceDocumentType == DocumentType.Expense && x.SourceDocumentId == expense.Id, cancellationToken);
-
         expense.Void(currentUser.UserId);
 
-        db.GlJournalEntries.Add(GlJournalEntry.PostReversalOf(originalEntry));
+        // Phase 37 -- reverses whatever is outstanding rather than mirroring one entry. This
+        // type posts only one today, but every void in this codebase now asks the same
+        // question of the ledger (Application.Accounting.Posting.SourceDocumentGlEntries), so
+        // there is no handler left for a second entry to surprise.
+        await SourceDocumentGlEntries.ReverseOutstandingAsync(
+            db, DocumentType.Expense, expense.Id, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

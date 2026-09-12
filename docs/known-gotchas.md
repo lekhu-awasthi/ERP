@@ -1303,3 +1303,133 @@ because rejecting would invalidate documents already saved.
   43-file suite failed 2 and then 7 tests — always the *first* test in a file, always at exactly
   5000 ms, including files the change never touched — and the third passed 301/301. Every failing
   spec passed alone. Re-run before chasing it.
+
+## A shortfall is a layer, and its cost is an assumption (phase 37)
+
+Until phase 37, `StockLedgerService.ConsumeAsync` threw a 409 whenever a document would take more
+than the FIFO layers hold. The tenant setting that is supposed to govern this — *Negative Item
+Balance: Reject / Warn / Do Nothing*, built in phase 31 — therefore had one real branch: confirming
+the Warn dialog got you the engine's 409 anyway, so Warn and Do Nothing were both Reject wearing a
+different hat. The screen was complete, the command was wired, and the engine three layers down
+refused: phase 31's "a tenant field is reachable only if you can name the command that writes it and
+the screen that calls it" has a third clause.
+
+What negative stock *is* matters more than that it is allowed. It is a **shortfall layer** — a
+`StockLedgerEntry` whose `QuantityIn` and `QuantityRemaining` are both negative — so that the sum of
+`QuantityRemaining`, which every stock figure in the codebase derives from, goes negative by exactly
+the amount owed with no special case anywhere. The FIFO walk already filtered `QuantityRemaining > 0`,
+so you cannot sell out of a debt. `Fill` walks it back towards zero and never past; `QuantityIn` is
+left alone, exactly as `Consume` leaves it, because it is the layer's original size and the kardex
+reconstruction depends on it.
+
+Its unit cost is the product's **last known cost in that warehouse** — the newest positive layer, by
+the same `TransactionDate` then `CreatedAt` ordering the FIFO walk uses — and zero when the product
+has never been received there. Shortfall layers are excluded from that lookup: chaining an
+assumption off an assumption compounds it.
+
+`ConsumeAsync` takes `allowNegative` rather than reading the setting, because a Warn verdict also has
+to have been *confirmed*, and only the command handler knows whether it was. Two callers pass true
+(Invoice, Production Journal — the two that already consult `IStockAvailabilityPolicy`). Warehouse
+Transfer, Inventory Adjustment's Decrease side and Debit Note stay hard rejects, each for its own
+recorded reason rather than by inheritance from "the setting is global".
+
+## The cost catch-up has to reach three places, not two (phase 37)
+
+A shortfall is issued at an assumed cost and covered later at the real one. The difference,
+`filled × (real − assumed)`, is the **cost catch-up**, and it is the number that decides whether
+phase 25's conservation law survives negative stock. It has to move all three views of stock value
+at once:
+
+1. the **FIFO layers** — `Σ QuantityRemaining × UnitCost`, shortfall layers included (negative on
+   both counts, so a positive product);
+2. the **Inventory account** in the general ledger;
+3. the **movement history** — In value minus Out value, which is what every dated stock report
+   reconstructs from (phase 26c) and what a report for a closed period answers from.
+
+Any two of them can be made to agree by patching one of them. `StockConservation.AssertHoldsAsync`
+asserts all three together, which is phase 36's lesson in a new place: two things patched into
+agreement agree by coincidence.
+
+**On the ledger side it is its own GL entry**, against the same `(SourceDocumentType,
+SourceDocumentId)` pair as the covering document. Eleven call sites can produce one and they build
+their entries through six different `IGlPostingRule`s, so threading one more optional amount through
+all six inputs, rules and tests would have been the same two lines in six places (phase 33's
+copy-N+1 trap). That shape is only available because phase 36 had already replaced every
+`SingleAsync` over that pair with `SourceDocumentGlEntries` — the tool built for phase 36's own
+problem is what made phase 37's design possible, and phase 37 finished the sweep, deleting
+`GlJournalEntry.PostReversalOf` once it had no callers left.
+
+It posts to the tenant's **Inventory Adjustment** account. Charging it back to whichever account
+originally took the wrong figure would mean remembering, per shortfall layer, which document
+consumed it and which account that document's rule debited — and one shortfall can be filled by
+several receipts across periods. A new tenant-default account would have owed a migration, a screen
+and a backfill for a figure that is zero on every tenant that never oversells (phase 29: an
+unscreened default account is an unreachable one).
+
+**On the movement side it is a value-only row.** `StockMovement.ValueAdjustment` is non-zero on a
+row whose `Quantity` is zero, and `Value` is `(Quantity × UnitCost) + ValueAdjustment` so that no
+caller has to distinguish the two kinds. The two alternatives are both worse and both tempting: a
+matched In/Out pair of the filled quantity needs no schema and nets to the right value, but inflates
+the In and Out **quantity** columns of every movement report — a wrong quantity is more visible and
+far less defensible than a wrong value; and folding the catch-up into the receipt's own unit cost
+keeps one row while misstating what the receipt cost.
+
+One more consequence worth knowing: the catch-up's period is the **fill's**, not the sale's. That is
+the only answer that does not restate a closed period, and it does mean a margin report for the
+earlier period keeps the assumed cost.
+
+## A return relieves at the cost the layers give up (phase 37)
+
+Phase 6 modelled a Debit Note's Inventory credit as the **return price**. Phase 29 found half the
+gap — the capitalised freight riding in the returned units — and patched that half with a release
+leg. The other half is the price itself: `ConsumeAsync` relieves whatever FIFO chooses, which need
+not be the document being returned against. Return five units to the supplier who sold them at 20
+while an older 14 layer is still on the shelf, and the ledger gives up 70 while the old rule credited
+Inventory 100 — a permanent 30 drift, on an entry that balanced perfectly.
+
+This is phase 36's settlement rule in a second costume: *a relieving amount folds at the rate of the
+thing being relieved*. So Inventory is credited what the layers actually lost (landed cost already
+inside it — the phase-29 release leg's Inventory half is deleted, or the freight is relieved twice),
+Accounts Payable is debited the return price the supplier is crediting, Landed Cost Clearing is
+debited its released share, and the difference is a real gain or loss on the return.
+
+**Derive that difference as the plug that balances the entry**, never as a separately computed
+figure. It is the only construction that keeps `sum(Debit) == sum(Credit)` under the currency fold
+(phase 28's rule that a rule's balancing leg is a sum of the others) and absorbs the rounding residue
+in the same place. Demand the account it posts to only when the plug is non-zero: a return whose
+price equals its FIFO cost is the ordinary case and must not start requiring an account every such
+return has managed without.
+
+The clearing unwind is the same arithmetic stated twice: a full return takes the account to zero, a
+partial one leaves exactly the share of the accrual the unreturned units still carry.
+
+And the mirror question is worth asking out loud rather than skipping: **a Credit Note needs none of
+this**, because a sales return *adds* stock at the cost its source invoice recorded when that stock
+left — a figure stored on the invoice line, not one FIFO picks. What it puts into the ledger and what
+it credits COGS are the same number by construction. The problem is specific to relieving.
+
+## A NOT NULL column's default is safe exactly when it is true of the existing rows (phase 37)
+
+Phase 31's rule — "a non-nullable column on a populated table needs a hand-written backfill, because
+the scaffold's `DEFAULT '0001-01-01'` back-dates every row" — is not about NOT NULL columns. It is
+about defaults that are *false about the data already there*. `StockMovement.ValueAdjustment` ships
+NOT NULL with `defaultValue: 0m` and no backfill at all, and is correct, because every movement
+written before phase 37 carried its whole value in quantity times unit cost: zero is what those rows
+mean. Ask what the existing rows would say if they could answer, not how many of them there are.
+
+## Seeding and tooling traps added by phase 37's E2E
+
+- `PUT /organizations/{id}/general-settings` takes six enums, and three of the guessable names are
+  wrong: it is `RecentSellingPrice` (not `LastSellingPrice`), `ExclusiveOfVat` (not `WithoutTax`) and
+  `AccountingMovement` (not `None`). A wrong member fails as
+  `400 "Failed to read parameter … as JSON"`, naming no field — phase 35b's trap, and the cure is to
+  `GET` the resource first and echo its own values back.
+- A negative-permission proof for a key the **Member** role legitimately holds (here
+  `Purchasing.PurchaseBill.Approve`) needs a **custom role with no grants at all**, since system
+  roles cannot be edited (409). `POST /organizations/{id}/roles` takes `{name, description}` and a
+  fresh role starts with zero grants, so it is a one-call setup.
+- The prints-and-returns bash trap is easy to walk into even while writing a comment warning about
+  it: a helper that echoes a progress line *and* is called under `$( )` returns the progress line.
+  Have it set a global. (Same family as phase 34b's.)
+- A heredoc in the Bash tool still mis-parses a Python patch script containing triple-quoted
+  strings, well below the size the gotcha names. Write the script to a file with the Write tool.

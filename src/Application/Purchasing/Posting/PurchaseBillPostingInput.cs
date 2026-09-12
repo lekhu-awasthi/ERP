@@ -25,4 +25,16 @@ public sealed record PurchaseBillPostingInput(
     Guid? LandedCostClearingAccountId = null,
     decimal CapitalisedAdditionalCost = 0);
 
-public sealed record PurchaseBillPostingLineInput(Guid DebitAccountId, decimal Amount, decimal VatAmount);
+/// <summary>
+/// One resolved document line. <paramref name="RelievesStock"/> (phase 37) says this line's product
+/// is Goods and its account is therefore the Inventory account -- the flag
+/// <c>DebitNotePostingRule</c> needs to leave such a line out of its own credit grouping, because a
+/// purchase return credits Inventory what the FIFO layers actually lost rather than what the line
+/// says. It is set by <c>PurchaseBillAccountResolver</c>, which is the only place that knows a
+/// line's Product.Type, and comparing the resolved account against the Inventory account instead
+/// would have been a guess on any tenant that points two defaults at one account.
+/// <c>PurchaseBillPostingRule</c> ignores it: a bill debits Inventory the amount it paid, which is
+/// the line amount.
+/// </summary>
+public sealed record PurchaseBillPostingLineInput(
+    Guid DebitAccountId, decimal Amount, decimal VatAmount, bool RelievesStock = false);

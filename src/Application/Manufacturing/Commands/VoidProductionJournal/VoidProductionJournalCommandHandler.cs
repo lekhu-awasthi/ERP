@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
@@ -23,9 +24,10 @@ namespace ErpApp.Application.Manufacturing.Commands.VoidProductionJournal;
 /// <item><b>Stock consumed</b> (the raw materials) is put back by <c>IncrementAsync</c> at each
 /// line's recorded ConsumedUnitCost -- the cost it actually left at, mirroring
 /// VoidInventoryAdjustmentCommandHandler's restock of a Decrease line. Always succeeds.</item>
-/// <item><b>The GL</b> is reversed by <c>PostReversalOf</c>, which mirrors the original entry's own
-/// posted lines rather than re-deriving them from the posting rule -- phase-16a's guarantee against
-/// phase-6 bug #3's failure mode.</item>
+/// <item><b>The GL</b> is reversed by <c>SourceDocumentGlEntries.ReverseOutstandingAsync</c>, which
+/// nets this run's own posted lines rather than re-deriving them from the posting rule --
+/// phase-16a's guarantee against phase-6 bug #3's failure mode, over every entry the run has
+/// (phase 37: a run whose output covered a shortfall has two).</item>
 /// </list>
 ///
 /// <para>Order matters: ReverseIncrementAsync runs first so a partly-consumed run fails before
@@ -53,22 +55,26 @@ public sealed class VoidProductionJournalCommandHandler(
         await stockLedgerService.ReverseIncrementAsync(
             request.OrganizationId, DocumentType.ProductionJournal, journal.Id, journal.Date, cancellationToken);
 
-        var originalEntry = await db.GlJournalEntries
-            .Include(x => x.Lines)
-            .SingleAsync(
-                x => x.SourceDocumentType == DocumentType.ProductionJournal && x.SourceDocumentId == journal.Id,
-                cancellationToken);
-
         journal.Void(currentUser.UserId);
+
+        // Phase 37 -- every entry this run posted, not "the" entry: a run whose output covered a
+        // shortfall has a second, and `SingleAsync` over the pair would have thrown a 500 the first
+        // time a Warn tenant voided one.
+        await SourceDocumentGlEntries.ReverseOutstandingAsync(
+            db, DocumentType.ProductionJournal, journal.Id, cancellationToken);
+
+        var costCatchUp = 0m;
 
         foreach (var line in journal.RawMaterials.Where(x => x.ConsumedUnitCost is not null))
         {
-            await stockLedgerService.IncrementAsync(
+            costCatchUp += await stockLedgerService.IncrementAsync(
                 request.OrganizationId, line.ProductId, journal.WarehouseId, line.Quantity, line.ConsumedUnitCost!.Value,
                 DocumentType.ProductionJournal, journal.Id, journal.Date, cancellationToken, journal.LocationId);
         }
 
-        db.GlJournalEntries.Add(GlJournalEntry.PostReversalOf(originalEntry));
+        await StockCostCatchUp.PostAsync(
+            db, request.OrganizationId, DocumentType.ProductionJournal, journal.Id, journal.LocationId,
+            costCatchUp, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

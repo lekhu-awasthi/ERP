@@ -15,7 +15,7 @@ namespace ErpApp.Domain.Accounting;
 /// screen is a single inline "Save Changes" form with no separate approval step (matches FR-3.4's
 /// View/Edit-only permission shape, no Approve key). Saving posts a balanced GlJournalEntry
 /// immediately (CreateOrUpdateOpeningBalanceLineCommandHandler); editing an existing line reverses
-/// its own prior posting first (GlJournalEntry.PostReversalOf, the same Phase 16a mechanism, not a
+/// its own prior posting first (SourceDocumentGlEntries, the same Phase 16a mechanism, not a
 /// hand-derived reversal) before posting the corrected one.
 /// </summary>
 public sealed class OpeningBalanceLine

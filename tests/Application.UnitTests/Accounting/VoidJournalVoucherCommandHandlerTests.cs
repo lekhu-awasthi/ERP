@@ -14,9 +14,10 @@ namespace ErpApp.Application.UnitTests.Accounting;
 
 /// <summary>
 /// JournalVoucher is the simplest Void case (GL reversal only, no stock, no dependents) -- the
-/// right place to prove GlJournalEntry.PostReversalOf's own net-to-zero claim end to end through a
+/// right place to prove the reversal's own net-to-zero claim end to end through a
 /// real handler, not just via the Domain-level unit test. Later Void handlers (PurchaseBill,
-/// Invoice, etc.) reuse the exact same PostReversalOf call, so this is the shared-mechanism test.
+/// Invoice, etc.) reuse the exact same SourceDocumentGlEntries call, so this is the
+/// shared-mechanism test.
 /// </summary>
 public class VoidJournalVoucherCommandHandlerTests
 {

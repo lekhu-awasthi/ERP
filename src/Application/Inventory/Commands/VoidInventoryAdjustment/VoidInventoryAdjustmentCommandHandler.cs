@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
@@ -41,24 +42,30 @@ public sealed class VoidInventoryAdjustmentCommandHandler(
             request.OrganizationId, DocumentType.InventoryAdjustment, inventoryAdjustment.Id, inventoryAdjustment.Date,
             cancellationToken);
 
-        var originalEntry = await db.GlJournalEntries
-            .Include(x => x.Lines)
-            .SingleAsync(
-                x => x.SourceDocumentType == DocumentType.InventoryAdjustment && x.SourceDocumentId == inventoryAdjustment.Id,
-                cancellationToken);
-
         inventoryAdjustment.Void(currentUser.UserId);
+
+        // Phase 37 -- reverse what is outstanding, and do it before the catch-up below is added, so
+        // the reversal never sweeps up the entry this void is about to post. An Increase line that
+        // covered a shortfall has already put a second entry on this document (phase 36: one entry
+        // per approved document is a habit, not an invariant), and `SingleAsync` over the pair was
+        // a 500 waiting for the first tenant to oversell.
+        await SourceDocumentGlEntries.ReverseOutstandingAsync(
+            db, DocumentType.InventoryAdjustment, inventoryAdjustment.Id, cancellationToken);
+
+        var costCatchUp = 0m;
 
         foreach (var line in inventoryAdjustment.Lines.Where(
             x => x.Direction == InventoryAdjustmentDirection.Decrease && x.ConsumedUnitCost is not null))
         {
-            await stockLedgerService.IncrementAsync(
+            costCatchUp += await stockLedgerService.IncrementAsync(
                 request.OrganizationId, line.ProductId, inventoryAdjustment.WarehouseId, line.Quantity, line.ConsumedUnitCost!.Value,
                 DocumentType.InventoryAdjustment, inventoryAdjustment.Id, inventoryAdjustment.Date, cancellationToken,
                 inventoryAdjustment.LocationId);
         }
 
-        db.GlJournalEntries.Add(GlJournalEntry.PostReversalOf(originalEntry));
+        await StockCostCatchUp.PostAsync(
+            db, request.OrganizationId, DocumentType.InventoryAdjustment, inventoryAdjustment.Id,
+            inventoryAdjustment.LocationId, costCatchUp, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

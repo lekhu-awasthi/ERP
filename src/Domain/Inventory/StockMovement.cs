@@ -46,6 +46,27 @@ public sealed class StockMovement
     /// </summary>
     public Guid? LocationId { get; private set; }
 
+    /// <summary>
+    /// Phase 37 -- a <b>value-only</b> correction, in base currency, carried by a row whose
+    /// <see cref="Quantity"/> is zero. Always a non-negative magnitude; <see cref="Direction"/>
+    /// says which way it moves, exactly as it does for a quantity-bearing row.
+    ///
+    /// <para><b>Why the column exists.</b> A shortfall layer is issued at an assumed cost and the
+    /// covering receipt almost never costs exactly that, so at fill time the stock on hand is worth
+    /// a little more or less than In-minus-Out implies. <c>StockFactReader</c> reconstructs every
+    /// dated stock figure from this table alone (phase 26c) -- so a correction the FIFO layers and
+    /// the general ledger both make has to appear here too, or a dated report drifts from both by
+    /// exactly the catch-up. The alternatives were both worse: writing the correction as a matched
+    /// In/Out pair of the filled quantity would have inflated the In and Out <i>quantity</i>
+    /// columns of every movement report (a wrong quantity is more visible, and less defensible,
+    /// than a wrong value), and folding it into the receipt's own unit cost would have misstated
+    /// what the receipt cost.</para>
+    ///
+    /// <para>Zero on every row written before phase 37 and on every quantity-bearing row since.
+    /// </para>
+    /// </summary>
+    public decimal ValueAdjustment { get; private set; }
+
     private StockMovement()
     {
     }
@@ -74,6 +95,48 @@ public sealed class StockMovement
             Direction = direction,
             Quantity = quantity,
             UnitCost = unitCost,
+            SourceDocumentType = sourceDocumentType,
+            SourceDocumentId = sourceDocumentId,
+            TransactionDate = transactionDate,
+            LocationId = locationId,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+    }
+
+    /// <summary>
+    /// Phase 37 -- the value-only row described on <see cref="ValueAdjustment"/>.
+    /// <paramref name="signedAmount"/> is the amount by which stock on hand is worth
+    /// <i>less</i> than In-minus-Out says (positive when the covering receipt cost more than the
+    /// shortfall was issued at), so a positive amount becomes an Out row and a negative one an In
+    /// row -- the same sign convention every other row on this table follows. Never call it with
+    /// zero: a row that moves nothing is noise on a kardex, and <c>decimal</c> keeps the sign bit
+    /// of a negative zero (phase-26c bug #1).
+    /// </summary>
+    public static StockMovement CreateCostAdjustment(
+        Guid organizationId,
+        Guid productId,
+        Guid warehouseId,
+        decimal signedAmount,
+        DocumentType sourceDocumentType,
+        Guid sourceDocumentId,
+        DateOnly transactionDate,
+        Guid? locationId = null)
+    {
+        if (signedAmount == 0)
+        {
+            throw new InvalidOperationException("A cost adjustment movement needs a non-zero amount.");
+        }
+
+        return new StockMovement
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            ProductId = productId,
+            WarehouseId = warehouseId,
+            Direction = signedAmount > 0 ? StockMovementDirection.Out : StockMovementDirection.In,
+            Quantity = 0m,
+            UnitCost = 0m,
+            ValueAdjustment = Math.Abs(signedAmount),
             SourceDocumentType = sourceDocumentType,
             SourceDocumentId = sourceDocumentId,
             TransactionDate = transactionDate,

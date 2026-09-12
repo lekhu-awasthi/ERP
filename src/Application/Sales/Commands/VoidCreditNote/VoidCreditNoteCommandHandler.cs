@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
@@ -38,14 +39,12 @@ public sealed class VoidCreditNoteCommandHandler(
         await stockLedgerService.ReverseIncrementAsync(
             request.OrganizationId, DocumentType.CreditNote, creditNote.Id, creditNote.Date, cancellationToken);
 
-        var originalEntry = await db.GlJournalEntries
-            .Include(x => x.Lines)
-            .SingleAsync(
-                x => x.SourceDocumentType == DocumentType.CreditNote && x.SourceDocumentId == creditNote.Id, cancellationToken);
-
         creditNote.Void(currentUser.UserId);
 
-        db.GlJournalEntries.Add(GlJournalEntry.PostReversalOf(originalEntry));
+        // Phase 37 -- a credit note whose restock covered a shortfall posted a second entry, so the
+        // void reverses what is outstanding across all of them (phase 36).
+        await SourceDocumentGlEntries.ReverseOutstandingAsync(
+            db, DocumentType.CreditNote, creditNote.Id, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

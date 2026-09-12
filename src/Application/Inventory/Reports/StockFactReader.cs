@@ -33,14 +33,20 @@ namespace ErpApp.Application.Inventory.Reports;
 /// purchase ever paid. The live report agrees: every negative-quantity row on 2026-09-03 printed
 /// "-" in both its Rate and its Amount cells.</para>
 ///
-/// <para><b>That branch is unreachable in this codebase today, and is kept deliberately.</b>
-/// <c>StockLedgerService.ConsumeAsync</c> <i>throws</i> a 409 when a document would consume more
-/// than the layers hold, so no approval path can drive a balance below zero -- where the reference
-/// product's "Negative Item Balance" setting offers Reject / Warn / Do Nothing and its own tenant
-/// runs with warn-and-allow, which is why its Inventory Position has hundreds of negative rows and
-/// ours can have none. When that setting is built, negative balances become reachable and this
-/// report must already be right about them; a guard that costs one comparison is a better answer
-/// than a report that silently values phantom stock on the day the setting ships.</para>
+/// <para><b>Phase 37 made that branch reachable, which is what it was written for.</b> Until then
+/// <c>StockLedgerService.ConsumeAsync</c> <i>threw</i> a 409 whenever a document would consume more
+/// than the layers hold, so no approval path could drive a balance below zero -- while the
+/// reference product's "Negative Item Balance" setting (Reject / Warn / Do Nothing) let its own
+/// tenant run warn-and-allow, which is why its Inventory Position had hundreds of negative rows and
+/// ours could have none. That setting is now real: an oversell leaves a <b>shortfall layer</b>
+/// behind and this report's negative rows print "-" for Rate and Amount, exactly as the live one
+/// does. The guard cost one comparison and was right two phases before anything could test it.</para>
+///
+/// <para><b>The cost catch-up rides on this table too.</b> A shortfall is issued at an assumed cost
+/// and covered later at the real one; the difference is written as a value-only movement (quantity
+/// zero, <c>StockMovement.ValueAdjustment</c> non-zero), so a dated balance derived here moves by
+/// the same amount the FIFO layers and the Inventory account do. Without it, In-minus-Out would
+/// drift from both by exactly the catch-up from the fill onwards.</para>
 ///
 /// <para>Each filter is applied as a concrete <c>Where</c> on the movement query, never through a
 /// captured <c>Func</c> selector -- phase-9 bug #1.</para>
@@ -75,9 +81,17 @@ internal static class StockFactReader
         Guid SourceDocumentId,
         StockMovementDirection Direction,
         decimal Quantity,
-        decimal UnitCost)
+        decimal UnitCost,
+        decimal ValueAdjustment = 0m)
     {
-        public decimal Value => Quantity * UnitCost;
+        /// <summary>
+        /// Phase 37 -- a row is normally worth quantity times unit cost, and a cost-catch-up row is
+        /// worth its <see cref="ValueAdjustment"/> with no quantity at all (see
+        /// <c>StockMovement.ValueAdjustment</c>). Adding rather than branching keeps the two kinds
+        /// indistinguishable to every caller: a movement report sums Value the same way either way,
+        /// and the Rate a catch-up row implies is zero because its quantity is.
+        /// </summary>
+        public decimal Value => (Quantity * UnitCost) + ValueAdjustment;
     }
 
     /// <summary>
@@ -124,7 +138,7 @@ internal static class StockFactReader
         var rows = await query
             .Select(m => new Movement(
                 m.Id, m.ProductId, m.WarehouseId, m.TransactionDate, m.CreatedAt,
-                m.SourceDocumentType, m.SourceDocumentId, m.Direction, m.Quantity, m.UnitCost))
+                m.SourceDocumentType, m.SourceDocumentId, m.Direction, m.Quantity, m.UnitCost, m.ValueAdjustment))
             .ToListAsync(cancellationToken);
 
         // CreatedAt is the tie-breaker for two movements sharing a TransactionDate, the same

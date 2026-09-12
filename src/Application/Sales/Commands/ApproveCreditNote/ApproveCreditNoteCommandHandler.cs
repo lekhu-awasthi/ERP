@@ -86,6 +86,7 @@ public sealed class ApproveCreditNoteCommandHandler(
         creditNote.Approve(currentUser.UserId, code);
 
         var totalCogsReversal = 0m;
+        var costCatchUp = 0m;
         if (sourceInvoice is not null)
         {
             var costByLine = sourceInvoice.Lines
@@ -100,7 +101,7 @@ public sealed class ApproveCreditNoteCommandHandler(
                     continue;
                 }
 
-                await stockLedgerService.IncrementAsync(
+                costCatchUp += await stockLedgerService.IncrementAsync(
                     request.OrganizationId, line.ProductId, sourceInvoice.WarehouseId, line.Quantity, unitCost,
                     DocumentType.CreditNote, creditNote.Id, creditNote.Date, cancellationToken, creditNote.LocationId);
                 totalCogsReversal += line.Quantity * unitCost;
@@ -116,6 +117,14 @@ public sealed class ApproveCreditNoteCommandHandler(
         var glEntry = GlJournalEntry.Post(
             request.OrganizationId, DocumentType.CreditNote, creditNote.Id, glLines, creditNote.LocationId);
         db.GlJournalEntries.Add(glEntry);
+
+        // Phase 37 -- a sales return puts stock back at the cost it left at, which is already the
+        // right figure for its own invoice; this is non-zero only when the warehouse owes stock
+        // from some *other* document, and the returned goods pay part of that debt at a cost the
+        // shortfall was not issued at.
+        await StockCostCatchUp.PostAsync(
+            db, request.OrganizationId, DocumentType.CreditNote, creditNote.Id, creditNote.LocationId,
+            costCatchUp, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

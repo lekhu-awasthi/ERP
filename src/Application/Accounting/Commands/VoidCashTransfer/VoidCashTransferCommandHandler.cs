@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
@@ -22,14 +23,14 @@ public sealed class VoidCashTransferCommandHandler(IAppDbContext db, ICurrentUse
             throw new ConflictException("Only an Approved cash transfer can be voided.");
         }
 
-        var originalEntry = await db.GlJournalEntries
-            .Include(x => x.Lines)
-            .SingleAsync(
-                x => x.SourceDocumentType == DocumentType.CashTransfer && x.SourceDocumentId == cashTransfer.Id, cancellationToken);
-
         cashTransfer.Void(currentUser.UserId);
 
-        db.GlJournalEntries.Add(GlJournalEntry.PostReversalOf(originalEntry));
+        // Phase 37 -- reverses whatever is outstanding rather than mirroring one entry. This
+        // type posts only one today, but every void in this codebase now asks the same
+        // question of the ledger (Application.Accounting.Posting.SourceDocumentGlEntries), so
+        // there is no handler left for a second entry to surprise.
+        await SourceDocumentGlEntries.ReverseOutstandingAsync(
+            db, DocumentType.CashTransfer, cashTransfer.Id, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

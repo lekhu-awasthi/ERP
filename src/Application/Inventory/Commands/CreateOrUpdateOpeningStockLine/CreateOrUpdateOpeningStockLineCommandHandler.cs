@@ -72,10 +72,18 @@ public sealed class CreateOrUpdateOpeningStockLineCommandHandler(IAppDbContext d
             db.OpeningStockLines.Add(line);
         }
 
-        await stockLedger.IncrementAsync(
+        var costCatchUp = await stockLedger.IncrementAsync(
             request.OrganizationId, request.ProductId, request.WarehouseId, request.Quantity, request.Rate,
             DocumentType.OpeningStock, line.Id, organization.AccountingStartDate, cancellationToken,
             line.LocationId);
+
+        // Phase 37 -- opening stock posts nothing to the ledger by design (the Opening Balance
+        // screen carries the accounting side), so this is the only entry it can have: editing an
+        // opening line upwards on a product whose warehouse has since gone short pays that debt at
+        // a new rate. Zero on every ordinary save.
+        await StockCostCatchUp.PostAsync(
+            db, request.OrganizationId, DocumentType.OpeningStock, line.Id, line.LocationId,
+            costCatchUp, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

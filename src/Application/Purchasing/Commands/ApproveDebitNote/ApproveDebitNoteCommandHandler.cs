@@ -116,12 +116,18 @@ public sealed class ApproveDebitNoteCommandHandler(
 
             var releasedAdditionalCost = 0m;
 
+            // Phase 37 -- what the FIFO layers actually give up, accumulated from what ConsumeAsync
+            // returns rather than from the note's own rates. Already base currency: a FIFO unit cost
+            // is stored in base and must not be folded a second time (phase 28).
+            var relievedInventoryCost = 0m;
+
             foreach (var line in goodsLines)
             {
                 var averageUnitCost = await stockLedgerService.ConsumeAsync(
                     request.OrganizationId, line.ProductId, purchaseBill.WarehouseId, line.Quantity,
                     DocumentType.DebitNote, debitNote.Id, debitNote.Date, cancellationToken, debitNote.LocationId);
                 line.RecordConsumedUnitCost(averageUnitCost);
+                relievedInventoryCost += line.Quantity * averageUnitCost;
 
                 if (allocationByLineKey.TryGetValue(
                         (line.ProductId, line.Rate, line.VatRate, line.DiscountPct), out var source)
@@ -135,6 +141,27 @@ public sealed class ApproveDebitNoteCommandHandler(
             if (releasedAdditionalCost > 0)
             {
                 postingInput = postingInput with { ReleasedAdditionalCost = releasedAdditionalCost };
+            }
+
+            if (goodsLines.Count > 0)
+            {
+                // Phase 37 -- RelievedInventoryCost is what makes the rule credit Inventory at cost
+                // rather than at the return price, and the adjustment account is where the
+                // difference between them goes. It is resolved here, after the consumption, rather
+                // than in the resolver, because a return whose price happens to equal its FIFO cost
+                // leaves no difference at all and must not start demanding an account that every
+                // such return has managed without. Nothing is saved until the end of this handler,
+                // so the rule's 409 on a missing account still unwinds everything above it.
+                var adjustmentAccountId = await db.TenantSettings
+                    .Where(x => x.OrganizationId == request.OrganizationId)
+                    .Select(x => x.DefaultInventoryAdjustmentAccountId)
+                    .SingleOrDefaultAsync(cancellationToken);
+
+                postingInput = postingInput with
+                {
+                    RelievedInventoryCost = relievedInventoryCost,
+                    InventoryAdjustmentAccountId = adjustmentAccountId,
+                };
             }
         }
 

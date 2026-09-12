@@ -90,6 +90,88 @@ public sealed class StockLedgerEntry
         };
     }
 
+    /// <summary>
+    /// Phase 37 -- a <b>shortfall layer</b>: the FIFO record of stock that was issued before it was
+    /// ever received, created only when the tenant's <c>NegativeStockBalanceAction</c> is Warn (and
+    /// the warning was confirmed) or Do Nothing. <paramref name="shortfallQuantity"/> is a positive
+    /// magnitude; the row stores it negated, so <see cref="QuantityIn"/> and
+    /// <see cref="QuantityRemaining"/> are both negative and the sum of QuantityRemaining across
+    /// layers -- which is what <c>GetAvailableQuantityAsync</c> and every stock figure derive from --
+    /// goes negative by exactly the amount owed.
+    ///
+    /// <para><paramref name="assumedUnitCost"/> is the product's last known cost in that warehouse
+    /// (zero when it has never been bought there). It is an <i>assumption</i>, and the difference
+    /// between it and what the covering receipt actually cost is the phase's central number: see
+    /// <see cref="Fill"/>.</para>
+    /// </summary>
+    public static StockLedgerEntry CreateShortfall(
+        Guid organizationId,
+        Guid productId,
+        Guid warehouseId,
+        decimal shortfallQuantity,
+        decimal assumedUnitCost,
+        DocumentType sourceDocumentType,
+        Guid sourceDocumentId,
+        DateOnly transactionDate,
+        Guid? locationId = null)
+    {
+        if (shortfallQuantity <= 0)
+        {
+            throw new InvalidOperationException("A shortfall layer needs a positive shortfall quantity.");
+        }
+
+        if (assumedUnitCost < 0)
+        {
+            throw new InvalidOperationException("A stock ledger entry's Unit Cost cannot be negative.");
+        }
+
+        return new StockLedgerEntry
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            ProductId = productId,
+            WarehouseId = warehouseId,
+            SourceDocumentType = sourceDocumentType,
+            SourceDocumentId = sourceDocumentId,
+            QuantityIn = -shortfallQuantity,
+            QuantityRemaining = -shortfallQuantity,
+            UnitCost = assumedUnitCost,
+            TransactionDate = transactionDate,
+            LocationId = locationId,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+    }
+
+    /// <summary>
+    /// Phase 37 -- pays a shortfall layer back down towards zero as a real receipt arrives. Only
+    /// ever called on a layer created by <see cref="CreateShortfall"/> (QuantityRemaining below
+    /// zero), and never past zero: a receipt bigger than the debt fills it exactly and keeps the
+    /// rest as its own positive layer.
+    ///
+    /// <para><see cref="QuantityIn"/> is deliberately left alone, exactly as <see cref="Consume"/>
+    /// leaves it -- it is the layer's original size and the kardex's reconstruction depends on it.
+    /// </para>
+    /// </summary>
+    public void Fill(decimal quantity)
+    {
+        if (quantity <= 0)
+        {
+            throw new InvalidOperationException("Filled quantity must be positive.");
+        }
+
+        if (QuantityRemaining >= 0)
+        {
+            throw new InvalidOperationException("Only a shortfall layer can be filled.");
+        }
+
+        if (quantity > -QuantityRemaining)
+        {
+            throw new InvalidOperationException("Cannot fill a shortfall layer past zero.");
+        }
+
+        QuantityRemaining += quantity;
+    }
+
     /// <summary>Public (not internal) because IStockLedgerService -- the only intended caller --
     /// lives in the Application assembly, not Domain; "internal" doesn't cross that boundary the
     /// way it does for e.g. InvoiceLine.Create (called from Invoice, same assembly). Only

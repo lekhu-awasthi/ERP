@@ -68,6 +68,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 35a: ledger drill-down (`?accountId=` + a View Ledger row action) and the location picker/filter swept onto all 15 document forms and lists. Before adding a field to many aggregates at once, or trusting a gotcha's generalisation over an experiment — `docs/phase-35a-status.md`
 - Phase 36: allocation/forex/ageing consistency — the warehouse-guard bug, the forex leg on the Allocate path, one `OutstandingDocumentReader` behind both ageing reports, server-side due dates, product-to-location, three Moonbeam filters. Before assuming a document has one GL entry, or folding a settlement to base — `docs/phase-36-status.md`
 - Phase 35b: the location dimension in the reports — `LocationId` stamped on `GlJournalEntry`/`StockMovement`/`StockLedgerEntry`, the filter on 36 queries and 43 screens, `LocationWiseReportPermission` made real. Before filtering an append-only fact table, extracting a shared `Where`, or proving a location permission — `docs/phase-35b-status.md`
+- Phase 37: inventory policy — negative stock as a **shortfall layer**, the cost catch-up, returns at consumed FIFO cost, the clearing unwind. Before letting a stock balance go negative, before correcting a stock *value*, or before deciding what a return credits Inventory — `docs/phase-37-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -168,17 +169,20 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A FIFO layer stores a unit cost rounded to `ProductionJournal.UnitCostScale`; build a value-transforming GL entry from the values actually created and name the rounding residue (phase-25).
 - `GlJournalEntry` stores no copy of its document's number, reference or business date — only `SourceDocumentType`/`SourceDocumentId`/`PostedAt`; any report showing those must join back across the 11 GL-posting types, and must show the same date field it filters on (phase-26a).
 - A dated stock report must derive from `StockMovement`, never from `StockLedgerEntry`: `QuantityRemaining` is decremented **in place**, so the FIFO table only ever answers "as of now" and a report for a closed period would silently answer today's question. Opening+In-Out over the append-only movements reconstructs both quantity and value at any date, and equals the FIFO figure today (phase-26c).
-- `StockLedgerService.ConsumeAsync` **throws** on an oversell, so no path in this codebase can drive a stock balance negative — the reference product's Negative Item Balance setting (Reject/Warn/Do Nothing) is unbuilt. Don't write a test for a negative-balance branch; pin the throw instead (phase-26c).
+- An oversell leaves a **shortfall layer** (a `StockLedgerEntry` negative on both quantities, at the product's last known cost in that warehouse, zero if never received there) when the tenant's Negative Item Balance setting allows it; `ConsumeAsync` takes the *verdict*, never the setting, because Warn also has to have been confirmed (phase-37, replacing phase-26c's pin).
 - A Debit Note line carries no `ExpenditureClassification` or `IsImport` of its own; both are resolved from the source Purchase Bill's matching line by (PurchaseBillId, ProductId, Rate, VatRate) (phase-19, phase-26c's `PurchaseReturnReader`).
 - Convert a currency on a posting rule's **inputs**, never on its finished `GlLineInput` list: every rule derives its balancing leg as a *sum* of the others, so converting afterwards rounds that leg independently and breaks `sum(Debit)==sum(Credit)` intermittently (phase-28).
 - Never convert twice: FIFO unit costs, COGS and historical `GlLine`s are already base currency. `ApprovePurchaseBillCommandHandler` is the one place a document rate reaches the stock ledger, and it rounds to 4 dp (`ToBaseUnitCost`), not 2 (phase-28).
 - Changing what a posting rule debits changes what every *reversal* of it owes: a Debit Note credits Inventory the return price while `ConsumeAsync` relieves layers at their landed cost, so phase 29's capitalised cost needed its own release leg or Inventory drifted above the ledger one return at a time (phase-29, phase-6 bug #3 again).
 - Build a capitalisation leg from the value the ledger actually received (`layer value created − goods amount`), never the figure the user typed, and round each unit cost **once** at the ledger's own scale from the line's total landed value; the gap is the named residue (phase-29, phase-25's rule on a second aggregate).
 - When a phase adds a tenant-default GL account, grep `web/` for the field name before calling it done — phase 25's and phase 28's three accounts reached the API and no screen, so they could not be configured at all (phase-29; phase-23 bug #1 in reverse).
+- A stock **value** correction must reach three views or two drift silently: the FIFO layers, the Inventory account, and the append-only movement history (`StockMovement.ValueAdjustment`, a row with zero quantity). Any two can be patched into agreement — assert all three (phase-37).
+- A return relieves at the cost the layers **give up**, which FIFO chooses and which need not belong to the document being returned against; credit that, debit the supplier the return price, and derive the difference as the **plug that balances the entry** (phase-37, phase-36's settlement rule in a second costume).
+- A catch-up leg that eleven call sites can raise is its **own** GL entry against the same source document, not an optional amount threaded through six posting rules — which is only safe because phase 36 retired every `SingleAsync` over `(SourceDocumentType, SourceDocumentId)`; phase 37 finished that sweep and deleted `GlJournalEntry.PostReversalOf` with its last caller (phase-37).
 
 - A tenant-level field is reachable only if you can name the command that writes it and the screen that calls it; a read path proves nothing about the write path (phase-31).
 - Two confirmable warnings on one document need two override flags and a `warningKind` on the 422, or confirming the first waives the second (phase-31).
-- A non-nullable column on a populated table needs a hand-written backfill; the scaffold's `DEFAULT '0001-01-01'` back-dates every row and leaves a stray constraint (phase-31).
+- A non-nullable column on a populated table needs a hand-written backfill; the scaffold's `DEFAULT '0001-01-01'` back-dates every row and leaves a stray constraint (phase-31) — but a default is *safe* exactly when it is the truth about the rows already there, which is why `StockMovement.ValueAdjustment` needed none (phase-37).
 - A permission that depends on the requested value as well as the loaded row is the `AttachmentAccess` pattern; the E2E must show 404 on a missing row and 403 on a real one (phase-31's cheque bounce).
 - Never weaken a Domain invariant so a test can reach a state only time produces; reach through EF's change tracker (phase-31's expired `TenantSubscription`).
 - When NULL in a unique-indexed column is an at-most-one sentinel, the unfiltered index is the enforcement and EF's automatic `IS NOT NULL` filter destroys it; `HasFilter(null)` is load-bearing (phase-32's numbering counter).
@@ -269,7 +273,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `sqlcmd -Q` prints "(N rows affected)" into a captured value; `SET NOCOUNT ON` belongs beside `SET QUOTED_IDENTIFIER ON` at the top of every script (phase-35b).
 - `sqlcmd -i` chokes on a forward-slash absolute path, reporting "-E and the -U/-P options are mutually exclusive"; run it from a relative path (phase-36).
 - `POST /auth/register` needs `turnstileToken` as well as `phone`, and `POST /organizations/{id}/invitations` takes **`roleId`** (system Member = `…-0001-000000000002`), not a role name (phase-36).
-- The Angular suite times out nondeterministically under machine load — always the *first* test in a file, always at 5000 ms, in files the change never touched. Re-run before believing it (phase-36).
+- The Angular suite times out nondeterministically under machine load — always the *first* test in a file, always at 5000 ms, in files the change never touched. Re-run before believing it (phase-36); `Api.IntegrationTests` does the same under Testcontainers (phase-37).
+- `PUT /general-settings` takes `RecentSellingPrice`/`ExclusiveOfVat`/`AccountingMovement` — not the guessable names — and a wrong member is a 400 naming no field; a negative-permission proof for a key **Member legitimately holds** needs a custom role with no grants (phase-37).
 - A Goods line consumes stock regardless of `TrackInventory`, so on a tenant without that feature a Goods product cannot be invoiced at all (403 on opening stock, 409 on approve); seed a **Service** line when an E2E just needs an approved sales document (phase-30).
 - curl cannot read a file for `-F` upload here — every path form gives exit 26 and HTTP `000`, which reads like a server fault; drive the file leg from a short Python `urllib` script (phase-30).
 - `POST /api/organizations` needs `industry` and a non-empty `turnstileToken`; accept-invitation is `/api/organizations/memberships/{id}/accept-invitation` with no org segment (with one, a 404 leaves the membership `Invited`); units are `/units-of-measurement` (`shortName`); credit terms are under `/configuration/` (phase-31).
@@ -294,42 +299,40 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–36 are complete.** Phase 36 was the first mostly-*reconciliation* phase since 34: two
-reports that had to agree, two posting paths that had to agree, and one client guard stricter than
-the server it fronted.
+**Phases 0–37 are complete.** Phase 37 was the first phase since 7 to change a Domain invariant:
+`StockLedgerService.ConsumeAsync` had **thrown** on every oversell, which made the reference
+product's *Negative Item Balance* setting (Reject / Warn / Do Nothing) a three-way switch with one
+real branch — confirming the Warn dialog got you the engine's 409 anyway. Phase 31 built the
+setting, phase 26c pinned the throw and wrote a report guard for the day it went away, and this was
+that day.
 
-The guard came first, because it was load-bearing: `featureGuard('MultipleWarehouses')` blocked the
-warehouse page outright, so a flag-off tenant could not create its **first** warehouse and therefore
-could not raise an Invoice or a Purchase Bill at all. The server had always enforced a *cap*; the
-page now shows that cap instead of the route refusing entry. Then the **further-allocation path
-learned to post its realised forex leg** — the Allocate screens had been adding a
-`PaymentAllocation` row and touching the ledger not at all, leaving the control account holding a
-residue no later document could clear — and the **two ageing reports were put behind one
-`OutstandingDocumentReader`**, so a bucket total is now a partition of the rows the per-document
-report lists rather than a second implementation that agreed by patching. Credit Terms became a
-server-side due-date default, and the credit-limit comparison converts currency, which meant folding
-the whole contact-ledger family to base.
+Negative stock is a **shortfall layer**: a `StockLedgerEntry` negative on both quantities, carried at
+the product's last known cost in that warehouse, filled by the next receipt before those goods
+become stock on hand. The interesting number is the **cost catch-up** — `filled x (real - assumed)`
+— which has to reach three views at once or two of them drift quietly: the FIFO layers, the
+Inventory account, and the append-only movement history every dated stock report is reconstructed
+from. It posts as its own GL entry against the covering document (the shape phase 36's
+`SourceDocumentGlEntries` made available) and rides the movement table as a value-only row.
 
-Two carried items came in with it. **Product-to-location** was settled by experiment on the live
-tenant, not inference: a product scoped to one location vanishes from another location's line picker,
-server-side, one `products-minimized?…&location_id=` call per switch. And the **three Moonbeam-only
-report filters** were re-read and built, except *Display Warehouse in Column*, which a
-single-warehouse tenant cannot distinguish from *Group by Warehouse* and which is therefore recorded
-rather than guessed.
+The second half fixed a modelling choice phase 6 made and phase 29 only stopped widening: a
+**purchase return relieves Inventory at the cost the FIFO layers give up**, not at the price the
+supplier credits, with the difference derived as the plug that balances the entry. The Credit Note
+needed nothing and the phase says why — a sales return adds stock at the cost its source invoice
+*recorded*, so it agrees by construction; the problem is specific to relieving, where FIFO chooses.
 
-Three findings outlive the phase. "One GL entry per Approved document" was a habit, not an
-invariant — and was **already** a 500 on a twice-edited Opening Balance line. A settlement must fold
-to base at the rate of **what it settles**, or a fully settled invoice keeps a balance equal to the
-realised forex. And patching two reports into agreement leaves them agreeing by coincidence: phase 31
-fixed both known divergences between the ageing pair, and they still disagreed about which documents
-were ageable at all.
+Swept on the way: every void now reverses what is **outstanding** and every detail query reads every
+entry, so `GlJournalEntry.PostReversalOf` was deleted with its last caller. Phase 26c's pinned
+oversell test was **replaced** deliberately, with its replacement stating what changed.
 
-**Next: phases 37–41 in `docs/roadmap.md`** — 37 is inventory policy (negative stock, returns at
-cost, the clearing unwind). Carried out of 36: product-to-location is enforced on the picker but not
-at save; *Display Warehouse in Column* and `sales-summary`'s Group Wise location grouping are
+**Next: phases 38–41 in `docs/roadmap.md`** — 38 is import/export breadth. Carried out of 37:
+Inventory Master still lacks WarehouseTransfer and OpeningStock rows (needs a live re-check of the
+reference report's Txn Type filter); multi-UOM x variants is unbuilt; and a standalone Debit Note's
+Goods line still credits Inventory without touching the ledger, because `DebitNote` carries no
+warehouse of its own. Carried out of 36 and still open: product-to-location is enforced on the picker
+but not at save; *Display Warehouse in Column* and `sales-summary`'s Group Wise location grouping are
 unbuilt; the Sales Register's money columns are still transaction-currency.
 
-Tests: Domain 443, Application.UnitTests 1000, Api.IntegrationTests 18, Angular 301. `dotnet build` /
+Tests: Domain 452, Application.UnitTests 1013, Api.IntegrationTests 18, Angular 301. `dotnet build` /
 `dotnet test` / `ng build` / `ng test` all clean. `ng build` still warns the initial bundle exceeds
 its 500 kB budget (pre-existing). `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
 check (phase-28), and `ng test` must be run from `web/` (phase-35a).

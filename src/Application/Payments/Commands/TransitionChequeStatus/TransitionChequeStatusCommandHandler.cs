@@ -17,7 +17,8 @@ namespace ErpApp.Application.Payments.Commands.TransitionChequeStatus;
 /// <para><b>It voids the linked Payment rather than posting a bare reversing entry.</b> A bounced
 /// cheque means the payment did not happen, and this codebase already has exactly one mechanism for
 /// "this approved document did not happen": <c>Void</c> plus
-/// <see cref="GlJournalEntry.PostReversalOf"/> mirroring the entry's own posted lines (phase 16a).
+/// <c>SourceDocumentGlEntries.ReverseOutstandingAsync</c> netting the payment's own posted lines
+/// (phase 16a, through phase 36's reader).
 /// Posting a reversal while leaving the Payment Approved would have produced a document whose status
 /// and whose ledger disagree -- and worse, a later Void of that same Payment would reverse it a
 /// second time. Reusing Void makes the double-reversal unrepresentable.</para>

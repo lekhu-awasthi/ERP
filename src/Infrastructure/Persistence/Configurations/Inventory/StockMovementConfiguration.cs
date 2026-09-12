@@ -18,6 +18,10 @@ public sealed class StockMovementConfiguration : IEntityTypeConfiguration<StockM
         builder.Property(x => x.Direction).HasConversion<string>().HasMaxLength(10).IsRequired();
         builder.Property(x => x.Quantity).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.UnitCost).HasPrecision(18, 4).IsRequired();
+        // Phase 37 -- the value-only cost catch-up; zero on every quantity-bearing row. Two
+        // decimals, not four: it is a ledger amount (it is posted to the Inventory account by
+        // StockCostCatchUp), not a unit cost.
+        builder.Property(x => x.ValueAdjustment).HasPrecision(18, 2).IsRequired().HasDefaultValue(0m);
         builder.Property(x => x.SourceDocumentType).HasConversion<string>().HasMaxLength(30).IsRequired();
         builder.Property(x => x.SourceDocumentId).IsRequired();
         builder.Property(x => x.TransactionDate).IsRequired();

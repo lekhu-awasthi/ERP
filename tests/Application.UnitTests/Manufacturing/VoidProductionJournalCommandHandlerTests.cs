@@ -63,7 +63,7 @@ public class VoidProductionJournalCommandHandlerTests
         await VoidAsync(db, seed, approved.Id);
 
         // Both entries live under the same SourceDocumentId, so summing them is the whole story --
-        // GlJournalEntry.PostReversalOf mirrors the original's own lines rather than re-deriving.
+        // The reversal nets the run's own posted lines rather than re-deriving them.
         var glLines = await ManufacturingTestSeed.GlLinesForAsync(
             db, seed.OrganizationId, DocumentType.ProductionJournal, approved.Id);
 

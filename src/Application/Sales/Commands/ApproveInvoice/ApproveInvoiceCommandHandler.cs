@@ -127,7 +127,13 @@ public sealed class ApproveInvoiceCommandHandler(
         {
             var averageUnitCost = await stockLedgerService.ConsumeAsync(
                 request.OrganizationId, line.ProductId, invoice.WarehouseId, line.Quantity,
-                DocumentType.Invoice, invoice.Id, invoice.Date, cancellationToken, invoice.LocationId);
+                DocumentType.Invoice, invoice.Id, invoice.Date, cancellationToken, invoice.LocationId,
+                // Phase 37 -- the Negative Item Balance setting made real. The gate above has
+                // already turned it into a verdict (and, on Warn, has already been confirmed by the
+                // caller), so a shortfall reaching here is one the tenant has asked for: it becomes
+                // a shortfall layer at the product's last known cost rather than a 409 from the
+                // engine that would have made Warn and Do Nothing indistinguishable from Reject.
+                allowNegative: true);
             line.RecordCogsUnitCost(averageUnitCost);
             totalCogs += line.Quantity * averageUnitCost;
         }

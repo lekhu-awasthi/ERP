@@ -690,3 +690,27 @@ Moved verbatim; the one-line versions in CLAUDE.md keep the same "before X" hook
   header change. *Display Warehouse in Column* is the deliberate omission: a single-warehouse tenant
   cannot tell it apart from *Group by Warehouse*, and a column nobody has seen is phase 8f's Annex 5
   waiting to repeat — `docs/phase-36-status.md`
+
+- **Phase 37 — inventory policy: negative stock, returns at cost, the clearing unwind.** *Before
+  removing a throw that a report guard was written against*: phase 26c's pinned oversell test was
+  guarding a **fact**, not a requirement, and the replacement has to say what changed — the
+  Negative Item Balance setting made the throw one of three behaviours, so Reject still throws and
+  the guard's own output is now asserted rather than merely protected. **Before letting a balance
+  go negative**: a shortfall is a **layer** (negative on both quantities, carried at the product's
+  last known cost in that warehouse, zero when it has never been received there), and the next
+  receipt fills it before the goods become stock on hand — the assumption it was issued at and the
+  cost that finally covers it differ, and `filled × (real − assumed)` is the **cost catch-up**.
+  **Before posting a value correction to stock**: it has to reach *three* views or two of them drift
+  silently — the FIFO layers, the Inventory account, and the append-only movement history every
+  dated report reconstructs from (`StockConservation.AssertHoldsAsync` asserts all three, because
+  any two can be patched into agreement). **Before adding a leg to a receipt's posting**: eleven
+  call sites build entries through six posting rules, so the catch-up is its **own** entry against
+  the same source document — which is only available because phase 36 had already replaced every
+  `SingleAsync` over `(SourceDocumentType, SourceDocumentId)`. **Before deciding what a return
+  credits Inventory**: the layers give up whatever FIFO chooses, which need not belong to the
+  document being returned against; credit that, debit the supplier the return price, and derive the
+  difference as the **plug that balances the entry** — never as a separately computed figure, which
+  is what keeps it right under the currency fold and absorbs the rounding residue in one place. And
+  **before adding a NOT NULL column with a default**: a default is safe exactly when it is the truth
+  about the rows already there, which is why `ValueAdjustment` needed no backfill where phase 31's
+  `DueDate` did — `docs/phase-37-status.md`
