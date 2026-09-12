@@ -24,6 +24,8 @@ import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
+import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
+import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
 
 interface EditableAllocation {
   key: number;
@@ -40,7 +42,7 @@ let nextAllocationKey = 1;
  * -- exact mirror of Customer Payment's posting"). */
 @Component({
   selector: 'app-supplier-payment-detail-page',
-  imports: [RouterLink, DatePipe, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, SendEmailDialog, DocumentLocationPicker],
+  imports: [RouterLink, DatePipe, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, SendEmailDialog, DocumentLocationPicker, CurrencyRateFields],
   templateUrl: './supplier-payment-detail-page.html',
 })
 export class SupplierPaymentDetailPage {
@@ -91,13 +93,29 @@ export class SupplierPaymentDetailPage {
   protected readonly locationId = signal('');
   protected readonly allocations = signal<EditableAllocation[]>([]);
 
+  /**
+   * Phase 36. Phase 28 put the Currency + Exchange Rate pair on eleven screens including the
+   * customer-payment twin of this one, and missed this screen -- so a Paid payment could only ever
+   * be raised in the base currency, and the realised-forex leg on the payable side was unreachable
+   * from the UI even though the server had always computed it. The write path was there the whole
+   * time (`PaymentRequest.currencyCode`); only the control was missing, which is phase 29's
+   * "grep web/ for the field name before calling it done" in its exact shape.
+   */
+  protected readonly currencyCode = signal(BASE_CURRENCY_CODE);
+  protected readonly exchangeRate = signal(1);
+
   protected readonly printing = signal(false);
   protected routePaymentId = '';
 
   protected readonly sortedAccounts = computed(() => [...this.accounts()].sort((a, b) => a.code.localeCompare(b.code)));
 
+  /** Phase 36 -- this supplier's bills **in this payment's currency**: a payment can only be
+   *  allocated to documents in its own currency (phase 28 Decision F), so offering the others was
+   *  offering a choice the server refuses at Approve. */
   protected readonly supplierBills = computed(() =>
-    this.approvedPurchaseBills().filter((b) => b.contactId === this.contactId()),
+    this.approvedPurchaseBills().filter(
+      (b) => b.contactId === this.contactId() && (b.currencyCode ?? BASE_CURRENCY_CODE) === this.currencyCode(),
+    ),
   );
 
   protected readonly allocatedTotal = computed(() => this.round(this.allocations().reduce((sum, a) => sum + (a.amount || 0), 0)));
@@ -263,6 +281,8 @@ export class SupplierPaymentDetailPage {
       accountId: this.accountId(),
       amount: this.amount(),
       reference: this.reference() || null,
+      currencyCode: this.currencyCode(),
+      exchangeRate: this.exchangeRate(),
       allocations,
     };
 
@@ -371,6 +391,8 @@ Approve anyway?`)) {
         this.amount.set(payment.amount);
         this.reference.set(payment.reference ?? '');
         this.locationId.set(payment.locationId ?? '');
+        this.currencyCode.set(payment.currencyCode);
+        this.exchangeRate.set(payment.exchangeRate);
         this.allocations.set(
           payment.allocations.map((a) => ({ key: nextAllocationKey++, targetDocumentId: a.targetDocumentId, amount: a.amount })),
         );

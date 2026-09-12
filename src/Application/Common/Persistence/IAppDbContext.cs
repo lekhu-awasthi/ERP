@@ -60,6 +60,7 @@ public interface IAppDbContext
     DbSet<VariantAttributeOption> VariantAttributeOptions { get; }
     DbSet<ProductVariantAttributeUsage> ProductVariantAttributeUsages { get; }
     DbSet<ProductVariantValue> ProductVariantValues { get; }
+    DbSet<ProductLocation> ProductLocations { get; }
     DbSet<AccountGroup> AccountGroups { get; }
     DbSet<Account> Accounts { get; }
     DbSet<JournalVoucher> JournalVouchers { get; }

@@ -4,6 +4,11 @@ using MediatR;
 
 namespace ErpApp.Application.Catalog.Commands.CreateProduct;
 
+    /// <param name="LocationIds">Phase 36 -- the billing locations this product is available at.
+    /// <b>Null or empty means every location</b>, which is what the live control renders as
+    /// <c>All</c> and what every product created before this phase has. Trailing and optional, so
+    /// no existing caller changes -- but see phase-27b's gotcha: the Api's own request record has to
+    /// carry it too, or it binds to null in silence.</param>
 public sealed record CreateProductCommand(
     Guid OrganizationId,
     ProductType Type,
@@ -18,7 +23,8 @@ public sealed record CreateProductCommand(
     int ReOrderLevel,
     bool TrackInventory,
     string? Sku = null,
-    string? Barcode = null)
+    string? Barcode = null,
+    IReadOnlyList<Guid>? LocationIds = null)
     : IRequest<CreateProductResult>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.ProductManage;

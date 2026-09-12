@@ -66,6 +66,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 34b: the shell on `NavigationCatalog` (zero page-template edits), Reports index, list chrome (search on 25 queries, date range on 16). Before a paginated list query, a displayed-but-unowned filter, or `overflow` on a layout container — `docs/phase-34b-status.md`
 - Phase 34c: scale (NFR-5.1/5.2) — the 50k-invoice dataset in `tools/scale/`, a p95 budget per class of screen, `TenantIndexConvention` (50 indexes from a rule), the shell `@defer`ed. Before adding an index, mapping a tenant-scoped entity, or quoting a performance number — `docs/phase-34c-status.md`
 - Phase 35a: ledger drill-down (`?accountId=` + a View Ledger row action) and the location picker/filter swept onto all 15 document forms and lists. Before adding a field to many aggregates at once, or trusting a gotcha's generalisation over an experiment — `docs/phase-35a-status.md`
+- Phase 36: allocation/forex/ageing consistency — the warehouse-guard bug, the forex leg on the Allocate path, one `OutstandingDocumentReader` behind both ageing reports, server-side due dates, product-to-location, three Moonbeam filters. Before assuming a document has one GL entry, or folding a settlement to base — `docs/phase-36-status.md`
 - Phase 35b: the location dimension in the reports — `LocationId` stamped on `GlJournalEntry`/`StockMovement`/`StockLedgerEntry`, the filter on 36 queries and 43 screens, `LocationWiseReportPermission` made real. Before filtering an append-only fact table, extracting a shared `Where`, or proving a location permission — `docs/phase-35b-status.md`
 
 ## Stack & conventions
@@ -158,6 +159,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 **GL posting, documents and domain invariants**
 - A "reverse of X" posting rule can balance its own entry while leaving a paired control account (AP net of TDS) permanently off; trace the net effect on every account across original + reversal (phase-6 bug #3).
 - Reversals mirror the original entry's own posted lines via `GlJournalEntry.PostReversalOf` (a second entry, never a mutation); never re-derive a reversal from the posting rule (phase-16a).
+- "One GL entry per Approved document" is a per-type habit, not an invariant: `SingleAsync` over `(SourceDocumentType, SourceDocumentId)` was already a 500 on a twice-edited Opening Balance line. Reverse what is **outstanding** — the net of every entry, grouped by location — via `SourceDocumentGlEntries` (phase-36).
+- A settlement folds to base at the rate of **what it settles** (each allocation at its target's rate, the remainder at its own), or a fully settled invoice keeps a residual balance equal to the realised forex (phase-36).
 - `ReferrerType`/`ReferrerId` enforce nothing — a conversion needs `MarkConverted`, quantity/rate caps net of prior reversals, and contact/TDS consistency checks in the Create handler (phase-6 bug #4).
 - Goods purchases debit `DefaultInventoryAccountId` (post-Phase-19 fix); a live inventory value still comes from `StockLedgerEntry.QuantityRemaining × UnitCost`, not that GL balance (phase-19 bug #1, phase-7 addendum).
 - GL-report tests must bracket `DateOnly.FromDateTime(DateTime.UtcNow)`, because `PostedAt` is stamped at Approve time, not from the document date (phase-19 bug #2).
@@ -253,6 +256,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A bash helper that both **prints and returns** is a trap under `$( )` — it returns the printed line too; fourteen malformed ids became a `PUT` storing nulls that surfaced as a 409 three steps later. Have it set a global (phase-34b, same family as a function whose assignment a subshell discards).
 - Map one enum onto another **by name** (`Enum.TryParse`), never by ordinal, and add a test asserting every member has a counterpart — an ordinal cast compiles, works today, and silently reports the wrong value the first time a member is inserted (phase-26a).
 - A shared reader that several reports agree through is worth more than each report deriving its own figure: Invoice Age's total balance equals Customer Receivable Summary's closing balance *by construction* because both read `ContactLedgerReader` (phase-26b).
+- Patching two reports into agreement leaves them agreeing by coincidence: phase 31 fixed both known divergences between the ageing pair and they still disagreed about *which documents are ageable*. One reader, two presentations, and a test that reads both on the same data (phase-36's `OutstandingDocumentReader`).
 - A curl seed script that pipes approvals to `/dev/null` hides its own failures — the first report just comes back empty. Print every approval's status code. Two live traps: `POST /api/organizations` returns `organizationId`, not `id`, and the GL defaults are **one** `PUT /accounting-defaults` taking all eleven accounts (phase-26c).
 - Driving the reference product's Browser pane needs coordinates from `getBoundingClientRect`: its accessibility tree is nearly empty and `find` matches nothing. Its GENERATE control's DOM text is "Generate" — the capitals are CSS `text-transform` (phase-26c).
 - A fresh Organization has zero Accounts and zero Account Groups — nothing seeds a chart of accounts — so any E2E needing a Journal Voucher, Cash Transfer, Payment or Expense line must `POST` its own account groups (one per `AccountRootType`, spelled `Asset`/`Liability`/`Equity`/`Income`/`Expense` — singular, unlike the plural `rootType` groupings a list response returns them under) before it can create an account (phase-27a).
@@ -263,6 +267,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A `Reports.*` key **cannot be granted per location** (400: "Only transaction permissions are location-scoped") — a report's location scope comes from the caller's *transaction* grants via `AnyGrantedLocationsAsync`, so the report key is organization-wide and the branch grant goes on e.g. `Sales.Invoice.View` (phase-35b).
 - `POST /organizations`'s entitlement flags are `multipleLocations`/`multipleWarehouses`/`trackInventory` — an `...Enabled` suffix binds to false silently and surfaces three steps later as a feature 403; `POST /billing-locations` requires `address`; the invite route is `POST /organizations/{id}/invitations` returning **`membershipId`**; `vatRate` is `ThirteenPercentVat` (a wrong enum member fails as "Failed to read parameter … as JSON", naming no field) (phase-35b).
 - `sqlcmd -Q` prints "(N rows affected)" into a captured value; `SET NOCOUNT ON` belongs beside `SET QUOTED_IDENTIFIER ON` at the top of every script (phase-35b).
+- `sqlcmd -i` chokes on a forward-slash absolute path, reporting "-E and the -U/-P options are mutually exclusive"; run it from a relative path (phase-36).
+- `POST /auth/register` needs `turnstileToken` as well as `phone`, and `POST /organizations/{id}/invitations` takes **`roleId`** (system Member = `…-0001-000000000002`), not a role name (phase-36).
+- The Angular suite times out nondeterministically under machine load — always the *first* test in a file, always at 5000 ms, in files the change never touched. Re-run before believing it (phase-36).
 - A Goods line consumes stock regardless of `TrackInventory`, so on a tenant without that feature a Goods product cannot be invoiced at all (403 on opening stock, 409 on approve); seed a **Service** line when an E2E just needs an approved sales document (phase-30).
 - curl cannot read a file for `-F` upload here — every path form gives exit 26 and HTTP `000`, which reads like a server fault; drive the file leg from a short Python `urllib` script (phase-30).
 - `POST /api/organizations` needs `industry` and a non-empty `turnstileToken`; accept-invitation is `/api/organizations/memberships/{id}/accept-invitation` with no org segment (with one, a 404 leaves the membership `Invited`); units are `/units-of-measurement` (`shortName`); credit terms are under `/configuration/` (phase-31).
@@ -287,37 +294,42 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–34c, 35a and 35b are complete.** Phase 35 was split with the user into **35a** (the
-document side) and **35b** (the report side); both are done, and with them the Billing Location
-dimension reaches every screen that has one.
+**Phases 0–36 are complete.** Phase 36 was the first mostly-*reconciliation* phase since 34: two
+reports that had to agree, two posting paths that had to agree, and one client guard stricter than
+the server it fronted.
 
-35b's gate was `GlJournalEntry` having no `LocationId` while seven GL reports filter by one live —
-and it turned out the same gap existed on `StockMovement` and `StockLedgerEntry`. All three are
-settled by one rule: **an append-only fact row carries the billing location of the document that
-created it, stamped at write time** (11 GL posting sites, 15 stock-ledger sites, reversals
-inheriting rather than re-deriving, two backfill migrations). On top of that the phase put the filter
-on **36 report queries, their handlers and 86 endpoint constructions**, threaded five shared readers,
-swept the control onto **43 report screens** through one `app-report-location-filter`, put the
-LOCATION column on both Master reports (closing 35a carried item #3), and gave
-`TenantSettings.LocationWiseReportPermission` — one consumer for three phases — every report it was
-always meant to govern (closing 32b carried item #1). Nine exemptions are recorded with reasons, six
-from the live census and three because the underlying row has no location at all.
+The guard came first, because it was load-bearing: `featureGuard('MultipleWarehouses')` blocked the
+warehouse page outright, so a flag-off tenant could not create its **first** warehouse and therefore
+could not raise an Invoice or a Purchase Bill at all. The server had always enforced a *cap*; the
+page now shows that cap instead of the route refusing entry. Then the **further-allocation path
+learned to post its realised forex leg** — the Allocate screens had been adding a
+`PaymentAllocation` row and touching the ledger not at all, leaving the control account holding a
+residue no later document could clear — and the **two ageing reports were put behind one
+`OutstandingDocumentReader`**, so a bucket total is now a partition of the rows the per-document
+report lists rather than a second implementation that agreed by patching. Credit Terms became a
+server-side due-date default, and the credit-limit comparison converts currency, which meant folding
+the whole contact-ledger family to base.
 
-Two findings outlive the phase. A shared helper replacing a per-handler `Where` must own **every**
-condition that `Where` carried: the first `GlEntryLocations` took a pre-filtered queryable and left
-nine handlers each responsible for `OrganizationId`, in a codebase with no global query filter. And
-a `Reports.*` key **cannot be granted per location at all** — a report's location scope is derived
-from the caller's *transaction* grants — which only running the E2E revealed, because the first
-negative script asserted a grant shape the API refuses outright.
+Two carried items came in with it. **Product-to-location** was settled by experiment on the live
+tenant, not inference: a product scoped to one location vanishes from another location's line picker,
+server-side, one `products-minimized?…&location_id=` call per switch. And the **three Moonbeam-only
+report filters** were re-read and built, except *Display Warehouse in Column*, which a
+single-warehouse tenant cannot distinguish from *Group by Warehouse* and which is therefore recorded
+rather than guessed.
 
-**Next: phases 36–41 in `docs/roadmap.md`.** Phase 36 opens with a one-line bug that should not wait
-behind the rest of it: `featureGuard('MultipleWarehouses')` on `organizations/:id/warehouses` stops a
-flag-off tenant creating its *first* warehouse, which Invoice and Purchase Bill both require.
-Deferred out of 35b by agreement and carried into 36: **Product-to-location** (what the selector
-restricts is unobserved; probing it needs two writes on the live tenant) and the three Moonbeam-only
-report filters.
+Three findings outlive the phase. "One GL entry per Approved document" was a habit, not an
+invariant — and was **already** a 500 on a twice-edited Opening Balance line. A settlement must fold
+to base at the rate of **what it settles**, or a fully settled invoice keeps a balance equal to the
+realised forex. And patching two reports into agreement leaves them agreeing by coincidence: phase 31
+fixed both known divergences between the ageing pair, and they still disagreed about which documents
+were ageable at all.
 
-Tests: Domain 443, Application.UnitTests 978, Api.IntegrationTests 18, Angular 291. `dotnet build` /
+**Next: phases 37–41 in `docs/roadmap.md`** — 37 is inventory policy (negative stock, returns at
+cost, the clearing unwind). Carried out of 36: product-to-location is enforced on the picker but not
+at save; *Display Warehouse in Column* and `sales-summary`'s Group Wise location grouping are
+unbuilt; the Sales Register's money columns are still transaction-currency.
+
+Tests: Domain 443, Application.UnitTests 1000, Api.IntegrationTests 18, Angular 301. `dotnet build` /
 `dotnet test` / `ng build` / `ng test` all clean. `ng build` still warns the initial bundle exceeds
 its 500 kB budget (pre-existing). `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
 check (phase-28), and `ng test` must be run from `web/` (phase-35a).

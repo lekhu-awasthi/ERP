@@ -32,6 +32,21 @@ namespace ErpApp.Application.Contacts.Queries.ContactStatement;
 /// docs/phase-26b-status.md's Decision B for what changes and why that is a correction rather than
 /// a scope creep.</para>
 ///
+/// <para><b>Phase 36 -- every amount is folded to the base currency</b>, each document at its own
+/// stored rate. A contact's balance is one number, so a ledger that summed a USD invoice and an NPR
+/// receipt as though they were the same unit was not a balance at all -- and
+/// <c>ContactCreditLimitPolicy</c> compared that mixed sum against a base-currency credit limit
+/// (phase-31 carried item #3, inherited from phase 28's carried limitation on this whole family).
+/// A single-currency tenant is untouched: every rate is 1.</para>
+///
+/// <para><b>A settlement is folded at the rate of what it settles</b>, not at its own. A payment's
+/// allocated portion converts at each target document's rate and only its unallocated remainder at
+/// the payment's own rate. Folding the whole payment at its own rate would leave a fully settled
+/// invoice showing a residual balance equal to the realised exchange difference -- which is a real
+/// number, but it belongs in the P&amp;L, where <c>PaymentForexCalculator</c> books it, and not in
+/// what a customer still owes. This is the same rule the ageing reports follow by folding each
+/// document's net at that document's rate, which is why the two still agree.</para>
+///
 /// Each line set is loaded with its own concrete Where lambda, not a generic helper over
 /// IQueryable&lt;TLine&gt; -- a generic parent-id selector passed as a captured Func can't be
 /// translated by EF Core's LINQ provider, the same gotcha phase-9-status.md already hit once here.
@@ -87,7 +102,7 @@ internal static class ContactLedgerReader
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
                 && x.Status == InvoiceStatus.Approved && x.Date <= toDate)
             .AtLocations(locationId, reportLocations)
-            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference, x.ExchangeRate })
             .ToListAsync(cancellationToken);
         var invoiceLines = await db.InvoiceLines
             .Where(x => invoices.Select(i => i.Id).Contains(x.InvoiceId))
@@ -99,7 +114,7 @@ internal static class ContactLedgerReader
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
                 && x.Status == CreditNoteStatus.Approved && x.Date <= toDate)
             .AtLocations(locationId, reportLocations)
-            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference, x.ExchangeRate })
             .ToListAsync(cancellationToken);
         var creditNoteLines = await db.CreditNoteLines
             .Where(x => creditNotes.Select(c => c.Id).Contains(x.CreditNoteId))
@@ -111,16 +126,22 @@ internal static class ContactLedgerReader
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
                 && x.Direction == PaymentDirection.Received && x.Status == PaymentStatus.Approved && x.Date <= toDate)
             .AtLocations(locationId, reportLocations)
-            .Select(x => new { x.ContactId, x.Date, x.Code, x.Reference, x.Amount })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference, x.Amount, x.ExchangeRate })
             .ToListAsync(cancellationToken);
 
+        var paymentBaseAmounts = await SettlementBaseAmountsAsync(
+            db, organizationId, DocumentType.Invoice,
+            [.. payments.Select(x => (x.Id, x.Amount, x.ExchangeRate))], cancellationToken);
+
         var events = new List<Event>();
-        events.AddRange(invoices.Select(x =>
-            new Event(x.ContactId, x.Date, DocumentType.Invoice, x.Code, x.Reference, invoiceTotals.GetValueOrDefault(x.Id))));
-        events.AddRange(creditNotes.Select(x =>
-            new Event(x.ContactId, x.Date, DocumentType.CreditNote, x.Code, x.Reference, -creditNoteTotals.GetValueOrDefault(x.Id))));
+        events.AddRange(invoices.Select(x => new Event(
+            x.ContactId, x.Date, DocumentType.Invoice, x.Code, x.Reference,
+            ExchangeRates.ToBase(invoiceTotals.GetValueOrDefault(x.Id), x.ExchangeRate))));
+        events.AddRange(creditNotes.Select(x => new Event(
+            x.ContactId, x.Date, DocumentType.CreditNote, x.Code, x.Reference,
+            -ExchangeRates.ToBase(creditNoteTotals.GetValueOrDefault(x.Id), x.ExchangeRate))));
         events.AddRange(payments.Select(x =>
-            new Event(x.ContactId, x.Date, DocumentType.Payment, x.Code, x.Reference, -x.Amount)));
+            new Event(x.ContactId, x.Date, DocumentType.Payment, x.Code, x.Reference, -paymentBaseAmounts[x.Id])));
         events.AddRange(await LoadJournalVoucherEventsAsync(
             db, organizationId, ContactType.Customer, contactId, toDate, cancellationToken, locationId, reportLocations));
         return events;
@@ -134,7 +155,7 @@ internal static class ContactLedgerReader
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
                 && x.Status == PurchaseBillStatus.Approved && x.Date <= toDate)
             .AtLocations(locationId, reportLocations)
-            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference, x.TdsAmount })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference, x.TdsAmount, x.ExchangeRate })
             .ToListAsync(cancellationToken);
         var purchaseBillLines = await db.PurchaseBillLines
             .Where(x => purchaseBills.Select(b => b.Id).Contains(x.PurchaseBillId))
@@ -146,7 +167,7 @@ internal static class ContactLedgerReader
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
                 && x.Status == ExpenseStatus.Approved && x.Date <= toDate)
             .AtLocations(locationId, reportLocations)
-            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.SupplierInvoiceReference, x.TdsAmount })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.SupplierInvoiceReference, x.TdsAmount, x.ExchangeRate })
             .ToListAsync(cancellationToken);
         var expenseLines = await db.ExpenseLines
             .Where(x => expenses.Select(e => e.Id).Contains(x.ExpenseId))
@@ -158,7 +179,7 @@ internal static class ContactLedgerReader
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
                 && x.Status == DebitNoteStatus.Approved && x.Date <= toDate)
             .AtLocations(locationId, reportLocations)
-            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference, x.TdsAmount })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference, x.TdsAmount, x.ExchangeRate })
             .ToListAsync(cancellationToken);
         var debitNoteLines = await db.DebitNoteLines
             .Where(x => debitNotes.Select(d => d.Id).Contains(x.DebitNoteId))
@@ -170,24 +191,98 @@ internal static class ContactLedgerReader
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
                 && x.Direction == PaymentDirection.Paid && x.Status == PaymentStatus.Approved && x.Date <= toDate)
             .AtLocations(locationId, reportLocations)
-            .Select(x => new { x.ContactId, x.Date, x.Code, x.Reference, x.Amount })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference, x.Amount, x.ExchangeRate })
             .ToListAsync(cancellationToken);
+
+        var paymentBaseAmounts = await SettlementBaseAmountsAsync(
+            db, organizationId, DocumentType.PurchaseBill,
+            [.. payments.Select(x => (x.Id, x.Amount, x.ExchangeRate))], cancellationToken);
 
         var events = new List<Event>();
         events.AddRange(purchaseBills.Select(x => new Event(
             x.ContactId, x.Date, DocumentType.PurchaseBill, x.Code, x.Reference,
-            purchaseBillTotals.GetValueOrDefault(x.Id) - x.TdsAmount)));
+            ExchangeRates.ToBase(purchaseBillTotals.GetValueOrDefault(x.Id) - x.TdsAmount, x.ExchangeRate))));
         events.AddRange(expenses.Select(x => new Event(
             x.ContactId, x.Date, DocumentType.Expense, x.Code, x.SupplierInvoiceReference,
-            expenseTotals.GetValueOrDefault(x.Id) - x.TdsAmount)));
+            ExchangeRates.ToBase(expenseTotals.GetValueOrDefault(x.Id) - x.TdsAmount, x.ExchangeRate))));
         events.AddRange(debitNotes.Select(x => new Event(
             x.ContactId, x.Date, DocumentType.DebitNote, x.Code, x.Reference,
-            -(debitNoteTotals.GetValueOrDefault(x.Id) - x.TdsAmount))));
+            -ExchangeRates.ToBase(debitNoteTotals.GetValueOrDefault(x.Id) - x.TdsAmount, x.ExchangeRate))));
         events.AddRange(payments.Select(x =>
-            new Event(x.ContactId, x.Date, DocumentType.Payment, x.Code, x.Reference, -x.Amount)));
+            new Event(x.ContactId, x.Date, DocumentType.Payment, x.Code, x.Reference, -paymentBaseAmounts[x.Id])));
         events.AddRange(await LoadJournalVoucherEventsAsync(
             db, organizationId, ContactType.Supplier, contactId, toDate, cancellationToken, locationId, reportLocations));
         return events;
+    }
+
+    /// <summary>
+    /// Phase 36 -- each payment's value in the base currency, folded at <b>the rate of what it
+    /// settles</b>: every allocation at its target document's own rate, and whatever remains
+    /// unallocated at the payment's own rate.
+    ///
+    /// <para>That is what makes a fully settled invoice net to exactly zero in a contact's ledger
+    /// even when the receipt came in at a different rate. Folding the payment at its own rate
+    /// instead would leave the realised exchange difference sitting in the contact's balance as if
+    /// the customer still owed it; that difference is booked to the forex account at Approve time
+    /// (<c>PaymentForexCalculator</c>) and belongs there, not here.</para>
+    ///
+    /// <para>Cross-currency allocation is refused outright (phase 28 Decision F), so an
+    /// allocation's Amount is always in both the payment's and the target's currency and the fold
+    /// is unambiguous.</para>
+    /// </summary>
+    private static async Task<Dictionary<Guid, decimal>> SettlementBaseAmountsAsync(
+        IAppDbContext db, Guid organizationId, DocumentType targetDocumentType,
+        IReadOnlyList<(Guid Id, decimal Amount, decimal ExchangeRate)> payments, CancellationToken cancellationToken)
+    {
+        var result = payments.ToDictionary(x => x.Id, x => ExchangeRates.ToBase(x.Amount, x.ExchangeRate));
+
+        if (payments.Count == 0 || payments.All(x => x.ExchangeRate == ExchangeRates.BaseRate))
+        {
+            // Every single-currency tenant, and most documents of a multi-currency one: nothing to
+            // look up, and the answer is the payment's own amount.
+            return result;
+        }
+
+        var paymentIds = payments.Select(x => x.Id).ToList();
+        var allocations = await db.PaymentAllocations
+            .Where(x => x.SourceType == DocumentType.Payment && paymentIds.Contains(x.SourceId)
+                && x.TargetDocumentType == targetDocumentType)
+            .Select(x => new { x.SourceId, x.TargetDocumentId, x.Amount })
+            .ToListAsync(cancellationToken);
+
+        if (allocations.Count == 0)
+        {
+            return result;
+        }
+
+        var targetIds = allocations.Select(x => x.TargetDocumentId).Distinct().ToList();
+        var targetRates = targetDocumentType == DocumentType.Invoice
+            ? await db.Invoices
+                .Where(x => x.OrganizationId == organizationId && targetIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.ExchangeRate })
+                .ToDictionaryAsync(x => x.Id, x => x.ExchangeRate, cancellationToken)
+            : await db.PurchaseBills
+                .Where(x => x.OrganizationId == organizationId && targetIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.ExchangeRate })
+                .ToDictionaryAsync(x => x.Id, x => x.ExchangeRate, cancellationToken);
+
+        foreach (var payment in payments)
+        {
+            var mine = allocations.Where(x => x.SourceId == payment.Id).ToList();
+            if (mine.Count == 0)
+            {
+                continue;
+            }
+
+            var allocatedBase = mine.Sum(x => ExchangeRates.ToBase(
+                x.Amount,
+                targetRates.TryGetValue(x.TargetDocumentId, out var rate) && rate != 0 ? rate : payment.ExchangeRate));
+
+            var unallocated = payment.Amount - mine.Sum(x => x.Amount);
+            result[payment.Id] = allocatedBase + ExchangeRates.ToBase(unallocated, payment.ExchangeRate);
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -208,7 +303,7 @@ internal static class ContactLedgerReader
             .Where(x => x.OrganizationId == organizationId
                 && x.Status == JournalVoucherStatus.Approved && x.Date <= toDate)
             .AtLocations(locationId, reportLocations)
-            .Select(x => new { x.Id, x.Date, x.Code, x.Reference })
+            .Select(x => new { x.Id, x.Date, x.Code, x.Reference, x.ExchangeRate })
             .ToListAsync(cancellationToken);
 
         if (vouchers.Count == 0)
@@ -245,7 +340,8 @@ internal static class ContactLedgerReader
                     var netDebit = g.Sum(x => x.Debit - x.Credit);
                     var signed = contactType == ContactType.Customer ? netDebit : -netDebit;
                     return new Event(
-                        g.Key.ContactId, voucher.Date, DocumentType.JournalVoucher, voucher.Code, voucher.Reference, signed);
+                        g.Key.ContactId, voucher.Date, DocumentType.JournalVoucher, voucher.Code, voucher.Reference,
+                        ExchangeRates.ToBase(signed, voucher.ExchangeRate));
                 })
                 .Where(x => x.SignedAmount != 0),
         ];

@@ -86,6 +86,7 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<VariantAttributeOption> VariantAttributeOptions => Set<VariantAttributeOption>();
     public DbSet<ProductVariantAttributeUsage> ProductVariantAttributeUsages => Set<ProductVariantAttributeUsage>();
     public DbSet<ProductVariantValue> ProductVariantValues => Set<ProductVariantValue>();
+    public DbSet<ProductLocation> ProductLocations => Set<ProductLocation>();
 
     public DbSet<AccountGroup> AccountGroups => Set<AccountGroup>();
 
@@ -295,6 +296,15 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
             .HasForeignKey(x => x.ProductId);
         modelBuilder.Entity<Product>()
             .Metadata.FindNavigation(nameof(Product.VariantValues))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        // Phase 36's ProductLocation, restated for the same reason.
+        modelBuilder.Entity<Product>()
+            .HasMany(p => p.Locations)
+            .WithOne()
+            .HasForeignKey(x => x.ProductId);
+        modelBuilder.Entity<Product>()
+            .Metadata.FindNavigation(nameof(Product.Locations))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
 
         modelBuilder.Entity<VariantAttribute>()

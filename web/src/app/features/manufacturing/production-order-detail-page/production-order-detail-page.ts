@@ -18,6 +18,7 @@ import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-cus
 import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
+import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
 
 interface EditableMaterial {
   key: number;
@@ -128,7 +129,9 @@ export class ProductionOrderDetailPage {
   protected readonly canConvert = computed(() => this.order()?.status === 'Approved');
 
   constructor() {
-    this.catalogService.listAllProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
+    // Phase 36 -- the picker lists the products available at THIS document's billing location,
+    // and re-reads when the header location changes. See shared/catalog/location-aware-products.
+    locationAwareProducts(this.organizationId, this.locationId, this.products);
     this.configurationService.listCostTerms(this.organizationId).subscribe({
       next: (terms) => this.costTerms.set(terms.filter((t) => t.category === 'ProductionCost' && t.isActive)),
     });

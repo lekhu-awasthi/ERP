@@ -407,14 +407,22 @@ export class AccountingService {
   // the Current-View-vs-Full-List export split (`full`) phase-16c established. Params are typed
   // Record<string, string> deliberately: a union including `{}` silently resolves HttpClient.get
   // to its arraybuffer overload (phase-3 bug #4).
+  /** Phase 36 -- tagOptionIds is the live drawer's Reporting Tags, one multi-select per tag
+   *  category. A document matches when it carries any of the selected options. */
   getJournalReport(
     organizationId: string, fromDate: string, toDate: string, documentType: GlSourceDocumentType | null,
     page = 1, pageSize = 50,
     locationId?: string,
+    tagOptionIds: string[] = [],
   ): Observable<PagedResult<JournalReportEntryDto>> {
+    const params: Record<string, string | string[]> = {
+      ...this.glReportParams(fromDate, toDate, page, pageSize, { documentType, locationId }),
+    };
+    if (tagOptionIds.length > 0) params['tagOptionIds'] = tagOptionIds;
+
     return this.http.get<PagedResult<JournalReportEntryDto>>(
       `${this.baseUrl(organizationId)}/reports/journal-report`,
-      { withCredentials: true, params: this.glReportParams(fromDate, toDate, page, pageSize, { documentType, locationId }) },
+      { withCredentials: true, params },
     );
   }
 
@@ -422,10 +430,17 @@ export class AccountingService {
     organizationId: string, fromDate: string, toDate: string, documentType: GlSourceDocumentType | null,
     full: boolean, page: number, pageSize: number,
     locationId?: string,
+    tagOptionIds: string[] = [],
   ): Observable<Blob> {
+    const params: Record<string, string | string[]> = {
+      ...this.glReportParams(fromDate, toDate, page, pageSize, { documentType, locationId }),
+      full: String(full),
+    };
+    if (tagOptionIds.length > 0) params['tagOptionIds'] = tagOptionIds;
+
     return this.http.get(`${this.baseUrl(organizationId)}/reports/journal-report/export`, {
       withCredentials: true,
-      params: { ...this.glReportParams(fromDate, toDate, page, pageSize, { documentType, locationId }), full: String(full) },
+      params,
       responseType: 'blob',
     });
   }

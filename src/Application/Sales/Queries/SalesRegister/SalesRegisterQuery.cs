@@ -36,12 +36,21 @@ public sealed record SalesRegisterQuery(
     // default and the behaviour every caller had before this parameter existed.
     bool IncludeCreditNotes = true,
     // Phase 35b -- the Billing Location filter; null is "All locations". See ILocationFilteredReport.
-    Guid? LocationId = null)
+    Guid? LocationId = null,
+    // Phase 36 -- the live drawer's second View Option, beside Include Credit Note and previously
+    // unbuilt. On (the live default) is one row per document. Off is one row per LINE, with the
+    // item's name, quantity and unit added as three columns: on Moonbeam 2026-09-11 the same period
+    // went from 27 rows to 50 and the footer total did not move, which is the property the
+    // implementation keeps -- a line's magnitudes sum to its document's.
+    bool GroupByBill = true)
     : IRequest<SalesRegisterDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.SalesRegisterView;
 }
 
+/// <param name="ItemName">Phase 36 -- the line's item, and null unless <c>GroupByBill</c> was
+/// turned off. Null rather than empty so a client can tell "this register is grouped by document"
+/// from "an item with no name".</param>
 public sealed record SalesRegisterRowDto(
     DateOnly Date,
     DocumentType DocumentType,
@@ -59,7 +68,10 @@ public sealed record SalesRegisterRowDto(
     decimal ExportValue,
     string? ExportCountry,
     string? ExportDeclarationNo,
-    DateOnly? ExportDeclarationDate);
+    DateOnly? ExportDeclarationDate,
+    string? ItemName = null,
+    decimal? Quantity = null,
+    string? Unit = null);
 
 public sealed record SalesRegisterDto(
     DateOnly FromDate,

@@ -94,6 +94,15 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Metadata.FindNavigation(nameof(Product.VariantAttributeUsages))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
 
+        // Phase 36 -- the billing locations a product is available at, same encapsulated shape.
+        builder.HasMany(x => x.Locations)
+            .WithOne()
+            .HasForeignKey(x => x.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Metadata.FindNavigation(nameof(Product.Locations))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
         // ... and a child's own combination.
         builder.HasMany(x => x.VariantValues)
             .WithOne()

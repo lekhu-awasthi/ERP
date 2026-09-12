@@ -109,6 +109,52 @@ public class SalesRegisterQueryHandlerTests
         Assert.DoesNotContain(filtered.Items, r => r.DocumentCode == untaggedInvoice.Code);
     }
 
+    [Fact]
+    public async Task Group_By_Bill_off_renders_a_row_per_line_and_the_same_totals()
+    {
+        // Phase 36, from the live pair: the same period went from 27 rows to 50 with Group By Bill
+        // cleared, three item columns appeared, and the footer total did not move. The last of
+        // those is the property worth pinning -- a register whose ungrouped total differed would be
+        // two different reports wearing one name.
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        // One invoice of two lines, and one credit note, so both sides of the register expand.
+        var twoLineInvoice = await CreateAndApproveTwoLineInvoiceAsync(db, seed, new DateOnly(2026, 1, 10));
+        await CreateAndApproveStandaloneCreditNoteAsync(db, seed, new DateOnly(2026, 1, 20), 50m, VatRate.NoVat);
+
+        var handler = new SalesRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
+        var from = new DateOnly(2026, 1, 1);
+        var to = new DateOnly(2026, 1, 31);
+
+        var grouped = await handler.Handle(
+            new SalesRegisterQuery(seed.OrganizationId, from, to, null, null), CancellationToken.None);
+        var perLine = await handler.Handle(
+            new SalesRegisterQuery(seed.OrganizationId, from, to, null, null, GroupByBill: false),
+            CancellationToken.None);
+
+        // Two documents; three lines between them.
+        Assert.Equal(2, grouped.Items.Count);
+        Assert.Equal(3, perLine.Items.Count);
+
+        Assert.Equal(grouped.TotalValue, perLine.TotalValue);
+        Assert.Equal(grouped.TotalTaxExemptValue, perLine.TotalTaxExemptValue);
+        Assert.Equal(grouped.TotalTaxableValue, perLine.TotalTaxableValue);
+        Assert.Equal(grouped.TotalVatAmount, perLine.TotalVatAmount);
+
+        // The three columns the live register adds, filled on every row -- and absent when grouped.
+        Assert.All(perLine.Items, row =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(row.ItemName));
+            Assert.NotNull(row.Quantity);
+            Assert.False(string.IsNullOrWhiteSpace(row.Unit));
+        });
+        Assert.All(grouped.Items, row => Assert.Null(row.ItemName));
+
+        // Both of the invoice's lines are there, under its own code.
+        Assert.Equal(2, perLine.Items.Count(row => row.DocumentCode == twoLineInvoice.Code));
+    }
+
     private sealed record Seed(
         Guid OrganizationId, FakeDocumentNumberGenerator NumberGenerator, Guid CustomerId, Guid WarehouseId, Guid ProductId);
 
@@ -154,6 +200,29 @@ public class SalesRegisterQueryHandlerTests
         await db.SaveChangesAsync(CancellationToken.None);
 
         return new Seed(organizationId, numberGenerator, customer.Id, warehouse.Id, product.Id);
+    }
+
+    /// <summary>An invoice of two lines -- one taxable, one exempt -- so the per-line view has
+    /// something to expand and the two splits stay distinguishable.</summary>
+    private static async Task<(Guid Id, string Code)> CreateAndApproveTwoLineInvoiceAsync(
+        IAppDbContext db, Seed seed, DateOnly date)
+    {
+        var created = await new CreateInvoiceCommandHandler(db).Handle(
+            new CreateInvoiceCommand(
+                seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
+                [
+                    new InvoiceLineInput(seed.ProductId, 2m, 100m, VatRate.ThirteenPercentVat),
+                    new InvoiceLineInput(seed.ProductId, 1m, 40m, VatRate.NoVat),
+                ]),
+            CancellationToken.None);
+
+        var stock = new StockLedgerService(db);
+        var approved = await new ApproveInvoiceCommandHandler(
+                db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new InvoicePostingRule(),
+                new FifoStockAvailabilityPolicy(db, stock), stock, new ContactCreditLimitPolicy(db))
+            .Handle(new ApproveInvoiceCommand(seed.OrganizationId, created.Id, OverrideWarning: false), CancellationToken.None);
+
+        return (approved.Id, approved.Code);
     }
 
     private static async Task<CreateInvoiceResult> CreateInvoiceAsync(

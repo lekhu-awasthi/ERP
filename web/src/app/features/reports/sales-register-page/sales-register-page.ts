@@ -54,6 +54,10 @@ export class SalesRegisterPage {
    * to 8 and re-totalled it. Defaults on, the live default.
    */
   protected readonly includeCreditNotes = signal(true);
+
+  /** Phase 36 -- the live drawer's second View Option, on by default as it is there. Off, the
+   *  register renders a row per line and shows the item's name, quantity and unit. */
+  protected readonly groupByBill = signal(true);
   protected readonly selectedTagOptionIds = signal<string[]>([]);
 
   protected readonly page = signal(1);
@@ -126,13 +130,21 @@ export class SalesRegisterPage {
     this.load();
   }
 
+  protected toggleGroupByBill(group: boolean): void {
+    this.groupByBill.set(group);
+    // Page 1, like every other filter here: ungrouping multiplies the row count, so staying on
+    // page 4 would land the reader somewhere unrelated to what they were looking at.
+    this.page.set(1);
+    this.load();
+  }
+
   private runExport(full: boolean, page: number, pageSize: number): void {
     this.exporting.set(true);
     this.salesService
       .exportSalesRegister(
         this.organizationId, this.fromDate(), this.toDate(), this.contactId() || null,
         this.selectedTagOptionIds(), full, page, pageSize, this.includeCreditNotes(),
-        this.locationId(),
+        this.locationId(), this.groupByBill(),
       )
       .subscribe({
         next: (blob) => {
@@ -162,7 +174,7 @@ export class SalesRegisterPage {
       .getSalesRegister(
         this.organizationId, this.fromDate(), this.toDate(), this.contactId() || null,
         this.selectedTagOptionIds(), this.page(), this.pageSize(), this.includeCreditNotes(),
-        this.locationId(),
+        this.locationId(), this.groupByBill(),
       )
       .subscribe({
         next: (report) => {

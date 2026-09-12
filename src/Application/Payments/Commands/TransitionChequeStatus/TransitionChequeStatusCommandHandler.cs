@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
@@ -80,17 +81,14 @@ public sealed class TransitionChequeStatusCommandHandler(IAppDbContext db, ICurr
         await GrantedPermissionReader.EnsureGrantedAsync(
             db, cheque.OrganizationId, currentUser.UserId, PermissionKeys.PaymentVoid, cancellationToken);
 
-        // Exactly one entry exists while the Payment is Approved -- a Void is the only thing that
-        // adds a second, and it also moves the status away from Approved, so reaching here twice for
-        // the same Payment is unrepresentable.
-        var originalEntry = await db.GlJournalEntries
-            .Include(x => x.Lines)
-            .SingleAsync(
-                x => x.SourceDocumentType == DocumentType.Payment && x.SourceDocumentId == payment.Id,
-                cancellationToken);
-
         payment.Void(currentUser.UserId);
-        db.GlJournalEntries.Add(GlJournalEntry.PostReversalOf(originalEntry));
+
+        // Phase 36 corrects what stood here: *exactly one* entry was said to exist while the
+        // Payment is Approved. Allocating further against an Approved payment now posts a realised
+        // forex leg as its own entry, so a bounced cheque owes the reversal of every entry the
+        // payment posted -- which is what a void of that payment means.
+        await SourceDocumentGlEntries.ReverseOutstandingAsync(
+            db, DocumentType.Payment, payment.Id, cancellationToken);
 
         return payment.Code;
     }

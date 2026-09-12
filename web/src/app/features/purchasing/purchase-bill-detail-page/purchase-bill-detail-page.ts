@@ -40,6 +40,7 @@ import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { defaultWarehouseSeed } from '../../../shared/locations/default-warehouse-seed';
+import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
 
 interface EditableLine {
   key: number;
@@ -263,7 +264,9 @@ export class PurchaseBillDetailPage {
       next: (terms) => this.creditTerms.set(terms),
       error: () => this.creditTerms.set([]),
     });
-    this.catalogService.listAllProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
+    // Phase 36 -- the picker lists the products available at THIS document's billing location,
+    // and re-reads when the header location changes. See shared/catalog/location-aware-products.
+    locationAwareProducts(this.organizationId, this.locationId, this.products);
     this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
     this.organizationsService.listWarehouses(this.organizationId).subscribe({
       next: (w) => {

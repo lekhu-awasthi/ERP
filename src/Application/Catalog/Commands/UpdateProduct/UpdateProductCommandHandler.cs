@@ -11,8 +11,9 @@ public sealed class UpdateProductCommandHandler(IAppDbContext db)
 {
     public async Task<UpdateProductResult> Handle(UpdateProductCommand request, CancellationToken cancellationToken)
     {
-        var product = await db.Products.SingleOrDefaultAsync(
-            x => x.Id == request.Id && x.OrganizationId == request.OrganizationId, cancellationToken)
+        var product = await db.Products
+            .Include(x => x.Locations)
+            .SingleOrDefaultAsync(x => x.Id == request.Id && x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Product not found.");
 
         var categoryExists = await db.ProductCategories.AnyAsync(
@@ -56,6 +57,15 @@ public sealed class UpdateProductCommandHandler(IAppDbContext db)
             request.Barcode);
         product.SetAccounts(
             request.SalesAccountId, request.SalesReturnAccountId, request.PurchaseAccountId, request.PurchaseReturnAccountId);
+
+        // Phase 36 -- through the child DbSet, not by leaving the parent's collection to be
+        // inferred: a row appended to an already-tracked parent's encapsulated collection is
+        // tracked as Modified rather than Added, which surfaces as a DbUpdateConcurrencyException
+        // naming nothing (phase-24 bug #1).
+        var (removedLocations, addedLocations) = product.SetLocations(request.LocationIds);
+        db.ProductLocations.RemoveRange(removedLocations);
+        db.ProductLocations.AddRange(addedLocations);
+
         await db.SaveChangesAsync(cancellationToken);
 
         return new UpdateProductResult(product.Id, product.Name);

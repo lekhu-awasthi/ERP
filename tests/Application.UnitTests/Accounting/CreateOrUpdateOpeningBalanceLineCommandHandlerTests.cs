@@ -51,6 +51,40 @@ public class CreateOrUpdateOpeningBalanceLineCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_corrects_a_line_that_has_already_been_corrected_once()
+    {
+        // Phase 36. The second correction is where this broke: after one edit the line already has
+        // three entries (original, reversal, corrected posting), and the `SingleAsync` that read
+        // "the prior entry" threw InvalidOperationException out of the handler as a 500. Reversing
+        // what is *outstanding* -- the net of everything posted so far -- is what makes a re-edit
+        // work, and it is identical to reversing the one entry in the single-edit case above.
+        var db = TestAppDbContext.Create();
+        var (organizationId, cashAccountId, _) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
+        var handler = new CreateOrUpdateOpeningBalanceLineCommandHandler(db, new FakeDocumentNumberGenerator());
+
+        var first = await handler.Handle(
+            new CreateOrUpdateOpeningBalanceLineCommand(organizationId, cashAccountId, 1000m, 0m), CancellationToken.None);
+        await handler.Handle(
+            new CreateOrUpdateOpeningBalanceLineCommand(organizationId, cashAccountId, 1500m, 0m), CancellationToken.None);
+        var third = await handler.Handle(
+            new CreateOrUpdateOpeningBalanceLineCommand(organizationId, cashAccountId, 700m, 0m), CancellationToken.None);
+
+        Assert.Equal(first.Id, third.Id);
+        Assert.Equal(700m, third.Debit);
+
+        var entries = await db.GlJournalEntries.Include(x => x.Lines)
+            .Where(x => x.SourceDocumentType == DocumentType.OpeningBalance && x.SourceDocumentId == first.Id)
+            .ToListAsync();
+
+        // Only the latest value is outstanding, which is the whole point of reversing first.
+        var netCashDebit = entries.SelectMany(e => e.Lines).Where(l => l.AccountId == cashAccountId).Sum(l => l.Debit - l.Credit);
+        Assert.Equal(700m, netCashDebit);
+
+        // And the ledger as a whole still balances after two corrections.
+        Assert.Equal(entries.SelectMany(e => e.Lines).Sum(l => l.Debit), entries.SelectMany(e => e.Lines).Sum(l => l.Credit));
+    }
+
+    [Fact]
     public async Task Handle_reuses_the_same_equity_account_across_multiple_lines()
     {
         var db = TestAppDbContext.Create();

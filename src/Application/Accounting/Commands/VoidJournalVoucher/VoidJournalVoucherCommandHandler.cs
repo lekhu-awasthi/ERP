@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
@@ -22,15 +23,13 @@ public sealed class VoidJournalVoucherCommandHandler(IAppDbContext db, ICurrentU
             throw new ConflictException("Only an Approved journal voucher can be voided.");
         }
 
-        var originalEntry = await db.GlJournalEntries
-            .Include(x => x.Lines)
-            .SingleAsync(
-                x => x.SourceDocumentType == DocumentType.JournalVoucher && x.SourceDocumentId == journalVoucher.Id,
-                cancellationToken);
-
         journalVoucher.Void(currentUser.UserId);
 
-        db.GlJournalEntries.Add(GlJournalEntry.PostReversalOf(originalEntry));
+        // Phase 36 -- every entry, not "the" entry: allocating further against one of this
+        // voucher's Contact-tagged lines posts a realised forex leg of its own
+        // (ApplyPaymentAllocationCommandHandler), so an Approved voucher can carry more than one.
+        await SourceDocumentGlEntries.ReverseOutstandingAsync(
+            db, DocumentType.JournalVoucher, journalVoucher.Id, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

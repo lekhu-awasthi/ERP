@@ -146,6 +146,11 @@ export interface AllocatablePaymentDto {
   amount: number;
   allocated: number;
   balance: number;
+  /** Phase 36 -- the currency this credit is denominated in (the Payment's, or for a Journal
+   *  Voucher line its voucher's). The Allocate screen offers only targets in the same currency:
+   *  a cross-currency allocation is refused by the server (phase 28 Decision F), and offering one
+   *  was a choice the user could make and not be told about until submit. */
+  currencyCode: string;
 }
 
 export interface ApplyPaymentAllocationResult {

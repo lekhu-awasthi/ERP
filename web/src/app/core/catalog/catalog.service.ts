@@ -129,11 +129,16 @@ export class CatalogService {
     pageSize = 50,
     variantFilter: ProductVariantFilter = 'All',
     options?: ListQueryOptions,
+    locationId?: string,
   ): Observable<PagedResult<Product>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
     applyListOptions(params, options);
     if (type) params['type'] = type;
     if (variantFilter !== 'All') params['variantFilter'] = variantFilter;
+    // Phase 36 -- the products available at one billing location (those restricted to it, plus
+    // every unrestricted product). Omitted means every product, which is what the Products grid
+    // asks for.
+    if (locationId) params['locationId'] = locationId;
     return this.http.get<PagedResult<Product>>(`${this.baseUrl(organizationId)}/products`, { withCredentials: true, params });
   }
 
@@ -154,8 +159,11 @@ export class CatalogService {
     organizationId: string,
     type?: ProductType,
     variantFilter: ProductVariantFilter = 'Transactable',
+    locationId?: string,
   ): Observable<Product[]> {
-    return this.listProducts(organizationId, type, 1, MAX_PAGE_SIZE, variantFilter).pipe(map((result) => result.items));
+    return this.listProducts(organizationId, type, 1, MAX_PAGE_SIZE, variantFilter, undefined, locationId).pipe(
+      map((result) => result.items),
+    );
   }
 
   // ---- Phase 24: the tenant-global attribute catalog ----

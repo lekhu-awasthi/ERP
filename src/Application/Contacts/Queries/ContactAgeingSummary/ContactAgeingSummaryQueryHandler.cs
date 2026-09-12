@@ -2,52 +2,40 @@ using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
-using ErpApp.Domain.Accounting;
-using ErpApp.Domain.Common;
-using ErpApp.Domain.Contacts;
-using ErpApp.Domain.Payments;
-using ErpApp.Domain.Purchasing;
-using ErpApp.Domain.Sales;
+using ErpApp.Application.Contacts.Queries.Ageing;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Contacts.Queries.ContactAgeingSummary;
 
 /// <summary>
-/// Outstanding-per-bill netting: NetAmount(bill) minus every Approved Payment allocation targeting
-/// it minus every Approved linked reversal (CreditNote for Invoice, DebitNote for PurchaseBill)
-/// whose ReferrerId points at it. NetAmount is GrandTotal for an Invoice, GrandTotal-TdsAmount for a
-/// PurchaseBill/Expense -- TDS is withheld from what's actually payable to the supplier
-/// (PurchaseBillPostingRule's own Credit-AP-net-of-TDS choice, phase-6-status.md), so the payable
-/// balance a Supplier Ageing/Statement report should show is the net figure, not the gross bill
-/// total. NOTE: GetDefaultPaymentAllocationsQueryHandler (Phase 5/6, Payment's own FIFO-suggestion
-/// query) uses PurchaseBill.GrandTotal directly, not net-of-TDS -- a pre-existing latent
-/// overstatement in that unrelated handler, not fixed here (out of scope for a pure-read report
-/// phase), but worth knowing this report's own "outstanding" figure is the technically-correct one
-/// and may diverge from what that suggestion query would offer to allocate. See phase-9-status.md.
+/// The per-contact bucketing of exactly the rows Invoice Age / Purchase Bill Age lists: both read
+/// <see cref="OutstandingDocumentReader"/>, which is the one place this codebase decides what a
+/// contact still owes, document by document.
 ///
-/// Expense never appears as a Payment-allocation or DebitNote-reversal target anywhere in this
-/// codebase (PaymentValidation.EnsureAllocationTargetsExistAsync only recognizes Invoice/PurchaseBill
-/// targets, and DebitNote is only ever a PurchaseBill-conversion target) -- so an Expense's payable
-/// is always fully outstanding here, a fact about this codebase's existing data model, not a bug
-/// introduced by this report.
+/// <para><b>Phase 36 made that structural.</b> This report and phase-26b's per-document one were
+/// two implementations of the same netting, and they drifted twice -- over
+/// JournalVoucher-sourced allocations and over due-date-versus-document-date bucketing -- before
+/// phase 31 patched both by editing this handler to match the other. That left them agreeing by
+/// coincidence and still disagreeing about <i>which documents are ageable at all</i>: this one saw
+/// neither a contact-tagged Journal Voucher nor a contact's own opening balance. Now a bucket total
+/// is a partition of the other report's rows by construction, and <c>AgeingReportsAgreeTests</c>
+/// asserts it. <b>That is a correction with a blast radius, stated rather than slipped in</b>
+/// (phase-26b Decision B's own words): a tenant that has tagged a Journal Voucher with a contact,
+/// or set a contact opening balance, sees larger buckets here than before. A tenant that has done
+/// neither sees no change at all.</para>
 ///
-/// <b>Phase 31</b> closed phase-26b's follow-up #4 on this handler: JournalVoucher-sourced
-/// allocations now count alongside Payment-sourced ones, and buckets are aged from the bill's
-/// <c>DueDate</c> rather than its document date. Both changes were made so this report and
-/// phase-26b's Invoice Age / Purchase Bill Age cannot disagree about the same outstanding bill.
-///
-/// A standalone CreditNote/DebitNote (no ReferrerId matching an in-scope bill) reduces the Contact's
-/// real balance but isn't bucketed here -- it has no specific bill to attach an age to. It still
-/// shows up in ContactStatementQuery's flat ledger, which needs no such attribution. See
-/// phase-9-status.md's scope decision for the reasoning (this is the one place Ageing and Statement's
-/// totals can legitimately diverge for a Contact with a standalone reversal on file).
+/// <para>What remains this report's own: the Contact Group filter, the four buckets, and the
+/// column totals. A standalone CreditNote/DebitNote (no ReferrerId matching an in-scope bill)
+/// reduces the Contact's real balance but is not bucketed -- it has no specific bill to attach an
+/// age to. It still shows up in ContactStatementQuery's flat ledger, which needs no such
+/// attribution. See phase-9-status.md's scope decision for the reasoning (this is the one place
+/// Ageing and Statement's totals can legitimately diverge for a Contact with a standalone reversal
+/// on file).</para>
 /// </summary>
 public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<ContactAgeingSummaryQuery, ContactAgeingSummaryDto>
 {
-    private sealed record Bill(Guid Id, Guid ContactId, DateOnly Date, DateOnly DueDate, decimal NetAmount);
-
     public async Task<ContactAgeingSummaryDto> Handle(ContactAgeingSummaryQuery request, CancellationToken cancellationToken)
     {
         // Phase 35b -- TenantSettings.LocationWiseReportPermission: "Restrict users to view reports
@@ -58,52 +46,11 @@ public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db, ICurrentU
         var reportLocations = await LocationAccessScope.ForReportsAsync(
             db, currentUser, request.OrganizationId, cancellationToken);
 
-        var bills = request.ContactType == ContactType.Customer
-            ? await LoadCustomerBillsAsync(request, reportLocations, cancellationToken)
-            : await LoadSupplierBillsAsync(request, reportLocations, cancellationToken);
+        var outstanding = await OutstandingDocumentReader.LoadAsync(
+            db, request.OrganizationId, request.ContactType, request.AsOfDate, cancellationToken,
+            contactId: null, locationId: request.LocationId, reportLocations: reportLocations);
 
-        var reductionsByBillId = request.ContactType == ContactType.Customer
-            ? await LoadCreditNoteReductionsAsync(request, bills, cancellationToken)
-            : await LoadDebitNoteReductionsAsync(request, bills, cancellationToken);
-
-        var targetDocumentType = request.ContactType == ContactType.Customer ? DocumentType.Invoice : DocumentType.PurchaseBill;
-        var paymentDirection = request.ContactType == ContactType.Customer ? PaymentDirection.Received : PaymentDirection.Paid;
-        var billIds = bills.Select(x => x.Id).ToList();
-        // Phase 31 closes phase-26b's follow-up #4 (and phase-17's before it): a
-        // JournalVoucher-sourced allocation now reduces an ageing bucket exactly as a
-        // Payment-sourced one does. Before this, a tenant using JV-sourced allocations saw this
-        // report and phase-26b's Invoice Age -- which always counted both -- disagree about the same
-        // outstanding bill. The two queries are the same pair DocumentAgeQueryHandler runs, kept
-        // separate rather than unioned because a Payment is validated by Direction and a voucher by
-        // its own Status.
-        var fromPayments = await (
-                from a in db.PaymentAllocations
-                where a.SourceType == DocumentType.Payment
-                join p in db.Payments on a.SourceId equals p.Id
-                where a.TargetDocumentType == targetDocumentType && billIds.Contains(a.TargetDocumentId)
-                      && p.Direction == paymentDirection && p.Status == PaymentStatus.Approved
-                group a by a.TargetDocumentId into g
-                select new { BillId = g.Key, Allocated = g.Sum(x => x.Amount) })
-            .ToListAsync(cancellationToken);
-
-        var fromVouchers = await (
-                from a in db.PaymentAllocations
-                where a.SourceType == DocumentType.JournalVoucher
-                join l in db.JournalVoucherLines on a.SourceId equals l.Id
-                join v in db.JournalVouchers on l.JournalVoucherId equals v.Id
-                where a.TargetDocumentType == targetDocumentType && billIds.Contains(a.TargetDocumentId)
-                      && v.OrganizationId == request.OrganizationId && v.Status == JournalVoucherStatus.Approved
-                group a by a.TargetDocumentId into g
-                select new { BillId = g.Key, Allocated = g.Sum(x => x.Amount) })
-            .ToListAsync(cancellationToken);
-
-        var allocationsByBillId = new Dictionary<Guid, decimal>();
-        foreach (var row in fromPayments.Concat(fromVouchers))
-        {
-            allocationsByBillId[row.BillId] = allocationsByBillId.GetValueOrDefault(row.BillId) + row.Allocated;
-        }
-
-        var contactIds = bills.Select(x => x.ContactId).Distinct().ToList();
+        var contactIds = outstanding.Select(x => x.ContactId).Distinct().ToList();
         var contactsQuery = db.Contacts.Where(x => x.OrganizationId == request.OrganizationId && x.Type == request.ContactType);
         if (request.ContactGroupId is { } groupId)
         {
@@ -123,36 +70,24 @@ public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db, ICurrentU
 
         var buckets = new Dictionary<Guid, decimal[]>();
 
-        foreach (var bill in bills)
+        foreach (var document in outstanding)
         {
-            if (!contacts.ContainsKey(bill.ContactId))
+            if (!contacts.ContainsKey(document.ContactId))
             {
                 continue; // filtered out by ContactGroupId
             }
 
-            var outstanding = bill.NetAmount
-                - allocationsByBillId.GetValueOrDefault(bill.Id)
-                - reductionsByBillId.GetValueOrDefault(bill.Id);
-
-            if (outstanding == 0)
-            {
-                continue;
-            }
-
-            // Phase 31: aged from the DUE date, not the document date -- the other half of
-            // phase-26b's follow-up #4. Invoice and PurchaseBill now store one; an Expense always
-            // did; a bill whose due date is its own document date buckets exactly as before, which
-            // is every row on a tenant that never sets a credit term.
-            var age = request.AsOfDate.DayNumber - bill.DueDate.DayNumber;
+            // Aged from the DUE date, which is the document's own date wherever nothing stores one.
+            var age = request.AsOfDate.DayNumber - document.DueDate.DayNumber;
             var bucketIndex = age <= 30 ? 0 : age <= 60 ? 1 : age <= 90 ? 2 : 3;
 
-            if (!buckets.TryGetValue(bill.ContactId, out var contactBuckets))
+            if (!buckets.TryGetValue(document.ContactId, out var contactBuckets))
             {
                 contactBuckets = new decimal[4];
-                buckets[bill.ContactId] = contactBuckets;
+                buckets[document.ContactId] = contactBuckets;
             }
 
-            contactBuckets[bucketIndex] += outstanding;
+            contactBuckets[bucketIndex] += document.Balance;
         }
 
         var rows = buckets
@@ -172,118 +107,5 @@ public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db, ICurrentU
         return new ContactAgeingSummaryDto(
             request.AsOfDate, request.ContactType, paged.Items, paged.Page, paged.PageSize, paged.TotalCount,
             rows.Sum(r => r.Days1To30), rows.Sum(r => r.Days31To60), rows.Sum(r => r.Days61To90), rows.Sum(r => r.Days91Plus));
-    }
-
-    private async Task<List<Bill>> LoadCustomerBillsAsync(
-        ContactAgeingSummaryQuery request, IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
-    {
-        // Phase 35b -- the Billing Location filter narrows the *ageable* documents only, never the
-        // settlements against them. A branch invoice settled by a payment or a credit note raised at
-        // head office is still settled: filtering the settlement side too would show that invoice as
-        // outstanding on the branch's ageing while the organization-wide report showed it paid, and
-        // the two would disagree about the same row. Allocations and returns are keyed to the
-        // filtered document ids, so they follow the narrowing without being narrowed.
-        var invoices = await db.Invoices
-            .Where(x => x.OrganizationId == request.OrganizationId && x.Status == InvoiceStatus.Approved && x.Date <= request.AsOfDate)
-            .AtLocations(request.LocationId, reportLocations)
-            .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate })
-            .ToListAsync(cancellationToken);
-
-        var lines = await db.InvoiceLines
-            .Where(x => invoices.Select(i => i.Id).Contains(x.InvoiceId))
-            .Select(x => new { x.InvoiceId, x.Amount, x.VatAmount })
-            .ToListAsync(cancellationToken);
-
-        var grandTotals = lines.GroupBy(x => x.InvoiceId).ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.VatAmount));
-
-        return invoices
-            .Select(x => new Bill(x.Id, x.ContactId, x.Date, x.DueDate, grandTotals.GetValueOrDefault(x.Id)))
-            .ToList();
-    }
-
-    private async Task<List<Bill>> LoadSupplierBillsAsync(
-        ContactAgeingSummaryQuery request, IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
-    {
-        var purchaseBills = await db.PurchaseBills
-            .Where(x => x.OrganizationId == request.OrganizationId && x.Status == PurchaseBillStatus.Approved && x.Date <= request.AsOfDate)
-            .AtLocations(request.LocationId, reportLocations)
-            .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate, x.TdsAmount })
-            .ToListAsync(cancellationToken);
-        var purchaseBillLines = await db.PurchaseBillLines
-            .Where(x => purchaseBills.Select(b => b.Id).Contains(x.PurchaseBillId))
-            .Select(x => new { x.PurchaseBillId, x.Amount, x.VatAmount })
-            .ToListAsync(cancellationToken);
-        var purchaseBillGross = purchaseBillLines.GroupBy(x => x.PurchaseBillId).ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.VatAmount));
-
-        var expenses = await db.Expenses
-            .Where(x => x.OrganizationId == request.OrganizationId && x.Status == ExpenseStatus.Approved && x.Date <= request.AsOfDate)
-            .AtLocations(request.LocationId, reportLocations)
-            .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate, x.TdsAmount })
-            .ToListAsync(cancellationToken);
-        var expenseLines = await db.ExpenseLines
-            .Where(x => expenses.Select(e => e.Id).Contains(x.ExpenseId))
-            .Select(x => new { x.ExpenseId, x.Amount, x.VatAmount })
-            .ToListAsync(cancellationToken);
-        var expenseGross = expenseLines.GroupBy(x => x.ExpenseId).ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.VatAmount));
-
-        var bills = purchaseBills
-            .Select(x => new Bill(x.Id, x.ContactId, x.Date, x.DueDate, purchaseBillGross.GetValueOrDefault(x.Id) - x.TdsAmount))
-            .ToList();
-        bills.AddRange(expenses.Select(x => new Bill(
-            x.Id, x.ContactId, x.Date, x.DueDate ?? x.Date, expenseGross.GetValueOrDefault(x.Id) - x.TdsAmount)));
-        return bills;
-    }
-
-    private async Task<Dictionary<Guid, decimal>> LoadCreditNoteReductionsAsync(
-        ContactAgeingSummaryQuery request, List<Bill> bills, CancellationToken cancellationToken)
-    {
-        var billIds = bills.Select(x => x.Id).ToList();
-
-        var creditNotes = await db.CreditNotes
-            .Where(x => x.OrganizationId == request.OrganizationId && x.Status == CreditNoteStatus.Approved
-                && x.Date <= request.AsOfDate && x.ReferrerType == DocumentType.Invoice
-                && x.ReferrerId != null && billIds.Contains(x.ReferrerId.Value))
-            .Select(x => new { x.Id, ReferrerId = x.ReferrerId!.Value })
-            .ToListAsync(cancellationToken);
-        var lines = await db.CreditNoteLines
-            .Where(x => creditNotes.Select(c => c.Id).Contains(x.CreditNoteId))
-            .Select(x => new { x.CreditNoteId, x.Amount, x.VatAmount })
-            .ToListAsync(cancellationToken);
-        var gross = lines.GroupBy(x => x.CreditNoteId).ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.VatAmount));
-
-        var result = new Dictionary<Guid, decimal>();
-        foreach (var cn in creditNotes)
-        {
-            result[cn.ReferrerId] = result.GetValueOrDefault(cn.ReferrerId) + gross.GetValueOrDefault(cn.Id);
-        }
-
-        return result;
-    }
-
-    private async Task<Dictionary<Guid, decimal>> LoadDebitNoteReductionsAsync(
-        ContactAgeingSummaryQuery request, List<Bill> bills, CancellationToken cancellationToken)
-    {
-        var billIds = bills.Select(x => x.Id).ToList();
-
-        var debitNotes = await db.DebitNotes
-            .Where(x => x.OrganizationId == request.OrganizationId && x.Status == DebitNoteStatus.Approved
-                && x.Date <= request.AsOfDate && x.ReferrerType == DocumentType.PurchaseBill
-                && x.ReferrerId != null && billIds.Contains(x.ReferrerId.Value))
-            .Select(x => new { x.Id, ReferrerId = x.ReferrerId!.Value, x.TdsAmount })
-            .ToListAsync(cancellationToken);
-        var lines = await db.DebitNoteLines
-            .Where(x => debitNotes.Select(d => d.Id).Contains(x.DebitNoteId))
-            .Select(x => new { x.DebitNoteId, x.Amount, x.VatAmount })
-            .ToListAsync(cancellationToken);
-        var gross = lines.GroupBy(x => x.DebitNoteId).ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.VatAmount));
-
-        var result = new Dictionary<Guid, decimal>();
-        foreach (var dn in debitNotes)
-        {
-            var net = gross.GetValueOrDefault(dn.Id) - dn.TdsAmount;
-            result[dn.ReferrerId] = result.GetValueOrDefault(dn.ReferrerId) + net;
-        }
-
-        return result;
     }
 }

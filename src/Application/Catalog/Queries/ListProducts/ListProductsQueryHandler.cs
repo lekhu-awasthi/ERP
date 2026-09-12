@@ -29,6 +29,14 @@ public sealed class ListProductsQueryHandler(IAppDbContext db)
             _ => query,
         };
 
+        // Phase 36 -- available at this billing location: restricted to it, or not restricted at
+        // all. A separate composed `.Where()` for the same reason the search below is one, and the
+        // empty-set-means-everywhere rule is the whole reason for the first disjunct.
+        if (request.LocationId is { } locationId)
+        {
+            query = query.Where(x => x.Locations.Count == 0 || x.Locations.Any(l => l.LocationId == locationId));
+        }
+
         // Phase 34b (NFR-6.1) -- the list search. A separate composed `.Where()`, never folded
         // into one predicate with a null check: an expression tree does not short-circuit, so
         // `term == null || x.Code.Contains(term)` hands EF a null to translate on the unrestricted

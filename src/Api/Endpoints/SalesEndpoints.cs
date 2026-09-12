@@ -331,26 +331,30 @@ public static class SalesEndpoints
 
         group.MapGet("/reports/sales-register", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid[]? tagOptionIds,
-            bool? includeCreditNotes, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
+            bool? includeCreditNotes, bool? groupByBill, int? page, int? pageSize, Guid? locationId,
+            ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesRegisterQuery(
                     organizationId, fromDate, toDate, contactId, tagOptionIds,
                     page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize,
-                    IncludeCreditNotes: includeCreditNotes ?? true, LocationId: locationId),
+                    IncludeCreditNotes: includeCreditNotes ?? true, LocationId: locationId,
+                    GroupByBill: groupByBill ?? true),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/sales-register/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid[]? tagOptionIds,
-            bool full, bool? includeCreditNotes, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
+            bool full, bool? includeCreditNotes, bool? groupByBill, int? page, int? pageSize, Guid? locationId,
+            ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesRegisterQuery(
                     organizationId, fromDate, toDate, contactId, tagOptionIds,
                     page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full,
-                    IncludeCreditNotes: includeCreditNotes ?? true, LocationId: locationId),
+                    IncludeCreditNotes: includeCreditNotes ?? true, LocationId: locationId,
+                    GroupByBill: groupByBill ?? true),
                 ct);
             return ReportSpreadsheetExporter.ExportSalesRegister(result);
         });

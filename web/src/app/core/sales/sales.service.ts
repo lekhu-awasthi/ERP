@@ -338,10 +338,13 @@ export class SalesService {
    *  (confirmed live 2026-09-06: 19 rows to 8). Defaults to true, the live default. */
   getSalesRegister(
     organizationId: string, fromDate: string, toDate: string, contactId: string | null, tagOptionIds: string[],
-    page = 1, pageSize = 50, includeCreditNotes = true, locationId?: string,
+    page = 1, pageSize = 50, includeCreditNotes = true, locationId?: string, groupByBill = true,
   ): Observable<SalesRegisterDto> {
     const params: Record<string, string | string[]> = {
       fromDate, toDate, page: String(page), pageSize: String(pageSize), includeCreditNotes: String(includeCreditNotes),
+      // Phase 36 -- the drawer's second View Option. Off is a row per line, with the item's name,
+      // quantity and unit; the footer total is the same either way.
+      groupByBill: String(groupByBill),
     };
     if (locationId) params['locationId'] = locationId;
     if (contactId) params['contactId'] = contactId;
@@ -355,11 +358,11 @@ export class SalesService {
 
   exportSalesRegister(
     organizationId: string, fromDate: string, toDate: string, contactId: string | null, tagOptionIds: string[],
-    full: boolean, page: number, pageSize: number, includeCreditNotes = true, locationId?: string,
+    full: boolean, page: number, pageSize: number, includeCreditNotes = true, locationId?: string, groupByBill = true,
   ): Observable<Blob> {
     const params: Record<string, string | string[]> = {
       fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
-      includeCreditNotes: String(includeCreditNotes),
+      includeCreditNotes: String(includeCreditNotes), groupByBill: String(groupByBill),
     };
     if (locationId) params['locationId'] = locationId;
     if (contactId) params['contactId'] = contactId;

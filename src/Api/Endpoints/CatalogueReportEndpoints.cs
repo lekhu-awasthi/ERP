@@ -99,13 +99,15 @@ public static class CatalogueReportEndpoints
         group.MapGet("/reports/inventory-position", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate,
             Guid? categoryId, Guid? productId, Guid? warehouseId, InventoryBalanceFilter? balanceFilter,
-            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, bool? groupByWarehouse, Guid[]? tagOptionIds,
+            ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new InventoryPositionReportQuery(
                     organizationId, fromDate, toDate, categoryId, productId, warehouseId,
                     balanceFilter ?? InventoryBalanceFilter.All,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId,
+                    GroupByWarehouse: groupByWarehouse ?? false, TagOptionIds: tagOptionIds),
                 ct);
             return Results.Ok(result);
         });
@@ -113,13 +115,15 @@ public static class CatalogueReportEndpoints
         group.MapGet("/reports/inventory-position/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate,
             Guid? categoryId, Guid? productId, Guid? warehouseId, InventoryBalanceFilter? balanceFilter,
-            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, bool? groupByWarehouse, Guid[]? tagOptionIds,
+            ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new InventoryPositionReportQuery(
                     organizationId, fromDate, toDate, categoryId, productId, warehouseId,
                     balanceFilter ?? InventoryBalanceFilter.All,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId,
+                    GroupByWarehouse: groupByWarehouse ?? false, TagOptionIds: tagOptionIds),
                 ct);
             return ReportSpreadsheetExporter.ExportInventoryPosition(result);
         });

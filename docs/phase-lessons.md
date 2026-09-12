@@ -670,3 +670,23 @@ Moved verbatim; the one-line versions in CLAUDE.md keep the same "before X" hook
   outright. Also the reason both a server guard and a client guard exist — phase 32 is the worked
   example of a query, DTO and `.xlsx` export all carrying `locationId` for three phases while the
   screen sent nothing — `docs/phase-35b-status.md`
+
+- **Phase 36 — allocation, forex and ageing consistency.** The phase that made two reports and two
+  posting paths agree *by construction* rather than by patching, and that fixed the
+  `featureGuard('MultipleWarehouses')` bug which stopped a flag-off tenant creating its first
+  warehouse (the server enforces a cap; the page now shows that cap, and the route guards nothing).
+  **Read this before assuming a document has exactly one GL entry** — `SingleAsync` over
+  `(SourceDocumentType, SourceDocumentId)` was a habit six call sites shared and was *already* a 500
+  on a twice-edited Opening Balance line; `SourceDocumentGlEntries` reverses what is **outstanding**,
+  netting per location. **Before folding a settlement into the base currency**: a payment folds at the
+  rate of *what it settles*, allocation by allocation, or a fully settled invoice keeps a residual
+  balance equal to the realised forex, which belongs in the P&L and not in what a customer owes.
+  **Before deciding two reports "already agree"**: phase 31 had patched both known divergences
+  between the ageing pair and they still disagreed about which documents were ageable at all, which
+  is why `OutstandingDocumentReader` now answers for both. And **before storing a set nothing
+  enforces**: product-to-location was settled by one write on the live tenant plus a look at
+  `performance.getEntriesByType('resource')`, which showed the picker calls
+  `products-minimized?…&location_id=<the document's location>` — server-side filtering, one call per
+  header change. *Display Warehouse in Column* is the deliberate omission: a single-warehouse tenant
+  cannot tell it apart from *Group by Warehouse*, and a column nobody has seen is phase 8f's Annex 5
+  waiting to repeat — `docs/phase-36-status.md`

@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Numbering;
@@ -37,11 +38,13 @@ public sealed class CreateOrUpdateOpeningBalanceLineCommandHandler(IAppDbContext
 
         if (line is not null)
         {
-            var priorEntry = await db.GlJournalEntries
-                .Include(x => x.Lines)
-                .SingleAsync(
-                    x => x.SourceDocumentType == DocumentType.OpeningBalance && x.SourceDocumentId == line.Id, cancellationToken);
-            db.GlJournalEntries.Add(GlJournalEntry.PostReversalOf(priorEntry));
+            // Phase 36 -- reverse everything this line still has outstanding, not "the" prior
+            // entry. A line edited once already has three entries (original, its reversal, the
+            // corrected posting), so the `SingleAsync` that stood here threw out of the *second*
+            // edit as a 500. Netting is what makes a re-edit correct: only the latest posting is
+            // still outstanding, and that is exactly what the net of the three comes to.
+            await SourceDocumentGlEntries.ReverseOutstandingAsync(
+                db, DocumentType.OpeningBalance, line.Id, cancellationToken);
 
             line.Update(request.Debit, request.Credit, request.CurrencyCode, request.ExchangeRate, locationId);
         }

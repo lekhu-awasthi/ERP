@@ -85,7 +85,7 @@ public sealed class ApprovePaymentCommandHandler(
 
         var forex = await PaymentForexCalculator.CalculateAsync(
             db, request.OrganizationId, payment.Direction, payment.CurrencyCode, payment.ExchangeRate,
-            await LoadForexAllocationsAsync(request.OrganizationId, payment.Allocations, cancellationToken),
+            await AllocationTargetRates.LoadAsync(db, request.OrganizationId, payment.Allocations, cancellationToken),
             cancellationToken);
 
         if (forex is not null)
@@ -119,60 +119,5 @@ public sealed class ApprovePaymentCommandHandler(
         await db.SaveChangesAsync(cancellationToken);
 
         return new ApprovePaymentResult(payment.Id, payment.Code, payment.Status, payment.ApprovedAt);
-    }
-
-    /// <summary>
-    /// Reads each allocation target's own CurrencyCode/ExchangeRate -- the rate the receivable or
-    /// payable being settled was actually booked into the general ledger at. Batched per document
-    /// type rather than per row, the same shape <c>GlSourceDocumentResolver</c> uses for the eleven
-    /// GL-posting types (phase 26a). Only Invoice and PurchaseBill can be allocation targets, so
-    /// there are exactly two queries and both are skipped when there are no allocations of that
-    /// type.
-    /// </summary>
-    private async Task<IReadOnlyList<ForexAllocation>> LoadForexAllocationsAsync(
-        Guid organizationId, IReadOnlyList<PaymentAllocation> allocations, CancellationToken cancellationToken)
-    {
-        if (allocations.Count == 0)
-        {
-            return [];
-        }
-
-        var invoiceIds = allocations.Where(x => x.TargetDocumentType == DocumentType.Invoice)
-            .Select(x => x.TargetDocumentId).Distinct().ToList();
-        var billIds = allocations.Where(x => x.TargetDocumentType == DocumentType.PurchaseBill)
-            .Select(x => x.TargetDocumentId).Distinct().ToList();
-
-        var invoiceRates = invoiceIds.Count == 0
-            ? []
-            : await db.Invoices
-                .Where(x => x.OrganizationId == organizationId && invoiceIds.Contains(x.Id))
-                .Select(x => new { x.Id, x.CurrencyCode, x.ExchangeRate })
-                .ToDictionaryAsync(x => x.Id, x => (x.CurrencyCode, x.ExchangeRate), cancellationToken);
-
-        var billRates = billIds.Count == 0
-            ? []
-            : await db.PurchaseBills
-                .Where(x => x.OrganizationId == organizationId && billIds.Contains(x.Id))
-                .Select(x => new { x.Id, x.CurrencyCode, x.ExchangeRate })
-                .ToDictionaryAsync(x => x.Id, x => (x.CurrencyCode, x.ExchangeRate), cancellationToken);
-
-        var result = new List<ForexAllocation>();
-        foreach (var allocation in allocations)
-        {
-            var target = allocation.TargetDocumentType == DocumentType.Invoice
-                ? invoiceRates.GetValueOrDefault(allocation.TargetDocumentId)
-                : billRates.GetValueOrDefault(allocation.TargetDocumentId);
-
-            // A target this handler could not read is one the checks above already rejected, so a
-            // missing entry can only be a target type that carries no currency at all. Treating it
-            // as base currency at rate 1 keeps the arithmetic total rather than throwing on a
-            // shape that cannot reach here today.
-            result.Add(new ForexAllocation(
-                allocation.Amount,
-                target.CurrencyCode ?? CurrencyCatalog.BaseCode,
-                target.ExchangeRate == 0 ? ExchangeRates.BaseRate : target.ExchangeRate));
-        }
-
-        return result;
     }
 }

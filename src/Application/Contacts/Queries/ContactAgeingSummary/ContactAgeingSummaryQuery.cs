@@ -24,10 +24,9 @@ namespace ErpApp.Application.Contacts.Queries.ContactAgeingSummary;
 /// date, not a period (confirmed live: the Ageing screen's only date control is a single "As Of"
 /// picker, no From/To range, unlike Statement).
 ///
-/// The live screen's "Credit Term" column is omitted -- no Contact or document anywhere in this
-/// codebase carries a CreditTermId (CreditTerm's own doc comment: "nothing consumes this today"),
-/// so there is no real per-Contact due-day figure to source it from. Bucketing is therefore computed
-/// from each bill's own Date, not a Date+CreditTerm.DueDays due date -- see phase-9-status.md.
+/// The live screen's "Credit Term" column is omitted; phase 31 gave Contact a Credit Term and
+/// Invoice/PurchaseBill a stored DueDate seeded from it, and bucketing has run from that due date
+/// since -- a bill with no credit term is due on its own date, which is how phase 9 always aged it.
 /// </summary>
 public sealed record ContactAgeingSummaryQuery(
     Guid OrganizationId,

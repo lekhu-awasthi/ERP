@@ -11,6 +11,9 @@ using ErpApp.Application.Accounting.Queries.GeneralLedgerSummary;
 using ErpApp.Application.Accounting.Queries.JournalReport;
 using ErpApp.Application.Accounting.Reports;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Configuration.Commands.CreateReportingTagCategory;
+using ErpApp.Application.Configuration.Commands.CreateReportingTagOption;
+using ErpApp.Application.Configuration.Commands.SetTransactionReportingTags;
 using ErpApp.Application.UnitTests.TestSupport;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Common;
@@ -231,6 +234,54 @@ public class GlReportQueryHandlerTests
             new GeneralLedgerMasterQuery(organizationId, Today.AddDays(-10), Today.AddDays(-5)), CancellationToken.None);
 
         Assert.Empty(result.Items);
+    }
+
+    [Fact]
+    public async Task JournalReport_narrows_to_documents_carrying_one_of_the_selected_reporting_tags()
+    {
+        // Phase 36 -- the filter the live drawer has always carried and this report did not
+        // (re-read on Moonbeam 2026-09-11: Period, Transaction Type, then one multi-select per tag
+        // category). Matched on the (type, id) pair, because that pair is all a GL entry knows
+        // about its document and this report spans every posting type.
+        var db = TestAppDbContext.Create();
+        var (organizationId, cashAccountId, salesAccountId) = await AccountingTestSeed.SeedTwoAccountsAsync(db);
+
+        var tagged = await PostReturningIdAsync(db, organizationId, cashAccountId, salesAccountId, 1000m);
+        await PostReturningIdAsync(db, organizationId, cashAccountId, salesAccountId, 250m);
+
+        var category = await new CreateReportingTagCategoryCommandHandler(db).Handle(
+            new CreateReportingTagCategoryCommand(organizationId, "Business Unit"), CancellationToken.None);
+        var option = await new CreateReportingTagOptionCommandHandler(db).Handle(
+            new CreateReportingTagOptionCommand(organizationId, "Retail", category.Id), CancellationToken.None);
+        await new SetTransactionReportingTagsCommandHandler(db).Handle(
+            new SetTransactionReportingTagsCommand(organizationId, DocumentType.JournalVoucher, tagged, [option.Id]),
+            CancellationToken.None);
+
+        var handler = new JournalReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
+
+        var unfiltered = await handler.Handle(new JournalReportQuery(organizationId, From, To), CancellationToken.None);
+        var filtered = await handler.Handle(
+            new JournalReportQuery(organizationId, From, To, TagOptionIds: [option.Id]), CancellationToken.None);
+
+        Assert.Equal(2, unfiltered.Items.Count);
+        var entry = Assert.Single(filtered.Items);
+        Assert.Equal(1000m, entry.TotalDebit);
+    }
+
+    private static async Task<Guid> PostReturningIdAsync(
+        IAppDbContext db, Guid organizationId, Guid debitAccountId, Guid creditAccountId, decimal amount)
+    {
+        var created = await new CreateJournalVoucherCommandHandler(db).Handle(
+            new CreateJournalVoucherCommand(
+                organizationId, DateOnly.FromDateTime(DateTime.UtcNow), null,
+                [new JournalVoucherLineInput(debitAccountId, amount, 0m), new JournalVoucherLineInput(creditAccountId, 0m, amount)]),
+            CancellationToken.None);
+
+        await new ApproveJournalVoucherCommandHandler(
+            db, new FakeDocumentNumberGenerator(), new FakeCurrentUserService(Guid.NewGuid()), new JournalVoucherPostingRule(), new GlCashBalancePolicy(db))
+            .Handle(new ApproveJournalVoucherCommand(organizationId, created.Id), CancellationToken.None);
+
+        return created.Id;
     }
 
     private static async Task PostAsync(

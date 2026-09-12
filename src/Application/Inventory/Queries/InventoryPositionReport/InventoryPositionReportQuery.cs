@@ -38,7 +38,16 @@ public sealed record InventoryPositionReportQuery(
     int PageSize = PagingDefaults.DefaultPageSize,
     bool ExportAll = false,
     // Phase 35b -- the Billing Location filter; null is "All locations". See ILocationFilteredReport.
-    Guid? LocationId = null)
+    Guid? LocationId = null,
+    // Phase 36 -- the live drawer's "Group by Warehouse" checkbox, re-read on Moonbeam 2026-09-11.
+    // One row per product per warehouse instead of one row per product; the same facts either way,
+    // because both come from StockFactReader.
+    bool GroupByWarehouse = false,
+    // Phase 36 -- the drawer's Reporting Tags, one multi-select per tag category. A stock row has
+    // no tags of its own: the movements behind it are narrowed to those whose source document
+    // carries one of the selected options, which is the only thing "tag" can mean on a report whose
+    // rows are products.
+    IReadOnlyList<Guid>? TagOptionIds = null)
     : IRequest<InventoryPositionReportDto>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.InventoryPositionView;
@@ -54,6 +63,9 @@ public enum InventoryBalanceFilter
     NegativeOnly = 2,
 }
 
+/// <param name="Warehouse">Phase 36 -- the warehouse this row belongs to, and null unless
+/// <c>GroupByWarehouse</c> asked for the split. Null rather than "All" so a client can tell "this
+/// report is not grouped" from "a warehouse actually named All".</param>
 public sealed record InventoryPositionRowDto(
     Guid ProductId,
     string Product,
@@ -61,7 +73,8 @@ public sealed record InventoryPositionRowDto(
     decimal Quantity,
     string Unit,
     decimal Rate,
-    decimal Amount);
+    decimal Amount,
+    string? Warehouse = null);
 
 /// <summary>
 /// <paramref name="TotalQuantity"/> and <paramref name="TotalAmount"/> cover the whole filtered

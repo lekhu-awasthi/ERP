@@ -330,24 +330,26 @@ public static class AccountingEndpoints
         // Current-View-vs-Full-List split phase-16c established.
         group.MapGet("/reports/journal-report", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, DocumentType? documentType,
-            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, Guid[]? tagOptionIds, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new JournalReportQuery(
                     organizationId, fromDate, toDate, documentType,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId,
+                    TagOptionIds: tagOptionIds),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/journal-report/export", async (
-            Guid organizationId, DateOnly fromDate, DateOnly toDate, DocumentType? documentType,
+            Guid organizationId, DateOnly fromDate, DateOnly toDate, DocumentType? documentType, Guid[]? tagOptionIds,
             bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new JournalReportQuery(
                     organizationId, fromDate, toDate, documentType,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId,
+                    TagOptionIds: tagOptionIds),
                 ct);
             return ReportSpreadsheetExporter.ExportJournalReport(result, fromDate, toDate);
         });

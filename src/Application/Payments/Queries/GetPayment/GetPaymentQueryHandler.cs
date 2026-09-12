@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Common;
@@ -23,12 +24,16 @@ public sealed class GetPaymentQueryHandler(IAppDbContext db) : IRequestHandler<G
 
         if (payment.Status == PaymentStatus.Approved)
         {
-            var glEntry = await db.GlJournalEntries
-                .Include(x => x.Lines)
-                .SingleOrDefaultAsync(
-                    x => x.SourceDocumentType == DocumentType.Payment && x.SourceDocumentId == payment.Id, cancellationToken);
+            // Phase 36 -- every entry this payment posted, not "the" entry: allocating further
+            // against it posts a realised forex leg as a second entry, and a
+            // `SingleOrDefaultAsync` throws on two rows just as `SingleAsync` does.
+            var glEntries = await SourceDocumentGlEntries.LoadAsync(
+                db, DocumentType.Payment, payment.Id, cancellationToken);
 
-            glLines = glEntry?.Lines.Select(x => new PostedGlLineDto(x.Id, x.AccountId, x.Debit, x.Credit)).ToList();
+            glLines = glEntries.Count == 0
+                ? null
+                : glEntries.SelectMany(e => e.Lines)
+                    .Select(x => new PostedGlLineDto(x.Id, x.AccountId, x.Debit, x.Credit)).ToList();
         }
 
         return new PaymentDetailDto(

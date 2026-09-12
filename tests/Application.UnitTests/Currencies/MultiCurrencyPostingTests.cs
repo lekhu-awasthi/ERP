@@ -11,10 +11,14 @@ using ErpApp.Application.Catalog.Commands.CreateUnitOfMeasurement;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Contacts.Commands.CreateContact;
+using ErpApp.Application.Contacts.Queries.ContactStatement;
+using ErpApp.Application.Contacts.Queries.DocumentAge;
 using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Payments;
+using ErpApp.Application.Payments.Commands.ApplyPaymentAllocation;
 using ErpApp.Application.Payments.Commands.ApprovePayment;
 using ErpApp.Application.Payments.Commands.CreatePayment;
+using ErpApp.Application.Payments.Commands.VoidPayment;
 using ErpApp.Application.Payments.Posting;
 using ErpApp.Application.Sales;
 using ErpApp.Application.Sales.Commands.ApproveInvoice;
@@ -225,6 +229,225 @@ public class MultiCurrencyPostingTests
             .SingleAsync(x => x.SourceDocumentType == DocumentType.JournalVoucher && x.SourceDocumentId == created.Id);
 
         Assert.Equal(3, entry.Lines.Count);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Phase 36 -- the *other* settlement path. Everything above allocates at Approve time; the
+    // Allocate screens (phase 17) apply more of an already-Approved credit afterwards, and until
+    // phase 36 that path added a PaymentAllocation row and touched the ledger not at all.
+    // ---------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task A_further_allocation_books_the_same_forex_leg_as_an_approve_time_one()
+    {
+        // The phase's real claim is not "the number is 300" -- it is that the two doors agree. Same
+        // invoice, same receipt, same two rates; one settled at Approve, one settled afterwards.
+        var approveTimeDb = TestAppDbContext.Create();
+        var approveTimeSeed = await SeedAsync(approveTimeDb);
+        var approveTimeInvoice = await CreateAndApproveInvoiceAsync(approveTimeDb, approveTimeSeed, 100m, "USD", UsdRate);
+        await CreateAndApprovePaymentAsync(approveTimeDb, approveTimeSeed, approveTimeInvoice, 100m, "USD", 130m);
+
+        var furtherDb = TestAppDbContext.Create();
+        var furtherSeed = await SeedAsync(furtherDb);
+        var furtherInvoice = await CreateAndApproveInvoiceAsync(furtherDb, furtherSeed, 100m, "USD", UsdRate);
+        var furtherPayment = await CreateAndApproveUnallocatedPaymentAsync(furtherDb, furtherSeed, 100m, "USD", 130m);
+        await ApplyAsync(furtherDb, furtherSeed, furtherPayment, furtherInvoice, 100m);
+
+        Assert.Equal(
+            await AccountNetAsync(approveTimeDb, approveTimeSeed.ForexLossAccountId),
+            await AccountNetAsync(furtherDb, furtherSeed.ForexLossAccountId));
+        Assert.Equal(300m, await AccountNetAsync(furtherDb, furtherSeed.ForexLossAccountId));
+
+        // And the reason the leg exists at all: AR is left flat either way.
+        Assert.Equal(0m, await ArNetMovementAsync(furtherDb, furtherSeed));
+        Assert.Equal(await ArNetMovementAsync(approveTimeDb, approveTimeSeed), await ArNetMovementAsync(furtherDb, furtherSeed));
+    }
+
+    [Fact]
+    public async Task A_further_allocation_posts_its_forex_as_a_second_entry_that_balances_alone()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+        var invoiceId = await CreateAndApproveInvoiceAsync(db, seed, 100m, "USD", UsdRate);
+        var paymentId = await CreateAndApproveUnallocatedPaymentAsync(db, seed, 100m, "USD", 136m);
+
+        await ApplyAsync(db, seed, paymentId, invoiceId, 100m);
+
+        var entries = await db.GlJournalEntries.Include(x => x.Lines)
+            .Where(x => x.SourceDocumentType == DocumentType.Payment && x.SourceDocumentId == paymentId)
+            .ToListAsync();
+
+        // The Approve-time entry, plus the correction. A posted entry is append-only (phase 16a),
+        // so the correction cannot be folded into the first one.
+        Assert.Equal(2, entries.Count);
+        foreach (var entry in entries)
+        {
+            Assert.Equal(entry.Lines.Sum(x => x.Debit), entry.Lines.Sum(x => x.Credit));
+        }
+
+        // Settled at 136 against a booking of 133: 300 more rupees arrived, a gain (a credit, so
+        // the account's net movement is negative in debit-minus-credit terms).
+        Assert.Equal(-300m, await AccountNetAsync(db, seed.ForexGainAccountId));
+        Assert.Equal(0m, await ArNetMovementAsync(db, seed));
+    }
+
+    [Fact]
+    public async Task A_further_allocation_at_the_booking_rate_posts_nothing_at_all()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+        var invoiceId = await CreateAndApproveInvoiceAsync(db, seed, 100m, "USD", UsdRate);
+        var paymentId = await CreateAndApproveUnallocatedPaymentAsync(db, seed, 100m, "USD", UsdRate);
+
+        await ApplyAsync(db, seed, paymentId, invoiceId, 100m);
+
+        var entries = await db.GlJournalEntries
+            .Where(x => x.SourceDocumentType == DocumentType.Payment && x.SourceDocumentId == paymentId)
+            .CountAsync();
+
+        // No difference, no entry -- the single-currency tenant's path, unchanged.
+        Assert.Equal(1, entries);
+    }
+
+    [Fact]
+    public async Task A_further_allocation_to_a_document_in_another_currency_is_refused()
+    {
+        // Phase 28 Decision F, now enforced on both doors rather than only at Approve.
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+        var invoiceId = await CreateAndApproveInvoiceAsync(db, seed, 100m, "USD", UsdRate);
+        var paymentId = await CreateAndApproveUnallocatedPaymentAsync(db, seed, 13300m, currencyCode: null, exchangeRate: null);
+
+        var ex = await Assert.ThrowsAsync<ConflictException>(() => ApplyAsync(db, seed, paymentId, invoiceId, 13300m));
+
+        Assert.Contains("its own currency", ex.Message, StringComparison.Ordinal);
+
+        // And nothing was written on the way to the refusal.
+        Assert.Equal(0, await db.PaymentAllocations.CountAsync(x => x.SourceId == paymentId));
+    }
+
+    [Fact]
+    public async Task Voiding_a_payment_allocated_further_reverses_every_entry_it_posted()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+        var invoiceId = await CreateAndApproveInvoiceAsync(db, seed, 100m, "USD", UsdRate);
+        var paymentId = await CreateAndApproveUnallocatedPaymentAsync(db, seed, 100m, "USD", 130m);
+        await ApplyAsync(db, seed, paymentId, invoiceId, 100m);
+
+        await new VoidPaymentCommandHandler(db, new FakeCurrentUserService(Guid.NewGuid()))
+            .Handle(new VoidPaymentCommand(seed.OrganizationId, paymentId), CancellationToken.None);
+
+        // The forex leg goes back with the cash leg: a voided payment settled nothing, so it
+        // realised nothing. AR is left holding the invoice's own 13,300 again.
+        Assert.Equal(0m, await AccountNetAsync(db, seed.ForexLossAccountId));
+        Assert.Equal(0m, await AccountNetAsync(db, seed.CashAccountId));
+        Assert.Equal(13300m, await ArNetMovementAsync(db, seed));
+    }
+
+    private static async Task<decimal> AccountNetAsync(IAppDbContext db, Guid accountId)
+    {
+        var lines = await db.GlJournalEntries
+            .Include(x => x.Lines)
+            .SelectMany(x => x.Lines)
+            .Where(x => x.AccountId == accountId)
+            .ToListAsync();
+
+        return lines.Sum(x => x.Debit) - lines.Sum(x => x.Credit);
+    }
+
+    private static async Task<Guid> CreateAndApproveUnallocatedPaymentAsync(
+        IAppDbContext db, Seed seed, decimal amount, string? currencyCode, decimal? exchangeRate)
+    {
+        var created = await new CreatePaymentCommandHandler(db).Handle(
+            new CreatePaymentCommand(
+                seed.OrganizationId, seed.CustomerId, PaymentDirection.Received, new DateOnly(2026, 1, 2), null,
+                seed.CashAccountId, amount, null, [])
+            { CurrencyCode = currencyCode, ExchangeRate = exchangeRate },
+            CancellationToken.None);
+
+        var approved = await new ApprovePaymentCommandHandler(
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new PaymentPostingRule(), new GlCashBalancePolicy(db))
+            .Handle(new ApprovePaymentCommand(seed.OrganizationId, created.Id), CancellationToken.None);
+
+        return approved.Id;
+    }
+
+    private static Task ApplyAsync(IAppDbContext db, Seed seed, Guid paymentId, Guid invoiceId, decimal amount)
+    {
+        return new ApplyPaymentAllocationCommandHandler(db).Handle(
+            new ApplyPaymentAllocationCommand(
+                seed.OrganizationId, DocumentType.Payment, paymentId, null, DocumentType.Invoice, invoiceId, amount),
+            CancellationToken.None);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Phase 36 -- what a contact *owes*, in one unit. Until this phase the contact-ledger family
+    // summed a USD invoice and an NPR receipt as if they were the same number.
+    // ---------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task A_foreign_invoice_ages_in_the_base_currency()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+        await CreateAndApproveInvoiceAsync(db, seed, 100m, "USD", UsdRate);
+
+        var asOf = new DateOnly(2026, 1, 31);
+        var result = await new DocumentAgeQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
+            new DocumentAgeQuery(seed.OrganizationId, ContactType.Customer, new DateOnly(2026, 1, 1), asOf),
+            CancellationToken.None);
+
+        // 100 USD at 133 -- the same 13,300 the general ledger booked, not a bare 100 that would
+        // have been added to NPR figures elsewhere in the report.
+        var row = Assert.Single(result.Rows);
+        Assert.Equal(13_300m, row.Amount);
+        Assert.Equal(13_300m, row.Balance);
+    }
+
+    [Fact]
+    public async Task An_invoice_settled_at_a_different_rate_owes_nothing_afterwards()
+    {
+        // The reason a settlement folds at the rate of what it settles: the realised difference is
+        // a P&L figure, not something the customer still owes.
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+        var invoiceId = await CreateAndApproveInvoiceAsync(db, seed, 100m, "USD", UsdRate);
+        await CreateAndApprovePaymentAsync(db, seed, invoiceId, 100m, "USD", 130m);
+
+        var asOf = new DateOnly(2026, 1, 31);
+        var ageing = await new DocumentAgeQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
+            new DocumentAgeQuery(seed.OrganizationId, ContactType.Customer, new DateOnly(2026, 1, 1), asOf),
+            CancellationToken.None);
+
+        Assert.Empty(ageing.Rows);
+
+        var statement = await new ContactStatementQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
+            new ContactStatementQuery(
+                seed.OrganizationId, ContactType.Customer, seed.CustomerId, new DateOnly(2026, 1, 1), asOf),
+            CancellationToken.None);
+
+        // 13,300 invoiced, 13,300 relieved -- the 300 loss is on the forex account, not here.
+        Assert.Equal(0m, statement.ClosingBalance);
+    }
+
+    [Fact]
+    public async Task The_credit_limit_compares_base_currency_against_base_currency()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        var customer = await db.Contacts.SingleAsync(x => x.Id == seed.CustomerId);
+        customer.Update(customer.Name, null, null, null, null, null, 0m, creditLimit: 10_000m);
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        // 100 USD is 13,300 NPR, which is past a 10,000 limit -- while the bare 100 this compared
+        // before phase 36 sat comfortably inside it.
+        var result = await new ContactCreditLimitPolicy(db).CheckAsync(
+            seed.OrganizationId, seed.CustomerId, ExchangeRates.ToBase(100m, UsdRate), CancellationToken.None);
+
+        Assert.Equal(13_300m, result.ProjectedBalance);
+        Assert.NotEqual(CreditLimitStatus.Ok, result.Status);
     }
 
     private static async Task<decimal> ArNetMovementAsync(IAppDbContext db, Seed seed)

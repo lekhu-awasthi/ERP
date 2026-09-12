@@ -23,6 +23,7 @@ import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { defaultWarehouseSeed } from '../../../shared/locations/default-warehouse-seed';
+import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
 
 interface EditableMaterial {
   key: number;
@@ -147,7 +148,9 @@ export class ProductionJournalDetailPage {
   protected readonly canApprove = computed(() => !this.isNew() && this.isDraft() && this.canSave());
 
   constructor() {
-    this.catalogService.listAllProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
+    // Phase 36 -- the picker lists the products available at THIS document's billing location,
+    // and re-reads when the header location changes. See shared/catalog/location-aware-products.
+    locationAwareProducts(this.organizationId, this.locationId, this.products);
     this.organizationsService.listWarehouses(this.organizationId).subscribe({
       next: (w) => {
         this.warehouses.set(w);

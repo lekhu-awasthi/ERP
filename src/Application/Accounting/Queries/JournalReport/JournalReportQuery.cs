@@ -44,7 +44,12 @@ public sealed record JournalReportQuery(
     int PageSize = PagingDefaults.DefaultPageSize,
     bool ExportAll = false,
     // Phase 35b -- the Billing Location filter; null is "All locations". See ILocationFilteredReport.
-    Guid? LocationId = null)
+    Guid? LocationId = null,
+    // Phase 36 -- the Reporting Tags the live drawer carries, one multi-select per tag category
+    // (re-read on Moonbeam 2026-09-11, where the drawer is Period + Transaction Type + six tag
+    // categories). Null or empty is "every document", and a document matches when it carries any
+    // of the selected options -- the same OR the Sales Register has used since phase 19.
+    IReadOnlyList<Guid>? TagOptionIds = null)
     : IRequest<PagedResult<JournalReportEntryDto>>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.JournalReportView;

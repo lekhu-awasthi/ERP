@@ -94,7 +94,12 @@
                   }
                 </td>
                 <td>{{ item.date | nepaliDate }}</td>
-                <td>{{ item.code }}</td>
+                <td>
+                  {{ item.code }}
+                  @if (isForeign(item)) {
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis ms-1">{{ item.currencyCode }}</span>
+                  }
+                </td>
                 <td>{{ item.contactName }}</td>
                 <td class="text-end">{{ item.amount | number: '1.2-2' }}</td>
                 <td class="text-end">{{ item.allocated | number: '1.2-2' }}</td>
@@ -119,10 +124,16 @@
                           (change)="applyTargetId.set($any($event.target).value)"
                         >
                           <option value="" disabled [selected]="!applyTargetId()">Select a document</option>
-                          @for (target of targetsForContact(item.contactId); track target.id) {
+                          @for (target of targetsFor(item); track target.id) {
                             <option [value]="target.id" [selected]="target.id === applyTargetId()">{{ target.code }}</option>
                           }
                         </select>
+                        @if (hasNoTargets(item)) {
+                          <div class="form-text text-danger">
+                            No open {{ isCustomer ? 'invoice' : 'purchase bill' }} for this contact in
+                            {{ item.currencyCode }}. A credit can only be applied to documents in its own currency.
+                          </div>
+                        }
                       </div>
                       <div style="width: 140px;">
                         <label class="form-label small fw-semibold mb-1" for="allocate-payment-page-amount">Amount</label><input id="allocate-payment-page-amount"

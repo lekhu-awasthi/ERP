@@ -56,6 +56,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<VariantAttributeOption> VariantAttributeOptions => Set<VariantAttributeOption>();
     public DbSet<ProductVariantAttributeUsage> ProductVariantAttributeUsages => Set<ProductVariantAttributeUsage>();
     public DbSet<ProductVariantValue> ProductVariantValues => Set<ProductVariantValue>();
+    public DbSet<ProductLocation> ProductLocations => Set<ProductLocation>();
     public DbSet<AccountGroup> AccountGroups => Set<AccountGroup>();
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<JournalVoucher> JournalVouchers => Set<JournalVoucher>();

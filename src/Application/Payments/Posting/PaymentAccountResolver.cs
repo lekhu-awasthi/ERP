@@ -31,4 +31,17 @@ internal static class PaymentAccountResolver
 
         return new PaymentPostingInput(cashOrBankAccountId, controlAccountId, amount, direction);
     }
+
+    /// <summary>
+    /// The control account alone -- Accounts Receivable for a Received settlement, Accounts Payable
+    /// for a Paid one. Phase 36's further-allocation path posts only the realised forex pair, which
+    /// needs the control account and no cash/bank leg at all, so it cannot ask for a whole
+    /// <see cref="PaymentPostingInput"/>. Same row, same two errors, one source of truth.
+    /// </summary>
+    public static async Task<Guid> ResolveControlAccountAsync(
+        IAppDbContext db, Guid organizationId, PaymentDirection direction, CancellationToken cancellationToken)
+    {
+        var input = await ResolveAsync(db, organizationId, Guid.Empty, 0m, direction, cancellationToken);
+        return input.ControlAccountId;
+    }
 }

@@ -45,7 +45,11 @@ public sealed class ListAllocatablePaymentsQueryHandler(IAppDbContext db, ICurre
                 where payment.Direction == request.Direction
                     && payment.Status == PaymentStatus.Approved
                     && (request.ContactId == null || payment.ContactId == request.ContactId)
-                select new { payment.Id, payment.Code, payment.Date, payment.ContactId, ContactName = contact.Name, payment.Amount })
+                select new
+                {
+                    payment.Id, payment.Code, payment.Date, payment.ContactId, ContactName = contact.Name,
+                    payment.Amount, payment.CurrencyCode,
+                })
             .ToListAsync(cancellationToken);
 
         var paymentIds = paymentRows.Select(x => x.Id).ToList();
@@ -77,6 +81,8 @@ public sealed class ListAllocatablePaymentsQueryHandler(IAppDbContext db, ICurre
                     ContactName = contact.Name,
                     line.Debit,
                     line.Credit,
+                    // The *voucher's* currency: a line's amounts are denominated in its parent's.
+                    journalVoucher.CurrencyCode,
                 })
             .ToListAsync(cancellationToken);
 
@@ -94,7 +100,7 @@ public sealed class ListAllocatablePaymentsQueryHandler(IAppDbContext db, ICurre
             var allocated = paymentAllocated.GetValueOrDefault(payment.Id);
             merged.Add(new AllocatablePaymentDto(
                 DocumentType.Payment, payment.Id, null, payment.Code, payment.Date, payment.ContactId, payment.ContactName,
-                payment.Amount, allocated, payment.Amount - allocated));
+                payment.Amount, allocated, payment.Amount - allocated, payment.CurrencyCode));
         }
 
         foreach (var line in journalVoucherRows)
@@ -108,7 +114,7 @@ public sealed class ListAllocatablePaymentsQueryHandler(IAppDbContext db, ICurre
             var allocated = lineAllocated.GetValueOrDefault(line.Id);
             merged.Add(new AllocatablePaymentDto(
                 DocumentType.JournalVoucher, line.Id, line.ParentId, line.Code, line.Date, line.ContactId, line.ContactName,
-                amount, allocated, amount - allocated));
+                amount, allocated, amount - allocated, line.CurrencyCode));
         }
 
         var filtered = request.ShowAllocated

@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
@@ -25,13 +26,14 @@ public sealed class VoidPaymentCommandHandler(IAppDbContext db, ICurrentUserServ
             throw new ConflictException("Only an Approved payment can be voided.");
         }
 
-        var originalEntry = await db.GlJournalEntries
-            .Include(x => x.Lines)
-            .SingleAsync(x => x.SourceDocumentType == DocumentType.Payment && x.SourceDocumentId == payment.Id, cancellationToken);
-
         payment.Void(currentUser.UserId);
 
-        db.GlJournalEntries.Add(GlJournalEntry.PostReversalOf(originalEntry));
+        // Phase 36 -- every entry, not "the" entry: allocating further against an Approved payment
+        // posts a realised forex leg of its own (ApplyPaymentAllocationCommandHandler), so an
+        // Approved payment can carry more than one. Voiding releases every allocation, so it owes
+        // the ledger the reversal of every one of them.
+        await SourceDocumentGlEntries.ReverseOutstandingAsync(
+            db, DocumentType.Payment, payment.Id, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

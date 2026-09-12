@@ -611,6 +611,28 @@ namespace ErpApp.Infrastructure.Migrations
                     b.ToTable("ProductCategories", "catalog");
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Catalog.ProductLocation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LocationId");
+
+                    b.HasIndex("ProductId", "LocationId")
+                        .IsUnique();
+
+                    b.ToTable("ProductLocations", "catalog");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Catalog.ProductSecondaryUnit", b =>
                 {
                     b.Property<Guid>("Id")
@@ -8933,6 +8955,21 @@ namespace ErpApp.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Catalog.ProductLocation", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Catalog.Product", null)
+                        .WithMany("Locations")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Catalog.ProductSecondaryUnit", b =>
                 {
                     b.HasOne("ErpApp.Domain.Catalog.Product", null)
@@ -9980,6 +10017,8 @@ namespace ErpApp.Infrastructure.Migrations
 
             modelBuilder.Entity("ErpApp.Domain.Catalog.Product", b =>
                 {
+                    b.Navigation("Locations");
+
                     b.Navigation("SecondaryUnits");
 
                     b.Navigation("VariantAttributeUsages");

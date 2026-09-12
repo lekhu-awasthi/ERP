@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Documents;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
@@ -31,11 +32,17 @@ public sealed class UpdateInvoiceCommandHandler(IAppDbContext db)
 
         var oldLines = invoice.Lines.ToList();
 
+        // Phase 36 -- the contact's Credit Term applied here rather than only in the browser, so a
+        // document raised through the API, an import or a conversion gets the same due date the
+        // form would have prefilled. An explicit DueDate always wins. See DueDateResolver.
+        var dueDate = await DueDateResolver.ResolveAsync(
+            db, request.OrganizationId, request.ContactId, request.Date, request.DueDate, cancellationToken);
+
         // UpdateHeader applies the export flag before the lines are re-added, so AddLine's own
         // zero-rating sees the new flag rather than the previous save's.
         invoice.UpdateHeader(
             request.ContactId, request.WarehouseId, request.Date, request.Reference, request.DiscountPct,
-            request.DueDate,
+            dueDate,
             request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate);
 
         // Phase 28 -- see the Create handler's note. Draft-only, enforced by the aggregate.

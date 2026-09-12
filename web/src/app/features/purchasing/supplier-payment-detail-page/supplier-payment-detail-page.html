@@ -162,6 +162,17 @@
               placeholder="Optional reference note"
             />
           </div>
+          <!-- Phase 36: Currency + Exchange Rate To NPR, the pair phase 28 put on the customer
+               twin of this screen and missed here -- so a Paid payment could only be raised in the
+               base currency. Same control, same placement. -->
+          <div class="col-12">
+            <app-currency-rate-fields
+              [organizationId]="organizationId"
+              [(currencyCode)]="currencyCode"
+              [(exchangeRate)]="exchangeRate"
+              [disabled]="!isDraft()"
+            />
+          </div>
         </div>
 
         @if (isDraft()) {

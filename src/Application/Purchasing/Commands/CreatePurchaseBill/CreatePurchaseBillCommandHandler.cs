@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Documents;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
@@ -45,6 +46,12 @@ public sealed class CreatePurchaseBillCommandHandler(IAppDbContext db)
         var tdsAmount = await PurchasingValidation.ResolveTdsAmountAsync(
             db, request.OrganizationId, request.TdsTypeId, tdsBaseAmount, cancellationToken);
 
+        // Phase 36 -- the contact's Credit Term applied here rather than only in the browser, so a
+        // document raised through the API, an import or a conversion gets the same due date the
+        // form would have prefilled. An explicit DueDate always wins. See DueDateResolver.
+        var dueDate = await DueDateResolver.ResolveAsync(
+            db, request.OrganizationId, request.ContactId, request.Date, request.DueDate, cancellationToken);
+
         var purchaseBill = PurchaseBill.Create(
             request.OrganizationId,
             request.ContactId,
@@ -61,7 +68,7 @@ public sealed class CreatePurchaseBillCommandHandler(IAppDbContext db)
             request.ReferrerType,
             request.ReferrerId,
             request.DiscountPct,
-            request.DueDate);
+            dueDate);
 
         // Phase 28 -- the currency pair is set right after construction rather than threaded
         // through Create's parameter list; see the aggregate's SetCurrency doc comment for why.

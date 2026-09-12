@@ -109,10 +109,24 @@ export interface Product {
   hasVariants: boolean;
 
   secondaryUnits: ProductSecondaryUnit[];
+
+  /** Phase 36 -- the billing locations this product is available at. **Empty means every
+   *  location**, which is what the live control renders as `All`. The document line pickers ask
+   *  the server for the products available at their own document's location; nothing client-side
+   *  re-implements the rule. */
+  locations: ProductLocationDto[];
+
   salesAccountId: string | null;
   salesReturnAccountId: string | null;
   purchaseAccountId: string | null;
   purchaseReturnAccountId: string | null;
+}
+
+/** Phase 36 -- one row of a product's location restriction. */
+export interface ProductLocationDto {
+  id: string;
+  productId: string;
+  locationId: string;
 }
 
 export interface CreateProductRequest {
@@ -129,6 +143,8 @@ export interface CreateProductRequest {
   trackInventory: boolean;
   sku?: string | null;
   barcode?: string | null;
+  /** Phase 36. Omitted or empty means every location. */
+  locationIds?: string[] | null;
 }
 
 export interface CreateProductResult {
@@ -156,6 +172,8 @@ export interface UpdateProductRequest {
   purchaseReturnAccountId?: string | null;
   sku?: string | null;
   barcode?: string | null;
+  /** Phase 36. Omitted or empty means every location. */
+  locationIds?: string[] | null;
 }
 
 export interface UpdateProductResult {

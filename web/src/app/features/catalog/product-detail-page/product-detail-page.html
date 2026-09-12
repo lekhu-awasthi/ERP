@@ -110,6 +110,36 @@
                     <label class="form-label small fw-semibold" for="product-detail-page-hs-code">HS Code</label>
                     <input id="product-detail-page-hs-code" type="text" class="form-control" formControlName="hsCode" />
                   </div>
+                  <!-- Phase 36 -- the billing locations this product is available at. The live
+                       control is a checkbox multi-select rendering "All" when nothing is ticked;
+                       nothing ticked here means the same thing, and the whole block is absent for a
+                       tenant with no locations. -->
+                  @if (locations().length > 0) {
+                    <div class="col-12">
+                      <fieldset>
+                        <legend class="form-label small fw-semibold mb-1">Location</legend>
+                        <p class="text-muted small mb-2">
+                          Where this product can be used. Tick none to make it available at every location.
+                        </p>
+                        <div class="d-flex flex-wrap gap-3">
+                          @for (location of locations(); track location.id) {
+                            <div class="form-check">
+                              <input
+                                class="form-check-input"
+                                type="checkbox"
+                                [id]="'product-detail-page-location-' + location.id"
+                                [checked]="isLocationSelected(location.id)"
+                                (change)="toggleLocation(location.id, $any($event.target).checked)"
+                              />
+                              <label class="form-check-label small" [for]="'product-detail-page-location-' + location.id">
+                                {{ location.name }} ({{ location.code }})
+                              </label>
+                            </div>
+                          }
+                        </div>
+                      </fieldset>
+                    </div>
+                  }
                   <div class="col-6 col-sm-3">
                     <label class="form-label small fw-semibold" for="product-detail-page-selling-price">Selling Price</label>
                     <input id="product-detail-page-selling-price" type="number" class="form-control" formControlName="sellingPrice" min="0" step="0.01" />
@@ -212,6 +242,10 @@
                 <dd class="col-8">{{ unitName(p.primaryUnitId) }}</dd>
                 <dt class="col-4 text-muted small">HS Code</dt>
                 <dd class="col-8">{{ p.hsCode || '—' }}</dd>
+                @if (locations().length > 0) {
+                  <dt class="col-4 text-muted small">Location</dt>
+                  <dd class="col-8">{{ locationSummary() }}</dd>
+                }
                 <dt class="col-4 text-muted small">Selling Price</dt>
                 <dd class="col-8">{{ p.sellingPrice }}</dd>
                 <dt class="col-4 text-muted small">Purchase Price</dt>

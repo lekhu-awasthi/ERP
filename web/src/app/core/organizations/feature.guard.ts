@@ -24,21 +24,40 @@ import { OrganizationsService } from './organizations.service';
  * tenant does have. Returning plain `false` would leave them on a blank page with the old URL in
  * the bar.</p>
  */
-export const featureGuard = (feature: TenantFeatureKey): CanActivateFn => (route: ActivatedRouteSnapshot) => {
-  const router = inject(Router);
-  const organizationId = organizationIdOf(route);
+export const featureGuard = (feature: TenantFeatureKey): FeatureCanActivateFn => {
+  const guard: CanActivateFn = (route: ActivatedRouteSnapshot) => {
+    const router = inject(Router);
+    const organizationId = organizationIdOf(route);
 
-  if (!organizationId) {
-    return router.createUrlTree(['/organizations']);
-  }
+    if (!organizationId) {
+      return router.createUrlTree(['/organizations']);
+    }
 
-  return subscriptionFor(organizationId, inject(OrganizationsService)).pipe(
-    map((subscription) =>
-      subscription?.features.find((x) => x.feature === feature)?.isEnabled === true
-        ? true
-        : router.createUrlTree(['/organizations', organizationId, 'home'])),
-  );
+    return subscriptionFor(organizationId, inject(OrganizationsService)).pipe(
+      map((subscription) =>
+        subscription?.features.find((x) => x.feature === feature)?.isEnabled === true
+          ? true
+          : router.createUrlTree(['/organizations', organizationId, 'home'])),
+    );
+  };
+
+  // Phase 36. The guard is otherwise an anonymous closure, so the route table cannot be asked which
+  // flag a route gates -- and that is the one question worth asking of it, because this guard is
+  // all-or-nothing while one entitlement (MultipleWarehouses) is a *cap* on the server. Stamping
+  // the key lets `warehouse-list-page.spec.ts` pin that the warehouses route carries no feature
+  // guard at all, rather than the test merely restating the route table.
+  return Object.assign(guard, { featureKey: feature });
 };
+
+/** A `CanActivateFn` that declares which entitlement it gates. */
+export type FeatureCanActivateFn = CanActivateFn & { readonly featureKey: TenantFeatureKey };
+
+/** Reads the entitlement a route's guard gates, if any. Nothing but a test needs this. */
+export function featureKeyOf(guard: unknown): TenantFeatureKey | null {
+  return typeof guard === 'function' && 'featureKey' in guard
+    ? ((guard as FeatureCanActivateFn).featureKey ?? null)
+    : null;
+}
 
 /**
  * The organization id lives on an ancestor route (`organizations/:id/...`), so `paramMap` on the

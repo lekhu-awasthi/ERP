@@ -53,8 +53,23 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db, ICurrentUserServ
             var invoiceIds = invoices.Select(x => x.Id).ToList();
             var invoiceLines = await db.InvoiceLines
                 .Where(x => invoiceIds.Contains(x.InvoiceId))
-                .Select(x => new { x.InvoiceId, x.Amount, x.VatAmount })
+                .Select(x => new { x.InvoiceId, x.ProductId, x.Quantity, x.Amount, x.VatAmount })
                 .ToListAsync(cancellationToken);
+
+            // Phase 36 -- the item's name and unit, needed only when Group By Bill is off. Loaded
+            // once for the period either way rather than branching two data paths.
+            var lineProductIds = invoiceLines.Select(x => x.ProductId).Distinct().ToList();
+            var lineProducts = await db.Products
+                .Where(x => x.OrganizationId == request.OrganizationId && lineProductIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.Name, x.PrimaryUnitId })
+                .ToListAsync(cancellationToken);
+            var lineUnitIds = lineProducts.Select(x => x.PrimaryUnitId).Distinct().ToList();
+            var lineUnits = await db.UnitsOfMeasurement
+                .Where(x => x.OrganizationId == request.OrganizationId && lineUnitIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.Name })
+                .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+            var lineProductLookup = lineProducts.ToDictionary(
+                x => x.Id, x => (x.Name, Unit: lineUnits.GetValueOrDefault(x.PrimaryUnitId, string.Empty)));
             var invoiceTotals = invoiceLines.GroupBy(x => x.InvoiceId)
                 .ToDictionary(g => g.Key, g => (
                     Total: g.Sum(x => x.Amount + x.VatAmount),
@@ -89,6 +104,39 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db, ICurrentUserServ
                     ExportDeclarationNo: x.IsExport ? x.ExportDeclarationNo : null,
                     ExportDeclarationDate: x.IsExport ? x.ExportDeclarationDate : null);
             }));
+
+            if (!request.GroupByBill)
+            {
+                // Phase 36 -- one row per line instead. Built by replacing the document rows just
+                // added rather than by a second query, so the two views read the same invoices, the
+                // same lines and the same split: a line's four magnitudes sum to its document's.
+                var byInvoice = invoiceLines.GroupBy(x => x.InvoiceId).ToDictionary(g => g.Key, g => g.ToList());
+
+                rows = [.. rows.Where(row => row.DocumentType != DocumentType.Invoice)];
+
+                rows.AddRange(invoices.SelectMany(invoice =>
+                {
+                    var contact = invoiceContacts[invoice.ContactId];
+                    return byInvoice.GetValueOrDefault(invoice.Id, []).Select(line =>
+                    {
+                        var product = lineProductLookup.GetValueOrDefault(line.ProductId);
+                        var lineTotal = line.Amount + line.VatAmount;
+                        return new SalesRegisterRowDto(
+                            invoice.Date, DocumentType.Invoice, invoice.Code, invoice.ContactId, contact.Name, contact.Pan,
+                            lineTotal,
+                            line.VatAmount == 0 ? line.Amount : 0,
+                            line.VatAmount != 0 ? line.Amount : 0,
+                            line.VatAmount,
+                            ExportValue: invoice.IsExport ? lineTotal : 0,
+                            ExportCountry: invoice.IsExport ? invoice.ExportCountry : null,
+                            ExportDeclarationNo: invoice.IsExport ? invoice.ExportDeclarationNo : null,
+                            ExportDeclarationDate: invoice.IsExport ? invoice.ExportDeclarationDate : null,
+                            ItemName: product.Name ?? string.Empty,
+                            Quantity: line.Quantity,
+                            Unit: product.Unit ?? string.Empty);
+                    });
+                }));
+            }
         }
 
         // Phase 31: the Include Credit Note In Calculation toggle is the second reason this block
@@ -112,6 +160,23 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db, ICurrentUserServ
                 .Select(x => new { x.Id, x.Name, x.Pan })
                 .ToDictionaryAsync(x => x.Id, cancellationToken);
 
+            if (!request.GroupByBill)
+            {
+                // The same expansion on the return side, through SalesReturnReader's own line rows
+                // so the Sales Return Register and this one still cannot disagree.
+                rows.AddRange(creditNotes.SelectMany(note =>
+                {
+                    var contact = creditNoteContacts[note.ContactId];
+                    return (note.Lines ?? []).Select(line => new SalesRegisterRowDto(
+                        note.Date, DocumentType.CreditNote, note.Code, note.ContactId, contact.Name, contact.Pan,
+                        -line.Buckets.Total, -line.Buckets.TaxExempt, -line.Buckets.Taxable, -line.Buckets.Vat,
+                        ExportValue: 0, ExportCountry: null, ExportDeclarationNo: null, ExportDeclarationDate: null,
+                        ItemName: line.ItemName, Quantity: line.Quantity, Unit: line.Unit));
+                }));
+
+                return Finish(request, rows);
+            }
+
             rows.AddRange(creditNotes.Select(x =>
             {
                 var contact = creditNoteContacts[x.ContactId];
@@ -125,6 +190,13 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db, ICurrentUserServ
             }));
         }
 
+        return Finish(request, rows);
+    }
+
+    /// <summary>Ordering, paging and the footer totals -- shared by both the grouped and the
+    /// per-line path, so the footer is the same sum either way (phase 36).</summary>
+    private static SalesRegisterDto Finish(SalesRegisterQuery request, List<SalesRegisterRowDto> rows)
+    {
         var orderedRows = rows.OrderBy(x => x.Date).ThenBy(x => x.DocumentCode).ToList();
         var paged = request.ExportAll ? orderedRows.ToUnpagedResult() : orderedRows.ToPagedResult(request.Page, request.PageSize);
 

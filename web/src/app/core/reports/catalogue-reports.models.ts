@@ -7,6 +7,10 @@
 export type InventoryBalanceFilter = 'All' | 'PositiveOnly' | 'NegativeOnly';
 
 export interface InventoryPositionRowDto {
+  /** Phase 36 -- set only when Group by Warehouse is on, where each product splits into one row
+   *  per warehouse. Null otherwise, so the screen can tell an ungrouped report from a warehouse
+   *  that happens to have no name. */
+  warehouse?: string | null;
   readonly productId: string;
   readonly product: string;
   readonly category: string;

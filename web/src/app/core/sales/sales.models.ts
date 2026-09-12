@@ -156,6 +156,9 @@ export interface Invoice {
   discountPct: number;
   /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
   terms: string | null;
+  /** Phase 28 -- on the wire since that phase (the list returns the aggregate), declared here in
+   *  phase 36 because the Allocate screen has to match a credit's currency against its targets'. */
+  currencyCode: string;
 }
 
 export interface InvoiceLineDto extends InvoiceLineInput {
@@ -506,6 +509,11 @@ export interface AnnexFiveReportDto {
 // --- Sales Register (Phase 19) ---
 
 export interface SalesRegisterRowDto {
+  /** Phase 36 -- populated only when Group By Bill is off, where the register renders one row per
+   *  line. Null otherwise, so the screen can tell a grouped register from an unnamed item. */
+  itemName?: string | null;
+  quantity?: number | null;
+  unit?: string | null;
   date: string;
   documentType: DocumentType;
   documentCode: string;

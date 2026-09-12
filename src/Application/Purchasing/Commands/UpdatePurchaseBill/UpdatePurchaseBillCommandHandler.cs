@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Documents;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
@@ -41,6 +42,12 @@ public sealed class UpdatePurchaseBillCommandHandler(IAppDbContext db)
         var oldLines = purchaseBill.Lines.ToList();
         var oldAdditionalCosts = purchaseBill.AdditionalCosts.ToList();
 
+        // Phase 36 -- the contact's Credit Term applied here rather than only in the browser, so a
+        // document raised through the API, an import or a conversion gets the same due date the
+        // form would have prefilled. An explicit DueDate always wins. See DueDateResolver.
+        var dueDate = await DueDateResolver.ResolveAsync(
+            db, request.OrganizationId, request.ContactId, request.Date, request.DueDate, cancellationToken);
+
         purchaseBill.UpdateHeader(
             request.ContactId,
             request.WarehouseId,
@@ -54,7 +61,7 @@ public sealed class UpdatePurchaseBillCommandHandler(IAppDbContext db)
             request.TdsTypeId,
             tdsAmount,
             request.DiscountPct,
-            request.DueDate);
+            dueDate);
 
         // Phase 28 -- see the Create handler's note. Draft-only, enforced by the aggregate.
         purchaseBill.SetCurrency(request.CurrencyCode, request.ExchangeRate);

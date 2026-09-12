@@ -43,18 +43,30 @@ public sealed class PaymentPostingRule : IGlPostingRule<PaymentPostingInput>
 
         if (document.Forex is { Amount: > 0 } forex)
         {
-            if (forex.IsGain)
-            {
-                lines.Add(new GlLineInput(document.ControlAccountId, forex.Amount, 0));
-                lines.Add(new GlLineInput(forex.ForexAccountId, 0, forex.Amount));
-            }
-            else
-            {
-                lines.Add(new GlLineInput(document.ControlAccountId, 0, forex.Amount));
-                lines.Add(new GlLineInput(forex.ForexAccountId, forex.Amount, 0));
-            }
+            lines.AddRange(ForexLines(document.ControlAccountId, forex));
         }
 
         return lines;
+    }
+
+    /// <summary>
+    /// The realised-forex pair on its own, so the further-allocation path can post it as an entry
+    /// of its own without restating which side of the control account it lands on
+    /// (<c>ApplyPaymentAllocationCommandHandler</c>, phase 36). It balances by itself -- which is
+    /// what lets it be either appended to the Approve-time entry or posted alone.
+    /// </summary>
+    public static IReadOnlyList<GlLineInput> ForexLines(Guid controlAccountId, PaymentForexInput forex)
+    {
+        return forex.IsGain
+            ?
+            [
+                new GlLineInput(controlAccountId, forex.Amount, 0),
+                new GlLineInput(forex.ForexAccountId, 0, forex.Amount),
+            ]
+            :
+            [
+                new GlLineInput(controlAccountId, 0, forex.Amount),
+                new GlLineInput(forex.ForexAccountId, forex.Amount, 0),
+            ];
     }
 }

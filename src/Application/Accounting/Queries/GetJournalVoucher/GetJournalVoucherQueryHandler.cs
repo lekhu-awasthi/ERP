@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Accounting;
@@ -21,13 +22,17 @@ public sealed class GetJournalVoucherQueryHandler(IAppDbContext db)
 
         if (journalVoucher.Status == JournalVoucherStatus.Approved)
         {
-            var glEntry = await db.GlJournalEntries
-                .Include(x => x.Lines)
-                .SingleOrDefaultAsync(
-                    x => x.SourceDocumentType == DocumentType.JournalVoucher && x.SourceDocumentId == journalVoucher.Id,
-                    cancellationToken);
+            // Phase 36 -- every entry this voucher posted, not "the" entry: allocating further
+            // against one of its Contact-tagged lines posts a realised forex leg as a second entry,
+            // and a `SingleOrDefaultAsync` throws on two rows just as `SingleAsync` does. The panel
+            // shows what the voucher actually did to the ledger, so it shows both.
+            var glEntries = await SourceDocumentGlEntries.LoadAsync(
+                db, DocumentType.JournalVoucher, journalVoucher.Id, cancellationToken);
 
-            glLines = glEntry?.Lines.Select(x => new PostedGlLineDto(x.Id, x.AccountId, x.Debit, x.Credit)).ToList();
+            glLines = glEntries.Count == 0
+                ? null
+                : glEntries.SelectMany(e => e.Lines)
+                    .Select(x => new PostedGlLineDto(x.Id, x.AccountId, x.Debit, x.Credit)).ToList();
         }
 
         return new JournalVoucherDetailDto(

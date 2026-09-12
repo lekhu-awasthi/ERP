@@ -23,6 +23,17 @@
     </div>
   }
 
+  @if (atWarehouseCap() && !editingId()) {
+    <div class="alert alert-info d-flex align-items-center gap-2 mb-4" role="status">
+      <i aria-hidden="true" class="bi bi-info-circle-fill"></i>
+      <div>
+        This organization does not have the Multiple Warehouses feature, so it is limited to a single warehouse.
+        Accounting Features are chosen when the organization is created and cannot be changed afterwards.
+      </div>
+    </div>
+  }
+
+  @if (!atWarehouseCap() || editingId()) {
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4">
       <h6 class="fw-bold text-dark mb-3">{{ editingId() ? 'Edit Warehouse' : 'New Warehouse' }}</h6>
@@ -52,6 +63,7 @@
       </form>
     </div>
   </div>
+  }
 
   <div class="card border-0 shadow-sm">
     <div class="card-body p-4">

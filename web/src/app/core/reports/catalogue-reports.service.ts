@@ -34,15 +34,25 @@ export class CatalogueReportsService {
     return `${environment.apiBaseUrl}/api/organizations/${organizationId}`;
   }
 
+  /** Phase 36 -- groupByWarehouse and tagOptionIds are the live drawer's Show Columns checkbox and
+   *  its Reporting Tags multi-selects, re-read on Moonbeam 2026-09-11. */
   getInventoryPosition(
     organizationId: string, fromDate: string, toDate: string, categoryId: string | null,
     productId: string | null, warehouseId: string | null, balanceFilter: InventoryBalanceFilter,
     page = 1, pageSize = 50,
     locationId?: string,
+    groupByWarehouse = false,
+    tagOptionIds: string[] = [],
   ): Observable<InventoryPositionReportDto> {
+    const params: Record<string, string | string[]> = {
+      ...this.stockParams(fromDate, toDate, categoryId, productId, warehouseId, balanceFilter, page, pageSize, locationId ?? null),
+      groupByWarehouse: String(groupByWarehouse),
+    };
+    if (tagOptionIds.length > 0) params['tagOptionIds'] = tagOptionIds;
+
     return this.http.get<InventoryPositionReportDto>(
       `${this.baseUrl(organizationId)}/reports/inventory-position`,
-      { withCredentials: true, params: this.stockParams(fromDate, toDate, categoryId, productId, warehouseId, balanceFilter, page, pageSize, locationId ?? null) },
+      { withCredentials: true, params },
     );
   }
 
@@ -50,8 +60,13 @@ export class CatalogueReportsService {
     organizationId: string, fromDate: string, toDate: string, categoryId: string | null,
     productId: string | null, warehouseId: string | null, balanceFilter: InventoryBalanceFilter,
     full: boolean, page: number, pageSize: number, locationId?: string,
+    groupByWarehouse = false, tagOptionIds: string[] = [],
   ): Observable<Blob> {
-    const params = this.stockParams(fromDate, toDate, categoryId, productId, warehouseId, balanceFilter, page, pageSize, locationId ?? null);
+    const params: Record<string, string | string[]> = {
+      ...this.stockParams(fromDate, toDate, categoryId, productId, warehouseId, balanceFilter, page, pageSize, locationId ?? null),
+      groupByWarehouse: String(groupByWarehouse),
+    };
+    if (tagOptionIds.length > 0) params['tagOptionIds'] = tagOptionIds;
     if (locationId) params['locationId'] = locationId;
     params['full'] = String(full);
     return this.http.get(`${this.baseUrl(organizationId)}/reports/inventory-position/export`, {

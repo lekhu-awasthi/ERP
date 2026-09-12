@@ -3,6 +3,7 @@ using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
+using ErpApp.Application.Configuration;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -35,6 +36,16 @@ public sealed class JournalReportQueryHandler(IAppDbContext db, ICurrentUserServ
         var entries = await entryQuery
             .Select(x => new { x.Id, x.PostedAt, x.SourceDocumentType, x.SourceDocumentId })
             .ToListAsync(cancellationToken);
+
+        // Phase 36 -- the drawer's Reporting Tags. Matched on the (type, id) pair, because an entry
+        // is all a GL row knows about its document and this report spans every posting type.
+        var taggedDocuments = await ReportingTagFilter.ResolveMatchingDocumentsAsync(
+            db, request.OrganizationId, request.TagOptionIds, cancellationToken);
+
+        if (taggedDocuments is not null)
+        {
+            entries = [.. entries.Where(x => taggedDocuments.Contains((x.SourceDocumentType, x.SourceDocumentId)))];
+        }
 
         // Newest first, as the live report reads; Id makes the order total so paging is stable.
         var ordered = entries

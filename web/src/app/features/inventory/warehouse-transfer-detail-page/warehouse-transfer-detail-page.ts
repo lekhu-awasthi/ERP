@@ -15,6 +15,7 @@ import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-ta
 import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
+import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
 
 interface EditableLine {
   key: number;
@@ -85,7 +86,9 @@ export class WarehouseTransferDetailPage {
   });
 
   constructor() {
-    this.catalogService.listAllProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
+    // Phase 36 -- the picker lists the products available at THIS document's billing location,
+    // and re-reads when the header location changes. See shared/catalog/location-aware-products.
+    locationAwareProducts(this.organizationId, this.locationId, this.products);
     this.organizationsService.listWarehouses(this.organizationId).subscribe({ next: (w) => this.warehouses.set(w) });
 
     this.route.paramMap.subscribe((params) => {

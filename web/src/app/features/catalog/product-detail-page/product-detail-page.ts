@@ -9,6 +9,7 @@ import { ProductVariantPanelComponent } from '../product-variant-panel/product-v
 import { Product, ProductCategory, ProductType, UnitOfMeasurement, VatRate } from '../../../core/catalog/catalog.models';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
+import { BillingLocationStore } from '../../../shared/locations/billing-location-store';
 
 /** Record-detail-page chrome for Product, mirroring contact-detail-page's shape (left
  * mini-profile + vertical tab list + right content pane). See that component's doc comment for
@@ -24,6 +25,7 @@ export class ProductDetailPage {
   private readonly router = inject(Router);
   private readonly catalogService = inject(CatalogService);
   private readonly accountingService = inject(AccountingService);
+  private readonly locationStore = inject(BillingLocationStore);
   private readonly fb = inject(FormBuilder);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
@@ -53,6 +55,21 @@ export class ProductDetailPage {
       (category) => category.name,
     ),
   );
+
+  /**
+   * Phase 36 -- the billing locations this product is available at, as a checkbox set.
+   *
+   * <p>Empty is `All`, not "nowhere": the live control renders `All` when nothing is ticked and
+   * carries no required marker, and the server reads an empty set as no restriction at all. Kept
+   * in its own signal rather than in the reactive form, because a set of ids is not a form control
+   * and the zoneless gotcha (a `computed()` over a plain `FormControl.value` caches forever) makes
+   * a signal the cheaper answer.</p>
+   *
+   * <p>Rendered only for a tenant that actually has more than one location -- the store returns an
+   * empty list for a tenant without the entitlement, so the block disappears by itself.</p>
+   */
+  protected readonly locations = this.locationStore.locations(this.organizationId);
+  protected readonly selectedLocationIds = signal<string[]>([]);
 
   protected readonly types: ProductType[] = ['Goods', 'Service'];
   protected readonly vatRates: VatRate[] = ['NoVat', 'ZeroVat', 'ThirteenPercentVat'];
@@ -102,6 +119,8 @@ export class ProductDetailPage {
       this.errorMessage.set(null);
       this.addingSecondaryUnit.set(false);
 
+      this.selectedLocationIds.set([]);
+
       if (isNew) {
         this.loading.set(false);
         this.form.reset({
@@ -127,9 +146,19 @@ export class ProductDetailPage {
     });
   }
 
+  protected isLocationSelected(locationId: string): boolean {
+    return this.selectedLocationIds().includes(locationId);
+  }
+
+  protected toggleLocation(locationId: string, selected: boolean): void {
+    this.selectedLocationIds.update((ids) =>
+      selected ? [...new Set([...ids, locationId])] : ids.filter((id) => id !== locationId));
+  }
+
   protected startEdit(): void {
     const product = this.product();
     if (product) {
+      this.selectedLocationIds.set((product.locations ?? []).map((x) => x.locationId));
       this.form.reset({
         type: product.type,
         name: product.name,
@@ -201,6 +230,7 @@ export class ProductDetailPage {
           vatRate,
           reOrderLevel,
           trackInventory,
+          locationIds: this.selectedLocationIds(),
         })
         .subscribe({
           next: (result) => {
@@ -232,6 +262,7 @@ export class ProductDetailPage {
         salesReturnAccountId: salesReturnAccountId || null,
         purchaseAccountId: purchaseAccountId || null,
         purchaseReturnAccountId: purchaseReturnAccountId || null,
+        locationIds: this.selectedLocationIds(),
       })
       .subscribe({
         next: () => {
@@ -244,6 +275,19 @@ export class ProductDetailPage {
           this.errorMessage.set(extractErrorMessage(err) ?? 'Could not update product. Please try again.');
         },
       });
+  }
+
+  /** What the read-only view shows: the location names, or `All` for an unrestricted product. */
+  protected locationSummary(): string {
+    const ids = (this.product()?.locations ?? []).map((x) => x.locationId);
+    if (ids.length === 0) {
+      return 'All';
+    }
+
+    return this.locations()
+      .filter((location) => ids.includes(location.id))
+      .map((location) => location.name)
+      .join(', ');
   }
 
   protected categoryName(categoryId: string): string {

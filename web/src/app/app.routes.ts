@@ -322,10 +322,18 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    // Phase 36 -- deliberately NOT featureGuard('MultipleWarehouses'), unlike the currencies and
+    // billing-locations routes below. Phase 20f Decision #4 made this entitlement the one
+    // *conditional* gate in the codebase: the server (CreateWarehouseCommandHandler) enforces a
+    // cap, not a block, because Invoice and PurchaseBill both require a WarehouseId and nothing
+    // seeds a default warehouse. A flag-off tenant therefore needs this page to create its *first*
+    // warehouse, and phase 27b's guard -- written for the on/off flags -- was stricter than the
+    // server it fronts, leaving such a tenant unable to raise either document at all. The cap the
+    // entitlement really buys is shown on the page itself (WarehouseListPage.canAddWarehouse).
     path: 'organizations/:id/warehouses',
     loadComponent: () =>
       import('./features/organizations/warehouse-list-page/warehouse-list-page').then((m) => m.WarehouseListPage),
-    canActivate: [authGuard, featureGuard('MultipleWarehouses')],
+    canActivate: [authGuard],
   },
   {
     // Phase 28 -- the client half of the MultiCurrency cap. The server's real enforcement is a cap

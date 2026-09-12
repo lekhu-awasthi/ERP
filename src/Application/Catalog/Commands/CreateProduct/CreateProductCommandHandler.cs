@@ -48,6 +48,10 @@ public sealed class CreateProductCommandHandler(IAppDbContext db, IDocumentNumbe
             request.Sku,
             request.Barcode);
 
+        // Phase 36 -- an empty set is the restriction being absent, not a product available
+        // nowhere. Added before the parent is saved, so these ride the same insert.
+        product.SetLocations(request.LocationIds);
+
         db.Products.Add(product);
         await db.SaveChangesAsync(cancellationToken);
 

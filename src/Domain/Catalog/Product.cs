@@ -41,6 +41,7 @@ namespace ErpApp.Domain.Catalog;
 public sealed class Product
 {
     private readonly List<ProductSecondaryUnit> _secondaryUnits = [];
+    private readonly List<ProductLocation> _locations = [];
     private readonly List<ProductVariantAttributeUsage> _variantAttributeUsages = [];
     private readonly List<ProductVariantValue> _variantValues = [];
 
@@ -108,6 +109,11 @@ public sealed class Product
 
     /// <summary>A child's own combination, one row per attribute. Empty otherwise.</summary>
     public IReadOnlyList<ProductVariantValue> VariantValues => _variantValues;
+
+    /// <summary>Phase 36 -- the billing locations this product is available at. <b>Empty means
+    /// every location</b>, which is what the live control shows as <c>All</c> and what every
+    /// product created before this phase has. See <see cref="ProductLocation"/>.</summary>
+    public IReadOnlyList<ProductLocation> Locations => _locations;
 
     private Product()
     {
@@ -367,6 +373,39 @@ public sealed class Product
         SalesReturnAccountId = salesReturnAccountId;
         PurchaseAccountId = purchaseAccountId;
         PurchaseReturnAccountId = purchaseReturnAccountId;
+    }
+
+    /// <summary>
+    /// Replaces the set of billing locations this product is available at, and <b>reports what
+    /// changed</b> so the handler can push the additions through the child DbSet.
+    ///
+    /// <para>Returning the new rows rather than letting the caller read them back off
+    /// <see cref="Locations"/> is phase-24 bug #1's remedy: a child appended to an already-tracked
+    /// parent's encapsulated collection is detected as <c>Modified</c>, not <c>Added</c>, on the
+    /// InMemory provider, and the save then fails with a DbUpdateConcurrencyException that names
+    /// nothing useful.</para>
+    ///
+    /// <para>An empty or null set clears the restriction, which means "available everywhere" --
+    /// never "available nowhere".</para>
+    /// </summary>
+    public (IReadOnlyList<ProductLocation> Removed, IReadOnlyList<ProductLocation> Added) SetLocations(
+        IEnumerable<Guid>? locationIds)
+    {
+        var wanted = locationIds?.Distinct().ToList() ?? [];
+
+        var removed = _locations.Where(x => !wanted.Contains(x.LocationId)).ToList();
+        foreach (var row in removed)
+        {
+            _locations.Remove(row);
+        }
+
+        var added = wanted
+            .Where(id => _locations.All(x => x.LocationId != id))
+            .Select(id => ProductLocation.Create(Id, id))
+            .ToList();
+        _locations.AddRange(added);
+
+        return (removed, added);
     }
 
     public ProductSecondaryUnit AddSecondaryUnit(

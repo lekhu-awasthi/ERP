@@ -19,6 +19,36 @@ public class InventoryReportQueryHandlerTests
     private static readonly DateOnly PeriodEnd = new(2026, 5, 31);
 
     [Fact]
+    public async Task Inventory_Position_grouped_by_warehouse_names_the_warehouse_and_totals_the_same()
+    {
+        // Phase 36 -- the live drawer's Show Columns checkbox. Grouped or not, the figures come from
+        // the same StockFactReader, so the footer cannot move; what changes is the split and the
+        // WAREHOUSE column.
+        var db = TestAppDbContext.Create();
+        var seed = await InventoryReportSeed.CreateAsync(db);
+
+        await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(3), 50m, 12m);
+        await InventoryReportSeed.SellAsync(db, seed, PeriodStart.AddDays(10), 20m, 20m);
+
+        var handler = new InventoryPositionReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
+
+        var flat = await handler.Handle(
+            new InventoryPositionReportQuery(seed.OrganizationId, PeriodStart, PeriodEnd, null, null, null),
+            CancellationToken.None);
+        var grouped = await handler.Handle(
+            new InventoryPositionReportQuery(
+                seed.OrganizationId, PeriodStart, PeriodEnd, null, null, null, GroupByWarehouse: true),
+            CancellationToken.None);
+
+        Assert.Equal(flat.TotalQuantity, grouped.TotalQuantity);
+        Assert.Equal(flat.TotalAmount, grouped.TotalAmount);
+
+        // Null means "not grouped", never an unnamed warehouse.
+        Assert.All(flat.Items, row => Assert.Null(row.Warehouse));
+        Assert.All(grouped.Items, row => Assert.False(string.IsNullOrWhiteSpace(row.Warehouse)));
+    }
+
+    [Fact]
     public async Task Inventory_Position_shows_the_same_figures_as_Inventory_Movements_Balance_columns()
     {
         var db = TestAppDbContext.Create();

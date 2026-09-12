@@ -12,6 +12,8 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { GL_SOURCE_DOCUMENT_TYPES, txnTypeLabel } from '../gl-report-shared';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { ConfigurationService } from '../../../core/configuration/configuration.service';
+import { ReportingTagOption } from '../../../core/configuration/configuration.models';
 
 const EMPTY_REPORT: PagedResult<JournalReportEntryDto> = {
   items: [],
@@ -36,6 +38,7 @@ const EMPTY_REPORT: PagedResult<JournalReportEntryDto> = {
 export class JournalReportPage {
   private readonly route = inject(ActivatedRoute);
   private readonly accountingService = inject(AccountingService);
+  private readonly configurationService = inject(ConfigurationService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -52,11 +55,19 @@ export class JournalReportPage {
   protected readonly toDate = signal(this.today());
   protected readonly documentType = signal<GlSourceDocumentType | ''>('');
 
+  /** Phase 36 -- the Reporting Tags the live drawer carries, one multi-select per tag category
+   *  (re-read on Moonbeam 2026-09-11). Any-of semantics, the same the Sales Register uses. */
+  protected readonly tagOptions = signal<ReportingTagOption[]>([]);
+  protected readonly selectedTagOptionIds = signal<string[]>([]);
+
   protected readonly page = signal(1);
   protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
   protected readonly exporting = signal(false);
 
   constructor() {
+    this.configurationService.listReportingTagOptions(this.organizationId).subscribe({
+      next: (options) => this.tagOptions.set(options),
+    });
     this.load();
   }
 
@@ -102,7 +113,7 @@ export class JournalReportPage {
     this.accountingService
       .exportJournalReport(
         this.organizationId, this.fromDate(), this.toDate(), this.documentType() || null, full, page, pageSize,
-        this.locationId(),
+        this.locationId(), this.selectedTagOptionIds(),
       )
       .subscribe({
         next: (blob) => {
@@ -124,6 +135,14 @@ export class JournalReportPage {
     this.load();
   }
 
+  protected onTagOptionsChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    this.selectedTagOptionIds.set(Array.from(select.selectedOptions).map((o) => o.value));
+    // Page 1, like every other filter on this screen.
+    this.page.set(1);
+    this.load();
+  }
+
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
@@ -132,7 +151,7 @@ export class JournalReportPage {
       .getJournalReport(
         this.organizationId, this.fromDate(), this.toDate(), this.documentType() || null,
         this.page(), this.pageSize(),
-        this.locationId(),
+        this.locationId(), this.selectedTagOptionIds(),
       )
       .subscribe({
         next: (report) => {

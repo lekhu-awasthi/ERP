@@ -79,6 +79,22 @@
               </span>
             </label>
           </div>
+          <!-- Phase 36 -- the drawer's second View Option, read live on Moonbeam 2026-09-11. -->
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="group-by-bill"
+              [checked]="groupByBill()"
+              (change)="toggleGroupByBill($any($event.target).checked)"
+            />
+            <label class="form-check-label small" for="group-by-bill">
+              Group By Bill
+              <span class="d-block text-muted">
+                Off, each document becomes one row per item, with its name, quantity and unit. The totals do not change.
+              </span>
+            </label>
+          </div>
         </div>
         <div class="col-12">
           <app-report-location-filter
@@ -112,6 +128,13 @@
                 <th scope="col">Document No</th>
                 <th scope="col">Contact</th>
                 <th scope="col">PAN</th>
+                <!-- Phase 36 -- the three columns the live register adds when Group By Bill is off,
+                     in the position it puts them: after the buyer's PAN, before the money. -->
+                @if (!groupByBill()) {
+                  <th scope="col">Item</th>
+                  <th scope="col" class="text-end">Quantity</th>
+                  <th scope="col">Unit</th>
+                }
                 <th scope="col" class="text-end">Total Value</th>
                 <th scope="col" class="text-end">Tax-Exempt Value</th>
                 <th scope="col" class="text-end">Taxable Value</th>
@@ -126,7 +149,9 @@
               </tr>
             </thead>
             <tbody>
-              @for (row of rows(); track row.documentCode) {
+              <!-- track by index, not by document code: with Group By Bill off one document
+                   contributes several rows, so its code is no longer a key. -->
+              @for (row of rows(); track $index) {
                 <tr>
                   <td>{{ row.date | nepaliDate }}</td>
                   <td>
@@ -139,6 +164,11 @@
                   <td>{{ row.documentCode }}</td>
                   <td>{{ row.contactName }}</td>
                   <td>{{ row.contactPan || '—' }}</td>
+                  @if (!groupByBill()) {
+                    <td>{{ row.itemName || '—' }}</td>
+                    <td class="text-end">{{ row.quantity ?? '—' }}</td>
+                    <td>{{ row.unit || '—' }}</td>
+                  }
                   <td class="text-end">{{ (row.totalValue | amount) }}</td>
                   <td class="text-end">{{ (row.taxExemptValue | amount) }}</td>
                   <td class="text-end">{{ (row.taxableValue | amount) }}</td>
@@ -152,7 +182,7 @@
             </tbody>
             <tfoot>
               <tr class="fw-bold border-top">
-                <td colspan="5">Total</td>
+                <td [attr.colspan]="groupByBill() ? 5 : 8">Total</td>
                 <td class="text-end">{{ (totalValue() | amount) }}</td>
                 <td class="text-end">{{ (totalTaxExemptValue() | amount) }}</td>
                 <td class="text-end">{{ (totalTaxableValue() | amount) }}</td>

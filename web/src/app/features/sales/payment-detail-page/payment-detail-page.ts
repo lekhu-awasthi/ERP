@@ -102,8 +102,13 @@ export class PaymentDetailPage {
 
   protected readonly sortedAccounts = computed(() => [...this.accounts()].sort((a, b) => a.code.localeCompare(b.code)));
 
+  /** Phase 36 -- this customer's invoices **in this payment's currency**: a payment can only be
+   *  allocated to documents in its own currency (phase 28 Decision F), so offering the others was
+   *  offering a choice the server refuses at Approve. */
   protected readonly customerInvoices = computed(() =>
-    this.approvedInvoices().filter((i) => i.contactId === this.contactId()),
+    this.approvedInvoices().filter(
+      (i) => i.contactId === this.contactId() && (i.currencyCode ?? BASE_CURRENCY_CODE) === this.currencyCode(),
+    ),
   );
 
   protected readonly allocatedTotal = computed(() => this.round(this.allocations().reduce((sum, a) => sum + (a.amount || 0), 0)));

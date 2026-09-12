@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Documents;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
@@ -33,9 +34,15 @@ public sealed class CreateInvoiceCommandHandler(IAppDbContext db)
             quotation.MarkConverted();
         }
 
+        // Phase 36 -- the contact's Credit Term applied here rather than only in the browser, so a
+        // document raised through the API, an import or a conversion gets the same due date the
+        // form would have prefilled. An explicit DueDate always wins. See DueDateResolver.
+        var dueDate = await DueDateResolver.ResolveAsync(
+            db, request.OrganizationId, request.ContactId, request.Date, request.DueDate, cancellationToken);
+
         var invoice = Invoice.Create(
             request.OrganizationId, request.ContactId, request.WarehouseId, request.Date, request.Reference,
-            request.ReferrerType, request.ReferrerId, request.DueDate, request.DiscountPct,
+            request.ReferrerType, request.ReferrerId, dueDate, request.DiscountPct,
             request.IsExport, request.ExportCountry, request.ExportDeclarationNo, request.ExportDeclarationDate);
 
         // Phase 28 -- the currency pair is set right after construction rather than threaded

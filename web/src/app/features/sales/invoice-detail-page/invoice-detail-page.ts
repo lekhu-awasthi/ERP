@@ -34,6 +34,7 @@ import { TermsEditor } from '../../../shared/terms/terms-editor';
 import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { defaultWarehouseSeed } from '../../../shared/locations/default-warehouse-seed';
+import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
 
 interface EditableLine {
   key: number;
@@ -184,7 +185,9 @@ export class InvoiceDetailPage {
 
   constructor() {
     this.contactsService.listAllContacts(this.organizationId, 'Customer').subscribe({ next: (c) => this.customers.set(c) });
-    this.catalogService.listAllProducts(this.organizationId).subscribe({ next: (p) => this.products.set(p) });
+    // Phase 36 -- the picker lists the products available at THIS document's billing location,
+    // and re-reads when the header location changes. See shared/catalog/location-aware-products.
+    locationAwareProducts(this.organizationId, this.locationId, this.products);
     this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
     this.organizationsService.listWarehouses(this.organizationId).subscribe({
       next: (w) => {

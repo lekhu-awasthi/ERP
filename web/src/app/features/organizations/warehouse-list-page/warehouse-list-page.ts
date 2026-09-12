@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
@@ -27,6 +27,24 @@ export class WarehouseListPage {
   protected readonly editingId = signal<string | null>(null);
   protected readonly confirmingDeleteId = signal<string | null>(null);
 
+  /**
+   * Phase 36. The MultipleWarehouses entitlement is a *cap*, not a block (phase 20f Decision #4,
+   * enforced in CreateWarehouseCommandHandler): every tenant needs its first warehouse, because
+   * Invoice and PurchaseBill both require a WarehouseId and nothing seeds one. Until phase 36 the
+   * route carried featureGuard('MultipleWarehouses'), which was stricter than that server rule and
+   * bounced a flag-off tenant off this page entirely, leaving it unable to raise either document.
+   *
+   * Null while the subscription is in flight, and on a read failure -- the form stays available in
+   * both cases, because the server is the enforcement and a client that guesses "no" would
+   * reproduce the very bug this replaced.
+   */
+  protected readonly multipleWarehousesEnabled = signal<boolean | null>(null);
+
+  /** The form is hidden only once we positively know the tenant is capped and already at the cap. */
+  protected readonly atWarehouseCap = computed(
+    () => this.multipleWarehousesEnabled() === false && this.items().length >= 1,
+  );
+
   protected readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
     isActive: [true],
@@ -34,6 +52,7 @@ export class WarehouseListPage {
 
   constructor() {
     this.load();
+    this.loadEntitlement();
   }
 
   protected startCreate(): void {
@@ -93,6 +112,18 @@ export class WarehouseListPage {
         this.confirmingDeleteId.set(null);
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not delete warehouse. Please try again.');
       },
+    });
+  }
+
+  private loadEntitlement(): void {
+    this.organizationsService.getSubscription(this.organizationId).subscribe({
+      next: (subscription) =>
+        this.multipleWarehousesEnabled.set(
+          subscription.features.find((x) => x.feature === 'MultipleWarehouses')?.isEnabled === true,
+        ),
+      // Leave it unknown: the cap is the server's to enforce, and hiding the form on a failed read
+      // would block the first warehouse all over again.
+      error: () => this.multipleWarehousesEnabled.set(null),
     });
   }
 

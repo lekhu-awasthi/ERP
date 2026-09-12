@@ -80,8 +80,13 @@ public sealed class ApproveInvoiceCommandHandler(
         // checks it: saving a breaching draft raises nothing at all, and the "Crossed Credit Limit"
         // dialog appears on Approve (confirmed live 2026-09-06). Stock first, so an invoice tripping
         // both surfaces them in the same order the reference product does.
+        // Phase 36 -- the document's own total folded into the base currency, because that is the
+        // unit the contact's balance and their credit limit are both in (phase-31 carried item #3).
+        // A base-currency invoice converts at rate 1, so nothing changes for a single-currency
+        // tenant.
         var creditStatus = await creditLimitPolicy.CheckAsync(
-            request.OrganizationId, invoice.ContactId, invoice.GrandTotal, cancellationToken);
+            request.OrganizationId, invoice.ContactId,
+            ExchangeRates.ToBase(invoice.GrandTotal, invoice.ExchangeRate), cancellationToken);
 
         if (creditStatus.Status == CreditLimitStatus.Reject)
         {

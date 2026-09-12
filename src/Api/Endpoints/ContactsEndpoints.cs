@@ -16,6 +16,7 @@ using ErpApp.Application.Contacts.Queries.ContactAgeingSummary;
 using ErpApp.Application.Contacts.Queries.ContactBalanceSummary;
 using ErpApp.Application.Contacts.Queries.ContactOverview;
 using ErpApp.Application.Contacts.Queries.ContactStatement;
+using ErpApp.Application.Contacts.Queries.Ageing;
 using ErpApp.Application.Contacts.Queries.DocumentAge;
 using ErpApp.Application.Contacts.Queries.GetContact;
 using ErpApp.Application.Contacts.Queries.ListActivities;

@@ -55,6 +55,16 @@
             (locationChange)="onLocationChange($event)"
           />
         </div>
+        <!-- Phase 36 -- the Reporting Tags the live drawer carries. A document matches when it
+             carries any of the selected options, the same rule the Sales Register uses. -->
+        <div class="col-12 col-sm-4">
+          <label class="form-label small fw-semibold" for="journal-report-page-reporting-tags">Reporting Tags</label>
+          <select id="journal-report-page-reporting-tags" class="form-select" multiple size="1" (change)="onTagOptionsChange($event)">
+            @for (option of tagOptions(); track option.id) {
+              <option [value]="option.id">{{ option.name }}</option>
+            }
+          </select>
+        </div>
       </div>
     </div>
   </div>

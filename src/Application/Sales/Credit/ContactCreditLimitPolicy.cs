@@ -23,13 +23,13 @@ namespace ErpApp.Application.Sales.Credit;
 /// docs/phase-31-status.md Decision B. A non-Customer contact returns Ok here rather than throwing,
 /// so a mis-typed document fails on its own terms rather than on this one.</para>
 ///
-/// <para><b>Currency.</b> <paramref name="documentAmount"/> is taken in the document's own currency
-/// and is deliberately <i>not</i> folded to base, because <c>ContactLedgerReader</c> sums its events
-/// un-converted too. Converting only the new document would compare a base-currency figure against a
-/// mixed-currency running total and produce a number matching neither the Statement nor the
-/// Overview. This is inherited from phase 28's carried limitation (the contact-ledger family has no
-/// currency fold at all), not a new one, and it is exact on a single-currency tenant -- which is
-/// every tenant the reference product can currently produce.</para>
+/// <para><b>Currency (phase 36).</b> Everything compared here is in the base currency:
+/// <c>ContactLedgerReader</c> folds each event at its own document's rate, <c>Contact.CreditLimit</c>
+/// and <c>Contact.OpeningBalance</c> are base-currency figures already, and the caller folds the new
+/// document's total before passing it in. Until phase 36 the ledger summed mixed currencies as
+/// though they were one unit and this check compared that sum against a base-currency limit -- phase
+/// 31 recorded it as a carried limitation inherited from phase 28. A single-currency tenant sees no
+/// change: every rate is 1.</para>
 /// </summary>
 public sealed class ContactCreditLimitPolicy(IAppDbContext db) : ICreditLimitPolicy
 {

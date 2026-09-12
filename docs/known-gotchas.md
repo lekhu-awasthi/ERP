@@ -1195,3 +1195,111 @@ Four more, each of which fails in a way that points somewhere else:
 Also: **`sqlcmd -Q` prints "(N rows affected)" into a captured value.** `SET NOCOUNT ON` belongs
 beside phase-34c's `SET QUOTED_IDENTIFIER ON` at the top of every script — otherwise a count comes
 back as `1(1rowsaffected)` and the assertion fails for a formatting reason.
+
+---
+
+## "One GL entry per document" was a habit, not an invariant (phase 36)
+
+`GlJournalEntry`'s own doc comment has always said `(SourceDocumentType, SourceDocumentId)` is
+non-unique, and its index has always allowed a second row — that is how phase 16a's void works: a
+mirror entry, never a mutation. What nobody wrote down is the narrower thing six call sites assumed:
+**while a document is still Approved, it has posted exactly one entry.** Two voids, a cheque bounce,
+two detail queries and the Opening Balance editor all leaned on it, four of them through
+`SingleAsync`.
+
+Phase 36 broke the assumption on purpose — allocating further against an Approved payment or journal
+voucher posts the realised forex leg as its own entry, because an entry is append-only and the
+correction cannot be folded into the first one. But the assumption was **already false**, and had
+been since phase 17: `CreateOrUpdateOpeningBalanceLineCommandHandler` reverses "the prior entry"
+before re-posting, so after one edit a line has *three* entries (original, reversal, corrected), and
+the **second** edit threw `InvalidOperationException` out of `SingleAsync` as a 500. Nobody had
+edited one twice.
+
+`SourceDocumentGlEntries.ReverseOutstandingAsync` is the remedy, and it **nets rather than mirroring
+entry by entry**. Netting is the only form that is also correct when reversals are already present:
+a void from Approved has none, so the net *is* the sum of the originals and the behaviour is
+unchanged; the Opening Balance case has two, and the net is exactly the posting still outstanding.
+Entries are grouped by `LocationId` first, so a document whose location changed between postings has
+each location's balance reversed where it was posted — phase 35b's rule applied across entries
+rather than within one.
+
+**The reusable question** is not "does this document post twice?" but "which readers would a second
+entry break?" — and the way to answer it is to grep for the pair, not to remember.
+
+## A settlement folds at the rate of what it settles (phase 36)
+
+Phase 31 recorded, as a carried limitation, that the credit-limit comparison does not convert
+currency. It could not be fixed on its own: the check compares the new document against
+`ContactLedgerReader`'s running total and `Contact.CreditLimit`, and the reader summed a USD invoice
+and an NPR receipt as though they were the same unit. So the fix is the whole family folding to base,
+each document at its own stored rate.
+
+The trap is the payment. Fold it at **its own** rate and a fully settled invoice keeps a residual
+balance: the invoice booked 13,300 at 133, the receipt relieved 13,000 at 130, and the customer is
+shown as still owing 300 — a real number, but it is the *realised exchange difference*, which
+`PaymentForexCalculator` books to the forex account at Approve, and which has no business in what a
+customer owes. So a payment folds **allocation by allocation at each target document's rate**, with
+only its unallocated remainder at its own. The ageing side folds each document's *net* at that
+document's rate, which is exact because a cross-currency allocation is refused outright, and the two
+readers therefore still agree.
+
+The general shape: **when you convert a relieving amount, convert it at the rate of the thing being
+relieved.** Converting it at its own rate silently moves a P&L figure into a balance.
+
+## Patching two reports into agreement is not the same as making them agree (phase 36)
+
+Phase 9 built the Ageing Summary; phase 26b built Invoice Age / Purchase Bill Age. Two
+implementations of one netting. They drifted twice — over JournalVoucher-sourced allocations, and
+over bucketing from the due date rather than the document date — and phase 31 patched both by editing
+the older handler to match the newer one.
+
+That left them agreeing *by coincidence*, and still disagreeing about the question nobody had
+compared: **which documents are ageable at all.** The summary saw neither a contact-tagged Journal
+Voucher nor a contact's own opening balance, both of which the per-document report had listed since
+26b. No test caught it because each report's tests only ever looked at that report.
+
+`OutstandingDocumentReader` now answers for both, and `AgeingReportsAgreeTests` reads *both reports
+on the same data* — including a test that every bucket equals the sum of the document rows falling
+in it, because agreement in total can hide two compensating errors. Making them agree changed the
+older report's output for any tenant with a tagged voucher or a contact opening balance, which is
+stated in the handler's own doc comment rather than slipped in.
+
+## A stored set nobody can see (phase 36's product-to-location)
+
+The reference product's New Product form has a Location multi-select, default *All*. Its Products
+grid has no LOCATION column and no location filter, so **nothing in the product's own UI reveals what
+the field does** — which is why phase 35b deferred it rather than storing a set nothing enforces
+(phase 31's dead-setting lesson).
+
+One write settled it. A product scoped to *POS Retail* alone: the Invoice form's line picker returned
+**No data** while the header location was HeadOffice, and offered the product the instant the header
+was switched. `performance.getEntriesByType('resource')` showed why — one
+`products-minimized?…&location_id=<the document's location>` call per switch, so the filtering is the
+**server's**, keyed on the document's location, not a client-side hide.
+
+Two details the experiment also settled: an **empty set means every location** (the control renders
+`All` when nothing is ticked and carries no required marker), and the **Products grid asks for no
+location at all**, so a restricted product stays findable and editable there. What it did *not*
+settle is whether a line naming an out-of-location product is refused at save — so that is not built,
+because rejecting would invalidate documents already saved.
+
+## Seeding and tooling traps added by phase 36's E2E
+
+- **`sqlcmd -i` cannot take a forward-slash absolute path.** `-i C:/…/verify.sql` fails with *"The -E
+  and the -U/-P options are mutually exclusive"* — it parses part of the path as options, so the
+  error names authentication and the cause is the path. Copy the script somewhere relative and run it
+  unchanged. (`-Q` with the same absolute path is fine.)
+- **`POST /auth/register` needs `turnstileToken`** as well as phase-31's `phone`. Any non-empty token
+  passes against the dummy secret.
+- **`POST /organizations/{id}/invitations` takes `roleId`, not a role name** — the system Member role
+  is `00000000-0000-0000-0001-000000000002`, readable from `GET /roles`. A `role: "Member"` fails as
+  `'Role Id' must not be empty`.
+- **An empty id still surfaces three steps later.** A re-run of a seed script 409'd on an
+  already-created account group, left the id empty, and the failure appeared on the *payment* as
+  `Failed to read parameter "PaymentRequest request" … as JSON`. Create a fresh organization per run
+  and assert every captured id is non-empty before continuing — phase 28's trap, and it will keep
+  coming back until seeds are idempotent.
+- **The Angular suite times out nondeterministically under machine load.** Two runs of the full
+  43-file suite failed 2 and then 7 tests — always the *first* test in a file, always at exactly
+  5000 ms, including files the change never touched — and the third passed 301/301. Every failing
+  spec passed alone. Re-run before chasing it.

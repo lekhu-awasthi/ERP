@@ -1,6 +1,7 @@
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
+using ErpApp.Application.Contacts.Queries.Ageing;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
 using MediatR;
@@ -15,12 +16,11 @@ namespace ErpApp.Application.Contacts.Queries.DocumentAge;
 /// their Txn Type filter offers.
 ///
 /// <para><b>Age runs from the Due Date, not the document date</b> -- proved live twice over, once
-/// across a year boundary. This is the one place this report parts company with
-/// <c>ContactAgeingSummaryQuery</c>, which buckets from each bill's own Date because it had no due
-/// date to work from; Invoice and PurchaseBill both carry a real <c>DueDate</c>, so this report
-/// uses it. A document with no due date of its own (a Journal Voucher, an opening balance) ages
-/// from its own date, which is what the live screen shows: those rows print Due Date equal to
-/// Date.</para>
+/// across a year boundary. A document with no due date of its own (a Journal Voucher, an opening
+/// balance) ages from its own date, which is what the live screen shows: those rows print Due Date
+/// equal to Date. <c>ContactAgeingSummaryQuery</c> once differed here, and since phase 36 cannot:
+/// both read <c>OutstandingDocumentReader</c>, so this report's rows are exactly the rows that
+/// report puts in buckets.</para>
 ///
 /// <para><b><see cref="AsOfDate"/> is the only date that filters.</b> The live report's period
 /// picker has a From end, and it does nothing -- rows dated more than a year before the stated
@@ -30,7 +30,9 @@ namespace ErpApp.Application.Contacts.Queries.DocumentAge;
 ///
 /// <para><b>Which document types are ageable</b> is enumerated by <see cref="AgeableDocumentType"/>
 /// rather than by <c>DocumentType</c>, because the two sets are not the same thing -- see that
-/// enum's own comment for the two live options this codebase cannot express.</para>
+/// enum's own comment for the live option this codebase cannot express. Phase 36 moved it beside
+/// <c>OutstandingDocumentReader</c>, which is now the one place both ageing reports get their
+/// outstanding figures from.</para>
 /// </summary>
 public sealed record DocumentAgeQuery(
     Guid OrganizationId,
@@ -48,35 +50,6 @@ public sealed record DocumentAgeQuery(
 {
     public string PermissionKey =>
         ContactType == ContactType.Customer ? PermissionKeys.InvoiceAgeView : PermissionKeys.PurchaseBillAgeView;
-}
-
-/// <summary>
-/// The document types that can carry an outstanding balance against a contact, as the live Txn Type
-/// filter enumerates them: Opening Balance, the trade document (Invoice on the customer side;
-/// Purchase Bill and Expense on the supplier side), and Journal Voucher.
-///
-/// <para><b>The live filter offers one more option this codebase cannot express</b> -- "Quick
-/// Payment" on the receivable side, "Quick Receipt" on the payable side. In the reference product
-/// those are generic multi-line Accounts-table documents in their own right; here, phase-17
-/// Decision #7 deliberately made Quick Payment/Receipt a thin variant of the existing
-/// <c>Payment</c> aggregate rather than a new document type, so there is no such document to age.
-/// An unallocated Payment is a credit against the contact, and it already reduces the contact's
-/// balance through <c>ContactBalanceSummaryQuery</c>; it is not an outstanding item with an age.
-/// Omitted with this note rather than faked.</para>
-///
-/// <para><b>Opening Balance is a contact's own <c>Contact.OpeningBalance</c></b>, not an
-/// <c>OpeningBalanceLine</c>: the latter is keyed by (OrganizationId, AccountId) and carries no
-/// contact at all. It has no document number, no reference and no date, so it ages from the
-/// as-of date itself -- age zero, status Current -- which is the honest rendering of a figure that
-/// records a balance without recording when it arose.</para>
-/// </summary>
-public enum AgeableDocumentType
-{
-    OpeningBalance,
-    Invoice,
-    PurchaseBill,
-    Expense,
-    JournalVoucher,
 }
 
 /// <summary>

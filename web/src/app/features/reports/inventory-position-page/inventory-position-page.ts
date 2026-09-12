@@ -10,6 +10,8 @@ import {
 import { CatalogService } from '../../../core/catalog/catalog.service';
 import { Product, ProductCategory } from '../../../core/catalog/catalog.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
+import { ConfigurationService } from '../../../core/configuration/configuration.service';
+import { ReportingTagOption } from '../../../core/configuration/configuration.models';
 import { Warehouse } from '../../../core/organizations/organizations.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
@@ -32,6 +34,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
 export class InventoryPositionPage {
   private readonly route = inject(ActivatedRoute);
   private readonly reports = inject(CatalogueReportsService);
+  private readonly configurationService = inject(ConfigurationService);
   private readonly catalogService = inject(CatalogService);
   private readonly organizationsService = inject(OrganizationsService);
 
@@ -53,6 +56,12 @@ export class InventoryPositionPage {
   protected readonly productId = signal('');
   protected readonly warehouseId = signal('');
   protected readonly balanceFilter = signal<InventoryBalanceFilter>('All');
+
+  /** Phase 36 -- the live drawer's Show Columns checkbox and its Reporting Tags. Grouping adds a
+   *  WAREHOUSE column and splits each product's row per warehouse. */
+  protected readonly groupByWarehouse = signal(false);
+  protected readonly tagOptions = signal<ReportingTagOption[]>([]);
+  protected readonly selectedTagOptionIds = signal<string[]>([]);
 
   protected readonly page = signal(1);
   protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
@@ -100,6 +109,20 @@ export class InventoryPositionPage {
     this.reload();
   }
 
+  protected toggleGroupByWarehouse(group: boolean): void {
+    this.groupByWarehouse.set(group);
+    // Page 1: grouping multiplies the row count, so a reader on page 3 would land elsewhere.
+    this.page.set(1);
+    this.load();
+  }
+
+  protected onTagOptionsChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    this.selectedTagOptionIds.set(Array.from(select.selectedOptions).map((o) => o.value));
+    this.page.set(1);
+    this.load();
+  }
+
   protected onBalanceFilterChange(event: Event): void {
     this.balanceFilter.set((event.target as HTMLSelectElement).value as InventoryBalanceFilter);
     this.reload();
@@ -140,7 +163,7 @@ export class InventoryPositionPage {
       .exportInventoryPosition(
         this.organizationId, this.fromDate(), this.toDate(), this.categoryId() || null,
         this.productId() || null, this.warehouseId() || null, this.balanceFilter(), full, page, pageSize,
-        this.locationId(),
+        this.locationId(), this.groupByWarehouse(), this.selectedTagOptionIds(),
       )
       .subscribe({
         next: (blob) => {
@@ -163,7 +186,7 @@ export class InventoryPositionPage {
         this.organizationId, this.fromDate(), this.toDate(), this.categoryId() || null,
         this.productId() || null, this.warehouseId() || null, this.balanceFilter(),
         this.page(), this.pageSize(),
-        this.locationId(),
+        this.locationId(), this.groupByWarehouse(), this.selectedTagOptionIds(),
       )
       .subscribe({
         next: (report) => {

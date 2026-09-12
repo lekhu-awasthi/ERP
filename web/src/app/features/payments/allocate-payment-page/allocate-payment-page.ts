@@ -7,6 +7,7 @@ import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact } from '../../../core/contacts/contacts.models';
 import { PaymentsService } from '../../../core/payments/payments.service';
 import { AllocatablePaymentDto, PaymentDirection } from '../../../core/payments/payments.models';
+import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
 import { SalesService } from '../../../core/sales/sales.service';
 import { PurchasingService } from '../../../core/purchasing/purchasing.service';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
@@ -17,6 +18,7 @@ interface TargetOption {
   id: string;
   code: string;
   contactId: string;
+  currencyCode: string;
 }
 
 /**
@@ -67,19 +69,55 @@ export class AllocatePaymentPage {
 
     if (this.isCustomer) {
       this.salesService.listInvoices(this.organizationId, 'Approved', 1, 200).subscribe({
-        next: (r) => this.targets.set(r.items.map((i) => ({ id: i.id, code: i.code, contactId: i.contactId }))),
+        next: (r) =>
+          this.targets.set(
+            r.items.map((i) => ({
+              id: i.id,
+              code: i.code,
+              contactId: i.contactId,
+              currencyCode: i.currencyCode ?? BASE_CURRENCY_CODE,
+            })),
+          ),
       });
     } else {
       this.purchasingService.listAllPurchaseBills(this.organizationId, 'Approved').subscribe({
-        next: (items) => this.targets.set(items.map((i) => ({ id: i.id, code: i.code, contactId: i.contactId }))),
+        next: (items) =>
+          this.targets.set(
+            items.map((i) => ({
+              id: i.id,
+              code: i.code,
+              contactId: i.contactId,
+              currencyCode: i.currencyCode ?? BASE_CURRENCY_CODE,
+            })),
+          ),
       });
     }
 
     this.load();
   }
 
-  protected targetsForContact(contactId: string): TargetOption[] {
-    return this.targets().filter((t) => t.contactId === contactId);
+  /**
+   * Phase 36 -- the contact's documents **in this credit's own currency**.
+   *
+   * <p>A payment can only be allocated to documents in its own currency (phase 28 Decision F): the
+   * allocation Amount is a single number with no currency of its own, so settling a USD invoice
+   * with an NPR receipt would relieve it by the whole exchange rate. The server has always refused
+   * that; this screen used to offer it anyway and surface the refusal as an error on Confirm, which
+   * is a choice the user could make and only then be told they could not. Filtering the picker is
+   * the cheaper half of the same rule.</p>
+   */
+  protected targetsFor(item: AllocatablePaymentDto): TargetOption[] {
+    const currencyCode = item.currencyCode || BASE_CURRENCY_CODE;
+    return this.targets().filter((t) => t.contactId === item.contactId && t.currencyCode === currencyCode);
+  }
+
+  /** True for a credit in a currency none of this contact's open documents share. */
+  protected hasNoTargets(item: AllocatablePaymentDto): boolean {
+    return this.targetsFor(item).length === 0;
+  }
+
+  protected isForeign(item: AllocatablePaymentDto): boolean {
+    return (item.currencyCode || BASE_CURRENCY_CODE) !== BASE_CURRENCY_CODE;
   }
 
   protected switchTab(showAllocated: boolean): void {

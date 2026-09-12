@@ -142,6 +142,9 @@ export interface PurchaseBill {
   referrerId: string | null;
   discountPct: number;
   locationId: string | null;
+  /** Phase 28 -- on the wire since that phase (the list returns the aggregate), declared here in
+   *  phase 36 because the Allocate screen has to match a credit's currency against its targets'. */
+  currencyCode: string;
 }
 
 /** Phase 29 (FR-6.15) -- how one Additional Cost row spreads across the bill's goods lines.

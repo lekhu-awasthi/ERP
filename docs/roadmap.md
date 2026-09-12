@@ -181,28 +181,33 @@ holds for a captured bool, not for a captured collection compared to null.
   the Sales Register. `sales-summary`'s **Group Wise location** control (a group-*by*) is also still
   unbuilt; 35b gave that report the filter, not the grouping.
 
-### 36. Allocation, forex and ageing consistency
-- **Bug first:** `featureGuard('MultipleWarehouses')` on `organizations/:id/warehouses` stops a
-  flag-off tenant creating its *first* warehouse, which Invoice and Purchase Bill require —
-  contradicting phase-20f Decision #4; the server-side cap is right, the client guard is stricter
-  than intended (phase 28).
-- `ApplyPaymentAllocationCommand` posts the **forex leg** that Approve-time allocation already
-  posts, and the Allocate screens' lists filter by currency (phase 28); cross-currency settlement
-  stays rejected (28 Decision F) unless the cadehi read shows the reference product allowing it.
-- **Two ageing reports must agree:** align phase-9's `ContactAgeingSummaryQueryHandler` with 26b's
-  `DocumentAgeQueryHandler` (JV-sourced allocations, buckets from the stored `DueDate`) (26b #4);
-  decide whether Quick Payment/Receipt are ageable (26b #2, a phase-17 Decision #7 consequence);
-  the credit-limit comparison converts currency (31 #3); Credit Terms → `DueDate` becomes a
-  server-side default so API-created documents get it too (31 #4).
-- **Carried in from 35b, deferred there by agreement:** **Product-to-location** — a checkbox
-  multi-select, default *All*, not required, and the Products grid has no LOCATION column or filter,
-  so what it restricts is **unobserved**. Separating "filters the product picker on a
-  location-scoped document" from "stored and unenforced" needs two writes on the live tenant (a
-  product scoped to one location, an invoice raised at another). Decide what it *does* before
-  storing it, or it is phase 31's dead-setting lesson again. Also the three filters read on Moonbeam
-  and absent on Cadehi (Reporting Tags on the Journal report, Reporting Tags + group-by-warehouse on
-  Inventory Position, Group By Bill / Include Credit Note on the Sales Register) and
-  `sales-summary`'s **Group Wise location** group-by — all needing a Moonbeam re-read first.
+### 36. Allocation, forex and ageing consistency — **done** (`docs/phase-36-status.md`)
+
+- **The warehouse-guard bug is fixed.** The route no longer carries
+  `featureGuard('MultipleWarehouses')`; the page shows the cap the server actually enforces. Proved
+  both ways: a flag-off tenant's first warehouse is a 201, its second a 403.
+- **`ApplyPaymentAllocationCommand` posts the realised forex leg** on both its branches (a Payment
+  and a contact-tagged Journal Voucher line), as its own entry — so both settlement doors agree and
+  the control account is left flat. Cross-currency settlement stays rejected (28 Decision F), and
+  the Allocate screen plus both approve-time pickers now filter their targets by currency instead of
+  offering a choice the server refuses. The Supplier Payment form gained the Currency + Exchange Rate
+  control phase 28 missed.
+- **The two ageing reports read one `OutstandingDocumentReader`** — a bucket total is a partition of
+  the rows Invoice Age lists, asserted on shared data. The Ageing Summary gained contact-tagged
+  Journal Vouchers and contact opening balances as a stated consequence. Quick Payment/Receipt stay
+  un-ageable (26b #2, a phase-17 Decision #7 consequence, re-examined and kept). Credit Terms are a
+  server-side `DueDate` default (31 #4) and the credit-limit comparison converts currency (31 #3),
+  which meant folding the whole contact-ledger family to base — a settlement at the rate of what it
+  settles.
+- **Product-to-location is built**, settled by one write on the live tenant: the restriction filters
+  the line picker server-side by the document's location, an empty set means everywhere, and the
+  Products grid is unfiltered. Enforcement at *save* is deliberately not built (unobserved).
+- **The Moonbeam filters are built** — Reporting Tags on the Journal report, Reporting Tags + Group
+  by Warehouse on Inventory Position, Group By Bill on the Sales Register (27 rows → 50, three item
+  columns, same total). **Carried forward:** *Display Warehouse in Column* (indistinguishable from
+  Group by Warehouse on a single-warehouse tenant) and `sales-summary`'s Group Wise location
+  grouping.
+- **Found on the way:** editing an Opening Balance line twice had been a 500 since phase 17.
 
 ### 37. Inventory policy — negative stock, returns at cost, the clearing unwind
 - **Negative Item Balance for real** (31 #1, 26c): Warn and Do Nothing need a negative FIFO layer

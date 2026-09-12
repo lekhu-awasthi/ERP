@@ -115,12 +115,12 @@ public static class CatalogEndpoints
     {
         group.MapGet("/products", async (
             Guid organizationId, ProductType? type, ProductVariantFilter? variantFilter, int? page, int? pageSize,
-            string? search, ISender sender, CancellationToken ct) =>
+            string? search, Guid? locationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ListProductsQuery(
                     organizationId, type, variantFilter ?? ProductVariantFilter.All,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, locationId),
                 ct);
             return Results.Ok(result);
         });
@@ -149,7 +149,8 @@ public static class CatalogEndpoints
                 new CreateProductCommand(
                     organizationId, request.Type, request.Name, request.CategoryId, request.PrimaryUnitId,
                     request.HsCode, request.AvailableForSale, request.SellingPrice, request.PurchasePrice,
-                    request.VatRate, request.ReOrderLevel, request.TrackInventory, request.Sku, request.Barcode),
+                    request.VatRate, request.ReOrderLevel, request.TrackInventory, request.Sku, request.Barcode,
+                    request.LocationIds),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/products/{result.Id}", result);
         });
@@ -163,7 +164,7 @@ public static class CatalogEndpoints
                     request.AvailableForSale, request.SellingPrice, request.PurchasePrice, request.VatRate,
                     request.ReOrderLevel, request.TrackInventory, request.IsActive,
                     request.SalesAccountId, request.SalesReturnAccountId, request.PurchaseAccountId, request.PurchaseReturnAccountId,
-                    request.Sku, request.Barcode),
+                    request.Sku, request.Barcode, request.LocationIds),
                 ct);
             return Results.Ok(result);
         });
@@ -307,16 +308,20 @@ public static class CatalogEndpoints
 
     private sealed record UpdateUnitOfMeasurementRequest(string Name, string ShortName, bool IsActive);
 
+    // LocationIds is phase 36's, and it is on BOTH records deliberately: a trailing optional
+    // parameter added to a command reaches nothing until the Api's own request record carries it
+    // too -- it compiles, every test passes, and the field binds to null in silence (phase-27b's
+    // Terms).
     private sealed record CreateProductRequest(
         ProductType Type, string Name, Guid CategoryId, Guid PrimaryUnitId, string? HsCode, bool AvailableForSale,
         decimal SellingPrice, decimal PurchasePrice, VatRate VatRate, int ReOrderLevel, bool TrackInventory,
-        string? Sku, string? Barcode);
+        string? Sku, string? Barcode, IReadOnlyList<Guid>? LocationIds);
 
     private sealed record UpdateProductRequest(
         string Name, Guid CategoryId, Guid PrimaryUnitId, string? HsCode, bool AvailableForSale,
         decimal SellingPrice, decimal PurchasePrice, VatRate VatRate, int ReOrderLevel, bool TrackInventory, bool IsActive,
         Guid? SalesAccountId, Guid? SalesReturnAccountId, Guid? PurchaseAccountId, Guid? PurchaseReturnAccountId,
-        string? Sku, string? Barcode);
+        string? Sku, string? Barcode, IReadOnlyList<Guid>? LocationIds);
 
     private sealed record AddSecondaryUnitRequest(Guid UnitId, decimal ConversionRate, decimal SellingPrice, decimal PurchasePrice);
 }

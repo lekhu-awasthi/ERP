@@ -84,6 +84,34 @@
             (locationChange)="onLocationChange($event)"
           />
         </div>
+        <!-- Phase 36 -- the drawer's Reporting Tags and its Show Columns checkbox, read live on
+             Moonbeam 2026-09-11. A product carries no tag of its own: the filter narrows the
+             movements behind the balance to those whose document carries one. -->
+        <div class="col-12 col-sm-6 col-lg-2">
+          <label class="form-label small fw-semibold" for="inventory-position-page-reporting-tags">Reporting Tags</label>
+          <select id="inventory-position-page-reporting-tags" class="form-select" multiple size="1" (change)="onTagOptionsChange($event)">
+            @for (option of tagOptions(); track option.id) {
+              <option [value]="option.id">{{ option.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12">
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="inventory-position-page-group-by-warehouse"
+              [checked]="groupByWarehouse()"
+              (change)="toggleGroupByWarehouse($any($event.target).checked)"
+            />
+            <label class="form-check-label small" for="inventory-position-page-group-by-warehouse">
+              Group by Warehouse
+              <span class="d-block text-muted">
+                On, each product is split into one row per warehouse and a WAREHOUSE column appears.
+              </span>
+            </label>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -101,6 +129,9 @@
           <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
               <tr>
+                @if (groupByWarehouse()) {
+                  <th scope="col">Warehouse</th>
+                }
                 <th scope="col">Code/Goods</th>
                 <th scope="col">Category</th>
                 <th scope="col" class="text-end">Qty</th>
@@ -110,8 +141,12 @@
               </tr>
             </thead>
             <tbody>
-              @for (row of rows(); track row.productId) {
+              <!-- track by index: grouped by warehouse, one product contributes several rows. -->
+              @for (row of rows(); track $index) {
                 <tr>
+                  @if (groupByWarehouse()) {
+                    <td>{{ row.warehouse || '—' }}</td>
+                  }
                   <td>{{ row.product }}</td>
                   <td>{{ row.category || '—' }}</td>
                   <td class="text-end" [class.text-danger]="row.quantity < 0">{{ (row.quantity | amount: 3) }}</td>
@@ -123,7 +158,7 @@
             </tbody>
             <tfoot>
               <tr class="fw-bold border-top">
-                <td colspan="2">Total</td>
+                <td [attr.colspan]="groupByWarehouse() ? 3 : 2">Total</td>
                 <td class="text-end">{{ (totalQuantity() | amount: 3) }}</td>
                 <td colspan="2"></td>
                 <td class="text-end">{{ (totalAmount() | amount) }}</td>

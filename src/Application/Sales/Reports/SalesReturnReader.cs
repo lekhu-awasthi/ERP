@@ -23,7 +23,21 @@ internal static class SalesReturnReader
         internal static Bucketed Empty { get; } = new(0, 0, 0, 0);
     }
 
-    internal sealed record CreditNoteRow(Guid Id, Guid ContactId, string Code, DateOnly Date, Bucketed Buckets);
+    internal sealed record CreditNoteRow(
+        Guid Id, Guid ContactId, string Code, DateOnly Date, Bucketed Buckets,
+        IReadOnlyList<CreditNoteLineRow>? Lines = null);
+
+    /// <summary>
+    /// Phase 36 -- one returned line, for the Sales Register's <b>Group By Bill</b> toggle. Turning
+    /// it off makes the register render a row per line with the item's name, quantity and unit
+    /// beside the same four statutory magnitudes (confirmed live on Moonbeam 2026-09-11: 27 rows
+    /// became 50, three columns appeared, and the footer total did not move).
+    ///
+    /// <para>Loaded here rather than in the register's own handler so the two views split the same
+    /// bucketing: a line's buckets sum to its note's buckets by construction, which is what keeps
+    /// the grouped and ungrouped totals identical.</para>
+    /// </summary>
+    internal sealed record CreditNoteLineRow(string ItemName, decimal Quantity, string Unit, Bucketed Buckets);
 
     internal static async Task<List<CreditNoteRow>> LoadAsync(
         IAppDbContext db,
@@ -59,8 +73,44 @@ internal static class SalesReturnReader
         var creditNoteIds = creditNotes.Select(x => x.Id).ToList();
         var lines = await db.CreditNoteLines
             .Where(x => creditNoteIds.Contains(x.CreditNoteId))
-            .Select(x => new { x.CreditNoteId, x.Amount, x.VatAmount })
+            .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, x.Amount, x.VatAmount })
             .ToListAsync(cancellationToken);
+
+        // Phase 36 -- the item's own name and unit, for the per-line view. One pair of lookups for
+        // the whole period, not one per line.
+        var productIds = lines.Select(x => x.ProductId).Distinct().ToList();
+        var products = await db.Products
+            .Where(x => x.OrganizationId == organizationId && productIds.Contains(x.Id))
+            .Select(x => new { x.Id, x.Name, x.PrimaryUnitId })
+            .ToListAsync(cancellationToken);
+        var unitIds = products.Select(x => x.PrimaryUnitId).Distinct().ToList();
+        var unitNames = await db.UnitsOfMeasurement
+            .Where(x => x.OrganizationId == organizationId && unitIds.Contains(x.Id))
+            .Select(x => new { x.Id, x.Name })
+            .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+        var productLookup = products.ToDictionary(
+            x => x.Id, x => (x.Name, Unit: unitNames.GetValueOrDefault(x.PrimaryUnitId, string.Empty)));
+
+        var lineRows = lines
+            .GroupBy(x => x.CreditNoteId)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<CreditNoteLineRow>)
+                [
+                    .. g.Select(line =>
+                    {
+                        var product = productLookup.GetValueOrDefault(line.ProductId);
+                        return new CreditNoteLineRow(
+                            product.Name ?? string.Empty,
+                            line.Quantity,
+                            product.Unit ?? string.Empty,
+                            new Bucketed(
+                                Total: line.Amount + line.VatAmount,
+                                TaxExempt: line.VatAmount == 0 ? line.Amount : 0,
+                                Taxable: line.VatAmount != 0 ? line.Amount : 0,
+                                Vat: line.VatAmount));
+                    }),
+                ]);
 
         var buckets = lines
             .GroupBy(x => x.CreditNoteId)
@@ -71,6 +121,7 @@ internal static class SalesReturnReader
                 Vat: g.Sum(x => x.VatAmount)));
 
         return [.. creditNotes.Select(x => new CreditNoteRow(
-            x.Id, x.ContactId, x.Code, x.Date, buckets.GetValueOrDefault(x.Id) ?? Bucketed.Empty))];
+            x.Id, x.ContactId, x.Code, x.Date, buckets.GetValueOrDefault(x.Id) ?? Bucketed.Empty,
+            lineRows.GetValueOrDefault(x.Id)))];
     }
 }
