@@ -92,16 +92,81 @@ export class QuickLinks implements OnInit {
   }
 
   protected move(link: QuickLinkDto, delta: number): void {
-    this.links.update((current) => {
-      const index = current.findIndex((x) => x.url === link.url);
-      const target = index + delta;
+    const index = this.links().findIndex((x) => x.url === link.url);
+    this.moveTo(index, index + delta);
+  }
 
-      if (index < 0 || target < 0 || target >= current.length) {
+  // --- drag to reorder (phase 39, closing phase 33's carried item #2) -------------------------
+
+  /**
+   * The link currently being dragged. Tracked rather than read off the DataTransfer, because
+   * `dragover` cannot read the payload it is hovering over -- browsers deliberately hide it until
+   * `drop` -- and the tile under the cursor needs to know it is a target now, not afterwards.
+   */
+  protected readonly draggingUrl = signal<string | null>(null);
+
+  protected onDragStart(link: QuickLinkDto, event: DragEvent): void {
+    this.draggingUrl.set(link.url);
+
+    // Firefox ignores a drag that sets no data at all, so something has to go in even though the
+    // component reads its own signal rather than this payload.
+    event.dataTransfer?.setData('text/plain', link.url);
+
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+    }
+  }
+
+  /** Without preventDefault on dragover the element is not a drop target and `drop` never fires. */
+  protected onDragOver(event: DragEvent): void {
+    if (this.draggingUrl()) {
+      event.preventDefault();
+
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'move';
+      }
+    }
+  }
+
+  protected onDrop(target: QuickLinkDto, event: DragEvent): void {
+    event.preventDefault();
+    const source = this.draggingUrl();
+    this.draggingUrl.set(null);
+
+    if (!source || source === target.url) {
+      return;
+    }
+
+    const current = this.links();
+    this.moveTo(
+      current.findIndex((x) => x.url === source),
+      current.findIndex((x) => x.url === target.url),
+    );
+  }
+
+  /** Fires even when the drag ended outside a drop target, so the highlight always clears. */
+  protected onDragEnd(): void {
+    this.draggingUrl.set(null);
+  }
+
+  /**
+   * Moves an item to a position, rather than swapping two.
+   *
+   * <p>The distinction only shows up over a distance: dragging the sixth tile onto the first should
+   * put it first and push the rest down, where a swap would also fling the old first tile to
+   * position six. For the adjacent case the arrow buttons use, the two are identical -- which is why
+   * both gestures can share this one method.</p>
+   */
+  private moveTo(from: number, to: number): void {
+    this.links.update((current) => {
+      if (from < 0 || to < 0 || from >= current.length || to >= current.length || from === to) {
         return current;
       }
 
       const next = [...current];
-      [next[index], next[target]] = [next[target], next[index]];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+
       return next;
     });
   }

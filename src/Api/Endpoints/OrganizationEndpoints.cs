@@ -35,6 +35,10 @@ using ErpApp.Application.Tenancy.Queries.ListRoles;
 using ErpApp.Application.Tenancy.Queries.MyOrganizations;
 using ErpApp.Domain.Tenancy;
 using MediatR;
+using ErpApp.Application.Tenancy.Commands.RemoveOrganizationLogo;
+using ErpApp.Application.Tenancy.Commands.SetOrganizationLogo;
+using ErpApp.Application.Tenancy.Queries.GetOrganizationLogo;
+using ErpApp.Application.Tenancy.Queries.GetOrganizationProfile;
 
 namespace ErpApp.Api.Endpoints;
 
@@ -364,6 +368,51 @@ public static class OrganizationEndpoints
             Guid organizationId, SetOrganizationLockDateRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new SetOrganizationLockDateCommand(organizationId, request.LockDate), ct);
+            return Results.Ok(result);
+        });
+
+        // Phase 39 -- Organization Profile and its logo, closing the phase-1b wizard gap.
+        //
+        // The reference product has no post-creation logo control at all (confirmed live 2026-09-13:
+        // its EDIT DETAILS dialog carries the nine text fields and no upload). These three routes are
+        // therefore an addition, labelled as one in docs/phase-39-status.md -- an ERP whose logo can
+        // only ever be set during signup is a worse product than one where it can be corrected.
+        group.MapGet("/{organizationId:guid}/profile", async (
+            Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new GetOrganizationProfileQuery(organizationId), ct);
+            return Results.Ok(result);
+        });
+
+        // The bytes, behind the same authenticated pipeline every other file in this app goes
+        // through -- IFileStorage deliberately exposes no "resolve to a public URL", so there is no
+        // path a browser could hit directly. The Content-Type comes from the column, which was
+        // written from the file's own header bytes at upload rather than from what the client
+        // claimed.
+        group.MapGet("/{organizationId:guid}/logo", async (
+            Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var logo = await sender.Send(new GetOrganizationLogoQuery(organizationId), ct);
+            return Results.Stream(logo.Content, logo.ContentType);
+        });
+
+        // .DisableAntiforgery() for the reason every IFormFile endpoint in this codebase needs it:
+        // a single IFormFile parameter makes this a form-binding endpoint, which .NET auto-decorates
+        // with antiforgery metadata, which 500s without an app.UseAntiforgery() this app does not
+        // have (phase-18 bug #1).
+        group.MapPost("/{organizationId:guid}/logo", async (
+            Guid organizationId, IFormFile file, ISender sender, CancellationToken ct) =>
+        {
+            await using var stream = file.OpenReadStream();
+            var result = await sender.Send(
+                new SetOrganizationLogoCommand(organizationId, file.FileName, file.Length, stream), ct);
+            return Results.Ok(result);
+        }).DisableAntiforgery();
+
+        group.MapDelete("/{organizationId:guid}/logo", async (
+            Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new RemoveOrganizationLogoCommand(organizationId), ct);
             return Results.Ok(result);
         });
 

@@ -77,6 +77,15 @@
           }
         </ul>
 
+        <!-- Phase 39 -- the dropdown shows at most five of any one kind, so on a tenant with real
+             data it is a sample. This is the way to the whole answer. -->
+        <button type="button"
+                class="btn btn-link btn-sm w-100 text-start border-top text-decoration-none fw-semibold px-3 py-2"
+                (mousedown)="$event.preventDefault()"
+                (click)="seeAllResults()">
+          See all results for &ldquo;{{ term() }}&rdquo;
+        </button>
+
         <div class="border-top px-3 py-1 text-muted d-flex gap-3" style="font-size: 0.72rem;">
           <span>&uarr;&darr; Navigate</span>
           <span>&crarr; Select</span>

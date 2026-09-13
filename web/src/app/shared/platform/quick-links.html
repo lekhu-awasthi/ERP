@@ -20,11 +20,29 @@
       <p class="text-muted small mb-0">No Quick Links yet. Use <strong>Edit Links</strong> to pin the screens you use most.</p>
     }
 
+    @if (editing()) {
+      <p class="text-muted mb-2" style="font-size: 0.75rem;">
+        Drag a tile to reorder, or use the arrows. Changes are saved when you press Done.
+      </p>
+    }
+
     <div class="row g-2">
       @for (link of links(); track link.url) {
         <div class="col-12 col-sm-6 col-lg-4">
-          <div class="quick-link-tile border rounded d-flex align-items-center gap-2 px-3 py-2">
+          <!-- Phase 39 -- drag to reorder, the gesture phase 33 recorded as its carried item #2
+               ("the reference product's tray is a sortable-container; ordering is fully persisted,
+               only the gesture is different"). The arrow buttons stay: a drag-only reorder is
+               unreachable from a keyboard, and the reference product's own control is no excuse for
+               shipping one this app's phase-34a pass would have failed. -->
+          <div class="quick-link-tile border rounded d-flex align-items-center gap-2 px-3 py-2"
+               [class.quick-link-dragging]="draggingUrl() === link.url"
+               [attr.draggable]="editing() ? 'true' : null"
+               (dragstart)="onDragStart(link, $event)"
+               (dragover)="onDragOver($event)"
+               (drop)="onDrop(link, $event)"
+               (dragend)="onDragEnd()">
             @if (editing()) {
+              <i aria-hidden="true" class="bi bi-grip-vertical text-muted"></i>
               <span class="flex-grow-1 text-truncate">
                 <span class="d-block text-dark small fw-semibold">{{ link.name }}</span>
                 <span class="d-block text-muted" style="font-size: 0.72rem;">{{ link.area }}</span>

@@ -23,4 +23,12 @@ public sealed record CreditNoteConversionTemplateDto(
     // Quotation raised at a branch converted to an Invoice at HeadOffice, silently, because the new
     // form's picker falls back to the tenant default. Same shape as the currency the conversion
     // flow already carries verbatim.
-    Guid? LocationId);
+    Guid? LocationId,
+
+    // Phase 39 -- the source document's Terms, carried into the prefill. Phase 27b left this open
+    // ("Conversions do not carry terms forward") because the reference behaviour was unconfirmed
+    // and the target form's template dropdown restores them in one click. The rule that settles it
+    // is the one phase 30 used for Send Email: a conversion carries Terms exactly when *both* ends
+    // have the field, which is true of these two pairs and of no other conversion in the codebase
+    // -- Purchase Bill, Debit Note and Production Journal have no Terms to receive.
+    string? Terms);

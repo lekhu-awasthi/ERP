@@ -22,6 +22,12 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
         builder.Property(o => o.Phone).HasMaxLength(20);
         builder.Property(o => o.PanNumber).HasMaxLength(50);
         builder.Property(o => o.Website).HasMaxLength(256);
+
+        // Phase 39. Both nullable with no default and no backfill: "this organization has no logo"
+        // is the truth about every row that already exists, which is exactly when a column needs
+        // neither (phase-37's refinement of phase-31's rule).
+        builder.Property(o => o.LogoStorageKey).HasMaxLength(400);
+        builder.Property(o => o.LogoContentType).HasMaxLength(100);
         builder.Property(o => o.CreatedByUserId).IsRequired();
         builder.Property(o => o.CreatedAt).IsRequired();
         builder.Property(o => o.RowVersion).IsRowVersion();

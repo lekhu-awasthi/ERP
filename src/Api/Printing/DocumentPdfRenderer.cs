@@ -1,3 +1,4 @@
+using ErpApp.Domain.Common;
 using ErpApp.Application.Printing.Queries.PrintDocument;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -48,6 +49,27 @@ public static class DocumentPdfRenderer
     {
         container.PaddingBottom(10).Row(row =>
         {
+            // Phase 39 -- the logo sits top-left, ahead of the organization block, which is where
+            // the reference product prints it (Invoice print preview, read live 2026-09-13: a square
+            // mark of roughly 80pt at the left edge). Its wider header treatment -- the organization
+            // block centred beside the mark and the document title centred below rather than right-
+            // aligned -- is a divergence this phase records and does not chase: re-laying out the one
+            // shared layout would change all fifteen document types for a cosmetic reason.
+            //
+            // A ConstantItem rather than a RelativeItem so a tall logo cannot squeeze the text, and
+            // FitArea so neither a wide nor a tall image distorts.
+            //
+            // The bytes are re-checked with the same ImageHeader the upload used, and skipped if
+            // they are not one of the three formats. QuestPDF throws at GeneratePdf time for an
+            // image it cannot decode, which is after composition and so not catchable around the
+            // draw call -- and an organization whose stored logo has somehow gone bad still needs
+            // its invoices to print.
+            if (dto.OrganizationLogo is { Length: > 0 } logo && ImageHeader.TryRead(new MemoryStream(logo)) is not null)
+            {
+                row.ConstantItem(60).AlignTop().Height(60).Image(logo).FitArea();
+                row.ConstantItem(12);
+            }
+
             row.RelativeItem(2).Column(column =>
             {
                 column.Item().Text(dto.OrganizationName).Bold().FontSize(16);
@@ -164,12 +186,16 @@ public static class DocumentPdfRenderer
                 });
             }
 
-            if (!string.IsNullOrWhiteSpace(dto.Terms))
+            // Phase 39 -- Terms is rich text now, so it is drawn from the same RichTextNode tree
+            // the stored HTML is emitted from rather than printed as a string. RichText.IsEmpty
+            // rather than IsNullOrWhiteSpace: the editor's "empty" is "<p><br></p>", which would
+            // otherwise print a heading over nothing.
+            if (!RichText.IsEmpty(dto.Terms))
             {
                 column.Item().Column(terms =>
                 {
                     terms.Item().Text("Terms and Conditions").Bold().FontSize(9);
-                    terms.Item().Text(dto.Terms).FontSize(9);
+                    terms.Item().Element(body => RichTextPdfRenderer.Render(body, dto.Terms, 9));
                 });
             }
 

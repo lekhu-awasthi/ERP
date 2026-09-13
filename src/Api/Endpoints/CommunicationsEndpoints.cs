@@ -28,10 +28,16 @@ public static class CommunicationsEndpoints
             .WithTags("Communications")
             .RequireAuthorization();
 
+        // `context` and `balanceAsOfDate` are Phase 39's, and are supplied only by the two statement
+        // screens. Simple types, so they bind from the query string without help -- unlike phase 38's
+        // array parameter, which needed [FromQuery] and silently bound from the body without it.
         group.MapGet("/emails/prepare", async (
-            Guid organizationId, DocumentType? documentType, Guid parentId, ISender sender, CancellationToken ct) =>
+            Guid organizationId, DocumentType? documentType, Guid parentId,
+            EmailTemplateContext? context, DateOnly? balanceAsOfDate,
+            ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new PrepareEmailQuery(organizationId, documentType, parentId), ct);
+            var result = await sender.Send(
+                new PrepareEmailQuery(organizationId, documentType, parentId, context, balanceAsOfDate), ct);
             return Results.Ok(result);
         });
 
@@ -73,7 +79,12 @@ public static class CommunicationsEndpoints
                 form["subject"].ToString(),
                 form["body"].ToString(),
                 ParseBool(form["attachDocumentPdf"]),
-                attachments);
+                attachments,
+                // Phase 39. A trailing optional parameter reaches nothing until the caller's own
+                // request shape carries it too -- phase 27b's Terms compiled, passed every test and
+                // bound to null on every request for exactly this reason.
+                ParseNullableEnum<EmailTemplateContext>(form["context"]),
+                ParseNullableDate(form["balanceAsOfDate"]));
 
             var result = await sender.Send(command, ct);
             return Results.Accepted($"/api/organizations/{organizationId}/emails/{result.EmailSendLogId}", result);
@@ -144,6 +155,21 @@ public static class CommunicationsEndpoints
     {
         var text = value.ToString();
         return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+    }
+
+    /// <summary>Phase 39 -- a multipart field is a string, and DateOnly.TryParse on an ISO date is
+    /// culture-independent here because the client always sends `yyyy-MM-dd`. Import templates need
+    /// an explicit format list (phase 21c) precisely because their dates are typed by a human; this
+    /// one is not.</summary>
+    private static DateOnly? ParseNullableDate(Microsoft.Extensions.Primitives.StringValues value)
+    {
+        var text = value.ToString();
+
+        return DateOnly.TryParse(
+            text, System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var parsed)
+            ? parsed
+            : null;
     }
 
     private static bool ParseBool(Microsoft.Extensions.Primitives.StringValues value) =>

@@ -23,3 +23,13 @@
     background-color: rgba(13, 110, 253, 0.08);
   }
 }
+
+/* Phase 39 -- drag to reorder. The tile being dragged fades rather than disappearing, so the row
+   does not reflow under the cursor while the user is aiming at a gap in it. */
+.quick-link-tile[draggable='true'] {
+  cursor: grab;
+}
+
+.quick-link-dragging {
+  opacity: 0.45;
+}

@@ -307,6 +307,29 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    // Phase 39 -- Organization Profile: the details the printed header prints, and the logo it
+    // prints beside them. The left nav derives itself from this table (phase 34b), so adding the
+    // route is all it takes for the screen to appear -- and nav-guard.spec.ts checks the reverse,
+    // that every offered url resolves to a real route.
+    path: 'organizations/:id/search',
+    loadComponent: () =>
+      import('./features/organizations/search-results-page/search-results-page').then(
+        (m) => m.SearchResultsPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    // Phase 39 -- the search results page above closes phase 33's carried item #4, now that 34c has
+    // confirmed the per-collection cap of 5 bites. It is excluded from NavigationCatalog: a
+    // destination you arrive at carrying a term, not a screen anyone pins.
+    path: 'organizations/:id/organization-profile',
+    loadComponent: () =>
+      import('./features/organizations/organization-profile-page/organization-profile-page').then(
+        (m) => m.OrganizationProfilePage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/lock-date',
     loadComponent: () =>
       import('./features/organizations/lock-date-page/lock-date-page').then((m) => m.LockDatePage),
@@ -977,6 +1000,21 @@ export const routes: Routes = [
     path: 'organizations/:id/reports/user-log',
     loadComponent: () =>
       import('./features/reports/user-log-page/user-log-page').then((m) => m.UserLogPage),
+    canActivate: [authGuard],
+  },
+  {
+    // Phase 39 -- CRM > Deals and Workflow > Tasks as routes of their own, closing phase 34b's
+    // carried item #6: both aggregates have existed since phases 15 and 13, and neither had a
+    // screen the router-derived nav could offer.
+    path: 'organizations/:id/crm/deals',
+    loadComponent: () =>
+      import('./features/crm/deal-list-page/deal-list-page').then((m) => m.DealListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/workflow/tasks',
+    loadComponent: () =>
+      import('./features/workflow/task-list-page/task-list-page').then((m) => m.TaskListPage),
     canActivate: [authGuard],
   },
   {

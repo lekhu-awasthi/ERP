@@ -62,6 +62,19 @@ export class DealList implements OnInit {
   protected readonly showCreateForm = signal(false);
   protected readonly saving = signal(false);
 
+  /** Phase 39 -- the search box the live CRM > Deals list carries. Its own signal, written by the
+   * input handler: the app is zoneless, so a `computed()` over a FormControl's value caches for
+   * ever (phase-17). */
+  protected readonly search = signal('');
+
+  /** Resets to page 1 like every sibling filter on this list -- without it, a narrowing search
+   * applied on page 3 reads as "this pipeline is empty" (phase-35b). */
+  protected onSearchInput(event: Event): void {
+    this.search.set((event.target as HTMLInputElement).value);
+    this.page.set(1);
+    this.load();
+  }
+
   protected readonly form = this.fb.nonNullable.group({
     contactId: ['', Validators.required],
     title: ['', [Validators.required, Validators.maxLength(200)]],
@@ -208,7 +221,9 @@ export class DealList implements OnInit {
     this.loading.set(true);
     this.errorMessage.set(null);
     this.crmService
-      .listDeals(this.organizationId(), this.contactId(), this.activeStatus(), this.page(), this.pageSize())
+      .listDeals(
+        this.organizationId(), this.contactId(), this.activeStatus(),
+        this.page(), this.pageSize(), this.search().trim() || null)
       .subscribe({
         next: (result) => {
           this.rows.set(result.rows);

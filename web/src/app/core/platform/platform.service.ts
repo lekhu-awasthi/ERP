@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { GlobalSearchHitDto, UserPreferenceDto } from './platform.models';
+import { GlobalSearchCollection, GlobalSearchHitDto, UserPreferenceDto } from './platform.models';
 
 @Injectable({ providedIn: 'root' })
 export class PlatformService {
@@ -20,11 +20,25 @@ export class PlatformService {
    * `params` is annotated `Record<string, string>` deliberately: a union including `{}` silently
    * resolves to HttpClient's `arraybuffer` overload (phase-3 bug #4).
    */
-  search(organizationId: string, term: string, limit?: number): Observable<GlobalSearchHitDto[]> {
+  /**
+   * @param collection Phase 39 -- null for the top bar's dropdown, which samples every kind. The
+   * results page sets it, which both narrows the answer and cuts the server's fan-out from eighteen
+   * queries to one (see `GlobalSearchQuery`).
+   */
+  search(
+    organizationId: string,
+    term: string,
+    limit?: number,
+    collection?: GlobalSearchCollection | null,
+  ): Observable<GlobalSearchHitDto[]> {
     const params: Record<string, string> = { term };
 
     if (limit !== undefined) {
       params['limit'] = String(limit);
+    }
+
+    if (collection) {
+      params['collection'] = collection;
     }
 
     return this.http.get<GlobalSearchHitDto[]>(`${this.baseUrl(organizationId)}/search`, {

@@ -178,12 +178,11 @@
         </div>
 
         <div class="mb-2">
-          <textarea
-            class="form-control form-control-sm send-email-editor"
-            rows="12"
-            aria-label="Message body"
-            (input)="onBodyInput($event)"
-          >{{ body() }}</textarea>
+          <app-rich-text-editor
+            ariaLabel="Message body"
+            [rows]="12"
+            [(value)]="body"
+          />
         </div>
 
         @if (draft.canAttachDocumentPdf) {

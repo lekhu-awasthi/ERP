@@ -1,6 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
+import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact, ContactStatementDto } from '../../../core/contacts/contacts.models';
@@ -25,7 +26,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
  */
 @Component({
   selector: 'app-supplier-statement-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter, SendEmailDialog],
   templateUrl: './supplier-statement-page.html',
 })
 export class SupplierStatementPage {
@@ -103,6 +104,25 @@ export class SupplierStatementPage {
    * It confirms the closing balance of exactly the period on screen, so it takes the To date rather
    * than asking for another one.
    */
+  protected readonly emailDialog = viewChild(SendEmailDialog);
+
+  /**
+   * Phase 39 -- the consumer `EmailTemplateContext.BalanceConfirmation` had been waiting for since
+   * phase 30 offered the context and nothing could select it.
+   *
+   * <p>It sends about the <b>contact</b>, not a document, with the letter itself attached -- which
+   * is why the dialog has to be told the context explicitly: a Contact-parented send otherwise
+   * resolves to General, the same context the Contact detail page's own Send Email uses.</p>
+   *
+   * <p>An addition rather than parity: the reference product's statement screen offers Export and
+   * Print only. See docs/phase-39-status.md, Decision E.</p>
+   */
+  protected emailConfirmation(): void {
+    if (this.contactId()) {
+      this.emailDialog()?.show();
+    }
+  }
+
   protected printConfirmation(): void {
     if (!this.contactId()) {
       return;

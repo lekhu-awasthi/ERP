@@ -114,13 +114,18 @@ public static class WorkflowEndpoints
 
     private static void MapTaskEndpoints(RouteGroupBuilder group)
     {
+        // Phase 39 -- parentType/parentId became optional so `Workflow > Tasks` can list the whole
+        // organization. Omitting both is the standalone screen; supplying both is the per-record tab,
+        // unchanged. Simple types, so they bind from the query string without help.
         group.MapGet("/tasks", async (
-            Guid organizationId, TaskParentType parentType, Guid parentId, WorkTaskStatus? status, int? page, int? pageSize,
+            Guid organizationId, TaskParentType? parentType, Guid? parentId, WorkTaskStatus? status,
+            int? page, int? pageSize, string? search,
             ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ListTasksQuery(
-                    organizationId, parentType, parentId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    organizationId, parentType, parentId, status,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search),
                 ct);
             return Results.Ok(result);
         });

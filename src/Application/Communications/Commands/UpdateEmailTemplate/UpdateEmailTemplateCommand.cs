@@ -3,6 +3,7 @@ using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Application.Communications.Commands.CreateEmailTemplate;
 using ErpApp.Domain.Configuration;
+using ErpApp.Application.Common.Validation;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -37,7 +38,7 @@ public sealed class UpdateEmailTemplateCommandValidator : AbstractValidator<Upda
         RuleFor(x => x.Id).NotEmpty();
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Subject).NotEmpty().MaximumLength(500);
-        RuleFor(x => x.Body).NotEmpty();
+        RuleFor(x => x.Body).NotEmpty().RichText("Template body");
     }
 }
 

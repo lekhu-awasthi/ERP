@@ -259,6 +259,12 @@ public class EmailSendJobProcessorTests
             Guid organizationId, DocumentType documentType, Guid documentId,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(new RenderedDocumentPdf($"{documentType}_INV-1.pdf", [1, 2, 3]));
+
+        public Task<RenderedDocumentPdf> RenderBalanceConfirmationAsync(
+            Guid organizationId, ErpApp.Domain.Contacts.ContactType contactType, Guid contactId,
+            DateOnly asOfDate, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new RenderedDocumentPdf(
+                $"{contactType}BalanceConfirmation_{asOfDate:yyyy-MM-dd}.pdf", [4, 5, 6]));
     }
 
     private sealed class ThrowingEmailSender : Application.Common.Email.IEmailSender

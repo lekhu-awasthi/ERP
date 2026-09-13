@@ -70,6 +70,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 35b: the location dimension in the reports — `LocationId` stamped on `GlJournalEntry`/`StockMovement`/`StockLedgerEntry`, the filter on 36 queries and 43 screens, `LocationWiseReportPermission` made real. Before filtering an append-only fact table, extracting a shared `Where`, or proving a location permission — `docs/phase-35b-status.md`
 - Phase 37: inventory policy — negative stock as a **shortfall layer**, the cost catch-up, returns at consumed FIFO cost, the clearing unwind. Before letting a stock balance go negative, before correcting a stock *value*, or before deciding what a return credits Inventory — `docs/phase-37-status.md`
 - Phase 38: import/export breadth — 5 new upload types, intra-file tree ordering, a pre-commit dry run, export by category + date range. Before adding an importer, a template, or an array parameter to a POST — `docs/phase-38-status.md`
+- Phase 39: the two editors — one sanitised rich-text control (`RichText`: re-emission, not filtering, in the Domain setters), the Organization logo in the printed header, `BalanceConfirmation`'s first consumer, standalone Deals/Tasks routes, Quick Links drag, the search results page. Before storing anything a user typed that is rendered later, before accepting an uploaded image, or before trusting that a guard still covers its subject — `docs/phase-39-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -182,6 +183,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A return relieves at the cost the layers **give up**, which FIFO chooses and which need not belong to the document being returned against; credit that, debit the supplier the return price, and derive the difference as the **plug that balances the entry** (phase-37, phase-36's settlement rule in a second costume).
 - A catch-up leg that eleven call sites can raise is its **own** GL entry against the same source document, not an optional amount threaded through six posting rules — which is only safe because phase 36 retired every `SingleAsync` over `(SourceDocumentType, SourceDocumentId)`; phase 37 finished that sweep and deleted `GlJournalEntry.PostReversalOf` with its last caller (phase-37).
 
+- Rich text is sanitised **on write, in the Domain setter**, by *re-emission*: parsed into a tree whose only attribute slot is a four-valued enum, re-emitted from the emitter's own constants, so a tokenizer bug can produce wrong formatting and never an attribute, tag name or URL from the input. `Sanitize` must stay idempotent — a document is re-saved on every edit (phase-39).
+- A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
 - A tenant-level field is reachable only if you can name the command that writes it and the screen that calls it; a read path proves nothing about the write path (phase-31).
 - Two confirmable warnings on one document need two override flags and a `warningKind` on the 422, or confirming the first waives the second (phase-31).
 - A non-nullable column on a populated table needs a hand-written backfill; the scaffold's `DEFAULT '0001-01-01'` back-dates every row and leaves a stray constraint (phase-31) — but a default is *safe* exactly when it is the truth about the rows already there, which is why `StockMovement.ValueAdjustment` needed none (phase-37).
@@ -214,6 +217,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 **Files, ClosedXML, uploads and downloads**
 - Sync-only writers (ClosedXML `SaveAs`) cannot target the live response stream; write to a `MemoryStream`, then `CopyToAsync` (`ReportSpreadsheetExporter.WriteWorkbookAsync`, phase-16c bug #3).
 - A Minimal API endpoint binding `IFormFile` gets antiforgery metadata automatically and 500s unless it calls `.DisableAntiforgery()` (phase-18 bug #1).
+- Read an uploaded image's format from its **bytes**, never its declared content type: `Domain/Common/ImageHeader` answers "is this really a PNG" and "is it at least 300×300" with one parser and no dependency, and the PDF renderer re-checks with it because QuestPDF throws for an undecodable image *after* composition, where no try/catch around the draw call helps (phase-39).
 - Executing `Results.Stream` against a bare `DefaultHttpContext` needs a `ServiceProvider` with `AddLogging()` (`MigratedRegisterTemplateRoundTripTests`).
 - A `MultipartFormDataContent` under `using` in a helper that returns the `Task` unawaited is disposed mid-send (`ObjectDisposedException` from `TestHost`); await inside the helper (phase-22).
 - ClosedXML returns empty text for hand-rolled `inlineStr` cells and ignores `<si>` past a stale `uniqueCount`; build import fixtures by filling the app's own generated template (phase-21a).
@@ -234,6 +238,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - The app is zoneless: a `computed()` over a plain `FormControl.value` caches forever; track UI-driving values in their own `signal()` written by the control's event handler (phase-17).
 - A cached signal created lazily inside a `computed()` throws `NG0600` the moment its source resolves **synchronously** (a test double); real HTTP hides it. `untracked()` the subscribe and the writes (phase-35a's `BillingLocationStore`).
 - Bootstrap's JavaScript is not loaded anywhere (`angular.json` has no `scripts`), so `data-bs-toggle` does nothing; drive menus from a signal (phase-22).
+- The app routes by **path**, not by hash — the reference product's own URLs are hash-based, so a browser pass against `#/organizations/…` bounces to Sign In with the cookie working perfectly; check `location.href` before suspecting the cookie (phase-39).
 - A `.dropdown-menu` inside `.table-responsive` is clipped by the implied `overflow-y`; render it `position: fixed` at coordinates captured on open (phase-22).
 - A pipe rendering from a global signal with an unchanging argument must be `pure: false` and memoize internally (`NepaliDatePipe`, phase-23).
 - `Domain/Common/BsCalendar` is a verbatim port of the client `bs-date.ts` table; port it, never retype it, and keep both boundaries pinned — a fiscal year runs Shrawan 1 to the last day of Asar and is named by its first BS year (phase-26b).
@@ -260,6 +265,10 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 **Testing and manual E2E**
 - A vendor's always-pass dummy credential (Turnstile `1x000…AA`) accepts any input; proving the negative path needs the always-fail one (`2x000…AA`) swapped in (phase-20g).
+- Two implementations of one rule in two languages are pinned to a **shared table read by both suites**, not to each other (`rich-text-cases.json`, linked in as an embedded resource so a moved file is a build error) — phase-26b's `BsCalendar`/`bs-date.ts` arrangement; it caught a real whitespace divergence within the hour (phase-39).
+- A guard whose predicate names a **type** silently stops covering anything solved before that type existed: `SearchSweepGuardTests` recognised only `PagedResult<T>`, so the two list queries that predate it were invisible — and were exactly the two the phase had to fix (phase-39).
+- A Domain invariant reached through an endpoint is a **500**, which tells a caller nothing; add the same rule to the validator for a 400 that names the field and keep the Domain check as the backstop. Only the E2E sees this — every handler test constructs a valid command (phase-39).
+- `curl -F name=<value` reads the value as a **file path** when it starts with `<`, reporting exit 26 and HTTP 000 — phase-30's symptom, a different cause. Rich text always starts with `<p>`; use `--form-string` (phase-39).
 - `UpdateRolePermissionsCommand.Grants` is a dictionary, not a list, and system Admin/Member roles cannot be edited (409) — a negative-permission proof needs a custom role.
 - A browser pass in a non-interactive session works by exporting the ASP.NET dev cert, starting the `erp-web-ssl` profile, and transplanting curl's `erp_auth` cookie via `document.cookie` (phase-25 Step 3).
 - A registered user has no verification code until `POST /api/auth/request-verification-code`; a Member-role user is the only way to prove a document-scoped 403, since Admin is seeded with every key (phase-27b).
@@ -295,7 +304,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 **Tooling and shell**
 - `nvm use` from a shell that cannot create the symlink deletes `C:\nvm4w\nodejs` and reports success; recreate it with `cmd /c 'mklink /J "C:\nvm4w\nodejs" "%LOCALAPPDATA%\nvm\v24.11.0"'`.
-- A `cat > file <<'EOF'` heredoc in the Bash tool is silently truncated or mis-parsed well below the ~8 KB figure; use the Write tool, or write a small patch script and run it (phase-26a).
+- A `cat > file <<'EOF'` heredoc in the Bash tool is silently truncated or mis-parsed well below the ~8 KB figure; use the Write tool, or write a small patch script and run it (phase-26a). It also **eats backslash escapes** even when the delimiter is quoted, so a `
+` or `	` inside an embedded script arrives as a literal newline or tab — a syntax error if you are lucky and a corrupted path if you are not (phase-39).
 - A script inserting an import after "the last `
 import ` line" lands *inside* a multi-line `import { … }` block; anchor on the statement's closing line (phase-35a).
 - A lazy `.*?` between two anchors spans the instances in between (it expands past `</label>` to reach a later match), silently merging them; exclude the closing marker — `((?:(?!</label>).)*?)`. The tell is two independent counts disagreeing, so derive the expected number a second way (phase-34a, on top of phase-32's assert-before-writing rule).
@@ -310,44 +320,46 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–38 are complete.** Phase 38 changed no invariant and no posting rule — it was reach — so
-its acceptance bar was not "a good file works" but **"a bad file is refused with a row-level reason
-before anything is committed"**.
+**Phases 0–39 are complete.** Phase 39 was mostly *surface* — routes, a rich-text control, an image
+upload — so its risk was never silent data damage but **shipping a control that looks right and is
+unsafe**, and every decision in it follows from that.
 
-Bulk import went from three upload types to **eight** (Account, Product Category, Account Group,
-Contact Personnel, and a Product Variant importer that is an addition rather than parity), and
-`IEntityImporter.ApplyAsync` became **`PlanAsync`**: a row resolves into the command it *would* send,
-and only then is it sent. That one seam change is what made the **pre-commit dry run** possible — the
-reference product's wizard step 3, restored on top of this codebase's asynchronous design as a
-validate pass plus a confirm command, with **no new table**, because the dry run claims only the rows
-it rejects in the existing row ledger and the apply pass skips them exactly as a resumed import does.
-Intra-file parent ordering and cycle detection live in one `ImportRowSequencer` used by the **two**
-self-referencing types — `Account` is a leaf, and the phase says so where somebody would try to
-"fix" it.
+The rich-text editor is one control behind both `app-terms-editor` and the Send Email body, which the
+live pass proved is what the reference product does (byte-identical TinyMCE `toolbar` string in both).
+`Domain/Common/RichText` sanitises **on write, in the Domain setters**, by *re-emission rather than
+filtering*: input is parsed into a tree whose only attribute slot is a four-valued enum, and output is
+generated from constants the emitter owns — so a tokenizer bug can produce wrong formatting and can
+never produce an attribute, a tag name or a URL that came from the input. The editor's eleven buttons
+are exactly what `RichTextPdfRenderer` can draw; colour, font, size, tables and images are dropped
+because a field that renders three ways in three places is worse than one that renders one way
+everywhere. Two sanitisers exist (the server's decides what is stored, the client's what the user sees
+while typing) and are pinned to a shared table read by both suites.
 
-The export half gained three categories by a stated rule (*a category earns its place when its rows
-cannot be reconstructed from the five already there* — the GL has the accounting, never the trade), a
-per-category selection and a date range. Phase 34c's 25,000-row cap is **raised to 50,000** on its
-own measured 2.5 kB/row, and joined by a workbook-wide 150,000 — the shape 34c said it should have
-had, needed here because the category count went from five to eight.
+The Organization logo closes the phase-1b wizard gap and reaches the printed header. Its format check
+and its 300×300 check are **one parser over the file's own bytes** (`ImageHeader`), never the
+client-supplied content type. `EmailTemplateContext.BalanceConfirmation` finally has a consumer.
+Deals and Tasks got the standalone routes 34b's router-derived nav made visible — the live pass
+showed both are list **+ detail**, and the detail pages are a stated carried item rather than
+half-built. Quick Links gained drag (and kept its arrow buttons, because drag alone is a keyboard
+trap), and the search results page shipped now that 34c confirmed the cap of 5 bites.
 
-The landed-cost grid's Import was **read live** and phase 29's one-line note was wrong: it is a
-template-based `.xlsx` drawer, not a clipboard paste, and its template is generated *from the bill in
-front of you*.
+**Next: phases 40–41 in `docs/roadmap.md`** — 40 is the human accessibility pass and the list-chrome
+leftovers. Carried out of 39: Deal/Task **detail** pages need `Deal` and `WorkTask` in the three
+polymorphic parent enums plus a third route family (phase-27a's sweep over two new parent types); the
+nine Organization detail fields are read-only and there is no `UpdateOrganizationCommand` at all; the
+printed header still diverges from live's centred arrangement; the rich-text grammar carries no tables
+or images. Carried out of 38: the dry run cannot see what only writing can; variant import needs the
+parent's attribute pool configured first; `MaxRowsPerWorkbook` is still one machine's memory law.
+Carried out of 37: Inventory Master still lacks WarehouseTransfer and OpeningStock rows; multi-UOM ×
+variants is unbuilt; a standalone Debit Note's Goods line still credits Inventory without touching the
+ledger. Carried out of 36: product-to-location is enforced on the picker but not at save; *Display
+Warehouse in Column* and `sales-summary`'s Group Wise location grouping are unbuilt; the Sales
+Register's money columns are still transaction-currency.
 
-**Next: phases 39–41 in `docs/roadmap.md`** — 39 is CRM/workflow screens and the two editors. Carried
-out of 38: the dry run cannot see what only writing can (uniqueness, lifecycle); variant import needs
-the parent's attribute pool configured first, in bulk-unfriendly fashion; `MaxRowsPerWorkbook` is
-still one machine's memory law. Carried out of 37: Inventory Master still lacks WarehouseTransfer and
-OpeningStock rows; multi-UOM x variants is unbuilt; a standalone Debit Note's Goods line still credits
-Inventory without touching the ledger. Carried out of 36: product-to-location is enforced on the
-picker but not at save; *Display Warehouse in Column* and `sales-summary`'s Group Wise location
-grouping are unbuilt; the Sales Register's money columns are still transaction-currency.
-
-Tests: Domain 452, Application.UnitTests 1035, Api.IntegrationTests 24, Angular 305. `dotnet build` /
+Tests: Domain 640, Application.UnitTests 1056, Api.IntegrationTests 29, Angular 422. `dotnet build` /
 `dotnet test` / `ng build` / `ng test` all clean. `ng build` still warns the initial bundle exceeds
-its 500 kB budget (pre-existing). `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
-check (phase-28), and `ng test` must be run from `web/` (phase-35a).
+its 500 kB budget (pre-existing, 650 kB). `tsc --noEmit` does not cover `web/src/app`; `ng build` is
+the check (phase-28), and `ng test` must be run from `web/` (phase-35a).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

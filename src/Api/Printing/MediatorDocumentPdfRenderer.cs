@@ -2,6 +2,8 @@ using ErpApp.Application.Communications;
 using ErpApp.Application.Printing.Queries.PrintDocument;
 using ErpApp.Domain.Common;
 using MediatR;
+using ErpApp.Application.Contacts.Queries.PrintBalanceConfirmation;
+using ErpApp.Domain.Contacts;
 
 namespace ErpApp.Api.Printing;
 
@@ -36,5 +38,27 @@ public sealed class MediatorDocumentPdfRenderer(ISender sender) : IDocumentPdfRe
         // Same name PrintingEndpoints gives the download, so a recipient's attachment and the
         // sender's own printout are indistinguishable.
         return new RenderedDocumentPdf($"{documentType}_{dto.Code}.pdf", DocumentPdfRenderer.Render(dto));
+    }
+
+    /// <summary>
+    /// Phase 39. Same arrangement as the document path and for the same reason: it goes through
+    /// <c>PrintBalanceConfirmationQuery</c> rather than reaching into the handler, so the letter a
+    /// customer receives by email and the one the Balance Confirmation button downloads are the same
+    /// bytes with the same file name -- and the query's own permission key is re-checked under the
+    /// sender's identity, which is what <c>IJobActingUser</c> is there to supply.
+    /// </summary>
+    public async Task<RenderedDocumentPdf> RenderBalanceConfirmationAsync(
+        Guid organizationId,
+        ContactType contactType,
+        Guid contactId,
+        DateOnly asOfDate,
+        CancellationToken cancellationToken = default)
+    {
+        var dto = await sender.Send(
+            new PrintBalanceConfirmationQuery(organizationId, contactType, contactId, asOfDate), cancellationToken);
+
+        return new RenderedDocumentPdf(
+            $"{contactType}BalanceConfirmation_{dto.ContactCode}_{asOfDate:yyyy-MM-dd}.pdf",
+            BalanceConfirmationPdfRenderer.Render(dto));
     }
 }

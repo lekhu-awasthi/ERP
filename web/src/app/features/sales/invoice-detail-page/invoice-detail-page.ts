@@ -221,6 +221,7 @@ export class InvoiceDetailPage {
           // Phase 35a -- a conversion keeps the source document's branch. Without this the new
           // form's picker would fall back to the tenant default and move the document silently.
           this.locationId.set(template.locationId ?? '');
+          this.terms.set(template.terms ?? '');
           this.referrerType = template.referrerType;
           this.referrerId = template.referrerId;
           this.discountPct.set(template.discountPct);

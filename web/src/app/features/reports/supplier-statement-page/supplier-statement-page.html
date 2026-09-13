@@ -18,6 +18,9 @@
           <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" [disabled]="confirming()" (click)="printConfirmation()">
             <i aria-hidden="true" class="bi bi-envelope-paper"></i> Balance Confirmation
           </button>
+          <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" (click)="emailConfirmation()">
+            <i aria-hidden="true" class="bi bi-envelope"></i> Email Confirmation
+          </button>
           <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
             <i aria-hidden="true" class="bi bi-download"></i> Export Full Dataset
           </button>
@@ -137,3 +140,16 @@
     </div>
   </div>
 </div>
+
+@if (contactId()) {
+  <!-- Phase 39 -- the balance-confirmation send. `context` is explicit because a Contact parent
+       would otherwise resolve to General, and `balanceAsOfDate` identifies which letter to attach:
+       the same contact has a different one for every as-at date. Both match what the Balance
+       Confirmation button downloads, so the emailed letter and the printed one are the same file. -->
+  <app-send-email-dialog
+    [organizationId]="organizationId"
+    [parentId]="contactId()"
+    context="BalanceConfirmation"
+    [balanceAsOfDate]="toDate()"
+  />
+}

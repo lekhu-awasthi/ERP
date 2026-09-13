@@ -1536,3 +1536,194 @@ leaves a catalogue in a state neither the tenant nor the file describes, and the
 the file and re-upload, because the good rows would then collide. An **unknown parent** is one row's
 error, because the sequencer deliberately only knows about edges inside the file: a name no row
 claims is external, and guessing would turn a single bad cell into a whole-file failure.
+
+## Sanitise by re-emission, not by filtering (phase 39)
+
+`Domain/Common/RichText` is this codebase's one rich-text sanitiser, and it never asks "is this tag
+safe?" or "is this attribute safe?" and passes the answer through. The input is parsed into a
+`RichTextNode` tree whose only attribute slot is a four-valued enum, and the output is generated from
+that tree out of string constants the emitter owns, with every text run escaped on the way.
+
+The property that follows is what makes a hand-written parser acceptable at all, and it is worth
+being able to state before you touch the file:
+
+> A bug in the tokenizer can produce wrong **formatting**, and cannot produce an attribute, a tag
+> name or a URL that came from the input. The only user bytes that survive are text-node characters,
+> and those are escaped.
+
+Alignment looks like an exception and is not. The parser matches `text-align` against a closed set of
+four keywords and then **discards the string**; the emitter writes one of four constants it owns. No
+byte of user input reaches an attribute position. If you ever find yourself wanting to keep a
+declared value rather than a constant that matched it, you have left this design and need the rest of
+its argument again.
+
+The corollary for tests: assert the blanket property, not the payload list. "These payloads are
+removed" is satisfied by any blocklist, one payload at a time. *The output's only attribute is the
+one the emitter writes* fails for a new evasion technique without anybody having had to think of it
+first.
+
+## Sanitise on write, in the Domain (phase 39)
+
+Three places were available: at render, in the handler, in the Domain setter. It runs in the Domain
+setter, and the reasons are not interchangeable.
+
+**Not at render**, because that puts the obligation on every future read path, and phase-35a's
+finding is that read paths are precisely what a sweep forgets — its write-path guard stayed green
+while 14 of 15 detail DTOs and all 5 conversion templates dropped the same field. A sanitiser
+everybody has to remember is a sanitiser somebody will not.
+
+**Not in the handler**, because a Domain caller could then store markup that skipped the gate, and
+the Domain is where the invariant belongs.
+
+**In the setter**, so stored content is already safe and nothing downstream has to know. The cost is
+that `Sanitize` must be **idempotent**, because a document is loaded into the editor and saved again
+on every edit — a non-idempotent sanitiser rots a field visibly over a few saves, ampersands
+doubling and whitespace growing. That is a product requirement, not a nicety, and it is asserted over
+the whole adversarial corpus rather than over a happy path.
+
+## A rich-text grammar is its renderer's capability list (phase 39)
+
+The editor's toolbar has eleven buttons because that is what `RichTextPdfRenderer` can draw. The
+reference product's own editor offers five more things — text colour, font family, font size, tables,
+images — and every one is dropped for the same reason: the PDF is the copy a customer receives and
+argues about, and an editor offering formatting the printed copy silently discards is worse than one
+that offers less.
+
+So the order of work is fixed, and it is the opposite of the intuitive one: **decide what the
+renderer can draw, then build the toolbar.** Widening the grammar without widening the renderer
+produces a field that looks one way on screen and another in print, and nothing in the type system
+will tell you.
+
+What the grammar does instead of dropping content is also load-bearing. `<a>` unwraps and keeps its
+text (a link's words are content; its destination is an attribute, and no attribute survives);
+`<img>` disappears; a `<table>` becomes one paragraph per row with cells space-separated, because a
+pasted price list is data and dropping it silently would be the worse failure. The one family that
+must lose its **content** as well as its tag is `script`/`style`/`iframe`/`svg`/`math`/`template`/
+`noscript`: an unwrapped `<span>` must keep its text and a dropped `<script>` must not leave
+`alert(1)` standing as visible prose.
+
+## Two implementations of one rule need a table, not a reading of each other (phase 39)
+
+There are two rich-text sanitisers and there have to be: the server's decides what is stored, the
+client's decides what the user sees while typing. Without the client's, pasting a coloured table from
+Word shows a coloured table, the save returns a plain paragraph, and the field appears to have eaten
+the content.
+
+`web/src/app/shared/rich-text/rich-text-cases.json` is the contract both are pinned to — read by the
+Angular spec and linked into `Domain.UnitTests` as an **embedded resource**, so a moved or deleted
+file is a build error rather than a green test over nothing. This is phase-26b's arrangement for
+`BsCalendar` and its `bs-date.ts` twin, applied to the second pair of twins.
+
+It earned its place within the hour: it caught the two halves disagreeing about collapsing runs of
+whitespace. The client's `DOMParser` collapses natively; the server's tokenizer was replacing each
+whitespace character with a space and not collapsing runs. Invisible until somebody indents their
+markup, at which point the PDF prints a paragraph pushed halfway across the page.
+
+The table carries **only well-formed input**, deliberately. The two parsers reach the tree by
+different routes — one tokenizes by hand, one uses `DOMParser` — and they are not required to agree
+about how to *repair* malformed markup, because the server's answer is the one that gets stored.
+Pinning repair behaviour would pin two HTML parsers to each other rather than to a contract.
+
+## Read an uploaded image's format from its bytes (phase 39)
+
+The reference product's logo rules are "JPG/PNG/GIF, min 300×300, max 5 MB". Two of those can be
+checked from the upload's declared content type and its length — and both of those are written by the
+client, so neither is worth anything against a file that is not what it says it is. The organization
+logo is embedded in every PDF the tenant sends a customer and served back to every browser that opens
+the profile page, which makes "is this actually an image" the question that matters.
+
+`Domain/Common/ImageHeader` reads PNG's IHDR, GIF's logical screen descriptor and JPEG's SOF marker
+chain — about sixty lines, no pixels decoded, no dependency. **A parser that can find the dimensions
+has already answered the format question**, so the two checks are one parser and there is no way to
+have one without the other. The stored `LogoContentType` comes from those bytes, so the serving
+endpoint never echoes a client's claim back to a browser.
+
+Two details the tests pin because they are where this gets written wrong. A JPEG's frame header sits
+after its APPn segments, which carry EXIF and can run to kilobytes, so the parser walks the marker
+chain rather than reading a fixed offset. And **DHT (0xC4) sits inside the 0xC0–0xCF range and is not
+a frame header** — reading one as a frame yields confident nonsense rather than a failure.
+
+The renderer re-checks with the same parser rather than trusting the upload, because QuestPDF throws
+for an undecodable image at `GeneratePdf` time — *after* composition, so there is no try/catch around
+the draw call that would help — and an organization whose stored logo has somehow gone bad still
+needs its invoices to print.
+
+## A guard stops covering what it was written for, silently (phase 39)
+
+`SearchSweepGuardTests` exists to notice a paginated list nobody gave a search box. It recognised a
+"paginated list query" as one returning `PagedResult<T>`.
+
+`ListTasksQuery` and `ListDealsQuery` predate that type and return their own
+`{Rows, Page, PageSize, TotalCount}` record. They were therefore invisible to the guard — and they
+were **exactly** the two lists phase 39 had to give a search box. A guard whose definition is
+narrower than its subject does not announce that; it just goes on passing.
+
+Widening it to recognise the envelope by **shape** rather than by type surfaced seven more
+previously-invisible queries. All seven turned out to be the rule's own exempt case — a panel already
+scoped to one parent row, or a sequence whose rows only mean anything in order — which is the answer
+rather than a shortcut: the point of asking the question of every list is that most lists have a good
+reason. The one that would genuinely earn a term (`ListSmsLogsQuery`) is named in the exemption with
+its re-entry condition rather than left as a silent gap.
+
+The generalisable half: when a guard's predicate names a *type*, ask what the predicate would miss if
+somebody had solved the same problem a different way before that type existed.
+
+## A Domain invariant reached through the API is a 500 (phase 39)
+
+`EmailSendLog.Queue` refuses a `BalanceAsOfDate` on a context that has no letter to attach. Correct
+as an invariant, and correct to keep — and an invariant reached through an endpoint surfaces as
+`{"title":"An unexpected error occurred.","status":500}`, which tells a caller nothing and reads to
+an operator like a server fault.
+
+The fix is not to weaken the invariant. It is to add the same rule to the **validator**, so an
+ordinary caller mistake is a 400 that names the field, and leave the Domain check as the backstop for
+the caller that skips the pipeline.
+
+Worth knowing where this is visible: only where the two layers are exercised together. Every handler
+test passed, because a handler test constructs a valid command. This surfaced in the manual E2E,
+which is the only thing that sends the body a person would actually send.
+
+## `curl -F name=<value` reads the value as a file path (phase 39)
+
+`-F 'body=<p>Payment due…'` makes curl try to open a file named `p>Payment due…`, and it reports exit
+26 with HTTP 000 — which is exactly the symptom phase 30 recorded for its own failed `-F` file
+upload, and so reads as the same problem. It is not: `--form-string` sends the value literally and
+works.
+
+The rule: any `-F` value that might begin with `<` needs `--form-string`. Terms, email bodies and
+anything else rich-text-shaped begin with `<p>` essentially always.
+
+## The Angular app routes by path; the reference product routes by hash (phase 39)
+
+Three browser passes bounced to Sign In against `https://localhost:4200/#/organizations/…`. The
+cookie was fine — `fetch('/api/auth/me', {credentials:'include'})` from the page returned 200 through
+it — and `location.href` read `https://localhost:4200/login#/organizations/…`: the app uses
+`PathLocationStrategy`, so the whole route was a fragment on the login page.
+
+The reference product's URLs are hash-based (`me.tiggapp.com/erp/#/…`) and appear all through
+`erp-module-scan.md`, which is what makes this easy to carry over without noticing. A bounce to Sign
+In has no other symptom, so check `location.href` before suspecting the cookie.
+## A quoted heredoc still eats backslash escapes (phase 39)
+
+CLAUDE.md's standing rule is that a `cat > file <<'EOF'` heredoc in the Bash tool is silently
+truncated or mis-parsed, and that the Write tool is the answer. Phase 39 found the sharper reason,
+twice, and the second time is the one worth recognising on sight.
+
+A **quoted** delimiter (`<<'PY'`) is supposed to suppress all expansion. It does not suppress this
+shell's handling of backslashes. A Python script embedded in one wrote `line.rstrip("\n").split("\t")`
+and the escapes arrived as a literal newline and a literal tab *inside the string literal*, producing
+`SyntaxError: unterminated string literal` — annoying, but it points at itself.
+
+The same heredoc then turned an MSBuild path — `..\..\web\src\app\shared\rich-text\...` — into
+`..\..\web\src`, a BEL byte, `pp\shared`, a CR, `ich-text`: `\a` and `\r` had been interpreted. That
+one does **not** point at itself. It surfaced as
+`'', hexadecimal value 0x07, is an invalid character` from the XML parser, several steps later, in a
+file whose generator looked perfectly correct.
+
+So: any embedded script containing `\n`, `\t`, or a Windows path goes through the Write tool. And if a
+generated file fails to parse with a character-code complaint, suspect the heredoc before suspecting
+the generator.
+
+There is a third instance of this in the phase's own history, which is the reason it is written down
+rather than filed as bad luck: the first draft of *this very section* was appended through a heredoc,
+and every escape in it was eaten.

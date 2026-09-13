@@ -1,0 +1,116 @@
+<div class="container py-5" style="max-width: 840px;">
+  <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+    <h1 class="h4 fw-bold mb-0 text-dark">Organization Profile</h1>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
+      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
+      <div>{{ errorMessage() }}</div>
+    </div>
+  }
+  @if (successMessage()) {
+    <div class="alert alert-success d-flex align-items-center gap-2 mb-4" role="status">
+      <i aria-hidden="true" class="bi bi-check-circle-fill"></i>
+      <div>{{ successMessage() }}</div>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary mb-3" role="status"></div>
+      <p class="text-muted mb-0">Loading organization profile...</p>
+    </div>
+  } @else if (profile(); as organization) {
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body">
+        <h2 class="h6 fw-bold mb-1">Logo</h2>
+        <p class="text-muted small mb-3">
+          Printed at the top of every document this organization issues.
+          <span class="d-block">{{ rules }}</span>
+        </p>
+
+        <div class="d-flex align-items-start gap-4 flex-wrap">
+          <div class="border rounded d-flex align-items-center justify-content-center bg-body-tertiary"
+               style="width: 120px; height: 120px; overflow: hidden;">
+            @if (logoUrl(); as url) {
+              <img [src]="url" alt="{{ organization.name }} logo" style="max-width: 100%; max-height: 100%;" />
+            } @else {
+              <span class="text-muted small text-center px-2">No logo</span>
+            }
+          </div>
+
+          <div class="d-flex flex-column gap-2">
+            <!-- A label wrapping the input rather than a styled button beside it: the control the
+                 user operates is the file input itself, so the accessible name has to be on it and
+                 not on a sibling that merely looks clickable (phase 34a). -->
+            <label class="btn btn-primary fw-bold mb-0" [class.disabled]="saving()">
+              <i aria-hidden="true" class="bi bi-upload"></i>
+              {{ organization.hasLogo ? 'Replace logo' : 'Upload logo' }}
+              <input type="file"
+                     class="visually-hidden"
+                     accept="image/png,image/jpeg,image/gif"
+                     [disabled]="saving()"
+                     (change)="onFileSelected($event)" />
+            </label>
+
+            @if (organization.hasLogo) {
+              <button type="button" class="btn btn-outline-danger btn-sm fw-bold"
+                      [disabled]="saving()" (click)="remove()">
+                Remove logo
+              </button>
+            }
+
+            @if (saving()) {
+              <span class="text-muted small" role="status">
+                <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Working...
+              </span>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h2 class="h6 fw-bold mb-1">Details</h2>
+        <p class="text-muted small mb-3">
+          Captured when the organization was created, and printed in every document header.
+          Editing them is not available yet.
+        </p>
+
+        <dl class="row mb-0 small">
+          <dt class="col-sm-4 fw-semibold text-muted">Name</dt>
+          <dd class="col-sm-8">{{ organization.name }}</dd>
+
+          <dt class="col-sm-4 fw-semibold text-muted">Industry</dt>
+          <dd class="col-sm-8">{{ organization.industry }}</dd>
+
+          <dt class="col-sm-4 fw-semibold text-muted">Workspace</dt>
+          <dd class="col-sm-8">{{ organization.workspaceName }}</dd>
+
+          <dt class="col-sm-4 fw-semibold text-muted">Registered address</dt>
+          <dd class="col-sm-8">{{ organization.address || '—' }}</dd>
+
+          <dt class="col-sm-4 fw-semibold text-muted">Email</dt>
+          <dd class="col-sm-8">{{ organization.email || '—' }}</dd>
+
+          <dt class="col-sm-4 fw-semibold text-muted">Phone</dt>
+          <dd class="col-sm-8">{{ organization.phone || '—' }}</dd>
+
+          <dt class="col-sm-4 fw-semibold text-muted">PAN</dt>
+          <dd class="col-sm-8">{{ organization.panNumber || '—' }}</dd>
+
+          <dt class="col-sm-4 fw-semibold text-muted">Website</dt>
+          <dd class="col-sm-8">{{ organization.website || '—' }}</dd>
+
+          <dt class="col-sm-4 fw-semibold text-muted">Accounting start date</dt>
+          <dd class="col-sm-8">{{ organization.accountingStartDate | nepaliDate }}</dd>
+
+          <dt class="col-sm-4 fw-semibold text-muted">VAT registered</dt>
+          <dd class="col-sm-8">{{ organization.isVatRegistered ? 'Yes' : 'No' }}</dd>
+        </dl>
+      </div>
+    </div>
+  }
+</div>

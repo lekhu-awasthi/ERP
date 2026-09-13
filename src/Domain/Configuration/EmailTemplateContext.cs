@@ -42,8 +42,21 @@ public enum EmailTemplateContext
 
     PurchaseOrder,
 
-    /// <summary>The Customer/Supplier Balance Confirmation letter phase 27b built, not a document.
-    /// Present in the live picker; this codebase has no Send Email action that uses it yet, so it
-    /// is offered on the template screen and consumed by nothing. See "Follow-ups".</summary>
+    /// <summary>
+    /// The Customer/Supplier Balance Confirmation letter phase 27b built, not a document.
+    ///
+    /// <para><b>Phase 39 gave it its consumer.</b> Phase 30 offered this on the template screen
+    /// because the live picker offers it, and had no Send Email action that reached it -- a context
+    /// nothing could select. The Customer and Supplier Statement report screens now send it, with
+    /// the letter itself attached as the PDF. Its parent is a <b>Contact</b> rather than a document,
+    /// which is why it needs <c>EmailSendLog.BalanceAsOfDate</c>: unlike every other context, the
+    /// attachment is not identified by its parent alone.</para>
+    ///
+    /// <para><b>This is an addition rather than parity.</b> The reference product's statement screen
+    /// offers Export and Print only (phase 30, Step 3, re-checked 2026-09-13) -- it has the template
+    /// context and no action that uses it either. Emailing a balance confirmation is what the
+    /// context is plainly for, and shipping the context with nothing behind it twice would be worse
+    /// than diverging once.</para>
+    /// </summary>
     BalanceConfirmation,
 }

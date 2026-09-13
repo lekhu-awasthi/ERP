@@ -26,6 +26,11 @@ public sealed class EmailSendLogConfiguration : IEntityTypeConfiguration<EmailSe
 
         builder.Property(x => x.Subject).HasMaxLength(500).IsRequired();
         builder.Property(x => x.Body).IsRequired();
+
+        // Phase 39 -- set only for the BalanceConfirmation context, so nullable with no default and
+        // no backfill: "this send is not a balance confirmation" is the truth about every row that
+        // already exists.
+        builder.Property(x => x.BalanceAsOfDate);
         builder.Property(x => x.AttachDocumentPdf).IsRequired();
 
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();

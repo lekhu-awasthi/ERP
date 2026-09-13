@@ -52,19 +52,27 @@ public sealed class GlobalSearchQueryHandler(IAppDbContext db, ICurrentUserServi
 
         var hits = new List<GlobalSearchHitDto>();
 
+        // Phase 39. With one collection asked for, the per-collection cap and the total are the same
+        // number, so the cap becomes the caller's limit -- that is what makes the results page able
+        // to show more than five of anything, which is the whole reason it exists.
+        var perCollection = request.Collection is null ? PerCollectionLimit : limit;
+
+        bool Wants(GlobalSearchCollection collection) =>
+            request.Collection is null || request.Collection == collection;
+
         // ---- Master data: matched on name OR code -------------------------------------------
         // These three are the reference product's own `collection` values (confirmed live), and none
         // of them carries a LocationId -- a contact belongs to the tenant, not to a branch -- so the
         // location scope further down applies to documents only.
 
-        if (granted.Contains(PermissionKeys.ContactView))
+        if (Wants(GlobalSearchCollection.Contact) && granted.Contains(PermissionKeys.ContactView))
         {
             var rows = await db.Contacts
                 .Where(x => x.OrganizationId == request.OrganizationId
                             && x.IsActive
                             && (x.Name.Contains(term) || x.Code.Contains(term)))
                 .OrderBy(x => x.Name)
-                .Take(PerCollectionLimit)
+                .Take(perCollection)
                 .Select(x => new { x.Id, x.Code, x.Name, Kind = x.Type })
                 .ToListAsync(cancellationToken);
 
@@ -72,14 +80,14 @@ public sealed class GlobalSearchQueryHandler(IAppDbContext db, ICurrentUserServi
                 GlobalSearchCollection.Contact, null, x.Id, x.Code, x.Name, x.Kind.ToString())));
         }
 
-        if (granted.Contains(PermissionKeys.ProductView))
+        if (Wants(GlobalSearchCollection.Product) && granted.Contains(PermissionKeys.ProductView))
         {
             var rows = await db.Products
                 .Where(x => x.OrganizationId == request.OrganizationId
                             && x.IsActive
                             && (x.Name.Contains(term) || x.Code.Contains(term)))
                 .OrderBy(x => x.Name)
-                .Take(PerCollectionLimit)
+                .Take(perCollection)
                 .Select(x => new { x.Id, x.Code, x.Name, Kind = x.Type })
                 .ToListAsync(cancellationToken);
 
@@ -87,13 +95,13 @@ public sealed class GlobalSearchQueryHandler(IAppDbContext db, ICurrentUserServi
                 GlobalSearchCollection.Product, null, x.Id, x.Code, x.Name, x.Kind.ToString())));
         }
 
-        if (granted.Contains(PermissionKeys.AccountView))
+        if (Wants(GlobalSearchCollection.Account) && granted.Contains(PermissionKeys.AccountView))
         {
             var rows = await db.Accounts
                 .Where(x => x.OrganizationId == request.OrganizationId
                             && (x.Name.Contains(term) || x.Code.Contains(term)))
                 .OrderBy(x => x.Name)
-                .Take(PerCollectionLimit)
+                .Take(perCollection)
                 .Select(x => new { x.Id, x.Code, x.Name, Kind = x.RootType })
                 .ToListAsync(cancellationToken);
 
@@ -106,7 +114,12 @@ public sealed class GlobalSearchQueryHandler(IAppDbContext db, ICurrentUserServi
         // lifecycle, a document number and a detail page", which is precisely the set a search by
         // document number can be about. That is phase-30's lesson taken deliberately: the rule, not
         // a sample. GlobalSearchSweepGuardTests fails the build if the switch below drifts from it.
-        foreach (var documentType in DocumentMechanisms.Transactional)
+        // Phase 39 -- an empty set rather than a guard clause around the loop, so the fan-out
+        // disappears without re-indenting eighteen queries' worth of body.
+        IReadOnlyList<DocumentType> documentTypes =
+            Wants(GlobalSearchCollection.Document) ? DocumentMechanisms.Transactional : [];
+
+        foreach (var documentType in documentTypes)
         {
             var key = DocumentPermissions.ViewPermissionFor(documentType);
 
@@ -129,7 +142,7 @@ public sealed class GlobalSearchQueryHandler(IAppDbContext db, ICurrentUserServi
             }
 
             var rows = await SearchDocumentsAsync(
-                request.OrganizationId, documentType, term, allowedLocations, cancellationToken);
+                request.OrganizationId, documentType, term, allowedLocations, perCollection, cancellationToken);
 
             hits.AddRange(rows.Select(x => new GlobalSearchHitDto(
                 GlobalSearchCollection.Document, documentType, x.Id, x.Code, null, x.SubKind)));
@@ -154,23 +167,24 @@ public sealed class GlobalSearchQueryHandler(IAppDbContext db, ICurrentUserServi
         DocumentType documentType,
         string term,
         IReadOnlyList<Guid>? allowedLocations,
+        int perCollection,
         CancellationToken cancellationToken) => documentType switch
         {
-            DocumentType.Quotation => ByCodeAsync<Quotation>(organizationId, term, allowedLocations, cancellationToken),
-            DocumentType.SalesOrder => ByCodeAsync<SalesOrder>(organizationId, term, allowedLocations, cancellationToken),
-            DocumentType.Invoice => ByCodeAsync<Invoice>(organizationId, term, allowedLocations, cancellationToken),
-            DocumentType.CreditNote => ByCodeAsync<CreditNote>(organizationId, term, allowedLocations, cancellationToken),
-            DocumentType.Payment => PaymentsByCodeAsync(organizationId, term, allowedLocations, cancellationToken),
-            DocumentType.PurchaseOrder => ByCodeAsync<PurchaseOrder>(organizationId, term, allowedLocations, cancellationToken),
-            DocumentType.PurchaseBill => ByCodeAsync<PurchaseBill>(organizationId, term, allowedLocations, cancellationToken),
-            DocumentType.Expense => ByCodeAsync<Expense>(organizationId, term, allowedLocations, cancellationToken),
-            DocumentType.DebitNote => ByCodeAsync<DebitNote>(organizationId, term, allowedLocations, cancellationToken),
-            DocumentType.JournalVoucher => ByCodeAsync<JournalVoucher>(organizationId, term, allowedLocations, cancellationToken),
-            DocumentType.CashTransfer => ByCodeAsync<CashTransfer>(organizationId, term, allowedLocations, cancellationToken),
-            DocumentType.WarehouseTransfer => ByCodeAsync<WarehouseTransfer>(organizationId, term, allowedLocations, cancellationToken),
-            DocumentType.InventoryAdjustment => ByCodeAsync<InventoryAdjustment>(organizationId, term, allowedLocations, cancellationToken),
-            DocumentType.ProductionOrder => ByCodeAsync<ProductionOrder>(organizationId, term, allowedLocations, cancellationToken),
-            DocumentType.ProductionJournal => ByCodeAsync<ProductionJournal>(organizationId, term, allowedLocations, cancellationToken),
+            DocumentType.Quotation => ByCodeAsync<Quotation>(organizationId, term, allowedLocations, perCollection, cancellationToken),
+            DocumentType.SalesOrder => ByCodeAsync<SalesOrder>(organizationId, term, allowedLocations, perCollection, cancellationToken),
+            DocumentType.Invoice => ByCodeAsync<Invoice>(organizationId, term, allowedLocations, perCollection, cancellationToken),
+            DocumentType.CreditNote => ByCodeAsync<CreditNote>(organizationId, term, allowedLocations, perCollection, cancellationToken),
+            DocumentType.Payment => PaymentsByCodeAsync(organizationId, term, allowedLocations, perCollection, cancellationToken),
+            DocumentType.PurchaseOrder => ByCodeAsync<PurchaseOrder>(organizationId, term, allowedLocations, perCollection, cancellationToken),
+            DocumentType.PurchaseBill => ByCodeAsync<PurchaseBill>(organizationId, term, allowedLocations, perCollection, cancellationToken),
+            DocumentType.Expense => ByCodeAsync<Expense>(organizationId, term, allowedLocations, perCollection, cancellationToken),
+            DocumentType.DebitNote => ByCodeAsync<DebitNote>(organizationId, term, allowedLocations, perCollection, cancellationToken),
+            DocumentType.JournalVoucher => ByCodeAsync<JournalVoucher>(organizationId, term, allowedLocations, perCollection, cancellationToken),
+            DocumentType.CashTransfer => ByCodeAsync<CashTransfer>(organizationId, term, allowedLocations, perCollection, cancellationToken),
+            DocumentType.WarehouseTransfer => ByCodeAsync<WarehouseTransfer>(organizationId, term, allowedLocations, perCollection, cancellationToken),
+            DocumentType.InventoryAdjustment => ByCodeAsync<InventoryAdjustment>(organizationId, term, allowedLocations, perCollection, cancellationToken),
+            DocumentType.ProductionOrder => ByCodeAsync<ProductionOrder>(organizationId, term, allowedLocations, perCollection, cancellationToken),
+            DocumentType.ProductionJournal => ByCodeAsync<ProductionJournal>(organizationId, term, allowedLocations, perCollection, cancellationToken),
 
             // Unreachable: the caller iterates DocumentMechanisms.Transactional, and the guard test
             // pins that this switch covers it exactly.
@@ -194,6 +208,7 @@ public sealed class GlobalSearchQueryHandler(IAppDbContext db, ICurrentUserServi
         Guid organizationId,
         string term,
         IReadOnlyList<Guid>? allowedLocations,
+        int perCollection,
         CancellationToken cancellationToken)
     {
         var query = db.Payments
@@ -207,7 +222,7 @@ public sealed class GlobalSearchQueryHandler(IAppDbContext db, ICurrentUserServi
 
         var rows = await query
             .OrderBy(x => x.Code)
-            .Take(PerCollectionLimit)
+            .Take(perCollection)
             .Select(x => new { x.Id, x.Code, x.Direction })
             .ToListAsync(cancellationToken);
 
@@ -232,6 +247,7 @@ public sealed class GlobalSearchQueryHandler(IAppDbContext db, ICurrentUserServi
         Guid organizationId,
         string term,
         IReadOnlyList<Guid>? allowedLocations,
+        int perCollection,
         CancellationToken cancellationToken)
         where TDocument : class
     {
@@ -253,7 +269,7 @@ public sealed class GlobalSearchQueryHandler(IAppDbContext db, ICurrentUserServi
 
         return await query
             .OrderBy(x => EF.Property<string>(x, PropertyNames.Code))
-            .Take(PerCollectionLimit)
+            .Take(perCollection)
             .Select(x => new CodeHit(
                 EF.Property<Guid>(x, PropertyNames.Id),
                 EF.Property<string>(x, PropertyNames.Code)))

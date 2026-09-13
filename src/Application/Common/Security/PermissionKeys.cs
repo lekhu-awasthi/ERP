@@ -346,6 +346,16 @@ public static class PermissionKeys
     // close.
     public const string OrganizationLockDateManage = "Tenancy.Organization.LockDateManage";
 
+    // Phase 39 (Organization Profile and its logo). Split two ways on the standing "derive the key
+    // per feature" rule. Reading is Admin+Member: the profile states the organization's own name,
+    // address, PAN and logo, every one of which is already printed at the top of any document a
+    // Member can print, so gating the read would protect nothing while making the page look broken
+    // for half the tenant. Managing is Admin-only, at the same bar as LockDateManage: the logo goes
+    // out on every customer-facing PDF, so changing it changes what every customer sees the
+    // organization as -- which is a decision about the business, not a piece of daily working data.
+    public const string OrganizationProfileView = "Tenancy.Organization.ProfileView";
+    public const string OrganizationProfileManage = "Tenancy.Organization.ProfileManage";
+
     // Phase 16d (System Audit report) -- a flat per-user activity register naming every Create/
     // Update/Approve/Void action any member of the org took, the same PAN/per-transaction-identity
     // exposure factor that made TdsReportView Admin-only (phase-8b-status.md's discriminator):

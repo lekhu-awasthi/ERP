@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -20,6 +20,14 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Domain\ErpApp.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Phase 39: the rich-text contract this suite shares with the Angular one. Linked in as a
+         resource rather than found at run time, so a moved or deleted file is a build error instead
+         of a test that quietly asserts nothing. See RichTextSharedCasesTests. -->
+    <EmbeddedResource Include="../../web/src/app/shared/rich-text/rich-text-cases.json"
+                      LogicalName="ErpApp.Domain.UnitTests.rich-text-cases.json" />
   </ItemGroup>
 
 </Project>

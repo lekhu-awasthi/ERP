@@ -59,17 +59,29 @@ export class WorkflowService {
     );
   }
 
+  /**
+   * Phase 39 -- `parentType`/`parentId` are null for the standalone `Workflow > Tasks` screen, which
+   * lists every task in the organization. Supplying both is the per-record tab, unchanged.
+   */
   listTasks(
     organizationId: string,
-    parentType: TaskParentType,
-    parentId: string,
+    parentType: TaskParentType | null,
+    parentId: string | null,
     status: TaskStatus | null,
     page = 1,
     pageSize = 50,
+    search: string | null = null,
   ): Observable<TaskListDto> {
-    const params: Record<string, string> = { parentType, parentId, page: String(page), pageSize: String(pageSize) };
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (parentType && parentId) {
+      params['parentType'] = parentType;
+      params['parentId'] = parentId;
+    }
     if (status) {
       params['status'] = status;
+    }
+    if (search) {
+      params['search'] = search;
     }
     return this.http.get<TaskListDto>(`${this.baseUrl(organizationId)}/tasks`, { withCredentials: true, params });
   }

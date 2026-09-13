@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–38)
+## Completed phases (0–39)
 
 Detail lives in each phase's own status doc — this table is the index, not the history.
 
@@ -68,6 +68,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 34c | Scale (NFR-5.1/5.2): the 50,000-invoice dataset seeded by direct `INSERT` (`tools/scale/`), a p95 budget per class of screen, and **50 indexes from a rule** — `TenantIndexConvention` found **18 tenant-scoped tables with no index leading on `OrganizationId`**, exactly the transactional documents plus `GlJournalEntry`, because every other table got one free from its per-tenant uniqueness rule. List first pages **469 ms → 49 ms**; the shell `@defer`ed for **724 kB → 649 kB**. Three findings outlive the speed-up: an index added for one access path made *search* on the same table worse; a plausible multi-tenancy inference (`GlLine` has no tenant column, so statements must pay for other tenants) was **refused by a second-tenant experiment**; and the report layer's cost is the **period**, not the page size — with `JournalReportQueryHandler` already in the repo as the shape that fixes it. The export cap's re-entry condition is **met by specification** and the constant deliberately unchanged | `phase-34c-status.md` |
 | 35a | Ledger drill-down (`?accountId=` + a View Ledger row action closing phase-33 #1) and the location dimension on documents: the picker extracted and swept onto all 15 forms, the LOCATION cell and filter onto all 15 lists via `ListChrome`/`ListFilter`, `BillingLocation.WarehouseId` as a prefill. Found phase 32's read-path gap — **14 of 15 detail DTOs and all 5 conversion templates dropped `LocationId`** — and corrected a `known-gotchas.md` generalisation by experiment | `phase-35a-status.md` |
 | 35b–38 | The location dimension in the reports; allocation/forex/ageing consistency; inventory policy (negative stock as a layer); import/export breadth | `phase-35b`–`phase-38-status.md` |
+| 39 | CRM and workflow as first-class screens, and the two editors: one sanitised rich-text editor (`RichText` — re-emission, not filtering, enforced in the Domain setters) behind both `app-terms-editor` and the email body; Organization logo, with `ImageHeader` reading the format from the bytes, in the printed header; `EmailTemplateContext.BalanceConfirmation`'s first consumer; standalone `CRM > Deals` and `Workflow > Tasks` routes; Quick Links drag-to-reorder; the search results page with a kind filter | `phase-39-status.md` |
 
 ---
 
@@ -279,15 +280,6 @@ holds for a captured bool, not for a captured collection compared to null.
   no bulk way to configure a product's Attributes Used, which the variant importer requires; the
   landed-cost drawer replaces rather than merges per product; and `MaxRowsPerWorkbook` is still one
   machine's memory law.
-
-### 39. CRM and workflow as first-class screens, and the two editors
-- **Deals and Tasks get standalone routes** under CRM and Workflow (34b #6 — the router-derived nav
-  made the gap visible); Quick Links reorder by drag (33 #2); a search results page with a kind
-  filter, once 34c says the cap of 5 bites (33 #4).
-- **One rich-text editor**, sanitised, behind both `app-terms-editor` and the email body (27b
-  Decision C, 30) — the reference product's TinyMCE; terms carried through document conversions
-  (27b); the `BalanceConfirmation` email context gets its consumer, the phase-27b letter (30).
-- **Organization logo** upload (the phase-1b wizard gap) and its use in the printed header (27b).
 
 ### 40. The human accessibility pass and the list-chrome leftovers
 - Decision A's six non-mechanisable WCAG criteria — focus order and visibility, error-message

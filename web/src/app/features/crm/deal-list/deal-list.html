@@ -13,13 +13,24 @@
       </li>
     }
   </ul>
-  <button type="button" class="btn btn-primary btn-sm fw-bold" (click)="toggleCreateForm()">
+  <div class="d-flex align-items-center gap-2">
+    <input
+      type="search"
+      class="form-control form-control-sm"
+      style="max-width: 220px;"
+      placeholder="Search deals..."
+      aria-label="Search deals"
+      [value]="search()"
+      (input)="onSearchInput($event)"
+    />
+    <button type="button" class="btn btn-primary btn-sm fw-bold" (click)="toggleCreateForm()">
     @if (showCreateForm()) {
       Cancel
     } @else {
       <i aria-hidden="true" class="bi bi-plus-circle"></i> New Deal
     }
-  </button>
+    </button>
+  </div>
 </div>
 
 @if (errorMessage()) {

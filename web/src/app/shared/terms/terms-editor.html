@@ -18,13 +18,11 @@
       </div>
     }
 
-    <textarea aria-label="Terms and conditions"
-      class="form-control"
-      rows="5"
-      placeholder="Terms and conditions printed on this document"
+    <app-rich-text-editor
+      ariaLabel="Terms and conditions"
+      [rows]="5"
       [disabled]="disabled()"
-      [value]="terms()"
-      (input)="onTermsInput($event)"
-    ></textarea>
+      [(value)]="terms"
+    />
   }
 </div>

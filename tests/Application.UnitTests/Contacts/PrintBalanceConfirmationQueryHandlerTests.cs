@@ -81,7 +81,10 @@ public class PrintBalanceConfirmationQueryHandlerTests
             CancellationToken.None);
 
         Assert.Equal("Year-end confirmation", confirmation.TemplateName);
-        Assert.Equal("Namaste Acme Traders — we show 1,300.00 DR as at 2026-08-31.", confirmation.Body);
+        // Phase 39: CustomTemplate.Body is sanitised on the way in, so the stored template is
+        // "<p>Namaste …</p>" and the resolved letter keeps that wrapper. The merge tokens are text
+        // and survive the sanitiser untouched, which is what keeps the substitution working.
+        Assert.Equal("<p>Namaste Acme Traders — we show 1,300.00 DR as at 2026-08-31.</p>", confirmation.Body);
     }
 
     /// <summary>Phase 27b's other half reaches this letter too: the as-of date it states is the one

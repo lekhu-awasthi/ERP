@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using MediatR;
@@ -14,16 +15,36 @@ public sealed class ListTasksQueryHandler(IAppDbContext db, ICurrentUserService 
 
         var query = db.Tasks.Where(x =>
             x.OrganizationId == request.OrganizationId
-            && x.ParentType == request.ParentType
-            && x.ParentId == request.ParentId
             // IsPrivate visibility -- a private task is hidden from everyone except its creator and
             // its assignee (see ListTasksQuery's own doc comment: this codebase's "no silently-inert
             // fields" precedent argues against a stored-but-unenforced IsPrivate flag).
             && (!x.IsPrivate || x.CreatedByUserId == userId || x.AssignedToUserId == userId));
 
+        // Composed as separate Where clauses rather than folded into the predicate above: an
+        // expression tree does not short-circuit, so `request.ParentId == null || x.ParentId ==
+        // request.ParentId.Value` would hand EF a null to compare on the unscoped branch -- which is
+        // every caller of the new screen (CLAUDE.md, phase-33).
+        if (request.ParentType is { } parentType)
+        {
+            query = query.Where(x => x.ParentType == parentType);
+        }
+
+        if (request.ParentId is { } parentId)
+        {
+            query = query.Where(x => x.ParentId == parentId);
+        }
+
         if (request.Status is { } status)
         {
             query = query.Where(x => x.Status == status);
+        }
+
+        // Inline Contains, never a shared matcher: a static call is untranslatable and so is the
+        // StringComparison overload, and InMemory evaluates both in C# so every handler test would
+        // pass while the endpoint 500s (phase-34b).
+        if (SearchTerm.Normalize(request.Search) is { } term)
+        {
+            query = query.Where(x => x.Title.Contains(term));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

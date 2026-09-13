@@ -100,6 +100,12 @@ public sealed record PrintableDocumentDto(
     string? OrganizationEmail,
     string? OrganizationPan,
     string? OrganizationWebsite,
+    // Phase 39 -- the organization's logo, as bytes rather than as a storage key or a URL. The Api's
+    // renderer has no IFileStorage and must not grow one: reading the blob is the Application's job,
+    // drawing it is the renderer's. Bounded by the 5 MB upload cap, which is what makes carrying it
+    // in a DTO reasonable. Null when the tenant has not uploaded one, which is the common case and
+    // prints the header exactly as it printed before this phase.
+    byte[]? OrganizationLogo,
     string? PartyHeading,
     string? PartyLabel,
     string? PartyAddress,

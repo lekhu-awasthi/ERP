@@ -387,6 +387,12 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminInventoryAdjustmentVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000f9");
     private static readonly Guid MemberInventoryAdjustmentVoidId = Guid.Parse("00000000-0000-0000-0002-0000000000fa");
 
+    // Phase 39 -- Organization Profile. View is Admin+Member, Manage is Admin-only; see PermissionKeys.
+    private static readonly Guid AdminOrganizationProfileViewId = Guid.Parse("00000000-0000-0000-0002-0000000001bd");
+    private static readonly Guid MemberOrganizationProfileViewId = Guid.Parse("00000000-0000-0000-0002-0000000001be");
+    private static readonly Guid AdminOrganizationProfileManageId = Guid.Parse("00000000-0000-0000-0002-0000000001bf");
+    private static readonly Guid MemberOrganizationProfileManageId = Guid.Parse("00000000-0000-0000-0002-0000000001c0");
+
     private static readonly Guid AdminOrganizationLockDateManageId = Guid.Parse("00000000-0000-0000-0002-0000000000fb");
     private static readonly Guid MemberOrganizationLockDateManageId = Guid.Parse("00000000-0000-0000-0002-0000000000fc");
 
@@ -1047,6 +1053,13 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
                 AdminOrganizationLockDateManageId, Role.AdminId, PermissionKeys.OrganizationLockDateManage, true),
             RolePermission.Create(
                 MemberOrganizationLockDateManageId, Role.MemberId, PermissionKeys.OrganizationLockDateManage, false),
+
+            RolePermission.Create(AdminOrganizationProfileViewId, Role.AdminId, PermissionKeys.OrganizationProfileView, true),
+            RolePermission.Create(MemberOrganizationProfileViewId, Role.MemberId, PermissionKeys.OrganizationProfileView, true),
+            RolePermission.Create(
+                AdminOrganizationProfileManageId, Role.AdminId, PermissionKeys.OrganizationProfileManage, true),
+            RolePermission.Create(
+                MemberOrganizationProfileManageId, Role.MemberId, PermissionKeys.OrganizationProfileManage, false),
 
             RolePermission.Create(AdminSystemAuditViewId, Role.AdminId, PermissionKeys.SystemAuditView, true),
             RolePermission.Create(MemberSystemAuditViewId, Role.MemberId, PermissionKeys.SystemAuditView, false),

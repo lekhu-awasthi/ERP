@@ -2,6 +2,7 @@ using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Configuration;
+using ErpApp.Application.Common.Validation;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -43,7 +44,7 @@ public sealed class CreateEmailTemplateCommandValidator : AbstractValidator<Crea
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Subject).NotEmpty().MaximumLength(500);
-        RuleFor(x => x.Body).NotEmpty();
+        RuleFor(x => x.Body).NotEmpty().RichText("Template body");
         RuleFor(x => x.Context).IsInEnum();
     }
 }

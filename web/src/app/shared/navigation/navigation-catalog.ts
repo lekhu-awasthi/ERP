@@ -65,6 +65,10 @@ const ORG_PREFIX = 'organizations/:id/';
 export const EXCLUDED_PATHS: Readonly<Record<string, string>> = {
   home: 'The dashboard the tray lives on. Pinning a shortcut to the page you are already on is noise.',
   welcome: 'A one-time post-signup landing page, not a screen anyone returns to.',
+  search:
+    'Phase 39 -- the search results page. A destination you arrive at carrying a term, not a screen: '
+    + 'without ?q= it has nothing to show, so offering it in the catalogue or the Quick Links picker '
+    + 'would pin a blank page.',
 };
 
 /** Areas for the paths whose first segment does not name one. */
@@ -83,12 +87,16 @@ const BARE_AREAS: Readonly<Record<string, string>> = {
   'billing-locations': 'Configurations',
   features: 'Configurations',
   'lock-date': 'Configurations',
+  'organization-profile': 'Configurations',
 };
 
 const SEGMENT_AREAS: Readonly<Record<string, string>> = {
   accounting: 'Accounting',
   configuration: 'Configurations',
   contacts: 'CRM',
+  // Phase 39 -- the first route under a bare `crm/` segment. Without this its area would de-kebab
+  // to "Crm" and the leaf would sit in a group of its own, next to the CRM group it belongs to.
+  crm: 'CRM',
   inventory: 'Inventory',
   manufacturing: 'Manufacturing',
   products: 'Inventory',
@@ -107,6 +115,7 @@ const TITLE_OVERRIDES: Readonly<Record<string, string>> = {
   'configuration/migration': 'Migration',
   features: 'Subscription & Features',
   'lock-date': 'Lock Date',
+  'organization-profile': 'Organization Profile',
   roles: 'Roles & Permissions',
   sms: 'SMS',
   'reports/annex-five': 'Annex 5',

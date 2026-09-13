@@ -7,6 +7,7 @@ using ErpApp.Domain.Communications;
 using ErpApp.Domain.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using ErpApp.Domain.Contacts;
 
 namespace ErpApp.Application.Communications;
 
@@ -130,6 +131,29 @@ public sealed class EmailSendJobProcessor(
     private async Task<EmailMessage> BuildMessageAsync(EmailSendLog log, CancellationToken cancellationToken)
     {
         var attachments = new List<EmailAttachment>();
+
+        // Phase 39 -- the balance confirmation attaches its own letter, always. There is no
+        // checkbox: an email whose whole purpose is to state a balance has nothing to send without
+        // it, so offering the choice would only offer a way to send an empty message.
+        if (log.Context == EmailTemplateContext.BalanceConfirmation)
+        {
+            var contactType = await db.Contacts
+                .Where(x => x.Id == log.ParentId && x.OrganizationId == log.OrganizationId)
+                .Select(x => (ContactType?)x.Type)
+                .FirstOrDefaultAsync(cancellationToken)
+                ?? throw new InvalidOperationException(
+                    $"Contact {log.ParentId} no longer exists, so its balance confirmation cannot be rendered.");
+
+            var letter = await pdfRenderer.RenderBalanceConfirmationAsync(
+                log.OrganizationId,
+                contactType,
+                log.ParentId,
+                log.BalanceAsOfDate ?? throw new InvalidOperationException(
+                    "A balance confirmation has no as-at date; EmailSendLog.Queue should have rejected this."),
+                cancellationToken);
+
+            attachments.Add(new EmailAttachment(letter.FileName, RenderedDocumentPdf.ContentType, letter.Content));
+        }
 
         if (log.AttachDocumentPdf)
         {

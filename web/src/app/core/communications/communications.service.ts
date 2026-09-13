@@ -33,12 +33,20 @@ export class CommunicationsService {
     organizationId: string,
     documentType: DocumentType | null,
     parentId: string,
+    context: EmailTemplateContext | null = null,
+    balanceAsOfDate: string | null = null,
   ): Observable<PreparedEmail> {
     // Annotated Record<string, string>: a union including {} silently resolves the get() overload
     // to arraybuffer (phase-3 bug #4).
     const params: Record<string, string> = { parentId };
     if (documentType) {
       params['documentType'] = documentType;
+    }
+    if (context) {
+      params['context'] = context;
+    }
+    if (balanceAsOfDate) {
+      params['balanceAsOfDate'] = balanceAsOfDate;
     }
 
     return this.http.get<PreparedEmail>(`${this.baseUrl(organizationId)}/emails/prepare`, {
@@ -62,6 +70,12 @@ export class CommunicationsService {
 
     if (request.documentType) {
       form.append('documentType', request.documentType);
+    }
+    if (request.context) {
+      form.append('context', request.context);
+    }
+    if (request.balanceAsOfDate) {
+      form.append('balanceAsOfDate', request.balanceAsOfDate);
     }
     if (request.templateId) {
       form.append('templateId', request.templateId);

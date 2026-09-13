@@ -1,0 +1,71 @@
+@if (!disabled()) {
+  <!-- Bootstrap's JS is not loaded anywhere in this app, so nothing sets aria state for free
+       (phase 34a, extending phase 22's gotcha). Every button below sets its own. -->
+  <div class="rich-text-toolbar btn-toolbar border rounded-top bg-body-tertiary px-2 py-1 gap-1"
+       role="toolbar"
+       [attr.aria-label]="ariaLabel() + ' formatting'">
+    <div class="btn-group btn-group-sm" role="group" aria-label="Character style">
+      @for (tool of styleTools; track tool.command) {
+        <button type="button"
+                class="btn btn-sm btn-light border-0"
+                [class.active]="isActive(tool)"
+                [attr.aria-label]="tool.label"
+                [attr.aria-pressed]="isActive(tool)"
+                [title]="tool.label"
+                (mousedown)="$event.preventDefault()"
+                (click)="run(tool)">
+          <i class="bi" [class]="tool.icon" aria-hidden="true"></i>
+        </button>
+      }
+    </div>
+
+    <div class="btn-group btn-group-sm" role="group" aria-label="Alignment">
+      @for (tool of alignTools; track tool.command) {
+        <button type="button"
+                class="btn btn-sm btn-light border-0"
+                [class.active]="isActive(tool)"
+                [attr.aria-label]="tool.label"
+                [attr.aria-pressed]="isActive(tool)"
+                [title]="tool.label"
+                (mousedown)="$event.preventDefault()"
+                (click)="run(tool)">
+          <i class="bi" [class]="tool.icon" aria-hidden="true"></i>
+        </button>
+      }
+    </div>
+
+    <div class="btn-group btn-group-sm" role="group" aria-label="Lists and rules">
+      @for (tool of listTools; track tool.command) {
+        <button type="button"
+                class="btn btn-sm btn-light border-0"
+                [class.active]="isActive(tool)"
+                [attr.aria-label]="tool.label"
+                [attr.aria-pressed]="tool.toggle ? isActive(tool) : null"
+                [title]="tool.label"
+                (mousedown)="$event.preventDefault()"
+                (click)="run(tool)">
+          <i class="bi" [class]="tool.icon" aria-hidden="true"></i>
+        </button>
+      }
+    </div>
+  </div>
+}
+
+<!-- role/aria-multiline/aria-label rather than a <label for>: nothing can point at a
+     contenteditable div, so the control names itself. -->
+<div #surface
+     class="rich-text-surface form-control"
+     [class.rounded-top-0]="!disabled()"
+     [class.rich-text-readonly]="disabled()"
+     [style.min-height]="minHeight()"
+     [attr.contenteditable]="disabled() ? null : 'true'"
+     [attr.role]="disabled() ? null : 'textbox'"
+     [attr.aria-multiline]="disabled() ? null : 'true'"
+     [attr.aria-label]="disabled() ? null : ariaLabel()"
+     [attr.aria-readonly]="disabled() ? 'true' : null"
+     (input)="onInput()"
+     (keyup)="onSelectionChange()"
+     (mouseup)="onSelectionChange()"
+     (focus)="onFocus()"
+     (blur)="onBlur()"
+     (paste)="onPaste($event)"></div>

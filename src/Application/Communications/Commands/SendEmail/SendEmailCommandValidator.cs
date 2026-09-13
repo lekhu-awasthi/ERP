@@ -1,3 +1,4 @@
+using ErpApp.Domain.Configuration;
 using FluentValidation;
 
 namespace ErpApp.Application.Communications.Commands.SendEmail;
@@ -31,6 +32,21 @@ public sealed class SendEmailCommandValidator : AbstractValidator<SendEmailComma
         RuleFor(x => x.Body)
             .NotEmpty()
             .MaximumLength(MaxBodyLength);
+
+        // Phase 39. EmailSendLog.Queue enforces this pair as a Domain invariant, and an invariant
+        // reached through the API surfaces as a 500 -- which tells a caller nothing and reads to an
+        // operator like a server fault. Found by the E2E, which is the only place the two layers are
+        // exercised together. The Domain check stays as the backstop; this is what makes the failure
+        // a 400 that names the field.
+        RuleFor(x => x.BalanceAsOfDate)
+            .NotNull()
+            .When(x => x.Context == EmailTemplateContext.BalanceConfirmation)
+            .WithMessage("A balance confirmation states a balance as at a date, so a date is required.");
+
+        RuleFor(x => x.BalanceAsOfDate)
+            .Null()
+            .When(x => x.Context != EmailTemplateContext.BalanceConfirmation)
+            .WithMessage("A balance as-at date belongs only to a balance confirmation.");
 
         RuleFor(x => x)
             .Must(x => x.To.Count + x.Cc.Count + x.Bcc.Count <= MaxRecipients)

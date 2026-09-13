@@ -35,6 +35,7 @@ export class CrmService {
     status: DealStatus | null,
     page = 1,
     pageSize = 50,
+    search: string | null = null,
   ): Observable<DealListDto> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
     if (contactId) {
@@ -42,6 +43,9 @@ export class CrmService {
     }
     if (status) {
       params['status'] = status;
+    }
+    if (search) {
+      params['search'] = search;
     }
     return this.http.get<DealListDto>(`${this.baseUrl(organizationId)}/deals`, { withCredentials: true, params });
   }

@@ -1,4 +1,5 @@
 using ErpApp.Domain.Configuration;
+using ErpApp.Domain.Common;
 
 namespace ErpApp.Domain.Communications;
 
@@ -78,6 +79,11 @@ public sealed class EmailSendLog
     /// such checkbox at all.</summary>
     public bool AttachDocumentPdf { get; private set; }
 
+    /// <summary>Phase 39 -- the as-at date of an attached balance-confirmation letter, and null for
+    /// every other context. See <see cref="EmailTemplateContext.BalanceConfirmation"/> for why this
+    /// one context needs a column of its own.</summary>
+    public DateOnly? BalanceAsOfDate { get; private set; }
+
     public EmailSendStatus Status { get; private set; }
     public string? FailureReason { get; private set; }
 
@@ -127,12 +133,29 @@ public sealed class EmailSendLog
         string body,
         bool attachDocumentPdf,
         Guid sentByUserId,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        DateOnly? balanceAsOfDate = null)
     {
         if (parentType == EmailParentType.Contact && attachDocumentPdf)
         {
             throw new InvalidOperationException(
                 "A Contact has no document to attach; AttachDocumentPdf is only meaningful for a document send.");
+        }
+
+        // Phase 39. The balance-confirmation letter is the one attachment identified by something
+        // other than its parent: the same contact has a different letter for every as-of date. A row
+        // in that context without a date could not render, so it is refused at the Domain boundary
+        // rather than discovered by the job three seconds later.
+        if (context == EmailTemplateContext.BalanceConfirmation && balanceAsOfDate is null)
+        {
+            throw new InvalidOperationException(
+                "A balance confirmation states a balance as at a date, so BalanceAsOfDate is required.");
+        }
+
+        if (context != EmailTemplateContext.BalanceConfirmation && balanceAsOfDate is not null)
+        {
+            throw new InvalidOperationException(
+                "BalanceAsOfDate belongs only to a balance confirmation.");
         }
 
         return new EmailSendLog
@@ -149,8 +172,14 @@ public sealed class EmailSendLog
             BccAddresses = Normalize(bccAddresses),
             ReplyTo = string.IsNullOrWhiteSpace(replyTo) ? null : replyTo.Trim(),
             Subject = subject,
-            Body = body,
+            // Phase 39 -- the composed body is sanitised at the moment it becomes a record of what
+            // was sent. That is the right moment because this row is both the outbound payload and
+            // what the Email Logs tab renders back into a browser: sanitising at render would leave
+            // the second reader to remember, and phase-35a's lesson is that readers are what a sweep
+            // forgets.
+            Body = RichText.Sanitize(body) ?? string.Empty,
             AttachDocumentPdf = attachDocumentPdf,
+            BalanceAsOfDate = balanceAsOfDate,
             Status = EmailSendStatus.Queued,
             SentByUserId = sentByUserId,
             CreatedAt = now,

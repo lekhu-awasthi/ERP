@@ -35,6 +35,7 @@ public sealed class GetInvoiceConversionTemplateQueryHandler(IAppDbContext db)
             quotation.Id,
             quotation.DiscountPct,
             lines,
-            quotation.LocationId);
+            quotation.LocationId,
+            quotation.Terms);
     }
 }

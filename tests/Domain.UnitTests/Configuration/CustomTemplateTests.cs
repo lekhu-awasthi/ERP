@@ -12,7 +12,10 @@ public class CustomTemplateTests
 
         Assert.Equal("Standard Letter", template.Name);
         Assert.Equal(CustomTemplateType.CustomerBalanceConfirmation, template.Type);
-        Assert.Equal("Dear $[CustomerName]$,", template.Body);
+        // Phase 39: a template body is rich text and is sanitised on the way in, so plain text
+        // arrives wrapped in a paragraph. The merge token is untouched -- it is text, not markup,
+        // which is what keeps EmailMergeResolver working across the change.
+        Assert.Equal("<p>Dear $[CustomerName]$,</p>", template.Body);
         Assert.True(template.IsDefault);
         Assert.True(template.IsActive);
     }
@@ -26,7 +29,7 @@ public class CustomTemplateTests
         template.Update("Formal Letter", CustomTemplateType.CustomerBalanceConfirmation, "Dear Sir/Madam $[CustomerName]$,", false);
 
         Assert.Equal("Formal Letter", template.Name);
-        Assert.Equal("Dear Sir/Madam $[CustomerName]$,", template.Body);
+        Assert.Equal("<p>Dear Sir/Madam $[CustomerName]$,</p>", template.Body);
         Assert.False(template.IsActive);
     }
 

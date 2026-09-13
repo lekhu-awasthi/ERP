@@ -36,7 +36,10 @@ public sealed class CustomTemplate : ITenantLookupEntity
             OrganizationId = organizationId,
             Name = name,
             Type = type,
-            Body = body,
+            // Phase 39 -- a template body is rich text now, and is sanitised on the way in for the
+            // same reason a document's own Terms are: it is copied verbatim onto documents and into
+            // email bodies, so an unsafe template would be an unsafe document on every use.
+            Body = RichText.Sanitize(body) ?? string.Empty,
             IsDefault = isDefault,
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
@@ -53,7 +56,7 @@ public sealed class CustomTemplate : ITenantLookupEntity
 
         Name = name;
         Type = type;
-        Body = body;
+        Body = RichText.Sanitize(body) ?? string.Empty;
         IsActive = isActive;
     }
 

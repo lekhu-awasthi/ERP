@@ -8,6 +8,8 @@ import { ListQueryOptions, applyListOptions } from '../../shared/pagination/list
 import {
   AccountingDefaults,
   CreateOrganizationRequest,
+  OrganizationLogoResult,
+  OrganizationProfile,
   CreateOrganizationResponse,
   CreateRoleRequest,
   CreateRoleResult,
@@ -240,6 +242,41 @@ export class OrganizationsService {
 
   setLockDate(organizationId: string, lockDate: string | null): Observable<OrganizationLockDate> {
     return this.http.put<OrganizationLockDate>(`${this.baseUrl}/${organizationId}/lock-date`, { lockDate }, {
+      withCredentials: true,
+    });
+  }
+
+
+  // --- Phase 39: Organization Profile and its logo -------------------------------------------
+
+  getProfile(organizationId: string): Observable<OrganizationProfile> {
+    return this.http.get<OrganizationProfile>(`${this.baseUrl}/${organizationId}/profile`, {
+      withCredentials: true,
+    });
+  }
+
+  /** The logo's own url. Authenticated like every other read, so an `<img [src]>` pointed at it
+   * needs `withCredentials` on the element -- which is why the profile page fetches a Blob and binds
+   * an object url instead of pointing `src` straight here. */
+  logoUrl(organizationId: string): string {
+    return `${this.baseUrl}/${organizationId}/logo`;
+  }
+
+  getLogo(organizationId: string): Observable<Blob> {
+    return this.http.get(this.logoUrl(organizationId), { withCredentials: true, responseType: 'blob' });
+  }
+
+  uploadLogo(organizationId: string, file: File): Observable<OrganizationLogoResult> {
+    const form = new FormData();
+    form.append('file', file);
+
+    return this.http.post<OrganizationLogoResult>(this.logoUrl(organizationId), form, {
+      withCredentials: true,
+    });
+  }
+
+  removeLogo(organizationId: string): Observable<OrganizationLogoResult> {
+    return this.http.delete<OrganizationLogoResult>(this.logoUrl(organizationId), {
       withCredentials: true,
     });
   }

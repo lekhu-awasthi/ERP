@@ -165,6 +165,8 @@ export class CreditNoteDetailPage {
           this.referrerType = template.referrerType;
           this.referrerId = template.referrerId;
           this.isLinkedToSource.set(true);
+          // Phase 39 -- and it keeps the terms the invoice was issued under, for the same reason.
+          this.terms.set(template.terms ?? '');
           this.discountPct.set(template.discountPct);
           this.lines.set(
             template.lines.length > 0 ? template.lines.map((l) => ({ key: nextLineKey++, ...l })) : [this.newLine()],

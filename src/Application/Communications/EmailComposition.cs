@@ -138,9 +138,21 @@ public static class EmailComposition
         DocumentType? documentType,
         Guid parentId,
         Guid? templateId,
-        CancellationToken ct)
+        CancellationToken ct,
+        // Phase 39 -- an explicit context, for the one caller whose parent cannot imply it. A
+        // Contact-parented send resolves to General, and a balance confirmation is Contact-parented
+        // too, so the statement screens say which they mean. Null keeps every existing caller's
+        // behaviour exactly as it was.
+        EmailTemplateContext? requestedContext = null)
     {
-        var context = await ResolveContextAsync(db, organizationId, documentType, parentId, ct);
+        var context = requestedContext
+            ?? await ResolveContextAsync(db, organizationId, documentType, parentId, ct);
+
+        if (requestedContext == EmailTemplateContext.BalanceConfirmation && documentType is not null)
+        {
+            throw new ConflictException(
+                "A balance confirmation is about a contact, not a document.");
+        }
 
         Guid? contactId;
         string? documentCode = null;

@@ -736,3 +736,29 @@ Moved verbatim; the one-line versions in CLAUDE.md keep the same "before X" hook
   so a repeated query string arrives null and the feature silently does the unfiltered thing —
   `[FromQuery]` is load-bearing, only an end-to-end call shows it, and the simple parameters beside
   it bind without help, which is exactly what hides it — `docs/phase-38-status.md`
+
+- **Phase 39 — CRM and workflow as first-class screens, and the two editors.** **Before storing
+  anything a user typed that will later be rendered**: `Domain/Common/RichText` sanitises by
+  *re-emission, not filtering* — the input is parsed into a tree whose only attribute slot is a
+  four-valued enum, and the output is written from constants the emitter owns, so a tokenizer bug can
+  produce wrong formatting and cannot produce an attribute, a tag name or a URL that came from the
+  input. It runs in the **Domain setters**, not in a handler and not at render, because a render-time
+  sanitiser puts the obligation on every future read path and phase-35a's lesson is that read paths
+  are what a sweep forgets. Idempotence is a product requirement there, not a nicety: a document is
+  loaded and re-saved on every edit, so a non-idempotent sanitiser rots a field visibly over a few
+  saves. **Before widening what a rich-text field may contain**: the editor's toolbar is
+  `RichTextPdfRenderer`'s capability list, and a grammar wider than the renderer means a field that
+  looks one way on screen and another in the PDF a customer receives. **Before writing a second copy
+  of one rule in two languages**: pin them to a shared table read by both suites
+  (`rich-text-cases.json`, embedded as a resource so a moved file is a build error) — phase-26b's
+  `BsCalendar`/`bs-date.ts` arrangement, and it caught a real divergence about collapsing whitespace
+  within the hour. **Before accepting an uploaded image**: read the format from the bytes, not the
+  declared content type — `ImageHeader` answers "is this really a PNG" and "is it at least 300×300"
+  with one parser and no dependency, and the renderer re-checks with it because QuestPDF throws for
+  an undecodable image *after* composition, where no try/catch around the draw call can help.
+  **Before assuming a guard still covers what it was written for**: `SearchSweepGuardTests` recognised
+  only `PagedResult<T>`, so the two list queries that predate it were invisible — and they were
+  exactly the two lists this phase had to give a search box. **And before deciding a Domain invariant
+  is enough**: an invariant reached through the API is a 500, which tells a caller nothing; the
+  validator makes it a 400 that names the field and the Domain check stays as the backstop —
+  `docs/phase-39-status.md`

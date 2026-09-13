@@ -18,6 +18,18 @@ public sealed class Organization
     public string? Phone { get; private set; }
     public string? PanNumber { get; private set; }
     public string? Website { get; private set; }
+    /// <summary>
+    /// Phase 39 -- the opaque <c>IFileStorage</c> key of the organization's logo, or null. Never a
+    /// URL: every read goes through an authenticated endpoint, which is the rule IFileStorage's own
+    /// remarks set out and the reason it exposes no "resolve to a public URL".
+    /// </summary>
+    public string? LogoStorageKey { get; private set; }
+
+    /// <summary>The media type the logo's own bytes said it was, so the serving endpoint does not
+    /// have to re-read the header on every request -- and so it never echoes a client-supplied
+    /// Content-Type back to a browser.</summary>
+    public string? LogoContentType { get; private set; }
+
     public DateOnly? LockDate { get; private set; }
     public Guid CreatedByUserId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
@@ -62,4 +74,33 @@ public sealed class Organization
     }
 
     public void SetLockDate(DateOnly? lockDate) => LockDate = lockDate;
+
+    /// <summary>
+    /// Points the organization at a newly stored logo and <b>returns the key it replaced</b>, so the
+    /// caller can delete that blob. Returning it rather than deleting here keeps the Domain free of
+    /// storage, and returning it rather than leaving it to the caller to remember is what stops a
+    /// replaced logo becoming an orphaned file -- phase-21b's rule that a feature which writes a
+    /// blob owes its deletion story in the same phase.
+    /// </summary>
+    public string? SetLogo(string storageKey, string contentType)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(storageKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(contentType);
+
+        var replaced = LogoStorageKey;
+        LogoStorageKey = storageKey;
+        LogoContentType = contentType;
+
+        return replaced;
+    }
+
+    /// <summary>Clears the logo and returns the key to delete, or null when there was none.</summary>
+    public string? RemoveLogo()
+    {
+        var removed = LogoStorageKey;
+        LogoStorageKey = null;
+        LogoContentType = null;
+
+        return removed;
+    }
 }

@@ -170,7 +170,11 @@ public sealed class CreditNote
     public void SetTerms(string? terms)
     {
         EnsureDraft();
-        Terms = string.IsNullOrWhiteSpace(terms) ? null : terms.Trim();
+
+        // Phase 39 -- sanitised here rather than in the handler, so that no future caller inside the
+        // Domain can store markup that skipped the gate. RichText.Sanitize also collapses
+        // "<p><br></p>" to null, which is what the editor emits for an empty field.
+        Terms = RichText.Sanitize(terms);
     }
 
     /// <summary>

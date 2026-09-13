@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Crm;
@@ -23,8 +24,13 @@ public sealed record ListDealsQuery(
     Guid? ContactId,
     DealStatus? Status,
     int Page = 1,
-    int PageSize = PagingDefaults.DefaultPageSize)
-    : IRequest<DealListDto>, IRequirePermission, IOrganizationScoped
+    int PageSize = PagingDefaults.DefaultPageSize,
+    // Phase 39 -- the standalone CRM > Deals screen has a search box, matching the live list. It
+    // matches the deal's own title; the Contact column is searchable through the contact list, and
+    // joining to match on it would make one screen's search mean something different from every
+    // other screen's.
+    string? Search = null)
+    : IRequest<DealListDto>, IRequirePermission, IOrganizationScoped, ISearchableQuery
 {
     public string PermissionKey => PermissionKeys.DealView;
 }

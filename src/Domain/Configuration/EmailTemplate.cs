@@ -87,7 +87,10 @@ public sealed class EmailTemplate : ITenantLookupEntity
             Name = name,
             Context = context,
             Subject = subject,
-            Body = body,
+            // Phase 39 -- a template body is rich text now, and is sanitised on the way in for the
+            // same reason a document's own Terms are: it is copied verbatim onto documents and into
+            // email bodies, so an unsafe template would be an unsafe document on every use.
+            Body = RichText.Sanitize(body) ?? string.Empty,
             ReplyTo = NullIfBlank(replyTo),
             Cc = NullIfBlank(cc),
             Bcc = NullIfBlank(bcc),
@@ -105,7 +108,7 @@ public sealed class EmailTemplate : ITenantLookupEntity
     {
         Name = name;
         Subject = subject;
-        Body = body;
+        Body = RichText.Sanitize(body) ?? string.Empty;
         ReplyTo = NullIfBlank(replyTo);
         Cc = NullIfBlank(cc);
         Bcc = NullIfBlank(bcc);

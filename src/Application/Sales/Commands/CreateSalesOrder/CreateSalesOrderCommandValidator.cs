@@ -1,4 +1,5 @@
 using ErpApp.Application.Common.Currencies;
+using ErpApp.Application.Common.Validation;
 using FluentValidation;
 
 namespace ErpApp.Application.Sales.Commands.CreateSalesOrder;
@@ -10,6 +11,9 @@ public sealed class CreateSalesOrderCommandValidator : AbstractValidator<CreateS
         RuleFor(x => x.OrganizationId).NotEmpty();
         RuleFor(x => x.ContactId).NotEmpty();
         RuleFor(x => x.Reference).MaximumLength(200);
+
+        // Phase 39: Terms is rich text and had no rule at all before this phase.
+        RuleFor(x => x.Terms).RichText("Terms and conditions");
         RuleFor(x => x.DiscountPct).InclusiveBetween(0, 100);
         RuleFor(x => x.Lines).NotNull();
         RuleForEach(x => x.Lines).ChildRules(line =>

@@ -2,7 +2,12 @@ import { Component, computed, inject, input, output, signal } from '@angular/cor
 
 import { extractErrorMessage } from '../../core/auth/api-error';
 import { CommunicationsService } from '../../core/communications/communications.service';
-import { PreparedEmail } from '../../core/communications/communications.models';
+import {
+  EmailTemplateContext,
+  PreparedEmail,
+} from '../../core/communications/communications.models';
+import { RichTextEditor } from '../rich-text/rich-text-editor';
+import { isRichTextEmpty } from '../rich-text/rich-text';
 import { DocumentType } from '../../core/sales/sales.models';
 
 /**
@@ -34,7 +39,7 @@ import { DocumentType } from '../../core/sales/sales.models';
  */
 @Component({
   selector: 'app-send-email-dialog',
-  imports: [],
+  imports: [RichTextEditor],
   templateUrl: './send-email-dialog.html',
   styleUrl: './send-email-dialog.scss',
 })
@@ -46,6 +51,16 @@ export class SendEmailDialog {
   /** Null for a Contact-scoped send -- the Contact detail page's own action. */
   readonly documentType = input<DocumentType | null>(null);
   readonly parentId = input.required<string>();
+
+  /**
+   * Phase 39 -- supplied only by the two statement screens, for `BalanceConfirmation`. Every other
+   * host leaves it null and the server derives the context from the parent, exactly as before: a
+   * Contact parent means General, a document parent means that document's own context.
+   */
+  readonly context = input<EmailTemplateContext | null>(null);
+
+  /** The as-at date of the balance-confirmation letter this send will attach. */
+  readonly balanceAsOfDate = input<string | null>(null);
 
   /** Raised once the send has been accepted, so a host can refresh its Email Logs tab. */
   readonly sent = output<void>();
@@ -82,7 +97,7 @@ export class SendEmailDialog {
   });
 
   protected readonly canSend = computed(
-    () => this.to().length > 0 && this.subject().trim().length > 0 && this.body().trim().length > 0,
+    () => this.to().length > 0 && this.subject().trim().length > 0 && !isRichTextEmpty(this.body()),
   );
 
   /** Addresses offered by the live "More..." picker that are not already in To. */
@@ -107,7 +122,9 @@ export class SendEmailDialog {
     this.toDraft.set('');
 
     this.communicationsService
-      .prepareEmail(this.organizationId(), this.documentType(), this.parentId())
+      .prepareEmail(
+        this.organizationId(), this.documentType(), this.parentId(),
+        this.context(), this.balanceAsOfDate())
       .subscribe({
         next: (prepared) => {
           this.loading.set(false);
@@ -150,7 +167,9 @@ export class SendEmailDialog {
 
     this.loading.set(true);
     this.communicationsService
-      .prepareEmail(this.organizationId(), this.documentType(), this.parentId())
+      .prepareEmail(
+        this.organizationId(), this.documentType(), this.parentId(),
+        this.context(), this.balanceAsOfDate())
       .subscribe({
         next: (prepared) => {
           this.loading.set(false);
@@ -209,9 +228,6 @@ export class SendEmailDialog {
     this.subject.set((event.target as HTMLInputElement).value);
   }
 
-  protected onBodyInput(event: Event): void {
-    this.body.set((event.target as HTMLTextAreaElement).value);
-  }
 
   protected onAttachPdfChange(event: Event): void {
     this.attachPdf.set((event.target as HTMLInputElement).checked);
@@ -250,6 +266,8 @@ export class SendEmailDialog {
         subject: this.subject(),
         body: this.body(),
         attachDocumentPdf: this.attachPdf() && this.documentType() !== null,
+        context: this.context(),
+        balanceAsOfDate: this.balanceAsOfDate(),
         files: this.files(),
       })
       .subscribe({

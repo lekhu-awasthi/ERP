@@ -1,0 +1,45 @@
+/* Phase 39. The surface is a .form-control so it inherits the app's field metrics, borders and
+   focus ring; everything here is what a contenteditable div needs that an <input> gets free. */
+
+.rich-text-surface {
+  height: auto;
+  overflow-y: auto;
+  max-height: 24rem;
+
+  /* A contenteditable div with no content has no line box, so it collapses to nothing and there is
+     nowhere to click. */
+  &:empty::before {
+    content: '';
+    display: inline-block;
+  }
+
+  /* The grammar's block elements, sized so the editor shows roughly what the PDF prints rather than
+     the browser's own much larger defaults. */
+  :where(p) {
+    margin: 0 0 0.5rem;
+  }
+
+  :where(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  :where(ul, ol) {
+    margin: 0 0 0.5rem;
+    padding-left: 1.5rem;
+  }
+
+  :where(hr) {
+    margin: 0.5rem 0;
+  }
+}
+
+/* Read-only: an approved document still shows its terms, and must not look like a field somebody
+   failed to fill in. */
+.rich-text-readonly {
+  background-color: var(--bs-secondary-bg);
+  opacity: 1;
+}
+
+.rich-text-toolbar {
+  border-bottom: 0 !important;
+}

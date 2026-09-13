@@ -853,6 +853,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<bool>("AttachDocumentPdf")
                         .HasColumnType("bit");
 
+                    b.Property<DateOnly?>("BalanceAsOfDate")
+                        .HasColumnType("date");
+
                     b.Property<string>("BccAddresses")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -1272,8 +1275,7 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.Property<string>("Body")
                         .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
@@ -5118,6 +5120,14 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<DateOnly?>("LockDate")
                         .HasColumnType("date");
 
+                    b.Property<string>("LogoContentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("LogoStorageKey")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -7033,6 +7043,34 @@ namespace ErpApp.Infrastructure.Migrations
                             Id = new Guid("00000000-0000-0000-0002-0000000000fc"),
                             IsGranted = false,
                             PermissionKey = "Tenancy.Organization.LockDateManage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001bd"),
+                            IsGranted = true,
+                            PermissionKey = "Tenancy.Organization.ProfileView",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001be"),
+                            IsGranted = true,
+                            PermissionKey = "Tenancy.Organization.ProfileView",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001bf"),
+                            IsGranted = true,
+                            PermissionKey = "Tenancy.Organization.ProfileManage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001c0"),
+                            IsGranted = false,
+                            PermissionKey = "Tenancy.Organization.ProfileManage",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         },
                         new

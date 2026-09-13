@@ -252,6 +252,11 @@ export interface InvoiceConversionTemplate {
   /** Phase 35a -- the source document's billing location, so a conversion keeps its branch
    * instead of silently landing on the tenant default. */
   locationId: string | null;
+
+  /** Phase 39 -- the source document's Terms, so a conversion keeps the words the offer was made
+   * with. Phase 27b left this open; the rule is that a conversion carries Terms exactly when both
+   * ends have the field, which is true only of Quotation->Invoice and Invoice->Credit Note. */
+  terms: string | null;
 }
 
 export interface SalesOrderLineInput {
@@ -437,6 +442,11 @@ export interface CreditNoteConversionTemplate {
   /** Phase 35a -- the source document's billing location, so a conversion keeps its branch
    * instead of silently landing on the tenant default. */
   locationId: string | null;
+
+  /** Phase 39 -- the source document's Terms, so a conversion keeps the words the offer was made
+   * with. Phase 27b left this open; the rule is that a conversion carries Terms exactly when both
+   * ends have the field, which is true only of Quotation->Invoice and Invoice->Credit Note. */
+  terms: string | null;
 }
 
 // --- Sales Master Report (Phase 8b) ---

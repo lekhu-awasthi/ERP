@@ -27,10 +27,20 @@ namespace ErpApp.Application.Communications.Queries.PrepareEmail;
 /// and the context is <see cref="EmailTemplateContext.General"/>. A Payment's context also depends
 /// on its direction, which the handler reads off the row rather than taking from the caller.</param>
 /// <param name="ParentId">The document's id, or the Contact's.</param>
+/// <param name="Context">
+/// Phase 39 -- normally null, meaning "derive it from the parent", which is what every caller before
+/// this phase did and still does. It is supplied only for
+/// <see cref="EmailTemplateContext.BalanceConfirmation"/>, the one context a parent cannot imply: a
+/// Contact-parented send is a General one unless the caller says otherwise, and the Contact detail
+/// page and the statement screens are both Contact-parented.
+/// </param>
+/// <param name="BalanceAsOfDate">The as-at date of the balance confirmation, and null otherwise.</param>
 public sealed record PrepareEmailQuery(
     Guid OrganizationId,
     DocumentType? DocumentType,
-    Guid ParentId)
+    Guid ParentId,
+    EmailTemplateContext? Context = null,
+    DateOnly? BalanceAsOfDate = null)
     : IRequest<PreparedEmailDto>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.EmailSend;

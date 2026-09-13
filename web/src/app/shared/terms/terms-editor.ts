@@ -2,6 +2,7 @@ import { Component, OnInit, computed, inject, input, model, signal } from '@angu
 
 import { CustomTemplate } from '../../core/configuration/configuration.models';
 import { ConfigurationService } from '../../core/configuration/configuration.service';
+import { RichTextEditor } from '../rich-text/rich-text-editor';
 
 /**
  * Phase 27b -- the "+ Add Terms and Conditions" block, and `CustomTemplate`'s first real consumer
@@ -13,11 +14,10 @@ import { ConfigurationService } from '../../core/configuration/configuration.ser
  * template's body and freely editable from there. Choosing a template is therefore a
  * <b>starting point</b>, not a link: what the document stores is its own text.</p>
  *
- * <p><b>One deliberate divergence.</b> The reference product's editor is a rich-text box (bold,
- * lists, tables, images); this is a plain textarea, because `CustomTemplate.Body` has been plain
- * text since 20d and a WYSIWYG editor is the same kind of scope 20d declined when it descoped the
- * visual template designer. The mechanism -- pick a template, edit the text, store it on the
- * document -- is identical, and the seam to upgrade is this one component.</p>
+ * <p><b>Phase 39 closed 27b's divergence.</b> This shipped as a plain textarea with the rich-text
+ * editor named as the thing it was standing in for; the seam named there was this component, and
+ * {@link RichTextEditor} is what now fills it. The same control serves the Send Email body, which
+ * the live pass showed is literally the same configured editor in the reference product.</p>
  *
  * <p>Templates load once per host. A tenant with none still gets the textarea: terms typed by hand
  * are the common case on a new tenant, and hiding the field until a template exists would make the
@@ -25,7 +25,7 @@ import { ConfigurationService } from '../../core/configuration/configuration.ser
  */
 @Component({
   selector: 'app-terms-editor',
-  imports: [],
+  imports: [RichTextEditor],
   templateUrl: './terms-editor.html',
 })
 export class TermsEditor implements OnInit {
@@ -57,10 +57,6 @@ export class TermsEditor implements OnInit {
 
   protected open(): void {
     this.expanded.set(true);
-  }
-
-  protected onTermsInput(event: Event): void {
-    this.terms.set((event.target as HTMLTextAreaElement).value);
   }
 
   /**

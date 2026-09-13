@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using MediatR;
@@ -27,6 +28,12 @@ public sealed class ListDealsQueryHandler(IAppDbContext db, ICurrentUserService 
         if (request.Status is { } status)
         {
             query = query.Where(x => x.Status == status);
+        }
+
+        // Inline Contains -- see SearchTerm's remarks for why there is no shared matcher.
+        if (SearchTerm.Normalize(request.Search) is { } term)
+        {
+            query = query.Where(x => x.Title.Contains(term));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

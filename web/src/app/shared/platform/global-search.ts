@@ -202,6 +202,25 @@ export class GlobalSearch {
     void this.router.navigate(row.link, row.queryParams ? { queryParams: row.queryParams } : undefined);
   }
 
+  /**
+   * Phase 39 -- the way out of the dropdown's per-collection cap of five. Phase 33 left this open
+   * pending 34c's measurement; 34c found the cap bites on an ordinary term, which makes the dropdown
+   * a sample and this the link to the answer.
+   */
+  protected seeAllResults(): void {
+    const term = this.term().trim();
+
+    if (term.length < 2) {
+      return;
+    }
+
+    this.dismiss();
+    void this.router.navigate(
+      ['/organizations', this.organizationId(), 'search'],
+      { queryParams: { q: term } },
+    );
+  }
+
   protected dismiss(): void {
     this.open.set(false);
     this.term.set('');

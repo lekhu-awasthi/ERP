@@ -27,11 +27,14 @@ public static class CrmEndpoints
             .RequireAuthorization();
 
         group.MapGet("/deals", async (
-            Guid organizationId, Guid? contactId, DealStatus? status, int? page, int? pageSize,
+            Guid organizationId, Guid? contactId, DealStatus? status, int? page, int? pageSize, string? search,
             ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListDealsQuery(organizationId, contactId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+                new ListDealsQuery(
+                    organizationId, contactId, status,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search),
+                ct);
             return Results.Ok(result);
         });
 

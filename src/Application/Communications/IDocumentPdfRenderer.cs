@@ -1,4 +1,5 @@
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Contacts;
 
 namespace ErpApp.Application.Communications;
 
@@ -24,6 +25,27 @@ public interface IDocumentPdfRenderer
     /// <summary>Renders, and reports the file name the print endpoint would have used.</summary>
     Task<RenderedDocumentPdf> RenderAsync(
         Guid organizationId, DocumentType documentType, Guid documentId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Phase 39 -- the balance-confirmation letter, for the one email context whose attachment is not
+    /// a document.
+    ///
+    /// <para>A second method on this interface rather than a second interface, because the reason
+    /// this seam exists is unchanged: QuestPDF lives in the Api layer and a background job cannot
+    /// reach it. Splitting it would have meant two adapters, two registrations and two chances for
+    /// an emailed PDF to stop matching its printed twin -- which is the property the interface
+    /// exists to preserve.</para>
+    /// </summary>
+    /// <param name="contactType">Which of the two letters to render, and which permission key the
+    /// underlying query will check. Derived by the caller from the contact's own row rather than
+    /// stored on the send: a contact is a Customer or a Supplier, never both, so a stored copy could
+    /// only ever come to disagree with the row it was copied from.</param>
+    Task<RenderedDocumentPdf> RenderBalanceConfirmationAsync(
+        Guid organizationId,
+        ContactType contactType,
+        Guid contactId,
+        DateOnly asOfDate,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record RenderedDocumentPdf(string FileName, byte[] Content)

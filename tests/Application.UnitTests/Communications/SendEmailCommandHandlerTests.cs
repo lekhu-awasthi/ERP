@@ -168,6 +168,99 @@ public class SendEmailCommandHandlerTests
             () => handler.Handle(Command(seed) with { ParentId = Guid.NewGuid() }, CancellationToken.None));
     }
 
+    // --- Phase 39: the BalanceConfirmation context finally gets a consumer ---------------------
+
+    /// <summary>
+    /// A Contact-parented send with no explicit context resolves to General -- the Contact detail
+    /// page's own action. This pins that, because it is exactly what would make a balance
+    /// confirmation silently become a General send if the statement screen forgot to say otherwise.
+    /// </summary>
+    [Fact]
+    public async Task A_contact_send_with_no_context_is_still_General()
+    {
+        var (db, seed, handler) = await BuildAsync();
+        var contactId = await db.Contacts.Select(x => x.Id).FirstAsync(CancellationToken.None);
+
+        await handler.Handle(
+            Command(seed) with { DocumentType = null, ParentId = contactId, AttachDocumentPdf = false },
+            CancellationToken.None);
+
+        var log = await db.EmailSendLogs.SingleAsync(CancellationToken.None);
+        Assert.Equal(EmailTemplateContext.General, log.Context);
+        Assert.Null(log.BalanceAsOfDate);
+    }
+
+    [Fact]
+    public async Task A_balance_confirmation_is_queued_against_the_contact_with_its_as_at_date()
+    {
+        var (db, seed, handler) = await BuildAsync();
+        var contactId = await db.Contacts.Select(x => x.Id).FirstAsync(CancellationToken.None);
+
+        await handler.Handle(
+            Command(seed) with
+            {
+                DocumentType = null,
+                ParentId = contactId,
+                AttachDocumentPdf = false,
+                Context = EmailTemplateContext.BalanceConfirmation,
+                BalanceAsOfDate = new DateOnly(2026, 8, 31),
+            },
+            CancellationToken.None);
+
+        var log = await db.EmailSendLogs.SingleAsync(CancellationToken.None);
+        Assert.Equal(EmailTemplateContext.BalanceConfirmation, log.Context);
+        Assert.Equal(EmailParentType.Contact, log.ParentType);
+        Assert.Equal(new DateOnly(2026, 8, 31), log.BalanceAsOfDate);
+    }
+
+    /// <summary>
+    /// The invariant that makes the column safe to rely on: the job renders the letter from this
+    /// date, so a row without one could not be sent, and finding that out in the runner would look
+    /// like an SMTP fault. Refused at the Domain boundary instead.
+    /// </summary>
+    [Fact]
+    public async Task A_balance_confirmation_without_an_as_at_date_is_refused()
+    {
+        var (db, seed, handler) = await BuildAsync();
+        var contactId = await db.Contacts.Select(x => x.Id).FirstAsync(CancellationToken.None);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.Handle(
+            Command(seed) with
+            {
+                DocumentType = null,
+                ParentId = contactId,
+                AttachDocumentPdf = false,
+                Context = EmailTemplateContext.BalanceConfirmation,
+            },
+            CancellationToken.None));
+    }
+
+    /// <summary>And the reverse: a date on a context that has no letter to attach is a caller error,
+    /// not a field to ignore. Both directions, which is what makes it a rule.</summary>
+    [Fact]
+    public async Task An_as_at_date_on_any_other_context_is_refused()
+    {
+        var (_, seed, handler) = await BuildAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.Handle(
+            Command(seed) with { BalanceAsOfDate = new DateOnly(2026, 8, 31) },
+            CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task A_balance_confirmation_about_a_document_is_a_conflict()
+    {
+        var (_, seed, handler) = await BuildAsync();
+
+        await Assert.ThrowsAsync<ConflictException>(() => handler.Handle(
+            Command(seed) with
+            {
+                Context = EmailTemplateContext.BalanceConfirmation,
+                BalanceAsOfDate = new DateOnly(2026, 8, 31),
+            },
+            CancellationToken.None));
+    }
+
     private static SendEmailCommand Command(Seed seed) => new(
         seed.OrganizationId,
         seed.RequestId,
@@ -221,9 +314,11 @@ public class SendEmailCommandHandlerTests
             "info@acme.test", "015550000", "PAN123", "https://acme.test", user.Id);
         db.Organizations.Add(organization);
 
+        // ContactView is granted either way: a Contact-parented send re-checks it, and the
+        // grantInvoiceView switch exists to exercise the *document* branch of that same re-check.
         var keys = grantInvoiceView
-            ? new[] { PermissionKeys.EmailSend, PermissionKeys.InvoiceView }
-            : [PermissionKeys.EmailSend];
+            ? new[] { PermissionKeys.EmailSend, PermissionKeys.InvoiceView, PermissionKeys.ContactView }
+            : [PermissionKeys.EmailSend, PermissionKeys.ContactView];
 
         await PermissionGrantSeed.GrantAsync(db, organization.Id, user.Id, keys);
 

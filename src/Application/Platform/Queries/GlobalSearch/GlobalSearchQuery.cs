@@ -32,7 +32,20 @@ namespace ErpApp.Application.Platform.Queries.GlobalSearch;
 /// and a Member granted <c>Sales.Invoice.View</c> at one location only cannot find another
 /// location's invoice.</para>
 /// </summary>
-public sealed record GlobalSearchQuery(Guid OrganizationId, string Term, int? Limit)
+/// <param name="Collection">
+/// Phase 39 -- null for the top bar's dropdown, which shows a little of everything. The results page
+/// sets it to narrow to one kind, which is the feature phase 33 deferred (its carried item #4) until
+/// phase 34c could say whether the per-collection cap of five actually bites. It does: over the
+/// 50,000-invoice dataset an ordinary term returns its cap from every collection, so the dropdown is
+/// a sample rather than an answer.
+///
+/// <para>Narrowing is also the performance answer. 34c measured the unfiltered fan-out -- eighteen
+/// queries -- at 595-1,106 ms p95, over its own 500 ms budget in every pass. A filtered search runs
+/// one collection's worth of that, so the control that makes the results page useful is the same one
+/// that makes it affordable.</para>
+/// </param>
+public sealed record GlobalSearchQuery(
+    Guid OrganizationId, string Term, int? Limit, GlobalSearchCollection? Collection = null)
     : IRequest<IReadOnlyList<GlobalSearchHitDto>>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.GlobalSearchView;

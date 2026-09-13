@@ -6,6 +6,7 @@ using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Tenancy;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ErpApp.Application.Common.Storage;
 
 namespace ErpApp.Application.Printing.Queries.PrintDocument;
 
@@ -25,7 +26,8 @@ namespace ErpApp.Application.Printing.Queries.PrintDocument;
 /// client that asked for Bikram Sambat gets BS in the PDF, not just on screen. Nothing here reads
 /// the header itself -- the middleware parked it before this handler ran.</para>
 /// </summary>
-public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandler<PrintDocumentQuery, PrintableDocumentDto>
+public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage storage)
+    : IRequestHandler<PrintDocumentQuery, PrintableDocumentDto>
 {
     public async Task<PrintableDocumentDto> Handle(PrintDocumentQuery request, CancellationToken cancellationToken)
     {
@@ -766,6 +768,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
                 .ToList();
         }
 
+        var logo = await ReadLogoAsync(organization, ct);
+
         return new PrintableDocumentDto(
             request.DocumentType,
             title,
@@ -778,6 +782,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
             organization.Email,
             organization.PanNumber,
             organization.Website,
+            logo,
             contact is null ? null : partyHeading,
             contact is null ? null : $"{contact.Code} — {contact.Name}",
             contact?.Address,
@@ -846,4 +851,34 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db) : IRequestHandle
         DocumentType.DebitNote => "Debit Note",
         _ => documentType.ToString(),
     };
+
+    /// <summary>
+    /// Phase 39 -- the organization's logo for the printed header, or null.
+    ///
+    /// <para><b>A missing blob is not an error here.</b> A storage key pointing at a file that is
+    /// gone means somebody's logo went missing; it does not mean their invoice should fail to print.
+    /// The header simply renders as it did before this phase, which is a shape the layout already
+    /// supports because it is the shape every tenant without a logo gets.</para>
+    /// </summary>
+    private async Task<byte[]?> ReadLogoAsync(Organization organization, CancellationToken ct)
+    {
+        if (organization.LogoStorageKey is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            await using var content = await storage.OpenReadAsync(organization.LogoStorageKey, ct);
+            using var buffer = new MemoryStream();
+            await content.CopyToAsync(buffer, ct);
+
+            return buffer.ToArray();
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+    }
+
 }

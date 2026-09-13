@@ -17,10 +17,13 @@ public static class PlatformEndpoints
             .WithTags("Platform")
             .RequireAuthorization();
 
+        // `collection` is phase 39's: null for the top bar's dropdown, set by the results page's kind
+        // filter. A simple enum, so it binds from the query string without help.
         group.MapGet("/search", async (
-            Guid organizationId, string term, int? limit, ISender sender, CancellationToken ct) =>
+            Guid organizationId, string term, int? limit, GlobalSearchCollection? collection,
+            ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new GlobalSearchQuery(organizationId, term, limit), ct);
+            var result = await sender.Send(new GlobalSearchQuery(organizationId, term, limit, collection), ct);
             return Results.Ok(result);
         });
 

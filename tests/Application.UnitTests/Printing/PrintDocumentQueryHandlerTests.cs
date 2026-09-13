@@ -54,7 +54,9 @@ public class PrintDocumentQueryHandlerTests
         Assert.Equal("200.00", row.Cells[^1]);
 
         Assert.Equal("200.00", dto.Summary.Single(x => x.Label == "Grand Total").Value);
-        Assert.Equal("Payment due within 30 days.", dto.Terms);
+        // Phase 39: Terms is rich text, sanitised by Invoice.SetTerms, so plain text comes back
+        // wrapped in a paragraph. RichTextPdfRenderer folds the same tree the browser renders.
+        Assert.Equal("<p>Payment due within 30 days.</p>", dto.Terms);
     }
 
     [Fact]
@@ -242,7 +244,7 @@ public class PrintDocumentQueryHandlerTests
 
     private static async Task<PrintableDocumentDto> Print(
         IAppDbContext db, Guid organizationId, DocumentType documentType, Guid documentId) =>
-        await new PrintDocumentQueryHandler(db).Handle(
+        await new PrintDocumentQueryHandler(db, new FakeFileStorage()).Handle(
             new PrintDocumentQuery(organizationId, documentType, documentId), CancellationToken.None);
 
     private static Organization NewOrganization(IAppDbContext db)

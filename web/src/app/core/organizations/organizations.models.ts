@@ -388,3 +388,26 @@ export interface SetTenantSubscriptionRequest {
   planName: string;
   endsAt: string;
 }
+
+/** Phase 39 -- Organization > Overview's own field list, read live 2026-09-13. `hasLogo` is a flag
+ * rather than a url: the bytes come from an authenticated endpoint, never a public path. */
+export interface OrganizationProfile {
+  id: string;
+  name: string;
+  industry: string;
+  address: string | null;
+  email: string | null;
+  phone: string | null;
+  panNumber: string | null;
+  website: string | null;
+  accountingStartDate: string;
+  isVatRegistered: boolean;
+  workspaceName: string;
+  hasLogo: boolean;
+}
+
+export interface OrganizationLogoResult {
+  organizationId: string;
+  hasLogo: boolean;
+  contentType: string | null;
+}

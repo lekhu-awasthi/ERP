@@ -1,5 +1,6 @@
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Configuration;
 using MediatR;
 
 namespace ErpApp.Application.Communications.Commands.SendEmail;
@@ -38,7 +39,13 @@ public sealed record SendEmailCommand(
     string Subject,
     string Body,
     bool AttachDocumentPdf,
-    IReadOnlyList<SendEmailAttachmentInput> Attachments)
+    IReadOnlyList<SendEmailAttachmentInput> Attachments,
+    // Phase 39 -- both null for every context but BalanceConfirmation, which is the one send whose
+    // context its parent cannot imply and whose attachment its parent cannot identify. Trailing and
+    // optional so no existing caller changed -- and the Api request record carries them too, which
+    // is the half phase 27b's Terms silently missed.
+    EmailTemplateContext? Context = null,
+    DateOnly? BalanceAsOfDate = null)
     : IRequest<SendEmailResult>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.EmailSend;

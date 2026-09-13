@@ -34,8 +34,22 @@ export class TaskList implements OnInit {
   private readonly fb = inject(FormBuilder);
 
   readonly organizationId = input.required<string>();
-  readonly parentType = input.required<TaskParentType>();
-  readonly parentId = input.required<string>();
+  /**
+   * Phase 39 -- both null on the standalone `Workflow > Tasks` screen, which lists every task in the
+   * organization. The live list shows <b>no parent column</b>, so an unscoped list is genuinely the
+   * same table rather than a different one, which is what let this component serve a third host with
+   * no template change.
+   *
+   * <p>A task created from the unscoped list is parented to the Organization -- the same parent the
+   * dashboard's own task section uses, and the only one available when the user did not start from a
+   * record.</p>
+   */
+  readonly parentType = input<TaskParentType | null>(null);
+  readonly parentId = input<string | null>(null);
+
+  /** The search term, tracked in its own signal written by the input handler: the app is zoneless,
+   * so a `computed()` over a FormControl's value caches forever (phase-17). */
+  protected readonly search = signal('');
 
   protected readonly statuses: TaskStatus[] = ['Pending', 'Started', 'Done'];
   protected readonly activeStatus = signal<TaskStatus>('Pending');
@@ -53,6 +67,17 @@ export class TaskList implements OnInit {
 
   protected readonly showCreateForm = signal(false);
   protected readonly saving = signal(false);
+
+  /**
+   * Every filter on this list calls `page.set(1)` before reloading, and a swept-in one has to copy
+   * what its siblings do rather than a template: without it, a narrowing search applied on page 3
+   * reads as "there are no matching tasks" (phase-35b).
+   */
+  protected onSearchInput(event: Event): void {
+    this.search.set((event.target as HTMLInputElement).value);
+    this.page.set(1);
+    this.load();
+  }
 
   protected readonly form = this.fb.nonNullable.group({
     title: ['', [Validators.required, Validators.maxLength(200)]],
@@ -120,8 +145,8 @@ export class TaskList implements OnInit {
 
     this.workflowService
       .createTask(this.organizationId(), {
-        parentType: this.parentType(),
-        parentId: this.parentId(),
+        parentType: this.parentType() ?? 'Organization',
+        parentId: this.parentId() ?? this.organizationId(),
         title,
         description: description || null,
         assignedToUserId: assignedToUserId || null,
@@ -167,7 +192,8 @@ export class TaskList implements OnInit {
     this.errorMessage.set(null);
     this.workflowService
       .listTasks(
-        this.organizationId(), this.parentType(), this.parentId(), this.activeStatus(), this.page(), this.pageSize())
+        this.organizationId(), this.parentType(), this.parentId(), this.activeStatus(),
+        this.page(), this.pageSize(), this.search().trim() || null)
       .subscribe({
         next: (result) => {
           this.rows.set(result.rows);

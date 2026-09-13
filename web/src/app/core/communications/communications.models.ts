@@ -132,6 +132,11 @@ export interface SendEmailRequest {
   requestId: string;
   documentType: DocumentType | null;
   parentId: string;
+  /** Phase 39 -- supplied only for `BalanceConfirmation`, the one context a parent cannot imply:
+   * a Contact-parented send is General unless the caller says otherwise. */
+  context?: EmailTemplateContext | null;
+  /** The as-at date of the attached balance-confirmation letter. */
+  balanceAsOfDate?: string | null;
   templateId: string | null;
   to: string[];
   cc: string[];

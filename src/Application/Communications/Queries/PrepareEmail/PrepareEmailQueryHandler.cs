@@ -13,7 +13,7 @@ public sealed class PrepareEmailQueryHandler(IAppDbContext db, ICurrentUserServi
     {
         var composed = await EmailComposition.ComposeAsync(
             db, request.OrganizationId, currentUser.UserId, request.DocumentType, request.ParentId,
-            templateId: null, cancellationToken);
+            templateId: null, cancellationToken, request.Context);
 
         // The real gate, now that the parent is known and has been proven to exist. Deliberately
         // after the load, so an id from another organization stays a 404 rather than becoming a

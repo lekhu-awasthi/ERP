@@ -5,6 +5,7 @@ using ErpApp.Application.Common.Storage;
 using ErpApp.Domain.Communications;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ErpApp.Domain.Configuration;
 
 namespace ErpApp.Application.Communications.Commands.SendEmail;
 
@@ -35,8 +36,16 @@ public sealed class SendEmailCommandHandler(
             return new SendEmailResult(existing.Id, AlreadyQueued: true);
         }
 
-        var context = await EmailComposition.ResolveContextAsync(
-            db, request.OrganizationId, request.DocumentType, request.ParentId, cancellationToken);
+        // Phase 39 -- an explicit context only for the balance confirmation, which a Contact parent
+        // cannot imply (it would resolve to General, like the Contact detail page's own send).
+        var context = request.Context
+            ?? await EmailComposition.ResolveContextAsync(
+                db, request.OrganizationId, request.DocumentType, request.ParentId, cancellationToken);
+
+        if (context == EmailTemplateContext.BalanceConfirmation && request.DocumentType is not null)
+        {
+            throw new ConflictException("A balance confirmation is about a contact, not a document.");
+        }
 
         await EmailComposition.EnsureParentExistsAsync(
             db, request.OrganizationId, request.DocumentType, request.ParentId, cancellationToken);
@@ -75,7 +84,8 @@ public sealed class SendEmailCommandHandler(
             request.Body,
             request.AttachDocumentPdf && request.DocumentType is not null,
             currentUser.UserId,
-            timeProvider.GetUtcNow());
+            timeProvider.GetUtcNow(),
+            request.BalanceAsOfDate);
 
         db.EmailSendLogs.Add(log);
 
