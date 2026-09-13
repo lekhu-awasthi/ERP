@@ -1,6 +1,7 @@
 using ErpApp.Api.Reports;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Imports.Commands.CancelImportJob;
+using ErpApp.Application.Imports.Commands.ConfirmImportJob;
 using ErpApp.Application.Imports.Commands.CreateImportJob;
 using ErpApp.Application.Imports.Queries.GetImportJob;
 using ErpApp.Application.Imports.Queries.GetImportTemplate;
@@ -39,13 +40,26 @@ public static class ImportsEndpoints
             Guid organizationId,
             ImportEntityType entityType,
             ImportMode mode,
+            bool? reviewBeforeApply,
             IFormFile file,
             ISender sender,
             CancellationToken ct) =>
         {
             await using var stream = file.OpenReadStream();
             var result = await sender.Send(
-                new CreateImportJobCommand(organizationId, entityType, mode, file.FileName, file.Length, stream), ct);
+                new CreateImportJobCommand(
+                    organizationId,
+                    entityType,
+                    mode,
+                    file.FileName,
+                    file.Length,
+                    stream,
+                    // Phase 38: defaults to true here, not merely on the command's own parameter --
+                    // an optional parameter on a command reaches nothing unless the Api's own
+                    // binding carries it (phase-27b's Terms), and a missing query string must mean
+                    // "review it", which is what the reference product does.
+                    reviewBeforeApply ?? true),
+                ct);
 
             return Results.Created($"/api/organizations/{organizationId}/import-jobs/{result.Id}", result);
         }).DisableAntiforgery();
@@ -78,6 +92,16 @@ public static class ImportsEndpoints
                 new GetImportJobQuery(
                     organizationId, id, failedRowsOnly ?? true, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
                 ct);
+            return Results.Ok(result);
+        });
+
+        // Phase 38 -- Confirm Upload. The reference product's wizard posts the parsed rows back at
+        // this point; here the file and the job are already durable, so confirming is a state change
+        // on one row and the runner picks it up on its next tick.
+        group.MapPost("/import-jobs/{id:guid}/confirm", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new ConfirmImportJobCommand(organizationId, id), ct);
             return Results.Ok(result);
         });
 

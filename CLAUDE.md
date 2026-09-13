@@ -69,6 +69,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 36: allocation/forex/ageing consistency — the warehouse-guard bug, the forex leg on the Allocate path, one `OutstandingDocumentReader` behind both ageing reports, server-side due dates, product-to-location, three Moonbeam filters. Before assuming a document has one GL entry, or folding a settlement to base — `docs/phase-36-status.md`
 - Phase 35b: the location dimension in the reports — `LocationId` stamped on `GlJournalEntry`/`StockMovement`/`StockLedgerEntry`, the filter on 36 queries and 43 screens, `LocationWiseReportPermission` made real. Before filtering an append-only fact table, extracting a shared `Where`, or proving a location permission — `docs/phase-35b-status.md`
 - Phase 37: inventory policy — negative stock as a **shortfall layer**, the cost catch-up, returns at consumed FIFO cost, the clearing unwind. Before letting a stock balance go negative, before correcting a stock *value*, or before deciding what a return credits Inventory — `docs/phase-37-status.md`
+- Phase 38: import/export breadth — 5 new upload types, intra-file tree ordering, a pre-commit dry run, export by category + date range. Before adding an importer, a template, or an array parameter to a POST — `docs/phase-38-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -151,6 +152,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A materialised id list handed back to SQL becomes an `OPENJSON` parameter as long as the list; a report that loads its period then re-queries children by `ids.Contains` is linear in the period, not in the page. `JournalReportQueryHandler` is the shape that is not (phase-34c).
 - On a bulk-`INSERT`-seeded database, statistics quality moves a report that joins to a line table by 2× — more than most changes under test. `UPDATE STATISTICS ... WITH FULLSCAN` on both sides before comparing anything (phase-34c).
 - Read a handler's `Where` before assuming it matches its request — `ListPaymentsQueryHandler` shipped with a hardcoded `Direction == Received` (phase-6 bug #2).
+- EF refuses a set operation *after a client projection*, so `Concat`-ing two `select new SomeRecord(...)` queries throws at run time on SQL Server as well as InMemory; concatenate while both halves are still anonymous and build the record from the materialised page (phase-38).
 - A store-side aggregate (`GroupBy...Count()`) must run after the `SaveChangesAsync` that persists what it counts; tracked-but-unsaved rows are invisible to it (phase-21a).
 - A Domain factory/mutator can stay `internal` only while its sole caller is in the Domain assembly (phase-7 bug #1).
 - Never name a Domain type after a common BCL word (`Task` → `WorkTask`) (phase-13).
@@ -191,6 +193,13 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A confirm-live pass can falsify an earlier one: a recorded inference about a control nobody operated is not settled (phase-32b's `LocationWiseReportPermission` scopes report rows, not keys).
 - Reuse a marker interface by reading it, not merging it, when its member set is narrower than the new grant's (`ILockDateSensitiveDocument`, phase-32b).
 
+**Imports and exports**
+- A bulk importer resolves a row into the command it *would* send (`PlanAsync` -> `ImportRowPlan`) and only then sends it, so the dry run and the real run share every line of the resolution; a plan that cannot be built yet is `Provisional` and throws if executed (phase-38).
+- A pre-commit review needs no findings table: have the validate pass claim **only the rows it rejects** in the existing row ledger, and the apply pass skips them through the same mechanism that makes a crashed import resumable (phase-38).
+- Intra-file parent ordering belongs to **self**-referencing types only — a column pointing at a *different* aggregate is not an edge inside the file. A cycle or a duplicate key fails the whole file with its rows named; an unknown parent is one row's error (phase-38).
+- A dry run writes nothing, so a hierarchical importer's ordinary name lookup cannot see a parent a later row creates; pass the in-file key set down, or the review reports correct files as broken (phase-38's `ImportRowContext.PendingKeys`).
+- A template generated **from the document in front of you** (the landed-cost grid: one column per tenant cost term, one row per bill line) is neither an `ImportTemplateDefinition` nor an `ImportJob` — nothing is written and there is nothing to resume (phase-38).
+
 **Background jobs**
 - A singleton `BackgroundService` cannot inject scoped services; take `IServiceScopeFactory`, read options via `IOptionsMonitor`, and never let a tick's exception escape `ExecuteAsync` (`AlertSchedulerHostedService`).
 - No `IsRowVersion()` token on a row a job writes repeatedly if a user can also write it — a cancel wedged a running import; the unique index on the occurrence key is the real correctness mechanism (phase-21a Decision C, bug 1).
@@ -212,6 +221,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Import-template date columns need an explicit day-first-before-month-first format list, never bare `DateTime.TryParse`; assert the ambiguous case (`ImportRowReader.GetOptionalDate`, phase-21c).
 
 - A trailing optional parameter added to a command reaches nothing until the Api's own request record carries it too — it compiles, every test passes, and the field binds silently to `null` (phase-27b's `Terms`).
+- A Minimal API binds an **array** parameter from the *body* on a POST, so a repeated query string arrives `null` and a "choose what to export" feature silently exports everything; `[FromQuery]` is load-bearing, and the simple types beside it bind without help, which is what hides it (phase-38).
 - The mirror of that on the read side: a **list** query returning the aggregate exposes a new field for free, while a **detail** query projecting a DTO drops it silently — the write path looks perfect and the form can never show the stored value (phase-32's `GetInvoiceQuery`, caught only by an E2E that re-read what it wrote).
 - That read-side gap is the default, not the exception: phase 32's write-path sweep guard stayed green while **14 of 15 detail DTOs and all 5 conversion templates** dropped the same field, so a form stored a branch, never showed it, and overwrote it on the next save. Adding a field to many aggregates owes three assertions — write, read, and every prefill between (phase-35a).
 
@@ -233,6 +243,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `<iframe [src]>` needs `DomSanitizer.bypassSecurityTrustResourceUrl` (safe only because the URL is API base + route GUID), while `<img [src]>` with the same string is fine (phase-22).
 - `AmountPipe` renders two decimals by default; pass `| amount: 4` for figures legitimately smaller than a cent (phase-25).
 - A sweep over `<input>/<select>/<textarea>` cannot see a control a **component** wraps: 121 date fields had a label, an input and nothing joining them. Ask the mirror question — which labels name no control? (phase-34a).
+- Every date a user types goes through `app-bs-date-input`, never a native `<input type="date">`; `sweep-guard.spec.ts` enforces it and will catch a filter added without thinking about BS dates (phase-23, still biting in phase-38).
 - Bootstrap's brand tones clear WCAG's 4.5:1 against **pure white** and only just, so they fail on this app's `#f8f9fa` body; the four text utilities are re-pointed at its `-600` shades in `styles.scss`, and `contrast-rules.ts` is the measured palette the guard derives from (phase-34a).
 - Bootstrap's JS is not loaded, so nothing sets `aria-expanded` for free — every signal-driven popup must set it itself (phase-34a, extending phase-22's gotcha).
 - A filter a screen **displays but did not apply** is worse than no filter: anything global a screen both shows and sends must reload that screen when it changes, from the first version (phase-34b).
@@ -299,40 +310,41 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–37 are complete.** Phase 37 was the first phase since 7 to change a Domain invariant:
-`StockLedgerService.ConsumeAsync` had **thrown** on every oversell, which made the reference
-product's *Negative Item Balance* setting (Reject / Warn / Do Nothing) a three-way switch with one
-real branch — confirming the Warn dialog got you the engine's 409 anyway. Phase 31 built the
-setting, phase 26c pinned the throw and wrote a report guard for the day it went away, and this was
-that day.
+**Phases 0–38 are complete.** Phase 38 changed no invariant and no posting rule — it was reach — so
+its acceptance bar was not "a good file works" but **"a bad file is refused with a row-level reason
+before anything is committed"**.
 
-Negative stock is a **shortfall layer**: a `StockLedgerEntry` negative on both quantities, carried at
-the product's last known cost in that warehouse, filled by the next receipt before those goods
-become stock on hand. The interesting number is the **cost catch-up** — `filled x (real - assumed)`
-— which has to reach three views at once or two of them drift quietly: the FIFO layers, the
-Inventory account, and the append-only movement history every dated stock report is reconstructed
-from. It posts as its own GL entry against the covering document (the shape phase 36's
-`SourceDocumentGlEntries` made available) and rides the movement table as a value-only row.
+Bulk import went from three upload types to **eight** (Account, Product Category, Account Group,
+Contact Personnel, and a Product Variant importer that is an addition rather than parity), and
+`IEntityImporter.ApplyAsync` became **`PlanAsync`**: a row resolves into the command it *would* send,
+and only then is it sent. That one seam change is what made the **pre-commit dry run** possible — the
+reference product's wizard step 3, restored on top of this codebase's asynchronous design as a
+validate pass plus a confirm command, with **no new table**, because the dry run claims only the rows
+it rejects in the existing row ledger and the apply pass skips them exactly as a resumed import does.
+Intra-file parent ordering and cycle detection live in one `ImportRowSequencer` used by the **two**
+self-referencing types — `Account` is a leaf, and the phase says so where somebody would try to
+"fix" it.
 
-The second half fixed a modelling choice phase 6 made and phase 29 only stopped widening: a
-**purchase return relieves Inventory at the cost the FIFO layers give up**, not at the price the
-supplier credits, with the difference derived as the plug that balances the entry. The Credit Note
-needed nothing and the phase says why — a sales return adds stock at the cost its source invoice
-*recorded*, so it agrees by construction; the problem is specific to relieving, where FIFO chooses.
+The export half gained three categories by a stated rule (*a category earns its place when its rows
+cannot be reconstructed from the five already there* — the GL has the accounting, never the trade), a
+per-category selection and a date range. Phase 34c's 25,000-row cap is **raised to 50,000** on its
+own measured 2.5 kB/row, and joined by a workbook-wide 150,000 — the shape 34c said it should have
+had, needed here because the category count went from five to eight.
 
-Swept on the way: every void now reverses what is **outstanding** and every detail query reads every
-entry, so `GlJournalEntry.PostReversalOf` was deleted with its last caller. Phase 26c's pinned
-oversell test was **replaced** deliberately, with its replacement stating what changed.
+The landed-cost grid's Import was **read live** and phase 29's one-line note was wrong: it is a
+template-based `.xlsx` drawer, not a clipboard paste, and its template is generated *from the bill in
+front of you*.
 
-**Next: phases 38–41 in `docs/roadmap.md`** — 38 is import/export breadth. Carried out of 37:
-Inventory Master still lacks WarehouseTransfer and OpeningStock rows (needs a live re-check of the
-reference report's Txn Type filter); multi-UOM x variants is unbuilt; and a standalone Debit Note's
-Goods line still credits Inventory without touching the ledger, because `DebitNote` carries no
-warehouse of its own. Carried out of 36 and still open: product-to-location is enforced on the picker
-but not at save; *Display Warehouse in Column* and `sales-summary`'s Group Wise location grouping are
-unbuilt; the Sales Register's money columns are still transaction-currency.
+**Next: phases 39–41 in `docs/roadmap.md`** — 39 is CRM/workflow screens and the two editors. Carried
+out of 38: the dry run cannot see what only writing can (uniqueness, lifecycle); variant import needs
+the parent's attribute pool configured first, in bulk-unfriendly fashion; `MaxRowsPerWorkbook` is
+still one machine's memory law. Carried out of 37: Inventory Master still lacks WarehouseTransfer and
+OpeningStock rows; multi-UOM x variants is unbuilt; a standalone Debit Note's Goods line still credits
+Inventory without touching the ledger. Carried out of 36: product-to-location is enforced on the
+picker but not at save; *Display Warehouse in Column* and `sales-summary`'s Group Wise location
+grouping are unbuilt; the Sales Register's money columns are still transaction-currency.
 
-Tests: Domain 452, Application.UnitTests 1013, Api.IntegrationTests 18, Angular 301. `dotnet build` /
+Tests: Domain 452, Application.UnitTests 1035, Api.IntegrationTests 24, Angular 305. `dotnet build` /
 `dotnet test` / `ng build` / `ng test` all clean. `ng build` still warns the initial bundle exceeds
 its 500 kB budget (pre-existing). `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
 check (phase-28), and `ng test` must be run from `web/` (phase-35a).

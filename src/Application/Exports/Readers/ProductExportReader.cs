@@ -12,6 +12,10 @@ public sealed class ProductExportReader(IAppDbContext db) : IExportCategoryReade
 
     public string SheetName => "Products";
 
+    /// <summary>Master data has no date to filter on; a requested range is ignored and the Summary
+    /// sheet says so per sheet rather than leaving a short list ambiguous.</summary>
+    public bool IsDateFiltered => false;
+
     public IReadOnlyList<string> Headers { get; } =
     [
         "Product Code",
@@ -32,7 +36,7 @@ public sealed class ProductExportReader(IAppDbContext db) : IExportCategoryReade
     ];
 
     public async Task<ExportCategoryResult> ReadAsync(
-        Guid organizationId, int maxRows, CancellationToken cancellationToken)
+        Guid organizationId, int maxRows, ExportDateRange range, CancellationToken cancellationToken)
     {
         var query =
             from product in db.Products

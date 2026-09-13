@@ -7,8 +7,24 @@ public sealed class CreateImportJobCommandValidator : AbstractValidator<CreateIm
 {
     private static readonly string[] AllowedExtensions = [".xlsx"];
 
+    /// <summary>
+    /// The five upload types this product offers Create New Records for and nothing else.
+    ///
+    /// <para>Two of them are Phase 21c's migrated registers (a historical statutory row has no
+    /// "update" story at all). Two more are Phase 38's trees, <b>and those two are the reference
+    /// product's own asymmetry</b>: Phase 21a read its "Select action" dropdown live and found it
+    /// offers both modes for five of its seven upload types and Create alone for Product Category
+    /// and Account Group. The fifth is the variant importer, whose reasoning is its own -- a
+    /// variant's identity is its combination.</para>
+    /// </summary>
     private static readonly ImportEntityType[] CreateOnlyEntityTypes =
-        [ImportEntityType.MigratedSalesRegister, ImportEntityType.MigratedPurchaseRegister];
+    [
+        ImportEntityType.MigratedSalesRegister,
+        ImportEntityType.MigratedPurchaseRegister,
+        ImportEntityType.ProductCategory,
+        ImportEntityType.AccountGroup,
+        ImportEntityType.ProductVariant,
+    ];
 
     public CreateImportJobCommandValidator()
     {
@@ -34,6 +50,6 @@ public sealed class CreateImportJobCommandValidator : AbstractValidator<CreateIm
         RuleFor(x => x.Mode)
             .Equal(ImportMode.CreateNew)
             .When(x => CreateOnlyEntityTypes.Contains(x.EntityType))
-            .WithMessage("Migrated register rows can only be created, not updated. Choose Create New Records.");
+            .WithMessage("This upload type can only create records, not update them. Choose Create New Records.");
     }
 }

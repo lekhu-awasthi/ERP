@@ -30,12 +30,47 @@ public interface IEntityImporter
     ImportTemplateDefinition Template { get; }
 
     /// <summary>
-    /// Applies one row. Throws <see cref="ImportRowException"/> for anything the user can fix in the
-    /// spreadsheet; any other exception is also caught by the processor and recorded against the
-    /// row, so a single malformed row can never take the job down.
+    /// Resolves one row into the command it would send, <b>without sending it</b>. Throws
+    /// <see cref="ImportRowException"/> for anything the user can fix in the spreadsheet; any other
+    /// exception is also caught by the processor and recorded against the row, so a single
+    /// malformed row can never take the job down.
+    ///
+    /// <para><b>Phase 38 split this out of the old <c>ApplyAsync</c></b> so the dry run and the real
+    /// run share it exactly (see <see cref="ImportRowPlan"/>). Everything an importer can check
+    /// cheaply -- required cells, type coercion, enum spellings, name-to-id foreign key resolution,
+    /// the update-mode code lookup -- belongs here, because everything here is a rejection the user
+    /// can be shown <i>before</i> anything is written. What deliberately stays behind is whatever
+    /// only the handler knows (uniqueness races, lifecycle conflicts); those surface as row failures
+    /// during the apply pass, exactly as they did before.</para>
     /// </summary>
-    Task<ImportRowResult> ApplyAsync(
-        Guid organizationId, ImportMode mode, ImportRowReader row, CancellationToken cancellationToken);
+    Task<ImportRowPlan> PlanAsync(
+        ImportRowContext context, ImportRowReader row, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Implemented by the importers whose rows can point at <b>each other</b>.
+///
+/// <para><b>Exactly two types qualify, and the third the roadmap named does not.</b>
+/// <c>ProductCategory</c> and <c>AccountGroup</c> are self-referencing trees, so a row's parent may
+/// legitimately appear further down the same file -- the reference product's own templates say so
+/// ("Parent category should already exist or should be in the upcoming rows", "Make sure there are
+/// no cyclic dependencies"). <c>Account</c> looks like the third because its template has an
+/// "Account Group" column, but that column points at a <i>different aggregate</i> which must already
+/// exist; an Account file has no edges inside it at all. Solving the ordering problem three times
+/// would have been solving it twice too often.</para>
+///
+/// <para>The sequencer this drives (<see cref="ImportRowSequencer"/>) runs over the whole file
+/// before a single row is written, in both the dry-run and the apply pass, so a cycle is a
+/// whole-file rejection naming its rows rather than a half-finished tree.</para>
+/// </summary>
+public interface IHierarchicalImporter
+{
+    /// <summary>Template column holding the row's own name -- the value another row's
+    /// <see cref="ParentColumn"/> would match.</summary>
+    string KeyColumn { get; }
+
+    /// <summary>Template column naming this row's parent. Blank means a root.</summary>
+    string ParentColumn { get; }
 }
 
 /// <param name="TargetId">The Product/Contact created or updated.</param>

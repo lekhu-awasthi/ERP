@@ -53,6 +53,12 @@ public static class ExceptionHandling
                 // message always names the feature, which is what tells the two apart.
                 FeatureNotEnabledException => (StatusCodes.Status403Forbidden, exception.Message),
                 InvalidVerificationCodeException => (StatusCodes.Status400BadRequest, exception.Message),
+
+                // Phase 38: a file the user can fix. ImportFileException is normally caught by the
+                // import runner and recorded on the job, so it only reaches here from the one path
+                // that parses a file inside a real request -- the Additional Cost grid's Import.
+                ErpApp.Application.Imports.ImportFileException => (
+                    StatusCodes.Status400BadRequest, exception.Message),
                 TurnstileVerificationFailedException => (StatusCodes.Status400BadRequest, exception.Message),
                 System.Text.Json.JsonException => (
                     StatusCodes.Status400BadRequest, "The request body is malformed or contains a value of the wrong type."),

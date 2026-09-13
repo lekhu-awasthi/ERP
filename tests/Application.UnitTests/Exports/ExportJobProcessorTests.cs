@@ -44,9 +44,15 @@ public class ExportJobProcessorTests
         var workbook = host.WorkbookWriter.LastWorkbook;
         Assert.NotNull(workbook);
 
-        // Summary first, then FR-2.8's five categories in the order the requirement names them.
+        // Summary first, then FR-2.8's five categories in the order the requirement names them,
+        // then phase 38's three. The order is asserted, not just the set: a workbook's row budget is
+        // consumed in it, so the bounded master-data sheets must stay ahead of the transactional
+        // ones (ExportJobProcessor.CategoryOrder).
         Assert.Equal(
-            ["Summary", "Products", "Contacts", "Chart of Accounts", "Ledger Transactions", "Stock Movements"],
+            [
+                "Summary", "Products", "Contacts", "Chart of Accounts", "Ledger Transactions",
+                "Stock Movements", "Sales Documents", "Purchase Documents", "Payments",
+            ],
             workbook.Sheets.Select(s => s.Name));
 
         var products = host.WorkbookWriter.Sheet("Products");
@@ -58,11 +64,30 @@ public class ExportJobProcessorTests
         Assert.Equal("Snacks A", productRow[3]);
         Assert.Equal("Box A", productRow[4]);
 
+        // Two since phase 38: the seed gained the supplier its Purchase Documents row needs.
         var contacts = host.WorkbookWriter.Sheet("Contacts");
-        var contactRow = Assert.Single(contacts.Rows);
-        Assert.Equal(tenant.ContactCode, contactRow[0]);
+        Assert.Equal(2, contacts.Rows.Count);
+        var contactRow = Assert.Single(contacts.Rows, r => Equals(r[0], tenant.ContactCode));
         Assert.Equal("Customer", contactRow[2]);
         Assert.Equal("304567847", contactRow[4]);
+
+        // The three phase-38 sheets, each proving the thing its category exists for: line-level
+        // trade figures the General Ledger has no column for, and a payment's own identity.
+        var salesRow = Assert.Single(host.WorkbookWriter.Sheet("Sales Documents").Rows);
+        Assert.Equal("Invoice", salesRow[0]);
+        Assert.Equal(tenant.ProductCode, salesRow[7]);
+        Assert.Equal(3m, salesRow[9]);
+        Assert.Equal(100m, salesRow[10]);
+
+        // Negated, so the column sums to net rather than gross -- asserted on the purchase side
+        // because a Debit Note and a Credit Note follow the same rule.
+        var purchaseRow = Assert.Single(host.WorkbookWriter.Sheet("Purchase Documents").Rows);
+        Assert.Equal("Purchase Bill", purchaseRow[0]);
+        Assert.Equal(5m, purchaseRow[9]);
+
+        var paymentRow = Assert.Single(host.WorkbookWriter.Sheet("Payments").Rows);
+        Assert.Equal("Received", paymentRow[2]);
+        Assert.Equal(339m, paymentRow[7]);
 
         var accounts = host.WorkbookWriter.Sheet("Chart of Accounts");
         Assert.Equal(2, accounts.Rows.Count);
@@ -84,8 +109,11 @@ public class ExportJobProcessorTests
 
         var job = await LoadJobAsync(host, jobId);
         Assert.Equal(ExportJobStatus.Completed, job.Status);
-        Assert.Equal(5, job.ProcessedCategoryCount);
-        Assert.Equal(7, job.TotalRowCount);
+        Assert.Equal(8, job.ProcessedCategoryCount);
+
+        // 7 before phase 38: the seed gained an invoice line, a bill line, a payment and the
+        // supplier those need, one row each.
+        Assert.Equal(11, job.TotalRowCount);
         Assert.Null(job.TruncationNotice);
         Assert.True(job.HasArtifact);
         Assert.True(host.FileStorage.Contains(job.StorageKey!));
@@ -119,11 +147,15 @@ public class ExportJobProcessorTests
             .ToList();
 
         Assert.Contains(everyCell, c => c.Contains("Salted Cashew A", StringComparison.Ordinal));
-        Assert.DoesNotContain(everyCell, c => c.Contains(" B", StringComparison.Ordinal));
+
+        // EndsWith, not Contains: the seed appends the marker to every name, and phase 38's document
+        // sheets carry literal type words -- "Purchase Bill" contains " B" and would fail a
+        // substring check for reasons that have nothing to do with tenant isolation.
+        Assert.DoesNotContain(everyCell, c => c.EndsWith(" B", StringComparison.Ordinal));
         Assert.DoesNotContain(everyCell, c => c.Contains("-B-", StringComparison.Ordinal));
 
         var job = await LoadJobAsync(host, jobId);
-        Assert.Equal(7, job.TotalRowCount);
+        Assert.Equal(11, job.TotalRowCount);
     }
 
     [Fact]
@@ -144,7 +176,7 @@ public class ExportJobProcessorTests
         // Every sheet still exists, with its headers -- an empty tenant gets a usable template of a
         // workbook, not a file that is missing sheets or a job that failed.
         var workbook = host.WorkbookWriter.LastWorkbook!;
-        Assert.Equal(6, workbook.Sheets.Count);
+        Assert.Equal(9, workbook.Sheets.Count);
         Assert.All(workbook.Sheets, s => Assert.NotEmpty(s.Headers));
         Assert.All(
             workbook.Sheets.Where(s => s.Name != "Summary"),
@@ -264,7 +296,7 @@ public class ExportJobProcessorTests
 
         var job = await LoadJobAsync(host, jobId);
         Assert.Equal(ExportJobStatus.Completed, job.Status);
-        Assert.Equal(7, job.TotalRowCount);
+        Assert.Equal(11, job.TotalRowCount);
         Assert.Equal(1, host.WorkbookWriter.WriteCount);
         Assert.True(host.FileStorage.Contains(job.StorageKey!));
     }
@@ -409,8 +441,10 @@ public class ExportJobProcessorTests
         };
 }
 
-/// <summary>A reader that reports whatever counts a test needs -- the only way to reach the 25,000
-/// -row cap and the cancel-at-a-category-boundary path without seeding 25,000 rows.</summary>
+/// <summary>A reader that reports whatever counts a test needs -- the only way to reach the row cap
+/// and the cancel-at-a-category-boundary path without seeding 50,000 rows. Phase 38 also has it
+/// record the allowance and range it was handed, so the budget and the date window can be asserted
+/// from the outside.</summary>
 internal sealed class StubCategoryReader(
     ExportCategory category,
     string sheetName,
@@ -425,9 +459,22 @@ internal sealed class StubCategoryReader(
 
     public IReadOnlyList<string> Headers => headers;
 
+    public bool IsDateFiltered { get; init; } = true;
+
+    /// <summary>What the processor allowed this reader on its last call -- the workbook budget,
+    /// observable.</summary>
+    public int? LastMaxRows { get; private set; }
+
+    /// <summary>The window the processor passed down, so "the range reached the readers" is an
+    /// assertion rather than an inference from row counts.</summary>
+    public ExportDateRange? LastRange { get; private set; }
+
     public async Task<ExportCategoryResult> ReadAsync(
-        Guid organizationId, int maxRows, CancellationToken cancellationToken)
+        Guid organizationId, int maxRows, ExportDateRange range, CancellationToken cancellationToken)
     {
+        LastMaxRows = maxRows;
+        LastRange = range;
+
         if (onRead is not null)
         {
             await onRead();

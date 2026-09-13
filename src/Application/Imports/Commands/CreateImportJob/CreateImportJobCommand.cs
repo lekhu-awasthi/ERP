@@ -19,8 +19,15 @@ namespace ErpApp.Application.Imports.Commands.CreateImportJob;
 /// client timeout and a "do not refresh this page" warning. That shape cannot satisfy NFR-4.3, and
 /// its review step is bought by parsing the file twice and holding the parsed rows in the browser.
 /// The per-row result grid this phase's job screen shows carries the same information after the
-/// fact. Restoring a pre-commit review step on top of this design is additive (a validate-only mode
-/// plus a confirm command), and is recorded as deferred rather than dismissed.</para>
+/// fact.</para>
+///
+/// <para><b>Phase 38 restored the review step, exactly as this comment predicted it would have to
+/// be done: a validate-only pass plus a confirm command</b>, with no second runner and no second
+/// table. <see cref="ReviewBeforeApply"/> defaults to <c>true</c> because that is the reference
+/// product's behaviour and because a user who is about to create a thousand records should be shown
+/// what will happen; it costs a second pass over the file and a wait for a human, which is stated
+/// with its measured number in docs/phase-38-status.md. Turning it off is the Phase 21a behaviour
+/// unchanged.</para>
 /// </summary>
 public sealed record CreateImportJobCommand(
     Guid OrganizationId,
@@ -28,7 +35,8 @@ public sealed record CreateImportJobCommand(
     ImportMode Mode,
     string FileName,
     long FileSizeBytes,
-    Stream Content)
+    Stream Content,
+    bool ReviewBeforeApply = true)
     : IRequest<ImportJobSummary>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.ImportJobManage;
@@ -51,4 +59,7 @@ public sealed record ImportJobSummary(
     string InitiatedByName,
     DateTimeOffset CreatedAt,
     DateTimeOffset? StartedAt,
-    DateTimeOffset? CompletedAt);
+    DateTimeOffset? CompletedAt,
+    bool ReviewBeforeApply = false,
+    DateTimeOffset? ReviewConfirmedAt = null,
+    int ValidatedRowCount = 0);

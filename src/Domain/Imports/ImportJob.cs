@@ -96,6 +96,28 @@ public sealed class ImportJob
     /// </summary>
     public DateTimeOffset? ArtifactPurgedAt { get; private set; }
 
+    /// <summary>
+    /// Phase 38 -- the user asked to see what will happen before it happens, which is the reference
+    /// product's own wizard step 3 ("Validating Records", read live in phase 21a) restored on top of
+    /// this codebase's asynchronous design.
+    ///
+    /// <para><b>It is a choice, not a mode</b>, and it defaults to <c>true</c> because that is what
+    /// the reference product does. Turning it off is the phase-21a behaviour verbatim: one pass,
+    /// no wait. See docs/phase-38-status.md, Decision B, for the throughput this costs and the
+    /// measured number behind it.</para>
+    ///
+    /// <para><b>The migration defaults this to <c>false</c>, not <c>true</c></b> -- a default on a
+    /// new non-nullable column is safe exactly when it is the truth about the rows already there
+    /// (phase 37), and every job that existed before this phase applied without a review.</para>
+    /// </summary>
+    public bool ReviewBeforeApply { get; private set; }
+
+    /// <summary>When the user pressed Confirm Upload. Null on a job that has not been reviewed yet
+    /// <i>and</i> on every job that never needed reviewing, so it is only meaningful together with
+    /// <see cref="ReviewBeforeApply"/> -- the pair is what <c>ImportJobProcessor</c> reads to decide
+    /// whether a claim is the validate pass or the apply pass.</summary>
+    public DateTimeOffset? ReviewConfirmedAt { get; private set; }
+
     private ImportJob()
     {
     }
@@ -107,7 +129,8 @@ public sealed class ImportJob
         string storageKey,
         string fileName,
         Guid initiatedByUserId,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        bool reviewBeforeApply = false)
     {
         return new ImportJob
         {
@@ -120,15 +143,40 @@ public sealed class ImportJob
             InitiatedByUserId = initiatedByUserId,
             Status = ImportJobStatus.Queued,
             CreatedAt = now,
+            ReviewBeforeApply = reviewBeforeApply,
         };
     }
 
-    /// <summary>Takes ownership of a Queued job, or re-takes a Running one whose runner died.</summary>
+    /// <summary>True while this job's next claim is the dry run rather than the apply pass.</summary>
+    public bool AwaitsValidation => ReviewBeforeApply && ReviewConfirmedAt is null;
+
+    /// <summary>Takes ownership of a Queued job, or re-takes a Running/Validating one whose runner
+    /// died. The status it moves to says which pass is running, so a screen can tell "checking your
+    /// file" from "writing your records" without a second column.</summary>
     public void Claim(DateTimeOffset now)
     {
-        Status = ImportJobStatus.Running;
+        Status = AwaitsValidation ? ImportJobStatus.Validating : ImportJobStatus.Running;
         StartedAt ??= now;
         HeartbeatAt = now;
+    }
+
+    /// <summary>The dry run finished: the file is readable, its headers match, its tree (if it has
+    /// one) resolves, and every row that could be rejected without writing has been. Nothing was
+    /// written. The job now waits for a person.</summary>
+    public void MarkPendingConfirmation(DateTimeOffset now)
+    {
+        Status = ImportJobStatus.PendingConfirmation;
+        HeartbeatAt = now;
+    }
+
+    /// <summary>Confirm Upload. Re-queues the job so the runner's next claim is the apply pass --
+    /// the rows the dry run already rejected are terminal in the row ledger, so the apply pass skips
+    /// them by exactly the same mechanism that makes a crashed import resumable.</summary>
+    public void ConfirmReview(DateTimeOffset now)
+    {
+        ReviewConfirmedAt = now;
+        Status = ImportJobStatus.Queued;
+        HeartbeatAt = null;
     }
 
     public void Heartbeat(DateTimeOffset now) => HeartbeatAt = now;

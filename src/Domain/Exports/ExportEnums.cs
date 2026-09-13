@@ -15,6 +15,14 @@ namespace ErpApp.Domain.Exports;
 /// enum member -- the same one-implementation-per-enum-member shape as <c>IEntityImporter</c>,
 /// <c>IAlertContentBuilder</c> and <c>IGlPostingRule&lt;T&gt;</c>.</para>
 /// </summary>
+/// <para><b>Phase 38 added three, by a rule rather than by taste.</b> A category earns its place
+/// when its rows <i>cannot be reconstructed from the five already here</i>. Ledger Transactions is
+/// the posted General Ledger, so it carries what every document did to the accounts and nothing of
+/// what the document says: no quantities, no unit rates, no per-line VAT, no line text. A tenant
+/// taking their data out therefore had the accounting and not the trade. <see cref="SalesDocuments"/>,
+/// <see cref="PurchaseDocuments"/> and <see cref="Payments"/> close exactly that gap and stop
+/// there -- the rule refuses, for instance, a Stock Position category, which is
+/// <see cref="StockMovements"/> added up.</para>
 public enum ExportCategory
 {
     Products,
@@ -22,6 +30,17 @@ public enum ExportCategory
     ChartOfAccounts,
     LedgerTransactions,
     StockMovements,
+
+    /// <summary>Phase 38 -- Invoice and Credit Note lines, the sales side of what the GL cannot say.</summary>
+    SalesDocuments,
+
+    /// <summary>Phase 38 -- Purchase Bill and Debit Note lines.</summary>
+    PurchaseDocuments,
+
+    /// <summary>Phase 38 -- money received and paid, both directions, with the contact it moved
+    /// against. Not derivable from the ledger either: a payment's own document number, mode and
+    /// cheque details live on the Payment, not on the entry it posted.</summary>
+    Payments,
 }
 
 /// <summary>

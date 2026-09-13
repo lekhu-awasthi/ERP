@@ -19,7 +19,7 @@ namespace ErpApp.Application.Imports;
 /// (<c>ExpenditureClassification</c>, Phase 8e), so collapsing a migrated row to one bucket would
 /// make the two registers structurally incomparable.</para>
 /// </summary>
-public sealed class MigratedPurchaseRegisterImporter(ISender sender) : IEntityImporter
+public sealed class MigratedPurchaseRegisterImporter : IEntityImporter
 {
     private const string ColumnDate = "Date";
     private const string ColumnDocumentNo = "Bill No";
@@ -81,22 +81,25 @@ public sealed class MigratedPurchaseRegisterImporter(ISender sender) : IEntityIm
             "Do not change the column headers.",
         ]);
 
-    public async Task<ImportRowResult> ApplyAsync(
-        Guid organizationId, ImportMode mode, ImportRowReader row, CancellationToken cancellationToken)
+    public Task<ImportRowPlan> PlanAsync(
+        ImportRowContext context, ImportRowReader row, CancellationToken cancellationToken)
     {
         // Defence in depth -- CreateImportJobCommandValidator rejects UpdateExisting for this type at
         // upload time. See the Sales-side importer.
-        if (mode != ImportMode.CreateNew)
+        if (context.Mode != ImportMode.CreateNew)
         {
             throw new ImportRowException(
                 null, "Migrated register rows can only be created, not updated. Re-upload with Create New Records.");
         }
 
-        var result = await sender.Send(
+        var documentNo = row.GetRequiredString(ColumnDocumentNo);
+
+        return Task.FromResult<ImportRowPlan>(
+            ImportRowPlan.For<CreateMigratedPurchaseRegisterEntryCommand, CreateMigratedPurchaseRegisterEntryResult>(
             new CreateMigratedPurchaseRegisterEntryCommand(
-                organizationId,
+                context.OrganizationId,
                 row.GetRequiredDate(ColumnDate),
-                row.GetRequiredString(ColumnDocumentNo),
+                documentNo,
                 row.GetOptionalString(ColumnImportDeclarationNo),
                 row.GetRequiredString(ColumnSupplierName),
                 row.GetOptionalString(ColumnSupplierPan),
@@ -107,8 +110,8 @@ public sealed class MigratedPurchaseRegisterImporter(ISender sender) : IEntityIm
                 row.GetOptionalDecimal(ColumnNonCapitalImportVat),
                 row.GetOptionalDecimal(ColumnCapitalValue),
                 row.GetOptionalDecimal(ColumnCapitalVat)),
-            cancellationToken);
-
-        return new ImportRowResult(result.Id, result.DocumentCode);
+            $"Add migrated purchase register row '{documentNo}'",
+            documentNo,
+            result => new ImportRowResult(result.Id, result.DocumentCode)));
     }
 }

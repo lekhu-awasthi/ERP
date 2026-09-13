@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–35a)
+## Completed phases (0–38)
 
 Detail lives in each phase's own status doc — this table is the index, not the history.
 
@@ -67,6 +67,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 34b | The shell (left nav, Create New flyout, company switcher, global date filter) on `NavigationCatalog` with zero page-template edits, a Reports index page, search on 25 `List*Query` types and a date range on 16 | `phase-34b-status.md` |
 | 34c | Scale (NFR-5.1/5.2): the 50,000-invoice dataset seeded by direct `INSERT` (`tools/scale/`), a p95 budget per class of screen, and **50 indexes from a rule** — `TenantIndexConvention` found **18 tenant-scoped tables with no index leading on `OrganizationId`**, exactly the transactional documents plus `GlJournalEntry`, because every other table got one free from its per-tenant uniqueness rule. List first pages **469 ms → 49 ms**; the shell `@defer`ed for **724 kB → 649 kB**. Three findings outlive the speed-up: an index added for one access path made *search* on the same table worse; a plausible multi-tenancy inference (`GlLine` has no tenant column, so statements must pay for other tenants) was **refused by a second-tenant experiment**; and the report layer's cost is the **period**, not the page size — with `JournalReportQueryHandler` already in the repo as the shape that fixes it. The export cap's re-entry condition is **met by specification** and the constant deliberately unchanged | `phase-34c-status.md` |
 | 35a | Ledger drill-down (`?accountId=` + a View Ledger row action closing phase-33 #1) and the location dimension on documents: the picker extracted and swept onto all 15 forms, the LOCATION cell and filter onto all 15 lists via `ListChrome`/`ListFilter`, `BillingLocation.WarehouseId` as a prefill. Found phase 32's read-path gap — **14 of 15 detail DTOs and all 5 conversion templates dropped `LocationId`** — and corrected a `known-gotchas.md` generalisation by experiment | `phase-35a-status.md` |
+| 35b–38 | The location dimension in the reports; allocation/forex/ageing consistency; inventory policy (negative stock as a layer); import/export breadth | `phase-35b`–`phase-38-status.md` |
 
 ---
 
@@ -240,12 +241,44 @@ holds for a captured bool, not for a captured collection compared to null.
 - Traceability stays a Custom Fields matter (the Cadehi product form has no batch, lot, serial or
   expiry field), as recorded before the phase: no 37b.
 
-### 38. Import and export breadth
-- Importers for Account, Product Category and Account Group (intra-file parent ordering and cycle
-  detection), Contact Personnel, and variants (21a, 24); the product-wise landed-cost grid paste (29);
-  a pre-commit dry-run review step (21a, a trade against NFR-4.3 stated as such).
-- Export by date range and the categories beyond FR-2.8's five (21b); the OpenXml SAX streaming
-  writer only if 34c's measurement or a real tenant hits the 25,000-row cap.
+### 38. Import and export breadth — **done** (`docs/phase-38-status.md`)
+- **Eight upload types, not three.** Account, Product Category, Account Group and Contact Personnel
+  are the reference product's own deferred types (its "Contact" is `ContactPersonnel`, the
+  correction phase 21a's confirm-live pass caught); the **variant importer is an addition**, labelled
+  as one, with three fixed Attribute/Value slots and a stated requirement that the parent's attribute
+  pool already exists. No new permission keys: every importer sends the target type's own
+  Create/Update command, which `AuthorizationBehavior` re-checks per row.
+- **Intra-file ordering is solved once and used twice, not three times.** The roadmap called `Account`
+  a tree and it is a **leaf** — its "Account Group" column points at a different aggregate the file
+  cannot contain. `ImportRowSequencer` runs before the first row is planned in both passes; a cycle
+  or a duplicate key fails the **whole file** with its rows named, while an unknown parent is one
+  row's error.
+- **The pre-commit review is real, and needed no new table.** `IEntityImporter.ApplyAsync` became
+  **`PlanAsync`** (the command built but not sent), which is what made a dry run possible at all; the
+  validate pass claims **only the rows it rejects** in the existing row ledger, so the apply pass
+  skips them through the same mechanism that makes a crashed import resumable. It defaults **on**,
+  matching the reference product, and the throughput it trades is stated with its number. The
+  kickoff called this the phase's unconfirmed shape; phase 21a had **already** read the whole wizard
+  live, including its wording and buttons.
+- **Export gained three categories by a rule** — a category earns its place when its rows cannot be
+  reconstructed from the five already there — plus a per-category selection and a date range, with
+  every reader publishing whether a range applies to it so a short sheet is never ambiguous.
+- **The row cap moved, and changed shape.** 25,000 → **50,000** per category on phase 34c's measured
+  ~2.5 kB/row, joined by a workbook-wide **150,000** — which is what 34c said the cap should have
+  been, and which this phase needed because it took the category count from five to eight. **The SAX
+  rewrite is still not the move**: selection and a date range let a large tenant take the ledger out
+  a quarter at a time.
+- **The landed-cost grid's Import was read live, and phase 29 had it wrong**: a template-based `.xlsx`
+  drawer, not a clipboard paste, whose template is generated *from the bill in front of you* (one
+  column per tenant cost term, one row per bill line). It is therefore neither an
+  `ImportTemplateDefinition` nor an `ImportJob`.
+- **Found on the way**: a Minimal API binds an **array** parameter from the body on a POST, so
+  `?categories=…` silently arrived null and every export ran all eight sheets while the screen said
+  otherwise — caught by nothing but the manual E2E.
+- **Carried forward**: the dry run cannot see what only writing can (uniqueness, lifecycle); there is
+  no bulk way to configure a product's Attributes Used, which the variant importer requires; the
+  landed-cost drawer replaces rather than merges per product; and `MaxRowsPerWorkbook` is still one
+  machine's memory law.
 
 ### 39. CRM and workflow as first-class screens, and the two editors
 - **Deals and Tasks get standalone routes** under CRM and Workflow (34b #6 — the router-derived nav

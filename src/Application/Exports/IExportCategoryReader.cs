@@ -20,16 +20,52 @@ public interface IExportCategoryReader
     ExportCategory Category { get; }
 
     /// <summary>The worksheet name. Excel caps sheet names at 31 characters and forbids
-    /// <c>: \ / ? * [ ]</c>; all five current names are short plain words.</summary>
+    /// <c>: \ / ? * [ ]</c>; all eight current names are short plain words.</summary>
     string SheetName { get; }
 
     IReadOnlyList<string> Headers { get; }
 
     /// <summary>
+    /// Whether this category has a date to filter on at all (Phase 38).
+    ///
+    /// <para><b>Every reader must answer, and the answer is published rather than inferred.</b> A
+    /// date range narrows the transactional categories and is meaningless for master data -- a
+    /// product is not "in" August. Leaving that implicit would produce the worst version of the
+    /// feature: a user who exports one month and sees a full product list cannot tell whether the
+    /// filter worked, and one who sees a short list cannot tell whether their catalogue is that
+    /// small. So the workbook's Summary sheet prints "not date-filtered" against each sheet that
+    /// says false here.</para>
+    /// </summary>
+    bool IsDateFiltered { get; }
+
+    /// <summary>
     /// Reads at most <paramref name="maxRows"/> rows, in a deterministic order, plus the true
     /// unclamped count so truncation can be disclosed rather than hidden.
     /// </summary>
-    Task<ExportCategoryResult> ReadAsync(Guid organizationId, int maxRows, CancellationToken cancellationToken);
+    /// <param name="range">The requested window. A reader whose <see cref="IsDateFiltered"/> is
+    /// false ignores it.</param>
+    Task<ExportCategoryResult> ReadAsync(
+        Guid organizationId, int maxRows, ExportDateRange range, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// The window an export was asked for. <see cref="Unbounded"/> is the phase-21b behaviour and stays
+/// the default, because "export my data" with no further thought must keep meaning all of it.
+/// </summary>
+public readonly record struct ExportDateRange(DateOnly? From, DateOnly? To)
+{
+    public static ExportDateRange Unbounded => new(null, null);
+
+    public bool IsBounded => From is not null || To is not null;
+
+    /// <summary>Renders the window for the Summary sheet and the completion email.</summary>
+    public string Describe() => (From, To) switch
+    {
+        (null, null) => "All dates",
+        ({ } from, null) => $"{from:yyyy-MM-dd} onwards",
+        (null, { } to) => $"up to {to:yyyy-MM-dd}",
+        ({ } from, { } to) => $"{from:yyyy-MM-dd} to {to:yyyy-MM-dd}",
+    };
 }
 
 /// <summary>
@@ -54,15 +90,41 @@ public sealed record ExportCategoryResult(IReadOnlyList<object?[]> Rows, int Tot
 public static class ExportLimits
 {
     /// <summary>
-    /// Rows per category, excluding the header. Five sheets at this cap is a worst case of 125,000
-    /// rows in one buffered workbook, which is the largest artifact this library can produce without
-    /// putting a server at risk.
+    /// Rows per category, excluding the header.
     ///
-    /// <para>A tenant past the cap still gets a complete, openable file: the category is cut off at
-    /// this many rows in its deterministic order, and the truncation is disclosed in three places
-    /// (the Summary sheet, the job row's <c>TruncationNotice</c>, and the completion email). Raising
-    /// it means moving to a streaming writer (the OpenXml SDK's SAX-style writer), which is the
-    /// recorded follow-up if a real tenant ever hits it.</para>
+    /// <para><b>Raised from 25,000 to 50,000 in Phase 38, on phase 34c's measurement rather than on
+    /// taste.</b> 34c exported the 50,000-invoice NFR-5.1 dataset and found the condition for
+    /// revisiting this constant already met by specification -- Ledger Transactions lost 88% of its
+    /// rows -- and it left the number alone deliberately, because "the phase that first measured it
+    /// should hand the decision over with numbers rather than raise a production safety limit on the
+    /// strength of a single run". The number it handed over is <b>~2.5 kB of process working set per
+    /// row</b>, from a run that produced 280,024 rows in ~700 MB above a 215 MB idle baseline and
+    /// completed in 15.8 s.</para>
+    ///
+    /// <para>50,000 takes that dataset's Contacts sheet from truncated to <i>complete</i> (50,002
+    /// rows available) and doubles what its ledger carries, at roughly 350 MB for the whole workbook
+    /// -- half of what 34c already ran successfully. The SAX rewrite is still not the move: 34c said
+    /// raising the cap comes first, and this is that, with the remaining headroom now bounded by
+    /// <see cref="MaxRowsPerWorkbook"/> rather than by multiplying the per-sheet cap by however many
+    /// categories exist.</para>
     /// </summary>
-    public const int MaxRowsPerCategory = 25_000;
+    public const int MaxRowsPerCategory = 50_000;
+
+    /// <summary>
+    /// Rows across every sheet of one workbook, excluding headers.
+    ///
+    /// <para><b>This is the cap that actually expresses the memory law</b>, and phase 34c is why it
+    /// exists: "25,000 per category was never the right shape", because the real constraint is a
+    /// budget for one buffered workbook divided by however many categories happen to be large at
+    /// once -- and Phase 38 took the category count from five to eight, which would otherwise have
+    /// multiplied the worst case by 1.6 without anybody choosing to. At the measured 2.5 kB per row
+    /// this is about 375 MB of working set above baseline, comfortably inside the envelope 34c ran.</para>
+    ///
+    /// <para>The budget is consumed in <c>ExportJobProcessor</c>'s fixed category order and what is
+    /// left is what the next sheet may take, so a workbook that reaches the ceiling truncates its
+    /// <i>later</i> sheets and says so per sheet. A user who needs a large late category takes it on
+    /// its own -- which is exactly what per-category selection and the date range are for, and is
+    /// the honest answer to a cap rather than a bigger number.</para>
+    /// </summary>
+    public const int MaxRowsPerWorkbook = 150_000;
 }

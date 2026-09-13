@@ -1433,3 +1433,106 @@ mean. Ask what the existing rows would say if they could answer, not how many of
   Have it set a global. (Same family as phase 34b's.)
 - A heredoc in the Bash tool still mis-parses a Python patch script containing triple-quoted
   strings, well below the size the gotcha names. Write the script to a file with the Write tool.
+
+## A Minimal API binds an array from the body on a POST (phase 38)
+
+`POST /export-jobs?categories=Products&categories=Payments` bound `categories` to **null**. The
+command's fallback — "no selection means every category", which is what the button meant before the
+parameter existed and is the right default — then ran all eight sheets, while the job row and the
+screen both said two.
+
+Nothing caught it. It compiles. The 1,035 Application unit tests construct the command directly and
+so never touch binding. The Angular suite asserts the service sends the right `params`. Only a real
+HTTP call against the running API showed it, which is the entire argument for CLAUDE.md's manual-E2E
+bar existing at all.
+
+**The rule**: a Minimal API binds a **complex or array** parameter from the request *body* by
+default on a POST, and from the query only when told. `[FromQuery]` on the array is load-bearing.
+The trap is that the two `DateOnly?` parameters sitting right beside it bind from the query with no
+attribute at all, because a **simple** type does — so the endpoint looks internally consistent and
+half of it is wrong.
+
+This is phase-27b's *"a trailing optional parameter reaches nothing until the Api's own request
+record carries it too"* in a third costume, and phase-32's read-path gap in a fourth: the write path
+looked perfect at every layer a test could see.
+
+## EF refuses a set operation after a client projection (phase 38)
+
+`SalesDocumentExportReader` began as two LINQ queries ending in `select new DocumentLineRow(...)`,
+`Concat`-ed and then ordered. It threw at run time:
+
+> Unable to translate set operation after client projection has been applied. Consider moving the
+> set operation before the last 'Select' call.
+
+A constructor call is a **client** projection, and a set operation cannot follow one. This is not an
+InMemory quirk — the relational provider refuses it too, so it is one of the rare EF failures the
+unit suite catches honestly rather than hiding.
+
+**The remedy**: `Concat` while both halves are still anonymous — an anonymous type with identical
+member names, types and order unifies across the two queries — then build the shared record from the
+materialised page. The shared record earns its keep either way: two document sheets with fourteen
+identical columns would otherwise be two chances to drift, and each reader's own test only ever looks
+at its own sheet.
+
+## A dry run that reports correct files as broken (phase 38)
+
+The near-miss worth writing down, because it would have passed every test that did not specifically
+pair a hierarchical importer with the validate pass.
+
+A pre-commit review validates rows **without writing**. A hierarchical importer resolves a row's
+parent by name against the database. Put those together and a file whose parent appears in a *later*
+row — which the reference product's own template explicitly permits, and which phase 38's sequencer
+exists to make work — resolves to nothing during validation. The review would have reported a
+perfectly correct file as full of errors, and then applied it successfully on Confirm.
+
+The symptom teaches users to ignore the review, which is worse than not having one.
+
+**The fix names the difference instead of hiding it.** `ImportRowContext.PendingKeys` is empty during
+the apply pass (the sequencer has already created those parents, so the ordinary lookup is correct)
+and holds every in-file key during validation. An importer that cannot find a parent asks
+`WillCreate` before rejecting, and answers a yes with `ImportRowPlan.Provisional` — a plan that
+**throws if executed**, so a later caller cannot lose the distinction by sending one whose parent
+reference quietly resolved to "no parent", which would flatten an imported tree and look like a
+success.
+
+## A template generated from the document in front of you (phase 38)
+
+Phase 29 recorded the Purchase Bill's product-wise Additional Cost grid as offering "an Import (a
+bulk paste of the grid)". Read live on 2026-09-12, it is a **file import**: a drawer with a drop
+zone, an instruction to download the template first, and a **Download Template (.xlsx)** button.
+(The button is inert until the bill has product lines and the matrix has a product, which is why a
+first pass looked like a dead control.)
+
+The template's bytes are unlike the other eight in this codebase. One sheet; row 1 is `Products` plus
+**one column per tenant cost term**, in the tenant's own order; rows 2+ are **that bill's own product
+lines**, pre-filled, with the amount cells blank; no instruction block, no sample row, no `**`
+marker. It is generated from the bill in front of you, because a landed-cost matrix has no meaning
+away from its bill.
+
+Two consequences: it is **not** an `ImportTemplateDefinition` (that type is fixed columns, one sample
+row and an instruction block — bending it would have meant dynamic columns and N sample rows, i.e. a
+different type wearing the same name), and it is **not** an `ImportJob` (nothing is written, so there
+is nothing to resume, and a background job would put the answer somewhere the unsaved form cannot see
+it).
+
+The wider lesson is phase-8f's, again: a one-line note about a control nobody operated is a guess,
+and the guess had the mechanism wrong, not merely the details.
+
+## Import ordering is a property of self-reference, not of parents (phase 38)
+
+The roadmap grouped Account, Product Category and Account Group as three importers needing
+intra-file ordering, and said to solve it once rather than three times. Two of them need it.
+
+`ProductCategory.ParentCategoryId` and `AccountGroup.ParentGroupId` point at **their own type**, so a
+row's parent can be another row of the same file. `Account`'s "Account Group" column points at a
+*different aggregate*, which an Account file cannot contain and which must already exist — there are
+no edges inside an Account file at all. Giving it the sequencer would have implied a relationship the
+model does not have, so `AccountImporter`'s doc comment says why it is absent, where somebody would
+otherwise "fix" it.
+
+The same distinction decides the failure modes. A **cycle** or a **duplicate key** is a property of
+the file and fails the whole job with its rows named, importing nothing — half-importing a tree
+leaves a catalogue in a state neither the tenant nor the file describes, and the user cannot correct
+the file and re-upload, because the good rows would then collide. An **unknown parent** is one row's
+error, because the sequencer deliberately only knows about edges inside the file: a name no row
+claims is external, and guessing would turn a single bad cell into a whole-file failure.

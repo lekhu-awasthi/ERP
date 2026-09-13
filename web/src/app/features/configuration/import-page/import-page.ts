@@ -2,9 +2,15 @@ import { Component, OnDestroy, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
-import { ExportJobStatus, ExportJobSummary } from '../../../core/exports/export.models';
+import {
+  EXPORT_CATEGORIES,
+  ExportCategory,
+  ExportJobStatus,
+  ExportJobSummary,
+} from '../../../core/exports/export.models';
 import { ExportService } from '../../../core/exports/export.service';
 import {
+  CREATE_ONLY_ENTITY_TYPES,
   ImportEntityType,
   ImportJobRow,
   ImportJobStatus,
@@ -14,6 +20,7 @@ import {
 } from '../../../core/imports/import.models';
 import { ImportService } from '../../../core/imports/import.service';
 import { triggerBlobDownload } from '../../../shared/download-file';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 
 /**
@@ -28,6 +35,12 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
  * fact. See CreateImportJobCommand for the full comparison and what a pre-commit review step would
  * additively cost.</p>
  *
+ * <p><b>Phase 38 restored the review step</b>, which is why this comment's "replaces the blocking
+ * review" is no longer the whole story: the upload now offers a dry run that writes nothing and
+ * stops at PendingConfirmation, and this screen grows the Confirm Upload / Discard pair the
+ * reference product's step 3 has. What stays different is that it is still a job -- the wait is
+ * durable and the user may close the tab -- rather than a request held open for twenty minutes.</p>
+ *
  * <p>Polling, not a socket: a job's status is a cheap indexed read, and adding a push channel for
  * one screen would be a deployment concern in exchange for a few seconds of latency.</p>
  *
@@ -40,7 +53,7 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
  */
 @Component({
   selector: 'app-import-page',
-  imports: [RouterLink, PaginationControl],
+  imports: [RouterLink, PaginationControl, BsDateInput],
   templateUrl: './import-page.html',
 })
 export class ImportPage implements OnDestroy {
@@ -82,16 +95,38 @@ export class ImportPage implements OnDestroy {
   protected readonly expandedRows = signal<ImportJobRow[]>([]);
   protected readonly expandedRowsLoading = signal(false);
 
+  // Phase 38 -- the reference product's Upload Type list, in its own order, plus the one addition.
+  // "Contact Personnel" is that product's "Contact" option under the name this codebase gives the
+  // aggregate, so the label says what a user is actually uploading.
   protected readonly entityTypes: readonly { value: ImportEntityType; label: string }[] = [
     { value: 'Product', label: 'Product' },
     { value: 'Customer', label: 'Customer' },
     { value: 'Supplier', label: 'Supplier' },
+    { value: 'ContactPersonnel', label: 'Contact Personnel' },
+    { value: 'Account', label: 'Account' },
+    { value: 'ProductCategory', label: 'Product Category' },
+    { value: 'AccountGroup', label: 'Account Group' },
+    { value: 'ProductVariant', label: 'Product Variant' },
   ];
 
   protected readonly modes: readonly { value: ImportMode; label: string }[] = [
     { value: 'CreateNew', label: 'Create New Records' },
     { value: 'UpdateExisting', label: 'Update Existing Records' },
   ];
+
+  /** Phase 38 -- defaults on, matching the reference product's wizard, which always validates
+   * before it writes. Unticking it is the phase-21a behaviour: one pass, no wait. */
+  protected readonly reviewBeforeApply = signal(true);
+
+  protected readonly exportCategories = EXPORT_CATEGORIES;
+
+  /** Empty means every category, which is what the endpoint means by an omitted selection and what
+   * this button meant before Phase 38. */
+  protected readonly selectedExportCategories = signal<readonly ExportCategory[]>([]);
+  protected readonly exportFrom = signal<string | null>(null);
+  protected readonly exportTo = signal<string | null>(null);
+
+  protected readonly confirmingJobId = signal<string | null>(null);
 
   private selectedFile: File | null = null;
   private pollHandle: ReturnType<typeof setInterval> | null = null;
@@ -110,6 +145,37 @@ export class ImportPage implements OnDestroy {
 
   protected onModeChange(value: string): void {
     this.mode.set(value as ImportMode);
+  }
+
+  /** Some upload types offer Create only -- two of them because the reference product does, one
+   * because a variant's identity is its combination. Switching to one forces the mode rather than
+   * leaving a selection the server will reject with a 400. */
+  protected isCreateOnly(entityType: ImportEntityType): boolean {
+    return CREATE_ONLY_ENTITY_TYPES.includes(entityType);
+  }
+
+  protected onReviewChange(value: boolean): void {
+    this.reviewBeforeApply.set(value);
+  }
+
+  protected toggleExportCategory(category: ExportCategory, checked: boolean): void {
+    const current = this.selectedExportCategories();
+    this.selectedExportCategories.set(
+      checked ? [...current, category] : current.filter((c) => c !== category),
+    );
+  }
+
+  protected isExportCategorySelected(category: ExportCategory): boolean {
+    const selected = this.selectedExportCategories();
+    return selected.length === 0 || selected.includes(category);
+  }
+
+  protected onExportFromChange(value: string): void {
+    this.exportFrom.set(value || null);
+  }
+
+  protected onExportToChange(value: string): void {
+    this.exportTo.set(value || null);
   }
 
   protected onFileSelected(event: Event): void {
@@ -138,7 +204,13 @@ export class ImportPage implements OnDestroy {
     this.errorMessage.set(null);
 
     this.importService
-      .createImportJob(this.organizationId, this.entityType(), this.mode(), this.selectedFile)
+      .createImportJob(
+        this.organizationId,
+        this.entityType(),
+        this.mode(),
+        this.selectedFile,
+        this.reviewBeforeApply(),
+      )
       .subscribe({
         next: () => {
           this.uploading.set(false);
@@ -159,6 +231,28 @@ export class ImportPage implements OnDestroy {
       error: (err: unknown) =>
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not cancel the import.'),
     });
+  }
+
+  /** Confirm Upload. The job goes back to Queued and the runner's next tick applies exactly the
+   * rows the dry run accepted. */
+  protected confirmImport(job: ImportJobSummary): void {
+    this.confirmingJobId.set(job.id);
+    this.errorMessage.set(null);
+
+    this.importService.confirmImportJob(this.organizationId, job.id).subscribe({
+      next: () => {
+        this.confirmingJobId.set(null);
+        this.load();
+      },
+      error: (err: unknown) => {
+        this.confirmingJobId.set(null);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not confirm the import.');
+      },
+    });
+  }
+
+  protected awaitsConfirmation(job: ImportJobSummary): boolean {
+    return job.status === 'PendingConfirmation';
   }
 
   protected toggleRows(job: ImportJobSummary): void {
@@ -182,9 +276,9 @@ export class ImportPage implements OnDestroy {
     });
   }
 
-  /** Both job kinds use the same five status names, so the two badges share these helpers. */
+  /** Both job kinds share these badges; only an import reaches the two phase-38 states. */
   protected isActive(status: ImportJobStatus | ExportJobStatus): boolean {
-    return status === 'Queued' || status === 'Running';
+    return status === 'Queued' || status === 'Running' || status === 'Validating';
   }
 
   protected statusClass(status: ImportJobStatus | ExportJobStatus): string {
@@ -195,6 +289,8 @@ export class ImportPage implements OnDestroy {
         return 'text-bg-danger';
       case 'Cancelled':
         return 'text-bg-secondary';
+      case 'PendingConfirmation':
+        return 'text-bg-warning';
       default:
         return 'text-bg-info';
     }
@@ -214,7 +310,14 @@ export class ImportPage implements OnDestroy {
     this.exportStarting.set(true);
     this.errorMessage.set(null);
 
-    this.exportService.createExportJob(this.organizationId).subscribe({
+    this.exportService
+      .createExportJob(
+        this.organizationId,
+        this.selectedExportCategories(),
+        this.exportFrom(),
+        this.exportTo(),
+      )
+      .subscribe({
       next: () => {
         this.exportStarting.set(false);
         this.load();

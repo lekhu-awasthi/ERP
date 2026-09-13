@@ -59,6 +59,17 @@ public sealed class ExportJobProcessor(
 
     /// <summary>Fixed sheet order, so two exports of the same tenant differ only where the data
     /// does. Follows FR-2.8's own listing order.</summary>
+    /// <summary>
+    /// Fixed sheet order, so two exports of the same tenant differ only where the data does. Follows
+    /// FR-2.8's own listing order, with Phase 38's three appended.
+    ///
+    /// <para><b>The order is now load-bearing for a second reason:</b> a workbook's row budget
+    /// (<c>ExportLimits.MaxRowsPerWorkbook</c>) is consumed in this order, so a tenant who exceeds it
+    /// loses rows from the <i>end</i> of this list rather than from wherever the reader happened to
+    /// get to. Master data comes first precisely because it is bounded by the tenant's catalogue,
+    /// while the five transactional sheets grow with activity -- so the categories a user cannot
+    /// reconstruct any other way are the ones guaranteed to be complete.</para>
+    /// </summary>
     private static readonly ExportCategory[] CategoryOrder =
     [
         ExportCategory.Products,
@@ -66,11 +77,14 @@ public sealed class ExportJobProcessor(
         ExportCategory.ChartOfAccounts,
         ExportCategory.LedgerTransactions,
         ExportCategory.StockMovements,
+        ExportCategory.SalesDocuments,
+        ExportCategory.PurchaseDocuments,
+        ExportCategory.Payments,
     ];
 
-    /// <summary>The number of sheets a job promises, used for its progress bar. Public because the
-    /// enqueue command stamps it on the job before any runner has seen it.</summary>
-    public static int CategoryCount => CategoryOrder.Length;
+    /// <summary>Every category this product can export, in sheet order -- what the enqueue command
+    /// validates against and what it falls back to when the caller names none.</summary>
+    public static IReadOnlyList<ExportCategory> AllCategories => CategoryOrder;
 
     public async Task<bool> ProcessNextAsync(CancellationToken cancellationToken)
     {
@@ -180,7 +194,8 @@ public sealed class ExportJobProcessor(
 
     private async Task RunAsync(ExportJob job, CancellationToken cancellationToken)
     {
-        var readers = ResolveReaders();
+        var readers = ResolveReaders(job.SelectedCategories);
+        var range = new ExportDateRange(job.FromDate, job.ToDate);
 
         var sheets = new List<ExportWorkbookSheet>();
         var summaryRows = new List<object?[]>();
@@ -204,8 +219,14 @@ public sealed class ExportJobProcessor(
                 return;
             }
 
-            var result = await reader.ReadAsync(
-                job.OrganizationId, ExportLimits.MaxRowsPerCategory, cancellationToken);
+            // Whichever cap binds first: the per-sheet one for predictability, the workbook budget
+            // for the server. A later sheet sees a smaller allowance, which is exactly why
+            // CategoryOrder puts the bounded categories first.
+            var allowance = Math.Min(
+                ExportLimits.MaxRowsPerCategory,
+                Math.Max(ExportLimits.MaxRowsPerWorkbook - totalRows, 0));
+
+            var result = await reader.ReadAsync(job.OrganizationId, allowance, range, cancellationToken);
 
             sheets.Add(new ExportWorkbookSheet(reader.SheetName, reader.Headers, result.Rows));
 
@@ -215,6 +236,10 @@ public sealed class ExportJobProcessor(
                 result.Rows.Count,
                 result.TotalRowCount,
                 result.IsTruncated ? "Yes" : "No",
+
+                // Per sheet, because the answer differs per sheet: a user looking at a short product
+                // list must not have to guess whether their date range did that.
+                reader.IsDateFiltered ? range.Describe() : "All dates (not date-filtered)",
             ]);
 
             if (result.IsTruncated)
@@ -241,9 +266,9 @@ public sealed class ExportJobProcessor(
             0,
             new ExportWorkbookSheet(
                 SummarySheetName,
-                ["Sheet", "Rows Exported", "Rows Available", "Truncated"],
+                ["Sheet", "Rows Exported", "Rows Available", "Truncated", "Date Range"],
                 summaryRows,
-                BuildPreamble(context, truncationNotice)));
+                BuildPreamble(context, truncationNotice, range)));
 
         var fileName = BuildFileName(context.OrganizationName, timeProvider.GetUtcNow());
 
@@ -265,16 +290,23 @@ public sealed class ExportJobProcessor(
         await NotifyAsync(job, cancellationToken);
     }
 
-    /// <summary>Ordered by <see cref="CategoryOrder"/> and verified complete, so a category whose DI
-    /// line was forgotten fails loudly at run time instead of silently producing a workbook missing
-    /// a sheet that FR-2.8 names.</summary>
-    private IReadOnlyList<IExportCategoryReader> ResolveReaders()
+    /// <summary>
+    /// The requested categories' readers, in <see cref="CategoryOrder"/> -- never in the order the
+    /// caller listed them, so two exports of the same tenant produce the same workbook.
+    ///
+    /// <para>Still verified complete, so a category whose DI line was forgotten fails loudly at run
+    /// time instead of silently producing a workbook missing a sheet somebody asked for. An empty
+    /// selection means every category: a job row written before Phase 38 stored no selection, and
+    /// "all of it" is what those jobs did.</para>
+    /// </summary>
+    private IReadOnlyList<IExportCategoryReader> ResolveReaders(IReadOnlyList<ExportCategory> selected)
     {
         var byCategory = categoryReaders.ToDictionary(r => r.Category);
+        var wanted = selected.Count == 0 ? CategoryOrder : [.. CategoryOrder.Where(selected.Contains)];
 
         return
         [
-            .. CategoryOrder.Select(category =>
+            .. wanted.Select(category =>
                 byCategory.TryGetValue(category, out var reader)
                     ? reader
                     : throw new InvalidOperationException(
@@ -297,13 +329,16 @@ public sealed class ExportJobProcessor(
         return new ExportContext(organizationName, initiator?.FullName ?? string.Empty, initiator?.Email);
     }
 
-    private IReadOnlyList<string> BuildPreamble(ExportContext context, string? truncationNotice)
+    private IReadOnlyList<string> BuildPreamble(
+        ExportContext context, string? truncationNotice, ExportDateRange range)
     {
         var lines = new List<string>
         {
             $"{context.OrganizationName} - data export",
             NotABackupNotice,
             $"Generated: {ExportCellText(timeProvider.GetUtcNow())} (Nepal time)",
+            $"Date range requested: {range.Describe()} - applies only to the dated sheets, see each "
+                + "sheet's own Date Range cell below.",
         };
 
         if (!string.IsNullOrWhiteSpace(context.InitiatedByName))
@@ -314,8 +349,9 @@ public sealed class ExportJobProcessor(
         if (truncationNotice is not null)
         {
             lines.Add(
-                $"TRUNCATED: some categories exceeded the {ExportLimits.MaxRowsPerCategory:N0}-row per-sheet "
-                + $"limit and were cut off - {truncationNotice}.");
+                $"TRUNCATED: some sheets were cut off at the {ExportLimits.MaxRowsPerCategory:N0}-row per-sheet "
+                + $"limit or the {ExportLimits.MaxRowsPerWorkbook:N0}-row workbook limit - {truncationNotice}. "
+                + "Narrow the date range, or export fewer categories at a time, to get all of it.");
         }
 
         return lines;

@@ -24,5 +24,11 @@ internal static class ImportJobMapper
             initiatedByName,
             job.CreatedAt,
             job.StartedAt,
-            job.CompletedAt);
+            job.CompletedAt,
+            job.ReviewBeforeApply,
+            job.ReviewConfirmedAt,
+            // "N records validated", the reference product's own wording, derived rather than stored:
+            // the dry run claims only the rows it rejects, so everything else in the file is what
+            // Confirm Upload would apply. Zero before the file has been read at all.
+            ValidatedRowCount: Math.Max(job.TotalRowCount - job.FailedRowCount, 0));
 }

@@ -27,17 +27,27 @@ export class ImportService {
     entityType: ImportEntityType,
     mode: ImportMode,
     file: File,
+    reviewBeforeApply = true,
   ): Observable<ImportJobSummary> {
     const form = new FormData();
     form.append('file', file);
 
-    // entityType and mode ride the query string, not the form body: the endpoint binds a single
-    // IFormFile plus route/query parameters, which is what makes ASP.NET Core treat it as a
-    // multipart endpoint at all.
+    // entityType, mode and reviewBeforeApply ride the query string, not the form body: the endpoint
+    // binds a single IFormFile plus route/query parameters, which is what makes ASP.NET Core treat
+    // it as a multipart endpoint at all.
     return this.http.post<ImportJobSummary>(`${this.baseUrl(organizationId)}/import-jobs`, form, {
       withCredentials: true,
-      params: { entityType, mode },
+      params: { entityType, mode, reviewBeforeApply: String(reviewBeforeApply) },
     });
+  }
+
+  /** Phase 38 -- Confirm Upload: apply the rows the dry run accepted. */
+  confirmImportJob(organizationId: string, id: string): Observable<ImportJobSummary> {
+    return this.http.post<ImportJobSummary>(
+      `${this.baseUrl(organizationId)}/import-jobs/${id}/confirm`,
+      {},
+      { withCredentials: true },
+    );
   }
 
   /**

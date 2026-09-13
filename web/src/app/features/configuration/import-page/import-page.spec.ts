@@ -43,6 +43,11 @@ describe('ImportPage (export half)', () => {
       completedAt: '2026-09-01T07:39:51Z',
       expiresAt: '2026-09-08T07:39:51Z',
       artifactPurgedAt: null,
+      // Phase 38: empty means "every category", which is what a pre-38 job row stored and what an
+      // omitted selection still means.
+      categories: [],
+      fromDate: null,
+      toDate: null,
       ...overrides,
     };
   }
@@ -95,7 +100,11 @@ describe('ImportPage (export half)', () => {
 
     expect(text()).toContain('Start Export');
     expect(text()).toContain('not a restorable backup');
-    expect(text()).toContain('products, contacts, chart of');
+    // Phase 38 replaced the prose list with a per-category picker, so the assertion moved with it:
+    // what matters is still that the screen names what the file will contain.
+    expect(text()).toContain('Chart of Accounts');
+    expect(text()).toContain('Ledger Transactions');
+    expect(text()).toContain('Stock Movements');
     // Never the word "backup" as a label for the action itself -- see Decision A.
     expect(text()).not.toContain('Start Backup');
   });

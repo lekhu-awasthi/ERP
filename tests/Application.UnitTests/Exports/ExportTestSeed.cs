@@ -7,13 +7,16 @@ using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Exports;
 using ErpApp.Domain.Identity;
 using ErpApp.Domain.Inventory;
+using ErpApp.Domain.Payments;
+using ErpApp.Domain.Purchasing;
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.UnitTests.Exports;
 
 /// <summary>
-/// One tenant with at least one row in every one of FR-2.8's five categories, plus a real Admin user
+/// One tenant with at least one row in every one of the eight export categories, plus a real Admin user
 /// with real role grants. The grants are real <c>RolePermission</c> rows rather than a bypassed
 /// check, because "only an Admin of this organization can download a full-tenant dump" is one of
 /// this phase's load-bearing claims and a test that stubbed it would prove nothing.
@@ -79,9 +82,10 @@ internal static class ExportTestSeed
         db.Products.Add(product);
 
         var contactCode = $"C-{marker}-0001";
-        db.Contacts.Add(Contact.Create(
+        var customer = Contact.Create(
             organization.Id, ContactType.Customer, $"Everest Retail {marker}", contactCode,
-            $"Kathmandu-{marker}", "304567847", "9841768644", $"{marker}@example.test", contactGroup.Id, 0m));
+            $"Kathmandu-{marker}", "304567847", "9841768644", $"{marker}@example.test", contactGroup.Id, 0m);
+        db.Contacts.Add(customer);
 
         var accountGroup = AccountGroup.Create(organization.Id, $"Current Assets {marker}", AccountRootType.Asset, null);
         db.AccountGroups.Add(accountGroup);
@@ -103,6 +107,30 @@ internal static class ExportTestSeed
         db.StockMovements.Add(StockMovement.Create(
             organization.Id, product.Id, warehouse.Id, StockMovementDirection.In, 10m, 80m,
             DocumentType.PurchaseBill, Guid.NewGuid(), new DateOnly(2026, 8, 20)));
+
+        // Phase 38's three categories. Seeded here rather than in a test of their own so that the
+        // tenant-isolation test covers them too: that test asserts no cell of org A's workbook
+        // carries org B's marker, which is only a claim about the sheets that have rows.
+        var invoice = Invoice.Create(
+            organization.Id, customer.Id, warehouse.Id, new DateOnly(2026, 8, 21), $"REF-{marker}-INV",
+            null, null);
+        invoice.AddLine(product.Id, 3m, 100m, VatRate.ThirteenPercentVat, 0m);
+        db.Invoices.Add(invoice);
+
+        var supplier = Contact.Create(
+            organization.Id, ContactType.Supplier, $"Himalaya Supply {marker}", $"S-{marker}-0001",
+            $"Pokhara-{marker}", "301234567", "9807654321", $"sup-{marker}@example.test", contactGroup.Id, 0m);
+        db.Contacts.Add(supplier);
+
+        var bill = PurchaseBill.Create(
+            organization.Id, supplier.Id, warehouse.Id, new DateOnly(2026, 8, 22), $"REF-{marker}-PB",
+            null, false, null, null, null, null, 0m, null, null);
+        bill.AddLine(product.Id, 5m, 80m, VatRate.ThirteenPercentVat, ExpenditureClassification.Others, 0m);
+        db.PurchaseBills.Add(bill);
+
+        db.Payments.Add(Payment.Create(
+            organization.Id, customer.Id, PaymentDirection.Received, new DateOnly(2026, 8, 23),
+            null, cash.Id, 339m, $"REF-{marker}-PAY"));
 
         await db.SaveChangesAsync();
 
@@ -145,7 +173,7 @@ internal static class ExportTestSeed
     /// rather than about the request.</summary>
     public static async Task<Guid> QueueJobAsync(IAppDbContext db, ExportTenant tenant, DateTimeOffset now)
     {
-        var job = ExportJob.Create(tenant.OrganizationId, tenant.AdminUserId, 5, now);
+        var job = ExportJob.Create(tenant.OrganizationId, tenant.AdminUserId, [], null, null, now);
         db.ExportJobs.Add(job);
         await db.SaveChangesAsync();
         return job.Id;

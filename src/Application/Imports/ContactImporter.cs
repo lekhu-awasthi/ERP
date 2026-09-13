@@ -3,7 +3,6 @@ using ErpApp.Application.Contacts.Commands.CreateContact;
 using ErpApp.Application.Contacts.Commands.UpdateContact;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Imports;
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Imports;
@@ -41,52 +40,50 @@ public sealed class ContactImporter : IEntityImporter
     private const string ColumnOpeningBalance = "Opening Balance";
 
     private readonly IAppDbContext _db;
-    private readonly ISender _sender;
     private readonly ContactType _contactType;
     private readonly string _columnName;
 
-    private ContactImporter(IAppDbContext db, ISender sender, ImportEntityType entityType, ContactType contactType)
+    private ContactImporter(IAppDbContext db, ImportEntityType entityType, ContactType contactType)
     {
         _db = db;
-        _sender = sender;
         _contactType = contactType;
         _columnName = $"{contactType} Name";
         EntityType = entityType;
         Template = BuildTemplate(entityType, contactType, _columnName);
     }
 
-    public static ContactImporter ForCustomers(IAppDbContext db, ISender sender) =>
-        new(db, sender, ImportEntityType.Customer, ContactType.Customer);
+    public static ContactImporter ForCustomers(IAppDbContext db) =>
+        new(db, ImportEntityType.Customer, ContactType.Customer);
 
-    public static ContactImporter ForSuppliers(IAppDbContext db, ISender sender) =>
-        new(db, sender, ImportEntityType.Supplier, ContactType.Supplier);
+    public static ContactImporter ForSuppliers(IAppDbContext db) =>
+        new(db, ImportEntityType.Supplier, ContactType.Supplier);
 
     public ImportEntityType EntityType { get; }
 
     public ImportTemplateDefinition Template { get; }
 
-    public async Task<ImportRowResult> ApplyAsync(
-        Guid organizationId, ImportMode mode, ImportRowReader row, CancellationToken cancellationToken)
+    public async Task<ImportRowPlan> PlanAsync(
+        ImportRowContext context, ImportRowReader row, CancellationToken cancellationToken)
     {
         var name = row.GetRequiredString(_columnName);
-        var groupId = await ResolveGroupAsync(organizationId, row, cancellationToken);
+        var groupId = await ResolveGroupAsync(context.OrganizationId, row, cancellationToken);
         var address = row.GetOptionalString(ColumnAddress);
         var pan = row.GetOptionalString(ColumnPan);
         var phone = row.GetOptionalString(ColumnPhone);
         var email = row.GetOptionalString(ColumnEmail);
         var openingBalance = row.GetOptionalDecimal(ColumnOpeningBalance);
 
-        if (mode == ImportMode.CreateNew)
+        if (context.Mode == ImportMode.CreateNew)
         {
-            var created = await _sender.Send(
+            return ImportRowPlan.For<CreateContactCommand, CreateContactResult>(
                 new CreateContactCommand(
-                    organizationId, _contactType, name, address, pan, phone, email, groupId, openingBalance),
-                cancellationToken);
-
-            return new ImportRowResult(created.Id, created.Code);
+                    context.OrganizationId, _contactType, name, address, pan, phone, email, groupId, openingBalance),
+                $"Create {_contactType.ToString().ToLowerInvariant()} '{name}'",
+                targetCode: null,
+                created => new ImportRowResult(created.Id, created.Code));
         }
 
-        var existing = await FindByCodeAsync(organizationId, row, cancellationToken);
+        var existing = await FindByCodeAsync(context.OrganizationId, row, cancellationToken);
 
         // ContactType is immutable (see its doc comment), so a Supplier import must not be able to
         // reach a Customer row by code. This is also the check that keeps the two upload types
@@ -98,12 +95,12 @@ public sealed class ContactImporter : IEntityImporter
                 $"'{existing.Code}' is a {existing.Type}, not a {_contactType}; contact type cannot be changed by import.");
         }
 
-        var updated = await _sender.Send(
+        return ImportRowPlan.For<UpdateContactCommand, UpdateContactResult>(
             new UpdateContactCommand(
-                organizationId, existing.Id, name, address, pan, phone, email, groupId, openingBalance),
-            cancellationToken);
-
-        return new ImportRowResult(updated.Id, existing.Code);
+                context.OrganizationId, existing.Id, name, address, pan, phone, email, groupId, openingBalance),
+            $"Update {_contactType.ToString().ToLowerInvariant()} '{existing.Code}' to '{name}'",
+            existing.Code,
+            updated => new ImportRowResult(updated.Id, existing.Code));
     }
 
     private static ImportTemplateDefinition BuildTemplate(

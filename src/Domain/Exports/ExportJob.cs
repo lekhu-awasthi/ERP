@@ -96,19 +96,58 @@ public sealed class ExportJob
     {
     }
 
+    /// <summary>
+    /// Which categories this export was asked for, as their <see cref="ExportCategory"/> names
+    /// joined by commas -- the shape a job row stores a small fixed set in without a child table.
+    ///
+    /// <para><b>Stored rather than re-derived, because an export is evidence.</b> A file downloaded
+    /// six days after it was made has to be able to say what it was asked for; recomputing "all
+    /// categories" from today's enum would quietly relabel last week's artifact the moment phase 39
+    /// adds a ninth.</para>
+    /// </summary>
+    public string Categories { get; private set; } = string.Empty;
+
+    /// <summary>Inclusive start of the requested window, or null for "everything". Applies only to
+    /// the categories that have a date at all -- see <c>IExportCategoryReader.IsDateFiltered</c>;
+    /// master data is never filtered by it, and the workbook's Summary sheet says so per sheet
+    /// rather than leaving a reader to assume their product list was cut down.</summary>
+    public DateOnly? FromDate { get; private set; }
+
+    /// <summary>Inclusive end of the requested window, or null.</summary>
+    public DateOnly? ToDate { get; private set; }
+
     public static ExportJob Create(
-        Guid organizationId, Guid initiatedByUserId, int totalCategoryCount, DateTimeOffset now)
+        Guid organizationId,
+        Guid initiatedByUserId,
+        IReadOnlyList<ExportCategory> categories,
+        DateOnly? fromDate,
+        DateOnly? toDate,
+        DateTimeOffset now)
     {
         return new ExportJob
         {
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
             InitiatedByUserId = initiatedByUserId,
-            TotalCategoryCount = totalCategoryCount,
+            Categories = string.Join(",", categories),
+            FromDate = fromDate,
+            ToDate = toDate,
+            TotalCategoryCount = categories.Count,
             Status = ExportJobStatus.Queued,
             CreatedAt = now,
         };
     }
+
+    /// <summary>The stored selection, parsed back. An unrecognised name is skipped rather than
+    /// throwing: a job row written before a category was renamed must still be readable.</summary>
+    public IReadOnlyList<ExportCategory> SelectedCategories =>
+    [
+        .. Categories
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(name => Enum.TryParse<ExportCategory>(name, out var parsed) ? (ExportCategory?)parsed : null)
+            .Where(c => c is not null)
+            .Select(c => c!.Value),
+    ];
 
     /// <summary>Takes ownership of a Queued job, or re-takes a Running one whose runner died.
     /// Progress restarts at zero because the workbook is rebuilt from scratch.</summary>

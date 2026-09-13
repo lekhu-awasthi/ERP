@@ -177,9 +177,19 @@ public static class DependencyInjection
         // scope is where IJobActingUser assumes the initiating user (Decision B).
         services.AddScoped<IEntityImporter, ProductImporter>();
         services.AddScoped<IEntityImporter>(sp => ContactImporter.ForCustomers(
-            sp.GetRequiredService<Common.Persistence.IAppDbContext>(), sp.GetRequiredService<ISender>()));
+            sp.GetRequiredService<Common.Persistence.IAppDbContext>()));
         services.AddScoped<IEntityImporter>(sp => ContactImporter.ForSuppliers(
-            sp.GetRequiredService<Common.Persistence.IAppDbContext>(), sp.GetRequiredService<ISender>()));
+            sp.GetRequiredService<Common.Persistence.IAppDbContext>()));
+
+        // Phase 38 -- the four reference upload types Phase 21a deferred, plus one addition. Every
+        // one of them is a class and a line, which is what the seam was for; the only shared code
+        // any of them needed that did not already exist is ImportRowSequencer, and exactly two of
+        // them use it.
+        services.AddScoped<IEntityImporter, AccountImporter>();
+        services.AddScoped<IEntityImporter, ProductCategoryImporter>();
+        services.AddScoped<IEntityImporter, AccountGroupImporter>();
+        services.AddScoped<IEntityImporter, ContactPersonnelImporter>();
+        services.AddScoped<IEntityImporter, ProductVariantImporter>();
 
         // Phase 21c (Migrated tax-register import, FR-2.10) -- two more importers on the same seam,
         // which is the whole of what Decision C costs. There is no new job table, no new processor,
@@ -206,6 +216,13 @@ public static class DependencyInjection
         services.AddScoped<IExportCategoryReader, ChartOfAccountsExportReader>();
         services.AddScoped<IExportCategoryReader, LedgerTransactionExportReader>();
         services.AddScoped<IExportCategoryReader, StockMovementExportReader>();
+
+        // Phase 38 -- three more on the same seam, by the rule in ExportCategory's doc comment:
+        // a category earns its place when its rows cannot be reconstructed from the five already
+        // there. Nothing in the processor names any of them.
+        services.AddScoped<IExportCategoryReader, SalesDocumentExportReader>();
+        services.AddScoped<IExportCategoryReader, PurchaseDocumentExportReader>();
+        services.AddScoped<IExportCategoryReader, PaymentExportReader>();
         services.AddScoped<IExportJobProcessor, ExportJobProcessor>();
 
         // Phase 30 -- Communications. IDocumentPdfRenderer is deliberately NOT registered here:

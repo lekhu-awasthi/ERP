@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { PagedResult } from '../common/paged-result';
-import { ExportJobSummary } from './export.models';
+import { ExportCategory, ExportJobSummary } from './export.models';
 
 /**
  * Roadmap Phase 21b -- full-tenant data export (FR-2.8 / NFR-4.3). Sits beside `ImportService` for
@@ -16,11 +16,27 @@ export class ExportService {
   private readonly http = inject(HttpClient);
 
   /** No body: an export takes no parameters beyond the tenant (Decision A). */
-  createExportJob(organizationId: string): Observable<ExportJobSummary> {
+  /**
+   * @param categories Restricts the workbook to these sheets; omit or pass none for all of them,
+   * which is what the button meant before Phase 38 and still means.
+   * @param fromDate Inclusive ISO start of the window. Ignored by the categories that have no date;
+   * the workbook's Summary sheet says which, per sheet.
+   */
+  createExportJob(
+    organizationId: string,
+    categories: readonly ExportCategory[] = [],
+    fromDate: string | null = null,
+    toDate: string | null = null,
+  ): Observable<ExportJobSummary> {
+    const params: Record<string, string | string[]> = {};
+    if (categories.length > 0) params['categories'] = [...categories];
+    if (fromDate) params['from'] = fromDate;
+    if (toDate) params['to'] = toDate;
+
     return this.http.post<ExportJobSummary>(
       `${this.baseUrl(organizationId)}/export-jobs`,
       {},
-      { withCredentials: true },
+      { withCredentials: true, params },
     );
   }
 

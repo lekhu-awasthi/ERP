@@ -104,8 +104,8 @@ public class MigratedRegisterTemplateRoundTripTests
 
     private static IEntityImporter ImporterFor(ImportEntityType entityType) =>
         entityType == ImportEntityType.MigratedSalesRegister
-            ? new MigratedSalesRegisterImporter(null!)
-            : new MigratedPurchaseRegisterImporter(null!);
+            ? new MigratedSalesRegisterImporter()
+            : new MigratedPurchaseRegisterImporter();
 
     /// <summary>Executes the real <c>IResult</c> the download endpoint returns against a response
     /// body of our own, so the bytes under test are the bytes a user gets.</summary>

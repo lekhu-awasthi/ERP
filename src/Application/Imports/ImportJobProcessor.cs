@@ -1,4 +1,4 @@
-﻿using ErpApp.Application.Common.Email;
+using ErpApp.Application.Common.Email;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Jobs;
 using ErpApp.Application.Common.Persistence;
@@ -6,6 +6,7 @@ using ErpApp.Application.Common.Security;
 using ErpApp.Application.Common.Storage;
 using ErpApp.Domain.Imports;
 using FluentValidation;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -150,9 +151,12 @@ public sealed class ImportJobProcessor(
         var now = timeProvider.GetUtcNow();
         var abandonedBefore = now - RunnerLease;
 
+        // Validating is claimable-when-stale for the same reason Running is: a process that died
+        // mid-dry-run left a job nobody will ever finish. PendingConfirmation is deliberately not --
+        // it is not stalled, it is waiting for a person, and no lease should expire on a human.
         var job = await db.ImportJobs
             .Where(j => j.Status == ImportJobStatus.Queued
-                        || (j.Status == ImportJobStatus.Running
+                        || ((j.Status == ImportJobStatus.Running || j.Status == ImportJobStatus.Validating)
                             && (j.HeartbeatAt == null || j.HeartbeatAt < abandonedBefore)))
             .OrderBy(j => j.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
@@ -204,8 +208,41 @@ public sealed class ImportJobProcessor(
             return;
         }
 
+        // Phase 38: a hierarchical file is put in parents-first order here, before the first row is
+        // planned -- in BOTH passes, so the dry run validates the same rows in the same order the
+        // apply pass will use. A duplicate key or a cycle fails the whole job with its rows named,
+        // which is the promise the reference product's template only asks the user to keep.
+        var pendingKeys = new List<string>();
+        if (importer is IHierarchicalImporter hierarchical)
+        {
+            try
+            {
+                dataRows = [.. ImportRowSequencer.Order(
+                    dataRows, columnIndexes, hierarchical.KeyColumn, hierarchical.ParentColumn)];
+            }
+            catch (ImportFileException ex)
+            {
+                await FailAsync(job, ex.Message, cancellationToken);
+                return;
+            }
+
+            pendingKeys =
+            [
+                .. dataRows
+                    .Select(r => new ImportRowReader(columnIndexes, r).GetOptionalString(hierarchical.KeyColumn))
+                    .Where(k => k is not null)
+                    .Select(k => k!),
+            ];
+        }
+
         job.SetTotalRowCount(dataRows.Count);
         await db.SaveChangesAsync(cancellationToken);
+
+        if (job.AwaitsValidation)
+        {
+            await ValidateAsync(job, importer, columnIndexes, dataRows, pendingKeys, cancellationToken);
+            return;
+        }
 
         var alreadyClaimed = await db.ImportJobRows
             .Where(r => r.ImportJobId == job.Id)
@@ -253,6 +290,174 @@ public sealed class ImportJobProcessor(
     }
 
     /// <summary>
+    /// <b>The dry run (Phase 38, Decision B).</b> Plans every row and writes nothing.
+    ///
+    /// <para>It rejects a row through exactly the same code the apply pass uses --
+    /// <see cref="IEntityImporter.PlanAsync"/>, then the command's own FluentValidation validators --
+    /// so a row the review step passes is a row the apply pass will not reject for a reason the user
+    /// could have been shown. What it deliberately does not do is <i>execute</i> anything, which is
+    /// why it cannot promise more than that: a uniqueness clash or a lifecycle conflict is only
+    /// knowable at the moment of writing, and those still surface as row failures afterwards.</para>
+    ///
+    /// <para><b>A rejected row is claimed in the ordinary row ledger, terminal, before the user ever
+    /// confirms.</b> That is the whole reason this phase needed no new table: the apply pass skips
+    /// rows already in the ledger by the same mechanism that makes a crashed import resumable, so
+    /// the dry run's findings are simply the first entries in the results grid the user will read
+    /// afterwards. Rows that validate cleanly are left unclaimed, and are what Confirm Upload
+    /// applies.</para>
+    /// </summary>
+    private async Task ValidateAsync(
+        ImportJob job,
+        IEntityImporter importer,
+        IReadOnlyDictionary<string, int> columnIndexes,
+        IReadOnlyList<ImportSheetRow> dataRows,
+        IReadOnlyList<string> pendingKeys,
+        CancellationToken cancellationToken)
+    {
+        using var scope = scopeFactory.CreateScope();
+
+        // The same identity the apply pass will act under, so a row rejected here is rejected for
+        // the right tenant's data -- the importers' foreign-key lookups are org-filtered reads.
+        scope.ServiceProvider.GetRequiredService<IJobActingUser>().Assume(job.InitiatedByUserId);
+
+        var scopedImporter = scope.ServiceProvider
+            .GetServices<IEntityImporter>()
+            .Single(i => i.EntityType == importer.EntityType);
+
+        var context = ImportRowContext.ForValidation(job.OrganizationId, job.Mode, pendingKeys);
+
+        // A dry run that died half-way is resumed, not restarted: the rows it already rejected are
+        // in the ledger, and re-claiming one would collide with the unique index that makes the
+        // apply pass safe. Same read, same reason, one pass earlier.
+        var alreadyRecorded = (await db.ImportJobRows
+            .Where(r => r.ImportJobId == job.Id)
+            .Select(r => r.RowNumber)
+            .ToListAsync(cancellationToken))
+            .ToHashSet();
+
+        var rejected = 0;
+        var sinceLastProgressWrite = 0;
+
+        foreach (var dataRow in dataRows)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (sinceLastProgressWrite >= ProgressInterval)
+            {
+                if (await IsCancellationRequestedAsync(job.Id, cancellationToken))
+                {
+                    // Cancelled during the dry run. Nothing was written, so there is nothing to
+                    // leave half-done; the job is simply retired.
+                    await db.SaveChangesAsync(cancellationToken);
+                    await FinalizeAsync(job, cancelledByUser: true, cancellationToken);
+                    return;
+                }
+
+                await WriteProgressAsync(job, cancellationToken);
+                sinceLastProgressWrite = 0;
+            }
+
+            sinceLastProgressWrite++;
+
+            if (alreadyRecorded.Contains(dataRow.RowNumber))
+            {
+                rejected++;
+                continue;
+            }
+
+            var failure = await ValidateRowAsync(scope, scopedImporter, context, columnIndexes, dataRow, cancellationToken);
+            if (failure is null)
+            {
+                continue;
+            }
+
+            var ledgerRow = ImportJobRow.Claim(job.Id, job.OrganizationId, dataRow.RowNumber);
+            ledgerRow.MarkFailed(failure.Value.Column, failure.Value.Message);
+            db.ImportJobRows.Add(ledgerRow);
+            rejected++;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await ApplyCountsAsync(job, cancellationToken);
+
+        job.MarkPendingConfirmation(timeProvider.GetUtcNow());
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Import job {ImportJobId} validated: {Rejected} of {Total} row(s) rejected; awaiting confirmation.",
+            job.Id, rejected, dataRows.Count);
+
+        await NotifyAsync(job, cancellationToken);
+    }
+
+    /// <summary>Returns null when the row would be accepted, or the failure to record.</summary>
+    private async Task<(string? Column, string Message)?> ValidateRowAsync(
+        IServiceScope scope,
+        IEntityImporter importer,
+        ImportRowContext context,
+        IReadOnlyDictionary<string, int> columnIndexes,
+        ImportSheetRow dataRow,
+        CancellationToken cancellationToken)
+    {
+        ImportRowPlan plan;
+        try
+        {
+            plan = await importer.PlanAsync(context, new ImportRowReader(columnIndexes, dataRow), cancellationToken);
+        }
+        catch (ImportRowException ex)
+        {
+            return (ex.ColumnName, ex.Message);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return (null, ex.Message);
+        }
+
+        if (plan.Request is null)
+        {
+            // Provisional: the row is fine and its command cannot exist yet. See ImportRowPlan.
+            return null;
+        }
+
+        var failures = await RunValidatorsAsync(scope, plan.Request, cancellationToken);
+        return failures.Count == 0
+            ? null
+            : (failures[0].PropertyName, string.Join(" ", failures.Select(f => f.ErrorMessage)));
+    }
+
+    /// <summary>
+    /// Runs the command's own registered validators without sending it.
+    ///
+    /// <para>Resolved by the request's runtime type because the processor never names a command --
+    /// the same reflection <c>ValidationBehavior</c> gets for free from its generic parameter. This
+    /// is what makes the review step show the <i>real</i> rules ("Rate must be greater than zero")
+    /// rather than a second, weaker copy of them written for the importer.</para>
+    /// </summary>
+    private static async Task<IReadOnlyList<FluentValidation.Results.ValidationFailure>> RunValidatorsAsync(
+        IServiceScope scope, object request, CancellationToken cancellationToken)
+    {
+        var validatorType = typeof(IValidator<>).MakeGenericType(request.GetType());
+        var validators = scope.ServiceProvider.GetServices(validatorType).OfType<IValidator>().ToList();
+
+        if (validators.Count == 0)
+        {
+            return [];
+        }
+
+        var contextType = typeof(ValidationContext<>).MakeGenericType(request.GetType());
+        var validationContext = (IValidationContext)Activator.CreateInstance(contextType, request)!;
+
+        var failures = new List<FluentValidation.Results.ValidationFailure>();
+        foreach (var validator in validators)
+        {
+            var result = await validator.ValidateAsync(validationContext, cancellationToken);
+            failures.AddRange(result.Errors.Where(e => e is not null));
+        }
+
+        return failures;
+    }
+
+    /// <summary>
     /// The claim-then-act core. The ledger row is inserted and committed first; only then is the
     /// command sent, in a scope of its own that has assumed the initiating user's identity.
     /// </summary>
@@ -293,8 +498,16 @@ public sealed class ImportJobProcessor(
 
         try
         {
-            var result = await importer.ApplyAsync(
-                job.OrganizationId, job.Mode, new ImportRowReader(columnIndexes, dataRow), cancellationToken);
+            // The apply pass gets an empty pending-key set on purpose: ImportRowSequencer has
+            // already ordered the file, so every in-file parent is genuinely in the database by now
+            // and resolves exactly like one that was always there. See ImportRowContext.
+            var plan = await importer.PlanAsync(
+                ImportRowContext.ForApply(job.OrganizationId, job.Mode),
+                new ImportRowReader(columnIndexes, dataRow),
+                cancellationToken);
+
+            var result = await plan.ExecuteAsync(
+                rowScope.ServiceProvider.GetRequiredService<ISender>(), cancellationToken);
 
             ledgerRow.MarkSucceeded(result.TargetId, result.TargetCode);
         }

@@ -453,17 +453,80 @@
             <div class="mt-4">
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0">Additional Cost</h6>
-                <div class="form-check mb-0">
-                  <input
-                    class="form-check-input"
-                    type="checkbox"
-                    id="productWiseAdditionalCost"
-                    [checked]="isProductWiseAdditionalCost()"
-                    (change)="onProductWiseChange($event)"
-                  />
-                  <label class="form-check-label small" for="productWiseAdditionalCost">Add product-wise</label>
+                <div class="d-flex align-items-center gap-3">
+                  <!-- Phase 38: Import sits next to the checkbox and only while the grid is
+                       product-wise, which is where the reference product puts it -- a per-product
+                       grid is the only thing the file can describe. -->
+                  @if (isProductWiseAdditionalCost()) {
+                    <button
+                      type="button"
+                      class="btn btn-link btn-sm p-0"
+                      data-testid="additional-cost-import"
+                      [attr.aria-expanded]="showAdditionalCostImport()"
+                      (click)="toggleAdditionalCostImport()"
+                    >
+                      <i aria-hidden="true" class="bi bi-upload"></i> Import
+                    </button>
+                  }
+                  <div class="form-check mb-0">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="productWiseAdditionalCost"
+                      [checked]="isProductWiseAdditionalCost()"
+                      (change)="onProductWiseChange($event)"
+                    />
+                    <label class="form-check-label small" for="productWiseAdditionalCost">Add product-wise</label>
+                  </div>
                 </div>
               </div>
+
+              @if (isProductWiseAdditionalCost() && showAdditionalCostImport()) {
+                <div class="border rounded p-3 mb-3 bg-light" data-testid="additional-cost-import-panel">
+                  <p class="small text-muted mb-2">
+                    The uploaded product's additional cost must match the template. Download it below, enter the
+                    product-specific costs, and upload it here. Nothing is saved until you save the bill.
+                  </p>
+                  <div class="d-flex flex-wrap align-items-end gap-3">
+                    <button
+                      type="button"
+                      class="btn btn-outline-success btn-sm fw-semibold"
+                      (click)="downloadAdditionalCostTemplate()"
+                    >
+                      <i aria-hidden="true" class="bi bi-download"></i> Download Template (.xlsx)
+                    </button>
+                    <div>
+                      <label class="form-label small fw-semibold mb-1" for="additionalCostFile">
+                        Upload the filled-in file
+                      </label>
+                      <input
+                        id="additionalCostFile"
+                        type="file"
+                        class="form-control form-control-sm"
+                        accept=".xlsx"
+                        [disabled]="additionalCostImporting()"
+                        (change)="onAdditionalCostFileSelected($event)"
+                      />
+                    </div>
+                  </div>
+
+                  @if (additionalCostImportSummary(); as summary) {
+                    <div class="alert alert-success py-2 px-3 small mb-0 mt-3">{{ summary }}</div>
+                  }
+
+                  @if (additionalCostImportErrors().length > 0) {
+                    <div class="alert alert-warning py-2 px-3 small mb-0 mt-3">
+                      <div class="fw-semibold mb-1">Some cells were not imported:</div>
+                      <ul class="mb-0 ps-3">
+                        @for (error of additionalCostImportErrors(); track error.rowNumber + (error.columnName ?? '')) {
+                          <li>Row {{ error.rowNumber }}{{ error.columnName ? ' · ' + error.columnName : '' }} &mdash;
+                            {{ error.message }}</li>
+                        }
+                      </ul>
+                    </div>
+                  }
+                </div>
+              }
 
               @if (goodsLineProducts().length === 0) {
                 <div class="alert alert-warning py-2 small mb-2">

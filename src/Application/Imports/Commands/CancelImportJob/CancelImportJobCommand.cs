@@ -53,8 +53,10 @@ public sealed class CancelImportJobCommandHandler(IAppDbContext db, TimeProvider
         job.RequestCancellation();
 
         // A Queued job has no runner to notice the flag, so it is retired here and now; a Running
-        // one is left for the runner to finish cleanly at its next row boundary.
-        if (job.Status == ImportJobStatus.Queued)
+        // one is left for the runner to finish cleanly at its next row boundary. Phase 38's
+        // PendingConfirmation is the Queued case again -- no runner holds it, and nothing has been
+        // written, so this is also the "Reupload New File" path: discard and start over.
+        if (job.Status is ImportJobStatus.Queued or ImportJobStatus.PendingConfirmation)
         {
             job.MarkCancelled(timeProvider.GetUtcNow());
         }

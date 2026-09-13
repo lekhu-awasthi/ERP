@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Reports;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Exports;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,10 @@ public sealed class LedgerTransactionExportReader(IAppDbContext db) : IExportCat
 
     public string SheetName => "Ledger Transactions";
 
+    /// <summary>Filtered on <c>PostedAt</c> -- when it hit the ledger -- because that is the column
+    /// this sheet shows, and a report must filter the date it displays (phase 26a).</summary>
+    public bool IsDateFiltered => true;
+
     public IReadOnlyList<string> Headers { get; } =
     [
         "Posted At",
@@ -37,12 +42,20 @@ public sealed class LedgerTransactionExportReader(IAppDbContext db) : IExportCat
     ];
 
     public async Task<ExportCategoryResult> ReadAsync(
-        Guid organizationId, int maxRows, CancellationToken cancellationToken)
+        Guid organizationId, int maxRows, ExportDateRange range, CancellationToken cancellationToken)
     {
+        // Materialised before the query, not called inside it: GlDateBoundary is a static helper and
+        // a static call in a predicate is untranslatable -- and InMemory would evaluate it in C# and
+        // hide that (phase-34b).
+        var fromUtc = range.From is null ? (DateTimeOffset?)null : GlDateBoundary.StartOfDayUtc(range.From.Value);
+        var toUtc = range.To is null ? (DateTimeOffset?)null : GlDateBoundary.EndOfDayUtc(range.To.Value);
+
         var query =
             from line in db.GlLines
             join entry in db.GlJournalEntries on line.GlJournalEntryId equals entry.Id
             where entry.OrganizationId == organizationId
+                  && (fromUtc == null || entry.PostedAt >= fromUtc)
+                  && (toUtc == null || entry.PostedAt <= toUtc)
             join account in db.Accounts on line.AccountId equals account.Id into accounts
             from account in accounts.DefaultIfEmpty()
             orderby entry.PostedAt, entry.Id, line.Id

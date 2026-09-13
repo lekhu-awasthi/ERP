@@ -6,6 +6,7 @@ import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.mo
 import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
+import { triggerBlobDownload } from '../../../shared/download-file';
 import { PurchasingService } from '../../../core/purchasing/purchasing.service';
 import {
   AdditionalCostMethod,
@@ -159,6 +160,16 @@ export class PurchaseBillDetailPage {
   protected readonly costTerms = signal<CostTerm[]>([]);
   protected readonly showAdditionalCost = signal(false);
   protected readonly isProductWiseAdditionalCost = signal(false);
+
+  // Phase 38 -- the product-wise grid's Import, confirmed live on 2026-09-12 as a template-based
+  // .xlsx drawer rather than the clipboard paste phase 29 recorded. It appears only when the grid
+  // is product-wise, which is where the reference product puts it.
+  protected readonly showAdditionalCostImport = signal(false);
+  protected readonly additionalCostImporting = signal(false);
+  protected readonly additionalCostImportErrors = signal<
+    { rowNumber: number; columnName: string | null; message: string }[]
+  >([]);
+  protected readonly additionalCostImportSummary = signal<string | null>(null);
   protected readonly additionalCosts = signal<EditableAdditionalCost[]>([]);
   protected readonly additionalCostMethods: AdditionalCostMethod[] = ['Value', 'Quantity'];
   private referrerType: DocumentType | null = null;
@@ -730,6 +741,91 @@ export class PurchaseBillDetailPage {
   }
 
   // --- Phase 29 (FR-6.15), the Additional Cost section ---
+
+  protected toggleAdditionalCostImport(): void {
+    this.showAdditionalCostImport.update((open) => !open);
+    this.additionalCostImportErrors.set([]);
+    this.additionalCostImportSummary.set(null);
+  }
+
+  /** The template's rows are the bill's own goods lines, so it is worth downloading rather than
+   * typing -- which is exactly why it is generated per request instead of being a static file. */
+  protected downloadAdditionalCostTemplate(): void {
+    const productIds = this.goodsLineProducts().map((p) => p.id);
+
+    this.purchasingService
+      .downloadAdditionalCostTemplate(this.organizationId, productIds)
+      .subscribe({
+        next: (blob) => triggerBlobDownload(blob, 'AdditionalCost.xlsx'),
+        error: (err: unknown) =>
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not download the template.'),
+      });
+  }
+
+  /**
+   * Applies an uploaded grid to the rows in front of the user. Nothing is saved: the cells land in
+   * the editable matrix and the bill still has to be saved, which is what makes this a form helper
+   * rather than an import job.
+   */
+  protected onAdditionalCostFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    this.additionalCostImporting.set(true);
+    this.additionalCostImportErrors.set([]);
+    this.additionalCostImportSummary.set(null);
+
+    this.purchasingService.importAdditionalCostGrid(this.organizationId, file).subscribe({
+      next: (result) => {
+        this.additionalCostImporting.set(false);
+        this.additionalCostImportErrors.set(result.errors);
+        this.applyAdditionalCostCells(result.cells);
+        input.value = '';
+      },
+      error: (err: unknown) => {
+        this.additionalCostImporting.set(false);
+        input.value = '';
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not read that file.');
+      },
+    });
+  }
+
+  /**
+   * Replaces the product-wise rows rather than appending to them.
+   *
+   * <p>Appending would be the wrong reading of "import": a user who corrects their spreadsheet and
+   * uploads it again would end up with both versions in the grid and a doubled landed cost, which
+   * is a number nobody would notice until it reached the FIFO layers. Rows whose product the file
+   * did not mention are kept, because the file is a grid of the lines it was generated for.</p>
+   */
+  private applyAdditionalCostCells(
+    cells: readonly { productId: string; costTermId: string; amount: number }[],
+  ): void {
+    const touched = new Set(cells.map((c) => c.productId));
+
+    this.additionalCosts.update((rows) => [
+      ...rows.filter((row) => !touched.has(row.productId)),
+      ...cells.map((cell) => ({
+        key: nextAdditionalCostKey++,
+        costTermId: cell.costTermId,
+        productId: cell.productId,
+        // Value, the live picker's own default. The file carries an amount per (product, term) and
+        // says nothing about how to spread it, because a product-wise cell is already allocated.
+        method: 'Value' as AdditionalCostMethod,
+        amount: cell.amount,
+      })),
+    ]);
+
+    this.showAdditionalCost.set(true);
+    this.additionalCostImportSummary.set(
+      cells.length === 0
+        ? 'That file had no amounts to import.'
+        : `${cells.length} cost ${cells.length === 1 ? 'amount' : 'amounts'} filled in. Save the bill to keep them.`,
+    );
+  }
 
   protected addAdditionalCost(): void {
     this.showAdditionalCost.set(true);

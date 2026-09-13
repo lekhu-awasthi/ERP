@@ -2150,6 +2150,13 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<bool>("CancellationRequested")
                         .HasColumnType("bit");
 
+                    b.Property<string>("Categories")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasDefaultValue("");
+
                     b.Property<DateTimeOffset?>("CompletedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -2169,6 +2176,9 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.Property<long?>("FileSizeBytes")
                         .HasColumnType("bigint");
+
+                    b.Property<DateOnly?>("FromDate")
+                        .HasColumnType("date");
 
                     b.Property<DateTimeOffset?>("HeartbeatAt")
                         .HasColumnType("datetimeoffset");
@@ -2193,6 +2203,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<string>("StorageKey")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateOnly?>("ToDate")
+                        .HasColumnType("date");
 
                     b.Property<int>("TotalCategoryCount")
                         .HasColumnType("int");
@@ -2429,13 +2442,21 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<int>("ProcessedRowCount")
                         .HasColumnType("int");
 
+                    b.Property<bool>("ReviewBeforeApply")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset?>("ReviewConfirmedAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<DateTimeOffset?>("StartedAt")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<string>("StorageKey")
                         .IsRequired()

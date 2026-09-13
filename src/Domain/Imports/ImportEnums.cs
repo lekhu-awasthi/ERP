@@ -41,6 +41,38 @@ public enum ImportEntityType
 
     /// <summary>Phase 21c (FR-2.10) -- historical Purchase Book rows. Create-only.</summary>
     MigratedPurchaseRegister,
+
+    /// <summary>Phase 38 -- the reference product's <c>Account</c> upload type. <b>Not a tree.</b>
+    /// Its "Account Group" column points at a different aggregate, which must already exist, so an
+    /// Account file has no intra-file parent references and needs none of
+    /// <c>ImportRowSequencer</c>'s machinery.</summary>
+    Account,
+
+    /// <summary>Phase 38 -- a tree. Its "Parent Category" names another row that may appear later in
+    /// the same file (<c>ImportRowSequencer</c>). Create-only, matching the reference product.</summary>
+    ProductCategory,
+
+    /// <summary>Phase 38 -- a tree, same shape as <see cref="ProductCategory"/> plus a fixed
+    /// "Primary Group" (this codebase's <c>AccountRootType</c>). Create-only, matching the reference
+    /// product.</summary>
+    AccountGroup,
+
+    /// <summary>Phase 38 -- the reference product's <c>Contact</c> upload type, which is
+    /// <c>Contacts.ContactPersonnel</c> here and not <c>Contacts.Contact</c>: its "Organisation"
+    /// column names the Customer or Supplier the person belongs to. Phase 21a's confirm-live pass
+    /// caught that naming (see the remark above); this is the importer it was deferred in favour
+    /// of.</summary>
+    ContactPersonnel,
+
+    /// <summary>Phase 38 -- variant children of a variant parent (FR-8.3, phase 24).
+    ///
+    /// <para><b>The reference product has no such upload type</b> -- its list is the seven read
+    /// live in phase 21a and this is not among them -- so this member is an addition, not parity,
+    /// and is labelled as one in docs/phase-38-status.md. Create-only, because a variant's identity
+    /// <i>is</i> its combination: "update" would either move a variant to a different combination
+    /// (which is a different variant) or edit prices, which the ordinary Product importer already
+    /// does by code.</para></summary>
+    ProductVariant,
 }
 
 /// <summary>
@@ -73,6 +105,12 @@ public enum ImportMode
 /// enqueue and execution. Anything a single row can do to itself is a row outcome, never a job
 /// outcome.</para>
 /// </summary>
+/// <para><b>Phase 38 added two members, and they are one round trip through a human.</b> A job
+/// created with <c>ReviewBeforeApply</c> runs a <see cref="Validating"/> pass that writes nothing,
+/// stops at <see cref="PendingConfirmation"/>, and waits for <c>ConfirmImportJobCommand</c> --
+/// which puts it back to <see cref="Queued"/> with <c>ReviewConfirmedAt</c> stamped, so the runner's
+/// second claim is the apply pass. The phase the runner is in is therefore <i>derived</i> from two
+/// columns rather than stored a third time; see <c>ImportJobProcessor.RunAsync</c>.</para>
 public enum ImportJobStatus
 {
     Queued,
@@ -80,6 +118,14 @@ public enum ImportJobStatus
     Completed,
     Failed,
     Cancelled,
+
+    /// <summary>Phase 38 -- the dry run is in progress. Nothing has been written.</summary>
+    Validating,
+
+    /// <summary>Phase 38 -- the dry run finished and the user has not yet pressed Confirm Upload.
+    /// A job can sit here indefinitely; cancelling from here applies nothing, which is the whole
+    /// point of the state.</summary>
+    PendingConfirmation,
 }
 
 /// <summary>

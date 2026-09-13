@@ -30,7 +30,7 @@ namespace ErpApp.Application.Imports;
 /// columns is a small price for the only statutory data a cutover would otherwise lose outright.
 /// </para>
 /// </summary>
-public sealed class MigratedSalesRegisterImporter(ISender sender) : IEntityImporter
+public sealed class MigratedSalesRegisterImporter : IEntityImporter
 {
     private const string ColumnDate = "Date";
     private const string ColumnDocumentNo = "Document No";
@@ -90,24 +90,27 @@ public sealed class MigratedSalesRegisterImporter(ISender sender) : IEntityImpor
             "Do not change the column headers.",
         ]);
 
-    public async Task<ImportRowResult> ApplyAsync(
-        Guid organizationId, ImportMode mode, ImportRowReader row, CancellationToken cancellationToken)
+    public Task<ImportRowPlan> PlanAsync(
+        ImportRowContext context, ImportRowReader row, CancellationToken cancellationToken)
     {
         // Defence in depth only -- CreateImportJobCommandValidator already rejects UpdateExisting for
         // this entity type at upload time, so this cannot be reached through the UI. It is here
         // because "silently create when asked to update" is the worst possible reading of an
         // ambiguous request, and a job enqueued by some future caller must not get it.
-        if (mode != ImportMode.CreateNew)
+        if (context.Mode != ImportMode.CreateNew)
         {
             throw new ImportRowException(
                 null, "Migrated register rows can only be created, not updated. Re-upload with Create New Records.");
         }
 
-        var result = await sender.Send(
+        var documentNo = row.GetRequiredString(ColumnDocumentNo);
+
+        return Task.FromResult<ImportRowPlan>(
+            ImportRowPlan.For<CreateMigratedSalesRegisterEntryCommand, CreateMigratedSalesRegisterEntryResult>(
             new CreateMigratedSalesRegisterEntryCommand(
-                organizationId,
+                context.OrganizationId,
                 row.GetRequiredDate(ColumnDate),
-                row.GetRequiredString(ColumnDocumentNo),
+                documentNo,
                 row.GetRequiredString(ColumnCustomerName),
                 row.GetOptionalString(ColumnCustomerPan),
                 row.GetOptionalDecimal(ColumnTotalValue),
@@ -118,8 +121,8 @@ public sealed class MigratedSalesRegisterImporter(ISender sender) : IEntityImpor
                 row.GetOptionalString(ColumnExportCountry),
                 row.GetOptionalString(ColumnExportDeclarationNo),
                 row.GetOptionalDate(ColumnExportDeclarationDate)),
-            cancellationToken);
-
-        return new ImportRowResult(result.Id, result.DocumentCode);
+            $"Add migrated sales register row '{documentNo}'",
+            documentNo,
+            result => new ImportRowResult(result.Id, result.DocumentCode)));
     }
 }

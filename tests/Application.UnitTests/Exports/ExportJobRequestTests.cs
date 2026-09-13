@@ -31,7 +31,7 @@ public class ExportJobRequestTests
         var result = await host.Send(new CreateExportJobCommand(tenant.OrganizationId));
 
         Assert.Equal(ExportJobStatus.Queued, result.Status);
-        Assert.Equal(5, result.TotalCategoryCount);
+        Assert.Equal(8, result.TotalCategoryCount);
         Assert.Equal(tenant.AdminUserId, result.InitiatedByUserId);
         Assert.False(result.HasArtifact);
         Assert.Null(result.FileName);

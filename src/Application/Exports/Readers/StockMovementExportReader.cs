@@ -16,6 +16,9 @@ public sealed class StockMovementExportReader(IAppDbContext db) : IExportCategor
 
     public string SheetName => "Stock Movements";
 
+    /// <summary>Filtered on <c>TransactionDate</c>, the business date this sheet shows.</summary>
+    public bool IsDateFiltered => true;
+
     public IReadOnlyList<string> Headers { get; } =
     [
         "Transaction Date",
@@ -32,11 +35,13 @@ public sealed class StockMovementExportReader(IAppDbContext db) : IExportCategor
     ];
 
     public async Task<ExportCategoryResult> ReadAsync(
-        Guid organizationId, int maxRows, CancellationToken cancellationToken)
+        Guid organizationId, int maxRows, ExportDateRange range, CancellationToken cancellationToken)
     {
         var query =
             from movement in db.StockMovements
             where movement.OrganizationId == organizationId
+                  && (range.From == null || movement.TransactionDate >= range.From)
+                  && (range.To == null || movement.TransactionDate <= range.To)
             join product in db.Products on movement.ProductId equals product.Id into products
             from product in products.DefaultIfEmpty()
             join warehouse in db.Warehouses on movement.WarehouseId equals warehouse.Id into warehouses

@@ -27,7 +27,8 @@ public sealed class CreateImportJobCommandHandler(
             storageKey,
             request.FileName,
             currentUser.UserId,
-            timeProvider.GetUtcNow());
+            timeProvider.GetUtcNow(),
+            request.ReviewBeforeApply);
 
         db.ImportJobs.Add(job);
         await db.SaveChangesAsync(cancellationToken);

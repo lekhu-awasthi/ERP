@@ -21,7 +21,7 @@ public class ExportCategoryReaderTests
         var tenant = await ExportTestSeed.SeedAsync(db);
         await AddProductsAsync(db, tenant.OrganizationId, "P-A-0002", "P-A-0003");
 
-        var result = await new ProductExportReader(db).ReadAsync(tenant.OrganizationId, 2, CancellationToken.None);
+        var result = await new ProductExportReader(db).ReadAsync(tenant.OrganizationId, 2, ExportDateRange.Unbounded, CancellationToken.None);
 
         Assert.Equal(2, result.Rows.Count);
         Assert.Equal(3, result.TotalRowCount);
@@ -39,7 +39,7 @@ public class ExportCategoryReaderTests
         var tenant = await ExportTestSeed.SeedAsync(db);
 
         var result = await new ProductExportReader(db)
-            .ReadAsync(tenant.OrganizationId, ExportLimits.MaxRowsPerCategory, CancellationToken.None);
+            .ReadAsync(tenant.OrganizationId, ExportLimits.MaxRowsPerCategory, ExportDateRange.Unbounded, CancellationToken.None);
 
         Assert.Single(result.Rows);
         Assert.Equal(1, result.TotalRowCount);
@@ -59,9 +59,9 @@ public class ExportCategoryReaderTests
         var tenantB = await ExportTestSeed.SeedAsync(db, "B");
 
         var forA = await new LedgerTransactionExportReader(db)
-            .ReadAsync(tenantA.OrganizationId, 1000, CancellationToken.None);
+            .ReadAsync(tenantA.OrganizationId, 1000, ExportDateRange.Unbounded, CancellationToken.None);
         var forB = await new LedgerTransactionExportReader(db)
-            .ReadAsync(tenantB.OrganizationId, 1000, CancellationToken.None);
+            .ReadAsync(tenantB.OrganizationId, 1000, ExportDateRange.Unbounded, CancellationToken.None);
 
         Assert.Equal(2, forA.TotalRowCount);
         Assert.Equal(2, forB.TotalRowCount);
@@ -78,7 +78,7 @@ public class ExportCategoryReaderTests
         var tenant = await ExportTestSeed.SeedAsync(db);
 
         var result = await new ChartOfAccountsExportReader(db)
-            .ReadAsync(tenant.OrganizationId, 1000, CancellationToken.None);
+            .ReadAsync(tenant.OrganizationId, 1000, ExportDateRange.Unbounded, CancellationToken.None);
 
         Assert.Equal(2, result.Rows.Count);
         Assert.All(result.Rows, r => Assert.Null(r[5]));

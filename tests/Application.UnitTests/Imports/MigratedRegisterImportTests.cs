@@ -342,8 +342,8 @@ public class MigratedRegisterImportTests
     public void The_template_is_internally_consistent(ImportEntityType entityType)
     {
         IEntityImporter importer = entityType == ImportEntityType.MigratedSalesRegister
-            ? new MigratedSalesRegisterImporter(null!)
-            : new MigratedPurchaseRegisterImporter(null!);
+            ? new MigratedSalesRegisterImporter()
+            : new MigratedPurchaseRegisterImporter();
 
         var template = importer.Template;
 

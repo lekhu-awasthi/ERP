@@ -3,7 +3,6 @@ using ErpApp.Application.Catalog.Commands.UpdateProduct;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Imports;
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Imports;
@@ -29,7 +28,7 @@ namespace ErpApp.Application.Imports;
 /// </list>
 /// Adding a column later is additive and harmless; shipping one that silently does nothing is not.</para>
 /// </summary>
-public sealed class ProductImporter(IAppDbContext db, ISender sender) : IEntityImporter
+public sealed class ProductImporter(IAppDbContext db) : IEntityImporter
 {
     private const string ColumnCode = "Product Code";
     private const string ColumnHsCode = "HS Code";
@@ -97,25 +96,25 @@ public sealed class ProductImporter(IAppDbContext db, ISender sender) : IEntityI
             "Note: Do not change the column headers.",
         ]);
 
-    public async Task<ImportRowResult> ApplyAsync(
-        Guid organizationId, ImportMode mode, ImportRowReader row, CancellationToken cancellationToken)
+    public async Task<ImportRowPlan> PlanAsync(
+        ImportRowContext context, ImportRowReader row, CancellationToken cancellationToken)
     {
         var name = row.GetRequiredString(ColumnName);
-        var categoryId = await ResolveCategoryAsync(organizationId, row, cancellationToken);
-        var primaryUnitId = await ResolvePrimaryUnitAsync(organizationId, row, cancellationToken);
+        var categoryId = await ResolveCategoryAsync(context.OrganizationId, row, cancellationToken);
+        var primaryUnitId = await ResolvePrimaryUnitAsync(context.OrganizationId, row, cancellationToken);
         var vatRate = row.GetChoice(ColumnVat, VatRates, required: true, VatRate.NoVat);
         var hsCode = row.GetOptionalString(ColumnHsCode);
         var sellingPrice = row.GetOptionalDecimal(ColumnSellingPrice);
         var purchasePrice = row.GetOptionalDecimal(ColumnPurchasePrice);
         var reorderLevel = row.GetOptionalInt(ColumnReorderLevel);
 
-        if (mode == ImportMode.CreateNew)
+        if (context.Mode == ImportMode.CreateNew)
         {
             var type = row.GetChoice(ColumnType, ProductTypes, required: true, ProductType.Goods);
 
-            var created = await sender.Send(
+            return ImportRowPlan.For<CreateProductCommand, CreateProductResult>(
                 new CreateProductCommand(
-                    organizationId,
+                    context.OrganizationId,
                     type,
                     name,
                     categoryId,
@@ -127,12 +126,12 @@ public sealed class ProductImporter(IAppDbContext db, ISender sender) : IEntityI
                     vatRate,
                     reorderLevel,
                     TrackInventory: row.GetOptionalBoolean(ColumnTrackInventory, fallback: type == ProductType.Goods)),
-                cancellationToken);
-
-            return new ImportRowResult(created.Id, created.Code);
+                $"Create {type} product '{name}'",
+                targetCode: null,
+                created => new ImportRowResult(created.Id, created.Code));
         }
 
-        var existing = await FindByCodeAsync(organizationId, row, cancellationToken);
+        var existing = await FindByCodeAsync(context.OrganizationId, row, cancellationToken);
 
         // Product Type is immutable by design (see ProductType's doc comment), so update mode treats
         // a mismatch as a row error rather than ignoring the column -- silently importing a "Service"
@@ -145,9 +144,9 @@ public sealed class ProductImporter(IAppDbContext db, ISender sender) : IEntityI
                 $"Product '{existing.Code}' is a {existing.Type} product; product type cannot be changed by import.");
         }
 
-        var updated = await sender.Send(
+        return ImportRowPlan.For<UpdateProductCommand, UpdateProductResult>(
             new UpdateProductCommand(
-                organizationId,
+                context.OrganizationId,
                 existing.Id,
                 name,
                 categoryId,
@@ -168,9 +167,9 @@ public sealed class ProductImporter(IAppDbContext db, ISender sender) : IEntityI
                 existing.SalesReturnAccountId,
                 existing.PurchaseAccountId,
                 existing.PurchaseReturnAccountId),
-            cancellationToken);
-
-        return new ImportRowResult(updated.Id, existing.Code);
+            $"Update product '{existing.Code}' to '{name}'",
+            existing.Code,
+            updated => new ImportRowResult(updated.Id, existing.Code));
     }
 
     private async Task<Guid> ResolveCategoryAsync(

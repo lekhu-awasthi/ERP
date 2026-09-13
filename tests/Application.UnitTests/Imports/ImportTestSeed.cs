@@ -1,4 +1,4 @@
-﻿using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Storage;
 using ErpApp.Application.Common.Security;
 using ErpApp.Application.Imports;
@@ -92,13 +92,17 @@ internal static class ImportTestSeed
         ImportEntityType entityType,
         ImportMode mode,
         DateTimeOffset now,
-        IFileStorage fileStorage)
+        IFileStorage fileStorage,
+        bool reviewBeforeApply = false)
     {
         using var placeholder = new MemoryStream([0x50, 0x4B]);
         var storageKey = await fileStorage.SaveAsync(placeholder, "upload.xlsx");
 
+        // Defaults to false so every test written before phase 38 still queues a job that applies in
+        // one pass; the review tests opt in explicitly.
         var job = ImportJob.Create(
-            tenant.OrganizationId, entityType, mode, storageKey, "upload.xlsx", tenant.AdminUserId, now);
+            tenant.OrganizationId, entityType, mode, storageKey, "upload.xlsx", tenant.AdminUserId, now,
+            reviewBeforeApply);
 
         db.ImportJobs.Add(job);
         await db.SaveChangesAsync();

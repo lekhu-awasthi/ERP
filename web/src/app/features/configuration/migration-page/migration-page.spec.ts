@@ -44,6 +44,9 @@ describe('MigrationPage', () => {
       createdAt: '2026-09-01T07:39:46Z',
       startedAt: '2026-09-01T07:39:50Z',
       completedAt: '2026-09-01T07:39:51Z',
+      reviewBeforeApply: false,
+      reviewConfirmedAt: null,
+      validatedRowCount: 0,
       ...overrides,
     };
   }

@@ -714,3 +714,25 @@ Moved verbatim; the one-line versions in CLAUDE.md keep the same "before X" hook
   **before adding a NOT NULL column with a default**: a default is safe exactly when it is the truth
   about the rows already there, which is why `ValueAdjustment` needed no backfill where phase 31's
   `DueDate` did — `docs/phase-37-status.md`
+
+- **Phase 38 — import and export breadth.** **Before adding a bulk importer**: it resolves a row into
+  the command it *would* send (`PlanAsync` returning an `ImportRowPlan`) and only then sends it, so
+  the dry run and the real run share every line of the resolution rather than growing a second,
+  weaker copy of the rules. **Before assuming a type needs intra-file parent ordering**: only
+  **self**-referencing ones do — the roadmap called `Account` a tree and it is a leaf, because its
+  "Account Group" column points at a *different aggregate* that the file cannot contain. **Before
+  building a pre-commit review**: it needs no findings table, because the validate pass can claim
+  only the rows it rejects in the existing row ledger and the apply pass then skips them through the
+  identical mechanism that makes a crashed import resumable — but it must be handed the file's own
+  in-file keys, or a row whose parent a *later* row creates reads as an error in the review and then
+  imports fine, which teaches users to ignore the review. **Before adding an export category**: the
+  rule is that it must carry rows the existing ones cannot reconstruct (the General Ledger has what
+  a document did to the accounts and never its quantities or rates), and it must publish whether a
+  date range applies to it, per sheet, or a short list is indistinguishable from a working filter.
+  **Before changing a row cap**: phase 34c's coefficient (~2.5 kB of working set per row) is the
+  arithmetic, and the cap's *shape* matters more than its value — a per-category cap silently
+  multiplies when the category count grows, which is why a workbook-wide budget arrived alongside it.
+  **And before adding an array parameter to a POST endpoint**: a Minimal API binds it from the body,
+  so a repeated query string arrives null and the feature silently does the unfiltered thing —
+  `[FromQuery]` is load-bearing, only an end-to-end call shows it, and the simple parameters beside
+  it bind without help, which is exactly what hides it — `docs/phase-38-status.md`

@@ -13,10 +13,20 @@ public class ExportJobTests
     private static readonly DateTimeOffset Now = new(2026, 9, 1, 10, 0, 0, TimeSpan.Zero);
     private static readonly TimeSpan Retention = TimeSpan.FromDays(7);
 
+    /// <summary>Phase 21b's five categories, which is what these tests meant by "5".</summary>
+    private static readonly ExportCategory[] AllCategories =
+    [
+        ExportCategory.Products,
+        ExportCategory.Contacts,
+        ExportCategory.ChartOfAccounts,
+        ExportCategory.LedgerTransactions,
+        ExportCategory.StockMovements,
+    ];
+
     [Fact]
     public void A_new_job_is_queued_with_no_artifact()
     {
-        var job = ExportJob.Create(Guid.NewGuid(), Guid.NewGuid(), 5, Now);
+        var job = ExportJob.Create(Guid.NewGuid(), Guid.NewGuid(), AllCategories, null, null, Now);
 
         Assert.Equal(ExportJobStatus.Queued, job.Status);
         Assert.False(job.IsTerminal);
@@ -29,7 +39,7 @@ public class ExportJobTests
     [Fact]
     public void Completing_records_the_artifact_and_when_it_expires()
     {
-        var job = ExportJob.Create(Guid.NewGuid(), Guid.NewGuid(), 5, Now);
+        var job = ExportJob.Create(Guid.NewGuid(), Guid.NewGuid(), AllCategories, null, null, Now);
         job.Claim(Now);
         job.MarkCompleted(Now, "key-1", "DataExport.xlsx", 4096, null, Retention);
 
@@ -46,7 +56,7 @@ public class ExportJobTests
     [Fact]
     public void Purging_clears_the_key_but_keeps_the_row_readable()
     {
-        var job = ExportJob.Create(Guid.NewGuid(), Guid.NewGuid(), 5, Now);
+        var job = ExportJob.Create(Guid.NewGuid(), Guid.NewGuid(), AllCategories, null, null, Now);
         job.Claim(Now);
         job.MarkCompleted(Now, "key-1", "DataExport.xlsx", 4096, null, Retention);
 
@@ -65,7 +75,7 @@ public class ExportJobTests
     [Fact]
     public void Reclaiming_an_abandoned_job_resets_progress_but_keeps_the_original_start()
     {
-        var job = ExportJob.Create(Guid.NewGuid(), Guid.NewGuid(), 5, Now);
+        var job = ExportJob.Create(Guid.NewGuid(), Guid.NewGuid(), AllCategories, null, null, Now);
         job.Claim(Now);
         job.SetProgress(3, 120, Now + TimeSpan.FromSeconds(30));
 
@@ -81,7 +91,7 @@ public class ExportJobTests
     [Fact]
     public void A_cancelled_job_is_terminal_and_has_nothing_to_download()
     {
-        var job = ExportJob.Create(Guid.NewGuid(), Guid.NewGuid(), 5, Now);
+        var job = ExportJob.Create(Guid.NewGuid(), Guid.NewGuid(), AllCategories, null, null, Now);
         job.Claim(Now);
         job.RequestCancellation();
         job.MarkCancelled(Now);
@@ -95,7 +105,7 @@ public class ExportJobTests
     [Fact]
     public void A_failure_reason_is_truncated_rather_than_overflowing_its_column()
     {
-        var job = ExportJob.Create(Guid.NewGuid(), Guid.NewGuid(), 5, Now);
+        var job = ExportJob.Create(Guid.NewGuid(), Guid.NewGuid(), AllCategories, null, null, Now);
         job.MarkFailed(Now, new string('x', 5000));
 
         Assert.Equal(1000, job.FailureReason!.Length);
@@ -104,7 +114,7 @@ public class ExportJobTests
     [Fact]
     public void A_truncation_notice_is_truncated_too()
     {
-        var job = ExportJob.Create(Guid.NewGuid(), Guid.NewGuid(), 5, Now);
+        var job = ExportJob.Create(Guid.NewGuid(), Guid.NewGuid(), AllCategories, null, null, Now);
         job.MarkCompleted(Now, "key-1", "f.xlsx", 1, new string('y', 5000), Retention);
 
         Assert.Equal(1000, job.TruncationNotice!.Length);

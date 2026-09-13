@@ -6,6 +6,7 @@ import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
 import {
+  AdditionalCostGridResult,
   AnnexThirteenReportDto,
   ApproveDebitNoteResult,
   ApproveExpenseResult,
@@ -52,6 +53,31 @@ import {
 @Injectable({ providedIn: 'root' })
 export class PurchasingService {
   private readonly http = inject(HttpClient);
+
+  /**
+   * Phase 38 -- the product-wise Additional Cost grid's template, generated from the lines the form
+   * is currently holding rather than from anything saved. Fetched as a Blob so the request carries
+   * the auth cookie and a 403 surfaces as a message rather than a broken download.
+   */
+  downloadAdditionalCostTemplate(organizationId: string, productIds: readonly string[]): Observable<Blob> {
+    return this.http.get(`${this.baseUrl(organizationId)}/purchase-bills/additional-cost-template`, {
+      withCredentials: true,
+      params: { productIds: [...productIds] },
+      responseType: 'blob',
+    });
+  }
+
+  /** Parses a filled-in grid and hands back its cells. Writes nothing. */
+  importAdditionalCostGrid(organizationId: string, file: File): Observable<AdditionalCostGridResult> {
+    const form = new FormData();
+    form.append('file', file);
+
+    return this.http.post<AdditionalCostGridResult>(
+      `${this.baseUrl(organizationId)}/purchase-bills/additional-cost-import`,
+      form,
+      { withCredentials: true },
+    );
+  }
 
   private baseUrl(organizationId: string): string {
     return `${environment.apiBaseUrl}/api/organizations/${organizationId}`;

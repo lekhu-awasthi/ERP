@@ -12,6 +12,10 @@ public sealed class ChartOfAccountsExportReader(IAppDbContext db) : IExportCateg
 
     public string SheetName => "Chart of Accounts";
 
+    /// <summary>Master data has no date to filter on; a requested range is ignored and the Summary
+    /// sheet says so per sheet rather than leaving a short list ambiguous.</summary>
+    public bool IsDateFiltered => false;
+
     public IReadOnlyList<string> Headers { get; } =
     [
         "Account Code",
@@ -26,7 +30,7 @@ public sealed class ChartOfAccountsExportReader(IAppDbContext db) : IExportCateg
     ];
 
     public async Task<ExportCategoryResult> ReadAsync(
-        Guid organizationId, int maxRows, CancellationToken cancellationToken)
+        Guid organizationId, int maxRows, ExportDateRange range, CancellationToken cancellationToken)
     {
         var query =
             from account in db.Accounts

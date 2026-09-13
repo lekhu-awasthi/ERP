@@ -586,3 +586,13 @@ export interface PurchaseRegisterDto {
   totalTaxableCapitalValue: number;
   totalTaxableCapitalVat: number;
 }
+
+/**
+ * Phase 38 -- what the Additional Cost grid's Import hands back. Nothing has been written: these
+ * are cells for the form to fill in, and the user still has to save the bill.
+ */
+export interface AdditionalCostGridResult {
+  cells: { productId: string; costTermId: string; amount: number }[];
+  /** Per-cell problems, in the same Row / Column / Message shape the import review step uses. */
+  errors: { rowNumber: number; columnName: string | null; message: string }[];
+}

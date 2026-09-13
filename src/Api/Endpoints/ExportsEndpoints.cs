@@ -4,6 +4,8 @@ using ErpApp.Application.Exports.Commands.CancelExportJob;
 using ErpApp.Application.Exports.Commands.CreateExportJob;
 using ErpApp.Application.Exports.Queries.GetExportJobArtifact;
 using ErpApp.Application.Exports.Queries.ListExportJobs;
+using ErpApp.Domain.Exports;
+using Microsoft.AspNetCore.Mvc;
 using MediatR;
 
 namespace ErpApp.Api.Endpoints;
@@ -19,12 +21,26 @@ public static class ExportsEndpoints
             .WithTags("Exports")
             .RequireAuthorization();
 
-        // No body: an export takes no parameters beyond the tenant (Decision A -- FR-2.8's five
-        // categories, always, no checkboxes and no date range).
+        // Phase 38: categories is repeatable (?categories=Products&categories=Payments) and
+        // optional, from/to are optional. All three omitted is phase 21b's behaviour exactly --
+        // every category, every date -- so the existing button keeps working unchanged.
+        //
+        // [FromQuery] on the array is load-bearing, and only an end-to-end call could show it:
+        // a Minimal API binds a complex or array parameter from the BODY by default on a POST, so
+        // `categories` silently arrived null, ResolvedCategories fell back to "all of them", and
+        // every export ran all eight sheets while the screen said otherwise. The two DateOnly? bind
+        // from the query without help, because a simple type does -- which is exactly what makes
+        // the array's behaviour easy to miss.
         group.MapPost("/export-jobs", async (
-            Guid organizationId, ISender sender, CancellationToken ct) =>
+            Guid organizationId,
+            [FromQuery] ExportCategory[]? categories,
+            DateOnly? from,
+            DateOnly? to,
+            ISender sender,
+            CancellationToken ct) =>
         {
-            var result = await sender.Send(new CreateExportJobCommand(organizationId), ct);
+            var result = await sender.Send(
+                new CreateExportJobCommand(organizationId, categories, from, to), ct);
             return Results.Created($"/api/organizations/{organizationId}/export-jobs/{result.Id}", result);
         });
 

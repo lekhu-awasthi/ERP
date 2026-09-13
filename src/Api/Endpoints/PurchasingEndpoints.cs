@@ -36,6 +36,8 @@ using ErpApp.Application.Purchasing.Queries.PurchaseMasterReport;
 using ErpApp.Application.Purchasing.Queries.TdsReport;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Purchasing;
+using ErpApp.Api.Reports;
+using ErpApp.Application.Purchasing.AdditionalCostGrid;
 using MediatR;
 
 namespace ErpApp.Api.Endpoints;
@@ -125,6 +127,31 @@ public static class PurchasingEndpoints
             var result = await sender.Send(new GetPurchaseBillQuery(organizationId, id), ct);
             return Results.Ok(result);
         });
+
+        // Phase 38 -- the product-wise Additional Cost grid's Import, confirmed live as a
+        // template-based .xlsx drawer rather than the clipboard paste phase 29 recorded. Neither
+        // route writes anything: the template is generated from the lines the form is holding, and
+        // the upload is parsed straight back into the grid the user is looking at. See
+        // AdditionalCostGridQueries for why this is not an ImportJob.
+        group.MapGet("/purchase-bills/additional-cost-template", async (
+            Guid organizationId, Guid[]? productIds, ISender sender, CancellationToken ct) =>
+        {
+            var template = await sender.Send(
+                new GetAdditionalCostGridTemplateQuery(organizationId, productIds ?? []), ct);
+
+            return AdditionalCostGridWriter.Export(template);
+        });
+
+        // .DisableAntiforgery() for the same reason every IFormFile endpoint in this codebase needs
+        // it: binding one attaches antiforgery metadata this app has no middleware for, and the
+        // upload 500s without it (phase-18 bug #1).
+        group.MapPost("/purchase-bills/additional-cost-import", async (
+            Guid organizationId, IFormFile file, ISender sender, CancellationToken ct) =>
+        {
+            await using var stream = file.OpenReadStream();
+            var result = await sender.Send(new ParseAdditionalCostGridCommand(organizationId, stream), ct);
+            return Results.Ok(result);
+        }).DisableAntiforgery();
 
         group.MapPost("/purchase-bills", async (
             Guid organizationId, PurchaseBillRequest request, ISender sender, CancellationToken ct) =>
