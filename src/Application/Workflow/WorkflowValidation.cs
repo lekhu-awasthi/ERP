@@ -22,8 +22,9 @@ public static class WorkflowValidation
     /// <see cref="DocumentExistenceReader"/> -- the single 17-arm switch every document-attached
     /// mechanism goes through -- resolved by member <i>name</i> via
     /// <see cref="DocumentParentTypes"/>, never by ordinal. The two non-document parents are handled
-    /// here, and <c>DocumentMechanismSweepGuardTests</c> pins that Contact and Organization are the
-    /// only two there will ever be without someone noticing.</para>
+    /// here, and <c>DocumentMechanismSweepGuardTests</c> pins the whole non-document set (phase 43:
+    /// Contact, Organization, Deal and WorkTask) so a fifth cannot be added without someone
+    /// noticing.</para>
     /// </summary>
     public static async Task EnsureParentExistsAsync<TParentType>(
         IAppDbContext db, Guid organizationId, TParentType parentType, Guid parentId, CancellationToken cancellationToken)
@@ -42,6 +43,15 @@ public static class WorkflowValidation
             nameof(TaskParentType.Contact) => await db.Contacts.AnyAsync(
                 x => x.Id == parentId && x.OrganizationId == organizationId, cancellationToken),
             nameof(TaskParentType.Organization) => parentId == organizationId,
+
+            // Phase 43 (39 carried item #1) -- the two record parents a file or a comment can now
+            // hang off. WorkTask reaches here only as an Attachment/Comment parent: it is not a
+            // TaskParentType member, because a task does not parent tasks.
+            nameof(DocumentType.Deal) => await db.Deals.AnyAsync(
+                x => x.Id == parentId && x.OrganizationId == organizationId, cancellationToken),
+            nameof(DocumentType.WorkTask) => await db.Tasks.AnyAsync(
+                x => x.Id == parentId && x.OrganizationId == organizationId, cancellationToken),
+
             _ => throw new ArgumentOutOfRangeException(nameof(parentType), parentType, null),
         };
 

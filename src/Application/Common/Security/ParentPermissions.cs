@@ -33,7 +33,8 @@ public static class ParentPermissions
     {
         return DocumentParentTypes.TryToDocumentType(parentType) is { } documentType
             ? DocumentPermissions.EditPermissionFor(documentType)
-            : ContactOrThrow(parentType, PermissionKeys.ContactManage);
+            : RecordOrThrow(
+                parentType, PermissionKeys.ContactManage, PermissionKeys.DealManage, PermissionKeys.TaskManage);
     }
 
     /// <summary>The key required to read the files/comments on this parent.</summary>
@@ -42,25 +43,46 @@ public static class ParentPermissions
     {
         return DocumentParentTypes.TryToDocumentType(parentType) is { } documentType
             ? DocumentPermissions.ViewPermissionFor(documentType)
-            : ContactOrThrow(parentType, PermissionKeys.ContactView);
+            : RecordOrThrow(
+                parentType, PermissionKeys.ContactView, PermissionKeys.DealView, PermissionKeys.TaskView);
     }
 
     /// <summary>
-    /// Contact is the only non-document parent a file or comment can have. Resolved by member name,
-    /// for the same reason <see cref="DocumentParentTypes"/> is: the parent enums do not and cannot
-    /// share an ordinal order with <see cref="DocumentType"/>. <c>DocumentMechanismSweepGuardTests</c>
-    /// pins that Contact is the only non-document member of these two enums, so this cannot silently
-    /// miss one.
+    /// The non-document parents. Contact, Deal and WorkTask are records rather than documents, so
+    /// each resolves to its own aggregate's key pair; every other member is a document and never
+    /// reaches here. Resolved by member <i>name</i>, for the same reason
+    /// <see cref="DocumentParentTypes"/> is: the parent enums do not and cannot share an ordinal
+    /// order with <see cref="DocumentType"/>.
+    ///
+    /// <para><b>Phase 43 widened this from Contact alone</b> (39 carried item #1). Contact keeps its
+    /// pre-split <c>Contact.View</c>/<c>Contact.Manage</c> pair; Deal uses <c>Crm.Deal.*</c> and
+    /// WorkTask <c>Workflow.Task.*</c>, both of which are View/Manage pairs of the same shape, so a
+    /// Member who may open a Deal may read the files on it and a Member who may not, may not.</para>
+    ///
+    /// <para><b>Tasks-as-a-tab still do not come through here</b>, and that is worth restating now
+    /// that WorkTask is a parent name in two of the three enums: <c>CreateTask</c>/<c>UpdateTask</c>/
+    /// <c>ListTasks</c> ride the blanket <c>Workflow.Task.*</c> pair for every parent (phase 13's
+    /// design). What phase 43 adds is a <i>file or comment on</i> a task, which is this map's
+    /// business, not a task on a task -- there is no such thing, and TaskParentType has no WorkTask
+    /// member for that reason.</para>
+    ///
+    /// <para><c>Organization</c> is not reachable here: it is a <c>TaskParentType</c>-only parent,
+    /// and there is a guard test saying so.</para>
     /// </summary>
-    private static string ContactOrThrow<TParentType>(TParentType parentType, string contactKey)
+    private static string RecordOrThrow<TParentType>(
+        TParentType parentType, string contactKey, string dealKey, string taskKey)
         where TParentType : struct, Enum
     {
-        return parentType.ToString() == nameof(DocumentType.Contact)
-            ? contactKey
-            : throw new ArgumentOutOfRangeException(
+        return parentType.ToString() switch
+        {
+            nameof(DocumentType.Contact) => contactKey,
+            nameof(DocumentType.Deal) => dealKey,
+            nameof(DocumentType.WorkTask) => taskKey,
+            _ => throw new ArgumentOutOfRangeException(
                 nameof(parentType),
                 parentType,
-                $"{typeof(TParentType).Name}.{parentType} is neither a document nor a Contact, so nothing "
-                    + "can be filed against it. (Organization is a task parent only.)");
+                $"{typeof(TParentType).Name}.{parentType} is neither a document nor a record anything "
+                    + "can be filed against. (Organization is a task parent only.)"),
+        };
     }
 }

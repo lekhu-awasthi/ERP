@@ -36,15 +36,20 @@ public sealed class VoidDebitNoteCommandHandler(
             throw new ConflictException("Only an Approved debit note can be voided.");
         }
 
-        Guid? sourceWarehouseId = null;
-        if (debitNote.ReferrerType == DocumentType.PurchaseBill && debitNote.ReferrerId is { } purchaseBillId
-            && debitNote.Lines.Any(x => x.ConsumedUnitCost is not null))
-        {
-            sourceWarehouseId = await db.PurchaseBills
-                .Where(x => x.Id == purchaseBillId && x.OrganizationId == request.OrganizationId)
-                .Select(x => (Guid?)x.WarehouseId)
-                .SingleOrDefaultAsync(cancellationToken);
-        }
+        // Phase 43 (37 carried item #1) -- the warehouse is the note's own, which is where Approve
+        // consumed from. It used to be looked up from the source Purchase Bill and was therefore
+        // null for a standalone note, which was harmless only while Approve consumed nothing for a
+        // standalone note either. Now that it does, leaving this behind would have been strictly
+        // worse than the bug this phase set out to fix: stock out on Approve and never back on
+        // Void. Phase-6 bug #3 and phase 29's restatement of it -- changing what a document does
+        // to the ledger changes what its reversal owes -- reaching the stock ledger this time
+        // instead of the general one.
+        //
+        // ConsumedUnitCost is still what gates the restock, per line: it is written at Approve, so
+        // a line that never consumed has nothing to give back and is skipped.
+        var sourceWarehouseId = debitNote.Lines.Any(x => x.ConsumedUnitCost is not null)
+            ? debitNote.WarehouseId
+            : null;
 
         debitNote.Void(currentUser.UserId);
 

@@ -36,6 +36,8 @@ export class CrmService {
     page = 1,
     pageSize = 50,
     search: string | null = null,
+    /** Phase 43 — narrows to one deal, which is how the detail page reads its record. */
+    id: string | null = null,
   ): Observable<DealListDto> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
     if (contactId) {
@@ -46,6 +48,9 @@ export class CrmService {
     }
     if (search) {
       params['search'] = search;
+    }
+    if (id) {
+      params['id'] = id;
     }
     return this.http.get<DealListDto>(`${this.baseUrl(organizationId)}/deals`, { withCredentials: true, params });
   }

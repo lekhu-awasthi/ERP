@@ -14,26 +14,48 @@ import { DocumentType } from '../sales/sales.models';
  */
 export type TabParent =
   | { readonly kind: 'Contact'; readonly contactId: string }
-  | { readonly kind: 'Document'; readonly documentType: DocumentType; readonly documentId: string };
+  | { readonly kind: 'Document'; readonly documentType: DocumentType; readonly documentId: string }
+  // Phase 43 (39 carried item #1) — the two record parents. A third and fourth member rather than
+  // a widened `documentType`: neither is a document, and the server routes them through their own
+  // endpoint family for exactly that reason (see RecordTabsEndpoints).
+  | { readonly kind: 'Deal'; readonly dealId: string }
+  | { readonly kind: 'Task'; readonly taskId: string };
 
 /** The route prefix these tabs' endpoints live under, matching ContactsEndpoints and
  * DocumentTabsEndpoints respectively. */
 export function tabParentPath(parent: TabParent): string {
-  return parent.kind === 'Contact'
-    ? `contacts/${parent.contactId}`
-    : `documents/${parent.documentType}/${parent.documentId}`;
+  switch (parent.kind) {
+    case 'Contact':
+      return `contacts/${parent.contactId}`;
+    case 'Deal':
+      return `deals/${parent.dealId}`;
+    case 'Task':
+      return `tasks/${parent.taskId}`;
+    default:
+      return `documents/${parent.documentType}/${parent.documentId}`;
+  }
 }
 
 /** The parent's own id, for the components that need it independently of the URL. */
 export function tabParentId(parent: TabParent): string {
-  return parent.kind === 'Contact' ? parent.contactId : parent.documentId;
+  switch (parent.kind) {
+    case 'Contact':
+      return parent.contactId;
+    case 'Deal':
+      return parent.dealId;
+    case 'Task':
+      return parent.taskId;
+    default:
+      return parent.documentId;
+  }
 }
 
 /**
  * Whether this parent has an SMS History sub-tab on its Activity tab. Contacts do (a contact has a
  * phone number and Phase 18 built per-contact SMS history); documents do not -- live-confirmed, the
  * document Activity tab shows exactly three sub-tabs, Comments / Activities / Emails, where the
- * Contact tab shows four.
+ * Contact tab shows four. Deals and Tasks are the document shape: the live Task detail page reads
+ * Comments / Activities / Emails (2026-09-13), and neither record has a phone number of its own.
  */
 export function hasSmsHistory(parent: TabParent): boolean {
   return parent.kind === 'Contact';

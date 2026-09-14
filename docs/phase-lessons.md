@@ -851,3 +851,36 @@ Moved verbatim; these are the only "read before X" paragraphs those phases have,
 - Phase 39: the two editors — one sanitised rich-text control (`RichText`: re-emission, not filtering, in the Domain setters), the Organization logo in the printed header, `BalanceConfirmation`'s first consumer, standalone Deals/Tasks routes, Quick Links drag, the search results page. Before storing anything a user typed that is rendered later, before accepting an uploaded image, or before trusting that a guard still covers its subject — `docs/phase-39-status.md`
 - Phase 40: the human WCAG pass (keyboard census, one focus ring, `app-status-banner`'s always-present live region) + 34b's list-chrome leftovers. Before claiming an a11y criterion holds, writing a status message, choosing a focus colour, or offering a list an ordering — `docs/phase-40-status.md`
 - Phase 41: subscription and plan model — the seeded `SubscriptionPlan` catalogue, the commercial terms on `TenantSubscription`, quota enforcement on both axes (`SubscriptionQuotaBehavior`, the 6th behavior), the shell subscription banner. Before recording a field as dead, before calling a tenant-level limit "enforcement", or before shipping state two surfaces show — `docs/phase-41-status.md`
+
+- **Phase 43 — aggregate completions, and the reversal the fix would have broken.** Six carried
+  items where a thing existed on one side of a boundary and not the other, and both of the phase's
+  own findings came from checking the *other* side of something it had just changed. **Before
+  renaming two columns of one table in one migration**: `dotnet ef` cannot infer a rename, so when
+  a diff contains two it pairs them by **ordinal position** — it emitted `TrialStartsAt →
+  TermEndsAt` and `TrialEndsAt → OriginatedAt`, which swaps the values on every existing row, and
+  since `SubscriptionExpiryBehavior` reads the end on every request every live tenant would have
+  read as expired with nothing in the model ever saying so. Verify with a predicate that is true
+  of the data only if the pairing was right (`OriginatedAt >= TermEndsAt` on zero rows), not with
+  "do the columns exist". **Before changing what a document does to the stock ledger**: phase-6 bug
+  #3 and phase 29's restatement of it apply to the *stock* ledger too — giving the Debit Note's
+  Approve a warehouse on the note itself left Void still looking its warehouse up from the source
+  bill, so a standalone return took stock out and never put it back, and no handler test could see
+  it because every one of them exercised the converted path. **Before deciding a gap is the same
+  gap on both sides of a document family**: a standalone Credit Note posts no Inventory leg at all,
+  so its GL and its ledger agree; a standalone Debit Note credited the Inventory account while the
+  ledger never moved. Only the second was a divergence, and the brief's premise that the sales side
+  had already solved it was wrong. **Before folding a report to base currency**: fold the *lines*,
+  before the bucketing, because Total is a sum of the other three magnitudes and converting the
+  buckets independently breaks `Total == TaxExempt + Taxable + VAT`; fold in the **shared reader**,
+  or the Sales Register reports a foreign return in rupees while the Sales Return Register reports
+  it in dollars; and do it in memory after `ToListAsync`, because `ExchangeRates.ToBase` is a
+  static call that InMemory evaluates in C# and SQL Server cannot translate. **Before building an
+  enforcement an earlier phase inferred**: product-to-location was the confirm-live gate, and the
+  reference product saves *and* approves an invoice at HeadOffice whose only line names a
+  POS-Retail-only product — the enforcement idea is retired with the evidence rather than shipped.
+  **Before adding a polymorphic parent type**: a *record* parent (Contact, Deal, WorkTask) is a
+  `DocumentType` member that is deliberately **not** in `DocumentMechanisms.Transactional`, and
+  that single property is what makes `TryToDocumentType` return null and routes it to its own keys
+  with no special-casing anywhere else — and the Deal/Task tab lists are not symmetric (a Deal
+  parents tasks, a task does not), which is asserted in both directions rather than left looking
+  like an omission — `docs/phase-43-status.md`

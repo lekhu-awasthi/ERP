@@ -6,6 +6,8 @@ using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Purchasing;
+using FluentValidation;
+using FluentValidation.Results;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Purchasing;
@@ -33,6 +35,45 @@ internal static class PurchasingValidation
         // of the four call sites that make up the whole sweep.
         await ProductVariantRules.EnsureProductsExistAndAreTransactableAsync(
             db, organizationId, productIds, cancellationToken);
+    }
+
+    /// <summary>
+    /// Phase 43 (37 carried item #1) -- a Debit Note line for a Goods product needs a warehouse to
+    /// be returned from, because approving it consumes FIFO layers. Shared by Create and Update so
+    /// the two cannot disagree, and thrown as a <see cref="ValidationException"/> naming the field
+    /// rather than left to the Domain backstop -- phase-39's rule that a Domain invariant reached
+    /// through an endpoint is a 500 that tells the caller nothing.
+    ///
+    /// <para>It lives here and not in the FluentValidation validator because the rule is about
+    /// <c>Product.Type</c>, which is a row in another aggregate; a validator in this codebase has
+    /// no <c>IAppDbContext</c> and gaining one for this would be a new mechanism.
+    /// <c>DebitNote.EnsureWarehouseForGoods</c> stays as the backstop.</para>
+    /// </summary>
+    public static async Task EnsureDebitNoteWarehouseForGoodsAsync(
+        IAppDbContext db,
+        Guid organizationId,
+        Guid? warehouseId,
+        IEnumerable<Guid> productIds,
+        CancellationToken cancellationToken)
+    {
+        if (warehouseId is not null)
+        {
+            await EnsureWarehouseExistsAsync(db, organizationId, warehouseId.Value, cancellationToken);
+            return;
+        }
+
+        var ids = productIds.Distinct().ToList();
+        var hasGoods = await db.Products.AnyAsync(
+            x => x.OrganizationId == organizationId && ids.Contains(x.Id) && x.Type == ProductType.Goods,
+            cancellationToken);
+
+        if (hasGoods)
+        {
+            throw new ValidationException(
+                [new ValidationFailure(
+                    "WarehouseId",
+                    "A debit note with a Goods line needs a warehouse for the stock to be returned from.")]);
+        }
     }
 
     public static async Task EnsureWarehouseExistsAsync(

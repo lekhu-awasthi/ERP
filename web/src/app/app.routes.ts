@@ -1012,9 +1012,23 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    // Phase 43 (39 carried item #1) -- the Deal detail page. Declared before the Tasks list so
+    // the two record families read together; order is irrelevant here, the paths do not overlap.
+    path: 'organizations/:id/crm/deals/:dealId',
+    loadComponent: () =>
+      import('./features/crm/deal-detail-page/deal-detail-page').then((m) => m.DealDetailPage),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/workflow/tasks',
     loadComponent: () =>
       import('./features/workflow/task-list-page/task-list-page').then((m) => m.TaskListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/workflow/tasks/:taskId',
+    loadComponent: () =>
+      import('./features/workflow/task-detail-page/task-detail-page').then((m) => m.TaskDetailPage),
     canActivate: [authGuard],
   },
   {

@@ -73,6 +73,58 @@ public sealed class Organization
         };
     }
 
+    /// <summary>
+    /// Phase 43 -- the one mutator for the details this organization prints on every document it
+    /// issues. The aggregate was create-only from phase 1b until now, which made eight of its own
+    /// fields unreachable after the wizard closed: phase-31's rule is that a field is reachable only
+    /// if you can name the command that writes it <i>and</i> the screen that calls it, and there was
+    /// neither. The reference product's <c>EDIT DETAILS</c> dialog has always edited them.
+    ///
+    /// <para><b>What this deliberately does not take.</b> <see cref="WorkspaceName"/> is a
+    /// login-adjacent unique slug, normalised and uniquely indexed, that addresses this tenant --
+    /// changing it would silently break every bookmarked or shared workspace URL, and the live
+    /// dialog has no counterpart field at all (its Display Name is a separate, additional label this
+    /// codebase does not model). The entitlement flags stay immutable for phase-20f/41 Decision F's
+    /// reason -- a tenant with stock in a FIFO ledger must not be able to turn inventory off
+    /// underneath it. <see cref="LockDate"/> keeps <see cref="SetLockDate"/>: it is a ledger control
+    /// with its own Admin-only key, not a detail that prints on a letterhead.</para>
+    ///
+    /// <para><see cref="AccountingStartDate"/> <i>is</i> here, because the live dialog edits it and a
+    /// cutover date typed once in a wizard is exactly the kind of thing that gets typed wrong. What
+    /// stops it becoming a silent restatement is a caller-side guard, not an invariant here: an
+    /// opening-stock FIFO layer is stamped with the date that was current when it was written, and
+    /// nothing restates it -- see UpdateOrganizationCommandHandler.</para>
+    /// </summary>
+    public void UpdateDetails(
+        string name,
+        string industry,
+        string? address,
+        DateOnly accountingStartDate,
+        bool isVatRegistered,
+        string? email,
+        string? phone,
+        string? panNumber,
+        string? website)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(industry);
+
+        if (accountingStartDate == default)
+        {
+            throw new InvalidOperationException("An organization needs an accounting start date.");
+        }
+
+        Name = name.Trim();
+        Industry = industry.Trim();
+        Address = address;
+        AccountingStartDate = accountingStartDate;
+        IsVatRegistered = isVatRegistered;
+        Email = email;
+        Phone = phone;
+        PanNumber = panNumber;
+        Website = website;
+    }
+
     public void SetLockDate(DateOnly? lockDate) => LockDate = lockDate;
 
     /// <summary>

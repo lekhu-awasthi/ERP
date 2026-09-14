@@ -142,7 +142,11 @@
               }
             </td>
             <td>
-              <div class="fw-semibold">{{ row.title }}</div>
+              <!-- Phase 43 -- the title is the way into the detail page, from every host this
+                   shared list serves. An absolute route, so the Contact tab and the dashboard
+                   card link correctly too. -->
+              <a class="fw-semibold"
+                 [routerLink]="['/organizations', organizationId(), 'crm', 'deals', row.id]">{{ row.title }}</a>
               @if (row.description) {
                 <div class="text-muted small">{{ row.description }}</div>
               }

@@ -190,7 +190,7 @@ export class SubscriptionFeaturesPage {
   private applySubscription(result: TenantSubscription): void {
     this.subscription.set(result);
     this.renewPlanId.set(result.planId ?? '');
-    this.renewEndsAt.set(result.trialEndsAt.slice(0, 10));
+    this.renewEndsAt.set(result.termEndsAt.slice(0, 10));
     this.renewIrdVerified.set(result.irdVerified);
     this.renewAmount.set('');
     this.renewProductQuota.set('');

@@ -39,6 +39,7 @@ using MediatR;
 using ErpApp.Application.Tenancy.Commands.RemoveOrganizationLogo;
 using ErpApp.Application.Tenancy.Commands.SetOrganizationLogo;
 using ErpApp.Application.Tenancy.Queries.GetOrganizationLogo;
+using ErpApp.Application.Tenancy.Commands.UpdateOrganization;
 using ErpApp.Application.Tenancy.Queries.GetOrganizationProfile;
 
 namespace ErpApp.Api.Endpoints;
@@ -385,6 +386,28 @@ public static class OrganizationEndpoints
             return Results.Ok(result);
         });
 
+        // Phase 43 (39 carried item #2) -- the write half of the same screen. PUT rather than PATCH:
+        // the form posts every field it shows, so a partial body would be a shape this codebase's
+        // other detail forms do not have.
+        group.MapPut("/{organizationId:guid}/profile", async (
+            Guid organizationId, UpdateOrganizationRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdateOrganizationCommand(
+                    organizationId,
+                    request.Name,
+                    request.Industry,
+                    request.Address,
+                    request.AccountingStartDate,
+                    request.IsVatRegistered,
+                    request.Email,
+                    request.Phone,
+                    request.PanNumber,
+                    request.Website),
+                ct);
+            return Results.Ok(result);
+        });
+
         // The bytes, behind the same authenticated pipeline every other file in this app goes
         // through -- IFileStorage deliberately exposes no "resolve to a public URL", so there is no
         // path a browser could hit directly. The Content-Type comes from the column, which was
@@ -518,6 +541,22 @@ public static class OrganizationEndpoints
         // Phase 29 (FR-6.15) -- the landed-cost clearing account, same trailing-optional treatment
         // and the same phase-27b warning applies.
         Guid? DefaultLandedCostClearingAccountId = null);
+
+    /// <summary>
+    /// Phase 43 -- every field <c>Organization.UpdateDetails</c> takes and nothing else. Notably no
+    /// <c>WorkspaceName</c>: it is not merely unedited here, it is absent, so a client sending one
+    /// gets no impression that it was accepted.
+    /// </summary>
+    private sealed record UpdateOrganizationRequest(
+        string Name,
+        string Industry,
+        string? Address,
+        DateOnly AccountingStartDate,
+        bool IsVatRegistered,
+        string? Email,
+        string? Phone,
+        string? PanNumber,
+        string? Website);
 
     private sealed record CreateOrganizationRequest(
         string Name,

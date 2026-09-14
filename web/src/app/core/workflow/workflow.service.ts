@@ -71,6 +71,8 @@ export class WorkflowService {
     page = 1,
     pageSize = 50,
     search: string | null = null,
+    /** Phase 43 — narrows to one task, which is how the detail page reads its record. */
+    id: string | null = null,
   ): Observable<TaskListDto> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
     if (parentType && parentId) {
@@ -82,6 +84,9 @@ export class WorkflowService {
     }
     if (search) {
       params['search'] = search;
+    }
+    if (id) {
+      params['id'] = id;
     }
     return this.http.get<TaskListDto>(`${this.baseUrl(organizationId)}/tasks`, { withCredentials: true, params });
   }

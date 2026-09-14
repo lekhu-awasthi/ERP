@@ -82,7 +82,7 @@ public class SubscriptionPlanAndTermTests
         Assert.Equal(0, subscription.ProductQuota);
         Assert.Equal(0, subscription.TransactionQuota);
         Assert.False(subscription.IrdVerified);
-        Assert.Equal(subscription.TrialStartsAt, subscription.TermStartsAt);
+        Assert.Equal(subscription.OriginatedAt, subscription.TermStartsAt);
     }
 
     [Fact]
@@ -136,13 +136,13 @@ public class SubscriptionPlanAndTermTests
     public void SetPlan_never_moves_the_tenants_origin_date()
     {
         var subscription = TenantSubscription.CreateTrial(Guid.NewGuid(), default);
-        var origin = subscription.TrialStartsAt;
+        var origin = subscription.OriginatedAt;
 
         subscription.SetPlan(
             null, "Trial", DateTimeOffset.UtcNow.AddDays(1), DateTimeOffset.UtcNow.AddDays(30),
             0m, 0, 0, irdVerified: false);
 
-        Assert.Equal(origin, subscription.TrialStartsAt);
+        Assert.Equal(origin, subscription.OriginatedAt);
         Assert.NotEqual(origin, subscription.TermStartsAt);
     }
 
@@ -161,7 +161,7 @@ public class SubscriptionPlanAndTermTests
         var subscription = TenantSubscription.CreateTrial(Guid.NewGuid(), default);
 
         Assert.Throws<InvalidOperationException>(() => subscription.SetPlan(
-            null, "Trial", DateTimeOffset.UtcNow.AddDays(-10), subscription.TrialStartsAt.AddDays(-1),
+            null, "Trial", DateTimeOffset.UtcNow.AddDays(-10), subscription.OriginatedAt.AddDays(-1),
             0m, 0, 0, false));
     }
 

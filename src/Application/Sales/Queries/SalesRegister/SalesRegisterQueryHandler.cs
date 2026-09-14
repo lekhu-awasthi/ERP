@@ -48,6 +48,9 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db, ICurrentUserServ
                 {
                     x.Id, x.ContactId, x.Code, x.Date,
                     x.IsExport, x.ExportCountry, x.ExportDeclarationNo, x.ExportDeclarationDate,
+                    // Phase 43 (36 carried item #5) -- carried so the four statutory magnitudes
+                    // below can be folded to the base currency. See the fold beneath the join.
+                    x.ExchangeRate,
                 })
                 .ToListAsync(cancellationToken);
 
@@ -57,11 +60,44 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db, ICurrentUserServ
             // parameter of the same length, which is phase-34c's gotcha at full size. Joining the
             // query keeps the date filter where the optimizer can use the (OrganizationId, Date)
             // index and sends no parameter at all. Same rows, same order, same grouping below.
-            var invoiceLines = await (
+            var rawInvoiceLines = await (
                 from line in db.InvoiceLines
                 join invoice in invoiceQuery on line.InvoiceId equals invoice.Id
-                select new { line.InvoiceId, line.ProductId, line.Quantity, line.Amount, line.VatAmount })
+                select new
+                {
+                    line.InvoiceId, line.ProductId, line.Quantity, line.Amount, line.VatAmount,
+                    invoice.ExchangeRate,
+                })
                 .ToListAsync(cancellationToken);
+
+            // Phase 43 (36 carried item #5) -- <b>the register is filed in NPR, so it reports NPR.</b>
+            //
+            // A foreign invoice used to contribute its own 100 to a statutory sales book, beside a
+            // domestic invoice's 100, with nothing on the page saying the two numbers were not the
+            // same kind of thing. The four magnitudes this register exists to report -- total,
+            // tax-exempt, taxable and VAT -- are the figures a VAT return is built from, and that
+            // return is denominated in rupees.
+            //
+            // <b>Folded per line, before the bucketing, never on the finished buckets.</b> That is
+            // phase-28's posting-rule rule arriving in a report: Total is derived as a *sum* of the
+            // other three, so converting the buckets independently would let Total differ from
+            // TaxExempt + Taxable + VAT by a paisa on some rates -- and the footer, the page and the
+            // per-line view would each round it differently. Converting the inputs keeps every view
+            // summing to the same number by construction.
+            //
+            // In memory, after ToListAsync, because ExchangeRates.ToBase is a static call: inside the
+            // query it is untranslatable on SQL Server and silently evaluated in C# by InMemory, so
+            // every handler test would pass while the endpoint 500s (phase-34b, phase-25).
+            var invoiceLines = rawInvoiceLines
+                .Select(x => new
+                {
+                    x.InvoiceId,
+                    x.ProductId,
+                    x.Quantity,
+                    Amount = ExchangeRates.ToBase(x.Amount, x.ExchangeRate),
+                    VatAmount = ExchangeRates.ToBase(x.VatAmount, x.ExchangeRate),
+                })
+                .ToList();
 
             // Phase 36 -- the item's name and unit, needed only when Group By Bill is off. Loaded
             // once for the period either way rather than branching two data paths.

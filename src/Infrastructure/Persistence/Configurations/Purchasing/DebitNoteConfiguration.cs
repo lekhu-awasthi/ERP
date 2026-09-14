@@ -44,6 +44,12 @@ public sealed class DebitNoteConfiguration : IEntityTypeConfiguration<DebitNote>
             .HasPrecision(18, ExchangeRates.RateScale).IsRequired()
             .HasDefaultValue(ExchangeRates.BaseRate).ValueGeneratedNever();
 
+        // Phase 43 (37 carried item #1) -- where a Goods line's stock is returned from. Nullable
+        // (a Service-only note has no warehouse to name) and Restrict, matching PurchaseBill's own
+        // Warehouse FK: a warehouse a document points at must not vanish under it.
+        builder.HasOne<Warehouse>().WithMany().HasForeignKey(x => x.WarehouseId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasOne<Contact>().WithMany().HasForeignKey(x => x.ContactId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<TdsType>().WithMany().HasForeignKey(x => x.TdsTypeId).OnDelete(DeleteBehavior.Restrict);
 

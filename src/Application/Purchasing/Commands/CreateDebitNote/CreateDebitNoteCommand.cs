@@ -33,6 +33,12 @@ public sealed record CreateDebitNoteCommand(
     /// or to a real null when this document type is out of the tenant's LocationScopeMode. See
     /// <see cref="ILocationBearingCommand"/>.</summary>
     public Guid? LocationId { get; init; }
+    /// <summary>Phase 43 (37 carried item #1). Where the returned goods leave from -- required when
+    /// any line names a Goods product, because approving consumes FIFO layers there. Null on a
+    /// conversion means "the source bill's", which is the warehouse the approve handler used to read
+    /// directly, so a client that predates this phase behaves exactly as before.</summary>
+    public Guid? WarehouseId { get; init; }
+
     public DocumentType AuditDocumentType => DocumentType.DebitNote;
 }
 

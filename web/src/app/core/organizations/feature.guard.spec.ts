@@ -20,8 +20,8 @@ function subscriptionWith(feature: string, isEnabled: boolean) {
   return {
     organizationId: ORGANIZATION_ID,
     planName: 'Trial',
-    trialStartsAt: '2026-01-01',
-    trialEndsAt: '2026-02-01',
+    originatedAt: '2026-01-01',
+    termEndsAt: '2026-02-01',
     isTrialActive: true,
     daysRemaining: 10,
     irdSyncEnabled: false,

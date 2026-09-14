@@ -144,6 +144,7 @@ app.MapPlatformEndpoints();
 app.MapCrmEndpoints();
 app.MapAttachmentsEndpoints();
 app.MapDocumentTabsEndpoints();
+app.MapRecordTabsEndpoints();
 app.MapPrintingEndpoints();
 app.MapCommunicationsEndpoints();
 app.MapImportsEndpoints();

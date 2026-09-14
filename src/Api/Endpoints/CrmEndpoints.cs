@@ -26,14 +26,17 @@ public static class CrmEndpoints
             .WithTags("Crm")
             .RequireAuthorization();
 
+        // Phase 43 -- `id` narrows to a single deal, which is how the new detail page reads its
+        // record. A simple type, so it binds from the query string without help; an array would
+        // not, which is phase-38's gotcha and the reason to say so here.
         group.MapGet("/deals", async (
             Guid organizationId, Guid? contactId, DealStatus? status, int? page, int? pageSize, string? search,
-            ISender sender, CancellationToken ct) =>
+            Guid? id, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ListDealsQuery(
                     organizationId, contactId, status,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, id),
                 ct);
             return Results.Ok(result);
         });

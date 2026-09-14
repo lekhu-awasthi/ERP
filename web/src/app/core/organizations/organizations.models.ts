@@ -368,10 +368,10 @@ export interface TenantSubscription {
   /** The catalogue plan this tenant is on, or null while on the seeded trial. */
   planId: string | null;
   planName: string;
-  trialStartsAt: string;
+  originatedAt: string;
   /** Phase 41 -- the start of the current term, which the transaction quota is counted over. */
   termStartsAt: string;
-  trialEndsAt: string;
+  termEndsAt: string;
   isTrialActive: boolean;
   daysRemaining: number;
   /** What this tenant is charged for the current term -- not necessarily the plan's list price. */
@@ -453,6 +453,28 @@ export interface OrganizationProfile {
   isVatRegistered: boolean;
   workspaceName: string;
   hasLogo: boolean;
+}
+
+/**
+ * Phase 43 — the editable subset of {@link OrganizationProfile}. `workspaceName` is absent rather
+ * than merely unedited: it is a login-adjacent unique slug that addresses the tenant, and the
+ * server's request record does not carry it either.
+ */
+export interface UpdateOrganizationRequest {
+  name: string;
+  industry: string;
+  address: string | null;
+  accountingStartDate: string;
+  isVatRegistered: boolean;
+  email: string | null;
+  phone: string | null;
+  panNumber: string | null;
+  website: string | null;
+}
+
+export interface UpdateOrganizationResult {
+  organizationId: string;
+  name: string;
 }
 
 export interface OrganizationLogoResult {

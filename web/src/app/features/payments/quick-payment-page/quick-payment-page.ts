@@ -13,6 +13,8 @@ import { PaymentsService } from '../../../core/payments/payments.service';
 import { CreatePaymentResult, PaymentDirection } from '../../../core/payments/payments.models';
 import { InboxPrefill } from '../../../core/workflow/inbox.models';
 import { InboxService } from '../../../core/workflow/inbox.service';
+import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
+import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
 import { InboxConversionPanel } from '../../../shared/source-document/inbox-conversion-panel';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
@@ -39,7 +41,7 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
  */
 @Component({
   selector: 'app-quick-payment-page',
-  imports: [ReactiveFormsModule, RouterLink, InboxConversionPanel, BsDateInput, StatusBanner],
+  imports: [ReactiveFormsModule, RouterLink, InboxConversionPanel, BsDateInput, CurrencyRateFields, StatusBanner],
   templateUrl: './quick-payment-page.html',
 })
 export class QuickPaymentPage {
@@ -68,6 +70,23 @@ export class QuickPaymentPage {
   protected readonly contacts = signal<Contact[]>([]);
   protected readonly accounts = signal<Account[]>([]);
   protected readonly paymentModes = signal<PaymentMode[]>([]);
+
+  /**
+   * Phase 43 (36 carried item #6) — the payment's own currency and its rate to the base currency.
+   *
+   * The two detail forms have carried this since phase 28; these two screens did not, so a receipt
+   * in dollars could only be recorded here as though it were rupees. That is not a display gap: the
+   * amount is folded at the document's rate when it posts, so an unstated rate of 1 books a foreign
+   * receipt to the ledger at its face value in the wrong currency.
+   *
+   * There is no cross-currency question to answer here, which is why this is only a control and not
+   * a rule: phase 36's "a settlement folds at the rate of what it settles" governs allocation, and a
+   * Quick Payment allocates to nothing (`allocations: []`) by construction — that is what makes it
+   * quick. The remainder folds at the payment's own rate, which is the branch phase 36 already
+   * built for the unallocated part of any payment.
+   */
+  protected readonly currencyCode = signal(BASE_CURRENCY_CODE);
+  protected readonly exchangeRate = signal(1);
 
   /** Phase 22 -- set when opened from the Document inbox's "+ Add as" with ?inboxDocumentId=. */
   protected readonly inboxPrefill = signal<InboxPrefill | null>(null);
@@ -182,6 +201,8 @@ export class QuickPaymentPage {
 
     this.paymentsService
       .createPayment(this.organizationId, {
+        currencyCode: this.currencyCode(),
+        exchangeRate: this.exchangeRate(),
         contactId,
         direction: this.direction,
         date,

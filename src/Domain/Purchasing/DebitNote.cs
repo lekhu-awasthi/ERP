@@ -26,6 +26,35 @@ public sealed class DebitNote
     public Guid Id { get; private set; }
     public Guid OrganizationId { get; private set; }
     public Guid ContactId { get; private set; }
+
+    /// <summary>
+    /// Phase 43 (37 carried item #1) -- <b>where the returned goods leave from.</b>
+    ///
+    /// <para>Until now a Debit Note had no warehouse of its own, and the consequence was a real
+    /// divergence rather than a missing convenience: a Goods line <i>always</i> credits the
+    /// Inventory account (<c>PurchaseBillAccountResolver</c>, post-phase-19), but stock only ever
+    /// left the FIFO ledger when the note pointed at a source Purchase Bill to borrow a warehouse
+    /// from. A standalone Goods return therefore told the general ledger inventory had fallen and
+    /// told the stock ledger nothing -- phase-37's rule that a stock value must reach all three
+    /// views, arriving through the door phase 37 itself named and left open.
+    ///
+    /// <para><b>One rule, not a branch.</b> Approve consumes at <i>this</i> warehouse, whether the
+    /// note was converted from a bill or typed from nothing; a conversion simply pre-fills it from
+    /// the source bill, which is the value the approve handler used to read directly. Existing rows
+    /// are backfilled the same way, so no converted note changes behaviour.</para>
+    ///
+    /// <para><b>Nullable, unlike PurchaseBill's.</b> A Debit Note may legitimately carry only
+    /// Service lines -- a supplier charge-back with no goods in it -- and requiring a warehouse
+    /// there would be requiring a fact that does not exist. The requirement is therefore a
+    /// <i>application</i> rule, and deliberately has no Domain backstop: whether a line is Goods is a
+    /// fact about <c>Product</c>, an aggregate this one cannot see, so a Domain guard here could
+    /// only ever restate the caller's own claim. <c>PurchasingValidation.
+    /// EnsureDebitNoteWarehouseForGoodsAsync</c> holds it on the way in (a 400 naming the field,
+    /// phase-39's rule) and the approve handler holds it again on the way out (a 409, for the rows
+    /// that predate this phase).</para>
+    /// </summary>
+    public Guid? WarehouseId { get; private set; }
+
     public string Code { get; private set; } = null!;
     public DateOnly Date { get; private set; }
     public string? Reference { get; private set; }
@@ -91,7 +120,8 @@ public sealed class DebitNote
         decimal tdsAmount,
         DocumentType? referrerType,
         Guid? referrerId,
-        decimal discountPct = 0)
+        decimal discountPct = 0,
+        Guid? warehouseId = null)
     {
         EnsureValidDiscountPct(discountPct);
 
@@ -110,15 +140,18 @@ public sealed class DebitNote
             ReferrerType = referrerType,
             ReferrerId = referrerId,
             DiscountPct = discountPct,
+            WarehouseId = warehouseId,
         };
     }
 
     public void UpdateHeader(
-        Guid contactId, DateOnly date, string? reference, Guid? tdsTypeId, decimal tdsAmount, decimal discountPct)
+        Guid contactId, DateOnly date, string? reference, Guid? tdsTypeId, decimal tdsAmount, decimal discountPct,
+        Guid? warehouseId = null)
     {
         EnsureDraft();
         EnsureValidDiscountPct(discountPct);
         ContactId = contactId;
+        WarehouseId = warehouseId;
         Date = date;
         Reference = reference;
         TdsTypeId = tdsTypeId;

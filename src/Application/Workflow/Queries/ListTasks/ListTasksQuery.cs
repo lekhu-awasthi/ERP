@@ -34,7 +34,17 @@ public sealed record ListTasksQuery(
     int PageSize = PagingDefaults.DefaultPageSize,
     // Phase 39 -- the standalone screen has a search box, matching the live list. It matches on the
     // task's own title, which is the only text a task row shows that a person would search by.
-    string? Search = null)
+    string? Search = null,
+    // Phase 43 (39 carried item #1) -- an optional single-row filter, so the new detail page reads
+    // its record through the query that already knows how to shape one.
+    //
+    // <b>A filter rather than a GetXQuery, deliberately.</b> The row this returns is built from a
+    // contact name, a lead-source name, a stage name and colour, and one user name per assignee; a
+    // second query would be a second copy of that assembly, and phase-26b's rule is that two reads
+    // agree by construction only when one reader answers for both. It also means the private-deal
+    // visibility rule below -- enforced in the handler, not by the key -- covers the detail page on
+    // day one rather than being something a new handler could forget.
+    Guid? Id = null)
     : IRequest<TaskListDto>, IRequirePermission, IOrganizationScoped, ISearchableQuery
 {
     public string PermissionKey => PermissionKeys.TaskView;

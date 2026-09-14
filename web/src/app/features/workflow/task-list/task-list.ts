@@ -1,6 +1,7 @@
 import { LowerCasePipe } from '@angular/common';
 import { Component, OnInit, inject, input, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { TaskType } from '../../../core/configuration/configuration.models';
@@ -25,7 +26,7 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
  */
 @Component({
   selector: 'app-task-list',
-  imports: [ReactiveFormsModule, LowerCasePipe, PaginationControl, BsDateInput, NepaliDatePipe, StatusBanner],
+  imports: [ReactiveFormsModule, LowerCasePipe, RouterLink, PaginationControl, BsDateInput, NepaliDatePipe, StatusBanner],
   templateUrl: './task-list.html',
 })
 export class TaskList implements OnInit {

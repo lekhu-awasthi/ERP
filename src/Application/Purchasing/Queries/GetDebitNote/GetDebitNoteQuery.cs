@@ -50,4 +50,9 @@ public sealed record DebitNoteDetailDto(
     // projecting a DTO silently drops a field the aggregate has, and the form would then post the
     // picker's default over a stored location on every edit. Fourteen instances of phase-32's own
     // carried gotcha.
-    Guid? LocationId);
+    Guid? LocationId,
+    // Phase 43 (37 carried item #1) -- where a Goods line's stock is returned from. Added to the
+    // detail DTO in the same commit as the command that writes it: phase-35a's rule that a new
+    // field owes three assertions, write, read and every prefill between, and its own evidence was
+    // fourteen detail DTOs that had silently dropped LocationId.
+    Guid? WarehouseId);

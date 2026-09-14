@@ -331,7 +331,7 @@ public static class PurchasingEndpoints
             var result = await sender.Send(
                 new CreateDebitNoteCommand(
                     organizationId, request.ContactId, request.Date, request.Reference, request.TdsTypeId, request.Lines,
-                    request.ReferrerType, request.ReferrerId, request.DiscountPct) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
+                    request.ReferrerType, request.ReferrerId, request.DiscountPct) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId, WarehouseId = request.WarehouseId },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/debit-notes/{result.Id}", result);
         });
@@ -342,7 +342,7 @@ public static class PurchasingEndpoints
             var result = await sender.Send(
                 new UpdateDebitNoteCommand(
                     organizationId, id, request.ContactId, request.Date, request.Reference, request.TdsTypeId, request.Lines,
-                    request.DiscountPct) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
+                    request.DiscountPct) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId, WarehouseId = request.WarehouseId },
                 ct);
             return Results.Ok(result);
         });
@@ -573,5 +573,9 @@ public static class PurchasingEndpoints
         // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Same shape and
         // the same reason as the currency pair above: optional, trailing, and carried on the request
         // record itself rather than only on the command.
-        Guid? LocationId = null);
+        Guid? LocationId = null,
+        // Phase 43 (37 carried item #1) -- where a Goods line's stock is returned from. Optional and
+        // trailing for the same reason, and carried HERE and not only on the command, or it binds to
+        // null forever with every test still green (phase-27b's Terms).
+        Guid? WarehouseId = null);
 }

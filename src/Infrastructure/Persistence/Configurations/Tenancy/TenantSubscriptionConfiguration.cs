@@ -14,9 +14,9 @@ public sealed class TenantSubscriptionConfiguration : IEntityTypeConfiguration<T
 
         builder.Property(s => s.OrganizationId).IsRequired();
         builder.Property(s => s.PlanName).HasMaxLength(50).IsRequired();
-        builder.Property(s => s.TrialStartsAt).IsRequired();
+        builder.Property(s => s.OriginatedAt).IsRequired();
         builder.Property(s => s.TermStartsAt).IsRequired();
-        builder.Property(s => s.TrialEndsAt).IsRequired();
+        builder.Property(s => s.TermEndsAt).IsRequired();
         builder.Property(s => s.SubscriptionAmount).HasPrecision(18, 2).IsRequired();
         builder.Property(s => s.ProductQuota).IsRequired();
         builder.Property(s => s.TransactionQuota).IsRequired();

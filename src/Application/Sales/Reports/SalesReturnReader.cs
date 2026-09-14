@@ -1,5 +1,6 @@
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
 using Microsoft.EntityFrameworkCore;
 
@@ -63,7 +64,7 @@ internal static class SalesReturnReader
         query = query.AtLocations(locationId, reportLocations);
 
         var creditNotes = await query
-            .Select(x => new { x.Id, x.ContactId, x.Code, x.Date })
+            .Select(x => new { x.Id, x.ContactId, x.Code, x.Date, x.ExchangeRate })
             .ToListAsync(cancellationToken);
         if (creditNotes.Count == 0)
         {
@@ -71,10 +72,30 @@ internal static class SalesReturnReader
         }
 
         var creditNoteIds = creditNotes.Select(x => x.Id).ToList();
-        var lines = await db.CreditNoteLines
+        var rawLines = await db.CreditNoteLines
             .Where(x => creditNoteIds.Contains(x.CreditNoteId))
             .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, x.Amount, x.VatAmount })
             .ToListAsync(cancellationToken);
+
+        // Phase 43 (36 carried item #5) -- the fold to base currency, here rather than in the Sales
+        // Register that asked for it. Both statutory registers that show a credit note read this
+        // reader, and phase 36's whole reason for it was that two reports agree about the same note
+        // only by construction: folding in the caller would have made the Sales Register report a
+        // foreign return in rupees and the Sales Return Register report the same return in dollars.
+        //
+        // Per line before the bucketing, and in memory after ToListAsync -- see
+        // SalesRegisterQueryHandler's own fold for both reasons, which are the same two.
+        var rateByNote = creditNotes.ToDictionary(x => x.Id, x => x.ExchangeRate);
+        var lines = rawLines
+            .Select(x => new
+            {
+                x.CreditNoteId,
+                x.ProductId,
+                x.Quantity,
+                Amount = ExchangeRates.ToBase(x.Amount, rateByNote[x.CreditNoteId]),
+                VatAmount = ExchangeRates.ToBase(x.VatAmount, rateByNote[x.CreditNoteId]),
+            })
+            .ToList();
 
         // Phase 36 -- the item's own name and unit, for the per-line view. One pair of lookups for
         // the whole period, not one per line.

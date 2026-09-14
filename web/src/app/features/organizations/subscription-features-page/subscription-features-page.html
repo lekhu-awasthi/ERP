@@ -26,11 +26,11 @@
             <h2 class="h5 fw-bold mb-1 text-dark">{{ sub.planName }} plan</h2>
             @if (sub.isTrialActive) {
               <p class="text-muted small mb-0">
-                Active — expires {{ sub.trialEndsAt | slice: 0 : 10 }}
+                Active — expires {{ sub.termEndsAt | slice: 0 : 10 }}
                 ({{ sub.daysRemaining }} {{ sub.daysRemaining === 1 ? 'day' : 'days' }} remaining).
               </p>
             } @else {
-              <p class="text-danger small mb-0">Expired on {{ sub.trialEndsAt | slice: 0 : 10 }}.</p>
+              <p class="text-danger small mb-0">Expired on {{ sub.termEndsAt | slice: 0 : 10 }}.</p>
             }
           </div>
           <span class="badge fs-6" [class]="sub.isTrialActive ? 'text-bg-success' : 'text-bg-danger'">
@@ -39,7 +39,7 @@
         </div>
         <dl class="row mb-0 mt-4 small">
           <dt class="col-6 col-sm-4 text-muted fw-normal">Started</dt>
-          <dd class="col-6 col-sm-8 mb-2">{{ sub.trialStartsAt | slice: 0 : 10 }}</dd>
+          <dd class="col-6 col-sm-8 mb-2">{{ sub.originatedAt | slice: 0 : 10 }}</dd>
           <dt class="col-6 col-sm-4 text-muted fw-normal">Current term began</dt>
           <dd class="col-6 col-sm-8 mb-2">{{ sub.termStartsAt | slice: 0 : 10 }}</dd>
           <!-- Phase 41. Phase 33 recorded Subscription Amount as a dead field after reading 0.00 on

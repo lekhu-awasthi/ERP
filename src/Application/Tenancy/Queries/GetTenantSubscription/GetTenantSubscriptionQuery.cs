@@ -37,8 +37,8 @@ public sealed record SubscriptionUsageDto(
     int ProductQuota);
 
 /// <param name="PlanId">The catalogue row this tenant is on, or null while on the seeded trial.</param>
-/// <param name="TrialEndsAt">The end of the current term, trial or paid -- see
-/// <c>TenantSubscription.TrialEndsAt</c> on why the name still says trial.</param>
+/// <param name="TermEndsAt">The end of the current term, trial or paid -- see
+/// <c>TenantSubscription.TermEndsAt</c> on why the name still says trial.</param>
 /// <param name="SubscriptionAmount">Phase 41 -- what this tenant is charged, which phase 33 read as
 /// a dead column on two tenants that were both free trials.</param>
 /// <param name="IrdVerified">Phase 41 -- the IRD Billing add-on, shown as the reference product's own
@@ -47,9 +47,9 @@ public sealed record TenantSubscriptionDto(
     Guid OrganizationId,
     Guid? PlanId,
     string PlanName,
-    DateTimeOffset TrialStartsAt,
+    DateTimeOffset OriginatedAt,
     DateTimeOffset TermStartsAt,
-    DateTimeOffset TrialEndsAt,
+    DateTimeOffset TermEndsAt,
     bool IsTrialActive,
     int DaysRemaining,
     decimal SubscriptionAmount,

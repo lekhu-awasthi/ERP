@@ -18,6 +18,7 @@ using ErpApp.Application.Purchasing.Posting;
 using ErpApp.Application.Purchasing.Queries.GetPurchaseBill;
 using ErpApp.Application.Tenancy.Commands.CreateWarehouse;
 using ErpApp.Application.UnitTests.TestSupport;
+using FluentValidation;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
@@ -451,22 +452,39 @@ public class PurchaseBillLandedCostTests
     }
 
     /// <summary>
-    /// A standalone debit note -- no source Purchase Bill -- consumes no stock at all, so it has no
-    /// relieved cost to credit and posts exactly what it always did. Worth pinning: the new rule
-    /// keys on the presence of a relieved cost, and a null there has to mean "unchanged", never
-    /// "zero".
+    /// <b>Phase 43 (37 carried item #1) replaced this test, and what it used to say is the point.</b>
+    ///
+    /// <para>Phase 37 pinned that a standalone debit note "consumes no stock at all, so it has no
+    /// relieved cost and posts exactly what it always did" -- and what it always did was credit the
+    /// Inventory <i>account</i> 2,400 while the FIFO ledger never moved. That was a fact being
+    /// guarded, not a requirement: the general ledger said inventory had fallen and the stock
+    /// ledger said nothing, which is the divergence phase 37 named in its own carried items.</para>
+    ///
+    /// <para>A Debit Note now carries its own WarehouseId, so a standalone Goods return consumes
+    /// from somewhere and all three views agree. <c>StockConservation</c> is the assertion that
+    /// matters -- it is the same three-view check phase 37 built, and the old behaviour could not
+    /// have passed it.</para>
     /// </summary>
     [Fact]
-    public async Task A_standalone_return_posts_unchanged_because_it_relieves_nothing()
+    public async Task A_standalone_return_consumes_from_its_own_warehouse()
     {
         var db = TestAppDbContext.Create();
         var seed = await SeedAsync(db);
+
+        // Stock to return: ten units at 600, no additional cost, so the FIFO cost is exactly 600 and
+        // the return leaves no variance to plug. The bill is only a source of stock here -- the note
+        // below deliberately does not point at it.
+        var billId = await CreateAsync(
+            db, seed,
+            [new PurchaseBillLineInput(seed.GoodsAId, 10m, 600m, VatRate.NoVat, ExpenditureClassification.Others)],
+            []);
+        await ApproveAsync(db, seed, billId);
 
         var note = await new CreateDebitNoteCommandHandler(db).Handle(
             new CreateDebitNoteCommand(
                 seed.OrganizationId, seed.SupplierId, new DateOnly(2026, 1, 20), null, null,
                 [new DebitNoteLineInput(seed.GoodsAId, 4m, 600m, VatRate.NoVat)],
-                null, null),
+                null, null) { WarehouseId = seed.WarehouseId },
             CancellationToken.None);
 
         await new ApproveDebitNoteCommandHandler(
@@ -478,8 +496,64 @@ public class PurchaseBillLandedCostTests
             .Where(x => x.SourceDocumentType == DocumentType.DebitNote && x.SourceDocumentId == note.Id)
             .SelectMany(x => x.Lines).ToListAsync();
 
+        // Still 2,400 out of the Inventory account -- but now it is the cost the layers actually
+        // gave up rather than a number nothing backed, and no variance, price equalling FIFO cost.
         Assert.Equal(2400m, noteLines.Where(x => x.AccountId == seed.InventoryAccountId).Sum(x => x.Credit - x.Debit));
         Assert.DoesNotContain(noteLines, x => x.AccountId == seed.StockAdjustmentAccountId);
+
+        // Nothing to release: a standalone note has no source bill and so no capitalised freight.
+        Assert.DoesNotContain(noteLines, x => x.AccountId == seed.ClearingAccountId);
+
+        // The four units are really gone from the ledger, which is the half that used to be missing.
+        var remaining = await db.StockLedgerEntries
+            .Where(x => x.OrganizationId == seed.OrganizationId && x.ProductId == seed.GoodsAId)
+            .SumAsync(x => x.QuantityRemaining);
+        Assert.Equal(6m, remaining);
+
+        await StockConservation.AssertHoldsAsync(db, seed.OrganizationId);
+    }
+
+    /// <summary>
+    /// The other half of the same rule: a Goods line with no warehouse is a 400 naming the field,
+    /// not a 500 out of the Domain and not a silent no-op. Phase-39's rule -- a Domain invariant
+    /// reached through an endpoint tells the caller nothing -- with the twist that this one cannot
+    /// live in the Domain at all, because whether a line is Goods is a fact about Product.
+    /// </summary>
+    [Fact]
+    public async Task A_goods_line_with_no_warehouse_is_refused_by_name()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        var error = await Assert.ThrowsAsync<ValidationException>(() =>
+            new CreateDebitNoteCommandHandler(db).Handle(
+                new CreateDebitNoteCommand(
+                    seed.OrganizationId, seed.SupplierId, new DateOnly(2026, 1, 20), null, null,
+                    [new DebitNoteLineInput(seed.GoodsAId, 4m, 600m, VatRate.NoVat)],
+                    null, null),
+                CancellationToken.None));
+
+        Assert.Contains(error.Errors, x => x.PropertyName == "WarehouseId");
+    }
+
+    /// <summary>
+    /// And the case that must NOT be refused: a Service-only note has no goods to move, so demanding
+    /// a warehouse would be demanding a fact that does not exist. This is why the column is nullable.
+    /// </summary>
+    [Fact]
+    public async Task A_service_only_note_needs_no_warehouse()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        var note = await new CreateDebitNoteCommandHandler(db).Handle(
+            new CreateDebitNoteCommand(
+                seed.OrganizationId, seed.SupplierId, new DateOnly(2026, 1, 20), null, null,
+                [new DebitNoteLineInput(seed.ServiceId, 1m, 500m, VatRate.NoVat)],
+                null, null),
+            CancellationToken.None);
+
+        Assert.NotEqual(Guid.Empty, note.Id);
     }
 
     private static async Task<Guid> ReturnAsync(

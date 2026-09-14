@@ -158,6 +158,116 @@ public class SalesRegisterQueryHandlerTests
     private sealed record Seed(
         Guid OrganizationId, FakeDocumentNumberGenerator NumberGenerator, Guid CustomerId, Guid WarehouseId, Guid ProductId);
 
+
+    /// <summary>
+    /// Phase 43 (36 carried item #5) -- <b>the register is filed in NPR, so it reports NPR.</b>
+    ///
+    /// <para>A foreign invoice used to contribute its own 100 to a statutory sales book, beside a
+    /// domestic invoice's 100, with nothing on the page distinguishing them. Here the foreign
+    /// invoice is 100 USD at 133, so it must contribute 13,300 and the register's total must be
+    /// 13,400 rather than 200.</para>
+    ///
+    /// <para>The second assertion is the one that would catch a fold applied to the finished
+    /// buckets instead of to the lines: Total must equal TaxExempt + Taxable + VAT exactly, on
+    /// every row and in the footer.</para>
+    /// </summary>
+    [Fact]
+    public async Task A_foreign_invoice_is_reported_in_the_base_currency()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        await CreateAndApproveInvoiceAsync(db, seed, new DateOnly(2026, 1, 10), 100m, VatRate.NoVat);
+        await CreateAndApproveForeignInvoiceAsync(db, seed, new DateOnly(2026, 1, 11), 100m, "USD", 133m);
+
+        var result = await new SalesRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()))
+            .Handle(
+                new SalesRegisterQuery(
+                    seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), null, null),
+                CancellationToken.None);
+
+        Assert.Equal(13_400m, result.TotalValue);
+        Assert.Contains(result.Items, x => x.TotalValue == 13_300m);
+
+        // The buckets are a partition of the total, at every rate -- which is what folding the
+        // lines rather than the buckets buys.
+        foreach (var row in result.Items)
+        {
+            Assert.Equal(row.TotalValue, row.TaxExemptValue + row.TaxableValue + row.VatAmount);
+        }
+
+        Assert.Equal(
+            result.TotalValue,
+            result.TotalTaxExemptValue + result.TotalTaxableValue + result.TotalVatAmount);
+    }
+
+    /// <summary>
+    /// Phase 43 -- the same fold on the return side, and it lives in <c>SalesReturnReader</c> so the
+    /// Sales Register and the Sales Return Register cannot disagree about the same note (phase 36).
+    /// </summary>
+    [Fact]
+    public async Task A_foreign_credit_note_is_reported_in_the_base_currency()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        await CreateAndApproveForeignInvoiceAsync(db, seed, new DateOnly(2026, 1, 10), 100m, "USD", 133m);
+        await CreateAndApproveForeignCreditNoteAsync(db, seed, new DateOnly(2026, 1, 12), 40m, "USD", 133m);
+
+        var result = await new SalesRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()))
+            .Handle(
+                new SalesRegisterQuery(
+                    seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), null, null),
+                CancellationToken.None);
+
+        // 13,300 sold less 5,320 returned, both in rupees.
+        Assert.Equal(7_980m, result.TotalValue);
+        Assert.Contains(result.Items, x => x.TotalValue == -5_320m);
+    }
+
+    private static async Task<Guid> CreateAndApproveForeignInvoiceAsync(
+        IAppDbContext db, Seed seed, DateOnly date, decimal rate, string currencyCode, decimal exchangeRate)
+    {
+        var created = await new CreateInvoiceCommandHandler(db).Handle(
+            new CreateInvoiceCommand(
+                seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
+                [new InvoiceLineInput(seed.ProductId, 1m, rate, VatRate.NoVat)])
+            {
+                CurrencyCode = currencyCode,
+                ExchangeRate = exchangeRate,
+            },
+            CancellationToken.None);
+
+        var stockLedgerService = new StockLedgerService(db);
+        var approved = await new ApproveInvoiceCommandHandler(
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new InvoicePostingRule(),
+            new FifoStockAvailabilityPolicy(db, stockLedgerService), stockLedgerService, new ContactCreditLimitPolicy(db))
+            .Handle(new ApproveInvoiceCommand(seed.OrganizationId, created.Id, OverrideWarning: false), CancellationToken.None);
+
+        return approved.Id;
+    }
+
+    private static async Task<Guid> CreateAndApproveForeignCreditNoteAsync(
+        IAppDbContext db, Seed seed, DateOnly date, decimal rate, string currencyCode, decimal exchangeRate)
+    {
+        var created = await new CreateCreditNoteCommandHandler(db).Handle(
+            new CreateCreditNoteCommand(
+                seed.OrganizationId, seed.CustomerId, date, null,
+                [new CreditNoteLineInput(seed.ProductId, 1m, rate, VatRate.NoVat)])
+            {
+                CurrencyCode = currencyCode,
+                ExchangeRate = exchangeRate,
+            },
+            CancellationToken.None);
+
+        var approved = await new ApproveCreditNoteCommandHandler(
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new CreditNotePostingRule(),
+            new StockLedgerService(db))
+            .Handle(new ApproveCreditNoteCommand(seed.OrganizationId, created.Id), CancellationToken.None);
+
+        return approved.Id;
+    }
+
     private static async Task<Seed> SeedAsync(IAppDbContext db)
     {
         var organizationId = Guid.NewGuid();

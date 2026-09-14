@@ -10,7 +10,7 @@ public class TenantSubscriptionTests
         var subscription = TenantSubscription.CreateTrial(Guid.NewGuid(), default);
 
         Assert.Equal("Trial", subscription.PlanName);
-        Assert.Equal(15, (subscription.TrialEndsAt - subscription.TrialStartsAt).TotalDays, precision: 5);
+        Assert.Equal(15, (subscription.TermEndsAt - subscription.OriginatedAt).TotalDays, precision: 5);
     }
 
     [Fact]

@@ -32,9 +32,17 @@ public sealed record ListActivitiesQuery(
     // Contact predates the View/Create/Edit/Approve split and keeps its own key; every document type
     // resolves through the shared map. DocumentPermissions throws for a DocumentType nothing can be
     // attached to, which is what keeps this from becoming a way to read arbitrary audit rows.
-    public string PermissionKey => DocumentType == DocumentType.Contact
-        ? PermissionKeys.ContactView
-        : DocumentPermissions.ViewPermissionFor(DocumentType);
+    //
+    // Phase 43 (39 carried item #1) -- Deal and WorkTask join Contact as record parents with an
+    // Activity tab. Each names its own aggregate's View key, so the feed cannot become a way to read
+    // the audit trail of a record the caller may not open.
+    public string PermissionKey => DocumentType switch
+    {
+        DocumentType.Contact => PermissionKeys.ContactView,
+        DocumentType.Deal => PermissionKeys.DealView,
+        DocumentType.WorkTask => PermissionKeys.TaskView,
+        _ => DocumentPermissions.ViewPermissionFor(DocumentType),
+    };
 
     /// <summary>Phase 32b -- when the parent is a document, the key above is that document&#39;s own, so
     /// a location-scoped caller must hold it at the parent&#39;s location. When the parent is a Contact the

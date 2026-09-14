@@ -1,10 +1,11 @@
 import { Component, OnDestroy, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { OrganizationProfile } from '../../../core/organizations/organizations.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
-import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
@@ -14,8 +15,13 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
  * <b>The logo is the feature; the details are context.</b> The roadmap's item is the phase-1b wizard
  * gap — the reference product's wizard step 1 takes a Company Logo and this codebase never built the
  * field. Showing it on a page of nothing but an upload box would be a screen nobody could place, so
- * it sits beside the nine fields the printed header prints next to it. Editing those nine is a
- * carried item and the page says so rather than offering controls that do not work.
+ * it sits beside the fields the printed header prints next to it.
+ *
+ * <b>Phase 43 made those fields editable.</b> Phase 39 shipped them read-only and said so on the
+ * page; `Organization` had been create-only since phase 1b, so eight fields printed on every
+ * customer-facing PDF had no command that wrote them — phase-31's rule failing in its pure form.
+ * `workspaceName` stays a read-only line: it is the slug that addresses the tenant, the server's
+ * request record does not carry it, and showing it as a disabled input would imply otherwise.
  *
  * <b>This screen is an addition, and that is recorded rather than assumed.</b> The live pass
  * (2026-09-13) found the reference product's own Overview tab has no logo control at all — its EDIT
@@ -31,12 +37,13 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
  */
 @Component({
   selector: 'app-organization-profile-page',
-  imports: [NepaliDatePipe, StatusBanner],
+  imports: [ReactiveFormsModule, BsDateInput, StatusBanner],
   templateUrl: './organization-profile-page.html',
 })
 export class OrganizationProfilePage implements OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly organizationsService = inject(OrganizationsService);
+  private readonly fb = inject(FormBuilder);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -46,6 +53,25 @@ export class OrganizationProfilePage implements OnDestroy {
   protected readonly successMessage = signal<string | null>(null);
   protected readonly profile = signal<OrganizationProfile | null>(null);
   protected readonly logoUrl = signal<string | null>(null);
+
+  /** Phase 43 — separate from `saving`, which the logo upload owns: the two controls sit in two
+   * cards and either can be busy while the other is not. */
+  protected readonly savingDetails = signal(false);
+
+  /** The app is zoneless, so the date the BS control drives lives in its own signal rather than
+   * being read off a FormControl inside a computed (phase 17). */
+  protected readonly accountingStartDate = signal('');
+
+  protected readonly form = this.fb.nonNullable.group({
+    name: ['', [Validators.required, Validators.maxLength(200)]],
+    industry: ['', [Validators.required, Validators.maxLength(100)]],
+    address: ['', Validators.maxLength(500)],
+    email: ['', [Validators.email, Validators.maxLength(256)]],
+    phone: ['', Validators.maxLength(20)],
+    panNumber: ['', Validators.maxLength(50)],
+    website: ['', Validators.maxLength(256)],
+    isVatRegistered: [false],
+  });
 
   /** The reference product's own rules, restated where the user can read them before choosing a
    * file rather than after the server rejects one. */
@@ -111,12 +137,62 @@ export class OrganizationProfilePage implements OnDestroy {
     });
   }
 
+  protected saveDetails(): void {
+    if (this.form.invalid || !this.accountingStartDate()) {
+      this.form.markAllAsTouched();
+      this.errorMessage.set('Fill in the required details before saving.');
+      return;
+    }
+
+    const value = this.form.getRawValue();
+    this.savingDetails.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    this.organizationsService
+      .updateProfile(this.organizationId, {
+        name: value.name.trim(),
+        industry: value.industry.trim(),
+        address: value.address.trim() || null,
+        accountingStartDate: this.accountingStartDate(),
+        isVatRegistered: value.isVatRegistered,
+        email: value.email.trim() || null,
+        phone: value.phone.trim() || null,
+        panNumber: value.panNumber.trim() || null,
+        website: value.website.trim() || null,
+      })
+      .subscribe({
+        next: () => {
+          this.savingDetails.set(false);
+          this.successMessage.set('Organization details saved.');
+          // Re-read rather than patching the signal: the server trims and the header of every
+          // later print reads what it stored, not what was typed.
+          this.load();
+        },
+        error: (error: unknown) => {
+          this.savingDetails.set(false);
+          this.errorMessage.set(extractErrorMessage(error));
+        },
+      });
+  }
+
   private load(): void {
     this.loading.set(true);
 
     this.organizationsService.getProfile(this.organizationId).subscribe({
       next: (profile) => {
         this.profile.set(profile);
+        this.form.setValue({
+          name: profile.name,
+          industry: profile.industry,
+          address: profile.address ?? '',
+          email: profile.email ?? '',
+          phone: profile.phone ?? '',
+          panNumber: profile.panNumber ?? '',
+          website: profile.website ?? '',
+          isVatRegistered: profile.isVatRegistered,
+        });
+        this.accountingStartDate.set(profile.accountingStartDate.slice(0, 10));
         this.loading.set(false);
 
         if (profile.hasLogo) {

@@ -216,11 +216,16 @@ public class DocumentMechanismSweepGuardTests
     }
 
     [Fact]
-    public void The_only_non_document_parents_are_contact_and_organization()
+    public void The_only_non_document_parents_are_the_four_record_parents()
     {
-        // ParentPermissions and WorkflowValidation both switch on these two names. This test is what
-        // makes that switch safe: a third non-document parent added to any of the three enums fails
+        // ParentPermissions and WorkflowValidation both switch on these names. This test is what
+        // makes that switch safe: a fifth non-document parent added to any of the three enums fails
         // here rather than falling into an ArgumentOutOfRangeException at runtime.
+        //
+        // Phase 43 widened the set from two to four. Deal and WorkTask are DocumentType members (the
+        // audit feed needs to name them) but not transactional ones, so they land here exactly as
+        // Contact does -- which is the property that makes them records rather than documents, and
+        // the reason nothing else in the 27a sweep had to change to accommodate them.
         var nonDocumentParents = new[]
         {
             Enum.GetNames<TaskParentType>(),
@@ -234,7 +239,53 @@ public class DocumentMechanismSweepGuardTests
             .Order(StringComparer.Ordinal)
             .ToList();
 
-        Assert.Equal(["Contact", "Organization"], nonDocumentParents);
+        Assert.Equal(["Contact", "Deal", "Organization", "WorkTask"], nonDocumentParents);
+    }
+
+    /// <summary>
+    /// Phase 43 -- the Deal/WorkTask asymmetry, asserted in <b>both</b> directions rather than left
+    /// looking like a member somebody forgot. The live detail pages (2026-09-13) are: Deal = Overview
+    /// / Contact Personnel / Tasks + Documents + Activity; Task = Overview / Documents / Activity.
+    /// So a Deal parents tasks and a task does not -- phase-30's lesson that a list sampled from a
+    /// few screens becomes a wrong list, and that the fix is to assert the rule both ways.
+    /// </summary>
+    [Fact]
+    public void A_deal_parents_tasks_and_a_task_does_not()
+    {
+        Assert.Contains(nameof(DocumentType.Deal), Enum.GetNames<TaskParentType>());
+        Assert.DoesNotContain(nameof(DocumentType.WorkTask), Enum.GetNames<TaskParentType>());
+
+        // Both are parents of files and comments, which is what the two new tabs actually are.
+        foreach (var name in new[] { nameof(DocumentType.Deal), nameof(DocumentType.WorkTask) })
+        {
+            Assert.Contains(name, Enum.GetNames<AttachmentParentType>());
+            Assert.Contains(name, Enum.GetNames<CommentParentType>());
+        }
+    }
+
+    /// <summary>
+    /// Phase 43 -- each record parent resolves its <b>own</b> aggregate's key pair. The direction
+    /// that leaks is the one phase 27a named: a Member holding only ContactView must not be able to
+    /// read the files on a Deal they cannot open, and the way that would happen is a record parent
+    /// quietly falling through to Contact's key.
+    /// </summary>
+    [Fact]
+    public void Every_record_parent_resolves_its_own_key_pair()
+    {
+        Assert.Equal(PermissionKeys.DealManage, ParentPermissions.EditPermissionFor(AttachmentParentType.Deal));
+        Assert.Equal(PermissionKeys.DealView, ParentPermissions.ViewPermissionFor(CommentParentType.Deal));
+        Assert.Equal(PermissionKeys.TaskManage, ParentPermissions.EditPermissionFor(AttachmentParentType.WorkTask));
+        Assert.Equal(PermissionKeys.TaskView, ParentPermissions.ViewPermissionFor(CommentParentType.WorkTask));
+
+        // And no two of the three record parents share a key, which is the assertion that actually
+        // fails if one of them falls through to another's.
+        var editKeys = new[]
+        {
+            ParentPermissions.EditPermissionFor(AttachmentParentType.Contact),
+            ParentPermissions.EditPermissionFor(AttachmentParentType.Deal),
+            ParentPermissions.EditPermissionFor(AttachmentParentType.WorkTask),
+        };
+        Assert.Equal(3, editKeys.Distinct(StringComparer.Ordinal).Count());
     }
 
     [Fact]
@@ -290,6 +341,23 @@ public class DocumentMechanismSweepGuardTests
             AttachmentParentType.ProductionJournal,
             DocumentParentTypes.For<AttachmentParentType>(DocumentType.ProductionJournal));
         Assert.NotEqual((int)DocumentType.ProductionJournal, (int)AttachmentParentType.ProductionJournal);
+
+        // Phase 43 -- the two record parents, whose ordinals diverge harder than any document's:
+        // DocumentType.Deal sits after nine non-document members while AttachmentParentType.Deal
+        // sits immediately after the 15 transactional ones. A cast would map Deal to nothing that
+        // exists in one direction and to a transactional type in the other.
+        Assert.NotEqual((int)DocumentType.Deal, (int)AttachmentParentType.Deal);
+        Assert.NotEqual((int)DocumentType.WorkTask, (int)CommentParentType.WorkTask);
+
+        // And the bridge refuses them as documents in the other direction, which is what keeps
+        // ParentPermissions routing them to their own keys rather than to DocumentPermissions.
+        Assert.Null(DocumentParentTypes.TryToDocumentType(AttachmentParentType.Deal));
+        Assert.Null(DocumentParentTypes.TryToDocumentType(CommentParentType.WorkTask));
+
+        // Contact is the shape these two follow: the name exists in both vocabularies, so the
+        // bridge parses it and then refuses it because it is not transactional. That second half
+        // is what routes all three record parents to their own keys.
+        Assert.Null(DocumentParentTypes.TryToDocumentType(AttachmentParentType.Contact));
     }
 
     // ---------------------------------------------------------------------------------------

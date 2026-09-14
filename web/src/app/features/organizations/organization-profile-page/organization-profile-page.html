@@ -61,46 +61,85 @@
       </div>
     </div>
 
-    <div class="card border-0 shadow-sm">
+    <form class="card border-0 shadow-sm" [formGroup]="form" (ngSubmit)="saveDetails()">
       <div class="card-body">
         <h2 class="h6 fw-bold mb-1">Details</h2>
         <p class="text-muted small mb-3">
-          Captured when the organization was created, and printed in every document header.
-          Editing them is not available yet.
+          Printed in every document header. The workspace name addresses this organization and cannot
+          be changed.
         </p>
 
-        <dl class="row mb-0 small">
-          <dt class="col-sm-4 fw-semibold text-muted">Name</dt>
-          <dd class="col-sm-8">{{ organization.name }}</dd>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold" for="organization-profile-name">Name</label>
+            <input id="organization-profile-name" type="text" class="form-control" formControlName="name" />
+          </div>
 
-          <dt class="col-sm-4 fw-semibold text-muted">Industry</dt>
-          <dd class="col-sm-8">{{ organization.industry }}</dd>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold" for="organization-profile-industry">Industry</label>
+            <input id="organization-profile-industry" type="text" class="form-control" formControlName="industry" />
+          </div>
 
-          <dt class="col-sm-4 fw-semibold text-muted">Workspace</dt>
-          <dd class="col-sm-8">{{ organization.workspaceName }}</dd>
+          <div class="col-12">
+            <label class="form-label small fw-semibold" for="organization-profile-address">Registered address</label>
+            <input id="organization-profile-address" type="text" class="form-control" formControlName="address" />
+          </div>
 
-          <dt class="col-sm-4 fw-semibold text-muted">Registered address</dt>
-          <dd class="col-sm-8">{{ organization.address || '—' }}</dd>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold" for="organization-profile-email">Email</label>
+            <input id="organization-profile-email" type="email" class="form-control" formControlName="email" />
+          </div>
 
-          <dt class="col-sm-4 fw-semibold text-muted">Email</dt>
-          <dd class="col-sm-8">{{ organization.email || '—' }}</dd>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold" for="organization-profile-phone">Phone</label>
+            <input id="organization-profile-phone" type="text" class="form-control" formControlName="phone" />
+          </div>
 
-          <dt class="col-sm-4 fw-semibold text-muted">Phone</dt>
-          <dd class="col-sm-8">{{ organization.phone || '—' }}</dd>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold" for="organization-profile-pan">PAN</label>
+            <input id="organization-profile-pan" type="text" class="form-control" formControlName="panNumber" />
+          </div>
 
-          <dt class="col-sm-4 fw-semibold text-muted">PAN</dt>
-          <dd class="col-sm-8">{{ organization.panNumber || '—' }}</dd>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold" for="organization-profile-website">Website</label>
+            <input id="organization-profile-website" type="text" class="form-control" formControlName="website" />
+          </div>
 
-          <dt class="col-sm-4 fw-semibold text-muted">Website</dt>
-          <dd class="col-sm-8">{{ organization.website || '—' }}</dd>
+          <!-- Every date a user types goes through app-bs-date-input, never a native date input
+               (phase 23, enforced by sweep-guard.spec.ts). -->
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold" for="organization-profile-accounting-start">
+              Accounting start date
+            </label>
+            <app-bs-date-input [inputId]="'organization-profile-accounting-start'"
+              [inputClass]="'form-control'"
+              [value]="accountingStartDate()"
+              (valueChange)="accountingStartDate.set($event)"
+            />
+          </div>
 
-          <dt class="col-sm-4 fw-semibold text-muted">Accounting start date</dt>
-          <dd class="col-sm-8">{{ organization.accountingStartDate | nepaliDate }}</dd>
+          <div class="col-md-6 d-flex align-items-end">
+            <div class="form-check">
+              <input id="organization-profile-vat" type="checkbox" class="form-check-input"
+                     formControlName="isVatRegistered" />
+              <label class="form-check-label small fw-semibold" for="organization-profile-vat">
+                VAT registered
+              </label>
+            </div>
+          </div>
 
-          <dt class="col-sm-4 fw-semibold text-muted">VAT registered</dt>
-          <dd class="col-sm-8">{{ organization.isVatRegistered ? 'Yes' : 'No' }}</dd>
-        </dl>
+          <div class="col-md-6">
+            <span class="form-label small fw-semibold d-block mb-1">Workspace</span>
+            <p class="mb-0 small text-muted">{{ organization.workspaceName }}</p>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+          <button type="submit" class="btn btn-primary fw-bold" [disabled]="savingDetails()">
+            {{ savingDetails() ? 'Saving...' : 'Save details' }}
+          </button>
+        </div>
       </div>
-    </div>
+    </form>
   }
 </div>

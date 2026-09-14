@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ErpApp.Application.Common.Behaviors;
 
 /// <summary>
-/// Phase 31 -- the fifth pipeline behavior. Past <c>TenantSubscription.TrialEndsAt</c> an
+/// Phase 31 -- the fifth pipeline behavior. Past <c>TenantSubscription.TermEndsAt</c> an
 /// organization goes <b>read-only for business documents</b>: nothing new can be created, edited,
 /// approved or voided until the subscription is extended.
 ///
@@ -48,16 +48,16 @@ public sealed class SubscriptionExpiryBehavior<TRequest, TResponse>(IAppDbContex
             return await next();
         }
 
-        var trialEndsAt = await db.TenantSubscriptions
+        var termEndsAt = await db.TenantSubscriptions
             .AsNoTracking()
             .Where(x => x.OrganizationId == scoped.OrganizationId)
-            .Select(x => (DateTimeOffset?)x.TrialEndsAt)
+            .Select(x => (DateTimeOffset?)x.TermEndsAt)
             .SingleOrDefaultAsync(cancellationToken);
 
         // A tenant with no subscription row at all is not treated as expired: TenantSubscription is
         // seeded at Organization creation, so a missing row means a fixture or a partially migrated
         // tenant, and failing those closed would break far more than it protects.
-        if (trialEndsAt is { } endsAt && endsAt <= DateTimeOffset.UtcNow)
+        if (termEndsAt is { } endsAt && endsAt <= DateTimeOffset.UtcNow)
         {
             throw new ConflictException(
                 $"This organization's subscription ended on {endsAt:yyyy-MM-dd} and it is now read-only. " +

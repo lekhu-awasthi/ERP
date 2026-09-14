@@ -330,5 +330,13 @@ public static class DocumentMechanisms
                 "The Purchase Book counterpart of MigratedSalesEntry, same reasoning.",
             [DocumentType.DocumentExtraction] =
                 "An audit-attribution marker for one AI extraction run (Phase 22), not a document.",
+            [DocumentType.Deal] =
+                "A CRM record, not a document -- no lifecycle, no number, nothing posted. Phase 43 " +
+                "gave it a detail page with Documents, Activity and Tasks tabs, but through its own " +
+                "parent-enum members and its own Crm.Deal.* keys, the way Contact got its tabs in " +
+                "Phase 18. It is a DocumentType only so the audit feed can name it.",
+            [DocumentType.WorkTask] =
+                "The WorkTask counterpart of Deal, same reasoning. Its tabs are Documents and " +
+                "Activity only: a task does not parent tasks (live, 2026-09-13).",
         };
 }

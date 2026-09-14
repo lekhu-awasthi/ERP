@@ -178,9 +178,9 @@ public class GeneralSettingsAndSubscriptionTests
         await db.SaveChangesAsync(CancellationToken.None);
 
         var entry = ((DbContext)db).Entry(subscription);
-        entry.Property(nameof(TenantSubscription.TrialStartsAt)).CurrentValue = DateTimeOffset.UtcNow.AddDays(-30);
+        entry.Property(nameof(TenantSubscription.OriginatedAt)).CurrentValue = DateTimeOffset.UtcNow.AddDays(-30);
         entry.Property(nameof(TenantSubscription.TermStartsAt)).CurrentValue = DateTimeOffset.UtcNow.AddDays(-30);
-        entry.Property(nameof(TenantSubscription.TrialEndsAt)).CurrentValue = DateTimeOffset.UtcNow.AddDays(-15);
+        entry.Property(nameof(TenantSubscription.TermEndsAt)).CurrentValue = DateTimeOffset.UtcNow.AddDays(-15);
         await db.SaveChangesAsync(CancellationToken.None);
     }
 }

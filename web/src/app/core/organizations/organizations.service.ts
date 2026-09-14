@@ -10,6 +10,8 @@ import {
   CreateOrganizationRequest,
   OrganizationLogoResult,
   OrganizationProfile,
+  UpdateOrganizationRequest,
+  UpdateOrganizationResult,
   CreateOrganizationResponse,
   CreateRoleRequest,
   CreateRoleResult,
@@ -262,6 +264,18 @@ export class OrganizationsService {
     return this.http.get<OrganizationProfile>(`${this.baseUrl}/${organizationId}/profile`, {
       withCredentials: true,
     });
+  }
+
+  /** Phase 43 — the write path for the nine details phase 39 could only display. */
+  updateProfile(
+    organizationId: string,
+    request: UpdateOrganizationRequest,
+  ): Observable<UpdateOrganizationResult> {
+    return this.http.put<UpdateOrganizationResult>(
+      `${this.baseUrl}/${organizationId}/profile`,
+      request,
+      { withCredentials: true },
+    );
   }
 
   /** The logo's own url. Authenticated like every other read, so an `<img [src]>` pointed at it

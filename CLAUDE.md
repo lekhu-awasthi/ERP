@@ -74,6 +74,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 40: the human WCAG pass (keyboard census, one focus ring, always-present live regions) + list-chrome leftovers. Before claiming an a11y criterion or writing a status message — `docs/phase-40-status.md`
 - Phase 41: subscription and plan model — the seeded `SubscriptionPlan` catalogue, `SubscriptionQuotaBehavior`, the shell banner. Before calling a tenant-level limit "enforcement" — `docs/phase-41-status.md`
 - Phase 42: performance follow-through (`ToKeyPagedResultAsync` on 16 lists, Detail General Ledger paged by row, the id lists that were costing more than they saved, the quota index, the bundle budget). Before paging a list, handing SQL a list of ids, or quoting a bundle size — `docs/phase-42-status.md`
+- Phase 43: aggregate completions (`UpdateOrganizationCommand`, Deal/WorkTask as record parents, the term-date rename, `DebitNote.WarehouseId`, the Sales Register folded to base). Before renaming two columns in one migration, or changing what a document does to the stock ledger — `docs/phase-43-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -135,6 +136,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Validating a migration against a scratch/Docker database does not apply it to the dev database; always follow with a plain `dotnet ef database update`.
 - `migrations add` orders operations by model diff, not data safety — read any migration that replaces or retypes a column and reorder by hand (phase-1c bug #1).
 - `migrations add` bundles the entire pending diff into one migration; plan one migration per invocation and hand-review it (phase-2 bug #6).
+- Two column renames on one table in one diff are paired by **ordinal position**, not by meaning, so `dotnet ef` silently swaps them; verify with a predicate true only of the right pairing (phase-43 bug #1).
 - Rebuilding only `Infrastructure` between `dotnet ef` calls leaves `Api`'s output stale and re-scaffolds an applied diff; let `dotnet ef` rebuild (omit `--no-build`) or rebuild the solution (phase-16a).
 - An enum property with `.HasDefaultValue(x)` where `x != default(TEnum)` needs `.ValueGeneratedNever()`, or EF substitutes the SQL default whenever the in-memory value equals `default` (phase-2 bug #2).
 - `Database.SqlQuery<T>` accepts only composable SQL (a plain `SELECT`); do atomic read-and-increment as `SELECT ... WITH (UPDLOCK, ROWLOCK)` + a separate `UPDATE`, and alias a scalar result `AS Value` (phase-2 bugs #3–4).
@@ -166,6 +168,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A store-side aggregate (`GroupBy...Count()`) must run after the `SaveChangesAsync` that persists what it counts; tracked-but-unsaved rows are invisible to it (phase-21a).
 - A Domain factory/mutator can stay `internal` only while its sole caller is in the Domain assembly (phase-7 bug #1).
 - Never name a Domain type after a common BCL word (`Task` → `WorkTask`) (phase-13).
+- A **record** parent (Contact, Deal, WorkTask) is a `DocumentType` member that is *not* transactional; that one property is what routes it to its own keys with no special-casing (phase-43).
 - A filter over a tree of tenant-defined groups must match on group **id**, never group name — names are not unique across a chart of accounts (phase-26a bug #1).
 - `decimal` has a signed zero: `-0m` keeps its sign bit and surfaces as `-0` / `-0.00` once cast to `double` for a spreadsheet cell. Accumulate a magnitude only when the value is strictly non-zero — no test catches this, because `-0m == 0m` (phase-26c bug #1).
 
@@ -184,6 +187,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - An oversell leaves a shortfall layer (a negative `StockLedgerEntry` at the last known cost) when the Negative Item Balance verdict allows it; `ConsumeAsync` takes the verdict, never the setting (phase-37).
 - A Debit Note line carries no `ExpenditureClassification` or `IsImport` of its own; both are resolved from the source Purchase Bill's matching line by (PurchaseBillId, ProductId, Rate, VatRate) (phase-19, phase-26c's `PurchaseReturnReader`).
 - Convert a currency on a posting rule's **inputs**, never on its finished `GlLineInput` list: every rule derives its balancing leg as a *sum* of the others, so converting afterwards rounds that leg independently and breaks `sum(Debit)==sum(Credit)` intermittently (phase-28).
+- Same in a report: fold a statutory register's **lines**, not its buckets, or Total stops equalling TaxExempt+Taxable+VAT; fold in the shared reader, or two registers disagree about one note (phase-43).
 - Never convert twice: FIFO unit costs, COGS and historical `GlLine`s are already base currency. `ApprovePurchaseBillCommandHandler` is the one place a document rate reaches the stock ledger, and it rounds to 4 dp (`ToBaseUnitCost`), not 2 (phase-28).
 - Changing what a posting rule debits changes what every reversal owes; phase 29's capitalised cost needed its own release leg on Debit Note (phase-29, phase-6 bug #3 again).
 - Build a capitalisation leg from the value the ledger actually received, round each unit cost once at the ledger's scale, and name the residue (phase-29).
@@ -191,10 +195,13 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A stock **value** correction must reach three views or two drift silently: the FIFO layers, the Inventory account, and the append-only movement history (`StockMovement.ValueAdjustment`, a row with zero quantity). Any two can be patched into agreement — assert all three (phase-37).
 - A return relieves at the cost the layers give up (FIFO's choice), debits the supplier the return price, and books the difference as the balancing plug (phase-37).
 - A catch-up leg raisable from many call sites is its own GL entry against the same source document, never an amount threaded through posting rules; `PostReversalOf` is gone (phase-37).
+- Changing what a document does to the **stock** ledger changes what its Void owes: giving Approve a new warehouse source left Void restocking from the old one, so stock went out and never came back (phase-43).
+- A standalone Debit Note credited the Inventory *account* while the FIFO ledger never moved; a standalone Credit Note posts no Inventory leg at all, so only one of the two was ever a divergence (phase-43).
 
 - Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
 - A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
 - A tenant-level field is reachable only if you can name the command that writes it and the screen that calls it; a read path proves nothing about the write path (phase-31).
+- A field an aggregate refuses to expose should be **absent** from the request record, not merely unwritten — present-and-ignored reads to a client as accepted (phase-43's `WorkspaceName`).
 - Before calling a tenant-level limit "enforcement", ask who can write it: `Tenancy.Subscription.Manage` sits on the tenant's own Admin, so a quota is a record and a guard, not a control (phase-41).
 - A field dead on two free-trial tenants is one sample, not two; read what the vendor publishes (its price list sells the "dead" fields) before asking for another tenant (phase-41).
 - Two confirmable warnings on one document need two override flags and a `warningKind` on the 422, or confirming the first waives the second (phase-31).
@@ -205,6 +212,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - When a tenant setting selects among sets of document types, the schema owes the widest set, or flipping the setting is a lie until later columns ship (phase-32's `LocationScopeMode`).
 - Once missing one per-handler re-check is an open door, the check moves into `AuthorizationBehavior` (not a sixth behavior; a nested `ISender.Send` corrupts a scoped context) behind marker interfaces and a build-failing sweep guard (phase-32b).
 - A confirm-live pass can falsify an earlier one: a recorded inference about a control nobody operated is not settled (phase-32b's `LocationWiseReportPermission` scopes report rows, not keys).
+- Product-to-location filters the **picker** and nothing else: the reference product saves *and* approves a document naming an out-of-location product (phase-43, confirmed live; the enforcement idea is retired).
 - Reuse a marker interface by reading it, not merging it, when its member set is narrower than the new grant's (`ILockDateSensitiveDocument`, phase-32b).
 
 **Imports and exports**
@@ -347,26 +355,31 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–42 are complete.** The v1 sequence (0–25), the parity sequence (26–34c), the
-consolidation sequence (35–41) and the first completion phase (42) are all done; each phase's story
-is in its `docs/phase-N-status.md`, and the completed planning entries are archived in
-`docs/roadmap-history.md`. Phase 42 closed five of phase 34c's six carried items plus phase 41's
-unmeasured quota count, and retired keyset pagination rather than deferring it again: the offset
-tail's cost was the row fetch, not the offset. Two things it did **not** fix are worth knowing on
-day one — contact list search (510–656 ms, and the residue is a `LIKE '%term%'` count no index can
-seek) and global search (524–1,007 ms, untouched since 34c).
+**Phases 0–43 are complete.** The v1 sequence (0–25), the parity sequence (26–34c), the
+consolidation sequence (35–41) and the first two completion phases (42–43) are all done; each
+phase's story is in its `docs/phase-N-status.md`, and the completed planning entries are archived
+in `docs/roadmap-history.md`. Phase 43 closed six carried items where a thing existed on one side
+of a boundary and not the other, and its own two findings both came from checking the other side
+of something it had just changed — `dotnet ef` pairs two column renames on one table by ordinal
+position and had silently swapped them, and giving the Debit Note's Approve a new warehouse source
+left Void restocking from the old one. It also settled phase 36's product-to-location question
+live: the reference product saves **and** approves a document naming an out-of-location product,
+so the enforcement idea is retired rather than carried.
 
-**Next: phases 43–47 in `docs/roadmap.md`** (planned 2026-09-14 from the carried items of phases
-34c–41): aggregate completions that many later screens depend on, then report semantics needing a
-live re-read, then multi-UOM × variants and import ergonomics, then the metered add-on axes and the
-accessibility items that need a person with a screen reader. The deferred list (DO/GRN, POS, IRD,
-Marketplace, unrealised forex, per-user location, multi-level BOM) is unchanged.
+**Next: phases 44–47 in `docs/roadmap.md`.** Phase 44 is report semantics and **needs a live
+re-read of Moonbeam and Cadehi before any coding**; it also inherits phase 43's Decision D, which
+named the four statutory reports still denominated in transaction currency (Purchase Register,
+Purchase Return Register, VAT Summary, Annex 13) after the Sales Register was folded to base. Then
+multi-UOM × variants and import ergonomics (45), then the metered add-on axes and the
+accessibility items that need a person with a screen reader (46–47). The deferred list (DO/GRN,
+POS, IRD, Marketplace, unrealised forex, per-user location, multi-level BOM) is unchanged.
 
-Tests at last count: Domain 660, Application.UnitTests 1091, Api.IntegrationTests 29, Angular 443;
-`dotnet build` / `dotnet test` / `ng build` / `ng test` all clean, and `ng build` no longer warns —
-phase 42 moved the initial-bundle budget to a measured 680 kB, pinned by `build-budget.spec.ts`.
-`tsc --noEmit` does not cover `web/src/app`; `ng build` is the check (phase-28), and `ng test` must
-be run from `web/` (phase-35a).
+Tests at last count: Domain 666, Application.UnitTests 1103, Api.IntegrationTests 29, Angular 447;
+`dotnet build` / `dotnet test` / `ng build` / `ng test` all clean, and `ng build` does not warn —
+phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts` (651.81 kB at
+the end of phase 43). `Api.IntegrationTests` still fails nondeterministically under machine load
+and passes on re-run (phase 36/37). `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
+check (phase-28), and `ng test` must be run from `web/` (phase-35a).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

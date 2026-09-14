@@ -2276,3 +2276,143 @@ Shortened in CLAUDE.md on 2026-09-14 and kept here verbatim; each has its narrat
 - A lazy `.*?` between two anchors spans the instances in between (it expands past `</label>` to reach a later match), silently merging them; exclude the closing marker — `((?:(?!</label>).)*?)`. The tell is two independent counts disagreeing, so derive the expected number a second way (phase-34a, on top of phase-32's assert-before-writing rule).
 - A `sed -i` over a glob rewrites **every** file it matches, and on Windows that flips CRLF to LF even where the pattern never fires — `git diff` stays empty while `git status` shows a hundred extra modified files. Undoing it needs `rm` *then* `git checkout --`; restrict the file list instead (phase-30).
 - A benchmark run against an **empty** tenant looks like a spectacularly fast one — 20 ms p95, every status 200. Only the response size tells them apart, so a harness must assert its target is populated before timing it; `seed-master.sh` rewriting `.seed-ids.env` is the side effect that caused it (phase-34c, the prints-and-returns trap in another costume).
+
+## Two column renames on one table, paired by ordinal (phase 43)
+
+`dotnet ef migrations add` cannot infer a rename — it compares two models and sees a column gone
+and a column arrived. When the diff contains **two** renames on one table it pairs them by their
+ordinal position, and phase 43's rename of `TrialStartsAt → OriginatedAt` and `TrialEndsAt →
+TermEndsAt` scaffolded as `TrialStartsAt → TermEndsAt` and `TrialEndsAt → OriginatedAt`: the two
+values **swapped** on every existing row.
+
+Nothing downstream would have said so, because the model only ever sees the names. Every tenant's
+origin would have become its term end, `SubscriptionExpiryBehavior` reads that end on every
+request, and the whole database would have read as expired the moment the migration applied.
+
+The lesson is not "read the migration" — phase-1c already says that. It is what to verify **with**.
+Checking that the columns exist passes in both worlds. The check that only passes in the right one
+is a predicate that is true of the *data*: `SELECT COUNT(*) FROM tenancy.TenantSubscriptions WHERE
+OriginatedAt >= TermEndsAt` returns 0, and would have returned every row had the swap shipped.
+Whenever a migration moves data rather than shape, find the statement that distinguishes the two
+outcomes and run it after applying.
+
+## The reversal owes what the document did to the *stock* ledger (phase 43)
+
+Phase-6 bug #3 and phase 29 both say that changing what a document posts changes what its reversal
+owes. Phase 43 is the same rule arriving through the stock ledger instead of the general one, and
+it is worse because the two handlers look nothing alike.
+
+`ApproveDebitNoteCommandHandler` consumed FIFO layers at the **source Purchase Bill's** warehouse.
+Phase 43 gave `DebitNote` its own `WarehouseId` so a *standalone* Goods return consumes from
+somewhere — closing the divergence where the GL credited the Inventory account and the ledger
+never moved. `VoidDebitNoteCommandHandler` still looked its warehouse up from the source bill,
+which is null for a standalone note, so after the fix stock went **out** on Approve and never came
+back on Void: strictly worse than the bug being fixed.
+
+No handler test could see it. Every test in the suite exercised the converted path, where the old
+lookup worked — which is the general shape: **when a change adds a case to one side of a
+document's lifecycle, the tests that exist are the ones written for the case that already worked.**
+Only the E2E, reading the FIFO layers and the Inventory account after *both* Approve and Void, put
+the two numbers side by side.
+
+## One gap on one side of a document family is not the same gap on the other (phase 43)
+
+Phase 43's brief recommended a `WarehouseId` on `DebitNote` "because that is what the Credit Note
+already does on the sales side". The Credit Note does not: it has no `WarehouseId` either, and a
+standalone Credit Note skips the stock ledger entirely.
+
+The two cases are genuinely different, and the difference is what makes one a bug:
+
+- A standalone **Credit Note** resolves inventory accounts only when a source invoice exists
+  (`resolveInventoryAccounts: sourceInvoice is not null`), so it posts no Inventory leg at all.
+  Its GL and its ledger agree — both untouched. A limitation, not a divergence.
+- A standalone **Debit Note** credited the Inventory account unconditionally, because a Goods line
+  resolves through `PurchaseBillAccountResolver` (post-phase-19). Its two views disagreed.
+
+So before mirroring a fix onto a document's twin, check what each side actually posts. "The other
+side already solved this" is a premise to verify, not a reason — and here the premise was wrong in
+a way that would have produced a worse design (a warehouse on the sales side answering a question
+nobody had asked).
+
+## Folding a report to base currency (phase 43)
+
+A statutory register filed with the IRD is denominated in NPR, so its money columns are NPR — a
+foreign invoice contributing its own 100 beside a domestic invoice's 100 is not a display quirk,
+it is a wrong number on a filed return. Three things decide whether the fold is correct:
+
+**Fold the lines, not the buckets.** `Total` is derived as a sum of the other three magnitudes, so
+converting the finished buckets independently lets `Total` differ from `TaxExempt + Taxable + VAT`
+by a paisa at some rates — and the footer, the page and the per-line view each round it
+differently. This is phase-28's posting-rule rule (*convert the inputs, never the finished legs*)
+arriving in a report, for exactly the same reason.
+
+**Fold in the shared reader.** `SalesReturnReader` is read by both the Sales Register and the Sales
+Return Register, and phase 36 built it precisely so the two cannot disagree about one note. Folding
+in the caller would have made one register report a foreign return in rupees and the other report
+the same return in dollars — a regression, not a partial fix.
+
+**Fold in memory.** `ExchangeRates.ToBase` is a static call: inside the query it is untranslatable
+on SQL Server and silently evaluated in C# by InMemory, so every handler test passes while the
+endpoint 500s. Select the raw amounts and the rate, `ToListAsync`, then convert.
+
+The rule also selects more than one report. Phase 43 folded the sales side and stopped at the
+shared reader's edge, naming the Purchase Register, the Purchase Return Register, the VAT Summary
+and Annex 13 as carrying the same defect — because half a rule applied is better recorded than
+half-applied silently.
+
+## A record parent is a DocumentType that is not transactional (phase 43)
+
+Phase 27a swept four mechanisms across the 15 transactional document types and bridged three parent
+enums to `DocumentType` by name. Phase 43 added two parents that are **not documents** — `Deal` and
+`WorkTask` — and the whole sweep fell out of one property rather than a special case.
+
+Both gained a `DocumentType` member, because `ListActivitiesQuery` keys the audit feed on
+`(DocumentType, DocumentId)` and a record with an Activity tab needs a name in that vocabulary. But
+both are classified in `DocumentMechanisms.NotApplicableReasons`, so
+`DocumentParentTypes.TryToDocumentType` returns **null** for them — exactly as it already did for
+`Contact`. That null is what routes them through `ParentPermissions` to their own aggregates' keys
+(`Crm.Deal.*`, `Workflow.Task.*`) with no branch anywhere else in the codebase.
+
+Two things worth stating because they read like omissions:
+
+- **The tab lists are not symmetric.** The live Deal page has Overview / Contact Personnel / Tasks
+  plus Documents and Activity; the live Task page has Overview / Documents / Activity. So `Deal`
+  joins all three parent enums and `WorkTask` joins two — a task does not parent tasks. Asserted in
+  both directions, because a missing member and a deliberately absent one look identical.
+- **A file on a task is not a task on a task.** `CreateTask`/`ListTasks` keep phase 13's blanket
+  `Workflow.Task.*` pair for every parent; what `ParentPermissions` now answers for is an
+  attachment or comment *on* a WorkTask.
+
+The route family is separate too (`RecordTabsEndpoints`): `DocumentTabsEndpoints` binds its segment
+to `DocumentType` and resolves through `DocumentParentTypes.For<T>()`, which answers only for
+transactional types, and relaxing it would have given up the property that makes an unroutable type
+a 404 from routing rather than something a validator has to catch.
+
+## Product-to-location filters the picker and nothing else (phase 43)
+
+Phase 36 proved by experiment that a product scoped to one location vanishes from another
+location's line picker, server-side — and deliberately left open whether the reference product also
+*refuses* such a line at save or approve. Phase 43 ran that experiment on Cadehi (2026-09-14).
+
+With phase 36's `Location Probe Product` still restricted to POS Retail: the picker returns "No
+data" at HeadOffice and offers the product at POS Retail (36's finding reproduced); adding the line
+at POS Retail and then **switching the header back to HeadOffice leaves the line on the form**; Save
+succeeds; Approve succeeds, numbering the invoice `INV0001HO|83-84` from the HeadOffice pool — which
+independently confirms the header location really was HeadOffice.
+
+So the restriction is a property of the picker, not an invariant of the document. The enforcement
+idea is **retired**, not carried: building it would have shipped a rule the reference product does
+not have, and one that could invalidate documents a tenant had legitimately saved. Phase-32b's
+lesson in the pleasant direction — 35b's recorded inference happened to be right, but it was right
+the way a guess is right, and one write settled it.
+
+## A refused field should be absent, not ignored (phase 43)
+
+`UpdateOrganizationCommand` deliberately cannot change `WorkspaceName`: it is a login-adjacent
+unique slug that *addresses* the tenant, and changing it breaks every bookmarked workspace URL.
+
+The implementation detail that matters is that `WorkspaceName` is **absent** from the Api request
+record, not present-and-unused. A field a client can send and the server silently drops reads, from
+the client's side, exactly like a field that was accepted — the same failure mode as phase-38's
+array parameter binding to null while the request looked fine. If a command refuses a field, take
+it out of the shape, so sending it is a shape a caller can notice.

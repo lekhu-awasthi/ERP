@@ -61,7 +61,11 @@ export type TaskParentType =
   | 'WarehouseTransfer'
   | 'InventoryAdjustment'
   | 'ProductionOrder'
-  | 'ProductionJournal';
+  | 'ProductionJournal'
+  // Phase 43 (39 carried item #1) — a Deal parents tasks (its detail page has a Tasks tab); a task
+  // does not, so there is deliberately no 'WorkTask' member here. The server's TaskParentType is
+  // the same set, asserted by DocumentMechanismSweepGuardTests in both directions.
+  | 'Deal';
 
 export type TaskPriority = 'Normal' | 'Urgent';
 

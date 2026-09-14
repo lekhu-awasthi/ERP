@@ -23,4 +23,10 @@ public sealed record DebitNoteConversionTemplateDto(
     // Quotation raised at a branch converted to an Invoice at HeadOffice, silently, because the new
     // form's picker falls back to the tenant default. Same shape as the currency the conversion
     // flow already carries verbatim.
-    Guid? LocationId);
+    Guid? LocationId,
+    // Phase 43 (37 carried item #1) -- the source bill's warehouse, carried into the prefill for the
+    // same reason the location above is: the new form would otherwise show an empty picker for a
+    // fact the conversion already knows. The server defaults to this value anyway when the command
+    // arrives with a null warehouse, so the prefill is what makes the form honest rather than what
+    // makes it correct.
+    Guid WarehouseId);

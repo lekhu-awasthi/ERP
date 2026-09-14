@@ -25,6 +25,14 @@ public sealed class ListDealsQueryHandler(IAppDbContext db, ICurrentUserService 
             query = query.Where(x => x.ContactId == contactId);
         }
 
+        // Phase 43 -- composed as its own .Where() rather than folded into a predicate. An
+        // expression tree does not short-circuit, and composing is the codebase's standing answer
+        // (CLAUDE.md, phase-33/35a).
+        if (request.Id is { } id)
+        {
+            query = query.Where(x => x.Id == id);
+        }
+
         if (request.Status is { } status)
         {
             query = query.Where(x => x.Status == status);

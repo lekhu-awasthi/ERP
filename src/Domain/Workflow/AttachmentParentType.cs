@@ -34,4 +34,11 @@ public enum AttachmentParentType
     InventoryAdjustment,
     ProductionOrder,
     ProductionJournal,
+
+    // Phase 43 (39 carried item #1) -- appended, so no persisted ordinal moves. Deal and WorkTask are
+    // records, not documents: they have no DocumentType counterpart in
+    // DocumentMechanisms.Transactional, so DocumentParentTypes.TryToDocumentType returns null for
+    // them exactly as it does for Contact, and ParentPermissions resolves them to their own keys.
+    Deal,
+    WorkTask,
 }

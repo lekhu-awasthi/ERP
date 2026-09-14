@@ -52,16 +52,16 @@ public sealed class GetTenantSubscriptionQueryHandler(IAppDbContext db)
     internal static TenantSubscriptionDto ToDto(TenantSubscription subscription, SubscriptionUsage usage)
     {
         var now = DateTimeOffset.UtcNow;
-        var daysRemaining = (int)Math.Ceiling((subscription.TrialEndsAt - now).TotalDays);
+        var daysRemaining = (int)Math.Ceiling((subscription.TermEndsAt - now).TotalDays);
 
         return new TenantSubscriptionDto(
             subscription.OrganizationId,
             subscription.PlanId,
             subscription.PlanName,
-            subscription.TrialStartsAt,
+            subscription.OriginatedAt,
             subscription.TermStartsAt,
-            subscription.TrialEndsAt,
-            subscription.TrialEndsAt > now,
+            subscription.TermEndsAt,
+            subscription.TermEndsAt > now,
             Math.Max(daysRemaining, 0),
             subscription.SubscriptionAmount,
             subscription.IrdVerified,

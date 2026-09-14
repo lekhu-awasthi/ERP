@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, input, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
@@ -31,7 +32,7 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
  */
 @Component({
   selector: 'app-deal-list',
-  imports: [ReactiveFormsModule, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, StatusBanner],
+  imports: [ReactiveFormsModule, RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, StatusBanner],
   templateUrl: './deal-list.html',
 })
 export class DealList implements OnInit {

@@ -127,7 +127,10 @@
               }
             </td>
             <td>
-              <div class="fw-semibold">{{ row.title }}</div>
+              <!-- Phase 43 -- same treatment as the Deal list: an absolute route, so every host
+                   (the standalone screen, a document tab, the Deal detail page) links correctly. -->
+              <a class="fw-semibold"
+                 [routerLink]="['/organizations', organizationId(), 'workflow', 'tasks', row.id]">{{ row.title }}</a>
               @if (row.description) {
                 <div class="text-muted small">{{ row.description }}</div>
               }

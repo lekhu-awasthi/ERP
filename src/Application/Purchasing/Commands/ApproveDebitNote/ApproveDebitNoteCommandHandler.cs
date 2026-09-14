@@ -90,28 +90,47 @@ public sealed class ApproveDebitNoteCommandHandler(
 
         debitNote.Approve(currentUser.UserId, code);
 
-        if (sourcePurchaseBill is { } purchaseBill)
-        {
-            var productIds = debitNote.Lines.Select(x => x.ProductId).Distinct().ToList();
-            var productTypes = await db.Products
-                .Where(x => x.OrganizationId == request.OrganizationId && productIds.Contains(x.Id))
-                .Select(x => new { x.Id, x.Type })
-                .ToDictionaryAsync(x => x.Id, x => x.Type, cancellationToken);
+        // Phase 43 (37 carried item #1) -- the Goods lines are resolved for every note, not only for
+        // one converted from a bill. A Goods line credits the Inventory account either way; until now
+        // stock only left the FIFO ledger when a source bill happened to be there to borrow a
+        // warehouse from, so a standalone Goods return moved the general ledger and not the stock
+        // ledger. The note now carries its own warehouse and this is the one place that reads it.
+        var productIds = debitNote.Lines.Select(x => x.ProductId).Distinct().ToList();
+        var productTypes = await db.Products
+            .Where(x => x.OrganizationId == request.OrganizationId && productIds.Contains(x.Id))
+            .Select(x => new { x.Id, x.Type })
+            .ToDictionaryAsync(x => x.Id, x => x.Type, cancellationToken);
 
-            var goodsLines = debitNote.Lines.Where(x => productTypes.GetValueOrDefault(x.ProductId) == ProductType.Goods).ToList();
+        var goodsLines = debitNote.Lines
+            .Where(x => productTypes.GetValueOrDefault(x.ProductId) == ProductType.Goods)
+            .ToList();
+
+        if (goodsLines.Count > 0)
+        {
+            // The rows that predate this phase: a standalone Draft note with a Goods line was
+            // creatable before the warehouse existed, so it can still be sitting there with a null
+            // one. A 409 naming what to do beats consuming from a warehouse nobody chose, and beats
+            // the silent no-op this is here to end. CreateDebitNote/UpdateDebitNote turn the same
+            // situation into a 400 naming the field, so this fires only for that backlog.
+            if (debitNote.WarehouseId is not { } warehouseId)
+            {
+                throw new ConflictException(
+                    "This debit note returns goods but names no warehouse. Edit it and choose the "
+                        + "warehouse the stock is returned from, then approve it.");
+            }
 
             // Phase 29 -- the landed cost the returned quantities carry, matched back to the source
             // bill's own lines on the same (ProductId, Rate, VatRate, DiscountPct) quadruple every
             // other purchase-return path keys on (see PurchasingValidation.
             // GetPurchaseBillRemainingByLineAsync). Proportional to quantity returned, and taken at
             // the *bill's* rate, because the capitalised figure is a base-currency fact of the bill,
-            // not of this note.
-            var allocationByLineKey = purchaseBill.Lines
+            // not of this note. Empty for a standalone note, which has no capitalised cost to release.
+            var allocationByLineKey = sourcePurchaseBill?.Lines
                 .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct))
                 .ToDictionary(
                     g => g.Key,
                     g => (
-                        Allocated: g.Sum(x => purchaseBill.AllocatedAdditionalCostFor(x.Id)),
+                        Allocated: g.Sum(x => sourcePurchaseBill.AllocatedAdditionalCostFor(x.Id)),
                         Quantity: g.Sum(x => x.Quantity)));
 
             var releasedAdditionalCost = 0m;
@@ -124,12 +143,13 @@ public sealed class ApproveDebitNoteCommandHandler(
             foreach (var line in goodsLines)
             {
                 var averageUnitCost = await stockLedgerService.ConsumeAsync(
-                    request.OrganizationId, line.ProductId, purchaseBill.WarehouseId, line.Quantity,
+                    request.OrganizationId, line.ProductId, warehouseId, line.Quantity,
                     DocumentType.DebitNote, debitNote.Id, debitNote.Date, cancellationToken, debitNote.LocationId);
                 line.RecordConsumedUnitCost(averageUnitCost);
                 relievedInventoryCost += line.Quantity * averageUnitCost;
 
-                if (allocationByLineKey.TryGetValue(
+                if (sourcePurchaseBill is { } purchaseBill
+                    && allocationByLineKey!.TryGetValue(
                         (line.ProductId, line.Rate, line.VatRate, line.DiscountPct), out var source)
                     && source is { Allocated: > 0, Quantity: > 0 })
                 {
@@ -143,26 +163,23 @@ public sealed class ApproveDebitNoteCommandHandler(
                 postingInput = postingInput with { ReleasedAdditionalCost = releasedAdditionalCost };
             }
 
-            if (goodsLines.Count > 0)
-            {
-                // Phase 37 -- RelievedInventoryCost is what makes the rule credit Inventory at cost
-                // rather than at the return price, and the adjustment account is where the
-                // difference between them goes. It is resolved here, after the consumption, rather
-                // than in the resolver, because a return whose price happens to equal its FIFO cost
-                // leaves no difference at all and must not start demanding an account that every
-                // such return has managed without. Nothing is saved until the end of this handler,
-                // so the rule's 409 on a missing account still unwinds everything above it.
-                var adjustmentAccountId = await db.TenantSettings
-                    .Where(x => x.OrganizationId == request.OrganizationId)
-                    .Select(x => x.DefaultInventoryAdjustmentAccountId)
-                    .SingleOrDefaultAsync(cancellationToken);
+            // Phase 37 -- RelievedInventoryCost is what makes the rule credit Inventory at cost
+            // rather than at the return price, and the adjustment account is where the difference
+            // between them goes. It is resolved here, after the consumption, rather than in the
+            // resolver, because a return whose price happens to equal its FIFO cost leaves no
+            // difference at all and must not start demanding an account that every such return has
+            // managed without. Nothing is saved until the end of this handler, so the rule's 409 on a
+            // missing account still unwinds everything above it.
+            var adjustmentAccountId = await db.TenantSettings
+                .Where(x => x.OrganizationId == request.OrganizationId)
+                .Select(x => x.DefaultInventoryAdjustmentAccountId)
+                .SingleOrDefaultAsync(cancellationToken);
 
-                postingInput = postingInput with
-                {
-                    RelievedInventoryCost = relievedInventoryCost,
-                    InventoryAdjustmentAccountId = adjustmentAccountId,
-                };
-            }
+            postingInput = postingInput with
+            {
+                RelievedInventoryCost = relievedInventoryCost,
+                InventoryAdjustmentAccountId = adjustmentAccountId,
+            };
         }
 
         var glLines = postingRule.BuildLines(postingInput);

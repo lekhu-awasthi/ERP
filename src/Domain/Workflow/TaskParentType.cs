@@ -39,4 +39,15 @@ public enum TaskParentType
     InventoryAdjustment,
     ProductionOrder,
     ProductionJournal,
+
+    // Phase 43 (39 carried item #1) -- appended, so no persisted ordinal moves.
+    //
+    // <b>Deal and not WorkTask, and that asymmetry is the live record rather than an omission.</b>
+    // The Deal detail page reads Overview / Contact Personnel / Tasks with a Documents dropzone and
+    // an Activity composer; the Task detail page reads Overview / Documents / Activity and has no
+    // Tasks tab -- a task does not parent tasks (read live 2026-09-13, docs/phase-39-status.md's
+    // list-and-detail table). So WorkTask joins the other two parent enums and not this one, and
+    // DocumentMechanismSweepGuardTests asserts that in both directions rather than leaving it to
+    // look like a member somebody forgot.
+    Deal,
 }

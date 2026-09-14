@@ -120,12 +120,14 @@ public static class WorkflowEndpoints
         group.MapGet("/tasks", async (
             Guid organizationId, TaskParentType? parentType, Guid? parentId, WorkTaskStatus? status,
             int? page, int? pageSize, string? search,
+            // Phase 43 -- narrows to a single task, which is how the new detail page reads its record.
+            Guid? id,
             ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ListTasksQuery(
                     organizationId, parentType, parentId, status,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, id),
                 ct);
             return Results.Ok(result);
         });

@@ -73,6 +73,18 @@
           <input id="quick-payment-page-reference" type="text" class="form-control" formControlName="reference" placeholder="Optional" />
         </div>
 
+        <!-- Phase 43 (36 carried item #6): Currency + Exchange Rate To NPR, the same shared control
+             and the same layout the two Payment detail forms have carried since phase 28. The rate
+             disables itself and pins to 1 while the currency is the base one. -->
+        <div class="col-12">
+          <app-currency-rate-fields
+            [organizationId]="organizationId"
+            [(currencyCode)]="currencyCode"
+            [(exchangeRate)]="exchangeRate"
+            [disabled]="isDraftSaved()"
+          />
+        </div>
+
         @if (requiresChequeDetails()) {
           <div class="col-12">
             <hr />

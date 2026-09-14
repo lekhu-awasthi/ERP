@@ -3662,6 +3662,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid?>("VoidedByUserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("WarehouseId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ContactId");
@@ -3669,6 +3672,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("LocationId");
 
                     b.HasIndex("TdsTypeId");
+
+                    b.HasIndex("WarehouseId");
 
                     b.HasIndex("OrganizationId", "Code");
 
@@ -8688,6 +8693,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTimeOffset>("OriginatedAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<Guid?>("PlanId")
                         .HasColumnType("uniqueidentifier");
 
@@ -8709,6 +8717,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<DateTimeOffset>("TermEndsAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<DateTimeOffset>("TermStartsAt")
                         .HasColumnType("datetimeoffset");
 
@@ -8717,12 +8728,6 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.Property<int>("TransactionQuota")
                         .HasColumnType("int");
-
-                    b.Property<DateTimeOffset>("TrialEndsAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTimeOffset>("TrialStartsAt")
-                        .HasColumnType("datetimeoffset");
 
                     b.HasKey("Id");
 
@@ -9785,6 +9790,11 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasOne("ErpApp.Domain.Configuration.TdsType", null)
                         .WithMany()
                         .HasForeignKey("TdsTypeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ErpApp.Domain.Tenancy.Warehouse", null)
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 

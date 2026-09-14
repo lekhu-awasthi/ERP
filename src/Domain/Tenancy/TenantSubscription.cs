@@ -27,16 +27,18 @@ public sealed class TenantSubscription
 
     /// <summary>
     /// When this tenant began -- untouched by every renewal, because it records the tenant's origin
-    /// and a renewal does not change it (phase 31).
+    /// and a renewal does not change it (phase 31). Called <c>TrialStartsAt</c> until phase 43; the
+    /// trial is only what the origin happened to start, and a tenant that signed straight onto a
+    /// paid plan never had one.
     /// </summary>
-    public DateTimeOffset TrialStartsAt { get; private set; }
+    public DateTimeOffset OriginatedAt { get; private set; }
 
     /// <summary>
     /// Phase 41 -- the start of the <b>current</b> term, which is what the transaction quota is
-    /// counted over. Seeded equal to <see cref="TrialStartsAt"/> and moved forward by every
+    /// counted over. Seeded equal to <see cref="OriginatedAt"/> and moved forward by every
     /// <see cref="SetPlan"/>.
     ///
-    /// <para><b>Why a second date rather than counting from <see cref="TrialStartsAt"/>.</b> The
+    /// <para><b>Why a second date rather than counting from <see cref="OriginatedAt"/>.</b> The
     /// quota the price list sells is "transactions / year" against a term that is bought and
     /// re-bought; counting from the tenant's origin would meter a five-year-old tenant against the
     /// allowance it purchased this year plus everything it has ever done. Counting backwards a fixed
@@ -47,11 +49,17 @@ public sealed class TenantSubscription
 
     /// <summary>
     /// The instant past which <c>SubscriptionExpiryBehavior</c> makes this organization read-only
-    /// for business documents. Named for the trial it originally only ever described; it is the end
-    /// of whatever term is current, trial or paid. Renaming it is a sweep this phase deliberately
-    /// did not take on -- see docs/phase-41-status.md's carried items.
+    /// for business documents -- the end of whatever term is current, trial or paid.
+    ///
+    /// <para><b>Phase 43 renamed this from <c>TrialEndsAt</c></b> (phase-41 carried item #2). It has
+    /// described paid terms since phase 41 recorded one, and a column whose name says trial is a
+    /// standing invitation to reason about it as one. <c>OriginatedAt</c> was renamed in the same
+    /// pass and deliberately <i>not</i> to a term date: it is the tenant's origin and moves for
+    /// nothing, which is precisely what <see cref="TermStartsAt"/> is not. Neither rename changed
+    /// what <c>SubscriptionUsageReader</c> or <c>SubscriptionQuotaBehavior</c> computes -- the
+    /// window is still <see cref="TermStartsAt"/>..this.
     /// </summary>
-    public DateTimeOffset TrialEndsAt { get; private set; }
+    public DateTimeOffset TermEndsAt { get; private set; }
 
     /// <summary>
     /// Phase 41 -- what this tenant is actually charged for the current term, which is not
@@ -77,7 +85,7 @@ public sealed class TenantSubscription
     /// Phase 41 -- the ceiling on metered transactions per term, including any add-on (Rs 1,000 per
     /// additional 10,000). Zero means not metered, as for <see cref="ProductQuota"/>. What counts is
     /// <c>DocumentMechanisms.MeteredTransactions</c>, and the window is
-    /// <see cref="TermStartsAt"/>..<see cref="TrialEndsAt"/>.
+    /// <see cref="TermStartsAt"/>..<see cref="TermEndsAt"/>.
     /// </summary>
     public int TransactionQuota { get; private set; }
 
@@ -113,9 +121,9 @@ public sealed class TenantSubscription
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
             PlanName = "Trial",
-            TrialStartsAt = now,
+            OriginatedAt = now,
             TermStartsAt = now,
-            TrialEndsAt = now.AddDays(15),
+            TermEndsAt = now.AddDays(15),
             // A trial is deliberately unmetered on both axes: no allowance has been purchased, and
             // a trial that refused to create a product or approve an invoice would be a trial of
             // nothing. Zero is the same "no limit" sentinel phase 31 confirmed live for a credit
@@ -139,7 +147,7 @@ public sealed class TenantSubscription
     /// <summary>
     /// Phase 31's <c>Renew</c>, widened by phase 41 into "record the term that was sold": the plan,
     /// what it cost, the two ceilings it came with, the IRD Billing add-on, and the window
-    /// (<see cref="TermStartsAt"/>..<see cref="TrialEndsAt"/>) the transaction ceiling is counted
+    /// (<see cref="TermStartsAt"/>..<see cref="TermEndsAt"/>) the transaction ceiling is counted
     /// over. It remains the one mutator, and the one command an expired organization can still run.
     ///
     /// <para><b>It still does not touch the entitlement flags</b>, and phase 31's reason is
@@ -151,7 +159,7 @@ public sealed class TenantSubscription
     /// carry entitlements is a <i>vendor</i> action, and this codebase has no vendor actor; see
     /// docs/phase-41-status.md.</para>
     ///
-    /// <para><see cref="TrialStartsAt"/> is likewise untouched: it records when this tenant began,
+    /// <para><see cref="OriginatedAt"/> is likewise untouched: it records when this tenant began,
     /// which a renewal does not change. <see cref="TermStartsAt"/> is what moves.</para>
     ///
     /// <param name="termStartsAt">The start of the term being recorded. Callers pass "now" for a
@@ -173,7 +181,7 @@ public sealed class TenantSubscription
             throw new InvalidOperationException("A subscription needs a plan name.");
         }
 
-        if (endsAt <= TrialStartsAt)
+        if (endsAt <= OriginatedAt)
         {
             throw new InvalidOperationException("A subscription cannot end before it started.");
         }
@@ -199,7 +207,7 @@ public sealed class TenantSubscription
         PlanId = planId;
         PlanName = planName.Trim();
         TermStartsAt = termStartsAt;
-        TrialEndsAt = endsAt;
+        TermEndsAt = endsAt;
         SubscriptionAmount = subscriptionAmount;
         ProductQuota = productQuota;
         TransactionQuota = transactionQuota;

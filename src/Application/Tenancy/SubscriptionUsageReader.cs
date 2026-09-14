@@ -72,7 +72,7 @@ public static class SubscriptionUsageReader
             .AsNoTracking()
             .Where(x => x.OrganizationId == subscription.OrganizationId
                 && x.PostedAt >= subscription.TermStartsAt
-                && x.PostedAt < subscription.TrialEndsAt
+                && x.PostedAt < subscription.TermEndsAt
                 && MeteredTypes.Contains(x.SourceDocumentType))
             .Select(x => new { x.SourceDocumentType, x.SourceDocumentId })
             .Distinct()

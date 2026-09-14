@@ -3,6 +3,7 @@ using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Purchasing;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Purchasing.Commands.CreateDebitNote;
 
@@ -22,6 +23,17 @@ public sealed class CreateDebitNoteCommandHandler(IAppDbContext db)
                 cancellationToken);
         }
 
+        // Phase 43 (37 carried item #1) -- where a Goods line's stock is returned from. Null on a
+        // conversion falls back to the source bill's own warehouse, which is the value
+        // ApproveDebitNoteCommandHandler used to read directly: the fallback is what makes the new
+        // "approve consumes at the note's warehouse" rule a single rule rather than a branch, and
+        // what keeps every client that predates this phase behaving exactly as it did.
+        var warehouseId = request.WarehouseId ?? await ResolveSourceBillWarehouseAsync(
+            db, request.OrganizationId, request.ReferrerType, request.ReferrerId, cancellationToken);
+
+        await PurchasingValidation.EnsureDebitNoteWarehouseForGoodsAsync(
+            db, request.OrganizationId, warehouseId, request.Lines.Select(x => x.ProductId), cancellationToken);
+
         var tdsBaseAmount = request.Lines.Sum(
             x => x.Quantity * x.Rate * (1 - x.DiscountPct / 100m) * (1 - request.DiscountPct / 100m));
         var tdsAmount = await PurchasingValidation.ResolveTdsAmountAsync(
@@ -29,7 +41,7 @@ public sealed class CreateDebitNoteCommandHandler(IAppDbContext db)
 
         var debitNote = DebitNote.Create(
             request.OrganizationId, request.ContactId, request.Date, request.Reference, request.TdsTypeId, tdsAmount,
-            request.ReferrerType, request.ReferrerId, request.DiscountPct);
+            request.ReferrerType, request.ReferrerId, request.DiscountPct, warehouseId);
 
         // Phase 28 -- the currency pair is set right after construction rather than threaded
         // through Create's parameter list; see the aggregate's SetCurrency doc comment for why.
@@ -54,5 +66,21 @@ public sealed class CreateDebitNoteCommandHandler(IAppDbContext db)
         await db.SaveChangesAsync(cancellationToken);
 
         return new CreateDebitNoteResult(debitNote.Id, debitNote.Code, debitNote.Status);
+    }
+
+    /// <summary>The source Purchase Bill's warehouse, or null when this note is standalone.</summary>
+    private static async Task<Guid?> ResolveSourceBillWarehouseAsync(
+        IAppDbContext db, Guid organizationId, DocumentType? referrerType, Guid? referrerId,
+        CancellationToken cancellationToken)
+    {
+        if (referrerType != DocumentType.PurchaseBill || referrerId is not { } purchaseBillId)
+        {
+            return null;
+        }
+
+        return await db.PurchaseBills
+            .Where(x => x.Id == purchaseBillId && x.OrganizationId == organizationId)
+            .Select(x => (Guid?)x.WarehouseId)
+            .SingleOrDefaultAsync(cancellationToken);
     }
 }

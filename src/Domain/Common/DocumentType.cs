@@ -91,4 +91,24 @@ public enum DocumentType
     /// the scan first. Appended last, so no persisted ordinal moves.</para>
     /// </summary>
     DocumentExtraction,
+
+    /// <summary>
+    /// Phase 43 (39 carried item #1) -- <c>Audit.DocumentType</c> for a CRM Deal, which is what the
+    /// Deal detail page's Activity tab reads.
+    ///
+    /// <para><b>Not a document, and classified as one of the not-applicable members.</b> A Deal has
+    /// no Draft/Approve lifecycle, no document number and posts nothing; it is a record, in the same
+    /// family as <see cref="Contact"/>. It is here because <c>ListActivitiesQuery</c> keys the audit
+    /// feed by (DocumentType, DocumentId) and a record with an Activity tab needs a name in that
+    /// vocabulary -- exactly the reuse <c>Audit</c>'s own doc comment anticipated. Appended last, so
+    /// no persisted ordinal moves.</para>
+    /// </summary>
+    Deal,
+
+    /// <summary>
+    /// Phase 43 (39 carried item #1) -- the <c>WorkTask</c> counterpart of <see cref="Deal"/>, with
+    /// the same reasoning throughout. Named for the Domain type, which is <c>WorkTask</c> and not
+    /// <c>Task</c> for phase-13's reason.
+    /// </summary>
+    WorkTask,
 }
