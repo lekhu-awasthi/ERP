@@ -9,6 +9,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Read-only report screen -- Phase 19's CashFlowSummaryQuery, a direct-method summary of actual
@@ -17,7 +18,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
  */
 @Component({
   selector: 'app-cash-flow-summary-page',
-  imports: [RouterLink, AmountPipe, BsDateInput, ReportLocationFilter],
+  imports: [RouterLink, AmountPipe, BsDateInput, ReportLocationFilter, StatusBanner],
   templateUrl: './cash-flow-summary-page.html',
 })
 export class CashFlowSummaryPage {

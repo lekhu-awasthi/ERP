@@ -5,6 +5,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { VariantAttribute, VariantAttributeOption } from '../../../core/catalog/catalog.models';
 import { CatalogService } from '../../../core/catalog/catalog.service';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Phase 24 (FR-8.3) -- the tenant-global attribute catalog, confirmed live: a flat list of
@@ -15,7 +16,7 @@ import { CatalogService } from '../../../core/catalog/catalog.service';
  */
 @Component({
   selector: 'app-variant-attribute-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, StatusBanner],
   templateUrl: './variant-attribute-list-page.html',
 })
 export class VariantAttributeListPage {

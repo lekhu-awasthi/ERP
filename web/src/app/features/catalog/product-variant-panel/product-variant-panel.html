@@ -12,19 +12,9 @@
       </button>
     </div>
 
-    @if (errorMessage()) {
-      <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
-        <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
-        <div>{{ errorMessage() }}</div>
-      </div>
-    }
+    <app-status-banner [message]="errorMessage()" />
 
-    @if (notice()) {
-      <div class="alert alert-success d-flex align-items-center gap-2" role="alert">
-        <i aria-hidden="true" class="bi bi-check-circle-fill"></i>
-        <div>{{ notice() }}</div>
-      </div>
-    }
+    <app-status-banner [message]="notice()" tone="success" />
 
     @if (loading()) {
       <div class="py-4 text-center text-muted">

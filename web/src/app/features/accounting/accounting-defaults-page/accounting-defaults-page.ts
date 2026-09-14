@@ -5,6 +5,7 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Minimal seam for Invoice/Payment's default-GL-account fallback (TenantSettings.
@@ -15,7 +16,7 @@ import { OrganizationsService } from '../../../core/organizations/organizations.
  */
 @Component({
   selector: 'app-accounting-defaults-page',
-  imports: [RouterLink],
+  imports: [RouterLink, StatusBanner],
   templateUrl: './accounting-defaults-page.html',
 })
 export class AccountingDefaultsPage {

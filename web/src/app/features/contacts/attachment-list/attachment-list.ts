@@ -8,6 +8,7 @@ import { TabParent } from '../../../core/contacts/tab-parent';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { triggerBlobDownload } from '../../../shared/download-file';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 const ALLOWED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt'];
 const MAX_SIZE_BYTES = 10 * 1024 * 1024;
@@ -20,7 +21,7 @@ const MAX_SIZE_BYTES = 10 * 1024 * 1024;
  * actual enforcement point. */
 @Component({
   selector: 'app-attachment-list',
-  imports: [PaginationControl, DatePipe],
+  imports: [PaginationControl, DatePipe, StatusBanner],
   templateUrl: './attachment-list.html',
 })
 export class AttachmentList implements OnInit {

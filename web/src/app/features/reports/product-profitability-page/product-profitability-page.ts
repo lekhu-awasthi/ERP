@@ -12,6 +12,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Read-only report screen -- Phase 19's ProductProfitabilityQuery, a per-product-per-period
@@ -20,7 +21,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
  */
 @Component({
   selector: 'app-product-profitability-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter, StatusBanner],
   templateUrl: './product-profitability-page.html',
 })
 export class ProductProfitabilityPage {

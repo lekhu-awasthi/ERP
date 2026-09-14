@@ -14,6 +14,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { currentFiscalYear, fiscalYearLabel, supportedFiscalYears } from '../../../shared/formatting/bs-fiscal-year';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Sales By Item (Monthly) -- confirmed live 2026-09-03.
@@ -28,7 +29,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
  */
 @Component({
   selector: 'app-sales-by-item-monthly-page',
-  imports: [PaginationControl, AmountPipe, ReportLocationFilter],
+  imports: [PaginationControl, AmountPipe, ReportLocationFilter, StatusBanner],
   templateUrl: './sales-by-item-monthly-page.html',
 })
 export class SalesByItemMonthlyPage {

@@ -9,6 +9,7 @@ import { OrganizationsService } from '../../../core/organizations/organizations.
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { TurnstileWidget } from '../../../shared/turnstile/turnstile-widget';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type WizardStep = 1 | 2 | 3;
 type WorkspaceStatus = 'idle' | 'checking' | 'available' | 'taken';
@@ -30,7 +31,7 @@ const INDUSTRY_SUGGESTIONS = [
  */
 @Component({
   selector: 'app-new-organization-wizard',
-  imports: [ReactiveFormsModule, BsDateInput, NepaliDatePipe, TurnstileWidget],
+  imports: [ReactiveFormsModule, BsDateInput, NepaliDatePipe, TurnstileWidget, StatusBanner],
   templateUrl: './new-organization-wizard.html',
 })
 export class NewOrganizationWizard {

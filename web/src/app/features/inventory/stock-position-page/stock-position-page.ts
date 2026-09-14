@@ -9,13 +9,14 @@ import { Product } from '../../../core/catalog/catalog.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { Warehouse } from '../../../core/organizations/organizations.models';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /** Read-only report screen, not a document form -- architecture-spec.md §4.3's
  * ProductStockPositionQuery, Opening/In/Out/Balance per (Product, Warehouse), optionally
  * filtered to one Product and/or one Warehouse. */
 @Component({
   selector: 'app-stock-position-page',
-  imports: [RouterLink, AmountPipe],
+  imports: [RouterLink, AmountPipe, StatusBanner],
   templateUrl: './stock-position-page.html',
 })
 export class StockPositionPage {

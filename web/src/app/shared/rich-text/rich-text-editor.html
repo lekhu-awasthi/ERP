@@ -1,13 +1,18 @@
 @if (!disabled()) {
   <!-- Bootstrap's JS is not loaded anywhere in this app, so nothing sets aria state for free
        (phase 34a, extending phase 22's gotcha). Every button below sets its own. -->
+  <!-- Phase 40: `role="toolbar"` is one tab stop with arrow-key movement inside it. All eleven
+       buttons used to be tab stops, so reaching the text area took eleven presses. -->
   <div class="rich-text-toolbar btn-toolbar border rounded-top bg-body-tertiary px-2 py-1 gap-1"
        role="toolbar"
+       (keydown)="onToolbarKey($event)"
        [attr.aria-label]="ariaLabel() + ' formatting'">
     <div class="btn-group btn-group-sm" role="group" aria-label="Character style">
       @for (tool of styleTools; track tool.command) {
         <button type="button"
+                #toolButton
                 class="btn btn-sm btn-light border-0"
+                [attr.tabindex]="allTools().indexOf(tool) === focusedTool() ? 0 : -1"
                 [class.active]="isActive(tool)"
                 [attr.aria-label]="tool.label"
                 [attr.aria-pressed]="isActive(tool)"
@@ -22,7 +27,9 @@
     <div class="btn-group btn-group-sm" role="group" aria-label="Alignment">
       @for (tool of alignTools; track tool.command) {
         <button type="button"
+                #toolButton
                 class="btn btn-sm btn-light border-0"
+                [attr.tabindex]="allTools().indexOf(tool) === focusedTool() ? 0 : -1"
                 [class.active]="isActive(tool)"
                 [attr.aria-label]="tool.label"
                 [attr.aria-pressed]="isActive(tool)"
@@ -37,7 +44,9 @@
     <div class="btn-group btn-group-sm" role="group" aria-label="Lists and rules">
       @for (tool of listTools; track tool.command) {
         <button type="button"
+                #toolButton
                 class="btn btn-sm btn-light border-0"
+                [attr.tabindex]="allTools().indexOf(tool) === focusedTool() ? 0 : -1"
                 [class.active]="isActive(tool)"
                 [attr.aria-label]="tool.label"
                 [attr.aria-pressed]="tool.toggle ? isActive(tool) : null"

@@ -47,8 +47,9 @@
         }
 
         @if (locationDocumentType()) {
+          <!-- The caption belongs to the control, which hides itself on a single-location tenant
+               (phase 40). A caption here outlived it and named nothing. -->
           <div>
-            <span class="form-label small text-muted mb-1 d-block">Billing location</span>
             <app-location-list-filter
               [organizationId]="organizationId()"
               [documentType]="locationDocumentType()"

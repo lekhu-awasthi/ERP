@@ -9,6 +9,7 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Read-only report screen -- roadmap Phase 8e's AnnexThirteenReportQuery, a per-Contact rollup of
@@ -21,7 +22,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
  */
 @Component({
   selector: 'app-annex-thirteen-report-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, StatusBanner],
   templateUrl: './annex-thirteen-report-page.html',
 })
 export class AnnexThirteenReportPage {

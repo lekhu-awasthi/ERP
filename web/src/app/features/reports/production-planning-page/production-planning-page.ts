@@ -10,6 +10,7 @@ import { ProductionPlanningReport } from '../../../core/manufacturing/manufactur
 import { ManufacturingService } from '../../../core/manufacturing/manufacturing.service';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Production Planning Report -- <b>not</b> a period report. Pick a product and a quantity to make,
@@ -18,7 +19,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
  */
 @Component({
   selector: 'app-production-planning-page',
-  imports: [RouterLink, AmountPipe, ReportLocationFilter],
+  imports: [RouterLink, AmountPipe, ReportLocationFilter, StatusBanner],
   templateUrl: './production-planning-page.html',
 })
 export class ProductionPlanningPage {

@@ -5,6 +5,7 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { WorkflowService } from '../../../core/workflow/workflow.service';
 import { TransactionApprovalRowDto } from '../../../core/workflow/workflow.models';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Read-only v1 (roadmap Phase 8+ Workflow bullet / product-requirements.md FR-10.2) -- lists every
@@ -15,7 +16,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  */
 @Component({
   selector: 'app-transaction-approval-queue-page',
-  imports: [RouterLink, NepaliDatePipe],
+  imports: [RouterLink, NepaliDatePipe, StatusBanner],
   templateUrl: './transaction-approval-queue-page.html',
 })
 export class TransactionApprovalQueuePage {

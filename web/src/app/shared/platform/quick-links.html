@@ -12,9 +12,7 @@
       }
     </div>
 
-    @if (errorMessage()) {
-      <div class="alert alert-danger py-2 small" role="alert">{{ errorMessage() }}</div>
-    }
+    <app-status-banner [message]="errorMessage()" spacing="mb-2" [small]="true" />
 
     @if (links().length === 0 && !editing()) {
       <p class="text-muted small mb-0">No Quick Links yet. Use <strong>Edit Links</strong> to pin the screens you use most.</p>

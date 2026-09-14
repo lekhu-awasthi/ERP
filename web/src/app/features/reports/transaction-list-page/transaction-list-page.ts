@@ -15,6 +15,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 const EMPTY_REPORT: PagedResult<TransactionListRowDto> = {
   items: [],
@@ -48,7 +49,7 @@ const STATUSES: TransactionListStatus[] = ['Draft', 'Approved', 'Void', 'Convert
  */
 @Component({
   selector: 'app-transaction-list-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, NepaliDatePipe, BsDateInput, ReportLocationFilter],
+  imports: [RouterLink, PaginationControl, AmountPipe, NepaliDatePipe, BsDateInput, ReportLocationFilter, StatusBanner],
   templateUrl: './transaction-list-page.html',
 })
 export class TransactionListPage {

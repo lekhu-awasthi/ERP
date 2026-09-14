@@ -36,12 +36,7 @@
   </div>
 </div>
 
-@if (errorMessage()) {
-  <div class="alert alert-danger d-flex align-items-center gap-2 mb-3" role="alert">
-    <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
-    <div>{{ errorMessage() }}</div>
-  </div>
-}
+<app-status-banner [message]="errorMessage()" spacing="mb-3" />
 
 @if (showCreateForm()) {
   <form [formGroup]="form" (ngSubmit)="submitCreate()" class="card border-0 bg-light-subtle border mb-3">

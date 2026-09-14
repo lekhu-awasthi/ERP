@@ -12,6 +12,7 @@ import { Warehouse } from '../../../core/organizations/organizations.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-tags-editor';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type OpeningBalanceTab = 'account' | 'product';
 type DrCr = 'DR' | 'CR';
@@ -22,7 +23,7 @@ type DrCr = 'DR' | 'CR';
  * codebase's own first-class Warehouse dimension instead. */
 @Component({
   selector: 'app-opening-balances-page',
-  imports: [RouterLink, PaginationControl, DecimalPipe, ReportingTagsEditor],
+  imports: [RouterLink, PaginationControl, DecimalPipe, ReportingTagsEditor, StatusBanner],
   templateUrl: './opening-balances-page.html',
 })
 export class OpeningBalancesPage {

@@ -10,6 +10,7 @@ import {
 } from '../../../core/catalog/catalog.models';
 import { CatalogService } from '../../../core/catalog/catalog.service';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Phase 24 (FR-8.3) -- the "Attributes Used" + "Variant Details" panel, laid out as the live
@@ -26,7 +27,7 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
  */
 @Component({
   selector: 'app-product-variant-panel',
-  imports: [ReactiveFormsModule, AmountPipe],
+  imports: [ReactiveFormsModule, AmountPipe, StatusBanner],
   templateUrl: './product-variant-panel.html',
 })
 export class ProductVariantPanelComponent implements OnInit {

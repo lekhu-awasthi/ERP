@@ -21,9 +21,7 @@
        product places it. Per-user and server-stored -- see quick-links.ts. -->
   <app-quick-links [organizationId]="organizationId" />
 
-  @if (errorMessage()) {
-    <div class="alert alert-danger" role="alert">{{ errorMessage() }}</div>
-  }
+  <app-status-banner [message]="errorMessage()" />
 
   <!-- Date sub-filter. The presets mirror the live product's own (Today / Last 7 / 15 / 30 days). -->
   <div class="card border-0 shadow-sm mb-4">
@@ -46,7 +44,7 @@
           />
         </div>
         <div class="col-12 col-sm-6">
-          <div class="btn-group btn-group-sm flex-wrap" role="group">
+          <div class="btn-group btn-group-sm flex-wrap" role="group" aria-label="Dashboard date range">
             <button type="button" class="btn btn-outline-secondary" (click)="selectRange(1)">Today</button>
             <button type="button" class="btn btn-outline-secondary" (click)="selectRange(7)">Last 7 days</button>
             <button type="button" class="btn btn-outline-secondary" (click)="selectRange(15)">Last 15 days</button>

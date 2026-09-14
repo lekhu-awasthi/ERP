@@ -153,3 +153,82 @@ function build(): ContrastRule[] {
 
 /** Every pairing the app can produce, measured. The sweep guard forbids the failing ones. */
 export const CONTRAST_RULES: readonly ContrastRule[] = build();
+
+// -------------------------------------------------------------------------------------------------
+// Phase 40 — the focus indicator, measured the same way.
+//
+// Phase 34a's rules above ask one question of every colour pair: does the *text* clear 4.5:1. That
+// predicate names a property, and so it silently said nothing about the other thing WCAG puts a
+// contrast floor under — SC 1.4.11 Non-text Contrast, which requires **3:1** for a focus indicator
+// against what it sits on. Driving the app from a keyboard is what surfaced it: every control in the
+// content area was focused, visibly, and the ring was almost not there.
+//
+// The cause is phase 34a's own finding one layer down. Bootstrap paints `:focus-visible` as
+// `box-shadow: 0 0 0 .25rem rgba(<the button's own tone>, .5)` — the brand colour at half alpha,
+// composited over whatever is behind it. 34a found those tones clear 4.5:1 against pure white "and
+// only just"; at 50% alpha they clear nothing at all. Measured below: 1.21:1 to 2.53:1 across the
+// twelve variants the app uses, every one of them under 3:1.
+//
+// `styles.scss` therefore replaces the ring for every focusable element with a single 2px outline in
+// the already-darkened `#0a58ca`, offset 2px so it is adjacent to the page rather than to the
+// control's own fill. One indicator, one number, on every control — which is also why the left nav's
+// hand-written version (phase 34b) could stop being a special case.
+// -------------------------------------------------------------------------------------------------
+
+/** WCAG 2.1 SC 1.4.11 Non-text Contrast: 3:1 for a focus indicator and other UI components. */
+export const AA_NON_TEXT = 3;
+
+/** The single focus-ring colour `styles.scss` paints, and its offset in px. */
+export const FOCUS_RING = { color: '#0a58ca', widthPx: 2, offsetPx: 2 } as const;
+
+/** `--bs-btn-focus-shadow-rgb` for the button variants this app uses, read off the built stylesheet. */
+const BOOTSTRAP_FOCUS_SHADOW_RGB: Readonly<Record<string, readonly [number, number, number]>> = {
+  'btn-primary': [49, 132, 253],
+  'btn-secondary': [130, 138, 145],
+  'btn-success': [60, 153, 110],
+  'btn-danger': [225, 83, 97],
+  'btn-warning': [217, 164, 6],
+  'btn-info': [11, 172, 204],
+  'btn-light': [211, 212, 213],
+  'btn-dark': [66, 70, 73],
+  'btn-outline-primary': [13, 110, 253],
+  'btn-outline-secondary': [108, 117, 125],
+  'btn-outline-success': [25, 135, 84],
+  'btn-outline-danger': [220, 53, 69],
+};
+
+/** Composite `rgb` at `alpha` over an opaque `#rrggbb` ground, as Bootstrap's ring does. */
+function composite(rgb: readonly [number, number, number], alpha: number, groundHex: string): string {
+  const ground = [1, 3, 5].map((i) => parseInt(groundHex.slice(i, i + 2), 16));
+  return `#${rgb
+    .map((c, i) => Math.round(c * alpha + ground[i] * (1 - alpha)))
+    .map((v) => v.toString(16).padStart(2, '0'))
+    .join('')}`;
+}
+
+export interface FocusRingRule {
+  /** The button variant, or `''` for the app's own replacement ring. */
+  readonly variant: string;
+  /** Worst of a white card and the #f8f9fa page body — the ring must clear 3:1 on both. */
+  readonly ratio: number;
+  readonly passesAA: boolean;
+}
+
+function buildFocusRules(): FocusRingRule[] {
+  const worstOnBothGrounds = (colourOn: (ground: string) => string) =>
+    Math.min(contrastRatio(colourOn('#ffffff'), '#ffffff'), contrastRatio(colourOn('#f8f9fa'), '#f8f9fa'));
+
+  const rules: FocusRingRule[] = Object.entries(BOOTSTRAP_FOCUS_SHADOW_RGB).map(([variant, rgb]) => {
+    const ratio = worstOnBothGrounds((ground) => composite(rgb, 0.5, ground));
+    return { variant, ratio, passesAA: ratio >= AA_NON_TEXT };
+  });
+
+  // The app's replacement: opaque, so it composites to itself on either ground.
+  const own = worstOnBothGrounds(() => FOCUS_RING.color);
+  rules.push({ variant: '', ratio: own, passesAA: own >= AA_NON_TEXT });
+
+  return rules;
+}
+
+/** Bootstrap's twelve stock focus rings plus the one this app paints instead. */
+export const FOCUS_RING_RULES: readonly FocusRingRule[] = buildFocusRules();

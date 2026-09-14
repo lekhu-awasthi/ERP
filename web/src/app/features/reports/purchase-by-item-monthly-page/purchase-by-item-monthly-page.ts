@@ -14,6 +14,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { currentFiscalYear, fiscalYearLabel, supportedFiscalYears } from '../../../shared/formatting/bs-fiscal-year';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Purchase By Item (Monthly) -- confirmed live 2026-09-03.
@@ -28,7 +29,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
  */
 @Component({
   selector: 'app-purchase-by-item-monthly-page',
-  imports: [PaginationControl, AmountPipe, ReportLocationFilter],
+  imports: [PaginationControl, AmountPipe, ReportLocationFilter, StatusBanner],
   templateUrl: './purchase-by-item-monthly-page.html',
 })
 export class PurchaseByItemMonthlyPage {

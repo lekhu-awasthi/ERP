@@ -22,6 +22,14 @@ export interface ListQueryOptions {
    * over a location-bearing document type; a master-data list leaves it undefined and sends nothing.
    */
   readonly locationId?: string;
+  /**
+   * Phase 40 — the chrome's `Sort by`, and the first thing to fill the seam 34b shipped empty.
+   *
+   * A screen sends this only when the server accepts it, and the server accepts only orderings an
+   * index already leads on (`ISortableQuery` states why). Undefined means the list's own default,
+   * which is what every other screen sends.
+   */
+  readonly sort?: string;
 }
 
 /** Folds the options into an existing query-parameter bag, omitting anything unset. */
@@ -43,6 +51,10 @@ export function applyListOptions(
 
   if (options?.locationId) {
     params['locationId'] = options.locationId;
+  }
+
+  if (options?.sort) {
+    params['sort'] = options.sort;
   }
 
   return params;
@@ -68,6 +80,9 @@ export class ListFilter {
    * narrowed the result in one object, and fifteen list pages do not each hand-roll the signal.
    */
   readonly location = signal('');
+
+  /** Phase 40 — the chrome's chosen ordering, empty for the list's own default. */
+  readonly sort = signal('');
 
   /**
    * @param dateRange the shell's global range, or null for a screen whose aggregate has no business
@@ -123,5 +138,6 @@ export class ListFilter {
     fromDate: this.dateRange?.from(),
     toDate: this.dateRange?.to(),
     locationId: this.location() || undefined,
+    sort: this.sort() || undefined,
   }));
 }

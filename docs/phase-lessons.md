@@ -762,3 +762,27 @@ Moved verbatim; the one-line versions in CLAUDE.md keep the same "before X" hook
   is enough**: an invariant reached through the API is a 500, which tells a caller nothing; the
   validator makes it a 400 that names the field and the Domain check stays as the backstop —
   `docs/phase-39-status.md`
+- **Phase 40 — the human accessibility pass, and the guard that could not see its own blind spot.**
+  **Before claiming an accessibility criterion holds**: ask whether the check you ran could have seen
+  the defect at all. Every one of this phase's five human-pass findings is about something that is
+  *not there* — a click handler with no focusable element, a ring that is painted and invisible, a
+  live region with no prior existence, a label whose control vanished at runtime, a `role="toolbar"`
+  whose promise was never implemented — and a source scan can only test properties of elements it can
+  see. **Before writing a status message**: render `app-status-banner` unconditionally, never
+  `@if (msg) { <div role="alert"> }`. A live region announces a *change to contents it already had*,
+  so a region created holding its text is one DOM mutation and no announcement; 163 banners were
+  spelled the broken way, and the guard then found seven more in the `role="status"` spelling that the
+  grep scoping the sweep had missed. **Before choosing or trusting a colour**: 34a's rules measure
+  *text*, and that predicate silently excluded SC 1.4.11's 3:1 floor for a focus indicator —
+  Bootstrap's ring is the control's own tone at 50% alpha and measures 1.21:1 to 2.53:1, so the app
+  paints one opaque `#0a58ca` outline instead and `FOCUS_RING_RULES` asserts both that every stock ring
+  fails and that the replacement still ships. **Before offering a list an ordering**: an ordering may be
+  offered exactly when an index leads on `(OrganizationId, <that column>)`, which is a reading of 34c's
+  `TenantIndexConvention` and not a preference — it is also the checkable re-entry condition 34b could
+  not state, since "someone complains" is how a seam stays empty for six phases. **Before asking "is
+  this screen a list or a report"**: the premise may be false. This codebase has three list shapes, and
+  34b's two undecidable screens were one report and one *configuration-lookup* list, which is why
+  neither answer fitted. **And before trusting any sweep guard as a baseline**: `a11y-sweep-guard`'s
+  glob named a file extension, so five inline-`template:` components had been outside all nine
+  assertions since 34a, and its control test accepted `[id]` but not `[attr.id]` while its label test
+  already accepted both spellings of `for` — `docs/phase-40-status.md`

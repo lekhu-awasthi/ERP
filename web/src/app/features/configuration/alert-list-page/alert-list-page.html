@@ -16,12 +16,7 @@
     </div>
   </div>
 
-  @if (errorMessage()) {
-    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
-      <div>{{ errorMessage() }}</div>
-    </div>
-  }
+  <app-status-banner [message]="errorMessage()" />
 
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4">
@@ -110,6 +105,14 @@
       } @else if (visibleItems().length === 0) {
         <p class="text-muted small mb-0">No alerts yet. Add one using the form above.</p>
       } @else {
+        <app-lookup-filter
+          controlId="alert-search"
+          placeholder="Search alerts…"
+          [shown]="visibleItems().length"
+          [total]="items().length"
+          (termChange)="term.set($event)"
+        />
+
         <div class="table-responsive">
           <table class="table table-hover align-middle mb-0">
             <thead>

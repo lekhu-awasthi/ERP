@@ -8,12 +8,13 @@ import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { ListChrome } from '../../../shared/pagination/list-chrome';
 import { ListFilter } from '../../../shared/pagination/list-query-options';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /** Master-data list, mirroring the reference product's own BOM list columns: product, finished
  * output quantity with its unit, and a count of raw materials and by-products. */
 @Component({
   selector: 'app-bom-list-page',
-  imports: [RouterLink, PaginationControl, ListChrome],
+  imports: [RouterLink, PaginationControl, ListChrome, StatusBanner],
   templateUrl: './bom-list-page.html',
 })
 export class BomListPage {

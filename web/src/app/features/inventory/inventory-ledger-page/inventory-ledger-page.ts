@@ -10,6 +10,7 @@ import { OrganizationsService } from '../../../core/organizations/organizations.
 import { Warehouse } from '../../../core/organizations/organizations.models';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /** Read-only report screen -- the kardex view (architecture-spec.md §4.3's InventoryLedgerQuery),
  * chronological movements with a running balance for one Product+Warehouse. Both are required,
@@ -17,7 +18,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  * query params from stock-position-page's "View Ledger" link). */
 @Component({
   selector: 'app-inventory-ledger-page',
-  imports: [RouterLink, AmountPipe, NepaliDatePipe],
+  imports: [RouterLink, AmountPipe, NepaliDatePipe, StatusBanner],
   templateUrl: './inventory-ledger-page.html',
 })
 export class InventoryLedgerPage {

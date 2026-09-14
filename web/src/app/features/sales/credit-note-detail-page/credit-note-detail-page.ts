@@ -26,6 +26,7 @@ import { TermsEditor } from '../../../shared/terms/terms-editor';
 import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableLine {
   key: number;
@@ -43,7 +44,7 @@ let nextLineKey = 1;
  * Quotation. Approve posts CreditNotePostingRule's exact reverse of InvoicePostingRule. */
 @Component({
   selector: 'app-credit-note-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner],
   templateUrl: './credit-note-detail-page.html',
 })
 export class CreditNoteDetailPage {

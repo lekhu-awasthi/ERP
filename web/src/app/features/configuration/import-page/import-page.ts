@@ -22,6 +22,7 @@ import { ImportService } from '../../../core/imports/import.service';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Roadmap Phase 21a / FR-2.9 -- Configurations > Import / Export.
@@ -53,7 +54,7 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
  */
 @Component({
   selector: 'app-import-page',
-  imports: [RouterLink, PaginationControl, BsDateInput],
+  imports: [RouterLink, PaginationControl, BsDateInput, StatusBanner],
   templateUrl: './import-page.html',
 })
 export class ImportPage implements OnDestroy {

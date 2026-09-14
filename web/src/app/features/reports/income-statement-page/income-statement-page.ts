@@ -9,6 +9,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /** Read-only report screen -- roadmap Phase 8a's IncomeStatementQuery, Income minus Expense
  * accounts with activity in [fromDate, toDate].
@@ -19,7 +20,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
  * widens to the union of accounts with movement in either window (see IncomeStatementQuery). */
 @Component({
   selector: 'app-income-statement-page',
-  imports: [RouterLink, AmountPipe, NepaliDatePipe, BsDateInput, ReportLocationFilter],
+  imports: [RouterLink, AmountPipe, NepaliDatePipe, BsDateInput, ReportLocationFilter, StatusBanner],
   templateUrl: './income-statement-page.html',
 })
 export class IncomeStatementPage {

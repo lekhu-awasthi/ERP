@@ -11,13 +11,14 @@ import { ListChrome } from '../../../shared/pagination/list-chrome';
 import { ListFilter } from '../../../shared/pagination/list-query-options';
 import { DateRangeService } from '../../../shared/platform/date-range.service';
 import { LocationName } from '../../../shared/locations/location-name';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type StatusFilter = CashTransferStatus | 'All';
 
 /** Same list-page chrome as journal-voucher-list-page. */
 @Component({
   selector: 'app-cash-transfer-list-page',
-  imports: [RouterLink, PaginationControl, NepaliDatePipe, ListChrome, LocationName],
+  imports: [RouterLink, PaginationControl, NepaliDatePipe, ListChrome, LocationName, StatusBanner],
   templateUrl: './cash-transfer-list-page.html',
 })
 export class CashTransferListPage {

@@ -4,10 +4,11 @@ import { Router, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AuthService } from '../../../core/auth/auth.service';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 @Component({
   selector: 'app-forgot-password-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, StatusBanner],
   templateUrl: './forgot-password-page.html',
 })
 export class ForgotPasswordPage {

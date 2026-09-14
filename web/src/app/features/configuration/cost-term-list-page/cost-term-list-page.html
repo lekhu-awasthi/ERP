@@ -16,12 +16,7 @@
     </div>
   </div>
 
-  @if (errorMessage()) {
-    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
-      <div>{{ errorMessage() }}</div>
-    </div>
-  }
+  <app-status-banner [message]="errorMessage()" />
 
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4">
@@ -68,6 +63,17 @@
       </div>
     </div>
   } @else {
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body px-4 pt-4 pb-0">
+        <app-lookup-filter
+          controlId="cost-term-search"
+          [shown]="filtered().length"
+          [total]="items().length"
+          (termChange)="term.set($event)"
+        />
+      </div>
+    </div>
+
     <!-- Two sections, one CostTerm shape -- the reference product's own split
          (erp-module-scan.md Configurations §7). -->
     @for (section of sections(); track section.category) {

@@ -5,6 +5,7 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Admin-only view/set/clear of Organization.LockDate (roadmap Phase 16a, NFR-3.4) -- the seam
@@ -15,7 +16,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  */
 @Component({
   selector: 'app-lock-date-page',
-  imports: [RouterLink, BsDateInput, NepaliDatePipe],
+  imports: [RouterLink, BsDateInput, NepaliDatePipe, StatusBanner],
   templateUrl: './lock-date-page.html',
 })
 export class LockDatePage {

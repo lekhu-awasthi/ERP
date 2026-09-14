@@ -19,6 +19,7 @@ import { CalendarToggle } from '../../../shared/formatting/calendar-toggle';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { QuickLinks } from '../../../shared/platform/quick-links';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /** One KPI card. `previous` is null when the prior-period query could not be read. */
 interface Kpi {
@@ -62,7 +63,7 @@ interface Kpi {
  */
 @Component({
   selector: 'app-home-dashboard-page',
-  imports: [RouterLink, AmountPipe, NepaliDatePipe, BsDateInput, CalendarToggle, PaginationControl, QuickLinks],
+  imports: [RouterLink, AmountPipe, NepaliDatePipe, BsDateInput, CalendarToggle, PaginationControl, QuickLinks, StatusBanner],
   templateUrl: './home-dashboard-page.html',
 })
 export class HomeDashboardPage {

@@ -9,13 +9,14 @@ import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { ListChrome } from '../../../shared/pagination/list-chrome';
 import { ListFilter } from '../../../shared/pagination/list-query-options';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type ProductTypeFilter = ProductType | 'All';
 
 /** List-page chrome for Product, mirroring contact-list-page's list->detail split. */
 @Component({
   selector: 'app-product-list-page',
-  imports: [RouterLink, PaginationControl, ListChrome],
+  imports: [RouterLink, PaginationControl, ListChrome, StatusBanner],
   templateUrl: './product-list-page.html',
 })
 export class ProductListPage {

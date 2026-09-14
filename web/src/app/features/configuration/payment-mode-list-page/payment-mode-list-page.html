@@ -16,12 +16,7 @@
     </div>
   </div>
 
-  @if (errorMessage()) {
-    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
-      <div>{{ errorMessage() }}</div>
-    </div>
-  }
+  <app-status-banner [message]="errorMessage()" />
 
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4">
@@ -73,8 +68,19 @@
           <p class="text-muted small mb-0">Add one using the form above.</p>
         </div>
       } @else {
+        <app-lookup-filter
+          controlId="payment-mode-search"
+          [shown]="filtered().length"
+          [total]="items().length"
+          (termChange)="term.set($event)"
+        />
+
+        @if (filtered().length === 0) {
+          <p class="text-muted small mb-0">No rows match that search.</p>
+        }
+
         <div class="list-group list-group-flush">
-          @for (item of items(); track item.id) {
+          @for (item of filtered(); track item.id) {
             <div class="list-group-item border rounded-3 mb-3 p-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
               <div class="d-flex align-items-center gap-3">
                 <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-circle">

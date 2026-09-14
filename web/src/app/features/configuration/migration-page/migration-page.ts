@@ -11,6 +11,7 @@ import {
 } from '../../../core/imports/import.models';
 import { ImportService } from '../../../core/imports/import.service';
 import { triggerBlobDownload } from '../../../shared/download-file';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Phase 21c / FR-2.10 -- Configurations > Organization > Migration.
@@ -32,7 +33,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
  */
 @Component({
   selector: 'app-migration-page',
-  imports: [RouterLink],
+  imports: [RouterLink, StatusBanner],
   templateUrl: './migration-page.html',
 })
 export class MigrationPage implements OnDestroy {

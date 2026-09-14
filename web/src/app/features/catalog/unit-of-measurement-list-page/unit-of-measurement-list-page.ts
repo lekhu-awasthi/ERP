@@ -5,10 +5,11 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { CatalogService } from '../../../core/catalog/catalog.service';
 import { UnitOfMeasurement } from '../../../core/catalog/catalog.models';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 @Component({
   selector: 'app-unit-of-measurement-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, StatusBanner],
   templateUrl: './unit-of-measurement-list-page.html',
 })
 export class UnitOfMeasurementListPage {

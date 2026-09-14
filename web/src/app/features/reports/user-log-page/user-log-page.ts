@@ -11,6 +11,7 @@ import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Phase 26c -- the login/logout/failed-login event log. Admin-only, because it discloses per-person
@@ -21,7 +22,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
  */
 @Component({
   selector: 'app-user-log-page',
-  imports: [RouterLink, DatePipe, PaginationControl, BsDateInput],
+  imports: [RouterLink, DatePipe, PaginationControl, BsDateInput, StatusBanner],
   templateUrl: './user-log-page.html',
 })
 export class UserLogPage {

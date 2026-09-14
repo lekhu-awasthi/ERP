@@ -267,3 +267,39 @@ body {
   --bs-link-hover-color: #084298;
   --bs-link-hover-color-rgb: 8, 66, 152;
 }
+
+/*
+  Phase 40 — one focus indicator, for every control, at a measured ratio (WCAG 2.4.7 Focus Visible,
+  1.4.11 Non-text Contrast).
+
+  Driving the app from a keyboard is what found this. Bootstrap paints `:focus-visible` as
+  `box-shadow: 0 0 0 .25rem rgba(<the control's own tone>, .5)` — the brand colour at half alpha.
+  Phase 34a established that those tones clear 4.5:1 against pure white and only just; at 50% alpha
+  over white or #f8f9fa they measure 1.21:1 to 2.53:1 across the twelve variants this app uses, and
+  1.4.11 asks for 3:1. Not one of them passed. The indicator was there, and it was not visible.
+
+  So the ring stops being the control's own colour and becomes one opaque colour instead — the same
+  #0a58ca the four text utilities above were re-pointed to, which clears 6.11:1 on the page body and
+  8.6:1 on a white card. `outline-offset: 2px` puts it outside the control's fill, so the pair it
+  must contrast against is the page, not the button, on every variant at once. The left nav's
+  hand-written version (phase 34b, `left-nav.scss`) is now the general case rather than a special
+  one; it keeps its inset offset because the rail is dense.
+
+  `:focus-visible`, not `:focus`: a mouse click on a button must not paint a ring. Bootstrap's
+  box-shadow is cleared in the same rule, or the two indicators stack.
+
+  The ratios are computed in `contrast-rules.ts` (`FOCUS_RING_RULES`) and asserted by
+  `a11y-sweep-guard.spec.ts`, which also pins the colour below against that computation.
+*/
+:focus-visible {
+  outline: 2px solid #0a58ca !important;
+  outline-offset: 2px;
+  box-shadow: none !important;
+}
+
+/* A text input already reads as focused by its own border; the offset ring would double it up and
+   collide with the adjacent control in a dense form row, so it sits flush instead. */
+.form-control:focus-visible,
+.form-select:focus-visible {
+  outline-offset: 0;
+}

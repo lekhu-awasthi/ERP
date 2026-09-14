@@ -12,6 +12,7 @@ import { ListChrome } from '../../../shared/pagination/list-chrome';
 import { ListFilter } from '../../../shared/pagination/list-query-options';
 import { DateRangeService } from '../../../shared/platform/date-range.service';
 import { LocationName } from '../../../shared/locations/location-name';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type StatusFilter = ProductionJournalStatus | 'All';
 
@@ -19,7 +20,7 @@ type StatusFilter = ProductionJournalStatus | 'All';
  * Status tabs mirror the reference product's own Approved/Draft tabs. */
 @Component({
   selector: 'app-production-journal-list-page',
-  imports: [RouterLink, PaginationControl, NepaliDatePipe, AmountPipe, ListChrome, LocationName],
+  imports: [RouterLink, PaginationControl, NepaliDatePipe, AmountPipe, ListChrome, LocationName, StatusBanner],
   templateUrl: './production-journal-list-page.html',
 })
 export class ProductionJournalListPage {

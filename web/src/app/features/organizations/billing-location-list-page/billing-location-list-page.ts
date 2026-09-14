@@ -11,6 +11,7 @@ import {
   Warehouse,
 } from '../../../core/organizations/organizations.models';
 import { BillingLocationStore } from '../../../shared/locations/billing-location-store';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Phase 32 (FR-2.3/FR-3.3) -- Organization > Features > Billing Location, as read live on
@@ -33,7 +34,7 @@ import { BillingLocationStore } from '../../../shared/locations/billing-location
  */
 @Component({
   selector: 'app-billing-location-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, StatusBanner],
   templateUrl: './billing-location-list-page.html',
 })
 export class BillingLocationListPage {

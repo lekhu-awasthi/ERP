@@ -16,6 +16,7 @@ import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableLine {
   key: number;
@@ -30,7 +31,7 @@ let nextLineKey = 1;
  * or GL Transactions section here, unlike every other transactional detail page. */
 @Component({
   selector: 'app-warehouse-transfer-detail-page',
-  imports: [RouterLink, DatePipe, BsDateInput, DocumentTabs, ReportingTagsEditor, DocumentLocationPicker],
+  imports: [RouterLink, DatePipe, BsDateInput, DocumentTabs, ReportingTagsEditor, DocumentLocationPicker, StatusBanner],
   templateUrl: './warehouse-transfer-detail-page.html',
 })
 export class WarehouseTransferDetailPage {

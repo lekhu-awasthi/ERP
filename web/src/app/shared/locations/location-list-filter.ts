@@ -19,9 +19,18 @@ import { BillingLocationStore } from './billing-location-store';
   imports: [],
   template: `
     @if (visible()) {
+      <!--
+        Phase 40: the caption lives here, inside the @if, not in the host chrome.
+        ListChrome used to render "Billing location" above this tag unconditionally while this
+        control renders nothing on a tenant with one location — which is the default tenant. So 22
+        list screens showed a label naming no control, and no source-level guard could see it,
+        because the control disappears at *runtime*. Same shape as ReportLocationFilter, which
+        already owned its own label.
+      -->
+      <label class="form-label small text-muted mb-1 d-block" [attr.for]="controlId">Billing location</label>
       <select
         class="form-select form-select-sm w-auto"
-        aria-label="Filter by billing location"
+        [id]="controlId"
         (change)="locationId.set($any($event.target).value)"
       >
         <option value="" [selected]="locationId() === ''">All locations</option>
@@ -39,6 +48,9 @@ export class LocationListFilter {
 
   readonly organizationId = input.required<string>();
   readonly documentType = input.required<string>();
+
+  /** Unique per screen, so the label can point at the select. One chrome per page, so one id. */
+  protected readonly controlId = 'list-chrome-location';
 
   /** Empty means "All locations", which is the default and what a pre-phase-35 caller sent. */
   readonly locationId = model<string>('');

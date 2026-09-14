@@ -10,6 +10,7 @@ import { EmailLogRow } from '../../../core/communications/communications.models'
 import { TabParent, hasSmsHistory, tabParentId } from '../../../core/contacts/tab-parent';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type ActivitySubTab = 'Comments' | 'Activities' | 'SmsHistory' | 'EmailLogs';
 
@@ -20,7 +21,7 @@ type ActivitySubTab = 'Comments' | 'Activities' | 'SmsHistory' | 'EmailLogs';
  * empty-state message only -- not a faked working tab. */
 @Component({
   selector: 'app-activity-panel',
-  imports: [PaginationControl, DatePipe],
+  imports: [PaginationControl, DatePipe, StatusBanner],
   templateUrl: './activity-panel.html',
 })
 export class ActivityPanel implements OnInit {

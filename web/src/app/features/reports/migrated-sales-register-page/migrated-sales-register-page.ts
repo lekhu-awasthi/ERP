@@ -10,6 +10,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Phase 21c / FR-2.10 / FR-9.4 -- the Migrated Sales Register.
@@ -28,7 +29,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  */
 @Component({
   selector: 'app-migrated-sales-register-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, StatusBanner],
   templateUrl: './migrated-sales-register-page.html',
 })
 export class MigratedSalesRegisterPage {

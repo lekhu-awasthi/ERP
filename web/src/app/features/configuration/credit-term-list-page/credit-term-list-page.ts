@@ -1,15 +1,17 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
 import { CreditTerm } from '../../../core/configuration/configuration.models';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { LookupFilter, matchesLookup } from '../../../shared/pagination/lookup-filter';
 
 /** Roadmap Phase 2 exit criteria: Admin can create/edit/delete a CreditTerm through this screen. */
 @Component({
   selector: 'app-credit-term-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, StatusBanner, LookupFilter],
   templateUrl: './credit-term-list-page.html',
 })
 export class CreditTermListPage {
@@ -23,6 +25,11 @@ export class CreditTermListPage {
   protected readonly saving = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly items = signal<CreditTerm[]>([]);
+  /** Phase 40 — 34b's carried item #3. Client-side, because `listAll` already fetched every row. */
+  protected readonly term = signal('');
+
+  protected readonly filtered = computed(() =>
+    this.items().filter((item) => matchesLookup(this.term(), item.name)));
   protected readonly editingId = signal<string | null>(null);
   protected readonly confirmingDeleteId = signal<string | null>(null);
 

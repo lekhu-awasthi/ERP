@@ -5,12 +5,13 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { Warehouse } from '../../../core/organizations/organizations.models';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /** Minimal single-column lookup screen, same clone-of-unit-of-measurement-list-page shape --
  * see Domain.Tenancy.Warehouse's doc comment for why this stays deliberately thin this phase. */
 @Component({
   selector: 'app-warehouse-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, StatusBanner],
   templateUrl: './warehouse-list-page.html',
 })
 export class WarehouseListPage {

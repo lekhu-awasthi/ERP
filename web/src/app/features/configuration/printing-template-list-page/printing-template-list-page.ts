@@ -6,6 +6,7 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
 import { PrintingTemplate } from '../../../core/configuration/configuration.models';
 import { DocumentType } from '../../../core/sales/sales.models';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /** The subset of DocumentType this screen offers -- excludes the numbering-pool-only types
  * (Account/Contact/Product) and the day-zero types (OpeningBalance/OpeningStock), neither of
@@ -25,7 +26,7 @@ const PRINTABLE_DOCUMENT_TYPES: DocumentType[] = [
  */
 @Component({
   selector: 'app-printing-template-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, StatusBanner],
   templateUrl: './printing-template-list-page.html',
 })
 export class PrintingTemplateListPage {

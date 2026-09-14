@@ -9,6 +9,7 @@ import {
   Currency,
   CurrencyCatalogEntry,
 } from '../../../core/organizations/organizations.models';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Phase 28 (FR-2.5) -- Organization > Features > Multiple Currency, as read live on 2026-09-04:
@@ -26,7 +27,7 @@ import {
  */
 @Component({
   selector: 'app-currency-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, StatusBanner],
   templateUrl: './currency-list-page.html',
 })
 export class CurrencyListPage {

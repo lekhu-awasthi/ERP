@@ -12,6 +12,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Purchase By Item -- confirmed live 2026-09-03.
@@ -26,7 +27,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
  */
 @Component({
   selector: 'app-purchase-by-item-page',
-  imports: [PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter],
+  imports: [PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter, StatusBanner],
   templateUrl: './purchase-by-item-page.html',
 })
 export class PurchaseByItemPage {

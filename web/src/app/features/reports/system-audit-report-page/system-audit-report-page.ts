@@ -11,6 +11,7 @@ import { PagedResult, DEFAULT_PAGE_SIZE } from '../../../core/common/paged-resul
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 const EMPTY_REPORT: PagedResult<AuditRowDto> = { items: [], page: 1, pageSize: DEFAULT_PAGE_SIZE, totalCount: 0 };
 
@@ -38,7 +39,7 @@ const DOCUMENT_TYPES: SystemAuditDocumentType[] = [
  */
 @Component({
   selector: 'app-system-audit-report-page',
-  imports: [RouterLink, PaginationControl, DatePipe, BsDateInput],
+  imports: [RouterLink, PaginationControl, DatePipe, BsDateInput, StatusBanner],
   templateUrl: './system-audit-report-page.html',
 })
 export class SystemAuditReportPage {

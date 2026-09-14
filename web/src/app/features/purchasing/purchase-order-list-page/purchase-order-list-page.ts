@@ -14,13 +14,14 @@ import { ListChrome } from '../../../shared/pagination/list-chrome';
 import { ListFilter } from '../../../shared/pagination/list-query-options';
 import { DateRangeService } from '../../../shared/platform/date-range.service';
 import { LocationName } from '../../../shared/locations/location-name';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type StatusFilter = PurchaseOrderStatus | 'All';
 
 /** List-page chrome for PurchaseOrder, same pattern as quotation-list-page. */
 @Component({
   selector: 'app-purchase-order-list-page',
-  imports: [RouterLink, PaginationControl, CustomStatusPicker, NepaliDatePipe, ListChrome, LocationName],
+  imports: [RouterLink, PaginationControl, CustomStatusPicker, NepaliDatePipe, ListChrome, LocationName, StatusBanner],
   templateUrl: './purchase-order-list-page.html',
 })
 export class PurchaseOrderListPage {

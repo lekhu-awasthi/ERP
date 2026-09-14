@@ -11,6 +11,8 @@ import {
   AlertSendLog,
   AlertType,
 } from '../../../core/configuration/configuration.models';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { LookupFilter, matchesLookup } from '../../../shared/pagination/lookup-filter';
 
 /**
  * Roadmap Phase 20e / FR-11.1 -- Configurations > Apps > Alert Scheduler.
@@ -25,7 +27,7 @@ import {
  */
 @Component({
   selector: 'app-alert-list-page',
-  imports: [ReactiveFormsModule, RouterLink, NepaliDatePipe, PaginationControl],
+  imports: [ReactiveFormsModule, RouterLink, NepaliDatePipe, PaginationControl, StatusBanner, LookupFilter],
   templateUrl: './alert-list-page.html',
 })
 export class AlertListPage {
@@ -39,6 +41,7 @@ export class AlertListPage {
   protected readonly saving = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly items = signal<AlertDefinition[]>([]);
+  protected readonly term = signal('');
   protected readonly editingId = signal<string | null>(null);
   protected readonly confirmingDeleteId = signal<string | null>(null);
   protected readonly showInactive = signal(false);
@@ -75,7 +78,13 @@ export class AlertListPage {
    * trap phase 17 hit. */
   protected visibleItems(): AlertDefinition[] {
     const all = this.items();
-    return this.showInactive() ? all : all.filter((item) => item.isActive);
+    const active = this.showInactive() ? all : all.filter((item) => item.isActive);
+    // Phase 40 -- 34b's carried item #4 settled. This screen is a *list*, not a report: it fetches
+    // every row through `listAll`, carries its own inline add/edit form, and its rows are an
+    // aggregate you edit. So it gets the unpaginated lookup search, not the paginated chrome --
+    // which is what 34b could not decide because it was asking "list or report" of a codebase that
+    // has three list shapes, not one.
+    return active.filter((item) => matchesLookup(this.term(), item.name, item.recipients));
   }
 
   protected alertTypeLabel(type: AlertType): string {

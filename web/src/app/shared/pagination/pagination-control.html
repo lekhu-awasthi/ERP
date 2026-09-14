@@ -13,7 +13,7 @@
         <option [value]="size" [selected]="size === pageSize()">{{ size }}</option>
       }
     </select>
-    <div class="btn-group btn-group-sm" role="group">
+    <div class="btn-group btn-group-sm" role="group" aria-label="Pagination">
       <button type="button" class="btn btn-outline-secondary" [disabled]="!hasPrevious()" (click)="previous()">
         <i aria-hidden="true" class="bi bi-chevron-left"></i> Prev
       </button>

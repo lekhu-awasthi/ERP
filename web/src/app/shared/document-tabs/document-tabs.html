@@ -1,7 +1,7 @@
 @if (documentId(); as docId) {
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-2">
-      <ul class="nav nav-pills gap-1" role="tablist">
+      <ul class="nav nav-pills gap-1" role="tablist" aria-label="Document sections">
         @for (tab of tabs; track tab) {
           <li class="nav-item" role="presentation">
             <button

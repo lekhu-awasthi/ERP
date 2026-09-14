@@ -6,6 +6,7 @@ import { Contact, ContactGroup } from '../../../core/contacts/contacts.models';
 import { CrmService } from '../../../core/crm/crm.service';
 import { SendSmsRequest, SendSmsResult, SmsAudienceMode, SmsTemplateRowDto } from '../../../core/crm/crm.models';
 import { MAX_PAGE_SIZE } from '../../../core/common/paged-result';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Shared Send SMS form (roadmap Phase 18) -- reused, not duplicated, across its two integration
@@ -20,7 +21,7 @@ import { MAX_PAGE_SIZE } from '../../../core/common/paged-result';
  */
 @Component({
   selector: 'app-send-sms-form',
-  imports: [],
+  imports: [StatusBanner],
   templateUrl: './send-sms-form.html',
 })
 export class SendSmsForm implements OnInit {

@@ -1,12 +1,7 @@
 <div>
-  @if (errorMessage()) {
-    <div class="alert alert-danger d-flex align-items-center gap-2 mb-3" role="alert">
-      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
-      <div>{{ errorMessage() }}</div>
-    </div>
-  }
+  <app-status-banner [message]="errorMessage()" spacing="mb-3" />
 
-  <div class="btn-group mb-3" role="group">
+  <div class="btn-group mb-3" role="group" aria-label="Activity sections">
     <button type="button" class="btn btn-sm" [class.btn-primary]="subTab() === 'Comments'" [class.btn-outline-primary]="subTab() !== 'Comments'" (click)="switchSubTab('Comments')">Comments</button>
     <button type="button" class="btn btn-sm" [class.btn-primary]="subTab() === 'Activities'" [class.btn-outline-primary]="subTab() !== 'Activities'" (click)="switchSubTab('Activities')">Activities</button>
     @if (showsSmsHistory()) {

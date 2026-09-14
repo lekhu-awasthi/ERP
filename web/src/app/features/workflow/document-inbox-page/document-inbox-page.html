@@ -24,12 +24,7 @@
     </div>
   </div>
 
-  @if (errorMessage()) {
-    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
-      <div>{{ errorMessage() }}</div>
-    </div>
-  }
+  <app-status-banner [message]="errorMessage()" />
 
   <!-- The AI consent switch. Deliberately on this screen and nowhere else: it is the only place the
        feature is used, and an Admin deciding whether documents may leave the tenant should be
@@ -150,9 +145,25 @@
             </thead>
             <tbody>
               @for (document of documents(); track document.id) {
+                <!--
+                  Phase 40, WCAG 2.1.1. Row selection drives the preview pane beside this grid and
+                  was mouse-only: <tr (click)> is not focusable and has no key handler, so the
+                  preview could not be opened from a keyboard at all. The row keeps its click for
+                  pointer users; the file name becomes the real control, which is what a screen
+                  reader can find and announce as "<file>, show preview".
+                -->
                 <tr [class.table-active]="document.id === selectedId()" (click)="select(document.id)" style="cursor: pointer;">
                   <td>
-                    <div class="fw-bold text-truncate" style="max-width: 260px;">{{ document.fileName }}</div>
+                    <button
+                      type="button"
+                      class="btn btn-link p-0 border-0 fw-bold text-truncate text-start text-decoration-none"
+                      style="max-width: 260px;"
+                      [attr.aria-pressed]="document.id === selectedId()"
+                      [attr.aria-label]="document.fileName + ', show preview'"
+                      (click)="$event.stopPropagation(); select(document.id)"
+                    >
+                      {{ document.fileName }}
+                    </button>
                     <div class="small text-muted">
                       {{ document.sizeBytes / 1024 | number: '1.0-0' }} KB
                       @if (document.label) {

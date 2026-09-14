@@ -1,19 +1,13 @@
 <div>
-  @if (errorMessage()) {
-    <div class="alert alert-danger d-flex align-items-center gap-2 mb-3" role="alert">
-      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
-      <div>{{ errorMessage() }}</div>
-    </div>
-  }
-  @if (successResult(); as result) {
-    <div class="alert alert-success d-flex align-items-center gap-2 mb-3" role="alert">
-      <i aria-hidden="true" class="bi bi-check-circle-fill"></i>
+  <app-status-banner [message]="errorMessage()" spacing="mb-3" />
+  <app-status-banner tone="success" spacing="mb-3" [visible]="successResult() !== null">
+    @if (successResult(); as result) {
       <div>
         Sent to {{ result.recipientCount }} recipient(s), used {{ result.creditsUsed }} credit(s). Remaining balance:
         {{ result.remainingBalance }}.
       </div>
-    </div>
-  }
+    }
+  </app-status-banner>
 
   <div class="mb-3" role="group" aria-labelledby="sms-audience-group">
     <span class="form-label small fw-semibold" id="sms-audience-group">Audience</span>
@@ -22,7 +16,7 @@
         <span class="badge bg-primary-subtle text-primary-emphasis">{{ lockedContactLabel() }}</span>
       </div>
     } @else {
-      <div class="btn-group w-100 mb-2" role="group">
+      <div class="btn-group w-100 mb-2" role="group" aria-label="Choose audience">
         @for (mode of audienceModes; track mode) {
           <button
             type="button"

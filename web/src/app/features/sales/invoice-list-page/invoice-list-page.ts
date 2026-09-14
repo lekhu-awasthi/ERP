@@ -11,12 +11,13 @@ import { ListChrome } from '../../../shared/pagination/list-chrome';
 import { ListFilter } from '../../../shared/pagination/list-query-options';
 import { DateRangeService } from '../../../shared/platform/date-range.service';
 import { LocationName } from '../../../shared/locations/location-name';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type StatusFilter = InvoiceStatus | 'All';
 
 @Component({
   selector: 'app-invoice-list-page',
-  imports: [RouterLink, PaginationControl, NepaliDatePipe, ListChrome, LocationName],
+  imports: [RouterLink, PaginationControl, NepaliDatePipe, ListChrome, LocationName, StatusBanner],
   templateUrl: './invoice-list-page.html',
 })
 export class InvoiceListPage {
@@ -39,6 +40,24 @@ export class InvoiceListPage {
 
   protected readonly statuses: StatusFilter[] = ['All', 'Draft', 'Approved'];
 
+  /**
+   * Phase 40 — the first consumer of the chrome's `Sort by` control, which 34b built and left empty.
+   *
+   * <b>Two options, because two is how many orderings this table is indexed for.</b> 34b's re-entry
+   * condition was "the first list whose default ordering someone complains about", which nobody can
+   * check; 34c supplies one that can. `TenantIndexConvention` gives every document
+   * `(OrganizationId, CreatedAt DESC)` for its list screen and `(OrganizationId, Date)` for its date
+   * range, and those two indexes are exactly these two entries. A third option — by number, by
+   * customer — would be a sort over the whole filtered set on a table 34c measured at 50 000 rows,
+   * and the pager would hide it, because page 1 still comes back with ten rows on it.
+   *
+   * The invoice list is the right first consumer for the same reason: it is the one 34c measured.
+   */
+  protected readonly sortOptions = [
+    { value: 'newest', label: 'Recently added' },
+    { value: 'date', label: 'Invoice date' },
+  ];
+
   constructor() {
     this.load();
   }
@@ -55,6 +74,13 @@ export class InvoiceListPage {
 
   protected selectStatus(status: StatusFilter): void {
     this.statusFilter.set(status);
+    this.page.set(1);
+    this.load();
+  }
+
+  /** Resets to page 1 like every other filter on this page — see `onSearch`. */
+  protected onSort(sort: string): void {
+    this.filter.sort.set(sort);
     this.page.set(1);
     this.load();
   }

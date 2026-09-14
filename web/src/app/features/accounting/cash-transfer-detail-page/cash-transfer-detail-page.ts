@@ -16,6 +16,7 @@ import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-cus
 import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableLine {
   key: number;
@@ -33,7 +34,7 @@ let nextLineKey = 1;
  * credit). */
 @Component({
   selector: 'app-cash-transfer-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner],
   templateUrl: './cash-transfer-detail-page.html',
 })
 export class CashTransferDetailPage {

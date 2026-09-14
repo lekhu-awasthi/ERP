@@ -27,6 +27,7 @@ import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableAllocation {
   key: number;
@@ -42,7 +43,7 @@ let nextAllocationKey = 1;
  * confirmed in erp-module-scan.md's hands-on pass. */
 @Component({
   selector: 'app-payment-detail-page',
-  imports: [RouterLink, DatePipe, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker],
+  imports: [RouterLink, DatePipe, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner],
   templateUrl: './payment-detail-page.html',
 })
 export class PaymentDetailPage {

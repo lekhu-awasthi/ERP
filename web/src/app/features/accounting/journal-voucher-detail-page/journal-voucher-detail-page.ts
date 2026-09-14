@@ -18,6 +18,7 @@ import { ReportingTagsEditor } from '../../../shared/reporting-tags/reporting-ta
 import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-editor';
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableLine {
   key: number;
@@ -46,7 +47,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-journal-voucher-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner],
   templateUrl: './journal-voucher-detail-page.html',
 })
 export class JournalVoucherDetailPage {

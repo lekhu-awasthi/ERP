@@ -6,6 +6,7 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { TenantSubscription } from '../../../core/organizations/organizations.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Phase 20f (FR-2.6) -- the read-only view of the tenant's plan and its opted-in Accounting
@@ -27,7 +28,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
  */
 @Component({
   selector: 'app-subscription-features-page',
-  imports: [RouterLink, SlicePipe, BsDateInput],
+  imports: [RouterLink, SlicePipe, BsDateInput, StatusBanner],
   templateUrl: './subscription-features-page.html',
 })
 export class SubscriptionFeaturesPage {

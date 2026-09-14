@@ -24,6 +24,7 @@ import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { defaultWarehouseSeed } from '../../../shared/locations/default-warehouse-seed';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableMaterial {
   key: number;
@@ -58,7 +59,7 @@ let nextKey = 1;
  */
 @Component({
   selector: 'app-production-journal-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, DocumentLocationPicker],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, DocumentLocationPicker, StatusBanner],
   templateUrl: './production-journal-detail-page.html',
 })
 export class ProductionJournalDetailPage {

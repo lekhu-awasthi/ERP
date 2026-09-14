@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
@@ -13,6 +13,7 @@ import { PurchasingService } from '../../../core/purchasing/purchasing.service';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface TargetOption {
   id: string;
@@ -30,7 +31,7 @@ interface TargetOption {
  */
 @Component({
   selector: 'app-allocate-payment-page',
-  imports: [RouterLink, PaginationControl, DatePipe, DecimalPipe, NepaliDatePipe],
+  imports: [RouterLink, PaginationControl, DecimalPipe, NepaliDatePipe, StatusBanner],
   templateUrl: './allocate-payment-page.html',
 })
 export class AllocatePaymentPage {

@@ -9,6 +9,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /** Read-only report screen -- roadmap Phase 8a's BalanceSheetQuery, Asset/Liability/Equity
  * accounts grouped by top-level AccountGroup (full-subtree rollup) as of a cutoff date, with a
@@ -19,7 +20,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
  * back so the column header names the real date) and the .xlsx export this screen never had. */
 @Component({
   selector: 'app-balance-sheet-page',
-  imports: [RouterLink, AmountPipe, NepaliDatePipe, BsDateInput, ReportLocationFilter],
+  imports: [RouterLink, AmountPipe, NepaliDatePipe, BsDateInput, ReportLocationFilter, StatusBanner],
   templateUrl: './balance-sheet-page.html',
 })
 export class BalanceSheetPage {

@@ -26,9 +26,11 @@
               class="form-control border-start-0 ps-0"
               placeholder="name@example.com"
               [class.is-invalid]="form.get('email')?.touched && form.get('email')?.invalid"
+              [attr.aria-invalid]="(form.get('email')?.touched && form.get('email')?.invalid) ? 'true' : null"
+              [attr.aria-describedby]="(form.get('email')?.touched && form.get('email')?.invalid) ? 'email-error' : null"
             />
             @if (form.get('email')?.touched && form.get('email')?.invalid) {
-              <div class="invalid-feedback">
+              <div class="invalid-feedback" id="email-error">
                 @if (form.get('email')?.errors?.['required']) {
                   Email is required.
                 } @else if (form.get('email')?.errors?.['email']) {
@@ -56,9 +58,11 @@
               class="form-control border-start-0 ps-0 fw-bold letter-spacing-2"
               placeholder="6-digit code"
               [class.is-invalid]="form.get('code')?.touched && form.get('code')?.invalid"
+              [attr.aria-invalid]="(form.get('code')?.touched && form.get('code')?.invalid) ? 'true' : null"
+              [attr.aria-describedby]="(form.get('code')?.touched && form.get('code')?.invalid) ? 'code-error' : null"
             />
             @if (form.get('code')?.touched && form.get('code')?.invalid) {
-              <div class="invalid-feedback">
+              <div class="invalid-feedback" id="code-error">
                 Verification code is required.
               </div>
             }
@@ -66,19 +70,9 @@
         </div>
 
         <!-- Status Alerts -->
-        @if (errorMessage()) {
-          <div class="alert alert-danger d-flex align-items-center gap-2 small py-2 px-3 mb-3" role="alert">
-            <i aria-hidden="true" class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
-            <div>{{ errorMessage() }}</div>
-          </div>
-        }
+        <app-status-banner [message]="errorMessage()" spacing="mb-3" [small]="true" />
 
-        @if (infoMessage()) {
-          <div class="alert alert-success d-flex align-items-center gap-2 small py-2 px-3 mb-3" role="status">
-            <i aria-hidden="true" class="bi bi-check-circle-fill flex-shrink-0"></i>
-            <div>{{ infoMessage() }}</div>
-          </div>
-        }
+        <app-status-banner [message]="infoMessage()" tone="success" spacing="mb-3" [small]="true" />
 
         <!-- Actions -->
         <div class="d-flex flex-column gap-2 mb-3">

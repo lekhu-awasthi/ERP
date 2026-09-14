@@ -16,15 +16,10 @@
     </div>
   </div>
 
-  @if (errorMessage()) {
-    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
-      <div>{{ errorMessage() }}</div>
-    </div>
-  }
+  <app-status-banner [message]="errorMessage()" />
 
   @if (atWarehouseCap() && !editingId()) {
-    <div class="alert alert-info d-flex align-items-center gap-2 mb-4" role="status">
+    <div class="alert alert-info d-flex align-items-center gap-2 mb-4">
       <i aria-hidden="true" class="bi bi-info-circle-fill"></i>
       <div>
         This organization does not have the Multiple Warehouses feature, so it is limited to a single warehouse.

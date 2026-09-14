@@ -12,6 +12,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Sales By Customer -- confirmed live 2026-09-03: filters Period and Contact Group; columns
@@ -24,7 +25,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
  */
 @Component({
   selector: 'app-sales-by-customer-page',
-  imports: [PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter],
+  imports: [PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter, StatusBanner],
   templateUrl: './sales-by-customer-page.html',
 })
 export class SalesByCustomerPage {

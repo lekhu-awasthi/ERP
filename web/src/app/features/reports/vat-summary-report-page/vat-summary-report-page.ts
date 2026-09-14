@@ -7,6 +7,7 @@ import { VatSummaryReportDto } from '../../../core/accounting/accounting.models'
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Read-only report screen -- roadmap Phase 8c's VatSummaryReportQuery, a standard Nepal
@@ -17,7 +18,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
  */
 @Component({
   selector: 'app-vat-summary-report-page',
-  imports: [RouterLink, AmountPipe, BsDateInput],
+  imports: [RouterLink, AmountPipe, BsDateInput, StatusBanner],
   templateUrl: './vat-summary-report-page.html',
 })
 export class VatSummaryReportPage {

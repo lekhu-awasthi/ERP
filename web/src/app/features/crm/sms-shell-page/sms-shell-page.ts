@@ -13,6 +13,7 @@ import {
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { SendSmsForm } from '../send-sms-form/send-sms-form';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type SmsTab = 'Overview' | 'History' | 'Templates' | 'CreditHistory';
 
@@ -24,7 +25,7 @@ type SmsTab = 'Overview' | 'History' | 'Templates' | 'CreditHistory';
  */
 @Component({
   selector: 'app-sms-shell-page',
-  imports: [ReactiveFormsModule, PaginationControl, SendSmsForm, DatePipe],
+  imports: [ReactiveFormsModule, PaginationControl, SendSmsForm, DatePipe, StatusBanner],
   templateUrl: './sms-shell-page.html',
 })
 export class SmsShellPage {

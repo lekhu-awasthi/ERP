@@ -5,6 +5,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
 import { CustomTemplate, CustomTemplateType } from '../../../core/configuration/configuration.models';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface CustomTemplateSection {
   type: CustomTemplateType;
@@ -26,7 +27,7 @@ const SECTION_TITLES: Record<CustomTemplateType, string> = {
  */
 @Component({
   selector: 'app-custom-template-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, StatusBanner],
   templateUrl: './custom-template-list-page.html',
 })
 export class CustomTemplateListPage {

@@ -18,6 +18,7 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Invoice Age -- confirmed live 2026-09-03. Every outstanding document with its own age, where
@@ -33,7 +34,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
  */
 @Component({
   selector: 'app-invoice-age-page',
-  imports: [PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter],
+  imports: [PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter, StatusBanner],
   templateUrl: './invoice-age-page.html',
 })
 export class InvoiceAgePage {

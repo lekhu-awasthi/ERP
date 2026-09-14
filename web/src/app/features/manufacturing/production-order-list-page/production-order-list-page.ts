@@ -14,6 +14,7 @@ import { ListChrome } from '../../../shared/pagination/list-chrome';
 import { ListFilter } from '../../../shared/pagination/list-query-options';
 import { DateRangeService } from '../../../shared/platform/date-range.service';
 import { LocationName } from '../../../shared/locations/location-name';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type StatusFilter = ProductionOrderStatus | 'All';
 
@@ -21,7 +22,7 @@ type StatusFilter = ProductionOrderStatus | 'All';
  * Status tabs mirror the reference product's own Approved/Draft tabs. */
 @Component({
   selector: 'app-production-order-list-page',
-  imports: [RouterLink, PaginationControl, CustomStatusPicker, NepaliDatePipe, ListChrome, LocationName],
+  imports: [RouterLink, PaginationControl, CustomStatusPicker, NepaliDatePipe, ListChrome, LocationName, StatusBanner],
   templateUrl: './production-order-list-page.html',
 })
 export class ProductionOrderListPage {

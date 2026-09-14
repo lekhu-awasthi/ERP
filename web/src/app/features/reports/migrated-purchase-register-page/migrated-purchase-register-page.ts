@@ -10,6 +10,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Phase 21c / FR-2.10 / FR-9.4 -- the Migrated Purchase Register. The Purchase-side twin of
@@ -18,7 +19,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  */
 @Component({
   selector: 'app-migrated-purchase-register-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, StatusBanner],
   templateUrl: './migrated-purchase-register-page.html',
 })
 export class MigratedPurchaseRegisterPage {

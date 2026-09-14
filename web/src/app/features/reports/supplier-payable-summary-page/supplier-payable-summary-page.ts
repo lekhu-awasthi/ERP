@@ -12,6 +12,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Supplier Payable Summary -- confirmed live 2026-09-03: filters Period and Contact Group; columns
@@ -24,7 +25,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
  */
 @Component({
   selector: 'app-supplier-payable-summary-page',
-  imports: [PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter],
+  imports: [PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter, StatusBanner],
   templateUrl: './supplier-payable-summary-page.html',
 })
 export class SupplierPayableSummaryPage {

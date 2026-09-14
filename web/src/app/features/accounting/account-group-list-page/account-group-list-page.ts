@@ -6,6 +6,7 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { buildTreeRows, TreeRow } from '../../../core/common/tree';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { AccountGroup, AccountRootType } from '../../../core/accounting/accounting.models';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type AccountGroupRow = TreeRow<AccountGroup>;
 
@@ -16,7 +17,7 @@ type AccountGroupRow = TreeRow<AccountGroup>;
  * never even be selected client-side (still re-validated server-side regardless). */
 @Component({
   selector: 'app-account-group-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, StatusBanner],
   templateUrl: './account-group-list-page.html',
 })
 export class AccountGroupListPage {

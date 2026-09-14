@@ -9,12 +9,7 @@
     </a>
   </div>
 
-  @if (errorMessage()) {
-    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
-      <div>{{ errorMessage() }}</div>
-    </div>
-  }
+  <app-status-banner [message]="errorMessage()" />
 
   @if (loading()) {
     <div class="card border-0 shadow-sm text-center py-5">
@@ -63,9 +58,7 @@
           Past the end date this organization can still be read, printed and exported, but no document can be
           created, edited, approved or voided.
         </p>
-        @if (successMessage()) {
-          <div class="alert alert-success py-2" role="alert">{{ successMessage() }}</div>
-        }
+        <app-status-banner [message]="successMessage()" tone="success" spacing="mb-2" />
         <div class="row g-3 align-items-end">
           <div class="col-12 col-sm-5">
             <label class="form-label small fw-semibold" for="renew-plan">Plan name</label>

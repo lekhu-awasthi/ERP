@@ -16,6 +16,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { glDetailRoute, txnTypeLabel } from '../gl-report-shared';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 const EMPTY_REPORT: PagedResult<DetailGeneralLedgerAccountDto> = {
   items: [],
@@ -36,7 +37,7 @@ const EMPTY_REPORT: PagedResult<DetailGeneralLedgerAccountDto> = {
  */
 @Component({
   selector: 'app-detail-general-ledger-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, NepaliDatePipe, BsDateInput, ReportLocationFilter],
+  imports: [RouterLink, PaginationControl, AmountPipe, NepaliDatePipe, BsDateInput, ReportLocationFilter, StatusBanner],
   templateUrl: './detail-general-ledger-page.html',
 })
 export class DetailGeneralLedgerPage {

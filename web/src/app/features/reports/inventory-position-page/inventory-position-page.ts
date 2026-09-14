@@ -19,6 +19,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Phase 26c -- Inventory Position: quantity, rate and value per product as at the period end.
@@ -28,7 +29,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
  */
 @Component({
   selector: 'app-inventory-position-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter, StatusBanner],
   templateUrl: './inventory-position-page.html',
 })
 export class InventoryPositionPage {

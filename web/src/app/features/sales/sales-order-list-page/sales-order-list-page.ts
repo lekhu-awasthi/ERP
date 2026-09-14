@@ -14,6 +14,7 @@ import { ListChrome } from '../../../shared/pagination/list-chrome';
 import { ListFilter } from '../../../shared/pagination/list-query-options';
 import { DateRangeService } from '../../../shared/platform/date-range.service';
 import { LocationName } from '../../../shared/locations/location-name';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type StatusFilter = SalesOrderStatus | 'All';
 
@@ -21,7 +22,7 @@ type StatusFilter = SalesOrderStatus | 'All';
  * Order had zero Angular UI through Phase 16b, confirmed gap, see CLAUDE.md's phase-18 brief). */
 @Component({
   selector: 'app-sales-order-list-page',
-  imports: [RouterLink, PaginationControl, CustomStatusPicker, NepaliDatePipe, ListChrome, LocationName],
+  imports: [RouterLink, PaginationControl, CustomStatusPicker, NepaliDatePipe, ListChrome, LocationName, StatusBanner],
   templateUrl: './sales-order-list-page.html',
 })
 export class SalesOrderListPage {

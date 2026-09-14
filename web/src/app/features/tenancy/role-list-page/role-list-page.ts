@@ -5,6 +5,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { OrganizationMember, Role } from '../../../core/organizations/organizations.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * The Role Reference list page (Phase 14) -- the two shared system roles (Admin/Member, read-only
@@ -14,7 +15,7 @@ import { OrganizationsService } from '../../../core/organizations/organizations.
  */
 @Component({
   selector: 'app-role-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, StatusBanner],
   templateUrl: './role-list-page.html',
 })
 export class RoleListPage {

@@ -9,6 +9,7 @@ import {
   SuggestSellingPriceMode,
 } from '../../../core/organizations/organizations.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Configurations > General (phase 31). The five behaviour switches that decide what happens at
@@ -34,7 +35,7 @@ import { OrganizationsService } from '../../../core/organizations/organizations.
  */
 @Component({
   selector: 'app-general-settings-page',
-  imports: [RouterLink],
+  imports: [RouterLink, StatusBanner],
   templateUrl: './general-settings-page.html',
 })
 export class GeneralSettingsPage {

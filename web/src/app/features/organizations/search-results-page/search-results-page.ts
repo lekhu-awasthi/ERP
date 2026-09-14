@@ -12,6 +12,7 @@ import {
   hitQueryParams,
   hitRouterLink,
 } from '../../../shared/navigation/search-routes';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /** The filter's options, plus the "everything" choice the page opens on. */
 interface KindOption {
@@ -39,7 +40,7 @@ interface KindOption {
  */
 @Component({
   selector: 'app-search-results-page',
-  imports: [RouterLink],
+  imports: [RouterLink, StatusBanner],
   templateUrl: './search-results-page.html',
 })
 export class SearchResultsPage {

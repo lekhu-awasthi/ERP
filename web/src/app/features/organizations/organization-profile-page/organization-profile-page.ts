@@ -5,6 +5,7 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { OrganizationProfile } from '../../../core/organizations/organizations.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Phase 39 — `Configurations > Organization Profile`: the organization's own details, and the logo
@@ -30,7 +31,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  */
 @Component({
   selector: 'app-organization-profile-page',
-  imports: [NepaliDatePipe],
+  imports: [NepaliDatePipe, StatusBanner],
   templateUrl: './organization-profile-page.html',
 })
 export class OrganizationProfilePage implements OnDestroy {

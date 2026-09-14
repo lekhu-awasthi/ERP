@@ -103,6 +103,24 @@ export class BsDateInput implements ControlValueAccessor {
     return !!iso && adToBs(iso) === null;
   });
 
+  /**
+   * The ids of whichever notes are on screen, for the input's `aria-describedby` (WCAG 3.3.1).
+   *
+   * <p>Null when there is nothing to describe, because an `aria-describedby` pointing at an id that
+   * is not in the document is worse than none — a screen reader resolves it to the empty string and
+   * reports a described field with no description. Null when the caller passed no `inputId` for the
+   * same reason: the notes cannot have ids either, and there is nothing to point at.</p>
+   */
+  protected readonly describedBy = computed(() => {
+    const id = this.inputId();
+    if (!id) {
+      return null;
+    }
+    const ids = [this.outOfRange() ? `${id}-range` : null, this.draftInvalid() ? `${id}-invalid` : null];
+    const present = ids.filter((x): x is string => x !== null);
+    return present.length > 0 ? present.join(' ') : null;
+  });
+
   /** The BS year/month the popup grid is showing. */
   private readonly viewYear = signal(0);
   private readonly viewMonth = signal(0);

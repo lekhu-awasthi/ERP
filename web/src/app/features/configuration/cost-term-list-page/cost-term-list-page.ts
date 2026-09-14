@@ -5,6 +5,8 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
 import { CostTerm, CostTermCategory } from '../../../core/configuration/configuration.models';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { LookupFilter, matchesLookup } from '../../../shared/pagination/lookup-filter';
 
 interface CostTermSection {
   category: CostTermCategory;
@@ -22,7 +24,7 @@ interface CostTermSection {
  */
 @Component({
   selector: 'app-cost-term-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, StatusBanner, LookupFilter],
   templateUrl: './cost-term-list-page.html',
 })
 export class CostTermListPage {
@@ -39,6 +41,14 @@ export class CostTermListPage {
   protected readonly editingId = signal<string | null>(null);
   protected readonly confirmingDeleteId = signal<string | null>(null);
 
+  /** Phase 40 -- 34b's carried item #3. Client-side, because `listAll` already fetched every row,
+   * and applied inside `sections` so both sections narrow together and the empty-state text below
+   * still reads correctly for a section the term emptied. */
+  protected readonly term = signal('');
+
+  protected readonly filtered = computed(() =>
+    this.items().filter((item) => matchesLookup(this.term(), item.name)));
+
   /**
    * The reference product's two sections over one CostTerm shape. Derived rather than fetched
    * twice -- the list endpoint returns both categories in one bounded page (see
@@ -51,14 +61,14 @@ export class CostTermListPage {
       title: 'Additional Cost Terms',
       blurb: 'Landed-cost items, e.g. Freight, Insurance, Customs Duty.',
       emptyText: 'No additional cost terms yet. Add one using the form above.',
-      items: this.items().filter((item) => item.category === 'AdditionalCost'),
+      items: this.filtered().filter((item) => item.category === 'AdditionalCost'),
     },
     {
       category: 'ProductionCost',
       title: 'Production Cost Terms',
       blurb: 'Expense terms rolled into a Bill of Materials / Production Journal cost.',
       emptyText: 'No production cost terms yet. Add one using the form above.',
-      items: this.items().filter((item) => item.category === 'ProductionCost'),
+      items: this.filtered().filter((item) => item.category === 'ProductionCost'),
     },
   ]);
 

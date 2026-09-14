@@ -6,6 +6,7 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { buildTreeRows, TreeRow } from '../../../core/common/tree';
 import { CatalogService } from '../../../core/catalog/catalog.service';
 import { ProductCategory } from '../../../core/catalog/catalog.models';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type ProductCategoryRow = TreeRow<ProductCategory>;
 
@@ -13,7 +14,7 @@ type ProductCategoryRow = TreeRow<ProductCategory>;
  * component's doc comment for the indentation approach. */
 @Component({
   selector: 'app-product-category-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, StatusBanner],
   templateUrl: './product-category-list-page.html',
 })
 export class ProductCategoryListPage {

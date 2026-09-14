@@ -8,6 +8,7 @@ import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { ListChrome } from '../../../shared/pagination/list-chrome';
 import { ListFilter } from '../../../shared/pagination/list-query-options';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type ContactTypeFilter = ContactType | 'All';
 
@@ -16,7 +17,7 @@ type ContactTypeFilter = ContactType | 'All';
  * phase-3-status.md). */
 @Component({
   selector: 'app-contact-list-page',
-  imports: [RouterLink, PaginationControl, ListChrome],
+  imports: [RouterLink, PaginationControl, ListChrome, StatusBanner],
   templateUrl: './contact-list-page.html',
 })
 export class ContactListPage {

@@ -71,6 +71,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 37: inventory policy — negative stock as a **shortfall layer**, the cost catch-up, returns at consumed FIFO cost, the clearing unwind. Before letting a stock balance go negative, before correcting a stock *value*, or before deciding what a return credits Inventory — `docs/phase-37-status.md`
 - Phase 38: import/export breadth — 5 new upload types, intra-file tree ordering, a pre-commit dry run, export by category + date range. Before adding an importer, a template, or an array parameter to a POST — `docs/phase-38-status.md`
 - Phase 39: the two editors — one sanitised rich-text control (`RichText`: re-emission, not filtering, in the Domain setters), the Organization logo in the printed header, `BalanceConfirmation`'s first consumer, standalone Deals/Tasks routes, Quick Links drag, the search results page. Before storing anything a user typed that is rendered later, before accepting an uploaded image, or before trusting that a guard still covers its subject — `docs/phase-39-status.md`
+- Phase 40: the human WCAG pass (keyboard census, one focus ring, `app-status-banner`'s always-present live region) + 34b's list-chrome leftovers. Before claiming an a11y criterion holds, writing a status message, choosing a focus colour, or offering a list an ordering — `docs/phase-40-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -151,6 +152,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Every tenant-scoped table needs an index **leading on `OrganizationId`**; 18 had none, and they were exactly the documents, because master data got one free from its per-tenant uniqueness rule. `TenantIndexConvention` derives all three families and throws at model build for an entity it cannot classify (phase-34c).
 - An index added for one access path changes the plan for **every other path over the same table**: `(OrganizationId, CreatedAt)` made the invoice list 10× faster and a non-matching search 1.8× *slower*, because the optimizer swapped one scan for a seek plus a key lookup per row. Re-measure the paths you did not change (phase-34c).
 - A materialised id list handed back to SQL becomes an `OPENJSON` parameter as long as the list; a report that loads its period then re-queries children by `ids.Contains` is linear in the period, not in the page. `JournalReportQueryHandler` is the shape that is not (phase-34c).
+- A list may offer an ordering exactly when an index leads on `(OrganizationId, <that column>)` — `TenantIndexConvention` builds a document two, so a document list's sort menu has two entries and is a reading of the schema, not a preference. An unknown value is a 400 naming the field, never a silent default (phase-40).
 - On a bulk-`INSERT`-seeded database, statistics quality moves a report that joins to a line table by 2× — more than most changes under test. `UPDATE STATISTICS ... WITH FULLSCAN` on both sides before comparing anything (phase-34c).
 - Read a handler's `Where` before assuming it matches its request — `ListPaymentsQueryHandler` shipped with a hardcoded `Direction == Received` (phase-6 bug #2).
 - EF refuses a set operation *after a client projection*, so `Concat`-ing two `select new SomeRecord(...)` queries throws at run time on SQL Server as well as InMemory; concatenate while both halves are still anonymous and build the record from the materialised page (phase-38).
@@ -256,6 +258,13 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - An `effect()` cannot tell "the write already being acted on" from "a write needing action" — if the handler that wrote the signal already schedules the response, an effect over it is a race (phase-34b).
 - Never put `overflow` on a layout container without asking what is anchored inside it; the rail's `overflow: hidden` clipped a 46rem flyout to 240px, silently (phase-34b, phase-22's gotcha in a second container).
 - Deriving beats listing for a **catalogue** (a missing nav entry is an unreachable screen); listing beats deriving for a **curated tray** (deriving loses the curation that is the feature). Guard both the same way — every url must resolve to a real route (phase-34b).
+- A live region is announced when its **contents change**, so `@if (msg) { <div role="alert"> }` announces nothing — the region is created already holding its text. Render `app-status-banner` unconditionally; the grep that scopes such a sweep is itself a predicate, and `role="status"` hid seven more (phase-40).
+- `role="alert"` on unconditional page furniture is the reverse error: it fires on page load and interrupts whatever is being read (phase-40).
+- Bootstrap's `:focus-visible` ring is the control's own tone at 50% alpha and measures 1.21–2.53:1 against WCAG 1.4.11's 3:1 — phase 34a's palette lesson one property over. One opaque `#0a58ca` outline at `outline-offset: 2px` contrasts against the *page*, so one number is right for every variant (phase-40).
+- A scan for controls cannot see a click handler with no control: the organization picker's rows were `<div (click)>`, so a keyboard user could sign in and reach none of the other 140 screens. The check for this class is a **focusable census**, not a scan (phase-40).
+- A control that hides itself owns its own label, or its caption outlives it — `ListChrome` named a location filter that renders nothing on a single-location tenant, on 22 screens, invisibly to any source-level guard (phase-40).
+- An ARIA grouping with no `aria-label` is worse than no role: it announces "group" and adds a boundary carrying nothing. `role="group"` over native radios should be `radiogroup` — the browser is already doing the roving selection (phase-40).
+- A backtick inside a comment inside an inline `template:` literal terminates the template; the compiler blames the `@Component` decorator (phase-40).
 
 **Multi-way switches on a document-attached mechanism**
 - A shared UI *panel* is not evidence of a shared *model*: the reference product shows email templates inside its Custom Templates panel but serves them from a different resource with six extra fields and a disjoint type vocabulary, so `EmailTemplate` is its own aggregate and phase 27b's placeholder `CustomTemplateType.Email` was deleted rather than left dead (phase-30).
@@ -267,6 +276,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A vendor's always-pass dummy credential (Turnstile `1x000…AA`) accepts any input; proving the negative path needs the always-fail one (`2x000…AA`) swapped in (phase-20g).
 - Two implementations of one rule in two languages are pinned to a **shared table read by both suites**, not to each other (`rich-text-cases.json`, linked in as an embedded resource so a moved file is a build error) — phase-26b's `BsCalendar`/`bs-date.ts` arrangement; it caught a real whitespace divergence within the hour (phase-39).
 - A guard whose predicate names a **type** silently stops covering anything solved before that type existed: `SearchSweepGuardTests` recognised only `PagedResult<T>`, so the two list queries that predate it were invisible — and were exactly the two the phase had to fix (phase-39).
+- …and a predicate naming a **file extension** does the same: `a11y-sweep-guard`'s glob missed five inline-`template:` components for six phases. Widening it found nothing wrong, which is the honest result and not the same as never having looked (phase-40).
+- A guard that accepts two spellings on one side must accept both on the other: it recognised `[for]` and `[attr.for]` on a label but only `[id]` on a control, so a control naming itself `[attr.id]` read as unnamed (phase-40).
+- "Is this screen a list or a report" resisted for two phases because the premise was false — this codebase has three list shapes, and 34b's two undecidable screens were one report and one configuration lookup (phase-40).
 - A Domain invariant reached through an endpoint is a **500**, which tells a caller nothing; add the same rule to the validator for a 400 that names the field and keep the Domain check as the backstop. Only the E2E sees this — every handler test constructs a valid command (phase-39).
 - `curl -F name=<value` reads the value as a **file path** when it starts with `<`, reporting exit 26 and HTTP 000 — phase-30's symptom, a different cause. Rich text always starts with `<p>`; use `--form-string` (phase-39).
 - `UpdateRolePermissionsCommand.Grants` is a dictionary, not a list, and system Admin/Member roles cannot be edited (409) — a negative-permission proof needs a custom role.
@@ -299,6 +311,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - curl cannot read a file for `-F` upload here — every path form gives exit 26 and HTTP `000`, which reads like a server fault; drive the file leg from a short Python `urllib` script (phase-30).
 - `POST /api/organizations` needs `industry` and a non-empty `turnstileToken`; accept-invitation is `/api/organizations/memberships/{id}/accept-invitation` with no org segment (with one, a 404 leaves the membership `Invited`); units are `/units-of-measurement` (`shortName`); credit terms are under `/configuration/` (phase-31).
 - `POST /accounts` takes `groupId`; `POST /products` takes `type`, not `productType`, and the wrong name silently yields a Goods product that 409s at Approve about the warehouse (phase-32).
+- `POST /products` also needs `categoryId`; every create returns **201**, not 200; configuration lookups live under `/organizations/{id}/configuration/...`, not the org root; and a fresh organization has no warehouse, unit, category or product, all four of which an invoice line needs even for a Service (phase-40).
 - A scripted multi-file edit must assert its anchor count before writing and preserve each file's CRLF/BOM (phase-32).
 - `dotnet run --project src/Api` with no `--launch-profile` binds **5155 only**, not the 7104 the Angular dev environment calls; and a stale listener on 5155 makes the https profile fail to start (phase-30).
 
@@ -311,6 +324,8 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 - A lazy `.*?` between two anchors spans the instances in between (it expands past `</label>` to reach a later match), silently merging them; exclude the closing marker — `((?:(?!</label>).)*?)`. The tell is two independent counts disagreeing, so derive the expected number a second way (phase-34a, on top of phase-32's assert-before-writing rule).
 - A positional derivation (column index → header text) is *confidently wrong* where the position lies — a `colspan` cell, a cell with its own label. A wrong accessible name is worse than none; audit for the shapes the first pass cannot see (phase-34a).
 - In the browser pane the **screenshot is ground truth**: after a viewport resize, `getComputedStyle`/`getBoundingClientRect` can lag the rendering (a drawer measured on-screen while the screenshot showed it tucked away). Reload after emulating a viewport (phase-34b).
+- …and the same lag makes `getComputedStyle` inside a `focusin` handler report `outline: none` on every control, which reads as an app-wide 2.4.7 failure that does not exist. Measure after a real key event, and look at the picture (phase-40).
+- A green `ng build` and a browser showing the pre-fix markup means the **dev server is serving a bundle older than the source** after a failed rebuild; the unchanged `_ngcontent-ng-cNNNNNN` attribute is the tell. Restart the preview (phase-40).
 - `sed -i` also flips the CRLF of the file you *aimed* it at, after which every `
 `-anchored patch script fails its assertion with the anchor looking correct; use Edit for a single substitution, or read the file's own newline (phase-33).
 - A `sed -i` over a glob rewrites **every** file it matches, and on Windows that flips CRLF to LF even where the pattern never fires — `git diff` stays empty while `git status` shows a hundred extra modified files. Undoing it needs `rm` *then* `git checkout --`; restrict the file list instead (phase-30).
@@ -320,46 +335,61 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–39 are complete.** Phase 39 was mostly *surface* — routes, a rich-text control, an image
-upload — so its risk was never silent data damage but **shipping a control that looks right and is
-unsafe**, and every decision in it follows from that.
+**Phases 0–40 are complete.** Phase 40 was the human accessibility pass phase 34a said a machine
+could not do, plus 34b's list-chrome leftovers. Its stated risk was *a large diff that proves
+nothing* — a pass driven from a checklist rather than from a keyboard — so the phase is organised the
+other way round: drive the app, record what that finds, then write code.
 
-The rich-text editor is one control behind both `app-terms-editor` and the Send Email body, which the
-live pass proved is what the reference product does (byte-identical TinyMCE `toolbar` string in both).
-`Domain/Common/RichText` sanitises **on write, in the Domain setters**, by *re-emission rather than
-filtering*: input is parsed into a tree whose only attribute slot is a four-valued enum, and output is
-generated from constants the emitter owns — so a tokenizer bug can produce wrong formatting and can
-never produce an attribute, a tag name or a URL that came from the input. The editor's eleven buttons
-are exactly what `RichTextPdfRenderer` can draw; colour, font, size, tables and images are dropped
-because a field that renders three ways in three places is worse than one that renders one way
-everywhere. Two sanitisers exist (the server's decides what is stored, the client's what the user sees
-while typing) and are pinned to a shared table read by both suites.
+What driving it found is a pattern worth carrying: **every defect a guard could not see was about
+something that is not there.** A click handler with no focusable element (the organization picker's
+rows were `<div (click)>`, so a keyboard user could sign in and reach none of the other 140 screens —
+six focusable elements on a page with 114 organizations). A focus ring that is painted and invisible
+(Bootstrap's is the control's own tone at 50% alpha: 1.21–2.53:1 against WCAG's 3:1, so `styles.scss`
+paints one opaque `#0a58ca` outline instead). A live region with no prior existence (163 banners
+spelled `@if (msg) { <div role="alert"> }`, which announces nothing, confirmed with a
+MutationObserver against the running app; `app-status-banner` keeps the region outside the `@if`, and
+the guard then found seven more in the `role="status"` spelling). A label whose control vanishes at
+runtime on a single-location tenant, on 22 screens. And a `role="toolbar"` that promised a roving tab
+stop it never implemented. **`aria-invalid` and `aria-describedby` appeared zero times** in the
+codebase before this phase; 25 ARIA groupings named nothing.
 
-The Organization logo closes the phase-1b wizard gap and reaches the printed header. Its format check
-and its 300×300 check are **one parser over the file's own bytes** (`ImageHeader`), never the
-client-supplied content type. `EmailTemplateContext.BalanceConfirmation` finally has a consumer.
-Deals and Tasks got the standalone routes 34b's router-derived nav made visible — the live pass
-showed both are list **+ detail**, and the detail pages are a stated carried item rather than
-half-built. Quick Links gained drag (and kept its arrow buttons, because drag alone is a keyboard
-trap), and the search results page shipped now that 34c confirmed the cap of 5 bites.
+The guards learned two things about themselves. `a11y-sweep-guard`'s glob names a file *extension*,
+so five inline-`template:` components had been outside all nine assertions since 34a — widening it
+found nothing wrong, which is the honest result and not the same as never having looked. And it
+accepted `[for]` and `[attr.for]` on a label but only `[id]` on a control.
 
-**Next: phases 40–41 in `docs/roadmap.md`** — 40 is the human accessibility pass and the list-chrome
-leftovers. Carried out of 39: Deal/Task **detail** pages need `Deal` and `WorkTask` in the three
-polymorphic parent enums plus a third route family (phase-27a's sweep over two new parent types); the
-nine Organization detail fields are read-only and there is no `UpdateOrganizationCommand` at all; the
-printed header still diverges from live's centred arrangement; the rich-text grammar carries no tables
-or images. Carried out of 38: the dry run cannot see what only writing can; variant import needs the
-parent's attribute pool configured first; `MaxRowsPerWorkbook` is still one machine's memory law.
-Carried out of 37: Inventory Master still lacks WarehouseTransfer and OpeningStock rows; multi-UOM ×
-variants is unbuilt; a standalone Debit Note's Goods line still credits Inventory without touching the
-ledger. Carried out of 36: product-to-location is enforced on the picker but not at save; *Display
-Warehouse in Column* and `sales-summary`'s Group Wise location grouping are unbuilt; the Sales
-Register's money columns are still transaction-currency.
+34b's leftovers close with reasons rather than shrugs: `sortOptions` has its first consumer and a
+re-entry condition that can be checked (**an ordering may be offered when an index leads on
+`(OrganizationId, <that column>)`** — a reading of 34c, not a preference); six unpaginated
+Configurations lookups filter client-side; and `transaction-list-page` is a report while
+`alert-list-page` is a configuration-lookup list, which is why "list or report" resisted for two
+phases — the premise was false. 1.4.10 Reflow passes at 320 px on all three shapes, which is a
+finding too.
 
-Tests: Domain 640, Application.UnitTests 1056, Api.IntegrationTests 29, Angular 422. `dotnet build` /
-`dotnet test` / `ng build` / `ng test` all clean. `ng build` still warns the initial bundle exceeds
-its 500 kB budget (pre-existing, 650 kB). `tsc --noEmit` does not cover `web/src/app`; `ng build` is
-the check (phase-28), and `ng test` must be run from `web/` (phase-35a).
+**Next: phase 41 in `docs/roadmap.md`** — and it opens with a product decision, not a build: *is this
+product selling plans at all?* If the answer is no, 41 is a retirement with reasons rather than a
+phase. Carried out of 40: **nobody has heard the app** — no screen reader was available in this
+environment, so the live regions and the roving toolbar are right by specification and by DOM
+evidence, not by ear; `aria-describedby` reaches only the 15 fields that had a per-field message at
+all; the `Sort by` control has one consumer of the eighteen that now qualify; and two lists in the
+same app answer "search" from two places with nothing enforcing that they keep agreeing. Carried out
+of 39: Deal/Task **detail** pages need `Deal` and `WorkTask` in the three polymorphic parent enums
+plus a third route family; the nine Organization detail fields are read-only and there is no
+`UpdateOrganizationCommand` at all; the printed header still diverges from live's centred
+arrangement; the rich-text grammar carries no tables or images. Carried out of 38: the dry run cannot
+see what only writing can; variant import needs the parent's attribute pool configured first;
+`MaxRowsPerWorkbook` is still one machine's memory law. Carried out of 37: Inventory Master still
+lacks WarehouseTransfer and OpeningStock rows; multi-UOM × variants is unbuilt; a standalone Debit
+Note's Goods line still credits Inventory without touching the ledger. Carried out of 36:
+product-to-location is enforced on the picker but not at save; *Display Warehouse in Column* and
+`sales-summary`'s Group Wise location grouping are unbuilt; the Sales Register's money columns are
+still transaction-currency.
+
+Tests: Domain 640, Application.UnitTests 1060, Api.IntegrationTests 29, Angular 426. `dotnet build` /
+`dotnet test` / `ng build` / `ng test` all clean; 34a's two `NG8113` warnings are gone. `ng build`
+still warns the initial bundle exceeds its 500 kB budget (pre-existing, 651 kB). `tsc --noEmit` does
+not cover `web/src/app`; `ng build` is the check (phase-28), and `ng test` must be run from `web/`
+(phase-35a).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

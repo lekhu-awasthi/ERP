@@ -26,6 +26,7 @@ import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
 import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableAllocation {
   key: number;
@@ -42,7 +43,7 @@ let nextAllocationKey = 1;
  * -- exact mirror of Customer Payment's posting"). */
 @Component({
   selector: 'app-supplier-payment-detail-page',
-  imports: [RouterLink, DatePipe, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, SendEmailDialog, DocumentLocationPicker, CurrencyRateFields],
+  imports: [RouterLink, DatePipe, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, SendEmailDialog, DocumentLocationPicker, CurrencyRateFields, StatusBanner],
   templateUrl: './supplier-payment-detail-page.html',
 })
 export class SupplierPaymentDetailPage {

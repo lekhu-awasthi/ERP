@@ -13,6 +13,7 @@ import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Shared Task list component (roadmap Phase 13) -- reused, not duplicated, across its two
@@ -24,7 +25,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  */
 @Component({
   selector: 'app-task-list',
-  imports: [ReactiveFormsModule, LowerCasePipe, PaginationControl, BsDateInput, NepaliDatePipe],
+  imports: [ReactiveFormsModule, LowerCasePipe, PaginationControl, BsDateInput, NepaliDatePipe, StatusBanner],
   templateUrl: './task-list.html',
 })
 export class TaskList implements OnInit {

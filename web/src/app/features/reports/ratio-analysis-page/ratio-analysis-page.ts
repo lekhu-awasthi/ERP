@@ -7,6 +7,7 @@ import { RatioAnalysisDto } from '../../../core/accounting/accounting.models';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Read-only report screen -- Phase 19's RatioAnalysisQuery, grouped by the 4 confirmed categories
@@ -14,7 +15,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
  */
 @Component({
   selector: 'app-ratio-analysis-page',
-  imports: [RouterLink, AmountPipe, BsDateInput],
+  imports: [RouterLink, AmountPipe, BsDateInput, StatusBanner],
   templateUrl: './ratio-analysis-page.html',
 })
 export class RatioAnalysisPage {

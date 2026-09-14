@@ -59,7 +59,16 @@ public sealed class ListInvoicesQueryHandler(IAppDbContext db, ICurrentUserServi
             query = query.Where(x => x.Date <= toDate);
         }
 
-        return await query.OrderByDescending(x => x.CreatedAt)
-            .ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
+        // Phase 40 -- the chrome's Sort by control, and the only two orderings this table is indexed
+        // for: `(OrganizationId, CreatedAt DESC)` and `(OrganizationId, Date)`, both built by
+        // `TenantIndexConvention`. Either one is a seek plus an ordered range scan; anything else
+        // would be a sort over the whole filtered set, which the pager would hide (34c).
+        var ordered = request.Sort switch
+        {
+            ListSort.DocumentDate => query.OrderByDescending(x => x.Date).ThenByDescending(x => x.CreatedAt),
+            _ => query.OrderByDescending(x => x.CreatedAt),
+        };
+
+        return await ordered.ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
     }
 }

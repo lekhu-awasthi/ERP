@@ -7,6 +7,7 @@ import { ExceptionalReportRowDto } from '../../../core/reports/catalogue-reports
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Phase 26c -- twelve fixed anomaly rows, each a magnitude with a DR/CR marker except the two
@@ -14,7 +15,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
  */
 @Component({
   selector: 'app-exceptional-report-page',
-  imports: [RouterLink, AmountPipe, BsDateInput],
+  imports: [RouterLink, AmountPipe, BsDateInput, StatusBanner],
   templateUrl: './exceptional-report-page.html',
 })
 export class ExceptionalReportPage {

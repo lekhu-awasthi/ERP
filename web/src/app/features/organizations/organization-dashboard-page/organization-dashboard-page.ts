@@ -14,6 +14,7 @@ import { OrganizationsService } from '../../../core/organizations/organizations.
 import { DealList } from '../../crm/deal-list/deal-list';
 import { TaskList } from '../../workflow/task-list/task-list';
 import { CalendarToggle } from '../../../shared/formatting/calendar-toggle';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * The Organization dashboard shell (roadmap Phase 1b task 11) -- replaces Phase 1a's generic
@@ -29,7 +30,7 @@ import { CalendarToggle } from '../../../shared/formatting/calendar-toggle';
  */
 @Component({
   selector: 'app-organization-dashboard-page',
-  imports: [ReactiveFormsModule, FormsModule, RouterLink, TaskList, DealList, CalendarToggle],
+  imports: [ReactiveFormsModule, FormsModule, RouterLink, TaskList, DealList, CalendarToggle, StatusBanner],
   templateUrl: './organization-dashboard-page.html',
 })
 export class OrganizationDashboardPage {

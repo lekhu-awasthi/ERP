@@ -16,12 +16,8 @@
     </div>
   </div>
 
-  @if (errorMessage()) {
-    <div class="alert alert-danger" role="alert">{{ errorMessage() }}</div>
-  }
-  @if (successMessage()) {
-    <div class="alert alert-success" role="alert">{{ successMessage() }}</div>
-  }
+  <app-status-banner [message]="errorMessage()" />
+  <app-status-banner [message]="successMessage()" tone="success" />
 
   @if (loading()) {
     <p class="text-muted">Loading settings...</p>

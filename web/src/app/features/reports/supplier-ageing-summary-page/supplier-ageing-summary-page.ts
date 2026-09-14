@@ -10,6 +10,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Read-only report screen -- roadmap Phase 9's ContactAgeingSummaryQuery (ContactType=Supplier).
@@ -21,7 +22,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
  */
 @Component({
   selector: 'app-supplier-ageing-summary-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter],
+  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter, StatusBanner],
   templateUrl: './supplier-ageing-summary-page.html',
 })
 export class SupplierAgeingSummaryPage {

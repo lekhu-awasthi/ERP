@@ -1727,3 +1727,206 @@ the generator.
 There is a third instance of this in the phase's own history, which is the reason it is written down
 rather than filed as bad luck: the first draft of *this very section* was appended through a heredoc,
 and every escape in it was eaten.
+
+## A live region created holding its text announces nothing (phase 40)
+
+The app's house idiom for a status message was, in 145 templates:
+
+```html
+@if (errorMessage()) {
+  <div class="alert alert-danger …" role="alert">…{{ errorMessage() }}…</div>
+}
+```
+
+Every attribute is right. Nothing is announced.
+
+A live region is announced when its *contents change*, and ARIA requires the region to already be in
+the accessibility tree when that happens — what the screen reader is watching is the region, not the
+document. An element inserted into the DOM with its text already inside it is **one** mutation, and
+there was no region beforehand to watch.
+
+Confirmed against the running app: a `MutationObserver` on the New Invoice form, with Save pressed
+and no customer selected, recorded exactly one event — *live region ADDED to DOM, already carrying
+"Select a Customer."* — and never a change inside an existing region.
+
+The fix is structural, not an attribute: the region moves outside the `@if`. `app-status-banner`'s
+host is always rendered and only the visible alert box inside it comes and goes, which is a change to
+a region that was already being watched — verified by the same observer after the sweep. So call sites
+render `<app-status-banner [message]="…" />` **unconditionally**; wrapping it in the `@if` it used to
+have puts the bug straight back, which is what the sweep-guard assertion exists to prevent.
+
+Two corollaries worth keeping:
+
+* **`aria-atomic="true"`**, or an AT may read only the words that differ from the previous message.
+  Two validation errors sharing a prefix then read as gibberish.
+* **A spinner is not a status message.** 4.1.3 is about the *result* of an action; "loading" announced
+  on every keystroke of a search box drowns the result when it arrives. Every `aria-live` region in
+  this app announces a result *count*, never a request in flight.
+
+And the reverse error, which the same sweep found six times: `role="alert"` on **unconditional page
+furniture** (the migration page's explanatory note, four register-page notices, the warehouse-cap
+notice) fires on page load and interrupts whatever is being read to recite a paragraph. Standing prose
+is not a status message either.
+
+A footnote on scoping: the sweep was scoped by grepping `role="alert"` and found 163. The guard, once
+written, found **seven more** spelled `role="status"`. The grep that scopes a sweep is itself a
+predicate that can be too narrow.
+
+## The focus ring is a colour, and 34a's rules did not measure it (phase 40)
+
+Phase 34a's `contrast-rules.ts` asks one question of every colour pair in the app: does the *text*
+clear 4.5:1. That predicate names a **property**, so the file said nothing about the other thing WCAG
+puts a contrast floor under — SC 1.4.11 Non-text Contrast, which requires **3:1** for a focus
+indicator against what it sits on.
+
+Bootstrap paints `:focus-visible` as `box-shadow: 0 0 0 .25rem rgba(<the control's own tone>, .5)`.
+34a had already established that those tones clear 4.5:1 against pure white *and only just*; halved by
+the alpha and composited over white or `#f8f9fa`, they measure **1.21:1 (btn-light) to 2.53:1
+(btn-dark)** across the twelve variants this app uses. Not one reaches 3:1, which is why this is not a
+tuning problem — there was nothing to tune.
+
+`styles.scss` therefore replaces the ring for everything focusable with a single 2px opaque `#0a58ca`
+outline at `outline-offset: 2px`, clearing the box-shadow so two indicators cannot stack. The offset
+matters: it puts a 2px gap of page background between the ring and the control's fill, so the pair the
+ring must contrast against is the *page* on every variant at once — 6.11:1 on the body, 8.6:1 on a
+card. The left nav's hand-written version (34b) becomes the general case rather than a special one.
+
+`FOCUS_RING_RULES` computes all thirteen numbers and the guard asserts **both** halves: that every
+stock ring fails, and that the shipped stylesheet still paints the replacement. The first is the
+unusual assertion and it is deliberate — it is what stops the rule being "simplified" away later on
+the grounds that Bootstrap already has a focus style.
+
+### Measuring it is its own trap
+
+The first sweep read `getComputedStyle` inside a `focusin` handler and reported `outline: none` on
+every control in the content area — an app-wide 2.4.7 failure that did not exist; the style had not
+recalculated for `:focus-visible` yet. That is CLAUDE.md's phase-34b rule (*in the browser pane the
+screenshot is ground truth*) in a second costume, and the screenshot is what corrected it. Measure
+after a **real** key event, and look at the picture.
+
+## An element that is not a control cannot be found by a scan for controls (phase 40)
+
+The organization picker — the screen after sign-in, the only way into any organization — rendered each
+row as `<div (click)="openOrganization(id)">`: no `tabindex`, no `role`, no key handler. A focusable
+census found **six** focusable elements on a page with 114 rows, and not one of them was an
+organization. A keyboard-only user could sign in and go no further; all 140 other screens sat behind a
+control `Tab` could not reach. WCAG 2.1.1 Keyboard, Level A.
+
+No guard in this codebase could have found it, and the reason generalises: `a11y-sweep-guard` asks
+whether controls are *named*, `<th>`s are *scoped*, icons are *hidden*. Every one of those is a
+property of an element it can see. It cannot ask why a click handler has no element around it.
+
+So the check that finds this class of defect is **a census, not a scan**: enumerate what `Tab` can
+reach and compare it against what the page offers. Two more turned up the same way — the document
+inbox's `<tr (click)>` row selection (the preview pane could not be opened from a keyboard), and the
+rich-text toolbar's eleven tab stops under a `role="toolbar"` that promises one.
+
+The fix for a row that navigates is an `<a routerLink>`, not a `tabindex` and a key handler: a link
+gets focus, `Enter`, middle-click and the right role for free.
+
+## A label whose control disappears at runtime (phase 40)
+
+Phase 34a asked the mirror question that found 121 orphaned date fields — *which labels name no
+control?* — of **template source**. `ListChrome` rendered:
+
+```html
+@if (locationDocumentType()) {
+  <span class="form-label …">Billing location</span>
+  <app-location-list-filter … />
+}
+```
+
+which is sound in source: a caption, then a control. But `LocationListFilter` renders nothing at all
+on a tenant with one location or without the Multiple Locations feature — which is the **default**
+tenant. So on most tenants, on all 22 chrome'd list screens, a visible label named nothing.
+
+A source-level guard cannot see this, because the control is present in source and absent at runtime.
+The rule that prevents it: **a control that hides itself owns its own label.** `ReportLocationFilter`
+already did, which is why it never had the bug; `LocationListFilter` now does too, and the host chrome
+renders no caption of its own.
+
+The wider version, since a second tenant shape is what exposed it: a conditional control and its
+caption must be governed by **one** condition, wherever that condition lives.
+
+## An ARIA grouping with no name is worse than no grouping (phase 40)
+
+25 containers in the app declared `role="group"`, `role="radiogroup"` or `role="tablist"` and named
+none of them — including the All/Draft/Approved status filter on sixteen document lists and the
+pagination control. An unnamed group announces "group" and nothing else: it adds a boundary a
+screen-reader user has to cross, carrying no information about what is inside, which is strictly worse
+than the plain `<div>` it would otherwise have been. Either name it, or drop the role.
+
+Phase 34a's guard asked whether every *control* was named. Nobody had asked the same question of a
+*grouping* — the same predicate-shaped blind spot as the focus ring, one level up the tree.
+
+Related, and 34a's carried item #2 resolved: `role="group"` on a set of `btn-check` radios understates
+what is there. The children are native `<input type="radio">`, so the browser is already doing the
+roving arrow-key selection `radiogroup` promises — the role was the only missing part, and 34a's
+hesitation ("a UI-behaviour question") was about a behaviour change that does not happen.
+
+## An ordering may be offered when an index leads on it (phase 40)
+
+Phase 34b built the list chrome's `Sort by` control and shipped it with no consumer, setting the
+re-entry condition as "the first list whose default ordering someone complains about". Nobody can
+check that, and waiting for a complaint is how a seam stays empty for six phases.
+
+34c supplies a condition that *can* be checked and that is also the stronger rule: **an ordering may be
+offered exactly when an index already leads on `(OrganizationId, <that column>)`.** 34c measured the
+invoice list at 50 000 rows and found `(OrganizationId, CreatedAt)` is what makes it fast; adding
+`ORDER BY Code` beside it would turn the same screen into a sort over the whole filtered set — and the
+pager would hide how slow it had become, because page 1 still returns ten rows.
+
+So a document list's menu is a reading of `TenantIndexConvention`, not a design choice: it builds
+exactly two useful indexes per document, `(OrganizationId, CreatedAt DESC)` for the list screen and
+`(OrganizationId, <business date>)` for the range filter, and those are the two options. An unknown
+value is a 400 naming the field (`ValidateSort`), never a silent fall back to the default — a list
+that quietly ignores the ordering it was asked for is phase 35a's read-side gap in a new place: the
+control looks like it works and the rows never change.
+
+## "Is this screen a list or a report" can be the wrong question (phase 40)
+
+Phase 34b excluded `transaction-list-page` and `alert-list-page` from its chrome sweep because neither
+had the standard `totalCount`/`page` signal pair, and left "a later phase should decide whether they
+are lists at all". The question could not be answered because its premise is false: this codebase has
+**three** list shapes — the paginated document list, the unpaginated configuration lookup, and the
+report screen — and the two undecidable screens are one of the last two each.
+
+What settles it is evidence already in the codebase rather than taste. `transaction-list-page` is
+routed under `/reports/`, filed under *Reports > Accounting* in `nav-tree.ts`, gated by a `Reports.*`
+key, and has an export — four things every report has and no list has; and its rows are a projection
+across thirteen document types rather than an aggregate you can open. `alert-list-page` fetches every
+row through `listAll`, carries an inline add/edit form, and its rows are an aggregate you edit — the
+configuration-lookup shape, so it gets that shape's client-side search rather than the chrome.
+
+When a binary classification resists, count the shapes that actually exist before answering.
+
+## A backtick inside an inline `template:` literal (phase 40)
+
+A prose comment written inside a component's inline `template:` string used backticks to name two
+other components. The template literal ended at the first one. The three compiler errors that followed
+all pointed at the `@Component` decorator (`NG1002: Incorrect number of arguments`) and none of them
+at the comment.
+
+Worth knowing twice over, because `a11y-sweep-guard`'s inline-template extraction has the same failure
+mode by construction — its `TEMPLATE_LITERAL` regex stops at the first backtick — which is why it
+asserts every extracted template is non-empty before asserting anything about its contents. That is
+phase 34a's empty-stylesheet lesson applied *before* it bit rather than after.
+
+## The dev server can serve a bundle older than the source (phase 40)
+
+Two template edits were verified as "not applied" against a browser showing the pre-fix markup, while
+`ng build` on the same source was clean. The dev server had failed a rebuild (a compile error since
+fixed) and kept serving the last good bundle; the tell is the component's `_ngcontent-ng-cNNNNNN`
+attribute being unchanged across an edit that should have recompiled it. Restart the preview. A green
+`ng build` and a browser that disagrees means the browser is looking at something older, not that the
+change did not land.
+
+## Seeding traps added by phase 40's E2E
+
+* Every create here returns **201**, not 200 — including `POST /organizations`.
+* Configuration lookups are under `/api/organizations/{id}/configuration/...`, not at the org root; a
+  `POST` to the root path is a 404 with no body, which reads like a missing organization.
+* A fresh organization has **no warehouse, no unit of measurement, no product category and no
+  product**, and an invoice line needs all four — even a Service line, and even on a Draft. The 400s
+  name the field, so it is four rounds of seeding rather than a mystery, but it is four rounds.
+* `POST /products` needs `categoryId` alongside `primaryUnitId` and `type`.

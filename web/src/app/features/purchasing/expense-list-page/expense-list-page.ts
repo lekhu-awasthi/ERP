@@ -11,12 +11,13 @@ import { ListChrome } from '../../../shared/pagination/list-chrome';
 import { ListFilter } from '../../../shared/pagination/list-query-options';
 import { DateRangeService } from '../../../shared/platform/date-range.service';
 import { LocationName } from '../../../shared/locations/location-name';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type StatusFilter = ExpenseStatus | 'All';
 
 @Component({
   selector: 'app-expense-list-page',
-  imports: [RouterLink, PaginationControl, NepaliDatePipe, ListChrome, LocationName],
+  imports: [RouterLink, PaginationControl, NepaliDatePipe, ListChrome, LocationName, StatusBanner],
   templateUrl: './expense-list-page.html',
 })
 export class ExpenseListPage {

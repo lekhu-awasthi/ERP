@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
@@ -11,6 +11,7 @@ import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type ChequeTab = 'dashboard' | 'received' | 'issued';
 
@@ -26,7 +27,7 @@ const NEXT_STATUSES: Record<ChequeStatus, ChequeStatus[]> = {
  * Cheque Received / Cheque Issued tabs (docs/phase-17-status.md decisions #4/#5). */
 @Component({
   selector: 'app-cheque-register-page',
-  imports: [RouterLink, PaginationControl, DatePipe, DecimalPipe, BsDateInput, NepaliDatePipe],
+  imports: [RouterLink, PaginationControl, DecimalPipe, BsDateInput, NepaliDatePipe, StatusBanner],
   templateUrl: './cheque-register-page.html',
 })
 export class ChequeRegisterPage {

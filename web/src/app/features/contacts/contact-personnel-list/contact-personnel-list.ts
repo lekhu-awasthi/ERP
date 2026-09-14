@@ -6,13 +6,14 @@ import { ContactsService } from '../../../core/contacts/contacts.service';
 import { ContactGroup, ContactPersonnelRowDto } from '../../../core/contacts/contacts.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /** Contact Personnel tab (roadmap Phase 18) -- same shared-child-component-in-a-tab pattern as
  * TaskList/DealList (contact-detail-page's Tasks/Deals tabs): an inline create/edit form + a
  * paginated table, scoped to one Contact. */
 @Component({
   selector: 'app-contact-personnel-list',
-  imports: [ReactiveFormsModule, PaginationControl],
+  imports: [ReactiveFormsModule, PaginationControl, StatusBanner],
   templateUrl: './contact-personnel-list.html',
 })
 export class ContactPersonnelList implements OnInit {

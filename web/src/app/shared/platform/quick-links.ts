@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { QuickLinkDto, UserPreferenceKeys } from '../../core/platform/platform.models';
 import { PlatformService } from '../../core/platform/platform.service';
 import { NavigationCatalog } from '../navigation/navigation-catalog';
+import { StatusBanner } from '../../shared/a11y/status-banner';
 
 /**
  * Phase 33 — the Home dashboard's personalisable Quick Links tray, the feature phase 23 recorded as
@@ -25,7 +26,7 @@ import { NavigationCatalog } from '../navigation/navigation-catalog';
  */
 @Component({
   selector: 'app-quick-links',
-  imports: [RouterLink],
+  imports: [RouterLink, StatusBanner],
   templateUrl: './quick-links.html',
   styleUrl: './quick-links.scss',
 })

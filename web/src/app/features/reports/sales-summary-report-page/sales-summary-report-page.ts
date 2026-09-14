@@ -11,6 +11,7 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { currentFiscalYear, fiscalYearLabel, supportedFiscalYears } from '../../../shared/formatting/bs-fiscal-year';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Sales Summary Report -- confirmed live 2026-09-03.
@@ -29,7 +30,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
  */
 @Component({
   selector: 'app-sales-summary-report-page',
-  imports: [PaginationControl, AmountPipe, NepaliDatePipe, ReportLocationFilter],
+  imports: [PaginationControl, AmountPipe, NepaliDatePipe, ReportLocationFilter, StatusBanner],
   templateUrl: './sales-summary-report-page.html',
 })
 export class SalesSummaryReportPage {

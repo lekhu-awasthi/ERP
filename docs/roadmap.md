@@ -281,15 +281,31 @@ holds for a captured bool, not for a captured collection compared to null.
   landed-cost drawer replaces rather than merges per product; and `MaxRowsPerWorkbook` is still one
   machine's memory law.
 
-### 40. The human accessibility pass and the list-chrome leftovers
-- Decision A's six non-mechanisable WCAG criteria — focus order and visibility, error-message
-  quality, label-in-name, status messages, reflow — with a keyboard and a screen reader over the 140
-  pre-existing templates (34a #1, 34b #1); an `aria-live` policy for async results (34a #5);
-  `radiogroup` for the two radio sets (34a #2); the two `NG8113` warnings (34a #3).
-- `sortOptions`' first consumer, on whichever list's default order is complained about first
-  (34b #2); client-side filtering on the six unpaginated Configurations lists (34b #3); a decision
-  on whether `transaction-list-page` and `alert-list-page` are lists (34b #4); `@defer` the shell
-  if 34c has not (34b #5).
+### 40. The human accessibility pass and the list-chrome leftovers — **done** (`docs/phase-40-status.md`)
+
+Decision A's six non-mechanisable criteria were driven by keyboard over the five template *shapes*,
+not the 140 files. Five defects no guard could have found, all of them about something absent: the
+organization picker's `<div (click)>` rows (WCAG 2.1.1, Level A — six focusable elements on a page
+with 114 organizations, so a keyboard user could sign in and reach none of the other 140 screens);
+every stock focus ring at 1.21–2.53:1 against 1.4.11's 3:1, replaced by one opaque `#0a58ca` outline;
+163 status banners created already holding their text and therefore announcing nothing, replaced by
+`app-status-banner`'s always-present live region (the new guard then found seven more spelled
+`role="status"`); a "Billing location" caption outliving a control that hides itself on the default
+tenant, on 22 screens; and `role="toolbar"`'s unimplemented roving tab stop. Plus `aria-invalid` /
+`aria-describedby` on the 15 fields that had a per-field message (zero in the codebase before),
+`radiogroup` on three radio sets, names on 25 ARIA groupings, and 34a's two `NG8113` warnings.
+**1.4.10 Reflow passes** at 320 px on all three shapes.
+
+The leftovers: `sortOptions`' first consumer is the Invoices list, with a re-entry condition that can
+be checked — an ordering may be offered when an index leads on `(OrganizationId, <that column>)`,
+which is a reading of 34c rather than 34b's uncheckable "someone complains". Six unpaginated
+Configurations lookups filter client-side. `transaction-list-page` is a report and `alert-list-page`
+is a configuration-lookup list — "list or report" resisted because this codebase has three list
+shapes, not one. `@defer` the shell was already done by 34c.
+
+**Not done, and carried:** nobody has heard the app — no screen reader was available in this
+environment, so the live regions and the roving toolbar are right by specification and by DOM
+evidence rather than by ear. An hour with NVDA is the outstanding step.
 
 ### 41. Subscription and plan model — needs a product decision before it is a phase
 - Tigg Subscriptions' three dead fields (Amount, the quotas, IRD Verified) (33 Decision D), a plan

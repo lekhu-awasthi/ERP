@@ -6,6 +6,7 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { buildTreeRows, TreeRow } from '../../../core/common/tree';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { ContactGroup } from '../../../core/contacts/contacts.models';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type ContactGroupRow = TreeRow<ContactGroup>;
 
@@ -14,7 +15,7 @@ type ContactGroupRow = TreeRow<ContactGroup>;
  * subtree query (see phase-3-status.md's scope decisions: no ITreeQuery<T> yet). */
 @Component({
   selector: 'app-contact-group-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, StatusBanner],
   templateUrl: './contact-group-list-page.html',
 })
 export class ContactGroupListPage {

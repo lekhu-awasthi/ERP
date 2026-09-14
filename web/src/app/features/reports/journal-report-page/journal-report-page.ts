@@ -14,6 +14,7 @@ import { GL_SOURCE_DOCUMENT_TYPES, txnTypeLabel } from '../gl-report-shared';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
 import { ReportingTagOption } from '../../../core/configuration/configuration.models';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 const EMPTY_REPORT: PagedResult<JournalReportEntryDto> = {
   items: [],
@@ -32,7 +33,7 @@ const EMPTY_REPORT: PagedResult<JournalReportEntryDto> = {
  */
 @Component({
   selector: 'app-journal-report-page',
-  imports: [PaginationControl, AmountPipe, NepaliDatePipe, BsDateInput, ReportLocationFilter],
+  imports: [PaginationControl, AmountPipe, NepaliDatePipe, BsDateInput, ReportLocationFilter, StatusBanner],
   templateUrl: './journal-report-page.html',
 })
 export class JournalReportPage {

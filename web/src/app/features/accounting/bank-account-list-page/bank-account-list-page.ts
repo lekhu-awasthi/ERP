@@ -12,12 +12,13 @@ import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { ListChrome } from '../../../shared/pagination/list-chrome';
 import { ListFilter } from '../../../shared/pagination/list-query-options';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /** Phase 17 -- card-grid view of every Bank/Cash-kind Account with a live running balance,
  * All/Inactive tabs (docs/phase-17-status.md decision #3). */
 @Component({
   selector: 'app-bank-account-list-page',
-  imports: [ReactiveFormsModule, RouterLink, PaginationControl, DecimalPipe, ListChrome],
+  imports: [ReactiveFormsModule, RouterLink, PaginationControl, DecimalPipe, ListChrome, StatusBanner],
   templateUrl: './bank-account-list-page.html',
 })
 export class BankAccountListPage {

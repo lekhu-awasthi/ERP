@@ -8,6 +8,7 @@ import {
   signal,
   untracked,
   viewChild,
+  viewChildren,
 } from '@angular/core';
 
 import { sanitizeRichText } from './rich-text';
@@ -106,6 +107,42 @@ export class RichTextEditor {
     { command: 'insertHorizontalRule', label: 'Horizontal line', icon: 'bi-dash-lg', toggle: false },
   ];
 
+  /** Every toolbar button, flattened in the order they are rendered. */
+  protected readonly allTools = computed(() => [...this.styleTools, ...this.alignTools, ...this.listTools]);
+
+  protected readonly toolButtons = viewChildren<ElementRef<HTMLButtonElement>>('toolButton');
+
+  /**
+   * Which toolbar button Tab lands on — the ARIA toolbar pattern's roving tabindex.
+   *
+   * <p>Phase 40, found by driving a terms field from a keyboard. `role="toolbar"` is a promise that
+   * the group is <b>one</b> tab stop and the arrow keys move within it; this toolbar declared the
+   * role and left all eleven buttons in the tab order, so reaching the text area of a Terms field
+   * took eleven Tab presses, and a screen-reader user was told they were in a toolbar and then found
+   * the arrow keys did nothing. That is not a 2.4.3 failure — the order was correct — which is
+   * exactly why no criterion catches it and only using the thing does.</p>
+   */
+  protected readonly focusedTool = signal(0);
+
+  protected onToolbarKey(event: KeyboardEvent): void {
+    const count = this.allTools().length;
+    const current = this.focusedTool();
+    const next = {
+      ArrowRight: (current + 1) % count,
+      ArrowLeft: (current - 1 + count) % count,
+      Home: 0,
+      End: count - 1,
+    }[event.key];
+
+    if (next === undefined) {
+      return;
+    }
+
+    event.preventDefault();
+    this.focusedTool.set(next);
+    this.toolButtons()[next]?.nativeElement.focus();
+  }
+
   /** Bumped after every command and selection change so the `aria-pressed` bindings re-read
    * `queryCommandState` — which is DOM state the signal graph cannot observe on its own. */
   protected readonly selectionTick = signal(0);
@@ -146,6 +183,10 @@ export class RichTextEditor {
     if (this.disabled()) {
       return;
     }
+
+    // Keep the roving tab stop on whichever button was last used, pointer or keyboard, so tabbing
+    // back into the toolbar returns to where the user left it rather than to Bold.
+    this.focusedTool.set(this.allTools().indexOf(tool));
 
     this.surface()?.nativeElement.focus();
     document.execCommand(tool.command, false, tool.value);

@@ -28,26 +28,15 @@
     />
 
 
-  @if (errorMessage()) {
-    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
-      <div>{{ errorMessage() }}</div>
-    </div>
-  }
+  <app-status-banner [message]="errorMessage()" />
 
-  @if (warningMessage()) {
-    <div class="alert alert-warning d-flex justify-content-between align-items-center gap-2 mb-4" role="alert">
-      <div class="d-flex align-items-center gap-2">
-        <i aria-hidden="true" class="bi bi-exclamation-circle-fill"></i>
-        <div>{{ warningMessage() }}</div>
-      </div>
-      @if (!isNew() && isDraft()) {
-        <button type="button" class="btn btn-warning btn-sm fw-bold" [disabled]="approving()" (click)="approve(true)">
-          Approve anyway
-        </button>
-      }
-    </div>
-  }
+  <app-status-banner [message]="warningMessage()" tone="warning" [spread]="true">
+    @if (warningMessage() && !isNew() && isDraft()) {
+      <button bannerAction type="button" class="btn btn-warning btn-sm fw-bold" [disabled]="approving()" (click)="approve(true)">
+        Approve anyway
+      </button>
+    }
+  </app-status-banner>
 
   @if (loading()) {
     <div class="text-center py-5">

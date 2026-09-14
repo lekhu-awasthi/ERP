@@ -1,10 +1,12 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
 import { ReportingTagCategory, ReportingTagOption } from '../../../core/configuration/configuration.models';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { LookupFilter, matchesLookup } from '../../../shared/pagination/lookup-filter';
 
 /**
  * Roadmap Phase 19 gap-fill: the backend CRUD (Create/UpdateReportingTagCategory/Option,
@@ -16,7 +18,7 @@ import { ReportingTagCategory, ReportingTagOption } from '../../../core/configur
  */
 @Component({
   selector: 'app-reporting-tag-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, StatusBanner, LookupFilter],
   templateUrl: './reporting-tag-list-page.html',
 })
 export class ReportingTagListPage {
@@ -30,6 +32,17 @@ export class ReportingTagListPage {
   protected readonly saving = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly categories = signal<ReportingTagCategory[]>([]);
+
+  /** Phase 40 -- 34b's carried item #3. Matches a category by its own name or by any of its
+   * options', so searching for an option value still finds the category that holds it -- the
+   * options are behind an expander, so filtering them out of their category would hide the row a
+   * user was looking for. */
+  protected readonly term = signal('');
+
+  protected readonly filteredCategories = computed(() =>
+    this.categories().filter((category) =>
+      matchesLookup(this.term(), category.name)
+      || this.options().some((option) => option.categoryId === category.id && matchesLookup(this.term(), option.name))));
   protected readonly options = signal<ReportingTagOption[]>([]);
 
   protected readonly categoryEditingId = signal<string | null>(null);

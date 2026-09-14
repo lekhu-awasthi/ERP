@@ -111,12 +111,15 @@ public static class SalesEndpoints
     {
         group.MapGet("/invoices", async (
             Guid organizationId, InvoiceStatus? status, int? page, int? pageSize, Guid? locationId,
-            string? search, DateOnly? fromDate, DateOnly? toDate, ISender sender, CancellationToken ct) =>
+            string? search, DateOnly? fromDate, DateOnly? toDate, string? sort,
+            ISender sender, CancellationToken ct) =>
         {
+            // `sort` binds from the query string without help because it is a simple type; phase 38's
+            // trap is arrays, which bind from the body on a POST and need [FromQuery].
             var result = await sender.Send(
                 new ListInvoicesQuery(
                     organizationId, status,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, locationId, search, fromDate, toDate),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, locationId, search, fromDate, toDate, sort),
                 ct);
             return Results.Ok(result);
         });

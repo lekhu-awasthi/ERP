@@ -15,6 +15,7 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * Shared Deal list component (roadmap Phase 15) -- reused, not duplicated, across its two
@@ -30,7 +31,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
  */
 @Component({
   selector: 'app-deal-list',
-  imports: [ReactiveFormsModule, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe],
+  imports: [ReactiveFormsModule, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, StatusBanner],
   templateUrl: './deal-list.html',
 })
 export class DealList implements OnInit {

@@ -9,6 +9,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /** Read-only report screen -- roadmap Phase 8a's TrialBalanceQuery, every active Account's net
  * Debit/Credit balance as of a cutoff date.
@@ -21,7 +22,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
  * control value caches forever (phase-17). */
 @Component({
   selector: 'app-trial-balance-page',
-  imports: [RouterLink, AmountPipe, NepaliDatePipe, BsDateInput, ReportLocationFilter],
+  imports: [RouterLink, AmountPipe, NepaliDatePipe, BsDateInput, ReportLocationFilter, StatusBanner],
   templateUrl: './trial-balance-page.html',
 })
 export class TrialBalancePage {

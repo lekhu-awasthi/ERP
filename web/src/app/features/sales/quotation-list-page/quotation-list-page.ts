@@ -14,13 +14,14 @@ import { ListChrome } from '../../../shared/pagination/list-chrome';
 import { ListFilter } from '../../../shared/pagination/list-query-options';
 import { DateRangeService } from '../../../shared/platform/date-range.service';
 import { LocationName } from '../../../shared/locations/location-name';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type StatusFilter = QuotationStatus | 'All';
 
 /** List-page chrome for Quotation, same pattern as journal-voucher-list-page. */
 @Component({
   selector: 'app-quotation-list-page',
-  imports: [RouterLink, PaginationControl, CustomStatusPicker, NepaliDatePipe, ListChrome, LocationName],
+  imports: [RouterLink, PaginationControl, CustomStatusPicker, NepaliDatePipe, ListChrome, LocationName, StatusBanner],
   templateUrl: './quotation-list-page.html',
 })
 export class QuotationListPage {

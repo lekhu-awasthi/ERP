@@ -2,7 +2,7 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { CONTRAST_RULES, contrastRatio } from './contrast-rules';
+import { AA_NON_TEXT, CONTRAST_RULES, FOCUS_RING, FOCUS_RING_RULES, contrastRatio } from './contrast-rules';
 
 /**
  * Phase 34a — <b>proving the accessibility sweep is complete, mechanically.</b>
@@ -34,7 +34,34 @@ const templates = import.meta.glob('/src/app/**/*.html', { query: '?raw', import
   string
 >;
 
-const entries = Object.entries(templates);
+/**
+ * Phase 40 — <b>the components whose template is not a file.</b>
+ *
+ * Phase 39 found `SearchSweepGuardTests` blind to the two list queries that predate the type its
+ * predicate names. This guard had the same shape of hole one layer down: its predicate names a file
+ * <i>extension</i>, so five components with an inline `template:` string — the billing-location
+ * picker, the two location filters, the location badge, the AD/BS calendar toggle — were outside
+ * every assertion in this file and always had been. Widening it found nothing wrong, which is worth
+ * saying: the hole was real and it happened to be empty, and the only way to know which was to look.
+ *
+ * A template literal is extracted rather than parsed, because the assertions below are regexes over
+ * raw template text anyway. `TEMPLATE_LITERAL` stops at the first backtick, so a component whose
+ * template contains one (none do, and a Bootstrap class name cannot) would be silently truncated —
+ * hence the length assertion in the first test.
+ */
+const inlineTemplates = import.meta.glob('/src/app/**/*.ts', { query: '?raw', import: 'default', eager: true }) as Record<
+  string,
+  string
+>;
+
+const TEMPLATE_LITERAL = /^\s*template:\s*`([^`]*)`/m;
+
+const inlineEntries = Object.entries(inlineTemplates)
+  .filter(([path]) => !path.endsWith('.spec.ts'))
+  .map(([path, source]) => [path, TEMPLATE_LITERAL.exec(source)?.[1] ?? ''] as const)
+  .filter(([, template]) => template.trim().length > 0);
+
+const entries: readonly (readonly [string, string])[] = [...Object.entries(templates), ...inlineEntries];
 
 /**
  * The global stylesheet, read off disk so the contrast rules can be checked against what ships.
@@ -108,8 +135,15 @@ function report(found: readonly string[], advice: string): string {
 describe('Phase 34a accessibility sweep', () => {
   it('finds the templates to scan at all (guards against a glob that silently matches nothing)', () => {
     // Without this every assertion below would pass vacuously — the classic way a guard stops
-    // guarding. 161 templates at the time of writing.
+    // guarding. 171 .html templates at the time of writing, plus phase 40's five inline ones.
     expect(entries.length).toBeGreaterThan(140);
+    expect(inlineEntries.length, 'the inline-template glob matched nothing').toBeGreaterThanOrEqual(5);
+
+    // A truncated template literal would make every assertion over it vacuous the same way an empty
+    // stylesheet did in phase 34a. Each of these components renders a real control or landmark.
+    for (const [path, template] of inlineEntries) {
+      expect(template.length, `inline template read back near-empty: ${path}`).toBeGreaterThan(40);
+    }
   });
 
   it('gives every form control an accessible name (WCAG 1.3.1, 3.3.2, 4.1.2)', () => {
@@ -130,7 +164,12 @@ describe('Phase 34a accessibility sweep', () => {
         }
 
         const id = /\bid="([^"]+)"/.exec(attrs)?.[1];
-        const boundId = /\[id\]="([^"]+)"/.exec(attrs)?.[1]?.trim();
+        // Both spellings of a bound id. `LABEL_FOR_BOUND` already accepted `[for]` *and*
+        // `[attr.for]`, and this side accepted only `[id]` — so a control naming itself with
+        // `[attr.id]` read as unnamed. It went unnoticed because the one component that spells it
+        // that way is allow-listed below; phase 40's own `lookup-filter` was the second, and the
+        // guard reported it the moment the inline-template widening let the guard see it at all.
+        const boundId = /\[(?:attr\.)?id\]="([^"]+)"/.exec(attrs)?.[1]?.trim();
 
         const named =
           attrs.includes('aria-label') ||
@@ -281,6 +320,67 @@ describe('Phase 34a accessibility sweep', () => {
     ).toEqual([]);
   });
 
+  it('names every ARIA grouping it declares (WCAG 4.1.2)', () => {
+    // Phase 40. 25 containers declared `role="group"` / `role="tablist"` and named none of them.
+    // An unnamed group announces "group" and nothing else: it adds a boundary a screen-reader user
+    // has to cross with no information about what is inside, which is worse than the plain <div> it
+    // would otherwise have been. 34a asked whether every *control* was named; nobody had asked the
+    // same question of a *grouping*.
+    const found: string[] = [];
+    const GROUPING = /<[a-z][a-z0-9-]*\b((?:[^>"]|"[^"]*")*?)role="(group|radiogroup|toolbar|region|tablist)"((?:[^>"]|"[^"]*")*?)\/?>/gs;
+
+    for (const [path, source] of entries) {
+      for (const m of matches(source, GROUPING)) {
+        const attrs = m[1] + m[3];
+        if (attrs.includes('aria-label') || attrs.includes('aria-labelledby')) {
+          continue;
+        }
+        found.push(`${path}  role="${m[2]}"  ${m[0].replace(/\s+/g, ' ').slice(0, 70)}`);
+      }
+    }
+
+    expect(
+      found,
+      report(
+        found,
+        'An ARIA grouping must say what it groups: add aria-label, or aria-labelledby pointing at ' +
+          'the caption already above it. If there is nothing to say, drop the role instead.',
+      ),
+    ).toEqual([]);
+  });
+
+  it('routes every status message through the one live region (WCAG 4.1.3)', () => {
+    // Phase 40, and the reason `app-status-banner` exists. A hand-written `role="alert"` inside an
+    // `@if` is a live region that comes into existence already holding its text, which is one DOM
+    // mutation and no change to any region a screen reader was watching — so nothing is announced.
+    // 163 of them were spelled that way. The component keeps the region outside the `@if`; this
+    // assertion is what stops the 164th being written by hand.
+    const found: string[] = [];
+
+    for (const [path, source] of entries) {
+      if (path.endsWith('/shared/a11y/status-banner.ts')) {
+        continue;
+      }
+      for (const m of matches(source, /role="(alert|status)"/g)) {
+        // A Bootstrap spinner carries role="status" as its *own* name, with no live text.
+        if (m[1] === 'status' && /spinner-border|visually-hidden/.test(source.slice(Math.max(0, m.index - 160), m.index + 160))) {
+          continue;
+        }
+        found.push(`${path}  ${m[0]}`);
+      }
+    }
+
+    expect(
+      found,
+      report(
+        found,
+        'Render <app-status-banner [message]="…" /> instead — unconditionally, not inside an @if. ' +
+          'A live region only announces a change to contents it already had, so the region has to ' +
+          'exist before the message does.',
+      ),
+    ).toEqual([]);
+  });
+
   it('keeps every allow-list entry pointing at a template that still exists', () => {
     for (const path of UNNAMED_CONTROL_ALLOWED.keys()) {
       expect(templates[path], `allow-listed template no longer exists: ${path}`).toBeDefined();
@@ -353,6 +453,36 @@ describe('the contrast arithmetic the sweep is derived from', () => {
         'text-warning on the page — 1.55:1',
       ].sort(),
     );
+  });
+
+  it('measures every stock focus ring as failing 1.4.11, which is why the app paints its own', () => {
+    // Phase 40, and the finding that only a keyboard produces: every control in the content area
+    // was focused, visibly, and the ring was almost not there. Bootstrap paints `:focus-visible` as
+    // the control's own tone at 50% alpha; 34a already knew those tones clear 4.5:1 against pure
+    // white "and only just", and half of almost-enough is nothing. The numbers below are the whole
+    // argument for replacing the ring rather than tuning it — no variant is close to 3:1, so there
+    // was nothing to tune.
+    const stock = FOCUS_RING_RULES.filter((r) => r.variant !== '');
+    expect(stock.length).toBe(12);
+    expect(stock.every((r) => !r.passesAA), stock.map((r) => `${r.variant} ${r.ratio.toFixed(2)}:1`).join(', ')).toBe(true);
+    expect(Math.max(...stock.map((r) => r.ratio))).toBeLessThan(AA_NON_TEXT);
+
+    const own = FOCUS_RING_RULES.find((r) => r.variant === '')!;
+    expect(own.ratio, "the app's own ring must clear 3:1 on both the card and the page body").toBeGreaterThanOrEqual(
+      AA_NON_TEXT,
+    );
+  });
+
+  it('paints that ring in the shipped stylesheet, on :focus-visible, with the box-shadow cleared', () => {
+    // The same trap as the palette test below: `contrast-rules.ts` would go on reporting 6.11:1 for
+    // a ring `styles.scss` had stopped painting, and every assertion above would stay green.
+    const stylesheet = readStylesheet();
+    expect(stylesheet.length, 'src/styles.scss read back empty').toBeGreaterThan(500);
+
+    const rule = /:focus-visible\s*\{[\s\S]*?\}/.exec(stylesheet)?.[0] ?? '';
+    expect(rule, 'styles.scss no longer has a :focus-visible rule at all').not.toBe('');
+    expect(rule).toContain(`${FOCUS_RING.widthPx}px solid ${FOCUS_RING.color}`);
+    expect(rule, "Bootstrap's own ring must be cleared, or two indicators stack").toContain('box-shadow: none');
   });
 
   it('keeps the shipped stylesheet in step with the palette these rules are measured from', () => {

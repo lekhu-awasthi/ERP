@@ -22,19 +22,9 @@
     </div>
   </div>
 
-  @if (errorMessage()) {
-    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
-      <div>{{ errorMessage() }}</div>
-    </div>
-  }
+  <app-status-banner [message]="errorMessage()" />
 
-  @if (saved()) {
-    <div class="alert alert-success d-flex align-items-center gap-2 mb-4" role="status">
-      <i aria-hidden="true" class="bi bi-check-circle-fill"></i>
-      <div>Permissions saved.</div>
-    </div>
-  }
+  <app-status-banner [message]="saved() ? 'Permissions saved.' : null" tone="success" />
 
   @if (loading()) {
     <div class="card border-0 shadow-sm text-center py-5">

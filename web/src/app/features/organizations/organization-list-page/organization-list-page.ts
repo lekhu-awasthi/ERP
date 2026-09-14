@@ -5,13 +5,14 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AuthService } from '../../../core/auth/auth.service';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { MyOrganizations } from '../../../core/organizations/organizations.models';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type Tab = 'organizations' | 'requests' | 'invitations';
 
 /** Post-login landing page (PRD FR-1.3): the "Your Organizations / Requests / Invitations" 3-tab view. */
 @Component({
   selector: 'app-organization-list-page',
-  imports: [RouterLink],
+  imports: [RouterLink, StatusBanner],
   templateUrl: './organization-list-page.html',
 })
 export class OrganizationListPage {

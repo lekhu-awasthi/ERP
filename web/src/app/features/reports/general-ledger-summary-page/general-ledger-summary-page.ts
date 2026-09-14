@@ -14,6 +14,7 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 const EMPTY_REPORT: PagedResult<GeneralLedgerSummaryRowDto> = {
   items: [],
@@ -34,7 +35,7 @@ const EMPTY_REPORT: PagedResult<GeneralLedgerSummaryRowDto> = {
  */
 @Component({
   selector: 'app-general-ledger-summary-page',
-  imports: [PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter],
+  imports: [PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter, StatusBanner],
   templateUrl: './general-ledger-summary-page.html',
 })
 export class GeneralLedgerSummaryPage {

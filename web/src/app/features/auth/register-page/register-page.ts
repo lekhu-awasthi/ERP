@@ -7,6 +7,7 @@ import { switchMap } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { TurnstileWidget } from '../../../shared/turnstile/turnstile-widget';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 export const passwordMatchValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
   const password = control.get('password');
@@ -21,7 +22,7 @@ export const passwordMatchValidator: ValidatorFn = (control: AbstractControl): V
 
 @Component({
   selector: 'app-register-page',
-  imports: [ReactiveFormsModule, RouterLink, TurnstileWidget],
+  imports: [ReactiveFormsModule, RouterLink, TurnstileWidget, StatusBanner],
   templateUrl: './register-page.html',
 })
 export class RegisterPage {

@@ -9,6 +9,7 @@ import { CostTerm } from '../../../core/configuration/configuration.models';
 import { BillOfMaterialsDetail } from '../../../core/manufacturing/manufacturing.models';
 import { ManufacturingService } from '../../../core/manufacturing/manufacturing.service';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableMaterial {
   key: number;
@@ -39,7 +40,7 @@ let nextKey = 1;
  */
 @Component({
   selector: 'app-bom-detail-page',
-  imports: [RouterLink, AmountPipe],
+  imports: [RouterLink, AmountPipe, StatusBanner],
   templateUrl: './bom-detail-page.html',
 })
 export class BomDetailPage {

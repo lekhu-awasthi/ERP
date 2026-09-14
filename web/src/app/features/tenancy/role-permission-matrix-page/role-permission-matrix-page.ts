@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { LocationGrantsInput, RolePermissionMatrix } from '../../../core/organizations/organizations.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
  * The Role Reference permission-matrix editor (Phase 14) -- every PermissionKeys.cs constant,
@@ -22,7 +23,7 @@ import { OrganizationsService } from '../../../core/organizations/organizations.
  */
 @Component({
   selector: 'app-role-permission-matrix-page',
-  imports: [RouterLink],
+  imports: [RouterLink, StatusBanner],
   templateUrl: './role-permission-matrix-page.html',
 })
 export class RolePermissionMatrixPage {

@@ -41,12 +41,7 @@
   </div>
 
   <!-- Global Alert Error Message -->
-  @if (errorMessage()) {
-    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
-      <div>{{ errorMessage() }}</div>
-    </div>
-  }
+  <app-status-banner [message]="errorMessage()" />
 
   <form [formGroup]="form">
     <!-- STEP 1: Basic Information as in Stitch Form layout -->

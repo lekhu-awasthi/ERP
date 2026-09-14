@@ -10,6 +10,9 @@
     [totalCount]="totalCount()"
     [loading]="loading()"
     [dateScoped]="true"
+    [sortOptions]="sortOptions"
+    [sort]="filter.sort()"
+    (sortChange)="onSort($event)"
     (searchChange)="onSearch($event)"
   >
     <div listActions class="d-flex align-items-center gap-2 flex-wrap">
@@ -19,14 +22,9 @@
     </div>
   </app-list-chrome>
 
-  @if (errorMessage()) {
-    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-      <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
-      <div>{{ errorMessage() }}</div>
-    </div>
-  }
+  <app-status-banner [message]="errorMessage()" />
 
-  <div class="btn-group mb-4" role="group">
+  <div class="btn-group mb-4" role="group" aria-label="Filter by status">
     @for (status of statuses; track status) {
       <button
         type="button"

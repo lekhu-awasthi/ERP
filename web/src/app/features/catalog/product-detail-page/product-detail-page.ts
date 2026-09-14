@@ -10,6 +10,7 @@ import { Product, ProductCategory, ProductType, UnitOfMeasurement, VatRate } fro
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
 import { BillingLocationStore } from '../../../shared/locations/billing-location-store';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /** Record-detail-page chrome for Product, mirroring contact-detail-page's shape (left
  * mini-profile + vertical tab list + right content pane). See that component's doc comment for
@@ -17,7 +18,7 @@ import { BillingLocationStore } from '../../../shared/locations/billing-location
  * this subscribes to route.paramMap instead of reading route.snapshot once). */
 @Component({
   selector: 'app-product-detail-page',
-  imports: [ReactiveFormsModule, RouterLink, ProductVariantPanelComponent],
+  imports: [ReactiveFormsModule, RouterLink, ProductVariantPanelComponent, StatusBanner],
   templateUrl: './product-detail-page.html',
 })
 export class ProductDetailPage {

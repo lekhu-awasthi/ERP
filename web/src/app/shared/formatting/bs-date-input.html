@@ -7,6 +7,8 @@
       [attr.id]="inputId()"
       [value]="bsText()"
       [disabled]="isDisabled()"
+      [attr.aria-invalid]="draftInvalid() ? 'true' : null"
+      [attr.aria-describedby]="describedBy()"
       placeholder="DD-MM-YYYY (BS)"
       autocomplete="off"
       (input)="onBsInput($event)"
@@ -23,13 +25,19 @@
     </button>
   </div>
 
+  <!--
+    Phase 40, WCAG 3.3.1 Error Identification. Both notes below were prose beside the field with
+    no relationship to it, and the red border was a colour with no programmatic counterpart. They
+    are ids now, and `describedBy()` names whichever of them is on screen. This control renders
+    126 of the app's date fields, so it is the single largest instance of the defect.
+  -->
   @if (outOfRange()) {
-    <div class="form-text text-warning-emphasis small">
+    <div class="form-text text-warning-emphasis small" [attr.id]="inputId() ? inputId() + '-range' : null">
       This date is outside the supported Bikram Sambat range, so it is shown in AD.
     </div>
   }
   @if (draftInvalid()) {
-    <div class="form-text text-danger small">Not a valid BS date.</div>
+    <div class="form-text text-danger small" [attr.id]="inputId() ? inputId() + '-invalid' : null">Not a valid BS date.</div>
   }
 
   @if (open()) {
