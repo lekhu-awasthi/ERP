@@ -815,3 +815,19 @@ Moved verbatim; the one-line versions in CLAUDE.md keep the same "before X" hook
   had just recorded a Standard plan — phase 34b's rule one surface over, found only by driving the app,
   and fixed with a shared `SubscriptionStore` the screen saves *through* —
   `docs/phase-41-status.md`
+
+---
+
+## Phase index entries as written in CLAUDE.md before the 2026-09-14 trim (34c–41)
+
+Moved verbatim; these are the only "read before X" paragraphs those phases have, so keep them here.
+
+- Phase 34c: scale (NFR-5.1/5.2) — the 50k-invoice dataset in `tools/scale/`, a p95 budget per class of screen, `TenantIndexConvention` (50 indexes from a rule), the shell `@defer`ed. Before adding an index, mapping a tenant-scoped entity, or quoting a performance number — `docs/phase-34c-status.md`
+- Phase 35a: ledger drill-down (`?accountId=` + a View Ledger row action) and the location picker/filter swept onto all 15 document forms and lists. Before adding a field to many aggregates at once, or trusting a gotcha's generalisation over an experiment — `docs/phase-35a-status.md`
+- Phase 36: allocation/forex/ageing consistency — the warehouse-guard bug, the forex leg on the Allocate path, one `OutstandingDocumentReader` behind both ageing reports, server-side due dates, product-to-location, three Moonbeam filters. Before assuming a document has one GL entry, or folding a settlement to base — `docs/phase-36-status.md`
+- Phase 35b: the location dimension in the reports — `LocationId` stamped on `GlJournalEntry`/`StockMovement`/`StockLedgerEntry`, the filter on 36 queries and 43 screens, `LocationWiseReportPermission` made real. Before filtering an append-only fact table, extracting a shared `Where`, or proving a location permission — `docs/phase-35b-status.md`
+- Phase 37: inventory policy — negative stock as a **shortfall layer**, the cost catch-up, returns at consumed FIFO cost, the clearing unwind. Before letting a stock balance go negative, before correcting a stock *value*, or before deciding what a return credits Inventory — `docs/phase-37-status.md`
+- Phase 38: import/export breadth — 5 new upload types, intra-file tree ordering, a pre-commit dry run, export by category + date range. Before adding an importer, a template, or an array parameter to a POST — `docs/phase-38-status.md`
+- Phase 39: the two editors — one sanitised rich-text control (`RichText`: re-emission, not filtering, in the Domain setters), the Organization logo in the printed header, `BalanceConfirmation`'s first consumer, standalone Deals/Tasks routes, Quick Links drag, the search results page. Before storing anything a user typed that is rendered later, before accepting an uploaded image, or before trusting that a guard still covers its subject — `docs/phase-39-status.md`
+- Phase 40: the human WCAG pass (keyboard census, one focus ring, `app-status-banner`'s always-present live region) + 34b's list-chrome leftovers. Before claiming an a11y criterion holds, writing a status message, choosing a focus colour, or offering a list an ordering — `docs/phase-40-status.md`
+- Phase 41: subscription and plan model — the seeded `SubscriptionPlan` catalogue, the commercial terms on `TenantSubscription`, quota enforcement on both axes (`SubscriptionQuotaBehavior`, the 6th behavior), the shell subscription banner. Before recording a field as dead, before calling a tenant-level limit "enforcement", or before shipping state two surfaces show — `docs/phase-41-status.md`

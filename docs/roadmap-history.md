@@ -785,3 +785,351 @@ Shortened to one line each in `docs/roadmap.md` on 2026-09-10; the originals are
 **Phase 34a.** Accessibility (NFR-6.2, WCAG 2.1 AA): the mechanisable half of the standard swept across all 161 templates and pinned by a guard spec — **page titles derived from the router** (0 of 141 routes had one; the app was `<title>Web</title>` throughout), 348 unnamed controls, **152 orphan labels of which 121 were date fields whose control lives inside a component and so was invisible to any scan for `<input>`**, 25 unnamed icon-only controls, 1035 unhidden decorative icons, 653 `<th>` with no scope, and 161 badge pairings at 3.4–3.9:1 — plus a skip link, the `<main>`/`<search>` landmarks and the ARIA combobox pattern global search had the keyboard model for but never exposed. **Bootstrap's stock brand tones fail AA on this app's own `#f8f9fa` body** (they clear 4.5:1 against pure white and only just), so the four text utilities are re-pointed at its `-600` shades. Decision A records which criteria a machine can decide and which need a person, and why the line falls there
 
 **Phase 34b.** Consistency and the shell (NFR-6.1): the four controls phase 33 deferred by name — **left nav, Create New flyout, company switcher, global date filter** — plus a **Reports index page** (52 report routes, one nav leaf, which is what the reference product does) and the list chrome NFR-6.1 enumerates. Search went from **1 of 46 list screens to 21 of 21 paginated ones** and from **2 of 47 `List*Query` types to 25** (9 exempt *with reasons*, enforced by `SearchSweepGuardTests`), with a date range on the 16 that have a business `Date`. **The re-layout cost zero page templates**: all 130 already open with the same `<div class="container py-5">`, so a fixed rail plus a left inset was the whole layout change — the plan's choice between re-laying out 130 pages and an overlay was a false dichotomy that one grep dissolved. Three defects came from the browser pass and none from tests, the sharpest being **a chrome that displayed a date range it had not applied** (the range loads from the per-user store after the page has fetched), which is a wrong answer that looks checked. **The confirm-live pass falsified the module scan for the fourth phase running** — the global date filter scopes *list queries*, not dashboard figures — while the Create New flyout matched it verbatim
+
+---
+
+## Parity 34c and consolidation 35–41 entries, moved out of `docs/roadmap.md` on 2026-09-14
+
+Verbatim, including each entry's "what shipped" summary; outcomes are in each `docs/phase-N-status.md`.
+
+## Parity sequence (26–34) — complete except 34c
+
+Phases 26–34b closed the 2026-09-02 gap analysis against the reference product; the per-phase
+planning entries and the method write-up moved verbatim to `docs/roadmap-history.md` on 2026-09-10
+(their outcomes are in each `docs/phase-N-status.md`). One entry is still open:
+
+#### 34c. Scale (NFR-5.1/5.2) — **DONE** (see `docs/phase-34c-status.md`)
+
+**What shipped.** The dataset and measurement Decision C fixed, executed and committed
+(`tools/scale/`: an API-driven master seeder, a 190,000-row `INSERT` seeder that derives its columns
+from the reference rows the handlers wrote, a statistics refresh, a 33-endpoint timing harness and a
+summariser). Decision A set a p95 budget per class of screen — **500 ms** for a list page or the
+search box, **2 s** for a statement or a register — because NFR-5.1/5.2 name no number and a
+measurement without a threshold is a table nobody can act on.
+
+**The finding that made the fix a rule.** `TenantIndexConvention` found **18 tenant-scoped tables
+with no index leading on `OrganizationId`** — exactly the transactional documents plus
+`GlJournalEntry`, because every other tenant table already had one *free* from its per-tenant
+uniqueness rule and a document number is not unique-indexed. 50 indexes in three families, derived
+from what the handlers do, with the convention throwing at model build for any tenant entity it
+cannot classify. List first pages **469 ms → 49–97 ms**; write cost measured at **+32.8 %** on a
+pure-`INSERT` workload.
+
+**Three results outlive the speed-up.** An index added for the list path made *search* on the same
+table **worse** (651 → 1,173 ms — one scan replaced by a seek plus a key lookup per row). A plausible
+multi-tenancy inference — `GlLine` has no tenant column, so every statement pays for every other
+tenant's ledger — was **refused by a second-tenant experiment**, and survives only as a precise
+statement with a re-entry condition. And the report layer's cost is the **period**, not `pageSize`:
+0.65 s for a month against 2.1–3.5 s for three years, with `JournalReportQueryHandler` already in the
+repo as the shape that fixes it.
+
+**Answers owed to phases 38–40**, which name 34c by name:
+- **38** — the export cap's condition is **met**: NFR-5.1's own top-of-range tenant truncates
+  `Ledger Transactions (25,000 of 210,006)`. But the SAX writer is not the first move; the complete
+  export was measured at 280,024 rows / 12.1 MB / 15.8 s / ~700 MB, i.e. **~2.5 kB of working set per
+  row**, so *raising the cap to a measured level* comes first. The constant was deliberately left at
+  25,000 — a server-safety limit should not move on one machine's run.
+- **39** — global search's cap of 5 **does** bite, and the 18-query fan-out costs 595–1,106 ms p95,
+  over budget in every pass before any UI is added.
+- **40** — **`@defer` the shell is done here** (724.2 kB → 649.5 kB raw, 141.0 → 127.3 kB transfer,
+  pinned by two `DeferBlockBehavior.Playthrough` tests). Strike it from 40.
+
+---
+
+## Consolidation phases (35–41) — from the carried-item backlog of phases 25–34b (planned 2026-09-10)
+
+**Method.** Every "Carried items / Known limitations / Follow-ups" section from `phase-25` through
+`phase-34b` was read and each item placed where it is cheapest to close next to its neighbours;
+items the reference product also lacks stay deferred rather than being built for their own sake.
+The one new external input is the second reference tenant, `cadehi.tigg.app`, **read on 2026-09-10**
+(findings in `erp-module-scan.md` under "Second reference tenant: Cadehi Enterprises"). It has
+Billing Location enabled, which settled three phase-32 questions, showed the inventory-tracking-mode
+setting Moonbeam lacks, and showed no native batch/lot/serial tracking despite the login banner.
+
+**Ordering rule.** Bugs and consistency fixes first (35a/35b–36), Domain-invariant changes next (37),
+then breadth (38–39), then the two passes that need a person or a product decision (40–41).
+
+### 35a. Ledger drill-down and the location dimension on documents — **DONE** (see `docs/phase-35a-status.md`)
+
+Phase 35 was split with the user before any code was written, on the 34a/b/c precedent, because the
+survey found far more than the entry assumed: **15 document forms and 15 lists** had no location
+picker at all (only Invoice did), the Sales Master Report's filter exists **server-side only**, and
+43 of 49 live reports carry the filter — **including every GL report**, over a `GlJournalEntry` that
+has no `LocationId`.
+
+**What shipped.** `?accountId=` on Detail General Ledger, reached from a **View Ledger** row action
+on the Chart of Accounts and from the global-search Account hit — phase 33 carried item #1 closed
+without building a per-account page, because the reference product does not have one either; its
+result row offers View Ledger and this codebase already had the report. The picker extracted into
+`app-document-location-picker` and swept onto all 15 forms; the LOCATION cell and a Billing Location
+filter onto all 15 lists, the filter living in `ListChrome` and its value in `ListFilter` so a page
+opts in with three bindings. `BillingLocation.WarehouseId` became a prefill (32 #6 answered:
+the live dialog's placeholder is literally `Select Default Warehouse`, two of three seeded locations
+have no warehouse, and switching a document's location leaves its warehouse untouched).
+
+**The defect it existed to find:** phase 32's write-path sweep guard was green while **14 of 15
+detail DTOs and all 5 conversion templates** dropped `LocationId` on the way back out — a form could
+store a branch, never show it, and overwrite it on the next save. `LocationReadPathSweepGuardTests`
+now asserts all three read paths from `DocumentMechanisms.LocationBearing`.
+
+**A correction carried forward:** five handlers matching `known-gotchas.md`'s forbidden
+`x == null || …` predicate were rewritten to compose — and were **not** broken. Injecting the old
+shape and running it against SQL Server returned 200 and the right row. The gotcha's generalisation
+holds for a captured bool, not for a captured collection compared to null.
+
+### 35b. The location dimension in the reports — **done** (`docs/phase-35b-status.md`)
+
+- **Decision B settled three columns, not one.** `GlJournalEntry` gained a `LocationId` stamped at
+  post time rather than every GL report joining back across 11 types — and `StockMovement` and
+  `StockLedgerEntry` turned out to have the identical gap, so all three follow one rule: an
+  append-only fact row carries the billing location of the document that created it, with reversals
+  inheriting. Two backfill migrations (11 and 8 producing types), no index (34c's re-measure rule).
+- The filter reached **36 report queries, their handlers and 86 endpoint constructions**, five shared
+  readers, and **43 report screens** through one `app-report-location-filter`. Nine exemptions with
+  reasons: the census's six, plus the two migrated registers and System Audit, whose rows carry no
+  location at all. Annex 5 keeps the filter, as observed.
+- The Sales Master Report's filter and LOCATION column are live (35a carried item #3), and the
+  Purchase Master Report gained the same column — inferred from the two being mirrors, and named as
+  the one place this phase went past the census.
+- `TenantSettings.LocationWiseReportPermission` now governs every report (32b carried item #1). The
+  E2E established what the mechanism actually is: a `Reports.*` key cannot be granted per location,
+  so the scope comes from the caller's **transaction** grants.
+- **Deferred with the user into phase 36:** Product-to-location (what the selector restricts is
+  unobserved; separating "filters the product picker" from "stored and unenforced" needs two writes
+  on the live tenant) and the three Moonbeam-only filters — Reporting Tags on the Journal report,
+  Reporting Tags + group-by-warehouse on Inventory Position, Group By Bill / Include Credit Note on
+  the Sales Register. `sales-summary`'s **Group Wise location** control (a group-*by*) is also still
+  unbuilt; 35b gave that report the filter, not the grouping.
+
+### 36. Allocation, forex and ageing consistency — **done** (`docs/phase-36-status.md`)
+
+- **The warehouse-guard bug is fixed.** The route no longer carries
+  `featureGuard('MultipleWarehouses')`; the page shows the cap the server actually enforces. Proved
+  both ways: a flag-off tenant's first warehouse is a 201, its second a 403.
+- **`ApplyPaymentAllocationCommand` posts the realised forex leg** on both its branches (a Payment
+  and a contact-tagged Journal Voucher line), as its own entry — so both settlement doors agree and
+  the control account is left flat. Cross-currency settlement stays rejected (28 Decision F), and
+  the Allocate screen plus both approve-time pickers now filter their targets by currency instead of
+  offering a choice the server refuses. The Supplier Payment form gained the Currency + Exchange Rate
+  control phase 28 missed.
+- **The two ageing reports read one `OutstandingDocumentReader`** — a bucket total is a partition of
+  the rows Invoice Age lists, asserted on shared data. The Ageing Summary gained contact-tagged
+  Journal Vouchers and contact opening balances as a stated consequence. Quick Payment/Receipt stay
+  un-ageable (26b #2, a phase-17 Decision #7 consequence, re-examined and kept). Credit Terms are a
+  server-side `DueDate` default (31 #4) and the credit-limit comparison converts currency (31 #3),
+  which meant folding the whole contact-ledger family to base — a settlement at the rate of what it
+  settles.
+- **Product-to-location is built**, settled by one write on the live tenant: the restriction filters
+  the line picker server-side by the document's location, an empty set means everywhere, and the
+  Products grid is unfiltered. Enforcement at *save* is deliberately not built (unobserved).
+- **The Moonbeam filters are built** — Reporting Tags on the Journal report, Reporting Tags + Group
+  by Warehouse on Inventory Position, Group By Bill on the Sales Register (27 rows → 50, three item
+  columns, same total). **Carried forward:** *Display Warehouse in Column* (indistinguishable from
+  Group by Warehouse on a single-warehouse tenant) and `sales-summary`'s Group Wise location
+  grouping.
+- **Found on the way:** editing an Opening Balance line twice had been a 500 since phase 17.
+
+### 37. Inventory policy — negative stock, returns at cost, the clearing unwind — **done** (`docs/phase-37-status.md`)
+- **Negative Item Balance is real.** An oversell leaves a **shortfall layer** (a `StockLedgerEntry`
+  negative on both quantities, carried at the product's last known cost in that warehouse, zero when
+  it has never been received there); the next receipt fills it before the goods become stock on hand.
+  Only Invoice and Production Journal can produce one — the two that already consult
+  `IStockAvailabilityPolicy`; Warehouse Transfer, Inventory Adjustment's Decrease side and Debit Note
+  stay hard rejects with a reason each.
+- **The cost catch-up** — `filled x (real cost - assumed cost)` — reaches all three views of stock
+  value, because any two can be patched into agreement: the FIFO layers, the Inventory account (its
+  **own** GL entry against the covering document, on phase 36's `SourceDocumentGlEntries`) and the
+  movement history (a value-only `StockMovement.ValueAdjustment` row, quantity zero). One migration.
+- **A purchase return credits Inventory what the layers gave up**, not the price the supplier
+  credits, with the difference derived as the plug that balances the entry and posted to the tenant's
+  Inventory Adjustment account. Phase 29's release leg keeps its clearing debit and loses its
+  Inventory credit (the single credit now carries the freight). Full return -> clearing zero; partial
+  -> the unreturned units' share.
+- **The Credit Note needed nothing, and the phase says why**: a sales return adds stock at the cost
+  its source invoice recorded, so ledger and COGS agree by construction. The problem is specific to
+  relieving, where FIFO chooses the layer.
+- **Swept on the way:** every void reverses what is *outstanding* and every detail query reads every
+  entry, so `GlJournalEntry.PostReversalOf` was deleted with its last caller; `WarehouseTransfer` and
+  `OpeningStock` joined `GlSourceDocumentResolver` (they can now post). Phase 26c's pinned oversell
+  test was **replaced** deliberately, and its replacement says what changed.
+- **Carried forward, named:** Inventory Master gaining WarehouseTransfer and OpeningStock rows (needs
+  a live re-check of the reference report's Txn Type filter, 26c Decision D); **multi-UOM x variants**
+  (24) — a secondary unit's rates on a variant, with the sweep-guard allow-list reason retired; and a
+  standalone Debit Note's Goods line, which still credits Inventory without touching the ledger
+  because `DebitNote` carries no warehouse of its own.
+- Traceability stays a Custom Fields matter (the Cadehi product form has no batch, lot, serial or
+  expiry field), as recorded before the phase: no 37b.
+
+### 38. Import and export breadth — **done** (`docs/phase-38-status.md`)
+- **Eight upload types, not three.** Account, Product Category, Account Group and Contact Personnel
+  are the reference product's own deferred types (its "Contact" is `ContactPersonnel`, the
+  correction phase 21a's confirm-live pass caught); the **variant importer is an addition**, labelled
+  as one, with three fixed Attribute/Value slots and a stated requirement that the parent's attribute
+  pool already exists. No new permission keys: every importer sends the target type's own
+  Create/Update command, which `AuthorizationBehavior` re-checks per row.
+- **Intra-file ordering is solved once and used twice, not three times.** The roadmap called `Account`
+  a tree and it is a **leaf** — its "Account Group" column points at a different aggregate the file
+  cannot contain. `ImportRowSequencer` runs before the first row is planned in both passes; a cycle
+  or a duplicate key fails the **whole file** with its rows named, while an unknown parent is one
+  row's error.
+- **The pre-commit review is real, and needed no new table.** `IEntityImporter.ApplyAsync` became
+  **`PlanAsync`** (the command built but not sent), which is what made a dry run possible at all; the
+  validate pass claims **only the rows it rejects** in the existing row ledger, so the apply pass
+  skips them through the same mechanism that makes a crashed import resumable. It defaults **on**,
+  matching the reference product, and the throughput it trades is stated with its number. The
+  kickoff called this the phase's unconfirmed shape; phase 21a had **already** read the whole wizard
+  live, including its wording and buttons.
+- **Export gained three categories by a rule** — a category earns its place when its rows cannot be
+  reconstructed from the five already there — plus a per-category selection and a date range, with
+  every reader publishing whether a range applies to it so a short sheet is never ambiguous.
+- **The row cap moved, and changed shape.** 25,000 → **50,000** per category on phase 34c's measured
+  ~2.5 kB/row, joined by a workbook-wide **150,000** — which is what 34c said the cap should have
+  been, and which this phase needed because it took the category count from five to eight. **The SAX
+  rewrite is still not the move**: selection and a date range let a large tenant take the ledger out
+  a quarter at a time.
+- **The landed-cost grid's Import was read live, and phase 29 had it wrong**: a template-based `.xlsx`
+  drawer, not a clipboard paste, whose template is generated *from the bill in front of you* (one
+  column per tenant cost term, one row per bill line). It is therefore neither an
+  `ImportTemplateDefinition` nor an `ImportJob`.
+- **Found on the way**: a Minimal API binds an **array** parameter from the body on a POST, so
+  `?categories=…` silently arrived null and every export ran all eight sheets while the screen said
+  otherwise — caught by nothing but the manual E2E.
+- **Carried forward**: the dry run cannot see what only writing can (uniqueness, lifecycle); there is
+  no bulk way to configure a product's Attributes Used, which the variant importer requires; the
+  landed-cost drawer replaces rather than merges per product; and `MaxRowsPerWorkbook` is still one
+  machine's memory law.
+
+### 40. The human accessibility pass and the list-chrome leftovers — **done** (`docs/phase-40-status.md`)
+
+Decision A's six non-mechanisable criteria were driven by keyboard over the five template *shapes*,
+not the 140 files. Five defects no guard could have found, all of them about something absent: the
+organization picker's `<div (click)>` rows (WCAG 2.1.1, Level A — six focusable elements on a page
+with 114 organizations, so a keyboard user could sign in and reach none of the other 140 screens);
+every stock focus ring at 1.21–2.53:1 against 1.4.11's 3:1, replaced by one opaque `#0a58ca` outline;
+163 status banners created already holding their text and therefore announcing nothing, replaced by
+`app-status-banner`'s always-present live region (the new guard then found seven more spelled
+`role="status"`); a "Billing location" caption outliving a control that hides itself on the default
+tenant, on 22 screens; and `role="toolbar"`'s unimplemented roving tab stop. Plus `aria-invalid` /
+`aria-describedby` on the 15 fields that had a per-field message (zero in the codebase before),
+`radiogroup` on three radio sets, names on 25 ARIA groupings, and 34a's two `NG8113` warnings.
+**1.4.10 Reflow passes** at 320 px on all three shapes.
+
+The leftovers: `sortOptions`' first consumer is the Invoices list, with a re-entry condition that can
+be checked — an ordering may be offered when an index leads on `(OrganizationId, <that column>)`,
+which is a reading of 34c rather than 34b's uncheckable "someone complains". Six unpaginated
+Configurations lookups filter client-side. `transaction-list-page` is a report and `alert-list-page`
+is a configuration-lookup list — "list or report" resisted because this codebase has three list
+shapes, not one. `@defer` the shell was already done by 34c.
+
+**Not done, and carried:** nobody has heard the app — no screen reader was available in this
+environment, so the live regions and the roving toolbar are right by specification and by DOM
+evidence rather than by ear. An hour with NVDA is the outstanding step.
+
+### 41. Subscription and plan model — **done** (2026-09-14, `docs/phase-41-status.md`)
+The product decision was settled by evidence rather than judgement: **the vendor's own published
+price list** (tiggapp.com/pricing). Tigg sells three metered tiers — Basic Rs 15,000 / Standard
+Rs 20,000 / Professional Rs 32,000 a year — separated by a product ceiling, a transaction ceiling and
+which entitlements are included, plus six add-on lines. **So 33 Decision D's premise was false:** the
+three "dead" fields are the commercial core, and both tenants it sampled were free trials, which is
+exactly what `0.00` and `Standard ( 0 Txn, 0 Products)` mean.
+
+Built: the seeded `SubscriptionPlan` catalogue (the first aggregate here with no `OrganizationId`);
+Amount / both quotas / IRD Verified / `TermStartsAt` on `TenantSubscription`; **quota enforcement on
+both axes** via `SubscriptionQuotaBehavior` (the sixth pipeline behavior) over eleven metered types
+derived from the vendor's own Terms (*"all transactions in which accounting entry are affected"*);
+one `SubscriptionUsageReader` behind both the gate and the screen; the plan picker and usage meters;
+and `app-subscription-notice`, the shell banner that makes an ending subscription foreseeable rather
+than a 409 mid-approval.
+
+**Nothing is sold in the app, and that is confirmed, not assumed:** every "Get Started" on all three
+paid tiers links to the free-trial signup, and the in-app expiry CTA is CONTACT US. No payment
+integration is in scope, now or later, unless the reference product grows one.
+
+**The one thing 41 could not fix, and the reason it is a phase of its own:**
+`Tenancy.Subscription.Manage` is seeded to the tenant's own Admin role, so the party a quota
+constrains can raise it. There is no other role to give it to — this codebase models exactly one
+actor, and a subscription is inherently a two-party record. Named loudly in the code and the status
+doc rather than worked around. **Re-entry condition: a vendor-side console, or any actor outside
+`OrganizationId`.**
+
+Also settled: "read-only access" past expiry is something the vendor *sells* (Terms: 25% of the
+subscription fee), so phase 31's derived read-only-for-documents is better evidenced than it was,
+though still not observed on a live expired tenant.
+
+**Recommended drop list (decided, not silently omitted):** `Organization > Developer Mode` and
+`> Documents` (phase-25), `Product.PrintProfileId` (20d), the Marketplace flag, the Service Charge
+column (no product flag to drive it; revisit only with POS), and **supplier credit-limit
+enforcement** (31 #2 — stored, unenforced, matching the live form).
+
+---
+
+## Index-table entries as originally written (phases 34c, 35a, 39)
+
+**Phase 34c.** Scale (NFR-5.1/5.2): the 50,000-invoice dataset seeded by direct `INSERT` (`tools/scale/`), a p95 budget per class of screen, and **50 indexes from a rule** — `TenantIndexConvention` found **18 tenant-scoped tables with no index leading on `OrganizationId`**, exactly the transactional documents plus `GlJournalEntry`, because every other table got one free from its per-tenant uniqueness rule. List first pages **469 ms → 49 ms**; the shell `@defer`ed for **724 kB → 649 kB**. Three findings outlive the speed-up: an index added for one access path made *search* on the same table worse; a plausible multi-tenancy inference (`GlLine` has no tenant column, so statements must pay for other tenants) was **refused by a second-tenant experiment**; and the report layer's cost is the **period**, not the page size — with `JournalReportQueryHandler` already in the repo as the shape that fixes it. The export cap's re-entry condition is **met by specification** and the constant deliberately unchanged
+
+**Phase 35a.** Ledger drill-down (`?accountId=` + a View Ledger row action closing phase-33 #1) and the location dimension on documents: the picker extracted and swept onto all 15 forms, the LOCATION cell and filter onto all 15 lists via `ListChrome`/`ListFilter`, `BillingLocation.WarehouseId` as a prefill. Found phase 32's read-path gap — **14 of 15 detail DTOs and all 5 conversion templates dropped `LocationId`** — and corrected a `known-gotchas.md` generalisation by experiment
+
+**Phase 39.** CRM and workflow as first-class screens, and the two editors: one sanitised rich-text editor (`RichText` — re-emission, not filtering, enforced in the Domain setters) behind both `app-terms-editor` and the email body; Organization logo, with `ImageHeader` reading the format from the bytes, in the printed header; `EmailTemplateContext.BalanceConfirmation`'s first consumer; standalone `CRM > Deals` and `Workflow > Tasks` routes; Quick Links drag-to-reorder; the search results page with a kind filter
+
+## CLAUDE.md Current status as it stood at the end of phase 41 (moved 2026-09-14)
+
+## Current status
+
+**Phases 0–41 are complete.** Phase 41 opened with a product question the roadmap had left standing —
+*is this product selling plans at all?* — and the answer came from a document nobody had read: **the
+vendor's own public price list**. Tigg sells three metered tiers (Basic Rs 15,000 / Standard
+Rs 20,000 / Professional Rs 32,000 a year), separated by a product ceiling, a transaction ceiling and
+which entitlements are included, with six add-on lines beside them. **So phase 33 Decision D's premise
+was false**: Subscription Amount and the two quotas are not dead fields, they are the product — and
+both tenants 33 sampled were free trials, which is exactly what `0.00` and `Standard ( 0 Txn, 0
+Products)` mean.
+
+Built: the seeded `SubscriptionPlan` catalogue (the first aggregate here with **no `OrganizationId`**);
+plan, amount, both quotas, IRD Verified and `TermStartsAt` on `TenantSubscription`; **quota enforcement
+on both axes** through `SubscriptionQuotaBehavior`, the sixth pipeline behavior, over eleven metered
+types taken from the vendor's own Terms (*"all transactions in which accounting entry are affected"*);
+one `SubscriptionUsageReader` behind both the gate and the screen so the meter and the refusal are one
+number by construction; the plan picker and usage meters; and `app-subscription-notice`, the shell
+banner that makes an ending subscription foreseeable instead of a 409 mid-approval.
+
+**Nothing is sold in the app, confirmed rather than assumed:** every "Get Started" on all three paid
+tiers links to the free-trial signup, and the in-app expiry CTA is CONTACT US. No payment integration
+is in scope.
+
+**The limitation worth carrying above all others:** `Tenancy.Subscription.Manage` is seeded to the
+tenant's own Admin, so the party a quota constrains can raise it. There is no other role to give it to
+— this codebase models exactly one actor while a subscription is inherently two-party. Named in the
+behavior, the command and the status doc rather than worked around. **Re-entry: a vendor-side console,
+or any actor outside `OrganizationId`.**
+
+**Next: phase 42 — the roadmap has no numbered entry past 41**, so the next session's first job is to
+choose from what is carried rather than to execute a written plan. Carried out of 41: the self-liftable
+ceiling above; `TrialStartsAt`/`TrialEndsAt` now misnamed (they describe any term); the usage count
+never measured against 34c's 50k dataset; four metered add-on axes (locations, SMS, AI scans) still
+unmodelled; and a small quota overshoot under concurrent approves. Carried out of 40 and still open:
+**nobody has heard the app** — no screen reader was available, so 40's live regions and roving toolbar
+are right by specification and DOM evidence, not by ear; that is an hour with NVDA and a person's
+ears, worth scheduling rather than assigning to a session. Also from 40: `aria-describedby` reaches
+only the 15 fields that had a per-field message, and `Sort by` has one consumer of eighteen that
+qualify. Carried out of 39: Deal/Task **detail** pages need `Deal` and `WorkTask` in the three
+polymorphic parent enums plus a third route family; the nine Organization detail fields are read-only
+with no `UpdateOrganizationCommand` at all; the printed header still diverges from live's centred
+arrangement; the rich-text grammar carries no tables or images. Carried out of 38: the dry run cannot
+see what only writing can; variant import needs the parent's attribute pool configured first;
+`MaxRowsPerWorkbook` is still one machine's memory law. Carried out of 37: Inventory Master still lacks
+WarehouseTransfer and OpeningStock rows; multi-UOM × variants is unbuilt; a standalone Debit Note's
+Goods line still credits Inventory without touching the ledger. Carried out of 36: product-to-location
+is enforced on the picker but not at save; *Display Warehouse in Column* and `sales-summary`'s Group
+Wise location grouping are unbuilt; the Sales Register's money columns are still transaction-currency.
+
+Tests: Domain 660, Application.UnitTests 1081, Api.IntegrationTests 29, Angular 440. `dotnet build` /
+`dotnet test` / `ng build` / `ng test` all clean. `ng build` still warns the initial bundle exceeds its
+500 kB budget (pre-existing, 651 kB). `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
+check (phase-28), and `ng test` must be run from `web/` (phase-35a).
+
+**Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
+append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a
+short orientation (what is done, what is next, test counts) — the phase's own story belongs in its
+`docs/phase-N-status.md`, never here. Gotchas stay one line here; the narrative goes in
+`docs/known-gotchas.md`.
+

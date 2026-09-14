@@ -64,15 +64,15 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 33: platform chrome (global search, History, Quick Links, the `UserPreference` per-user store). Before a per-user setting or a cross-type search — `docs/phase-33-status.md`
 - Phase 34a: WCAG 2.1 AA sweep + `a11y-sweep-guard.spec.ts`. Before adding a template, choosing a colour, or scripting an edit between two anchors — `docs/phase-34a-status.md`
 - Phase 34b: the shell on `NavigationCatalog` (zero page-template edits), Reports index, list chrome (search on 25 queries, date range on 16). Before a paginated list query, a displayed-but-unowned filter, or `overflow` on a layout container — `docs/phase-34b-status.md`
-- Phase 34c: scale (NFR-5.1/5.2) — the 50k-invoice dataset in `tools/scale/`, a p95 budget per class of screen, `TenantIndexConvention` (50 indexes from a rule), the shell `@defer`ed. Before adding an index, mapping a tenant-scoped entity, or quoting a performance number — `docs/phase-34c-status.md`
-- Phase 35a: ledger drill-down (`?accountId=` + a View Ledger row action) and the location picker/filter swept onto all 15 document forms and lists. Before adding a field to many aggregates at once, or trusting a gotcha's generalisation over an experiment — `docs/phase-35a-status.md`
-- Phase 36: allocation/forex/ageing consistency — the warehouse-guard bug, the forex leg on the Allocate path, one `OutstandingDocumentReader` behind both ageing reports, server-side due dates, product-to-location, three Moonbeam filters. Before assuming a document has one GL entry, or folding a settlement to base — `docs/phase-36-status.md`
-- Phase 35b: the location dimension in the reports — `LocationId` stamped on `GlJournalEntry`/`StockMovement`/`StockLedgerEntry`, the filter on 36 queries and 43 screens, `LocationWiseReportPermission` made real. Before filtering an append-only fact table, extracting a shared `Where`, or proving a location permission — `docs/phase-35b-status.md`
-- Phase 37: inventory policy — negative stock as a **shortfall layer**, the cost catch-up, returns at consumed FIFO cost, the clearing unwind. Before letting a stock balance go negative, before correcting a stock *value*, or before deciding what a return credits Inventory — `docs/phase-37-status.md`
-- Phase 38: import/export breadth — 5 new upload types, intra-file tree ordering, a pre-commit dry run, export by category + date range. Before adding an importer, a template, or an array parameter to a POST — `docs/phase-38-status.md`
-- Phase 39: the two editors — one sanitised rich-text control (`RichText`: re-emission, not filtering, in the Domain setters), the Organization logo in the printed header, `BalanceConfirmation`'s first consumer, standalone Deals/Tasks routes, Quick Links drag, the search results page. Before storing anything a user typed that is rendered later, before accepting an uploaded image, or before trusting that a guard still covers its subject — `docs/phase-39-status.md`
-- Phase 40: the human WCAG pass (keyboard census, one focus ring, `app-status-banner`'s always-present live region) + 34b's list-chrome leftovers. Before claiming an a11y criterion holds, writing a status message, choosing a focus colour, or offering a list an ordering — `docs/phase-40-status.md`
-- Phase 41: subscription and plan model — the seeded `SubscriptionPlan` catalogue, the commercial terms on `TenantSubscription`, quota enforcement on both axes (`SubscriptionQuotaBehavior`, the 6th behavior), the shell subscription banner. Before recording a field as dead, before calling a tenant-level limit "enforcement", or before shipping state two surfaces show — `docs/phase-41-status.md`
+- Phase 34c: scale — the 50k-invoice dataset in `tools/scale/`, p95 budgets per screen class, `TenantIndexConvention`, the shell `@defer`ed. Before adding an index or quoting a performance number — `docs/phase-34c-status.md`
+- Phase 35a: ledger drill-down + the location picker/filter on all 15 document forms and lists. Before adding a field to many aggregates at once — `docs/phase-35a-status.md`
+- Phase 35b: the location dimension in reports (`LocationId` stamped on the fact tables, the filter on 36 queries). Before filtering an append-only fact table or proving a location permission — `docs/phase-35b-status.md`
+- Phase 36: allocation/forex/ageing consistency, `OutstandingDocumentReader`, server-side due dates, product-to-location on the picker. Before assuming a document has one GL entry, or folding a settlement to base — `docs/phase-36-status.md`
+- Phase 37: inventory policy — shortfall layers, the cost catch-up, returns at consumed FIFO cost, the clearing unwind. Before letting stock go negative or deciding what a return credits — `docs/phase-37-status.md`
+- Phase 38: import/export breadth — 5 upload types, tree ordering, a pre-commit dry run, export by category + date range. Before adding an importer or an array parameter to a POST — `docs/phase-38-status.md`
+- Phase 39: the sanitised rich-text control, the Organization logo, standalone Deals/Tasks routes, the search results page. Before storing anything a user typed that is rendered later — `docs/phase-39-status.md`
+- Phase 40: the human WCAG pass (keyboard census, one focus ring, always-present live regions) + list-chrome leftovers. Before claiming an a11y criterion or writing a status message — `docs/phase-40-status.md`
+- Phase 41: subscription and plan model — the seeded `SubscriptionPlan` catalogue, `SubscriptionQuotaBehavior`, the shell banner. Before calling a tenant-level limit "enforcement" — `docs/phase-41-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -143,17 +143,17 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `TestAppDbContext` has no `ApplyConfigurationsFromAssembly`, so every encapsulated collection must be restated there with `HasMany...SetPropertyAccessMode(Field)`; its symptom is the identical `DbUpdateConcurrencyException`, so check the test context first.
 - SQL Server treats NULLs as equal in a unique index; a unique index over a nullable column needs `.HasFilter("[Col] IS NOT NULL")`, and InMemory enforces neither half.
 - `EF.Functions.Like` cannot be translated by InMemory; write `String.Contains`, which SQL Server turns into the same `LIKE`.
-- An extraction is not done until the copies it replaced are deleted: `GrantedPermissionReader` said it had replaced two inlined joins and had not, so both missed phase-32b's `LocationId == null` filter and read a branch grant as organization-wide. Before writing copy N+1 of a pattern, grep that copies 1..N were retired (phase-33).
+- Retire copies 1..N before writing copy N+1 of a pattern: `GrantedPermissionReader` left two inlined joins behind and both missed the `LocationId == null` filter (phase-33).
 - A shared helper replacing a per-handler `Where` must own **every** condition that `Where` carried, not just the interesting one — there is no global query filter here, so nine handlers rewritten is nine chances to drop `OrganizationId`; take the organization as an argument (phase-35b).
-- An append-only fact row (`GlJournalEntry`, `StockMovement`, `StockLedgerEntry`) points back with `(SourceDocumentType, SourceDocumentId)` and nothing else, so it cannot be filtered by any of its document's attributes without a column; stamp at write time and have reversals **inherit** rather than re-derive (phase-35b).
+- An append-only fact row (`GlJournalEntry`, `StockMovement`, `StockLedgerEntry`) carries only its source ids; filtering on a document attribute needs a stamped column, and reversals inherit it (phase-35b).
 - An expression tree does not short-circuit, so `!flag || list.Contains(x)` hands EF a **null** list to translate — and only on the unrestricted branch, i.e. almost every caller. Compose a second `.Where()` (phase-33).
 - …but that generalises only to a captured **bool**: `collection == null || collection.Contains(x)` is funcletized to a constant and folded away, and returns 200 on SQL Server. Compose anyway; don't call an instance of it broken without running it (phase-35a, correcting phase-33).
 - A shared matcher cannot live inside a LINQ predicate: a **static call** is untranslatable and so is `Contains(term, StringComparison)` — and InMemory evaluates both in C#, so every handler test passes while all 25 endpoints 500 (phase-34b, phase-25's captured-`Func` through another door).
 - Single-argument `Contains` is case-**insensitive** on SQL Server (collation) and case-**sensitive** on InMemory; a handler test must search with the stored casing or it pins a behaviour production lacks (phase-34b).
-- Every tenant-scoped table needs an index **leading on `OrganizationId`**; 18 had none, and they were exactly the documents, because master data got one free from its per-tenant uniqueness rule. `TenantIndexConvention` derives all three families and throws at model build for an entity it cannot classify (phase-34c).
-- An index added for one access path changes the plan for **every other path over the same table**: `(OrganizationId, CreatedAt)` made the invoice list 10× faster and a non-matching search 1.8× *slower*, because the optimizer swapped one scan for a seek plus a key lookup per row. Re-measure the paths you did not change (phase-34c).
+- Every tenant-scoped table needs an index leading on `OrganizationId`; `TenantIndexConvention` derives them and throws at model build for an entity it cannot classify (phase-34c).
+- An index added for one path changes the plan for every other path on the table (list 10× faster, no-match search 1.8× slower); re-measure the paths you did not touch (phase-34c).
 - A materialised id list handed back to SQL becomes an `OPENJSON` parameter as long as the list; a report that loads its period then re-queries children by `ids.Contains` is linear in the period, not in the page. `JournalReportQueryHandler` is the shape that is not (phase-34c).
-- A list may offer an ordering exactly when an index leads on `(OrganizationId, <that column>)` — `TenantIndexConvention` builds a document two, so a document list's sort menu has two entries and is a reading of the schema, not a preference. An unknown value is a 400 naming the field, never a silent default (phase-40).
+- A list may offer an ordering only where an index leads on `(OrganizationId, <column>)`; an unknown sort value is a 400 naming the field, never a silent default (phase-40).
 - On a bulk-`INSERT`-seeded database, statistics quality moves a report that joins to a line table by 2× — more than most changes under test. `UPDATE STATISTICS ... WITH FULLSCAN` on both sides before comparing anything (phase-34c).
 - Read a handler's `Where` before assuming it matches its request — `ListPaymentsQueryHandler` shipped with a hardcoded `Direction == Received` (phase-6 bug #2).
 - EF refuses a set operation *after a client projection*, so `Concat`-ing two `select new SomeRecord(...)` queries throws at run time on SQL Server as well as InMemory; concatenate while both halves are still anonymous and build the record from the materialised page (phase-38).
@@ -166,7 +166,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 **GL posting, documents and domain invariants**
 - A "reverse of X" posting rule can balance its own entry while leaving a paired control account (AP net of TDS) permanently off; trace the net effect on every account across original + reversal (phase-6 bug #3).
 - Reversals mirror the original entry's own posted lines via `GlJournalEntry.PostReversalOf` (a second entry, never a mutation); never re-derive a reversal from the posting rule (phase-16a).
-- "One GL entry per Approved document" is a per-type habit, not an invariant: `SingleAsync` over `(SourceDocumentType, SourceDocumentId)` was already a 500 on a twice-edited Opening Balance line. Reverse what is **outstanding** — the net of every entry, grouped by location — via `SourceDocumentGlEntries` (phase-36).
+- "One GL entry per Approved document" is a habit, not an invariant; reverse the outstanding net of every entry via `SourceDocumentGlEntries`, never `SingleAsync` (phase-36).
 - A settlement folds to base at the rate of **what it settles** (each allocation at its target's rate, the remainder at its own), or a fully settled invoice keeps a residual balance equal to the realised forex (phase-36).
 - `ReferrerType`/`ReferrerId` enforce nothing — a conversion needs `MarkConverted`, quantity/rate caps net of prior reversals, and contact/TDS consistency checks in the Create handler (phase-6 bug #4).
 - Goods purchases debit `DefaultInventoryAccountId` (post-Phase-19 fix); a live inventory value still comes from `StockLedgerEntry.QuantityRemaining × UnitCost`, not that GL balance (phase-19 bug #1, phase-7 addendum).
@@ -174,25 +174,25 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Anything scheduled or dated for a tenant uses the Nepal wall clock via `Domain/Common/NepalTime` (fixed UTC+05:45, not `TimeZoneInfo`); test an after-local-midnight case, not just an evening-UTC one (phase-20e).
 - A FIFO layer stores a unit cost rounded to `ProductionJournal.UnitCostScale`; build a value-transforming GL entry from the values actually created and name the rounding residue (phase-25).
 - `GlJournalEntry` stores no copy of its document's number, reference or business date — only `SourceDocumentType`/`SourceDocumentId`/`PostedAt`; any report showing those must join back across the 11 GL-posting types, and must show the same date field it filters on (phase-26a).
-- A dated stock report must derive from `StockMovement`, never from `StockLedgerEntry`: `QuantityRemaining` is decremented **in place**, so the FIFO table only ever answers "as of now" and a report for a closed period would silently answer today's question. Opening+In-Out over the append-only movements reconstructs both quantity and value at any date, and equals the FIFO figure today (phase-26c).
-- An oversell leaves a **shortfall layer** (a `StockLedgerEntry` negative on both quantities, at the product's last known cost in that warehouse, zero if never received there) when the tenant's Negative Item Balance setting allows it; `ConsumeAsync` takes the *verdict*, never the setting, because Warn also has to have been confirmed (phase-37, replacing phase-26c's pin).
+- A dated stock report derives from `StockMovement`, never `StockLedgerEntry`, whose `QuantityRemaining` is decremented in place and only answers "as of now" (phase-26c).
+- An oversell leaves a shortfall layer (a negative `StockLedgerEntry` at the last known cost) when the Negative Item Balance verdict allows it; `ConsumeAsync` takes the verdict, never the setting (phase-37).
 - A Debit Note line carries no `ExpenditureClassification` or `IsImport` of its own; both are resolved from the source Purchase Bill's matching line by (PurchaseBillId, ProductId, Rate, VatRate) (phase-19, phase-26c's `PurchaseReturnReader`).
 - Convert a currency on a posting rule's **inputs**, never on its finished `GlLineInput` list: every rule derives its balancing leg as a *sum* of the others, so converting afterwards rounds that leg independently and breaks `sum(Debit)==sum(Credit)` intermittently (phase-28).
 - Never convert twice: FIFO unit costs, COGS and historical `GlLine`s are already base currency. `ApprovePurchaseBillCommandHandler` is the one place a document rate reaches the stock ledger, and it rounds to 4 dp (`ToBaseUnitCost`), not 2 (phase-28).
-- Changing what a posting rule debits changes what every *reversal* of it owes: a Debit Note credits Inventory the return price while `ConsumeAsync` relieves layers at their landed cost, so phase 29's capitalised cost needed its own release leg or Inventory drifted above the ledger one return at a time (phase-29, phase-6 bug #3 again).
-- Build a capitalisation leg from the value the ledger actually received (`layer value created − goods amount`), never the figure the user typed, and round each unit cost **once** at the ledger's own scale from the line's total landed value; the gap is the named residue (phase-29, phase-25's rule on a second aggregate).
+- Changing what a posting rule debits changes what every reversal owes; phase 29's capitalised cost needed its own release leg on Debit Note (phase-29, phase-6 bug #3 again).
+- Build a capitalisation leg from the value the ledger actually received, round each unit cost once at the ledger's scale, and name the residue (phase-29).
 - When a phase adds a tenant-default GL account, grep `web/` for the field name before calling it done — phase 25's and phase 28's three accounts reached the API and no screen, so they could not be configured at all (phase-29; phase-23 bug #1 in reverse).
 - A stock **value** correction must reach three views or two drift silently: the FIFO layers, the Inventory account, and the append-only movement history (`StockMovement.ValueAdjustment`, a row with zero quantity). Any two can be patched into agreement — assert all three (phase-37).
-- A return relieves at the cost the layers **give up**, which FIFO chooses and which need not belong to the document being returned against; credit that, debit the supplier the return price, and derive the difference as the **plug that balances the entry** (phase-37, phase-36's settlement rule in a second costume).
-- A catch-up leg that eleven call sites can raise is its **own** GL entry against the same source document, not an optional amount threaded through six posting rules — which is only safe because phase 36 retired every `SingleAsync` over `(SourceDocumentType, SourceDocumentId)`; phase 37 finished that sweep and deleted `GlJournalEntry.PostReversalOf` with its last caller (phase-37).
+- A return relieves at the cost the layers give up (FIFO's choice), debits the supplier the return price, and books the difference as the balancing plug (phase-37).
+- A catch-up leg raisable from many call sites is its own GL entry against the same source document, never an amount threaded through posting rules; `PostReversalOf` is gone (phase-37).
 
-- Rich text is sanitised **on write, in the Domain setter**, by *re-emission*: parsed into a tree whose only attribute slot is a four-valued enum, re-emitted from the emitter's own constants, so a tokenizer bug can produce wrong formatting and never an attribute, tag name or URL from the input. `Sanitize` must stay idempotent — a document is re-saved on every edit (phase-39).
+- Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
 - A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
 - A tenant-level field is reachable only if you can name the command that writes it and the screen that calls it; a read path proves nothing about the write path (phase-31).
-- …and the mirror of that: **before calling any tenant-level limit "enforcement", ask who can write it.** `Tenancy.Subscription.Manage` is seeded to the tenant's own Admin, so the party a quota or an expiry constrains can raise it — not a mis-seeded key but the consequence of modelling exactly one actor while a subscription is a two-party record. Such a ceiling is an accurate record and a guard against drifting past it unnoticed, never a control that survives an adversary; say so in the behavior, the command *and* the doc (phase-41).
-- A field dead on the two tenants you could reach is **one sample, not two** — phase 33 retired Subscription Amount and both quotas after reading zeros on two *free trials*, and the vendor's public price list sells three tiers whose whole commercial difference is those fields. Before asking for another tenant, read what the seller publishes: it also carries the contractual definitions no screen ever shows (phase-41, generalising phase-30's find-the-rule and phase-32's it's-a-fact-about-that-tenant).
+- Before calling a tenant-level limit "enforcement", ask who can write it: `Tenancy.Subscription.Manage` sits on the tenant's own Admin, so a quota is a record and a guard, not a control (phase-41).
+- A field dead on two free-trial tenants is one sample, not two; read what the vendor publishes (its price list sells the "dead" fields) before asking for another tenant (phase-41).
 - Two confirmable warnings on one document need two override flags and a `warningKind` on the 422, or confirming the first waives the second (phase-31).
-- A non-nullable column on a populated table needs a hand-written backfill; the scaffold's `DEFAULT '0001-01-01'` back-dates every row and leaves a stray constraint (phase-31) — but a default is *safe* exactly when it is the truth about the rows already there, which is why `StockMovement.ValueAdjustment` needed none (phase-37).
+- A non-nullable column on a populated table needs a hand-written backfill unless the default is already true of the existing rows (`ValueAdjustment` needed none) (phase-31, phase-37).
 - A permission that depends on the requested value as well as the loaded row is the `AttachmentAccess` pattern; the E2E must show 404 on a missing row and 403 on a real one (phase-31's cheque bounce).
 - Never weaken a Domain invariant so a test can reach a state only time produces; reach through EF's change tracker (phase-31's expired `TenantSubscription`).
 - When NULL in a unique-indexed column is an at-most-one sentinel, the unfiltered index is the enforcement and EF's automatic `IS NOT NULL` filter destroys it; `HasFilter(null)` is load-bearing (phase-32's numbering counter).
@@ -222,7 +222,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 **Files, ClosedXML, uploads and downloads**
 - Sync-only writers (ClosedXML `SaveAs`) cannot target the live response stream; write to a `MemoryStream`, then `CopyToAsync` (`ReportSpreadsheetExporter.WriteWorkbookAsync`, phase-16c bug #3).
 - A Minimal API endpoint binding `IFormFile` gets antiforgery metadata automatically and 500s unless it calls `.DisableAntiforgery()` (phase-18 bug #1).
-- Read an uploaded image's format from its **bytes**, never its declared content type: `Domain/Common/ImageHeader` answers "is this really a PNG" and "is it at least 300×300" with one parser and no dependency, and the PDF renderer re-checks with it because QuestPDF throws for an undecodable image *after* composition, where no try/catch around the draw call helps (phase-39).
+- Read an uploaded image's format and size from its bytes (`Domain/Common/ImageHeader`), never its content type; QuestPDF throws for an undecodable image after composition (phase-39).
 - Executing `Results.Stream` against a bare `DefaultHttpContext` needs a `ServiceProvider` with `AddLogging()` (`MigratedRegisterTemplateRoundTripTests`).
 - A `MultipartFormDataContent` under `using` in a helper that returns the `Task` unawaited is disposed mid-send (`ObjectDisposedException` from `TestHost`); await inside the helper (phase-22).
 - ClosedXML returns empty text for hand-rolled `inlineStr` cells and ignores `<si>` past a stale `uniqueCount`; build import fixtures by filling the app's own generated template (phase-21a).
@@ -231,8 +231,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 - A trailing optional parameter added to a command reaches nothing until the Api's own request record carries it too — it compiles, every test passes, and the field binds silently to `null` (phase-27b's `Terms`).
 - A Minimal API binds an **array** parameter from the *body* on a POST, so a repeated query string arrives `null` and a "choose what to export" feature silently exports everything; `[FromQuery]` is load-bearing, and the simple types beside it bind without help, which is what hides it (phase-38).
-- The mirror of that on the read side: a **list** query returning the aggregate exposes a new field for free, while a **detail** query projecting a DTO drops it silently — the write path looks perfect and the form can never show the stored value (phase-32's `GetInvoiceQuery`, caught only by an E2E that re-read what it wrote).
-- That read-side gap is the default, not the exception: phase 32's write-path sweep guard stayed green while **14 of 15 detail DTOs and all 5 conversion templates** dropped the same field, so a form stored a branch, never showed it, and overwrote it on the next save. Adding a field to many aggregates owes three assertions — write, read, and every prefill between (phase-35a).
+- A list query returning the aggregate exposes a new field for free, but a detail DTO drops it silently and the form can never show it (phase-32's `GetInvoiceQuery`).
+- Adding a field to many aggregates owes three assertions, write, read and every prefill between: 14 of 15 detail DTOs and all 5 conversion templates dropped `LocationId` (phase-35a).
 
 **Angular**
 - A component serving both `.../new` and `.../:id` must read the id from `route.paramMap` (an Observable) and re-derive "is new" on every emission (phase-3 bug #1).
@@ -257,30 +257,30 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Bootstrap's brand tones clear WCAG's 4.5:1 against **pure white** and only just, so they fail on this app's `#f8f9fa` body; the four text utilities are re-pointed at its `-600` shades in `styles.scss`, and `contrast-rules.ts` is the measured palette the guard derives from (phase-34a).
 - Bootstrap's JS is not loaded, so nothing sets `aria-expanded` for free — every signal-driven popup must set it itself (phase-34a, extending phase-22's gotcha).
 - A filter a screen **displays but did not apply** is worse than no filter: anything global a screen both shows and sends must reload that screen when it changes, from the first version (phase-34b).
-- The same rule with a banner instead of a filter: **state two surfaces show, and one of them changes, needs a shared store** — the shell subscription banner still read "366 days remaining in your trial" on the page that had just recorded a paid plan. Both components were individually correct, so no unit test saw it; the screen must *save through* the store the banner reads (phase-41).
-- A swept-in filter handler must copy what the **sibling** handlers on that page do, not a template: on a paginated page whose reload is `load()` rather than `reload()`, every other filter also calls `page.set(1)`, and without it a narrowing filter applied on page 3 reads as "this branch has no data" (phase-35b).
+- State two surfaces show needs a shared store when one of them changes; the subscription banner kept "366 days remaining" after a paid plan was saved (phase-41).
+- A swept-in filter handler copies its sibling handlers on that page, including `page.set(1)`, or a narrowing filter on page 3 reads as "no data" (phase-35b).
 - An `effect()` cannot tell "the write already being acted on" from "a write needing action" — if the handler that wrote the signal already schedules the response, an effect over it is a race (phase-34b).
 - Never put `overflow` on a layout container without asking what is anchored inside it; the rail's `overflow: hidden` clipped a 46rem flyout to 240px, silently (phase-34b, phase-22's gotcha in a second container).
 - Deriving beats listing for a **catalogue** (a missing nav entry is an unreachable screen); listing beats deriving for a **curated tray** (deriving loses the curation that is the feature). Guard both the same way — every url must resolve to a real route (phase-34b).
-- A live region is announced when its **contents change**, so `@if (msg) { <div role="alert"> }` announces nothing — the region is created already holding its text. Render `app-status-banner` unconditionally; the grep that scopes such a sweep is itself a predicate, and `role="status"` hid seven more (phase-40).
+- A live region announces on content change, so a region created already holding its text says nothing; render `app-status-banner` unconditionally (phase-40).
 - `role="alert"` on unconditional page furniture is the reverse error: it fires on page load and interrupts whatever is being read (phase-40).
-- Bootstrap's `:focus-visible` ring is the control's own tone at 50% alpha and measures 1.21–2.53:1 against WCAG 1.4.11's 3:1 — phase 34a's palette lesson one property over. One opaque `#0a58ca` outline at `outline-offset: 2px` contrasts against the *page*, so one number is right for every variant (phase-40).
+- Bootstrap's `:focus-visible` ring measures 1.21–2.53:1 against the 3:1 rule; one opaque `#0a58ca` outline at `outline-offset: 2px` is right for every variant (phase-40).
 - A scan for controls cannot see a click handler with no control: the organization picker's rows were `<div (click)>`, so a keyboard user could sign in and reach none of the other 140 screens. The check for this class is a **focusable census**, not a scan (phase-40).
 - A control that hides itself owns its own label, or its caption outlives it — `ListChrome` named a location filter that renders nothing on a single-location tenant, on 22 screens, invisibly to any source-level guard (phase-40).
 - An ARIA grouping with no `aria-label` is worse than no role: it announces "group" and adds a boundary carrying nothing. `role="group"` over native radios should be `radiogroup` — the browser is already doing the roving selection (phase-40).
 - A backtick inside a comment inside an inline `template:` literal terminates the template; the compiler blames the `@Component` decorator (phase-40).
 
 **Multi-way switches on a document-attached mechanism**
-- A shared UI *panel* is not evidence of a shared *model*: the reference product shows email templates inside its Custom Templates panel but serves them from a different resource with six extra fields and a disjoint type vocabulary, so `EmailTemplate` is its own aggregate and phase 27b's placeholder `CustomTemplateType.Email` was deleted rather than left dead (phase-30).
+- A shared UI panel is not evidence of a shared model: email templates are their own resource, so `EmailTemplate` is its own aggregate and `CustomTemplateType.Email` was deleted (phase-30).
 - A list sampled from a few screens becomes a wrong list; find the **rule**. Send Email is not on all 15 printable types but on the 6 whose email-template context exists — a rule that also settles the types never probed, asserted in both directions by a guard test (phase-30, correcting phase-27b).
-- When a request's real permission key depends on a column of the row the handler is about to load (not on the request itself), `IRequirePermission.PermissionKey` cannot express it — that property is evaluated before the handler runs. Declare a blanket key (Admin+Member, seeded, gates nothing on its own — same shape as `TransactionApprovalView`/`RecentTransactionsQuery`'s pattern) to get through `AuthorizationBehavior`, then re-check the real key inside the handler once the row is loaded, throwing the identical `ForbiddenException` shape so a caller can't tell the layers apart (phase-27a, `AttachmentAccess`).
-- Three enums that each name an overlapping-but-distinct vocabulary (a `DocumentType`, and two or three "what can this attach to" parent enums) must never be bridged by ordinal cast — they cannot share an ordinal order once one of them starts with non-document members. Bridge by member *name* (`Enum.TryParse`) and add a guard test picking a member with deliberately divergent ordinals across the enums (phase-27a, `DocumentParentTypes`, restating phase-26a's lesson structurally).
+- When the real permission key depends on the row about to be loaded, declare a blanket seeded key for `AuthorizationBehavior`, then re-check the real key in the handler with the identical `ForbiddenException` (phase-27a, `AttachmentAccess`).
+- Never bridge overlapping enums (`DocumentType` and the parent-type enums) by ordinal cast; bridge by name with `Enum.TryParse` and pin it with a divergent-ordinal guard test (phase-27a).
 
 **Testing and manual E2E**
 - A vendor's always-pass dummy credential (Turnstile `1x000…AA`) accepts any input; proving the negative path needs the always-fail one (`2x000…AA`) swapped in (phase-20g).
-- A negative permission proof needs its **positive half in the same run**: `AuthorizationBehavior` returns the identical message for "not a member" and "lacks the key", so a 403 only means the key if the same user gets a 200 on a read of the same organization. `accept-invitation` is authenticated — log in *before* accepting, or the membership stays `Invited` and every later 403 is vacuous (phase-41).
+- A 403 proves the key only beside a 200 from the same user on the same organization in the same run; log in before `accept-invitation` or the membership stays `Invited` (phase-41).
 - `sqlcmd -S localhost` against a **named** instance returns nothing and reports nothing; read the instance from the connection string (`DESKTOP-H0R00ME\SQLEXPRESS` here). Only printing every status code makes the resulting 400 visible (phase-41).
-- Two implementations of one rule in two languages are pinned to a **shared table read by both suites**, not to each other (`rich-text-cases.json`, linked in as an embedded resource so a moved file is a build error) — phase-26b's `BsCalendar`/`bs-date.ts` arrangement; it caught a real whitespace divergence within the hour (phase-39).
+- Two implementations of one rule in two languages are pinned to a shared table both suites read (`rich-text-cases.json`, the `bs-date` table), never to each other (phase-39, phase-26b).
 - A guard whose predicate names a **type** silently stops covering anything solved before that type existed: `SearchSweepGuardTests` recognised only `PagedResult<T>`, so the two list queries that predate it were invisible — and were exactly the two the phase had to fix (phase-39).
 - …and a predicate naming a **file extension** does the same: `a11y-sweep-guard`'s glob missed five inline-`template:` components for six phases. Widening it found nothing wrong, which is the honest result and not the same as never having looked (phase-40).
 - A guard that accepts two spellings on one side must accept both on the other: it recognised `[for]` and `[attr.for]` on a label but only `[id]` on a control, so a control naming itself `[attr.id]` read as unnamed (phase-40).
@@ -298,16 +298,16 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A bash helper that both **prints and returns** is a trap under `$( )` — it returns the printed line too; fourteen malformed ids became a `PUT` storing nulls that surfaced as a 409 three steps later. Have it set a global (phase-34b, same family as a function whose assignment a subshell discards).
 - Map one enum onto another **by name** (`Enum.TryParse`), never by ordinal, and add a test asserting every member has a counterpart — an ordinal cast compiles, works today, and silently reports the wrong value the first time a member is inserted (phase-26a).
 - A shared reader that several reports agree through is worth more than each report deriving its own figure: Invoice Age's total balance equals Customer Receivable Summary's closing balance *by construction* because both read `ContactLedgerReader` (phase-26b).
-- Patching two reports into agreement leaves them agreeing by coincidence: phase 31 fixed both known divergences between the ageing pair and they still disagreed about *which documents are ageable*. One reader, two presentations, and a test that reads both on the same data (phase-36's `OutstandingDocumentReader`).
-- A curl seed script that pipes approvals to `/dev/null` hides its own failures — the first report just comes back empty. Print every approval's status code. Two live traps: `POST /api/organizations` returns `organizationId`, not `id`, and the GL defaults are **one** `PUT /accounting-defaults` taking all eleven accounts (phase-26c).
+- Two reports agree only through one shared reader plus a test reading both on the same data (`OutstandingDocumentReader`); patching divergences leaves coincidence (phase-36).
+- Print every approval's status code in a seed script; `POST /api/organizations` returns `organizationId`, and the GL defaults are one `PUT /accounting-defaults` with all eleven accounts (phase-26c).
 - Driving the reference product's Browser pane needs coordinates from `getBoundingClientRect`: its accessibility tree is nearly empty and `find` matches nothing. Its GENERATE control's DOM text is "Generate" — the capitals are CSS `text-transform` (phase-26c).
-- A fresh Organization has zero Accounts and zero Account Groups — nothing seeds a chart of accounts — so any E2E needing a Journal Voucher, Cash Transfer, Payment or Expense line must `POST` its own account groups (one per `AccountRootType`, spelled `Asset`/`Liability`/`Equity`/`Income`/`Expense` — singular, unlike the plural `rootType` groupings a list response returns them under) before it can create an account (phase-27a).
+- A fresh Organization has no Accounts or Account Groups; an E2E posts one group per `AccountRootType` (singular `Asset`/`Liability`/`Equity`/`Income`/`Expense`) before any account (phase-27a).
 - `identity` is a reserved word in T-SQL — reading a verification code needs `[identity].VerificationCodes`, and every document-scoped 403 proof needs a Member user, which needs that code (phase-28).
 - `tsc --noEmit -p tsconfig.json` does not typecheck `web/src/app`; it came back clean while `ng build` reported 22 `TS2339` errors. `ng build` is the real check (phase-28).
 - Run `ng test` from `web/`, never as `npx --prefix web ng test` from the root: `a11y-sweep-guard.spec.ts` reads `src/styles.scss` via `process.cwd()` and fails for the wrong reason (phase-35a).
-- `POST /accounts`'s `kind` is `Other`/`Bank`/`Cash`; `POST /organizations` needs `accountingStartDate` + `workspaceName` and takes the entitlement flags directly; `POST /auth/register` needs `phone`; `grants` is a dictionary but `locationGrants` is a **list** of `{locationId, grants}`; master-data lists are paged, so it is `['items'][0]['id']` (phase-35a).
-- A `Reports.*` key **cannot be granted per location** (400: "Only transaction permissions are location-scoped") — a report's location scope comes from the caller's *transaction* grants via `AnyGrantedLocationsAsync`, so the report key is organization-wide and the branch grant goes on e.g. `Sales.Invoice.View` (phase-35b).
-- `POST /organizations`'s entitlement flags are `multipleLocations`/`multipleWarehouses`/`trackInventory` — an `...Enabled` suffix binds to false silently and surfaces three steps later as a feature 403; `POST /billing-locations` requires `address`; the invite route is `POST /organizations/{id}/invitations` returning **`membershipId`**; `vatRate` is `ThirteenPercentVat` (a wrong enum member fails as "Failed to read parameter … as JSON", naming no field) (phase-35b).
+- `POST /accounts` `kind` is `Other`/`Bank`/`Cash`; `POST /organizations` needs `accountingStartDate` + `workspaceName`; `POST /auth/register` needs `phone`; `locationGrants` is a list of `{locationId, grants}`; lists are paged (`['items'][0]['id']`) (phase-35a).
+- A `Reports.*` key cannot be granted per location; a report's location scope comes from the caller's transaction grants via `AnyGrantedLocationsAsync` (phase-35b).
+- `POST /organizations` entitlement flags are `multipleLocations`/`multipleWarehouses`/`trackInventory` (no `Enabled` suffix); `POST /billing-locations` needs `address`; invitations return `membershipId`; `vatRate` is `ThirteenPercentVat` (phase-35b).
 - `sqlcmd -Q` prints "(N rows affected)" into a captured value; `SET NOCOUNT ON` belongs beside `SET QUOTED_IDENTIFIER ON` at the top of every script (phase-35b).
 - `sqlcmd -i` chokes on a forward-slash absolute path, reporting "-E and the -U/-P options are mutually exclusive"; run it from a relative path (phase-36).
 - `POST /auth/register` needs `turnstileToken` as well as `phone`, and `POST /organizations/{id}/invitations` takes **`roleId`** (system Member = `…-0001-000000000002`), not a role name (phase-36).
@@ -315,9 +315,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `PUT /general-settings` takes `RecentSellingPrice`/`ExclusiveOfVat`/`AccountingMovement` — not the guessable names — and a wrong member is a 400 naming no field; a negative-permission proof for a key **Member legitimately holds** needs a custom role with no grants (phase-37).
 - A Goods line consumes stock regardless of `TrackInventory`, so on a tenant without that feature a Goods product cannot be invoiced at all (403 on opening stock, 409 on approve); seed a **Service** line when an E2E just needs an approved sales document (phase-30).
 - curl cannot read a file for `-F` upload here — every path form gives exit 26 and HTTP `000`, which reads like a server fault; drive the file leg from a short Python `urllib` script (phase-30).
-- `POST /api/organizations` needs `industry` and a non-empty `turnstileToken`; accept-invitation is `/api/organizations/memberships/{id}/accept-invitation` with no org segment (with one, a 404 leaves the membership `Invited`); units are `/units-of-measurement` (`shortName`); credit terms are under `/configuration/` (phase-31).
+- `POST /api/organizations` needs `industry` and a non-empty `turnstileToken`; accept-invitation is `/api/organizations/memberships/{id}/accept-invitation` with no org segment; units are `/units-of-measurement`; credit terms are under `/configuration/` (phase-31).
 - `POST /accounts` takes `groupId`; `POST /products` takes `type`, not `productType`, and the wrong name silently yields a Goods product that 409s at Approve about the warehouse (phase-32).
-- `POST /products` also needs `categoryId`; every create returns **201**, not 200; configuration lookups live under `/organizations/{id}/configuration/...`, not the org root; and a fresh organization has no warehouse, unit, category or product, all four of which an invoice line needs even for a Service (phase-40).
+- `POST /products` needs `categoryId`; creates return 201; configuration lookups live under `/organizations/{id}/configuration/...`; a fresh organization has no warehouse, unit, category or product (phase-40).
 - A scripted multi-file edit must assert its anchor count before writing and preserve each file's CRLF/BOM (phase-32).
 - `dotnet run --project src/Api` with no `--launch-profile` binds **5155 only**, not the 7104 the Angular dev environment calls; and a stale listener on 5155 makes the https profile fail to start (phase-30).
 
@@ -327,74 +327,40 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 ` or `	` inside an embedded script arrives as a literal newline or tab — a syntax error if you are lucky and a corrupted path if you are not (phase-39).
 - A script inserting an import after "the last `
 import ` line" lands *inside* a multi-line `import { … }` block; anchor on the statement's closing line (phase-35a).
-- A lazy `.*?` between two anchors spans the instances in between (it expands past `</label>` to reach a later match), silently merging them; exclude the closing marker — `((?:(?!</label>).)*?)`. The tell is two independent counts disagreeing, so derive the expected number a second way (phase-34a, on top of phase-32's assert-before-writing rule).
+- A lazy `.*?` between two anchors spans the instances between them; exclude the closing marker (`((?:(?!</label>).)*?)`) and derive the expected count a second way (phase-34a).
 - A positional derivation (column index → header text) is *confidently wrong* where the position lies — a `colspan` cell, a cell with its own label. A wrong accessible name is worse than none; audit for the shapes the first pass cannot see (phase-34a).
 - In the browser pane the **screenshot is ground truth**: after a viewport resize, `getComputedStyle`/`getBoundingClientRect` can lag the rendering (a drawer measured on-screen while the screenshot showed it tucked away). Reload after emulating a viewport (phase-34b).
 - …and the same lag makes `getComputedStyle` inside a `focusin` handler report `outline: none` on every control, which reads as an app-wide 2.4.7 failure that does not exist. Measure after a real key event, and look at the picture (phase-40).
 - A green `ng build` and a browser showing the pre-fix markup means the **dev server is serving a bundle older than the source** after a failed rebuild; the unchanged `_ngcontent-ng-cNNNNNN` attribute is the tell. Restart the preview (phase-40).
 - `sed -i` also flips the CRLF of the file you *aimed* it at, after which every `
 `-anchored patch script fails its assertion with the anchor looking correct; use Edit for a single substitution, or read the file's own newline (phase-33).
-- A `sed -i` over a glob rewrites **every** file it matches, and on Windows that flips CRLF to LF even where the pattern never fires — `git diff` stays empty while `git status` shows a hundred extra modified files. Undoing it needs `rm` *then* `git checkout --`; restrict the file list instead (phase-30).
+- A `sed -i` over a glob rewrites every matched file and flips CRLF to LF on Windows even where the pattern never fires; restrict the file list (phase-30).
 - When a generator script emits Angular templates through `str.format`, interpolation braces need escaping in the *format string* but not in a substituted value — `{{{{ x }}}}` in a value ships literally and fails as NG5002 (phase-26b).
-- A benchmark run against an **empty** tenant looks like a spectacularly fast one — 20 ms p95, every status 200. Only the response size tells them apart, so a harness must assert its target is populated before timing it; `seed-master.sh` rewriting `.seed-ids.env` is the side effect that caused it (phase-34c, the prints-and-returns trap in another costume).
+- A benchmark against an empty tenant looks fast (20 ms p95, all 200); a harness must assert its target is populated before timing it (phase-34c).
 - `sqlcmd -i` runs with `QUOTED_IDENTIFIER OFF`, so any `INSERT` into a table with a filtered index fails; put `SET QUOTED_IDENTIFIER ON` at the top of every script. `-W` and `-y/-Y` are also mutually exclusive (phase-34c).
 
 ## Current status
 
-**Phases 0–41 are complete.** Phase 41 opened with a product question the roadmap had left standing —
-*is this product selling plans at all?* — and the answer came from a document nobody had read: **the
-vendor's own public price list**. Tigg sells three metered tiers (Basic Rs 15,000 / Standard
-Rs 20,000 / Professional Rs 32,000 a year), separated by a product ceiling, a transaction ceiling and
-which entitlements are included, with six add-on lines beside them. **So phase 33 Decision D's premise
-was false**: Subscription Amount and the two quotas are not dead fields, they are the product — and
-both tenants 33 sampled were free trials, which is exactly what `0.00` and `Standard ( 0 Txn, 0
-Products)` mean.
+**Phases 0–41 are complete.** The v1 sequence (0–25), the parity sequence (26–34c) and the
+consolidation sequence (35–41) are all done; each phase's story is in its `docs/phase-N-status.md`,
+and the completed planning entries are archived in `docs/roadmap-history.md`. Phase 41 ended on a
+named, unworkable-around limitation worth knowing on day one: `Tenancy.Subscription.Manage` sits on
+the tenant's own Admin because this codebase models one actor, so every quota and expiry is a record
+and a guard, not a control (re-entry: a vendor-side actor outside `OrganizationId`).
 
-Built: the seeded `SubscriptionPlan` catalogue (the first aggregate here with **no `OrganizationId`**);
-plan, amount, both quotas, IRD Verified and `TermStartsAt` on `TenantSubscription`; **quota enforcement
-on both axes** through `SubscriptionQuotaBehavior`, the sixth pipeline behavior, over eleven metered
-types taken from the vendor's own Terms (*"all transactions in which accounting entry are affected"*);
-one `SubscriptionUsageReader` behind both the gate and the screen so the meter and the refusal are one
-number by construction; the plan picker and usage meters; and `app-subscription-notice`, the shell
-banner that makes an ending subscription foreseeable instead of a 409 mid-approval.
+**Next: phases 42–47 in `docs/roadmap.md`** (planned 2026-09-14 from the carried items of phases
+34c–41): the measured performance follow-through first, then aggregate completions, report semantics
+that need a live re-read, multi-UOM × variants and import ergonomics, the metered add-on axes, and
+the accessibility items that need a person with a screen reader. The deferred list (DO/GRN, POS,
+IRD, Marketplace, unrealised forex, per-user location, multi-level BOM) is unchanged.
 
-**Nothing is sold in the app, confirmed rather than assumed:** every "Get Started" on all three paid
-tiers links to the free-trial signup, and the in-app expiry CTA is CONTACT US. No payment integration
-is in scope.
-
-**The limitation worth carrying above all others:** `Tenancy.Subscription.Manage` is seeded to the
-tenant's own Admin, so the party a quota constrains can raise it. There is no other role to give it to
-— this codebase models exactly one actor while a subscription is inherently two-party. Named in the
-behavior, the command and the status doc rather than worked around. **Re-entry: a vendor-side console,
-or any actor outside `OrganizationId`.**
-
-**Next: phase 42 — the roadmap has no numbered entry past 41**, so the next session's first job is to
-choose from what is carried rather than to execute a written plan. Carried out of 41: the self-liftable
-ceiling above; `TrialStartsAt`/`TrialEndsAt` now misnamed (they describe any term); the usage count
-never measured against 34c's 50k dataset; four metered add-on axes (locations, SMS, AI scans) still
-unmodelled; and a small quota overshoot under concurrent approves. Carried out of 40 and still open:
-**nobody has heard the app** — no screen reader was available, so 40's live regions and roving toolbar
-are right by specification and DOM evidence, not by ear; that is an hour with NVDA and a person's
-ears, worth scheduling rather than assigning to a session. Also from 40: `aria-describedby` reaches
-only the 15 fields that had a per-field message, and `Sort by` has one consumer of eighteen that
-qualify. Carried out of 39: Deal/Task **detail** pages need `Deal` and `WorkTask` in the three
-polymorphic parent enums plus a third route family; the nine Organization detail fields are read-only
-with no `UpdateOrganizationCommand` at all; the printed header still diverges from live's centred
-arrangement; the rich-text grammar carries no tables or images. Carried out of 38: the dry run cannot
-see what only writing can; variant import needs the parent's attribute pool configured first;
-`MaxRowsPerWorkbook` is still one machine's memory law. Carried out of 37: Inventory Master still lacks
-WarehouseTransfer and OpeningStock rows; multi-UOM × variants is unbuilt; a standalone Debit Note's
-Goods line still credits Inventory without touching the ledger. Carried out of 36: product-to-location
-is enforced on the picker but not at save; *Display Warehouse in Column* and `sales-summary`'s Group
-Wise location grouping are unbuilt; the Sales Register's money columns are still transaction-currency.
-
-Tests: Domain 660, Application.UnitTests 1081, Api.IntegrationTests 29, Angular 440. `dotnet build` /
-`dotnet test` / `ng build` / `ng test` all clean. `ng build` still warns the initial bundle exceeds its
-500 kB budget (pre-existing, 651 kB). `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
-check (phase-28), and `ng test` must be run from `web/` (phase-35a).
+Tests at last count: Domain 660, Application.UnitTests 1081, Api.IntegrationTests 29, Angular 440;
+`dotnet build` / `dotnet test` / `ng build` / `ng test` all clean. `ng build` warns the initial bundle
+exceeds its 500 kB budget (651 kB, pre-existing). `tsc --noEmit` does not cover `web/src/app`;
+`ng build` is the check (phase-28), and `ng test` must be run from `web/` (phase-35a).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a
 short orientation (what is done, what is next, test counts) — the phase's own story belongs in its
-`docs/phase-N-status.md`, never here. Gotchas stay one line here; the narrative goes in
-`docs/known-gotchas.md`.
+`docs/phase-N-status.md`, never here. Gotchas stay one line here (under ~220 characters); the
+narrative goes in `docs/known-gotchas.md`.
