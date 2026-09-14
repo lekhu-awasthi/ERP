@@ -66,6 +66,7 @@ public sealed class ListPaymentsQueryHandler(IAppDbContext db, ICurrentUserServi
             query = query.Where(x => x.Date <= toDate);
         }
 
-        return await query.OrderByDescending(x => x.CreatedAt).ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
+        return await query.ToKeyPagedResultAsync(
+            x => x.Id, q => q.OrderByDescending(x => x.CreatedAt), request.Page, request.PageSize, cancellationToken);
     }
 }

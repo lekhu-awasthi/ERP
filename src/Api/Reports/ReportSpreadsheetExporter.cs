@@ -768,15 +768,41 @@ public static partial class ReportSpreadsheetExporter
         foreach (var account in report.Items)
         {
             var label = $"{account.AccountName} ({account.AccountCode})";
-            rows.Add(new DetailLedgerExportRow(
-                label, fromDate, "Opening Balance", null, null, null, null, null,
-                account.OpeningBalance, account.OpeningBalanceType));
+
+            // Phase 42 -- the page unit is the row, so a section can arrive without its head or
+            // without its tail. An Opening Balance row printed above a continued section, or a
+            // Closing Balance row printed below one that runs on, would be a figure in the wrong
+            // place; the sheet says which instead. Export Full Dataset asks for every row and so
+            // never sees either case.
+            if (account.RowsBefore > 0)
+            {
+                rows.Add(new DetailLedgerExportRow(
+                    label, fromDate, $"Continued -- {account.RowsBefore} earlier postings",
+                    null, null, null, null, null, null, null));
+            }
+            else
+            {
+                rows.Add(new DetailLedgerExportRow(
+                    label, fromDate, "Opening Balance", null, null, null, null, null,
+                    account.OpeningBalance, account.OpeningBalanceType));
+            }
+
             rows.AddRange(account.Rows.Select(row => new DetailLedgerExportRow(
                 label, row.Date, TxnTypeLabel(row.DocumentType, row.Direction), row.DocumentCode, row.Reference,
                 row.Description, row.Debit, row.Credit, row.Balance, row.BalanceType)));
-            rows.Add(new DetailLedgerExportRow(
-                label, toDate, "Closing Balance", null, null, null,
-                account.PeriodDebit, account.PeriodCredit, account.ClosingBalance, account.ClosingBalanceType));
+
+            if (account.RowsAfter > 0)
+            {
+                rows.Add(new DetailLedgerExportRow(
+                    label, toDate, $"Continues -- {account.RowsAfter} further postings",
+                    null, null, null, null, null, null, null));
+            }
+            else
+            {
+                rows.Add(new DetailLedgerExportRow(
+                    label, toDate, "Closing Balance", null, null, null,
+                    account.PeriodDebit, account.PeriodCredit, account.ClosingBalance, account.ClosingBalanceType));
+            }
         }
 
         return ExportTable(
@@ -834,9 +860,11 @@ public static partial class ReportSpreadsheetExporter
         DateOnly Date, string TxnType, string? Code, string? Reference, string Account,
         decimal Debit, decimal Credit, bool IsTotal);
 
+    /// <param name="Balance">Nullable from phase 42: a continuation marker names a page boundary and
+    /// has no balance of its own, and a zero in a balance column would read as a figure.</param>
     private sealed record DetailLedgerExportRow(
         string Account, DateOnly Date, string TxnType, string? Code, string? Reference, string? Description,
-        decimal? Debit, decimal? Credit, decimal Balance, string BalanceType);
+        decimal? Debit, decimal? Credit, decimal? Balance, string? BalanceType);
 
     // ---- Phase 26b: Receivable/Payable and analytics -------------------------------------------
 

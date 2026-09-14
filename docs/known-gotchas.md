@@ -2049,6 +2049,190 @@ gate fired before the handler ever looked for the row — 404 there would mean t
 
 ---
 
+## A list long enough to be worth avoiding is a list too long to send (phase 42)
+
+Phase 34c's version of this reads: *a materialised id list handed back to SQL becomes an `OPENJSON` parameter as long as the list*. That is the half you meet when a report loads a
+period and then re-queries its children. Phase 42 met the other half, which is sharper and less
+obvious: **the narrowing itself can be the cost.**
+
+Every instance removed in phase 42 was written as an optimisation, and read like one.
+`ContactAgeingSummaryQueryHandler` did not fetch all of a tenant's contacts; it fetched only
+the ones with an outstanding document, by id. On the 50,000-invoice dataset that is 35,001 ids,
+and the measurement is not close:
+
+| | logical reads | wall time |
+|---|---|---|
+| `Contacts WHERE OrganizationId = @o AND Id IN (OPENJSON(@35,001 ids))` | **182,545** | 699 ms |
+| `Contacts WHERE OrganizationId = @o` (ordered index scan, every row) | ~1,500 | — |
+
+The worst case in the phase was worse than a join. `OutstandingDocumentReader` narrowed its
+allocation lookup by 50,000 candidate document ids, which EF serialises into an `nvarchar(max)`
+JSON parameter of about **1.8 MB** — against a `PaymentAllocations` table holding almost no
+rows. That request measured **7,480 ms** end to end while the server reported roughly **1.2 s**
+across every statement it ran. The missing six seconds were the client building and shipping the
+parameter, which is why a wall-clock harness can see the symptom and never the cause: it looks
+like application time, and there is nothing in the SQL to blame. Removing the narrowing took the
+endpoint to **1,134 ms**.
+
+Two remedies, in order of preference:
+
+1. **Join the query, not the list.** Where the ids came from a query you still have, join that
+   `IQueryable` and let the filter stay where the optimizer can see it — and if what you
+   wanted was a total per parent, make it a store-side `GroupBy` so one small row comes back
+   per parent instead of every child row. Phase 42 did this five times in
+   `OutstandingDocumentReader` and three times in `SalesRegisterQueryHandler`.
+2. **Drop the narrowing.** Where the result is read back as a dictionary with
+   `GetValueOrDefault`, extra entries cost nothing: scope the query by the tenant and the
+   thing that actually decides membership (the Contact Group filter, the document type) and let
+   the lookup do the rest. Check the read side first — the test is whether an unasked-for row can
+   reach the output, not whether it can reach the dictionary.
+
+The threshold is not a number anyone should try to tune. It is a shape: **if you are about to send
+more ids than the table you are sending them to has interesting rows, you have written a join by
+hand, badly.**
+
+---
+
+## A page's rows are fetched before they are eliminated (phase 42)
+
+Phase 34c carried two separate list findings — the offset tail (item #5) and search on a term
+matching nothing (item #6) — and proposed a different remedy for each: keyset pagination for the
+first, full-text indexing or a two-step handler for the second. Measured at the statement level
+they are one defect.
+
+`ToPagedResultAsync` asked SQL Server for whole entities in the same statement that ordered
+and offset them. The engine takes the ordering index and does a key lookup into the clustered
+index for **every row it is about to throw away**:
+
+| statement (50,000 invoices, one tenant) | logical reads | CPU |
+|---|---|---|
+| `SELECT * … ORDER BY CreatedAt DESC OFFSET 0 FETCH 50` | 166 | 6 ms |
+| `SELECT * … ORDER BY CreatedAt DESC OFFSET 49950 FETCH 50` | **153,705** | 513 ms |
+| `SELECT Id … ORDER BY CreatedAt DESC OFFSET 49950 FETCH 50` | **571** | 24 ms |
+
+Neither the offset nor the `LIKE` is the cost. The **projection** is. Ask for ids and the
+whole thing runs inside an index that already carries them.
+
+So `PagedResultExtensions.ToKeyPagedResultAsync` counts, takes the page's *keys*, then
+fetches exactly those rows — `JournalReportQueryHandler`'s shape (page the keys, fetch
+detail for the page) applied to a list instead of a report. Three consequences worth keeping:
+
+- **It fits inside `PagedResult<T>`.** That is the answer to the keyset question 34c left
+  open: keyset pagination would have changed the envelope, every list screen and both sweep
+  guards, and it is **not needed** — its re-entry condition is now unmet, not deferred.
+- **The key must be an `Expression`, never a captured `Func`** (phase-9 bug #1). The
+  helper composes `keys.Contains(key(x))` from the caller's expression tree.
+- **It composes onto the caller's query and never rebuilds one**, so it cannot lose the caller's
+  `OrganizationId` — phase-35b's rule satisfied structurally rather than by care. A version
+  that fetched by key alone would lose it and would pass every other test, so there is a test.
+
+---
+
+## A count of zero is a complete answer (phase 42)
+
+Half of phase 42's search win is one branch, and it is the half that needed no cleverness at all:
+when the count comes back zero, **do not issue the page query.** There is no page.
+
+The reason this is worth a heading is what it replaced. The first design of
+`ToKeyPagedResultAsync` took a `termApplied` flag, because 34c's carried item is about
+*search* and the fix was going to switch on whether a search term was present. The measurement
+removed the flag: on the scale dataset `status=Draft` matches nothing and cost **386 ms**,
+for precisely the reason `search=ZZQQXX` cost **1,262 ms**. A filter that matches nothing
+behaves the same way whatever it filtered on. The helper therefore asks the only question that
+matters and one code path serves both.
+
+The general form: **a branch that names the feature you came to fix is usually narrower than the
+defect.** If it can be re-expressed as a question about the data rather than about the caller's
+intent, it covers cases nobody listed.
+
+---
+
+## A ledger report's cost is the history before its period (phase 42)
+
+After phase 42's conversion the Detail General Ledger is **faster over three years (1,825 ms) than
+over one month (3,059 ms)**, and the General Ledger Summary always was (1,242 ms against
+2,320 ms). That is not a measurement error and it is not paradoxical once stated:
+
+> Every ledger report computes an **opening balance** before it does anything else, and an opening
+> balance is an aggregate over `PostedAt <= fromDate - 1` — *all* of it. A period that starts
+> later has more history in front of it.
+
+On this dataset that query alone is **182,270 logical reads and 637 ms**, and it is a scan of the
+whole `GlLines` table across every tenant, because `GlLine` still carries no
+`OrganizationId` (phase-34c's carried item #7). 34c measured that design as costing nothing;
+it costs nothing *for the statements*, which read the whole history anyway. For a dated ledger
+report narrowed to a recent month, it is the entire bill.
+
+Two things follow. **Probe the short period, not only the long one** — 34c's period-sensitivity
+table ran 1 month / 1 year / 3 years and read as monotonic because the period term still
+dominated; once it stopped dominating, the ordering reversed. And **do not read a report's
+improvement off its longest period**: the longest period is now its best case.
+
+---
+
+## A store-side `Sum` over an already-projected record (phase 42)
+
+The third appearance of the same family — phase 25's captured `Func`, phase 34b's static
+matcher, phase 38's set operation after a client projection — and the one with the worst symptom,
+because it is invisible to the whole test suite.
+
+Phase 42's Detail General Ledger needed the balance an account had carried before the page's first
+row, which is a `Take(n).Sum(...)` over the section's ordered postings. Written against a
+query that had already projected into a `LedgerLine` record:
+
+```csharp
+var accountLines = from line in periodQuery … select new LedgerLine(line.Id, …, line.Debit, …);
+var carried = await accountLines.Take(rowsBefore).SumAsync(x => x.Debit - x.Credit, ct);  // throws
+```
+
+EF has to construct the record server-side to read `.Debit`, cannot, and throws
+`InvalidOperationException`. **The InMemory provider evaluates it in C# instead.** So all ten
+of the phase's new tests passed — *including* the one that walks every page at `pageSize=1`,
+which exercises exactly this branch and nothing else — while the real endpoint returned **500 on
+every page after the first**. Page 1 worked because `rowsBefore == 0` short-circuits the
+query entirely, which is the most misleading possible smoke test.
+
+Only the E2E against SQL Server saw it. The fix is to keep the query on raw columns and project
+after `Skip`/`Take`:
+
+```csharp
+var orderedLines = from line in periodQuery … select new { Line = line, Entry = entry };
+var carried = await orderedLines.Take(rowsBefore).SumAsync(x => x.Line.Debit - x.Line.Credit, ct);
+var pageLines = await orderedLines.Skip(rowsBefore).Take(wanted)
+    .Select(x => new LedgerLine(x.Line.Id, …)).ToListAsync(ct);
+```
+
+The rule, stated so it covers the next member of the family: **a client projection is the end of
+what the store can do with a query.** Anything store-side — a `Sum`, a set operation, a
+further `Where` over a computed member — has to happen before it.
+
+---
+
+## A quoted heredoc eats backslash escapes when piped to an interpreter too (phase 42)
+
+Phase 39 recorded this for `cat > file <<'EOF'`. It applies just as well to
+`python - <<'PYEOF'`, and phase 42 hit it twice: a `chr(92) + 'n'` inside a Python string
+literal arrived as a **literal newline**, so an anchor string that looked correct in the script
+failed its `count() == 2` assertion against a file that visibly contained it twice.
+
+The reliable form, and what the rest of phase 42 used: **write the script to a file with the Write
+tool and run that file.** Where a literal is unavoidable inline, `chr(10)` cannot be eaten.
+
+---
+
+## Two small traps from phase 42's measurement
+
+- **`sqlcmd` will not cast a `datetimeoffset` literal without being told to.**
+  Backdating a subscription term failed with *Conversion failed when converting date and/or time
+  from character string* until the value was wrapped in
+  `CAST('2023-07-01T00:00:00+00:00' AS datetimeoffset)`.
+- **`dotnet build` cannot copy over a running API.** It reports
+  `MSB3027 … locked by: ErpApp.Api (PID)` and fails the whole solution build. It matters
+  more than it sounds in a measurement phase, where every pass needs a rebuild between it and the
+  last — stop the API first, and expect to restart it before each pass.
+
+---
+
 ## Gotcha entries as written in CLAUDE.md before the 2026-09-14 trim (the 39 longest)
 
 Shortened in CLAUDE.md on 2026-09-14 and kept here verbatim; each has its narrative under the phase headings above.

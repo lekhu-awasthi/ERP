@@ -9,6 +9,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Accounting.Queries.DetailGeneralLedger;
 
+/// <summary>
+/// Phase 42 -- the row-paged shape. What this handler no longer does is materialise every posting in
+/// the period: the old one read all 210,006 GL lines to build sections it then sliced by account,
+/// which is where both the 9.5 s and the 59.5 MB came from. Now the period is touched only by
+/// aggregates (one row per account), and the postings themselves are fetched for the requested page
+/// alone -- <c>JournalReportQueryHandler</c>'s shape, with the account ordering standing in for the
+/// entry keys.
+/// </summary>
 public sealed class DetailGeneralLedgerQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<DetailGeneralLedgerQuery, PagedResult<DetailGeneralLedgerAccountDto>>
 {
@@ -38,29 +46,33 @@ public sealed class DetailGeneralLedgerQueryHandler(IAppDbContext db, ICurrentUs
             .ToListAsync(cancellationToken);
         var openingByAccount = openings.ToDictionary(x => x.AccountId, x => x.Net);
 
-        var periodLines = await (
+        // The period, as one row per account rather than one row per posting. This is the whole
+        // difference: Count is what makes the row paging arithmetic possible, and Debit/Credit are
+        // the section's period totals -- the figures the live Closing Balance row prints in its
+        // Debit and Credit cells, which phase 16c's footer rule says must cover the whole filtered
+        // set and not the page.
+        var periodQuery =
             from line in db.GlLines
             join entry in entries on line.GlJournalEntryId equals entry.Id
             where entry.PostedAt >= periodFrom && entry.PostedAt <= periodTo
-            select new
-            {
-                line.Id,
-                line.GlJournalEntryId,
-                line.AccountId,
-                line.Debit,
-                line.Credit,
-                entry.PostedAt,
-                entry.SourceDocumentType,
-                entry.SourceDocumentId,
-            })
+            select line;
+
+        var periodTotals = await periodQuery
+            .GroupBy(x => x.AccountId)
+            .Select(g => new AccountPeriodTotals(
+                g.Key,
+                g.Count(),
+                g.Sum(x => x.Debit),
+                g.Sum(x => x.Credit)))
             .ToListAsync(cancellationToken);
+        var periodByAccount = periodTotals.ToDictionary(x => x.AccountId);
 
         // An account appears if it has an opening balance or any movement. One that has neither is
         // omitted: unlike the General Ledger Summary (which is a chart-of-accounts rollup and lists
         // every account), this report is a ledger, and a ledger page with no opening figure and no
         // postings says nothing.
         var accountIds = openingByAccount.Where(x => x.Value != 0m).Select(x => x.Key)
-            .Concat(periodLines.Select(x => x.AccountId))
+            .Concat(periodTotals.Select(x => x.AccountId))
             .Distinct()
             .Where(id => request.AccountId is null || id == request.AccountId)
             .ToList();
@@ -72,17 +84,113 @@ public sealed class DetailGeneralLedgerQueryHandler(IAppDbContext db, ICurrentUs
             .OrderBy(a => a.AccountCode)
             .ToList();
 
-        var paged = request.ExportAll
-            ? ((IReadOnlyList<GlAccountClassification.AccountFacts>)orderedAccounts).ToUnpagedResult()
-            : ((IReadOnlyList<GlAccountClassification.AccountFacts>)orderedAccounts).ToPagedResult(request.Page, request.PageSize);
+        var totalRows = orderedAccounts.Sum(a => periodByAccount.GetValueOrDefault(a.AccountId)?.Count ?? 0);
 
-        if (paged.Items.Count == 0)
+        // ExportAll asks for the whole filtered set and the export path is the one caller that can
+        // take it -- same filters, same permission gate, paging ignored (PagedResultExtensions).
+        var skip = request.ExportAll ? 0 : (request.Page - 1) * request.PageSize;
+        var take = request.ExportAll ? int.MaxValue : request.PageSize;
+        var page = request.ExportAll ? 1 : request.Page;
+        var pageSize = request.ExportAll ? Math.Max(totalRows, 1) : request.PageSize;
+
+        if (totalRows == 0 || skip >= totalRows)
         {
-            return new PagedResult<DetailGeneralLedgerAccountDto>([], paged.Page, paged.PageSize, paged.TotalCount);
+            // An account with an opening balance and no postings is still a section the live report
+            // prints, so a period with no movement at all is not necessarily an empty report -- but
+            // with the row as the page unit there is nothing to put on a page, which is the honest
+            // consequence of the decision recorded on the query.
+            return new PagedResult<DetailGeneralLedgerAccountDto>([], page, pageSize, totalRows);
         }
 
-        var pageAccountIds = paged.Items.Select(a => a.AccountId).ToHashSet();
-        var pageLines = periodLines.Where(x => pageAccountIds.Contains(x.AccountId)).ToList();
+        var sections = new List<DetailGeneralLedgerAccountDto>();
+        var remaining = take;
+        var cursor = 0;
+
+        foreach (var account in orderedAccounts)
+        {
+            if (remaining <= 0)
+            {
+                break;
+            }
+
+            var totals = periodByAccount.GetValueOrDefault(account.AccountId);
+            var accountRows = totals?.Count ?? 0;
+            if (accountRows == 0 || cursor + accountRows <= skip)
+            {
+                cursor += accountRows;
+                continue;
+            }
+
+            var rowsBefore = Math.Max(skip - cursor, 0);
+            var wanted = Math.Min(accountRows - rowsBefore, remaining);
+
+            var section = await LoadSectionAsync(
+                db, request, classification, periodQuery, entries, account,
+                openingByAccount.GetValueOrDefault(account.AccountId),
+                totals?.Debit ?? 0m,
+                totals?.Credit ?? 0m,
+                rowsBefore, wanted, accountRows, cancellationToken);
+
+            sections.Add(section);
+            cursor += accountRows;
+            remaining -= wanted;
+        }
+
+        return new PagedResult<DetailGeneralLedgerAccountDto>(sections, page, pageSize, totalRows);
+    }
+
+    /// <summary>
+    /// One section's rows, taken with SQL's own OFFSET/FETCH so a page inside a 50,000-posting
+    /// control account costs the page and not the account.
+    /// </summary>
+    private static async Task<DetailGeneralLedgerAccountDto> LoadSectionAsync(
+        IAppDbContext db,
+        DetailGeneralLedgerQuery request,
+        GlAccountClassification classification,
+        IQueryable<Domain.Accounting.GlLine> periodQuery,
+        IQueryable<Domain.Accounting.GlJournalEntry> entries,
+        GlAccountClassification.AccountFacts account,
+        decimal opening,
+        decimal periodDebit,
+        decimal periodCredit,
+        int rowsBefore,
+        int wanted,
+        int accountRows,
+        CancellationToken cancellationToken)
+    {
+        var accountId = account.AccountId;
+
+        // The ordering has to be total and has to be the same in both statements below, or the
+        // running balance carried across a page boundary would be the sum of a different set of
+        // rows than the ones the page shows.
+        //
+        // The projection into LedgerLine is deliberately NOT part of this query. Summing over a
+        // query that has already projected into a record makes EF try to construct the record
+        // server-side to read one of its properties, which it cannot translate -- and the
+        // InMemory provider evaluates it in C# instead, so every handler test passes while the
+        // endpoint returns 500 on any page after the first (phase 34b's gotcha, phase 38's in
+        // another costume). Both statements below therefore read the raw columns.
+        var orderedLines =
+            from line in periodQuery
+            where line.AccountId == accountId
+            join entry in entries on line.GlJournalEntryId equals entry.Id
+            orderby entry.PostedAt, entry.SourceDocumentId, line.Id
+            select new { Line = line, Entry = entry };
+
+        // What the account had moved by before this page's first row. Zero for a section that
+        // starts on this page; a TOP(n) subquery otherwise, never a fetch of the skipped rows.
+        var carried = rowsBefore == 0
+            ? 0m
+            : await orderedLines.Take(rowsBefore)
+                .SumAsync(x => x.Line.Debit - x.Line.Credit, cancellationToken);
+
+        var pageLines = await orderedLines
+            .Skip(rowsBefore)
+            .Take(wanted)
+            .Select(x => new LedgerLine(
+                x.Line.Id, x.Line.GlJournalEntryId, x.Line.Debit, x.Line.Credit,
+                x.Entry.PostedAt, x.Entry.SourceDocumentType, x.Entry.SourceDocumentId))
+            .ToListAsync(cancellationToken);
 
         // The Description column is the contra side of each posting, so the page needs every line of
         // each entry it touches -- including lines against accounts outside this page.
@@ -99,52 +207,45 @@ public sealed class DetailGeneralLedgerQueryHandler(IAppDbContext db, ICurrentUs
             [.. pageLines.Select(x => (x.SourceDocumentType, x.SourceDocumentId)).Distinct()],
             cancellationToken);
 
-        var linesByAccount = pageLines.GroupBy(x => x.AccountId).ToDictionary(g => g.Key, g => g.ToList());
+        var running = opening + carried;
+        var rows = new List<DetailGeneralLedgerRowDto>(pageLines.Count);
 
-        var sections = paged.Items.Select(account =>
+        foreach (var line in pageLines)
         {
-            var opening = openingByAccount.GetValueOrDefault(account.AccountId);
-            var running = opening;
-
-            var ordered = linesByAccount.GetValueOrDefault(account.AccountId, [])
-                .OrderBy(x => x.PostedAt)
-                .ThenBy(x => x.SourceDocumentId)
-                .ThenBy(x => x.Id)
-                .ToList();
-
-            var rows = new List<DetailGeneralLedgerRowDto>(ordered.Count);
-            foreach (var line in ordered)
-            {
-                running += line.Debit - line.Credit;
-                var document = documents.For(line.SourceDocumentType, line.SourceDocumentId);
-                rows.Add(new DetailGeneralLedgerRowDto(
-                    DateOnly.FromDateTime(line.PostedAt.UtcDateTime),
-                    line.SourceDocumentType,
-                    line.SourceDocumentId,
-                    document?.Code,
-                    document?.Reference,
-                    ContraDescription(siblingsByEntry, classification, line.GlJournalEntryId, line.Id, account.AccountId),
-                    line.Debit,
-                    line.Credit,
-                    GlBalanceMarker.Magnitude(running),
-                    GlBalanceMarker.For(running),
-                    document?.Direction));
-            }
-
-            return new DetailGeneralLedgerAccountDto(
-                account.AccountId,
-                account.AccountCode,
-                account.AccountName,
-                GlBalanceMarker.Magnitude(opening),
-                GlBalanceMarker.For(opening),
-                rows,
-                ordered.Sum(x => x.Debit),
-                ordered.Sum(x => x.Credit),
+            running += line.Debit - line.Credit;
+            var document = documents.For(line.SourceDocumentType, line.SourceDocumentId);
+            rows.Add(new DetailGeneralLedgerRowDto(
+                DateOnly.FromDateTime(line.PostedAt.UtcDateTime),
+                line.SourceDocumentType,
+                line.SourceDocumentId,
+                document?.Code,
+                document?.Reference,
+                ContraDescription(siblingsByEntry, classification, line.GlJournalEntryId, line.Id, accountId),
+                line.Debit,
+                line.Credit,
                 GlBalanceMarker.Magnitude(running),
-                GlBalanceMarker.For(running));
-        }).ToList();
+                GlBalanceMarker.For(running),
+                document?.Direction));
+        }
 
-        return new PagedResult<DetailGeneralLedgerAccountDto>(sections, paged.Page, paged.PageSize, paged.TotalCount);
+        // Closing is the account's figure over the whole period, not the page's -- see the query's
+        // doc comment. Derived from the period totals so a partial section still prints the same
+        // Closing Balance row as a whole one.
+        var closing = opening + periodDebit - periodCredit;
+
+        return new DetailGeneralLedgerAccountDto(
+            accountId,
+            account.AccountCode,
+            account.AccountName,
+            GlBalanceMarker.Magnitude(opening),
+            GlBalanceMarker.For(opening),
+            rows,
+            periodDebit,
+            periodCredit,
+            GlBalanceMarker.Magnitude(closing),
+            GlBalanceMarker.For(closing),
+            rowsBefore,
+            accountRows - rowsBefore - rows.Count);
     }
 
     /// <summary>
@@ -177,4 +278,17 @@ public sealed class DetailGeneralLedgerQueryHandler(IAppDbContext db, ICurrentUs
     }
 
     private sealed record SiblingLine(Guid Id, Guid GlJournalEntryId, Guid AccountId);
+
+    /// <summary>One account's period, as a single row: the count that makes the row paging
+    /// arithmetic possible and the two totals the Closing Balance row prints.</summary>
+    private sealed record AccountPeriodTotals(Guid AccountId, int Count, decimal Debit, decimal Credit);
+
+    private sealed record LedgerLine(
+        Guid Id,
+        Guid GlJournalEntryId,
+        decimal Debit,
+        decimal Credit,
+        DateTimeOffset PostedAt,
+        DocumentType SourceDocumentType,
+        Guid SourceDocumentId);
 }

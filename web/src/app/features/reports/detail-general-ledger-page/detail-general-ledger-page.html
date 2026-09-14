@@ -86,11 +86,17 @@
                   <tr class="table-light">
                     <td colspan="8" class="fw-bold">{{ account.accountName }} ({{ account.accountCode }})</td>
                   </tr>
-                  <tr>
-                    <td>{{ fromDate() | nepaliDate }}</td>
-                    <td colspan="6" class="text-muted">Opening Balance</td>
-                    <td class="text-end">{{ (account.openingBalance | amount) }} {{ account.openingBalanceType }}</td>
-                  </tr>
+                  @if (account.rowsBefore) {
+                    <tr>
+                      <td colspan="8" class="text-muted small fst-italic">Continued from the previous page ({{ account.rowsBefore }} earlier postings)</td>
+                    </tr>
+                  } @else {
+                    <tr>
+                      <td>{{ fromDate() | nepaliDate }}</td>
+                      <td colspan="6" class="text-muted">Opening Balance</td>
+                      <td class="text-end">{{ (account.openingBalance | amount) }} {{ account.openingBalanceType }}</td>
+                    </tr>
+                  }
                   @for (row of account.rows; track $index) {
                     <tr>
                       <td>{{ row.date | nepaliDate }}</td>
@@ -109,13 +115,19 @@
                       <td class="text-end">{{ (row.balance | amount) }} {{ row.balanceType }}</td>
                     </tr>
                   }
-                  <tr class="fw-bold">
-                    <td>{{ toDate() | nepaliDate }}</td>
-                    <td colspan="4">Closing Balance</td>
-                    <td class="text-end">{{ (account.periodDebit | amount) }}</td>
-                    <td class="text-end">{{ (account.periodCredit | amount) }}</td>
-                    <td class="text-end">{{ (account.closingBalance | amount) }} {{ account.closingBalanceType }}</td>
-                  </tr>
+                  @if (account.rowsAfter) {
+                    <tr>
+                      <td colspan="8" class="text-muted small fst-italic">Continues on the next page ({{ account.rowsAfter }} further postings)</td>
+                    </tr>
+                  } @else {
+                    <tr class="fw-bold">
+                      <td>{{ toDate() | nepaliDate }}</td>
+                      <td colspan="4">Closing Balance</td>
+                      <td class="text-end">{{ (account.periodDebit | amount) }}</td>
+                      <td class="text-end">{{ (account.periodCredit | amount) }}</td>
+                      <td class="text-end">{{ (account.closingBalance | amount) }} {{ account.closingBalanceType }}</td>
+                    </tr>
+                  }
                 </tbody>
               }
             </table>

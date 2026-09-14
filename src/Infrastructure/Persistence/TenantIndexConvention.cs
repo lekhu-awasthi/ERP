@@ -97,6 +97,26 @@ internal static class TenantIndexConvention
     private static readonly string[] SearchIncludes = ["Reference", "SupplierInvoiceReference", "Sku"];
 
     /// <summary>
+    /// Phase 42 -- columns the report-path index carries alongside the business date, where the
+    /// entity has them.
+    ///
+    /// <para>Only <see cref="Domain.Accounting.GlJournalEntry"/> does, and that is the point: a GL
+    /// entry stores nothing about its document but its type and its id, so <i>every</i> reader that
+    /// ranges over posted entries projects exactly these two next to the date -- the Journal report,
+    /// the Detail General Ledger, and phase 41's quota count. Without them the
+    /// <c>(OrganizationId, PostedAt)</c> seek is followed by a key lookup per entry: measured at
+    /// <b>184,718 logical reads and 766&#160;ms</b> for one Professional-ceiling quota count over a
+    /// 70,002-entry term. They are declared as a rule over the columns rather than as an index on
+    /// one table for the same reason <see cref="SearchIncludes"/> is -- a second entity that ever
+    /// carries a source-document pointer gets the same treatment without anyone remembering.</para>
+    ///
+    /// <para>Phase 34c's lesson applies to this index as it did to the others: an index added for
+    /// one access path changes the plan for every other path over the same table, so the passes on
+    /// both sides of this change re-measure every GL reader, not only the quota count.</para>
+    /// </summary>
+    private static readonly string[] ReportPathIncludes = ["SourceDocumentType", "SourceDocumentId"];
+
+    /// <summary>
     /// Tenant-scoped entities that deliberately carry no leading-OrganizationId index, each with the
     /// reason. Both are child rows that are never read by tenant: nothing lists them, and every
     /// query for them is already keyed by the parent they hang off.
@@ -129,7 +149,8 @@ internal static class TenantIndexConvention
 
             if (businessDate is not null)
             {
-                AddIndex(modelBuilder, entity, [OrganizationId, businessDate.Name], descendingLast: false);
+                AddIndex(modelBuilder, entity, [OrganizationId, businessDate.Name], descendingLast: false,
+                    includes: ReportPathIncludes);
 
                 // The list path. A document without CreatedAt would be an aggregate no list screen
                 // can order -- there is none today, and the null check keeps this a rule rather than
@@ -212,7 +233,12 @@ internal static class TenantIndexConvention
     /// Adds the index unless an equivalent one is already configured, so a table that states its own
     /// <c>(OrganizationId, …)</c> index by hand — a unique one, say — is left exactly as it was.
     /// </summary>
-    private static void AddIndex(ModelBuilder modelBuilder, IMutableEntityType entity, string[] columns, bool descendingLast)
+    private static void AddIndex(
+        ModelBuilder modelBuilder,
+        IMutableEntityType entity,
+        string[] columns,
+        bool descendingLast,
+        string[]? includes = null)
     {
         if (entity.GetIndexes().Any(i => i.Properties.Select(p => p.Name).SequenceEqual(columns)))
         {
@@ -220,6 +246,12 @@ internal static class TenantIndexConvention
         }
 
         var index = modelBuilder.Entity(entity.ClrType).HasIndex(columns);
+        var present = (includes ?? []).Where(name => entity.FindProperty(name) is not null).ToArray();
+
+        if (present.Length > 0)
+        {
+            index.IncludeProperties(present);
+        }
 
         if (descendingLast)
         {

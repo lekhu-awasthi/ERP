@@ -50,22 +50,32 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db, ICurrentUserServ
                     x.IsExport, x.ExportCountry, x.ExportDeclarationNo, x.ExportDeclarationDate,
                 })
                 .ToListAsync(cancellationToken);
-            var invoiceIds = invoices.Select(x => x.Id).ToList();
-            var invoiceLines = await db.InvoiceLines
-                .Where(x => invoiceIds.Contains(x.InvoiceId))
-                .Select(x => new { x.InvoiceId, x.ProductId, x.Quantity, x.Amount, x.VatAmount })
+
+            // Phase 42 -- the lines are joined to the invoice *query*, not fetched for a list of
+            // ids read back out of `invoices`. That list is one id per invoice in the period --
+            // 50,000 over three years on the scale dataset -- and reaches SQL Server as an OPENJSON
+            // parameter of the same length, which is phase-34c's gotcha at full size. Joining the
+            // query keeps the date filter where the optimizer can use the (OrganizationId, Date)
+            // index and sends no parameter at all. Same rows, same order, same grouping below.
+            var invoiceLines = await (
+                from line in db.InvoiceLines
+                join invoice in invoiceQuery on line.InvoiceId equals invoice.Id
+                select new { line.InvoiceId, line.ProductId, line.Quantity, line.Amount, line.VatAmount })
                 .ToListAsync(cancellationToken);
 
             // Phase 36 -- the item's name and unit, needed only when Group By Bill is off. Loaded
             // once for the period either way rather than branching two data paths.
-            var lineProductIds = invoiceLines.Select(x => x.ProductId).Distinct().ToList();
+            //
+            // Phase 42 -- and loaded for the tenant rather than for the distinct product ids the
+            // period's lines mention, for the reason above: 20,000 ids sent back is dearer than the
+            // index scan that returns 20,000 rows. The dictionaries are lookups, so extra entries
+            // change nothing.
             var lineProducts = await db.Products
-                .Where(x => x.OrganizationId == request.OrganizationId && lineProductIds.Contains(x.Id))
+                .Where(x => x.OrganizationId == request.OrganizationId)
                 .Select(x => new { x.Id, x.Name, x.PrimaryUnitId })
                 .ToListAsync(cancellationToken);
-            var lineUnitIds = lineProducts.Select(x => x.PrimaryUnitId).Distinct().ToList();
             var lineUnits = await db.UnitsOfMeasurement
-                .Where(x => x.OrganizationId == request.OrganizationId && lineUnitIds.Contains(x.Id))
+                .Where(x => x.OrganizationId == request.OrganizationId)
                 .Select(x => new { x.Id, x.Name })
                 .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
             var lineProductLookup = lineProducts.ToDictionary(
@@ -77,9 +87,11 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db, ICurrentUserServ
                     Taxable: g.Where(x => x.VatAmount != 0).Sum(x => x.Amount),
                     Vat: g.Sum(x => x.VatAmount)));
 
-            var invoiceContactIds = invoices.Select(x => x.ContactId).Distinct().ToList();
+            // Phase 42 -- the tenant's contacts, not the 35,001 ids the period's invoices name. See
+            // the lines above; this read alone measured 155,435 logical reads and 582 ms as an
+            // OPENJSON join.
             var invoiceContacts = await db.Contacts
-                .Where(x => invoiceContactIds.Contains(x.Id))
+                .Where(x => x.OrganizationId == request.OrganizationId)
                 .Select(x => new { x.Id, x.Name, x.Pan })
                 .ToDictionaryAsync(x => x.Id, cancellationToken);
 
@@ -154,9 +166,9 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db, ICurrentUserServ
                 db, request.OrganizationId, request.FromDate, request.ToDate, request.ContactId, cancellationToken,
                 request.LocationId, reportLocations);
 
-            var creditNoteContactIds = creditNotes.Select(x => x.ContactId).Distinct().ToList();
+            // Phase 42 -- the tenant's contacts, for the reason recorded on the invoice half.
             var creditNoteContacts = await db.Contacts
-                .Where(x => creditNoteContactIds.Contains(x.Id))
+                .Where(x => x.OrganizationId == request.OrganizationId)
                 .Select(x => new { x.Id, x.Name, x.Pan })
                 .ToDictionaryAsync(x => x.Id, cancellationToken);
 

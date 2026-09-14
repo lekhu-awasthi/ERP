@@ -556,6 +556,11 @@ export interface DetailGeneralLedgerAccountDto {
   periodCredit: number;
   closingBalance: number;
   closingBalanceType: GlBalanceType;
+  /** Phase 42 -- postings of this account earlier in the period than this page. Non-zero means the
+   * section is continued, so the Opening Balance row belongs to an earlier page. */
+  rowsBefore: number;
+  /** The same at the other end: non-zero means the Closing Balance row belongs to a later page. */
+  rowsAfter: number;
 }
 
 export interface GeneralLedgerMasterRowDto {

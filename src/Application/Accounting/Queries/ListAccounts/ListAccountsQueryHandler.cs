@@ -27,6 +27,7 @@ public sealed class ListAccountsQueryHandler(IAppDbContext db) : IRequestHandler
             query = query.Where(x => x.Name.Contains(term) || x.Code.Contains(term));
         }
 
-        return await query.OrderBy(x => x.Code).ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
+        return await query.ToKeyPagedResultAsync(
+            x => x.Id, q => q.OrderBy(x => x.Code), request.Page, request.PageSize, cancellationToken);
     }
 }

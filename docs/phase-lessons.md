@@ -816,6 +816,26 @@ Moved verbatim; the one-line versions in CLAUDE.md keep the same "before X" hook
   and fixed with a shared `SubscriptionStore` the screen saves *through* —
   `docs/phase-41-status.md`
 
+- **Phase 42 — performance follow-through.** Re-ran phase 34c's harness on a fresh 50,001-invoice
+  tenant and closed five of its six carried items plus phase 41's unmeasured quota count. Read it
+  **before paging a list, before handing SQL Server a list of ids, before converting a report, or
+  before quoting a bundle size.** The phase's finding is a correction to 34c's own: the report
+  layer is not linear in the *period*, it is linear in the **id list it hands back** — the two
+  dearest statements in the whole before-pass were `WHERE Id IN (OPENJSON(@ids))` at 249,604 and
+  182,545 logical reads, and one of them sent a 1.8 MB parameter to a table holding almost no rows.
+  34c's two *list* items turned out to be one defect, not two: the row is fetched before it is
+  eliminated, so the last page of 50,000 invoices cost 153,705 logical reads while the same offset
+  asked for ids alone cost 571. `PagedResultExtensions.ToKeyPagedResultAsync` — count, take the
+  page's keys from an index, fetch those rows — is `JournalReportQueryHandler`'s shape applied to a
+  list, fits inside `PagedResult<T>`, and is why **keyset pagination is retired rather than
+  deferred**. Half the search win is one branch (*a count of zero is a complete answer*), which is
+  also why the helper needs no idea whether a search term was applied. Detail General Ledger's page
+  unit became the **row**, with `RowsBefore`/`RowsAfter` disclosing where the account boundary fell
+  — a report-semantics decision, recorded as one, that took a 59.5 MB response to 14.5 kB. And the
+  measurement left a new fact behind: a ledger report's cost is the history **before** its period,
+  so after the conversion the Detail General Ledger is slower for one month than for three years —
+  `docs/phase-42-status.md`
+
 ---
 
 ## Phase index entries as written in CLAUDE.md before the 2026-09-14 trim (34c–41)

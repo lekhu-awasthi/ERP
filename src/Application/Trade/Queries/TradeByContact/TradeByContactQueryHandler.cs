@@ -29,10 +29,15 @@ public sealed class TradeByContactQueryHandler(IAppDbContext db, ICurrentUserSer
             db, request.OrganizationId, request.Side, request.FromDate, request.ToDate, cancellationToken,
             request.LocationId, reportLocations);
 
-        var contactIds = facts.Select(x => x.ContactId).Distinct().ToList();
-
+        // Phase 42 -- narrowed by the tenant, not by the ids of the contacts that traded. That list
+        // is 35,001 long on the scale dataset and reaches SQL Server as an OPENJSON parameter joined
+        // back to Contacts (measured at 214,175 logical reads and 775 ms, against roughly 1,500 for
+        // the ordered range scan the (OrganizationId, Name, Code) index already supports). The rows
+        // below are built from `facts` and skip any contact absent from this dictionary, so the
+        // Contact Group filter -- still on this query -- is what decides membership, exactly as
+        // before. See ContactAgeingSummaryQueryHandler for the same correction on the same shape.
         var contactsQuery = db.Contacts
-            .Where(x => x.OrganizationId == request.OrganizationId && contactIds.Contains(x.Id));
+            .Where(x => x.OrganizationId == request.OrganizationId);
 
         if (request.ContactGroupId is { } groupId)
         {

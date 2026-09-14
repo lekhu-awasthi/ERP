@@ -54,6 +54,29 @@ bash tools/scale/summarise.sh before after after2
 
 ## The committed results
 
+### Phase 42 (2026-09-14) — the current pair
+
+Taken on a **third** freshly seeded 50,001-invoice tenant, so `GlLines` holds about 630,000 rows
+rather than 34c's 420,000. The 34c files below are therefore **not** directly comparable with these
+— use them within their own pair, not across.
+
+| file | what it is |
+|---|---|
+| `results-p42-before.csv` | The pre-phase code, on that tenant. |
+| `results-p42-after3.csv` / `results-p42-after4.csv` | Two passes of the final configuration. |
+| `probe-p42-before.csv` / `probe-p42-after.csv` | The period-sensitivity probe (1 month / 1 year / 3 years per report, plus the subscription quota count), consecutive inside one pass so the machine is controlled for. |
+| `comparison-phase42.md` | `summarise.sh p42-before p42-after3 p42-after4`. |
+
+Two intermediate passes were taken and are deliberately **not** committed: the ageing allocation
+fix landed between them, so they measure a configuration that no longer exists. Phase 34c made that
+mistake once and its README says why; phase 42 discarded rather than averaged, for the same reason.
+
+**A fourth thing that will bite, added by phase 42:** `dotnet build` cannot copy over a running
+API (`MSB3027 … locked by: ErpApp.Api`), and every pass needs a rebuild between it and the last.
+Stop the API, build, start it, refresh statistics, then measure — in that order, every time.
+
+### Phase 34c (2026-09-10) — the original pair
+
 | file | what it is |
 |---|---|
 | `results-before.csv` | The pre-phase schema: no index leading on `OrganizationId` on any document table. |

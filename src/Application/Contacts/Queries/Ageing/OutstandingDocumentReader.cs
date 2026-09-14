@@ -203,19 +203,27 @@ internal static class OutstandingDocumentReader
         IAppDbContext db, Guid organizationId, DateOnly asOfDate, Guid? locationId,
         IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
-        var invoices = await db.Invoices
+        var invoiceQuery = db.Invoices
             .Where(x => x.OrganizationId == organizationId
                 && x.Status == InvoiceStatus.Approved && x.Date <= asOfDate)
-            .AtLocations(locationId, reportLocations)
+            .AtLocations(locationId, reportLocations);
+
+        var invoices = await invoiceQuery
             .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate, x.Code, x.Reference, x.ExchangeRate })
             .ToListAsync(cancellationToken);
 
-        var invoiceIds = invoices.Select(x => x.Id).ToList();
-        var lines = await db.InvoiceLines
-            .Where(x => invoiceIds.Contains(x.InvoiceId))
-            .Select(x => new { x.InvoiceId, x.Amount, x.VatAmount })
-            .ToListAsync(cancellationToken);
-        var totals = lines.GroupBy(x => x.InvoiceId).ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.VatAmount));
+        // Phase 42 -- the line totals are summed in SQL against the same invoice *query*, not
+        // fetched for a materialised list of ids. The id list was every approved invoice up to the
+        // as-of date: 50,000 of them on the scale dataset, handed back as an OPENJSON parameter and
+        // joined to InvoiceLines, which is phase-34c's gotcha at full size. Joining the query
+        // instead leaves the filter where the optimizer can see it, and a GroupBy that runs
+        // store-side returns one small row per invoice rather than every line.
+        var totals = await (
+            from line in db.InvoiceLines
+            join invoice in invoiceQuery on line.InvoiceId equals invoice.Id
+            group line by line.InvoiceId into g
+            select new { InvoiceId = g.Key, Total = g.Sum(x => x.Amount + x.VatAmount) })
+            .ToDictionaryAsync(x => x.InvoiceId, x => x.Total, cancellationToken);
 
         var candidates = invoices
             .Select(x => new OutstandingDocument(
@@ -232,36 +240,42 @@ internal static class OutstandingDocumentReader
         IAppDbContext db, Guid organizationId, DateOnly asOfDate, Guid? locationId,
         IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
-        var bills = await db.PurchaseBills
+        var billQuery = db.PurchaseBills
             .Where(x => x.OrganizationId == organizationId
                 && x.Status == PurchaseBillStatus.Approved && x.Date <= asOfDate)
-            .AtLocations(locationId, reportLocations)
+            .AtLocations(locationId, reportLocations);
+
+        var bills = await billQuery
             .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate, x.Code, x.Reference, x.TdsAmount, x.ExchangeRate })
             .ToListAsync(cancellationToken);
-        var billIds = bills.Select(x => x.Id).ToList();
-        var billLines = await db.PurchaseBillLines
-            .Where(x => billIds.Contains(x.PurchaseBillId))
-            .Select(x => new { x.PurchaseBillId, x.Amount, x.VatAmount })
-            .ToListAsync(cancellationToken);
-        var billTotals = billLines.GroupBy(x => x.PurchaseBillId)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.VatAmount));
 
-        var expenses = await db.Expenses
+        // Phase 42 -- see the invoice half above: the totals are a store-side GroupBy over the same
+        // query, not a fetch keyed by a materialised id list.
+        var billTotals = await (
+            from line in db.PurchaseBillLines
+            join bill in billQuery on line.PurchaseBillId equals bill.Id
+            group line by line.PurchaseBillId into g
+            select new { BillId = g.Key, Total = g.Sum(x => x.Amount + x.VatAmount) })
+            .ToDictionaryAsync(x => x.BillId, x => x.Total, cancellationToken);
+
+        var expenseQuery = db.Expenses
             .Where(x => x.OrganizationId == organizationId
                 && x.Status == ExpenseStatus.Approved && x.Date <= asOfDate)
-            .AtLocations(locationId, reportLocations)
+            .AtLocations(locationId, reportLocations);
+
+        var expenses = await expenseQuery
             .Select(x => new
             {
                 x.Id, x.ContactId, x.Date, x.DueDate, x.Code, x.SupplierInvoiceReference, x.TdsAmount, x.ExchangeRate,
             })
             .ToListAsync(cancellationToken);
-        var expenseIds = expenses.Select(x => x.Id).ToList();
-        var expenseLines = await db.ExpenseLines
-            .Where(x => expenseIds.Contains(x.ExpenseId))
-            .Select(x => new { x.ExpenseId, x.Amount, x.VatAmount })
-            .ToListAsync(cancellationToken);
-        var expenseTotals = expenseLines.GroupBy(x => x.ExpenseId)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.VatAmount));
+
+        var expenseTotals = await (
+            from line in db.ExpenseLines
+            join expense in expenseQuery on line.ExpenseId equals expense.Id
+            group line by line.ExpenseId into g
+            select new { ExpenseId = g.Key, Total = g.Sum(x => x.Amount + x.VatAmount) })
+            .ToDictionaryAsync(x => x.ExpenseId, x => x.Total, cancellationToken);
 
         var candidates = bills
             .Select(x => new OutstandingDocument(
@@ -345,15 +359,24 @@ internal static class OutstandingDocumentReader
         var targetType = contactType == ContactType.Customer ? DocumentType.Invoice : DocumentType.PurchaseBill;
         var paymentDirection = contactType == ContactType.Customer ? PaymentDirection.Received : PaymentDirection.Paid;
 
-        var targetIds = candidates
-            .Where(x => x.Type is AgeableDocumentType.Invoice or AgeableDocumentType.PurchaseBill)
-            .Select(x => x.Id)
-            .ToList();
+        var hasTargets = candidates.Any(x => x.Type is AgeableDocumentType.Invoice or AgeableDocumentType.PurchaseBill);
 
-        if (targetIds.Count == 0)
+        if (!hasTargets)
         {
             return [];
         }
+
+        // Phase 42 -- the two queries below used to be narrowed by the ids of those candidates.
+        // On the scale dataset that is 50,000 GUIDs, serialised into an nvarchar(max) JSON
+        // parameter of about 1.8 MB and joined back through OPENJSON: measured at 633 ms against
+        // a table holding almost no rows, which is the cost of the *parameter*, not of the query.
+        //
+        // The narrowing was never load-bearing. Both queries are already scoped to this
+        // organization through their join -- a Payment's or a JournalVoucher's own OrganizationId
+        // -- and to this side of the ledger through targetType, and the dictionary they build is
+        // read with GetValueOrDefault against the candidates, so an allocation against a document
+        // that is not a candidate lands in the dictionary and is never looked up. Same figures,
+        // no parameter.
 
         // Two queries rather than one union: a Payment is validated by its Direction and a voucher
         // by its own Status, and the joins differ.
@@ -361,7 +384,7 @@ internal static class OutstandingDocumentReader
                 from a in db.PaymentAllocations
                 where a.SourceType == DocumentType.Payment
                 join p in db.Payments on a.SourceId equals p.Id
-                where a.TargetDocumentType == targetType && targetIds.Contains(a.TargetDocumentId)
+                where a.TargetDocumentType == targetType
                       && p.OrganizationId == organizationId
                       && p.Direction == paymentDirection && p.Status == PaymentStatus.Approved
                 group a by a.TargetDocumentId into g
@@ -373,7 +396,7 @@ internal static class OutstandingDocumentReader
                 where a.SourceType == DocumentType.JournalVoucher
                 join l in db.JournalVoucherLines on a.SourceId equals l.Id
                 join v in db.JournalVouchers on l.JournalVoucherId equals v.Id
-                where a.TargetDocumentType == targetType && targetIds.Contains(a.TargetDocumentId)
+                where a.TargetDocumentType == targetType
                       && v.OrganizationId == organizationId && v.Status == JournalVoucherStatus.Approved
                 group a by a.TargetDocumentId into g
                 select new { TargetId = g.Key, Allocated = g.Sum(x => x.Amount) })
@@ -392,25 +415,31 @@ internal static class OutstandingDocumentReader
         IAppDbContext db, Guid organizationId, DateOnly asOfDate, List<OutstandingDocument> candidates,
         CancellationToken cancellationToken)
     {
-        var invoiceIds = candidates.Where(x => x.Type == AgeableDocumentType.Invoice).Select(x => x.Id).ToList();
-        if (invoiceIds.Count == 0)
+        if (!candidates.Any(x => x.Type == AgeableDocumentType.Invoice))
         {
             return [];
         }
 
-        var creditNotes = await db.CreditNotes
+        // Phase 42 -- scoped by the tenant and the period, not by the ids of the candidate
+        // documents. The reductions are read back with GetValueOrDefault against the candidates,
+        // so a note against a document outside that set is fetched and never looked up; what the
+        // id list bought was a smaller result at the price of a parameter as long as the period.
+        // See LoadAllocationsAsync for the measurement.
+        var creditNoteQuery = db.CreditNotes
             .Where(x => x.OrganizationId == organizationId && x.Status == CreditNoteStatus.Approved
                 && x.Date <= asOfDate && x.ReferrerType == DocumentType.Invoice
-                && x.ReferrerId != null && invoiceIds.Contains(x.ReferrerId.Value))
+                && x.ReferrerId != null);
+
+        var creditNotes = await creditNoteQuery
             .Select(x => new { x.Id, ReferrerId = x.ReferrerId!.Value })
             .ToListAsync(cancellationToken);
 
-        var creditNoteIds = creditNotes.Select(x => x.Id).ToList();
-        var lines = await db.CreditNoteLines
-            .Where(x => creditNoteIds.Contains(x.CreditNoteId))
-            .Select(x => new { x.CreditNoteId, x.Amount, x.VatAmount })
-            .ToListAsync(cancellationToken);
-        var gross = lines.GroupBy(x => x.CreditNoteId).ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.VatAmount));
+        var gross = await (
+            from line in db.CreditNoteLines
+            join note in creditNoteQuery on line.CreditNoteId equals note.Id
+            group line by line.CreditNoteId into g
+            select new { CreditNoteId = g.Key, Total = g.Sum(x => x.Amount + x.VatAmount) })
+            .ToDictionaryAsync(x => x.CreditNoteId, x => x.Total, cancellationToken);
 
         var result = new Dictionary<Guid, decimal>();
         foreach (var note in creditNotes)
@@ -425,25 +454,27 @@ internal static class OutstandingDocumentReader
         IAppDbContext db, Guid organizationId, DateOnly asOfDate, List<OutstandingDocument> candidates,
         CancellationToken cancellationToken)
     {
-        var billIds = candidates.Where(x => x.Type == AgeableDocumentType.PurchaseBill).Select(x => x.Id).ToList();
-        if (billIds.Count == 0)
+        if (!candidates.Any(x => x.Type == AgeableDocumentType.PurchaseBill))
         {
             return [];
         }
 
-        var debitNotes = await db.DebitNotes
+        // Phase 42 -- see LoadCreditNoteReductionsAsync; this is the supplier-side twin.
+        var debitNoteQuery = db.DebitNotes
             .Where(x => x.OrganizationId == organizationId && x.Status == DebitNoteStatus.Approved
                 && x.Date <= asOfDate && x.ReferrerType == DocumentType.PurchaseBill
-                && x.ReferrerId != null && billIds.Contains(x.ReferrerId.Value))
+                && x.ReferrerId != null);
+
+        var debitNotes = await debitNoteQuery
             .Select(x => new { x.Id, ReferrerId = x.ReferrerId!.Value, x.TdsAmount })
             .ToListAsync(cancellationToken);
 
-        var debitNoteIds = debitNotes.Select(x => x.Id).ToList();
-        var lines = await db.DebitNoteLines
-            .Where(x => debitNoteIds.Contains(x.DebitNoteId))
-            .Select(x => new { x.DebitNoteId, x.Amount, x.VatAmount })
-            .ToListAsync(cancellationToken);
-        var gross = lines.GroupBy(x => x.DebitNoteId).ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.VatAmount));
+        var gross = await (
+            from line in db.DebitNoteLines
+            join note in debitNoteQuery on line.DebitNoteId equals note.Id
+            group line by line.DebitNoteId into g
+            select new { DebitNoteId = g.Key, Total = g.Sum(x => x.Amount + x.VatAmount) })
+            .ToDictionaryAsync(x => x.DebitNoteId, x => x.Total, cancellationToken);
 
         var result = new Dictionary<Guid, decimal>();
         foreach (var note in debitNotes)

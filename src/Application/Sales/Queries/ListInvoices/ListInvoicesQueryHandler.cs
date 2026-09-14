@@ -63,12 +63,12 @@ public sealed class ListInvoicesQueryHandler(IAppDbContext db, ICurrentUserServi
         // for: `(OrganizationId, CreatedAt DESC)` and `(OrganizationId, Date)`, both built by
         // `TenantIndexConvention`. Either one is a seek plus an ordered range scan; anything else
         // would be a sort over the whole filtered set, which the pager would hide (34c).
-        var ordered = request.Sort switch
+        IOrderedQueryable<Invoice> Order(IQueryable<Invoice> source) => request.Sort switch
         {
-            ListSort.DocumentDate => query.OrderByDescending(x => x.Date).ThenByDescending(x => x.CreatedAt),
-            _ => query.OrderByDescending(x => x.CreatedAt),
+            ListSort.DocumentDate => source.OrderByDescending(x => x.Date).ThenByDescending(x => x.CreatedAt),
+            _ => source.OrderByDescending(x => x.CreatedAt),
         };
 
-        return await ordered.ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
+        return await query.ToKeyPagedResultAsync(x => x.Id, Order, request.Page, request.PageSize, cancellationToken);
     }
 }

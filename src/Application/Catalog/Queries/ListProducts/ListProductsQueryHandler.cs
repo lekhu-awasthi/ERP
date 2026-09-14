@@ -46,6 +46,7 @@ public sealed class ListProductsQueryHandler(IAppDbContext db)
             query = query.Where(x => x.Name.Contains(term) || x.Code.Contains(term) || (x.Sku != null && x.Sku.Contains(term)));
         }
 
-        return await query.OrderBy(x => x.Name).ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
+        return await query.ToKeyPagedResultAsync(
+            x => x.Id, q => q.OrderBy(x => x.Name), request.Page, request.PageSize, cancellationToken);
     }
 }

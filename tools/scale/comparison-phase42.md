@@ -1,0 +1,35 @@
+| endpoint | budget | p42-before p95 | p42-after3 p95 | p42-after4 p95 | verdict |
+|---|---|---|---|---|---|
+| `invoices.page1` | 500 | 93.9 | 52.5 | 61.8 | PASS |
+| `invoices.last` | 500 | 960.5 | 99.3 | 84.0 | PASS |
+| `invoices.search.hit` | 500 | 377.7 | 302.5 | 295.3 | PASS |
+| `invoices.search.miss` | 500 | 1262.2 | 275.2 | 264.7 | PASS |
+| `invoices.daterange` | 500 | 261.3 | 84.1 | 89.7 | PASS |
+| `invoices.status` | 500 | 386.2 | 131.9 | 132.7 | PASS |
+| `contacts.page1` | 500 | 74.6 | 45.2 | 42.5 | PASS |
+| `contacts.last` | 500 | 608.3 | 73.0 | 86.4 | PASS |
+| `contacts.search.hit` | 500 | 731.0 | 656.8 | 644.1 | **FAIL** |
+| `contacts.search.miss` | 500 | 1097.7 | 509.2 | 510.8 | **FAIL** |
+| `products.page1` | 500 | 44.9 | 50.8 | 28.0 | PASS |
+| `products.last` | 500 | 570.8 | 60.6 | 49.0 | PASS |
+| `products.search.hit` | 500 | 240.4 | 225.5 | 229.7 | PASS |
+| `purchase-bills.page1` | 500 | 43.9 | 41.4 | 42.9 | PASS |
+| `purchase-bills.last` | 500 | 314.3 | 56.9 | 81.2 | PASS |
+| `accounts.page1` | 500 | 50.2 | 23.4 | 43.9 | PASS |
+| `payments.page1` | 500 | 44.3 | 26.9 | 27.3 | PASS |
+| `journal-vouchers.page1` | 500 | 71.4 | 45.6 | 27.7 | PASS |
+| `stmt.trial-balance` | 2000 | 1409.0 | 1190.8 | 1547.8 | PASS |
+| `stmt.balance-sheet` | 2000 | 1909.2 | 1209.9 | 1243.5 | PASS |
+| `stmt.income-statement` | 2000 | 1807.1 | 1240.3 | 1285.9 | PASS |
+| `stmt.income-statement.compare` | 2000 | 1471.4 | 1306.6 | 1263.3 | PASS |
+| `reg.sales-register` | 2000 | 3885.4 | 1238.3 | 1292.2 | PASS |
+| `reg.sales-register.last` | 2000 | 4180.4 | 1303.5 | 1057.2 | PASS |
+| `reg.purchase-register` | 2000 | 1453.1 | 997.9 | 907.4 | PASS |
+| `rep.journal-report` | 2000 | 596.6 | 170.8 | 330.4 | PASS |
+| `rep.detail-general-ledger` | 2000 | 8297.0 | 1841.5 | 1820.1 | PASS |
+| `rep.general-ledger-summary` | 2000 | 1698.6 | 1288.8 | 1247.5 | PASS |
+| `rep.customer-ageing` | 2000 | 10335.6 | 1141.2 | 1078.8 | PASS |
+| `rep.sales-by-customer` | 2000 | 3458.2 | 1928.9 | 3708.9 | MIXED |
+| `search.common` | 500 | 1851.1 | 523.7 | 529.0 | **FAIL** |
+| `search.code` | 500 | 822.4 | 656.4 | 697.6 | **FAIL** |
+| `search.miss` | 500 | 959.8 | 885.6 | 856.8 | **FAIL** |

@@ -50,15 +50,26 @@ public sealed class ContactAgeingSummaryQueryHandler(IAppDbContext db, ICurrentU
             db, request.OrganizationId, request.ContactType, request.AsOfDate, cancellationToken,
             contactId: null, locationId: request.LocationId, reportLocations: reportLocations);
 
-        var contactIds = outstanding.Select(x => x.ContactId).Distinct().ToList();
         var contactsQuery = db.Contacts.Where(x => x.OrganizationId == request.OrganizationId && x.Type == request.ContactType);
         if (request.ContactGroupId is { } groupId)
         {
             contactsQuery = contactsQuery.Where(x => x.GroupId == groupId);
         }
 
+        // Phase 42. This read used to be narrowed by `contactIds.Contains(x.Id)`, where contactIds
+        // was every contact with an outstanding document -- 35,001 of them on the 50,000-invoice
+        // dataset. That narrowing cost more than it saved and by a long way: handing SQL Server an
+        // id list of that length makes it an OPENJSON parameter joined back to the table, measured
+        // at 182,545 logical reads and 699 ms, against roughly 1,500 reads for the ordered range
+        // scan of the same tenant's contacts that the (OrganizationId, Name, Code) index already
+        // supports. It is phase-34c's OPENJSON gotcha read the other way round: a list long enough
+        // to be worth avoiding is a list too long to send.
+        //
+        // Dropping it changes no figure. Every row below is built from `buckets`, which is keyed by
+        // the contacts that actually have an outstanding document, and the Contact Group filter
+        // still lives on this query -- a contact outside the group is absent from the dictionary
+        // and is skipped by the same `ContainsKey` check as before.
         var contacts = await contactsQuery
-            .Where(x => contactIds.Contains(x.Id))
             .Select(x => new { x.Id, x.Code, x.Name, x.GroupId })
             .ToDictionaryAsync(x => x.Id, cancellationToken);
 

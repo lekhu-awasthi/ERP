@@ -73,6 +73,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 39: the sanitised rich-text control, the Organization logo, standalone Deals/Tasks routes, the search results page. Before storing anything a user typed that is rendered later — `docs/phase-39-status.md`
 - Phase 40: the human WCAG pass (keyboard census, one focus ring, always-present live regions) + list-chrome leftovers. Before claiming an a11y criterion or writing a status message — `docs/phase-40-status.md`
 - Phase 41: subscription and plan model — the seeded `SubscriptionPlan` catalogue, `SubscriptionQuotaBehavior`, the shell banner. Before calling a tenant-level limit "enforcement" — `docs/phase-41-status.md`
+- Phase 42: performance follow-through (`ToKeyPagedResultAsync` on 16 lists, Detail General Ledger paged by row, the id lists that were costing more than they saved, the quota index, the bundle budget). Before paging a list, handing SQL a list of ids, or quoting a bundle size — `docs/phase-42-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -149,10 +150,15 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - An expression tree does not short-circuit, so `!flag || list.Contains(x)` hands EF a **null** list to translate — and only on the unrestricted branch, i.e. almost every caller. Compose a second `.Where()` (phase-33).
 - …but that generalises only to a captured **bool**: `collection == null || collection.Contains(x)` is funcletized to a constant and folded away, and returns 200 on SQL Server. Compose anyway; don't call an instance of it broken without running it (phase-35a, correcting phase-33).
 - A shared matcher cannot live inside a LINQ predicate: a **static call** is untranslatable and so is `Contains(term, StringComparison)` — and InMemory evaluates both in C#, so every handler test passes while all 25 endpoints 500 (phase-34b, phase-25's captured-`Func` through another door).
+- Same door, third time: a store-side `Sum` over an already-projected record is untranslatable, InMemory evaluates it, and only an E2E sees the 500. Project after `Skip`/`Take` (phase-42).
 - Single-argument `Contains` is case-**insensitive** on SQL Server (collation) and case-**sensitive** on InMemory; a handler test must search with the stored casing or it pins a behaviour production lacks (phase-34b).
 - Every tenant-scoped table needs an index leading on `OrganizationId`; `TenantIndexConvention` derives them and throws at model build for an entity it cannot classify (phase-34c).
 - An index added for one path changes the plan for every other path on the table (list 10× faster, no-match search 1.8× slower); re-measure the paths you did not touch (phase-34c).
 - A materialised id list handed back to SQL becomes an `OPENJSON` parameter as long as the list; a report that loads its period then re-queries children by `ids.Contains` is linear in the period, not in the page. `JournalReportQueryHandler` is the shape that is not (phase-34c).
+- …and the converse: a list long enough to be worth avoiding is too long to send. Narrowing by 35,001 ids cost 182,545 reads against ~1,500 for the scan; join the *query*, or drop it (phase-42).
+- A page's rows are fetched before they are eliminated: an offset of 49,950 costs 153,705 logical reads for whole entities and 571 for ids. Count, page the keys, fetch those rows (`ToKeyPagedResultAsync`, phase-42).
+- A count of zero is a complete answer — never issue the page query after it; that one branch, not any knowledge of searching, is what fixes a search term matching nothing (phase-42).
+- A ledger report's cost is the history *before* its period: the opening balance aggregates all of it, so the Detail General Ledger is now slower over one month than over three years (phase-42).
 - A list may offer an ordering only where an index leads on `(OrganizationId, <column>)`; an unknown sort value is a 400 naming the field, never a silent default (phase-40).
 - On a bulk-`INSERT`-seeded database, statistics quality moves a report that joins to a line table by 2× — more than most changes under test. `UPDATE STATISTICS ... WITH FULLSCAN` on both sides before comparing anything (phase-34c).
 - Read a handler's `Where` before assuming it matches its request — `ListPaymentsQueryHandler` shipped with a hardcoded `Direction == Received` (phase-6 bug #2).
@@ -341,23 +347,26 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–41 are complete.** The v1 sequence (0–25), the parity sequence (26–34c) and the
-consolidation sequence (35–41) are all done; each phase's story is in its `docs/phase-N-status.md`,
-and the completed planning entries are archived in `docs/roadmap-history.md`. Phase 41 ended on a
-named, unworkable-around limitation worth knowing on day one: `Tenancy.Subscription.Manage` sits on
-the tenant's own Admin because this codebase models one actor, so every quota and expiry is a record
-and a guard, not a control (re-entry: a vendor-side actor outside `OrganizationId`).
+**Phases 0–42 are complete.** The v1 sequence (0–25), the parity sequence (26–34c), the
+consolidation sequence (35–41) and the first completion phase (42) are all done; each phase's story
+is in its `docs/phase-N-status.md`, and the completed planning entries are archived in
+`docs/roadmap-history.md`. Phase 42 closed five of phase 34c's six carried items plus phase 41's
+unmeasured quota count, and retired keyset pagination rather than deferring it again: the offset
+tail's cost was the row fetch, not the offset. Two things it did **not** fix are worth knowing on
+day one — contact list search (510–656 ms, and the residue is a `LIKE '%term%'` count no index can
+seek) and global search (524–1,007 ms, untouched since 34c).
 
-**Next: phases 42–47 in `docs/roadmap.md`** (planned 2026-09-14 from the carried items of phases
-34c–41): the measured performance follow-through first, then aggregate completions, report semantics
-that need a live re-read, multi-UOM × variants and import ergonomics, the metered add-on axes, and
-the accessibility items that need a person with a screen reader. The deferred list (DO/GRN, POS,
-IRD, Marketplace, unrealised forex, per-user location, multi-level BOM) is unchanged.
+**Next: phases 43–47 in `docs/roadmap.md`** (planned 2026-09-14 from the carried items of phases
+34c–41): aggregate completions that many later screens depend on, then report semantics needing a
+live re-read, then multi-UOM × variants and import ergonomics, then the metered add-on axes and the
+accessibility items that need a person with a screen reader. The deferred list (DO/GRN, POS, IRD,
+Marketplace, unrealised forex, per-user location, multi-level BOM) is unchanged.
 
-Tests at last count: Domain 660, Application.UnitTests 1081, Api.IntegrationTests 29, Angular 440;
-`dotnet build` / `dotnet test` / `ng build` / `ng test` all clean. `ng build` warns the initial bundle
-exceeds its 500 kB budget (651 kB, pre-existing). `tsc --noEmit` does not cover `web/src/app`;
-`ng build` is the check (phase-28), and `ng test` must be run from `web/` (phase-35a).
+Tests at last count: Domain 660, Application.UnitTests 1091, Api.IntegrationTests 29, Angular 443;
+`dotnet build` / `dotnet test` / `ng build` / `ng test` all clean, and `ng build` no longer warns —
+phase 42 moved the initial-bundle budget to a measured 680 kB, pinned by `build-budget.spec.ts`.
+`tsc --noEmit` does not cover `web/src/app`; `ng build` is the check (phase-28), and `ng test` must
+be run from `web/` (phase-35a).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a
