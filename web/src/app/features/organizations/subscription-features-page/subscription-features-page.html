@@ -2,7 +2,7 @@
   <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
       <h1 class="h3 fw-bold mb-1 text-dark">Subscription &amp; Features</h1>
-      <p class="text-muted small mb-0">Your plan and the Accounting Features this organization opted into.</p>
+      <p class="text-muted small mb-0">Your plan, what it allows, and the Accounting Features this organization opted into.</p>
     </div>
     <a [routerLink]="['/organizations', organizationId]" class="btn btn-outline-secondary btn-sm fw-bold">
       <i aria-hidden="true" class="bi bi-arrow-left"></i> Back to dashboard
@@ -40,35 +40,127 @@
         <dl class="row mb-0 mt-4 small">
           <dt class="col-6 col-sm-4 text-muted fw-normal">Started</dt>
           <dd class="col-6 col-sm-8 mb-2">{{ sub.trialStartsAt | slice: 0 : 10 }}</dd>
+          <dt class="col-6 col-sm-4 text-muted fw-normal">Current term began</dt>
+          <dd class="col-6 col-sm-8 mb-2">{{ sub.termStartsAt | slice: 0 : 10 }}</dd>
+          <!-- Phase 41. Phase 33 recorded Subscription Amount as a dead field after reading 0.00 on
+               two tenants; both were free trials, and the published price list sells three tiers at
+               Rs 15,000 / 20,000 / 32,000 a year. Zero here means a trial, not an unused column. -->
+          <dt class="col-6 col-sm-4 text-muted fw-normal">Subscription amount</dt>
+          <dd class="col-6 col-sm-8 mb-2">
+            @if (sub.subscriptionAmount > 0) {
+              Rs. {{ sub.subscriptionAmount | amount }} per term
+            } @else {
+              <span class="text-muted">Not charged (trial)</span>
+            }
+          </dd>
           <dt class="col-6 col-sm-4 text-muted fw-normal">Features enabled</dt>
           <dd class="col-6 col-sm-8 mb-2">{{ enabledCount() }} of {{ sub.features.length }}</dd>
+          <dt class="col-6 col-sm-4 text-muted fw-normal">IRD Verified</dt>
+          <dd class="col-6 col-sm-8 mb-2">{{ sub.irdVerified ? 'Yes' : 'No' }}</dd>
           <dt class="col-6 col-sm-4 text-muted fw-normal">IRD Sync</dt>
           <dd class="col-6 col-sm-8 mb-0">{{ sub.irdSyncEnabled ? 'Enabled' : 'Not enabled' }}</dd>
         </dl>
       </div>
     </div>
 
-    <!-- Phase 31 -- the only control on this page. Past the end date the organization is read-only
-         for business documents, so a renewal has to be reachable from inside the product. It moves
-         the plan name and the end date; the entitlement flags below stay immutable. -->
+    <!-- Phase 41 -- usage against the two metered ceilings. Both numbers come from the same reader
+         the server's quota gate blocks on, so this cannot show headroom an Approve then refuses. -->
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body p-4">
-        <h2 class="h5 fw-bold mb-1 text-dark">Renew</h2>
+        <h2 class="h5 fw-bold mb-1 text-dark">Usage</h2>
+        <p class="text-muted small mb-4">
+          What this organization has used of the allowances its plan includes. Capacity is added by your Tigg
+          representative; there is no self-service purchase.
+        </p>
+
+        <div class="mb-4">
+          <div class="d-flex justify-content-between align-items-baseline mb-1">
+            <span class="small fw-semibold text-dark" id="usage-transactions-label">Transactions this term</span>
+            <span class="small text-muted">
+              @if (transactionMeter().metered) {
+                {{ transactionMeter().used | number }} of {{ transactionMeter().quota | number }}
+              } @else {
+                {{ transactionMeter().used | number }} — no limit on this plan
+              }
+            </span>
+          </div>
+          <div class="progress" style="height: 0.5rem;">
+            <div
+              class="progress-bar"
+              [class]="transactionMeter().tone"
+              role="progressbar"
+              aria-labelledby="usage-transactions-label"
+              [attr.aria-valuenow]="transactionMeter().percent"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              [style.width.%]="transactionMeter().percent"
+            ></div>
+          </div>
+          <p class="form-text mb-0">
+            An invoice, bill, payment, journal voucher or any other document that posts to the ledger counts once,
+            whether or not it is later voided. Quotations, sales orders, purchase orders and production orders do
+            not count.
+          </p>
+        </div>
+
+        <div>
+          <div class="d-flex justify-content-between align-items-baseline mb-1">
+            <span class="small fw-semibold text-dark" id="usage-products-label">Products</span>
+            <span class="small text-muted">
+              @if (productMeter().metered) {
+                {{ productMeter().used | number }} of {{ productMeter().quota | number }}
+              } @else {
+                {{ productMeter().used | number }} — no limit on this plan
+              }
+            </span>
+          </div>
+          <div class="progress" style="height: 0.5rem;">
+            <div
+              class="progress-bar"
+              [class]="productMeter().tone"
+              role="progressbar"
+              aria-labelledby="usage-products-label"
+              [attr.aria-valuenow]="productMeter().percent"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              [style.width.%]="productMeter().percent"
+            ></div>
+          </div>
+          <p class="form-text mb-0">Variants count as products, each carrying its own code and price.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase 31 added this control; phase 41 replaced its free-text plan name with the catalogue.
+         Past the end date the organization is read-only for business documents, so recording a term
+         has to be reachable from inside the product. The entitlement flags below stay immutable: a
+         billing event is not a re-negotiation of what the tenant may model. -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <h2 class="h5 fw-bold mb-1 text-dark">Record a subscription term</h2>
         <p class="text-muted small mb-3">
           Past the end date this organization can still be read, printed and exported, but no document can be
-          created, edited, approved or voided.
+          created, edited, approved or voided. Choosing a plan records the ceilings it includes; it does not
+          change which Accounting Features this organization has.
         </p>
         <app-status-banner [message]="successMessage()" tone="success" spacing="mb-2" />
         <div class="row g-3 align-items-end">
           <div class="col-12 col-sm-5">
-            <label class="form-label small fw-semibold" for="renew-plan">Plan name</label>
-            <input
+            <label class="form-label small fw-semibold" for="renew-plan">Plan</label>
+            <select
               id="renew-plan"
-              type="text"
-              class="form-control"
-              [value]="renewPlanName()"
-              (input)="renewPlanName.set($any($event.target).value)"
-            />
+              class="form-select"
+              (change)="renewPlanId.set($any($event.target).value)"
+            >
+              <!-- [selected] per option, never [value] on the select: phase 5/6/7's native-select
+                   race, which persisted wrong ids rather than merely displaying them wrong. -->
+              <option value="" [selected]="renewPlanId() === ''">Trial — no plan, no limits</option>
+              @for (plan of plans(); track plan.id) {
+                <option [value]="plan.id" [selected]="renewPlanId() === plan.id">
+                  {{ plan.name }} — Rs. {{ plan.annualAmount | amount }} / year
+                </option>
+              }
+            </select>
           </div>
           <div class="col-12 col-sm-4">
             <label class="form-label small fw-semibold" for="subscription-features-page-ends-on">Ends on</label>
@@ -80,8 +172,105 @@
           </div>
           <div class="col-12 col-sm-3">
             <button class="btn btn-primary fw-bold w-100" type="button" [disabled]="renewing()" (click)="renew()">
-              {{ renewing() ? 'Saving...' : 'Renew' }}
+              {{ renewing() ? 'Saving...' : 'Save' }}
             </button>
+          </div>
+        </div>
+
+        @if (selectedPlan(); as plan) {
+          <div class="mt-3 p-3 border rounded bg-light">
+            <p class="small fw-semibold text-dark mb-1">{{ plan.name }}</p>
+            <p class="text-muted small mb-2">{{ plan.description }}</p>
+            <p class="small mb-2">
+              Up to {{ plan.productQuota | number }} products and
+              {{ plan.transactionQuota | number }} transactions per year.
+            </p>
+            <ul class="list-unstyled small mb-0 d-flex flex-column gap-1">
+              @for (feature of plan.includedFeatures; track feature.name) {
+                <li [class]="feature.isIncluded ? 'text-success-emphasis' : 'text-muted'">
+                  <i
+                    aria-hidden="true"
+                    class="bi me-1"
+                    [class]="feature.isIncluded ? 'bi-check-circle' : 'bi-x-circle'"
+                  ></i>
+                  <span class="visually-hidden">{{ feature.isIncluded ? 'Included:' : 'Not included:' }}</span>
+                  {{ feature.name }}
+                </li>
+              }
+            </ul>
+          </div>
+        }
+
+        <button
+          class="btn btn-link btn-sm px-0 mt-3"
+          type="button"
+          [attr.aria-expanded]="showAdvanced()"
+          aria-controls="subscription-advanced"
+          (click)="toggleAdvanced()"
+        >
+          {{ showAdvanced() ? 'Hide' : 'Show' }} negotiated price and add-ons
+        </button>
+
+        <!-- Bootstrap's JS is not loaded anywhere in this app, so aria-expanded is set by hand above
+             and visibility is driven from the signal rather than data-bs-collapse. -->
+        <div id="subscription-advanced" [hidden]="!showAdvanced()">
+          <p class="text-muted small mb-3">
+            Leave a box empty to use the plan's published figure. Fill one in to record a negotiated price, or the
+            extra capacity bought as an add-on.
+          </p>
+          <div class="row g-3">
+            <div class="col-12 col-sm-4">
+              <label class="form-label small fw-semibold" for="renew-amount">Amount charged (Rs.)</label>
+              <input
+                id="renew-amount"
+                type="number"
+                min="0"
+                step="0.01"
+                class="form-control"
+                [value]="renewAmount()"
+                (input)="renewAmount.set($any($event.target).value)"
+              />
+            </div>
+            <div class="col-12 col-sm-4">
+              <label class="form-label small fw-semibold" for="renew-product-quota">Product limit</label>
+              <input
+                id="renew-product-quota"
+                type="number"
+                min="0"
+                step="1"
+                class="form-control"
+                [value]="renewProductQuota()"
+                (input)="renewProductQuota.set($any($event.target).value)"
+              />
+              <div class="form-text">0 means no limit.</div>
+            </div>
+            <div class="col-12 col-sm-4">
+              <label class="form-label small fw-semibold" for="renew-transaction-quota">Transaction limit</label>
+              <input
+                id="renew-transaction-quota"
+                type="number"
+                min="0"
+                step="1"
+                class="form-control"
+                [value]="renewTransactionQuota()"
+                (input)="renewTransactionQuota.set($any($event.target).value)"
+              />
+              <div class="form-text">0 means no limit.</div>
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input
+                  id="renew-ird-verified"
+                  type="checkbox"
+                  class="form-check-input"
+                  [checked]="renewIrdVerified()"
+                  (change)="renewIrdVerified.set($any($event.target).checked)"
+                />
+                <label class="form-check-label small" for="renew-ird-verified">
+                  IRD Billing add-on has been paid for (IRD Verified)
+                </label>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -91,7 +280,8 @@
       <div class="card-header bg-white p-4 border-0">
         <h2 class="h5 fw-bold mb-1 text-dark">Accounting Features</h2>
         <p class="text-muted small mb-0">
-          These were chosen when this organization was created and cannot be changed afterwards.
+          These were chosen when this organization was created and cannot be changed afterwards, including by
+          moving to another plan.
         </p>
       </div>
       <div class="card-body p-4 pt-0">

@@ -31,6 +31,10 @@ public interface IAppDbContext
     DbSet<Organization> Organizations { get; }
     DbSet<TenantSettings> TenantSettings { get; }
     DbSet<TenantSubscription> TenantSubscriptions { get; }
+
+    /// <summary>Phase 41 -- the vendor's plan catalogue. The one table here with no
+    /// <c>OrganizationId</c>: the same three seeded rows for every tenant.</summary>
+    DbSet<SubscriptionPlan> SubscriptionPlans { get; }
     DbSet<Warehouse> Warehouses { get; }
     DbSet<Currency> Currencies { get; }
     DbSet<BillingLocation> BillingLocations { get; }

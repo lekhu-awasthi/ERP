@@ -786,3 +786,32 @@ Moved verbatim; the one-line versions in CLAUDE.md keep the same "before X" hook
   glob named a file extension, so five inline-`template:` components had been outside all nine
   assertions since 34a, and its control test accepted `[id]` but not `[attr.id]` while its label test
   already accepted both spellings of `for` — `docs/phase-40-status.md`
+
+- **Phase 41 — the subscription and plan model.** **Before recording a field as dead**: check what the
+  *seller* publishes before asking for another tenant. Phase 33 Decision D read Subscription Amount at
+  `0.00` and the quotas at `Standard ( 0 Txn, 0 Products)` on two tenants and retired all three; both
+  tenants were **free trials**, and tiggapp.com/pricing sells three tiers whose entire commercial
+  difference is exactly those fields. Phase 32's rule says a field dead on the tenant you looked at is
+  a fact about that tenant and prescribes another tenant — but the public price list settled it in one
+  page load *and* gave the ceilings, the prices, the add-on catalogue and a one-sentence definition of
+  the metered unit that no tenant reading would have contained. **Before deciding what a commercial
+  feature meters**: the vendor's Terms said it — *"Active transactions refers to all transactions in
+  which accounting entry are affected"* — which selects exactly the eleven transactional types that
+  post to the GL and excludes Quotation, SalesOrder, PurchaseOrder and ProductionOrder for a stated
+  reason, with `OpeningBalance`/`OpeningStock` excluded separately as setup rather than trade.
+  **Before storing any ceiling**: zero means *not metered*, following phase 31's live-confirmed credit
+  limit, and it is the most dangerous number in the feature — read as a ceiling it tells every trial
+  tenant, which is every new tenant, that it is out of allowance on day one. **Before caching a usage
+  figure**: don't. Two writers means drift (phase 21a) and there is nothing to reconcile against; one
+  `SubscriptionUsageReader` behind both the gate and the screen makes the bar a user sees and the
+  refusal an Approve gets the same number by construction, and a quota of 0 short-circuits before any
+  query so the common path costs nothing. **Before believing a quota, an expiry or any tenant-level
+  ceiling is enforcement**: ask who can write it. `Tenancy.Subscription.Manage` is seeded to the
+  tenant's own **Admin**, so the party constrained is the party that can lift it — not a mis-seeded
+  key but the consequence of this codebase modelling exactly one actor while a subscription is
+  inherently a two-party record. That is phase 31's "name the command that writes it" turned around:
+  here the writer is nameable, and that is precisely the problem. **And before shipping any state two
+  surfaces show**: the shell banner still read *"366 days remaining in your trial"* on the page that
+  had just recorded a Standard plan — phase 34b's rule one surface over, found only by driving the app,
+  and fixed with a shared `SubscriptionStore` the screen saves *through* —
+  `docs/phase-41-status.md`

@@ -1,0 +1,14 @@
+@if (notice(); as state) {
+  <!-- No live-region role: this is furniture that renders with the page, not a response to
+       something the user just did. See the component's doc comment and phase-40's rule. -->
+  <div class="alert border-0 rounded-0 mb-0 py-2 px-3 d-flex align-items-center gap-2 small" [class]="state.tone">
+    <i aria-hidden="true" class="bi bi-info-circle-fill"></i>
+    <span class="flex-grow-1">{{ state.message }}</span>
+    <a
+      [routerLink]="['/organizations', organizationId(), 'features']"
+      class="btn btn-sm btn-outline-dark fw-bold flex-shrink-0"
+    >
+      View subscription
+    </a>
+  </div>
+}

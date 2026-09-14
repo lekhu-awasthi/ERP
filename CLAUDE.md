@@ -72,6 +72,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 38: import/export breadth — 5 new upload types, intra-file tree ordering, a pre-commit dry run, export by category + date range. Before adding an importer, a template, or an array parameter to a POST — `docs/phase-38-status.md`
 - Phase 39: the two editors — one sanitised rich-text control (`RichText`: re-emission, not filtering, in the Domain setters), the Organization logo in the printed header, `BalanceConfirmation`'s first consumer, standalone Deals/Tasks routes, Quick Links drag, the search results page. Before storing anything a user typed that is rendered later, before accepting an uploaded image, or before trusting that a guard still covers its subject — `docs/phase-39-status.md`
 - Phase 40: the human WCAG pass (keyboard census, one focus ring, `app-status-banner`'s always-present live region) + 34b's list-chrome leftovers. Before claiming an a11y criterion holds, writing a status message, choosing a focus colour, or offering a list an ordering — `docs/phase-40-status.md`
+- Phase 41: subscription and plan model — the seeded `SubscriptionPlan` catalogue, the commercial terms on `TenantSubscription`, quota enforcement on both axes (`SubscriptionQuotaBehavior`, the 6th behavior), the shell subscription banner. Before recording a field as dead, before calling a tenant-level limit "enforcement", or before shipping state two surfaces show — `docs/phase-41-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -188,6 +189,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Rich text is sanitised **on write, in the Domain setter**, by *re-emission*: parsed into a tree whose only attribute slot is a four-valued enum, re-emitted from the emitter's own constants, so a tokenizer bug can produce wrong formatting and never an attribute, tag name or URL from the input. `Sanitize` must stay idempotent — a document is re-saved on every edit (phase-39).
 - A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
 - A tenant-level field is reachable only if you can name the command that writes it and the screen that calls it; a read path proves nothing about the write path (phase-31).
+- …and the mirror of that: **before calling any tenant-level limit "enforcement", ask who can write it.** `Tenancy.Subscription.Manage` is seeded to the tenant's own Admin, so the party a quota or an expiry constrains can raise it — not a mis-seeded key but the consequence of modelling exactly one actor while a subscription is a two-party record. Such a ceiling is an accurate record and a guard against drifting past it unnoticed, never a control that survives an adversary; say so in the behavior, the command *and* the doc (phase-41).
+- A field dead on the two tenants you could reach is **one sample, not two** — phase 33 retired Subscription Amount and both quotas after reading zeros on two *free trials*, and the vendor's public price list sells three tiers whose whole commercial difference is those fields. Before asking for another tenant, read what the seller publishes: it also carries the contractual definitions no screen ever shows (phase-41, generalising phase-30's find-the-rule and phase-32's it's-a-fact-about-that-tenant).
 - Two confirmable warnings on one document need two override flags and a `warningKind` on the 422, or confirming the first waives the second (phase-31).
 - A non-nullable column on a populated table needs a hand-written backfill; the scaffold's `DEFAULT '0001-01-01'` back-dates every row and leaves a stray constraint (phase-31) — but a default is *safe* exactly when it is the truth about the rows already there, which is why `StockMovement.ValueAdjustment` needed none (phase-37).
 - A permission that depends on the requested value as well as the loaded row is the `AttachmentAccess` pattern; the E2E must show 404 on a missing row and 403 on a real one (phase-31's cheque bounce).
@@ -254,6 +257,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Bootstrap's brand tones clear WCAG's 4.5:1 against **pure white** and only just, so they fail on this app's `#f8f9fa` body; the four text utilities are re-pointed at its `-600` shades in `styles.scss`, and `contrast-rules.ts` is the measured palette the guard derives from (phase-34a).
 - Bootstrap's JS is not loaded, so nothing sets `aria-expanded` for free — every signal-driven popup must set it itself (phase-34a, extending phase-22's gotcha).
 - A filter a screen **displays but did not apply** is worse than no filter: anything global a screen both shows and sends must reload that screen when it changes, from the first version (phase-34b).
+- The same rule with a banner instead of a filter: **state two surfaces show, and one of them changes, needs a shared store** — the shell subscription banner still read "366 days remaining in your trial" on the page that had just recorded a paid plan. Both components were individually correct, so no unit test saw it; the screen must *save through* the store the banner reads (phase-41).
 - A swept-in filter handler must copy what the **sibling** handlers on that page do, not a template: on a paginated page whose reload is `load()` rather than `reload()`, every other filter also calls `page.set(1)`, and without it a narrowing filter applied on page 3 reads as "this branch has no data" (phase-35b).
 - An `effect()` cannot tell "the write already being acted on" from "a write needing action" — if the handler that wrote the signal already schedules the response, an effect over it is a race (phase-34b).
 - Never put `overflow` on a layout container without asking what is anchored inside it; the rail's `overflow: hidden` clipped a 46rem flyout to 240px, silently (phase-34b, phase-22's gotcha in a second container).
@@ -274,6 +278,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 **Testing and manual E2E**
 - A vendor's always-pass dummy credential (Turnstile `1x000…AA`) accepts any input; proving the negative path needs the always-fail one (`2x000…AA`) swapped in (phase-20g).
+- A negative permission proof needs its **positive half in the same run**: `AuthorizationBehavior` returns the identical message for "not a member" and "lacks the key", so a 403 only means the key if the same user gets a 200 on a read of the same organization. `accept-invitation` is authenticated — log in *before* accepting, or the membership stays `Invited` and every later 403 is vacuous (phase-41).
+- `sqlcmd -S localhost` against a **named** instance returns nothing and reports nothing; read the instance from the connection string (`DESKTOP-H0R00ME\SQLEXPRESS` here). Only printing every status code makes the resulting 400 visible (phase-41).
 - Two implementations of one rule in two languages are pinned to a **shared table read by both suites**, not to each other (`rich-text-cases.json`, linked in as an embedded resource so a moved file is a build error) — phase-26b's `BsCalendar`/`bs-date.ts` arrangement; it caught a real whitespace divergence within the hour (phase-39).
 - A guard whose predicate names a **type** silently stops covering anything solved before that type existed: `SearchSweepGuardTests` recognised only `PagedResult<T>`, so the two list queries that predate it were invisible — and were exactly the two the phase had to fix (phase-39).
 - …and a predicate naming a **file extension** does the same: `a11y-sweep-guard`'s glob missed five inline-`template:` components for six phases. Widening it found nothing wrong, which is the honest result and not the same as never having looked (phase-40).
@@ -335,61 +341,57 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–40 are complete.** Phase 40 was the human accessibility pass phase 34a said a machine
-could not do, plus 34b's list-chrome leftovers. Its stated risk was *a large diff that proves
-nothing* — a pass driven from a checklist rather than from a keyboard — so the phase is organised the
-other way round: drive the app, record what that finds, then write code.
+**Phases 0–41 are complete.** Phase 41 opened with a product question the roadmap had left standing —
+*is this product selling plans at all?* — and the answer came from a document nobody had read: **the
+vendor's own public price list**. Tigg sells three metered tiers (Basic Rs 15,000 / Standard
+Rs 20,000 / Professional Rs 32,000 a year), separated by a product ceiling, a transaction ceiling and
+which entitlements are included, with six add-on lines beside them. **So phase 33 Decision D's premise
+was false**: Subscription Amount and the two quotas are not dead fields, they are the product — and
+both tenants 33 sampled were free trials, which is exactly what `0.00` and `Standard ( 0 Txn, 0
+Products)` mean.
 
-What driving it found is a pattern worth carrying: **every defect a guard could not see was about
-something that is not there.** A click handler with no focusable element (the organization picker's
-rows were `<div (click)>`, so a keyboard user could sign in and reach none of the other 140 screens —
-six focusable elements on a page with 114 organizations). A focus ring that is painted and invisible
-(Bootstrap's is the control's own tone at 50% alpha: 1.21–2.53:1 against WCAG's 3:1, so `styles.scss`
-paints one opaque `#0a58ca` outline instead). A live region with no prior existence (163 banners
-spelled `@if (msg) { <div role="alert"> }`, which announces nothing, confirmed with a
-MutationObserver against the running app; `app-status-banner` keeps the region outside the `@if`, and
-the guard then found seven more in the `role="status"` spelling). A label whose control vanishes at
-runtime on a single-location tenant, on 22 screens. And a `role="toolbar"` that promised a roving tab
-stop it never implemented. **`aria-invalid` and `aria-describedby` appeared zero times** in the
-codebase before this phase; 25 ARIA groupings named nothing.
+Built: the seeded `SubscriptionPlan` catalogue (the first aggregate here with **no `OrganizationId`**);
+plan, amount, both quotas, IRD Verified and `TermStartsAt` on `TenantSubscription`; **quota enforcement
+on both axes** through `SubscriptionQuotaBehavior`, the sixth pipeline behavior, over eleven metered
+types taken from the vendor's own Terms (*"all transactions in which accounting entry are affected"*);
+one `SubscriptionUsageReader` behind both the gate and the screen so the meter and the refusal are one
+number by construction; the plan picker and usage meters; and `app-subscription-notice`, the shell
+banner that makes an ending subscription foreseeable instead of a 409 mid-approval.
 
-The guards learned two things about themselves. `a11y-sweep-guard`'s glob names a file *extension*,
-so five inline-`template:` components had been outside all nine assertions since 34a — widening it
-found nothing wrong, which is the honest result and not the same as never having looked. And it
-accepted `[for]` and `[attr.for]` on a label but only `[id]` on a control.
+**Nothing is sold in the app, confirmed rather than assumed:** every "Get Started" on all three paid
+tiers links to the free-trial signup, and the in-app expiry CTA is CONTACT US. No payment integration
+is in scope.
 
-34b's leftovers close with reasons rather than shrugs: `sortOptions` has its first consumer and a
-re-entry condition that can be checked (**an ordering may be offered when an index leads on
-`(OrganizationId, <that column>)`** — a reading of 34c, not a preference); six unpaginated
-Configurations lookups filter client-side; and `transaction-list-page` is a report while
-`alert-list-page` is a configuration-lookup list, which is why "list or report" resisted for two
-phases — the premise was false. 1.4.10 Reflow passes at 320 px on all three shapes, which is a
-finding too.
+**The limitation worth carrying above all others:** `Tenancy.Subscription.Manage` is seeded to the
+tenant's own Admin, so the party a quota constrains can raise it. There is no other role to give it to
+— this codebase models exactly one actor while a subscription is inherently two-party. Named in the
+behavior, the command and the status doc rather than worked around. **Re-entry: a vendor-side console,
+or any actor outside `OrganizationId`.**
 
-**Next: phase 41 in `docs/roadmap.md`** — and it opens with a product decision, not a build: *is this
-product selling plans at all?* If the answer is no, 41 is a retirement with reasons rather than a
-phase. Carried out of 40: **nobody has heard the app** — no screen reader was available in this
-environment, so the live regions and the roving toolbar are right by specification and by DOM
-evidence, not by ear; `aria-describedby` reaches only the 15 fields that had a per-field message at
-all; the `Sort by` control has one consumer of the eighteen that now qualify; and two lists in the
-same app answer "search" from two places with nothing enforcing that they keep agreeing. Carried out
-of 39: Deal/Task **detail** pages need `Deal` and `WorkTask` in the three polymorphic parent enums
-plus a third route family; the nine Organization detail fields are read-only and there is no
-`UpdateOrganizationCommand` at all; the printed header still diverges from live's centred
+**Next: phase 42 — the roadmap has no numbered entry past 41**, so the next session's first job is to
+choose from what is carried rather than to execute a written plan. Carried out of 41: the self-liftable
+ceiling above; `TrialStartsAt`/`TrialEndsAt` now misnamed (they describe any term); the usage count
+never measured against 34c's 50k dataset; four metered add-on axes (locations, SMS, AI scans) still
+unmodelled; and a small quota overshoot under concurrent approves. Carried out of 40 and still open:
+**nobody has heard the app** — no screen reader was available, so 40's live regions and roving toolbar
+are right by specification and DOM evidence, not by ear; that is an hour with NVDA and a person's
+ears, worth scheduling rather than assigning to a session. Also from 40: `aria-describedby` reaches
+only the 15 fields that had a per-field message, and `Sort by` has one consumer of eighteen that
+qualify. Carried out of 39: Deal/Task **detail** pages need `Deal` and `WorkTask` in the three
+polymorphic parent enums plus a third route family; the nine Organization detail fields are read-only
+with no `UpdateOrganizationCommand` at all; the printed header still diverges from live's centred
 arrangement; the rich-text grammar carries no tables or images. Carried out of 38: the dry run cannot
 see what only writing can; variant import needs the parent's attribute pool configured first;
-`MaxRowsPerWorkbook` is still one machine's memory law. Carried out of 37: Inventory Master still
-lacks WarehouseTransfer and OpeningStock rows; multi-UOM × variants is unbuilt; a standalone Debit
-Note's Goods line still credits Inventory without touching the ledger. Carried out of 36:
-product-to-location is enforced on the picker but not at save; *Display Warehouse in Column* and
-`sales-summary`'s Group Wise location grouping are unbuilt; the Sales Register's money columns are
-still transaction-currency.
+`MaxRowsPerWorkbook` is still one machine's memory law. Carried out of 37: Inventory Master still lacks
+WarehouseTransfer and OpeningStock rows; multi-UOM × variants is unbuilt; a standalone Debit Note's
+Goods line still credits Inventory without touching the ledger. Carried out of 36: product-to-location
+is enforced on the picker but not at save; *Display Warehouse in Column* and `sales-summary`'s Group
+Wise location grouping are unbuilt; the Sales Register's money columns are still transaction-currency.
 
-Tests: Domain 640, Application.UnitTests 1060, Api.IntegrationTests 29, Angular 426. `dotnet build` /
-`dotnet test` / `ng build` / `ng test` all clean; 34a's two `NG8113` warnings are gone. `ng build`
-still warns the initial bundle exceeds its 500 kB budget (pre-existing, 651 kB). `tsc --noEmit` does
-not cover `web/src/app`; `ng build` is the check (phase-28), and `ng test` must be run from `web/`
-(phase-35a).
+Tests: Domain 660, Application.UnitTests 1081, Api.IntegrationTests 29, Angular 440. `dotnet build` /
+`dotnet test` / `ng build` / `ng test` all clean. `ng build` still warns the initial bundle exceeds its
+500 kB budget (pre-existing, 651 kB). `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
+check (phase-28), and `ng test` must be run from `web/` (phase-35a).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

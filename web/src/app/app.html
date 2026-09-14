@@ -42,6 +42,13 @@
         </search>
         <app-date-range-picker />
       </div>
+
+      <!-- Phase 41. Expiry has been enforced since phase 31 and rendered on exactly one screen four
+           clicks deep, so a tenant's first notice of it was a 409 mid-approval; phase 41 added two
+           more ceilings that can refuse work the same way. The reference product carries the same
+           banner on its dashboard (confirm-live, Cadehi 2026-09-10). Inside the header so it is
+           inset by the nav rail like everything else, and so it cannot be scrolled past. -->
+      <app-subscription-notice [organizationId]="orgId" />
     </header>
   }
 }

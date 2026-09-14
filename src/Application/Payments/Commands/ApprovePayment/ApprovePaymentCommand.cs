@@ -11,11 +11,13 @@ namespace ErpApp.Application.Payments.Commands.ApprovePayment;
 /// unchanged.</summary>
 public sealed record ApprovePaymentCommand(
     Guid OrganizationId, Guid Id, bool OverrideNegativeCashBalanceWarning = false)
-    : IRequest<ApprovePaymentResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitiveDocument
+    : IRequest<ApprovePaymentResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitiveDocument, IMeteredTransaction
 {
     public string PermissionKey => PermissionKeys.PaymentApprove;
     public DocumentType LockDateDocumentType => DocumentType.Payment;
     public Guid LockDateDocumentId => Id;
+
+    public DocumentType MeteredDocumentType => DocumentType.Payment;
 }
 
 public sealed record ApprovePaymentResult(Guid Id, string Code, PaymentStatus Status, DateTimeOffset? ApprovedAt);

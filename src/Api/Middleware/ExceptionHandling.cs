@@ -41,6 +41,11 @@ public static class ExceptionHandling
                 // must waive only the warning it was shown for.
                 CreditLimitWarningException => (StatusCodes.Status422UnprocessableEntity, exception.Message),
                 CashBalanceWarningException => (StatusCodes.Status422UnprocessableEntity, exception.Message),
+                // Phase 41 -- a metered allowance the plan sold is spent. A 409 beside the
+                // subscription-expired ConflictException rather than a 422: unlike phase 31's two
+                // warnings, nobody hitting a quota can confirm their way past it. Told apart from
+                // every other 409 by the quotaKind extension below.
+                SubscriptionQuotaExceededException => (StatusCodes.Status409Conflict, exception.Message),
                 Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException => (
                     StatusCodes.Status409Conflict, "This record was modified by someone else. Please reload and try again."),
                 NotFoundException => (StatusCodes.Status404NotFound, exception.Message),
@@ -85,6 +90,15 @@ public static class ExceptionHandling
             if (warningKind is not null)
             {
                 problem.Extensions["warningKind"] = warningKind;
+            }
+
+            // Phase 41 -- which ceiling was reached, so a screen can name it and point at the right
+            // add-on without parsing the message. Absent on every other status code.
+            if (exception is SubscriptionQuotaExceededException quota)
+            {
+                problem.Extensions["quotaKind"] = quota.Kind.ToString();
+                problem.Extensions["quotaUsed"] = quota.Used;
+                problem.Extensions["quotaLimit"] = quota.Quota;
             }
 
             await context.Response.WriteAsJsonAsync(problem);

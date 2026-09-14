@@ -32,6 +32,7 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
 
     public DbSet<TenantSubscription> TenantSubscriptions => Set<TenantSubscription>();
+    public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
 
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
 

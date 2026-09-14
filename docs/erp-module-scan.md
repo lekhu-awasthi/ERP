@@ -1050,3 +1050,74 @@ toolbar control — the same funnel CUSTOMER, INVOICE DATE and TOTAL carry.
 Invoice form does — the All-Transactions scope reaches the accounting module, not only sales and
 purchase. Its body is `#JV | Date* | Reference | Currency | Exchange Rate To NPR* | Accounts grid |
 Note | + Add Reporting Tags`, with no location field anywhere in it.
+
+---
+
+## The vendor's public price list (`tiggapp.com/pricing`, read 2026-09-14, phase 41)
+
+Not a tenant reading at all — the **seller's own marketing site**, which turned out to be the cheapest
+confirm-live experiment in the project so far. Phase 33 Decision D had recorded Subscription Amount
+and the two quotas as dead fields after seeing `0.00` and `Standard ( 0 Txn, 0 Products)` on both
+Moonbeam and Cadehi. Both tenants are free trials. This page shows what those fields hold on a paying
+one.
+
+### The three tiers
+
+| | BASIC | STANDARD | PROFESSIONAL |
+|---|---|---|---|
+| **Annual price** | Rs 15,000 | Rs 20,000 | Rs 32,000 |
+| Positioning | "service based businesses that require basic accounting" | "SME organizations that require accounting & inventory tracking" | "Retail/Restaurants that require POS along with accounting & inventory tracking" |
+| **Products** | 1,000 service items | 5,000 | 10,000 |
+| **Transactions / year** | 30,000 | 50,000 | 200,000 |
+| AI scans / day | 20 | 20 | 20 |
+| Unlimited users, unlimited storage | ✓ | ✓ | ✓ |
+| Multiple currency | ✓ | ✓ | ✓ |
+| CRM and workflow management | ✓ | ✓ | ✓ |
+| 30+ reports incl. VAT / TDS / Annex 13 | ✓ | ✓ | ✓ |
+| Document upload and link | ✓ | ✓ | ✓ |
+| Inventory tracking | ✗ | ✓ | ✓ |
+| Multiple warehouses | ✗ | ✓ | ✓ |
+| Landed cost calculation | ✗ | ✓ | ✓ |
+| Production feature | ✗ | ✗ | ✓ |
+| POS (Retail/Restro) | ✗ | ✗ | ✓ |
+| Daraz integration | ✗ | ✗ | ✓ |
+| Developer API | ✗ | ✗ | ✓ (additional support fee) |
+
+Term tabs: **1 year / 3 years / Lifetime** ("Lifetime subscription will cover 10 Years period").
+
+### Add-ons
+
+IRD Billing **Rs 15,000 one-time**; Production **Rs 5,000/yr**; Billing Location **Rs 5,000 per
+location per year**; Products **Rs 1,000 per additional 1,000**; Transactions **Rs 1,000 per
+additional 10,000**; SMS **Rs 0.99 per credit** (incl. VAT).
+
+### Terms worth quoting exactly
+
+- *"Active transactions refers to all transactions in which accounting entry are affected."* — this
+  one sentence defines the metered unit, and phase 41's `DocumentMechanisms.MeteredTransactions` is
+  it applied: the transactional types that post to the GL, and no others.
+- *"Read-only access to data will be charged at 25% of the subscription fee."* — read-only past
+  expiry is a **product**, not a free fallback. Bears directly on phase 31 #5.
+- *"13% VAT is applicable in all prices unless otherwise specified."* — the seeded catalogue stores
+  the pre-VAT list price.
+- *"All payments have to be made in advance without any deduction or set-off."*
+
+### Three structural readings
+
+1. **The seven `TenantSubscription` entitlement flags are the tier matrix.** TrackInventory and
+   MultipleWarehouses = Standard and up; Manufacturing, PosRetail and PosRestaurant = Professional
+   (or the Production add-on); MultipleLocations = the per-location add-on. **MultiCurrency is in
+   every tier**, which is finally the explanation for phase 20f's unexplained observation that
+   Multi-Currency was the only user-operable switch on the whole Features page — it is not an
+   entitlement Tigg sells, so it is a preference.
+2. **Nothing is sold in-app, and there is no checkout anywhere.** Every "Get Started" button on all
+   three paid tiers resolves to `https://me.tiggapp.com/erp/#/register` — the free-trial signup,
+   identical to the "Start Free 15-Day Trial" link. The site's only other route to a purchase is
+   *Contact US* and a sales phone number. This corroborates the in-app evidence recorded on Cadehi:
+   the trial banner's action is **CONTACT US**, not Upgrade-and-pay.
+3. **There is no Pricing link in the site's main nav or footer solutions list** on the home page; the
+   page exists at `/pricing` and is linked from the footer of the pricing page itself. Consistent
+   with a sales-led motion rather than self-serve.
+
+Consequences are written up in `docs/phase-41-status.md`; the figures are seeded verbatim into
+`SubscriptionPlanConfiguration`.

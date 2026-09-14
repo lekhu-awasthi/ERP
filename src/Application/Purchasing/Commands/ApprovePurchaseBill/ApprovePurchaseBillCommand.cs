@@ -6,11 +6,13 @@ using MediatR;
 namespace ErpApp.Application.Purchasing.Commands.ApprovePurchaseBill;
 
 public sealed record ApprovePurchaseBillCommand(Guid OrganizationId, Guid Id)
-    : IRequest<ApprovePurchaseBillResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitiveDocument
+    : IRequest<ApprovePurchaseBillResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitiveDocument, IMeteredTransaction
 {
     public string PermissionKey => PermissionKeys.PurchaseBillApprove;
     public DocumentType LockDateDocumentType => DocumentType.PurchaseBill;
     public Guid LockDateDocumentId => Id;
+
+    public DocumentType MeteredDocumentType => DocumentType.PurchaseBill;
 }
 
 /// <summary>Phase 29 (FR-6.15) adds the two landed-cost figures, both in base currency and both

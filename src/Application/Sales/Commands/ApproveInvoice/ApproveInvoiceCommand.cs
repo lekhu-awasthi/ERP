@@ -17,11 +17,13 @@ namespace ErpApp.Application.Sales.Commands.ApproveInvoice;
 /// never saw. See CreditLimitWarningException.</para></summary>
 public sealed record ApproveInvoiceCommand(
     Guid OrganizationId, Guid Id, bool OverrideWarning = false, bool OverrideCreditLimitWarning = false)
-    : IRequest<ApproveInvoiceResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitiveDocument
+    : IRequest<ApproveInvoiceResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitiveDocument, IMeteredTransaction
 {
     public string PermissionKey => PermissionKeys.InvoiceApprove;
     public DocumentType LockDateDocumentType => DocumentType.Invoice;
     public Guid LockDateDocumentId => Id;
+
+    public DocumentType MeteredDocumentType => DocumentType.Invoice;
 }
 
 public sealed record ApproveInvoiceResult(Guid Id, string Code, InvoiceStatus Status, DateTimeOffset? ApprovedAt);

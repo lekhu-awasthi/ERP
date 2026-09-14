@@ -11,11 +11,13 @@ namespace ErpApp.Application.Accounting.Commands.ApproveJournalVoucher;
 /// unchanged.</summary>
 public sealed record ApproveJournalVoucherCommand(
     Guid OrganizationId, Guid Id, bool OverrideNegativeCashBalanceWarning = false)
-    : IRequest<ApproveJournalVoucherResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitiveDocument
+    : IRequest<ApproveJournalVoucherResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitiveDocument, IMeteredTransaction
 {
     public string PermissionKey => PermissionKeys.JournalVoucherApprove;
     public DocumentType LockDateDocumentType => DocumentType.JournalVoucher;
     public Guid LockDateDocumentId => Id;
+
+    public DocumentType MeteredDocumentType => DocumentType.JournalVoucher;
 }
 
 public sealed record ApproveJournalVoucherResult(Guid Id, string Code, JournalVoucherStatus Status, DateTimeOffset? ApprovedAt);

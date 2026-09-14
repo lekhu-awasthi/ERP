@@ -97,8 +97,9 @@ public class GeneralSettingsAndSubscriptionTests
         var seed = await CreditLimitTestSeed.SeedAsync(db);
         await ExpireAsync(db, seed.OrganizationId);
 
+        var plan = await SeedStandardPlanAsync(db);
         var renewal = new SetTenantSubscriptionCommand(
-            seed.OrganizationId, "Standard", DateTimeOffset.UtcNow.AddDays(30));
+            seed.OrganizationId, plan.Id, DateTimeOffset.UtcNow.AddDays(30));
 
         // Reflection rather than a type pattern: the compiler refuses `is ILockDateSensitive` on a
         // sealed type that cannot implement it (CS8121), which is itself the guarantee -- but the
@@ -132,7 +133,8 @@ public class GeneralSettingsAndSubscriptionTests
         await db.SaveChangesAsync(CancellationToken.None);
 
         var result = await new SetTenantSubscriptionCommandHandler(db).Handle(
-            new SetTenantSubscriptionCommand(seed.OrganizationId, "Standard", DateTimeOffset.UtcNow.AddDays(365)),
+            new SetTenantSubscriptionCommand(
+                seed.OrganizationId, (await SeedStandardPlanAsync(db)).Id, DateTimeOffset.UtcNow.AddDays(365)),
             CancellationToken.None);
 
         Assert.True(result.Features.Single(x => x.Feature == nameof(TenantFeature.Manufacturing)).IsEnabled);
@@ -144,11 +146,31 @@ public class GeneralSettingsAndSubscriptionTests
 
     /// <summary>
     /// An expired subscription cannot be built through the aggregate's own API on purpose --
-    /// <see cref="TenantSubscription.Renew"/> refuses an end date before the start date, and a trial
+    /// <see cref="TenantSubscription.SetPlan"/> refuses an end date before the start date, and a trial
     /// created now starts now. Only the passage of time produces this state in production, so the
     /// test reaches through EF's change tracker to construct it rather than weakening that
     /// invariant to make itself easier to write.
     /// </summary>
+    /// <summary>
+    /// Phase 41 -- the catalogue row the renewal now picks from, because the plan name is no longer
+    /// free text. Seeded by hand: <c>TestAppDbContext</c> has no
+    /// <c>ApplyConfigurationsFromAssembly</c>, so the configuration's own <c>HasData</c> rows do not
+    /// exist here.
+    /// </summary>
+    private static async Task<SubscriptionPlan> SeedStandardPlanAsync(IAppDbContext db)
+    {
+        var plan = SubscriptionPlan.Create(
+            Guid.NewGuid(), "Standard", "Standard", "SME tier", 2, 20_000m, 5_000, 50_000,
+            trackInventoryIncluded: true, multipleWarehousesIncluded: true, landedCostIncluded: true,
+            manufacturingIncluded: false, posIncluded: false, multiCurrencyIncluded: true,
+            developerApiIncluded: false);
+
+        db.SubscriptionPlans.Add(plan);
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        return plan;
+    }
+
     private static async Task ExpireAsync(IAppDbContext db, Guid organizationId)
     {
         var subscription = TenantSubscription.CreateTrial(organizationId, default(AccountingFeatureSelections));
@@ -157,6 +179,7 @@ public class GeneralSettingsAndSubscriptionTests
 
         var entry = ((DbContext)db).Entry(subscription);
         entry.Property(nameof(TenantSubscription.TrialStartsAt)).CurrentValue = DateTimeOffset.UtcNow.AddDays(-30);
+        entry.Property(nameof(TenantSubscription.TermStartsAt)).CurrentValue = DateTimeOffset.UtcNow.AddDays(-30);
         entry.Property(nameof(TenantSubscription.TrialEndsAt)).CurrentValue = DateTimeOffset.UtcNow.AddDays(-15);
         await db.SaveChangesAsync(CancellationToken.None);
     }

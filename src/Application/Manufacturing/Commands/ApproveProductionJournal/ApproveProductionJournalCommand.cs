@@ -12,7 +12,7 @@ namespace ErpApp.Application.Manufacturing.Commands.ApproveProductionJournal;
 /// overridable.</summary>
 public sealed record ApproveProductionJournalCommand(Guid OrganizationId, Guid Id, bool OverrideWarning = false)
     : IRequest<ApproveProductionJournalResult>, IRequirePermission, IOrganizationScoped, IRequireFeature,
-      ILockDateSensitiveDocument
+      ILockDateSensitiveDocument, IMeteredTransaction
 {
     public string PermissionKey => PermissionKeys.ProductionJournalApprove;
 
@@ -21,6 +21,8 @@ public sealed record ApproveProductionJournalCommand(Guid OrganizationId, Guid I
 
     public DocumentType LockDateDocumentType => DocumentType.ProductionJournal;
     public Guid LockDateDocumentId => Id;
+
+    public DocumentType MeteredDocumentType => DocumentType.ProductionJournal;
 }
 
 public sealed record ApproveProductionJournalResult(

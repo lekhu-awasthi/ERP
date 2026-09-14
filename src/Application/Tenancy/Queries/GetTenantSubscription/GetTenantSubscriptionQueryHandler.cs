@@ -39,7 +39,9 @@ public sealed class GetTenantSubscriptionQueryHandler(IAppDbContext db)
             x => x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("This organization has no subscription record.");
 
-        return ToDto(subscription);
+        var usage = await SubscriptionUsageReader.ReadAsync(db, subscription, cancellationToken);
+
+        return ToDto(subscription, usage);
     }
 
     /// <summary>
@@ -47,19 +49,25 @@ public sealed class GetTenantSubscriptionQueryHandler(IAppDbContext db)
     /// state to what the read query would next produce -- the same reason phase 26b insisted a pair
     /// of reports agree by construction rather than by inspection.
     /// </summary>
-    internal static TenantSubscriptionDto ToDto(TenantSubscription subscription)
+    internal static TenantSubscriptionDto ToDto(TenantSubscription subscription, SubscriptionUsage usage)
     {
         var now = DateTimeOffset.UtcNow;
         var daysRemaining = (int)Math.Ceiling((subscription.TrialEndsAt - now).TotalDays);
 
         return new TenantSubscriptionDto(
             subscription.OrganizationId,
+            subscription.PlanId,
             subscription.PlanName,
             subscription.TrialStartsAt,
+            subscription.TermStartsAt,
             subscription.TrialEndsAt,
             subscription.TrialEndsAt > now,
             Math.Max(daysRemaining, 0),
+            subscription.SubscriptionAmount,
+            subscription.IrdVerified,
             subscription.IrdSyncEnabled,
+            new SubscriptionUsageDto(
+                usage.TransactionsUsed, usage.TransactionQuota, usage.ProductsUsed, usage.ProductQuota),
             [.. Catalog.Select(x => new TenantFeatureStateDto(
                 x.Feature.ToString(), x.DisplayName, x.Description, subscription.IsEnabled(x.Feature)))]);
     }

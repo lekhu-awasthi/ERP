@@ -27,6 +27,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
     public DbSet<TenantSubscription> TenantSubscriptions => Set<TenantSubscription>();
+    public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
     public DbSet<Currency> Currencies => Set<Currency>();
     public DbSet<BillingLocation> BillingLocations => Set<BillingLocation>();

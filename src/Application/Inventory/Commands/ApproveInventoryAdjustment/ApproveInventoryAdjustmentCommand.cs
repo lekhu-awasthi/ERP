@@ -7,7 +7,7 @@ using MediatR;
 namespace ErpApp.Application.Inventory.Commands.ApproveInventoryAdjustment;
 
 public sealed record ApproveInventoryAdjustmentCommand(Guid OrganizationId, Guid Id)
-    : IRequest<ApproveInventoryAdjustmentResult>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILockDateSensitiveDocument
+    : IRequest<ApproveInventoryAdjustmentResult>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILockDateSensitiveDocument, IMeteredTransaction
 {
     public string PermissionKey => PermissionKeys.InventoryAdjustmentApprove;
 
@@ -18,6 +18,8 @@ public sealed record ApproveInventoryAdjustmentCommand(Guid OrganizationId, Guid
     public IReadOnlyCollection<TenantFeature> RequiredFeatures => [TenantFeature.TrackInventory];
     public DocumentType LockDateDocumentType => DocumentType.InventoryAdjustment;
     public Guid LockDateDocumentId => Id;
+
+    public DocumentType MeteredDocumentType => DocumentType.InventoryAdjustment;
 }
 
 public sealed record ApproveInventoryAdjustmentResult(

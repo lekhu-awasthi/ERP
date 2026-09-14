@@ -11,11 +11,13 @@ namespace ErpApp.Application.Accounting.Commands.ApproveCashTransfer;
 /// unchanged.</summary>
 public sealed record ApproveCashTransferCommand(
     Guid OrganizationId, Guid Id, bool OverrideNegativeCashBalanceWarning = false)
-    : IRequest<ApproveCashTransferResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitiveDocument
+    : IRequest<ApproveCashTransferResult>, IRequirePermission, IOrganizationScoped, ILockDateSensitiveDocument, IMeteredTransaction
 {
     public string PermissionKey => PermissionKeys.CashTransferApprove;
     public DocumentType LockDateDocumentType => DocumentType.CashTransfer;
     public Guid LockDateDocumentId => Id;
+
+    public DocumentType MeteredDocumentType => DocumentType.CashTransfer;
 }
 
 public sealed record ApproveCashTransferResult(Guid Id, string Code, CashTransferStatus Status, DateTimeOffset? ApprovedAt);

@@ -15,7 +15,12 @@ public sealed class TenantSubscriptionConfiguration : IEntityTypeConfiguration<T
         builder.Property(s => s.OrganizationId).IsRequired();
         builder.Property(s => s.PlanName).HasMaxLength(50).IsRequired();
         builder.Property(s => s.TrialStartsAt).IsRequired();
+        builder.Property(s => s.TermStartsAt).IsRequired();
         builder.Property(s => s.TrialEndsAt).IsRequired();
+        builder.Property(s => s.SubscriptionAmount).HasPrecision(18, 2).IsRequired();
+        builder.Property(s => s.ProductQuota).IsRequired();
+        builder.Property(s => s.TransactionQuota).IsRequired();
+        builder.Property(s => s.IrdVerified).IsRequired();
         builder.Property(s => s.TrackInventoryEnabled).IsRequired();
         builder.Property(s => s.MultipleLocationsEnabled).IsRequired();
         builder.Property(s => s.MultipleWarehousesEnabled).IsRequired();
@@ -31,5 +36,14 @@ public sealed class TenantSubscriptionConfiguration : IEntityTypeConfiguration<T
             .WithMany()
             .HasForeignKey(s => s.OrganizationId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Phase 41. Restrict, not Cascade: a catalogue row is seeded reference data, and deleting a
+        // plan that tenants are on must fail loudly rather than quietly unsubscribing them. Nothing
+        // deletes one today -- there is no command -- which is exactly why the constraint is the
+        // place to say so.
+        builder.HasOne<SubscriptionPlan>()
+            .WithMany()
+            .HasForeignKey(s => s.PlanId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

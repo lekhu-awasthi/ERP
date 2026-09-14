@@ -307,13 +307,36 @@ shapes, not one. `@defer` the shell was already done by 34c.
 environment, so the live regions and the roving toolbar are right by specification and by DOM
 evidence rather than by ear. An hour with NVDA is the outstanding step.
 
-### 41. Subscription and plan model — needs a product decision before it is a phase
-- Tigg Subscriptions' three dead fields (Amount, the quotas, IRD Verified) (33 Decision D), a plan
-  catalogue behind Renew instead of free text (31 #9), the expiry gate over configuration writes
-  (31 #6), and a confirmed expired-tenant behaviour (31 #5, derived, never observed).
-- **Decision to make first:** is this product selling plans at all? If not, retire all four with a
-  reason and keep `TenantSubscription` as the entitlement record it already is — phase-8f's "omit
-  rather than fake".
+### 41. Subscription and plan model — **done** (2026-09-14, `docs/phase-41-status.md`)
+The product decision was settled by evidence rather than judgement: **the vendor's own published
+price list** (tiggapp.com/pricing). Tigg sells three metered tiers — Basic Rs 15,000 / Standard
+Rs 20,000 / Professional Rs 32,000 a year — separated by a product ceiling, a transaction ceiling and
+which entitlements are included, plus six add-on lines. **So 33 Decision D's premise was false:** the
+three "dead" fields are the commercial core, and both tenants it sampled were free trials, which is
+exactly what `0.00` and `Standard ( 0 Txn, 0 Products)` mean.
+
+Built: the seeded `SubscriptionPlan` catalogue (the first aggregate here with no `OrganizationId`);
+Amount / both quotas / IRD Verified / `TermStartsAt` on `TenantSubscription`; **quota enforcement on
+both axes** via `SubscriptionQuotaBehavior` (the sixth pipeline behavior) over eleven metered types
+derived from the vendor's own Terms (*"all transactions in which accounting entry are affected"*);
+one `SubscriptionUsageReader` behind both the gate and the screen; the plan picker and usage meters;
+and `app-subscription-notice`, the shell banner that makes an ending subscription foreseeable rather
+than a 409 mid-approval.
+
+**Nothing is sold in the app, and that is confirmed, not assumed:** every "Get Started" on all three
+paid tiers links to the free-trial signup, and the in-app expiry CTA is CONTACT US. No payment
+integration is in scope, now or later, unless the reference product grows one.
+
+**The one thing 41 could not fix, and the reason it is a phase of its own:**
+`Tenancy.Subscription.Manage` is seeded to the tenant's own Admin role, so the party a quota
+constrains can raise it. There is no other role to give it to — this codebase models exactly one
+actor, and a subscription is inherently a two-party record. Named loudly in the code and the status
+doc rather than worked around. **Re-entry condition: a vendor-side console, or any actor outside
+`OrganizationId`.**
+
+Also settled: "read-only access" past expiry is something the vendor *sells* (Terms: 25% of the
+subscription fee), so phase 31's derived read-only-for-documents is better evidenced than it was,
+though still not observed on a live expired tenant.
 
 **Recommended drop list (decided, not silently omitted):** `Organization > Developer Mode` and
 `> Documents` (phase-25), `Product.PrintProfileId` (20d), the Marketplace flag, the Service Charge

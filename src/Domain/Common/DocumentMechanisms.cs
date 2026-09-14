@@ -251,6 +251,51 @@ public static class DocumentMechanisms
     ];
 
     /// <summary>
+    /// Phase 41 -- the document types whose Approve counts against the subscription's
+    /// <b>transactions-per-year</b> quota.
+    ///
+    /// <para><b>The list is not a judgement call; it is the vendor's own definition applied.</b>
+    /// tiggapp.com/pricing sells three tiers separated by a transaction ceiling (30,000 / 50,000 /
+    /// 200,000 per year) and its Terms define the metered unit in one sentence: <i>"Active
+    /// transactions refers to all transactions in which accounting entry are affected."</i> So the
+    /// metered set is exactly the transactional types that post to the GL, and the four that do not
+    /// -- Quotation, SalesOrder, PurchaseOrder, ProductionOrder -- are excluded because no
+    /// accounting entry is affected by approving one, not because they felt less important.</para>
+    ///
+    /// <para><b>Eleven, and the two GL-posting sources that are not on it.</b>
+    /// <c>GlSourceDocumentResolver</c> names thirteen types that reach
+    /// <c>GlJournalEntry.Post</c>; <see cref="DocumentType.OpeningBalance"/> and
+    /// <see cref="DocumentType.OpeningStock"/> are the two missing here. Neither is a transaction:
+    /// both are opening setup, keyed by their own natural key and edited in place, with no
+    /// Draft/Approve lifecycle to meter -- which is also why neither appears in
+    /// <see cref="Transactional"/>. Charging a tenant's annual transaction allowance for entering
+    /// its own opening balances would bill it for migrating in.</para>
+    ///
+    /// <para><b>A voided document still counts once.</b> Usage is counted as distinct
+    /// <c>(SourceDocumentType, SourceDocumentId)</c> pairs rather than as GL entries, so a document
+    /// that was approved and later voided -- which posts a second, reversing entry against the same
+    /// source (phase 16a) -- consumes one unit, not two and not zero. An accounting entry was
+    /// affected, which is the test the Terms state.</para>
+    ///
+    /// <para><c>MeteredTransactionSweepGuardTests</c> asserts this list against the commands that
+    /// actually implement <c>IMeteredTransaction</c>, in both directions.</para>
+    /// </summary>
+    public static readonly IReadOnlyList<DocumentType> MeteredTransactions =
+    [
+        DocumentType.Invoice,
+        DocumentType.CreditNote,
+        DocumentType.Payment,
+        DocumentType.PurchaseBill,
+        DocumentType.Expense,
+        DocumentType.DebitNote,
+        DocumentType.JournalVoucher,
+        DocumentType.CashTransfer,
+        DocumentType.WarehouseTransfer,
+        DocumentType.InventoryAdjustment,
+        DocumentType.ProductionJournal,
+    ];
+
+    /// <summary>
     /// Every <see cref="DocumentType"/> that is deliberately outside every sweep, with the
     /// reason. The guard test requires that this dictionary plus <see cref="Transactional"/> cover
     /// the enum exactly -- so a new member added by a later phase fails the build until someone

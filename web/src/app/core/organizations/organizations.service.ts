@@ -32,6 +32,7 @@ import {
   OrganizationMember,
   Role,
   RolePermissionMatrix,
+  SubscriptionPlan,
   TenantSubscription,
   UpdateMembershipRoleRequest,
   UpdateRolePermissionsRequest,
@@ -232,6 +233,14 @@ export class OrganizationsService {
 
   getSubscription(organizationId: string): Observable<TenantSubscription> {
     return this.http.get<TenantSubscription>(`${this.baseUrl}/${organizationId}/subscription`, {
+      withCredentials: true,
+    });
+  }
+
+  /** Phase 41 -- the vendor's seeded plan catalogue, which the Subscription screen's picker renders
+   * in place of phase 31's free-text plan name. */
+  getSubscriptionPlans(organizationId: string): Observable<SubscriptionPlan[]> {
+    return this.http.get<SubscriptionPlan[]>(`${this.baseUrl}/${organizationId}/subscription-plans`, {
       withCredentials: true,
     });
   }

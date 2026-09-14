@@ -350,15 +350,58 @@ export interface TenantFeatureState {
   isEnabled: boolean;
 }
 
+/**
+ * Phase 41 -- what the tenant has used of each metered allowance, against the ceiling its plan sold
+ * it. A quota of 0 means not metered, which is every trial: the screen says so rather than drawing a
+ * full bar. Both numbers come from the same reader `SubscriptionQuotaBehavior` blocks on, so the bar
+ * and the refusal cannot disagree.
+ */
+export interface SubscriptionUsage {
+  transactionsUsed: number;
+  transactionQuota: number;
+  productsUsed: number;
+  productQuota: number;
+}
+
 export interface TenantSubscription {
   organizationId: string;
+  /** The catalogue plan this tenant is on, or null while on the seeded trial. */
+  planId: string | null;
   planName: string;
   trialStartsAt: string;
+  /** Phase 41 -- the start of the current term, which the transaction quota is counted over. */
+  termStartsAt: string;
   trialEndsAt: string;
   isTrialActive: boolean;
   daysRemaining: number;
+  /** What this tenant is charged for the current term -- not necessarily the plan's list price. */
+  subscriptionAmount: number;
+  /** The IRD Billing add-on. Not the same thing as `irdSyncEnabled`, which is the integration. */
+  irdVerified: boolean;
   irdSyncEnabled: boolean;
+  usage: SubscriptionUsage;
   features: TenantFeatureState[];
+}
+
+/**
+ * Phase 41 -- the vendor's plan catalogue, seeded from the published price list. Read-only here:
+ * there is no command that creates or edits a plan, because the catalogue belongs to the vendor and
+ * this codebase models one party.
+ */
+export interface SubscriptionPlan {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  annualAmount: number;
+  productQuota: number;
+  transactionQuota: number;
+  includedFeatures: SubscriptionPlanFeature[];
+}
+
+export interface SubscriptionPlanFeature {
+  name: string;
+  isIncluded: boolean;
 }
 
 /**
@@ -385,8 +428,14 @@ export interface GeneralSettings {
 /** Phase 31 -- the renewal 20f left out. Entitlement flags are deliberately absent: a renewal is a
  *  billing event, not a re-negotiation of what the tenant may model. */
 export interface SetTenantSubscriptionRequest {
-  planName: string;
+  /** A catalogue plan, or null to record an unmetered trial term. */
+  planId: string | null;
   endsAt: string;
+  /** Omitted to take the plan's published figures; sent to record a negotiated rate or an add-on. */
+  subscriptionAmount?: number;
+  productQuota?: number;
+  transactionQuota?: number;
+  irdVerified?: boolean;
 }
 
 /** Phase 39 -- Organization > Overview's own field list, read live 2026-09-13. `hasLogo` is a flag

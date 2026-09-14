@@ -60,6 +60,12 @@ public static class DependencyInjection
         // document lookup when the answer is no. See SubscriptionExpiryBehavior's doc comment for
         // why it reuses the lock-date markers rather than adding a third.
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Common.Behaviors.SubscriptionExpiryBehavior<,>));
+        // Subscription quotas (roadmap Phase 41) run immediately after expiry, and the order between
+        // those two is load-bearing: an expired subscription is the more fundamental refusal, and a
+        // tenant whose term has ended being told it is out of transactions would be true and would
+        // send it to buy the wrong thing. Like both gates above it, this one costs nothing for a
+        // tenant with no ceiling -- which is every trial. See SubscriptionQuotaBehavior's doc comment.
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Common.Behaviors.SubscriptionQuotaBehavior<,>));
         // Lock date (roadmap Phase 16a, NFR-3.4) runs after permission is confirmed, before the
         // handler itself -- see LockDateBehavior's own doc comment.
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Common.Behaviors.LockDateBehavior<,>));

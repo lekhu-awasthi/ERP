@@ -29,6 +29,7 @@ using ErpApp.Application.Tenancy.Queries.GetGeneralSettings;
 using ErpApp.Application.Tenancy.Queries.ListCurrencyCatalog;
 using ErpApp.Application.Tenancy.Queries.GetOrganizationLockDate;
 using ErpApp.Application.Tenancy.Queries.GetTenantSubscription;
+using ErpApp.Application.Tenancy.Queries.ListSubscriptionPlans;
 using ErpApp.Application.Tenancy.Queries.GetRolePermissionMatrix;
 using ErpApp.Application.Tenancy.Queries.ListOrganizationMembers;
 using ErpApp.Application.Tenancy.Queries.ListRoles;
@@ -426,19 +427,47 @@ public static class OrganizationEndpoints
             return Results.Ok(result);
         });
 
+        // Phase 41 -- the vendor's plan catalogue, which the Subscription screen's picker renders.
+        // The same three seeded rows for every tenant; organization-scoped only so it goes through
+        // AuthorizationBehavior like every other query here.
+        group.MapGet("/{organizationId:guid}/subscription-plans", async (
+            Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new ListSubscriptionPlansQuery(organizationId), ct);
+            return Results.Ok(result);
+        });
+
         // Phase 31 -- the renewal counterpart 20f left out, so an expired organization is not
-        // permanently read-only from inside the product. The entitlement flags stay immutable and
-        // are not on this request at all; see TenantSubscription.Renew.
+        // permanently read-only from inside the product. Widened by phase 41 to record the whole
+        // term that was sold: the plan, its price, and the two ceilings. The entitlement flags stay
+        // immutable and are still not on this request at all; see TenantSubscription.SetPlan.
         group.MapPut("/{organizationId:guid}/subscription", async (
             Guid organizationId, SetTenantSubscriptionRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new SetTenantSubscriptionCommand(organizationId, request.PlanName, request.EndsAt), ct);
+                new SetTenantSubscriptionCommand(
+                    organizationId,
+                    request.PlanId,
+                    request.EndsAt,
+                    request.SubscriptionAmount,
+                    request.ProductQuota,
+                    request.TransactionQuota,
+                    request.IrdVerified),
+                ct);
             return Results.Ok(result);
         });
     }
 
-    private sealed record SetTenantSubscriptionRequest(string PlanName, DateTimeOffset EndsAt);
+    // Every optional member is spelled out here as well as on the command: phase-27b's trap is that
+    // a trailing optional parameter added to a command reaches nothing until the Api's own request
+    // record carries it too -- it compiles, every test passes, and the field binds to null.
+    private sealed record SetTenantSubscriptionRequest(
+        Guid? PlanId,
+        DateTimeOffset EndsAt,
+        decimal? SubscriptionAmount = null,
+        int? ProductQuota = null,
+        int? TransactionQuota = null,
+        bool IrdVerified = false);
 
     private sealed record UpdateGeneralSettingsRequest(
         SuggestSellingPriceMode SuggestSellingPriceMode,

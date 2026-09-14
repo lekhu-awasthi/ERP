@@ -11,6 +11,7 @@ import { DateRangeService } from './shared/platform/date-range.service';
 import { GlobalSearch } from './shared/platform/global-search';
 import { HistoryMenu } from './shared/platform/history-menu';
 import { LeftNav } from './shared/platform/left-nav';
+import { SubscriptionNotice } from './shared/platform/subscription-notice';
 
 /**
  * The application shell.
@@ -32,7 +33,7 @@ import { LeftNav } from './shared/platform/left-nav';
  */
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, GlobalSearch, HistoryMenu, LeftNav, DateRangePicker],
+  imports: [RouterOutlet, GlobalSearch, HistoryMenu, LeftNav, DateRangePicker, SubscriptionNotice],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

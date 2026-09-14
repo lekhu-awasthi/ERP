@@ -1930,3 +1930,119 @@ change did not land.
   product**, and an invoice line needs all four — even a Service line, and even on a Draft. The 400s
   name the field, so it is four rounds of seeding rather than a mystery, but it is four rounds.
 * `POST /products` needs `categoryId` alongside `primaryUnitId` and `type`.
+
+---
+
+## A field that is dead on every tenant you can reach (phase 41)
+
+Phase 33 Decision D retired three fields — Subscription Amount, the transaction quota, the product
+quota — after reading `0.00` and `Standard ( 0 Txn, 0 Products)` on both reference tenants. The
+reasoning was careful and correct in form: phase 31 had established that *a tenant-level field is
+reachable only if you can name the command that writes it*, no command could write these, so building
+the columns would hide the missing write path. Phase 32 had already added the caveat — a field being
+dead on the tenant you looked at is a fact about that tenant — and the remedy it prescribed was
+**another tenant, account or plan**. None was available.
+
+**The conclusion was still wrong, and a third tenant was not what would have shown it.** Both tenants
+were **free trials**. The vendor's public price list (tiggapp.com/pricing) sells three tiers —
+Rs 15,000 / 20,000 / 32,000 a year — whose entire commercial difference *is* those three fields, plus
+add-ons priced per additional 1,000 products and per additional 10,000 transactions. `0.00` and
+`( 0 Txn, 0 Products)` is what a trial looks like, not what an unused column looks like.
+
+So the rule generalises phase 30's ("a list sampled from a few screens becomes a wrong list — find the
+**rule**") one level up: **a value sampled from two instances of one kind becomes a wrong fact about
+the field.** Two tenants of the same kind are one sample, not two.
+
+And the practical instruction is cheaper than the one phase 32 wrote: **before asking for another
+tenant, read what the vendor publishes.** One page load settled the question *and* supplied the exact
+ceilings, the exact prices, the whole add-on catalogue, and a one-sentence definition of the metered
+unit (*"Active transactions refers to all transactions in which accounting entry are affected"*) that
+no amount of tenant-reading would have produced — because it is a contractual term, not a screen.
+
+The same page also answered two questions filed as open elsewhere: that read-only access past expiry
+is something the vendor **sells** at 25% of the fee (phase 31 #5), and that multi-currency ships in
+every tier, which is why phase 20f found Multi-Currency to be the one user-operable switch on an
+otherwise read-only Features page — it is not an entitlement Tigg sells.
+
+---
+
+## A ceiling the constrained party can raise (phase 41)
+
+`SubscriptionQuotaBehavior` refuses an Approve once the tenant has spent the transaction allowance its
+plan sold it, and a Create once it has spent its product allowance. Both ceilings live on
+`TenantSubscription`, and the command that writes them — `SetTenantSubscriptionCommand` — is gated by
+`Tenancy.Subscription.Manage`, **which is seeded to the tenant's own Admin role**. One `PUT` sets any
+plan, any end date and any ceiling. The same is true of phase 31's expiry.
+
+This is not a mis-seeded permission, and moving the key does not fix it: **there is no other role to
+give it to.** Every actor this codebase can express is a member of some tenant — every table carries
+an `OrganizationId` discriminator, every permission is a tenant role permission, and there is no
+cross-tenant entity anywhere. A subscription is inherently a **two-party** record, and the model has
+one party.
+
+Two consequences worth stating separately:
+
+- **How to describe it.** These ceilings are an accurate record of what was sold and a real guard
+  against a tenant drifting past it *unnoticed*. They are not a control that survives an adversary.
+  Never write "enforced" without that qualification.
+- **Where to say it.** In the behavior, in the command, and in the status doc — not only in one of
+  them. The failure mode of a gap like this is that a later phase reads the behavior, sees a clean
+  refusal, and builds something that assumes the number cannot move.
+
+The general form: **before calling any tenant-level limit "enforcement", ask who can write it.** That
+is phase 31's "name the command that writes the field and the screen that calls it" turned around —
+here the writer *is* nameable, and that is exactly the problem. Re-entry condition: a vendor-side
+console, or any actor outside `OrganizationId`.
+
+---
+
+## State two surfaces show and one of them changes (phase 41)
+
+Phase 41 put a subscription warning in the shell header — it renders on every in-organization screen —
+and reworked the Subscription screen to record a new term. Both read `GET /subscription`. Both were
+individually correct, and every unit test passed.
+
+Driving the app: recording a **Standard** plan updated the page (heading, amount, both usage meters)
+while the banner directly above it still read *"366 days remaining in your trial"*. Two reads of one
+fact, and only the one that issued the write refreshed.
+
+This is phase 34b's rule one surface over — *a filter a screen displays but did not apply is worse
+than no filter; anything global a screen both shows and sends must reload that screen when it changes,
+from the first version* — with "global thing a screen shows" now meaning a banner rather than a filter.
+
+The fix is a shared store (`SubscriptionStore`, on phase 35a's `BillingLocationStore` shape) that the
+banner **reads** and the screen **saves through**, so the write's own response folds straight into the
+signal both consume. That costs nothing extra because the save returns the same DTO the read does — a
+property phase 31 deliberately created by extracting `ToDto`, and which is worth preserving for exactly
+this reason.
+
+**What to take from it:** no unit test finds this class of defect, because each component is right on
+its own. The check is a question to ask at design time — *does anything else on screen show this, and
+does it know I changed it?* — and a browser pass to confirm the answer.
+
+---
+
+## Two E2E traps that make a negative test vacuous (phase 41)
+
+**1. `sqlcmd -S localhost` against a named instance returns nothing, silently.** The local server is
+`DESKTOP-H0R00ME\SQLEXPRESS`; `-S localhost` connects to nothing and prints nothing, with no error on
+stderr that the script sees. The verification-code read came back empty, `verify-email` 400'd, and the
+symptom surfaced three steps later as a 401 on accept-invitation. Only the discipline of **printing
+every status code** (phase 26c) made the 400 visible at all. Read the instance name from the
+connection string rather than assuming.
+
+**2. `accept-invitation` is an authenticated call, and registering does not sign you in.** An invited
+user must `POST /auth/login` **before** `POST /organizations/memberships/{id}/accept-invitation`.
+Accepting first returns 401 and leaves the membership `Invited` — after which the user's 403s look
+like permission denials but are really "not a member of this organization", and
+`AuthorizationBehavior` returns the *same message* for both.
+
+That second one is the dangerous half, because it produces a **passing-looking negative test that
+proves nothing**. The remedy is structural: a negative permission proof needs its positive half in the
+same run. Phase 41's E2E asserts the same Member gets **200** on `GET /subscription` and
+`GET /subscription-plans` (they hold `SubscriptionView`) and **403 naming
+`Tenancy.Subscription.Manage`** on the `PUT`. The 200 is what makes the 403 mean *the key* rather than
+*the tenancy*.
+
+The companion check remains phase 12's: a 403 against a **nonexistent** organization id proves the
+gate fired before the handler ever looked for the row — 404 there would mean the gate is decorative.
