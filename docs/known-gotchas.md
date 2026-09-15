@@ -2572,3 +2572,33 @@ in its *final* role -- an ordinary product, a parent, or a child -- so none coul
 given units, then promoted". A fixture builds an object in the state the test is about; a user walks
 it through states in an order nobody wrote down. That is the class of bug a browser pass finds and a
 unit test does not, and it is the reason the pass is part of the exit bar rather than a formality.
+
+
+## stopPropagation inside a router link is what causes the navigation (phase 45)
+
+The Custom Status picker renders inside each list row's `<a [routerLink]>`, and clicking it opened
+the document instead of the dropdown. The control already called `$event.stopPropagation()`.
+
+That call was not insufficient — **it was the cause**. `RouterLink` listens for `click` on its own
+host and, when it fires, calls `preventDefault()` and navigates through the router. Stopping
+propagation keeps the event from reaching that listener, so `preventDefault()` is never called — and
+the browser's *native* activation of the enclosing anchor is left as the only remaining behaviour.
+Removing the guard entirely would have navigated too (in-app rather than natively), so the symptom
+looked like "the guard does nothing" when it was really "the guard disabled the good half".
+
+**The fix needs both halves, and they are deliberately asymmetric:**
+
+- `click` → `stopPropagation()` **and** `preventDefault()`. By then the popup is already open, and
+  the default action left to prevent is the anchor's navigation.
+- `mousedown` → `stopPropagation()` **only**. A native `<select>` opens its popup as the *default
+  action* of mousedown, so preventing it there stops the dropdown opening at all. This is the half a
+  later "consistency" edit would most plausibly break, so it is asserted in the opposite direction:
+  a test dispatches a cancelable mousedown and requires `defaultPrevented === false`.
+
+**The wider shape.** An `<a>` containing a `<select>` is invalid HTML — interactive content may not
+nest inside an anchor — so the real fix is structural: take the control out of the anchor and use
+Bootstrap's `stretched-link` over the row's non-interactive half. Phase 45 fixed the behaviour in the
+shared component (one change, all four grids) and left the nesting, because a four-template layout
+change had its own risk. A sweep for the shape — anchors with `routerLink` containing
+`select|button|input|textarea|app-*-picker` — finds exactly four instances, all the same component,
+which is what made the contained fix safe to reason about.

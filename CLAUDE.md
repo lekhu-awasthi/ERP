@@ -75,7 +75,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 41: subscription and plan model — the seeded `SubscriptionPlan` catalogue, `SubscriptionQuotaBehavior`, the shell banner. Before calling a tenant-level limit "enforcement" — `docs/phase-41-status.md`
 - Phase 42: performance follow-through (`ToKeyPagedResultAsync` on 16 lists, Detail General Ledger paged by row, the id lists that were costing more than they saved, the quota index, the bundle budget). Before paging a list, handing SQL a list of ids, or quoting a bundle size — `docs/phase-42-status.md`
 - Phase 43: aggregate completions (`UpdateOrganizationCommand`, Deal/WorkTask as record parents, the term-date rename, `DebitNote.WarehouseId`, the Sales Register folded to base). Before renaming two columns in one migration, or changing what a document does to the stock ledger — `docs/phase-43-status.md`
-- Phase 45: multi-UOM × variants (a variant owns its unit matrix; the parent is refused one), the secondary-unit edit/delete, the `ProductAttributePool` importer. Before deciding an interaction between two features nobody has posed, or excusing a handler in a sweep guard — `docs/phase-45-status.md`
+- Phase 45: multi-UOM × variants (a variant owns its unit matrix; the parent is refused one), the secondary-unit edit/delete, the `ProductAttributePool` importer, plus a review pass that added the Custom Statuses screen and five UI fixes. Before deciding an interaction between two features nobody has posed, excusing a handler in a sweep guard, or nesting a control in a row anchor — `docs/phase-45-status.md`
 - Phase 44: report semantics read live first — the last four statutory reports folded to base, Reporting Tags corrected to OR-within/AND-across, Inventory Master's two extra types, Display Warehouse in Column, Group Wise location, System Audit's stamped location, the location backfill. Before trusting a recorded control nobody operated, or assuming a report applies the filter it accepts — `docs/phase-44-status.md`
 
 ## Stack & conventions
@@ -170,7 +170,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A store-side aggregate (`GroupBy...Count()`) must run after the `SaveChangesAsync` that persists what it counts; tracked-but-unsaved rows are invisible to it (phase-21a).
 - A Domain factory/mutator can stay `internal` only while its sole caller is in the Domain assembly (phase-7 bug #1).
 - Never name a Domain type after a common BCL word (`Task` → `WorkTask`) (phase-13).
-- `stopPropagation()` on a control nested in an `<a routerLink>` *causes* navigation: it suppresses RouterLink's listener, which is what would have called `preventDefault()`; a select needs both, and mousedown needs neither (phase-45).
+- `stopPropagation()` on a control inside an `<a routerLink>` *causes* navigation — it suppresses the listener that would have called `preventDefault()`. Click needs both; mousedown needs neither (phase-45).
 - Guard the add and the edit, never the **delete**: a product given secondary units and promoted to a variant parent afterwards would otherwise hold rows that are invisible and unremovable (phase-45).
 - A sweep-guard allow-list reason can be the argument for the opposite conclusion: "a secondary unit on a variant parent reconciles against nothing" is why a parent must be *refused* one (phase-45).
 - A **record** parent (Contact, Deal, WorkTask) is a `DocumentType` member that is *not* transactional; that one property is what routes it to its own keys with no special-casing (phase-43).

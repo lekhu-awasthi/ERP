@@ -957,6 +957,19 @@ is the repair, not the damage. No handler test could see it, because every fixtu
 in its final role while a user walks it through states in an order nobody wrote down. That is the
 class of bug the browser pass exists for.
 
+A review pass after the phase was otherwise complete found six more defects, none reachable by any
+test, and they share a shape: **the defects a suite cannot see are the ones about a control's
+relationship to its surroundings** — what it sits inside, what it says, and whether the data behind
+it can exist at all. A picker nested in a row anchor navigated instead of opening (and its existing
+`stopPropagation` was the cause, not an insufficient cure — see `known-gotchas.md`). Two controls
+rendered empty on every tenant because nothing could create their options: Custom Statuses had no
+management screen at all, and Reporting Tags offered a blank multi-select. A Product showed an Active
+badge with no control. A banner told the reader to contact an actor this codebase does not model,
+directly above the screen where that same reader does the thing. **The pattern to copy: a control
+whose options a tenant must define first should say what it is and link to where it is defined,
+never render empty — a blank control reads as a broken one**, which is exactly how both were
+reported.
+
 Two mechanics. The `ProductAttributePool` importer's rows **add** to a set its command **replaces**,
 so each row re-reads and sends the union — and the dry run, planning every row from the same start,
 is right rather than broken, because a validation pass checks rows and does not accumulate them
