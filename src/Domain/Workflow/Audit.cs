@@ -22,6 +22,24 @@ public sealed class Audit
     public string Action { get; private set; } = null!;
     public DocumentType DocumentType { get; private set; }
     public Guid DocumentId { get; private set; }
+
+    /// <summary>
+    /// Phase 44 (35b carried item #2) -- the billing location of the document this row is about,
+    /// read once at audit-write time by <c>DocumentLocationReader</c> and then frozen.
+    ///
+    /// <para><b>Stamped, not joined.</b> This row is an append-only fact, and phase-35b's rule for
+    /// append-only facts is that filtering on a document attribute needs a stamped column -- the
+    /// alternative is a seventeen-way join back, per row, on a report over a period. Stamping also
+    /// makes the value <i>historically</i> honest: it records where the document was when the action
+    /// happened, which is what an audit trail is for.</para>
+    ///
+    /// <para><b>Null is a normal value.</b> Phase 43 made Deal and WorkTask auditable and they carry
+    /// no location at all; so does any document whose type sits outside the tenant's
+    /// <c>LocationScopeMode</c>, and so does every row written before this phase. A reader must treat
+    /// null as "no location", never as "not yet loaded".</para>
+    /// </summary>
+    public Guid? LocationId { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     private Audit()
@@ -29,7 +47,8 @@ public sealed class Audit
     }
 
     public static Audit Create(
-        Guid organizationId, Guid userId, string action, DocumentType documentType, Guid documentId)
+        Guid organizationId, Guid userId, string action, DocumentType documentType, Guid documentId,
+        Guid? locationId = null)
     {
         return new Audit
         {
@@ -39,6 +58,7 @@ public sealed class Audit
             Action = action,
             DocumentType = documentType,
             DocumentId = documentId,
+            LocationId = locationId,
             CreatedAt = DateTimeOffset.UtcNow,
         };
     }

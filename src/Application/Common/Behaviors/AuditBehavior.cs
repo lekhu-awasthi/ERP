@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
@@ -64,8 +65,27 @@ public sealed class AuditBehavior<TRequest, TResponse>(IAppDbContext db, ICurren
             return response;
         }
 
+        // Phase 44 (35b carried item #2) -- the document's billing location, stamped here so the
+        // System Audit report can be filtered by location like the other 43 report screens.
+        //
+        // One lookup by primary key, after the handler has already done its work, on a command that
+        // has already written. That is a different cost from the per-row join back Decision B
+        // rejected for the GL, and it is the only moment the location is knowable without one: the
+        // command itself does not carry it (an Approve names an id, not a branch).
+        //
+        // Null is a normal answer, not a failure: Deal and WorkTask carry no location at all
+        // (phase 43 made them auditable and they are records, not documents), the two
+        // opening-balance kinds are deliberately outside this reader, and any document written
+        // while its type sat outside the tenant's LocationScopeMode has none either. The reader's
+        // Found flag is discarded here for the same reason -- an audit row does not need to tell
+        // "no such document" from "no location"; AuthorizationBehavior does, and that is its one
+        // other caller.
+        var (_, locationId) = await DocumentLocationReader.ReadAsync(
+            db, documentType.Value, documentId.Value, cancellationToken);
+
         db.Audits.Add(Audit.Create(
-            scoped.OrganizationId, currentUser.UserId, action, documentType.Value, documentId.Value));
+            scoped.OrganizationId, currentUser.UserId, action, documentType.Value, documentId.Value,
+            locationId));
         await db.SaveChangesAsync(cancellationToken);
 
         return response;

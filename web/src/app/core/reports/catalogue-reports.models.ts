@@ -7,6 +7,9 @@
 export type InventoryBalanceFilter = 'All' | 'PositiveOnly' | 'NegativeOnly';
 
 export interface InventoryPositionRowDto {
+  /** Phase 44 -- one quantity per warehouse, aligned by position to the report's
+   *  `warehouseColumns`. Absent unless Display Warehouse in Column asked for the crosstab. */
+  readonly warehouseQuantities?: number[] | null;
   /** Phase 36 -- set only when Group by Warehouse is on, where each product splits into one row
    *  per warehouse. Null otherwise, so the screen can tell an ungrouped report from a warehouse
    *  that happens to have no name. */
@@ -24,6 +27,9 @@ export interface InventoryPositionReportDto {
   readonly fromDate: string;
   readonly toDate: string;
   readonly items: InventoryPositionRowDto[];
+  /** Phase 44 -- the warehouse column headers, in the order every row's
+   *  `warehouseQuantities` is aligned to. Absent unless the crosstab was asked for. */
+  readonly warehouseColumns?: string[] | null;
   readonly page: number;
   readonly pageSize: number;
   readonly totalCount: number;

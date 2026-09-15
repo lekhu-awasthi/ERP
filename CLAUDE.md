@@ -75,6 +75,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 41: subscription and plan model — the seeded `SubscriptionPlan` catalogue, `SubscriptionQuotaBehavior`, the shell banner. Before calling a tenant-level limit "enforcement" — `docs/phase-41-status.md`
 - Phase 42: performance follow-through (`ToKeyPagedResultAsync` on 16 lists, Detail General Ledger paged by row, the id lists that were costing more than they saved, the quota index, the bundle budget). Before paging a list, handing SQL a list of ids, or quoting a bundle size — `docs/phase-42-status.md`
 - Phase 43: aggregate completions (`UpdateOrganizationCommand`, Deal/WorkTask as record parents, the term-date rename, `DebitNote.WarehouseId`, the Sales Register folded to base). Before renaming two columns in one migration, or changing what a document does to the stock ledger — `docs/phase-43-status.md`
+- Phase 44: report semantics read live first — the last four statutory reports folded to base, Reporting Tags corrected to OR-within/AND-across, Inventory Master's two extra types, Display Warehouse in Column, Group Wise location, System Audit's stamped location, the location backfill. Before trusting a recorded control nobody operated, or assuming a report applies the filter it accepts — `docs/phase-44-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -248,6 +249,15 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A list query returning the aggregate exposes a new field for free, but a detail DTO drops it silently and the form can never show it (phase-32's `GetInvoiceQuery`).
 - Adding a field to many aggregates owes three assertions, write, read and every prefill between: 14 of 15 detail DTOs and all 5 conversion templates dropped `LocationId` (phase-35a).
 
+**Report filters and live-read semantics**
+- A sweep guard over *query records* cannot see whether a **handler** applies the filter it accepts; both statutory registers narrowed only their return half for three phases. Pin it behaviourally, per report (phase-44).
+- Reporting Tags are **OR within a category, AND across categories** — measured on a six-category tenant; phases 19/36's "any-of across everything" was inherited, never observed (phase-44).
+- A control recorded as "unbuilt because two options could not be told apart" may just be a **parent and its modifier**: Display Warehouse in Column is `disabled` until Group by Warehouse is ticked (phase-44).
+- A reason to exclude something can be right while the conclusion is wrong: 26c predicted Warehouse Transfer's two-rows-with-blank-money shape exactly, and the reference product ships it (phase-44).
+- A statutory register folds its **lines**, in the **shared reader**, **in memory after `ToListAsync`** — the last because `ToBase` is a static call SQL Server cannot translate (phase-43/44).
+- `SetLocation` is draft-only by design, so backfilling approved history needs its own narrower mutator (`BackfillLocation`: fills a null, refuses to move one) (phase-44).
+- A stamped audit column records where a document **was when the action happened**; do not backfill it when you backfill the documents (phase-44).
+
 **Angular**
 - A component serving both `.../new` and `.../:id` must read the id from `route.paramMap` (an Observable) and re-derive "is new" on every emission (phase-3 bug #1).
 - Annotate `HttpClient.get` `params` as `Record<string, string>`; a union including `{}` silently resolves to the `arraybuffer` overload (phase-3 bug #4).
@@ -355,29 +365,28 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–43 are complete.** The v1 sequence (0–25), the parity sequence (26–34c), the
-consolidation sequence (35–41) and the first two completion phases (42–43) are all done; each
-phase's story is in its `docs/phase-N-status.md`, and the completed planning entries are archived
-in `docs/roadmap-history.md`. Phase 43 closed six carried items where a thing existed on one side
-of a boundary and not the other, and its own two findings both came from checking the other side
-of something it had just changed — `dotnet ef` pairs two column renames on one table by ordinal
-position and had silently swapped them, and giving the Debit Note's Approve a new warehouse source
-left Void restocking from the old one. It also settled phase 36's product-to-location question
-live: the reference product saves **and** approves a document naming an out-of-location product,
-so the enforcement idea is retired rather than carried.
+**Phases 0–44 are complete.** The v1 sequence (0–25), the parity sequence (26–34c), the
+consolidation sequence (35–41) and the completion phases (42–44) are all done; each phase's story is
+in its `docs/phase-N-status.md`, and the completed planning entries are archived in
+`docs/roadmap-history.md`. Phase 44 was the phase whose premise was that its controls had never been
+operated, and three live reads overturned decisions this codebase had written down: Display Warehouse
+in Column is a *modifier of* Group by Warehouse rather than an alternative to it; Reporting Tags are
+OR **within** a category and AND **across** categories, not any-of across everything; and Inventory
+Master's Txn Type filter offers the two types 26c excluded — 26c having predicted their exact shape
+and treated it as the reason to leave them out. It also applied phase 43's Decision D to the last
+four statutory reports, closed System Audit's missing location by stamping it in `AuditBehavior`,
+and found that both statutory registers had *accepted* a Billing Location filter since phase 35b
+while never applying it to their primary document half.
 
-**Next: phases 44–47 in `docs/roadmap.md`.** Phase 44 is report semantics and **needs a live
-re-read of Moonbeam and Cadehi before any coding**; it also inherits phase 43's Decision D, which
-named the four statutory reports still denominated in transaction currency (Purchase Register,
-Purchase Return Register, VAT Summary, Annex 13) after the Sales Register was folded to base. Then
-multi-UOM × variants and import ergonomics (45), then the metered add-on axes and the
-accessibility items that need a person with a screen reader (46–47). The deferred list (DO/GRN,
-POS, IRD, Marketplace, unrealised forex, per-user location, multi-level BOM) is unchanged.
+**Next: phases 45–47 in `docs/roadmap.md`.** Multi-UOM × variants and import ergonomics (45), then
+the metered add-on axes and subscription edges (46), then the accessibility items that need a person
+with a screen reader (47). The deferred list (DO/GRN, POS, IRD, Marketplace, unrealised forex,
+per-user location, multi-level BOM) is unchanged.
 
-Tests at last count: Domain 666, Application.UnitTests 1103, Api.IntegrationTests 29, Angular 447;
+Tests at last count: Domain 666, Application.UnitTests 1130, Api.IntegrationTests 29, Angular 447;
 `dotnet build` / `dotnet test` / `ng build` / `ng test` all clean, and `ng build` does not warn —
-phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts` (651.81 kB at
-the end of phase 43). `Api.IntegrationTests` still fails nondeterministically under machine load
+phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts` (651.92 kB at
+the end of phase 44). `Api.IntegrationTests` still fails nondeterministically under machine load
 and passes on re-run (phase 36/37). `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
 check (phase-28), and `ng test` must be run from `web/` (phase-35a).
 

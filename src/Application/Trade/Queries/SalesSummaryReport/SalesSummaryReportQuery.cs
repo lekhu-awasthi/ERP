@@ -34,7 +34,12 @@ public sealed record SalesSummaryReportQuery(
     int PageSize = PagingDefaults.DefaultPageSize,
     bool ExportAll = false,
     // Phase 35b -- the Billing Location filter; null is "All locations". See ILocationFilteredReport.
-    Guid? LocationId = null)
+    Guid? LocationId = null,
+    // Phase 44 -- the live "Group Wise location" checkbox, which sits beside the Billing Location
+    // filter and is the only group-*by*-location control in the whole report catalogue (Cadehi,
+    // 2026-09-15). It composes with the filter rather than replacing it: the filter chooses which
+    // locations are in scope, this chooses whether the period's figures are split across them.
+    bool GroupWiseLocation = false)
     : IRequest<SalesSummaryReportDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.SalesSummaryReportView;
@@ -61,6 +66,15 @@ public enum SalesSummaryMode
 public sealed record SalesSummaryRowDto(
     DateOnly? Date,
     string? Label,
+    /// <summary>
+    /// Phase 44 -- the billing location this row's figures belong to, rendered by the live report as
+    /// a Location column inserted immediately after Date. Null unless <c>GroupWiseLocation</c> asked
+    /// for the split, and also null <i>within</i> a split for the group of documents that carry no
+    /// location at all -- a real state (a document written while its type was outside
+    /// <c>LocationScopeMode</c>), shown as its own group rather than silently dropped or folded into
+    /// HeadOffice.
+    /// </summary>
+    string? Location,
     decimal SubTotal,
     decimal Discount,
     decimal NonTaxableSales,

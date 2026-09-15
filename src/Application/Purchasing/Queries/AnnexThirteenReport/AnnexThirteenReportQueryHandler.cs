@@ -17,7 +17,7 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
         var invoices = await db.Invoices
             .Where(x => x.OrganizationId == request.OrganizationId && x.Status == InvoiceStatus.Approved
                 && x.Date >= request.FromDate && x.Date <= request.ToDate)
-            .Select(x => new { x.Id, x.ContactId })
+            .Select(x => new { x.Id, x.ContactId, x.ExchangeRate })
             .ToListAsync(cancellationToken);
         var invoiceLines = await db.InvoiceLines
             .Where(x => invoices.Select(i => i.Id).Contains(x.InvoiceId))
@@ -27,7 +27,7 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
         var creditNotes = await db.CreditNotes
             .Where(x => x.OrganizationId == request.OrganizationId && x.Status == CreditNoteStatus.Approved
                 && x.Date >= request.FromDate && x.Date <= request.ToDate)
-            .Select(x => new { x.Id, x.ContactId })
+            .Select(x => new { x.Id, x.ContactId, x.ExchangeRate })
             .ToListAsync(cancellationToken);
         var creditNoteLines = await db.CreditNoteLines
             .Where(x => creditNotes.Select(c => c.Id).Contains(x.CreditNoteId))
@@ -37,7 +37,7 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
         var purchaseBills = await db.PurchaseBills
             .Where(x => x.OrganizationId == request.OrganizationId && x.Status == PurchaseBillStatus.Approved
                 && x.Date >= request.FromDate && x.Date <= request.ToDate)
-            .Select(x => new { x.Id, x.ContactId })
+            .Select(x => new { x.Id, x.ContactId, x.ExchangeRate })
             .ToListAsync(cancellationToken);
         var purchaseBillLines = await db.PurchaseBillLines
             .Where(x => purchaseBills.Select(b => b.Id).Contains(x.PurchaseBillId))
@@ -47,7 +47,7 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
         var expenses = await db.Expenses
             .Where(x => x.OrganizationId == request.OrganizationId && x.Status == ExpenseStatus.Approved
                 && x.Date >= request.FromDate && x.Date <= request.ToDate)
-            .Select(x => new { x.Id, x.ContactId })
+            .Select(x => new { x.Id, x.ContactId, x.ExchangeRate })
             .ToListAsync(cancellationToken);
         var expenseLines = await db.ExpenseLines
             .Where(x => expenses.Select(e => e.Id).Contains(x.ExpenseId))
@@ -57,7 +57,7 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
         var debitNotes = await db.DebitNotes
             .Where(x => x.OrganizationId == request.OrganizationId && x.Status == DebitNoteStatus.Approved
                 && x.Date >= request.FromDate && x.Date <= request.ToDate)
-            .Select(x => new { x.Id, x.ContactId, x.ReferrerType, x.ReferrerId })
+            .Select(x => new { x.Id, x.ContactId, x.ReferrerType, x.ReferrerId, x.ExchangeRate })
             .ToListAsync(cancellationToken);
         var debitNoteLines = await db.DebitNoteLines
             .Where(x => debitNotes.Select(d => d.Id).Contains(x.DebitNoteId))
@@ -120,27 +120,43 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
         static void Accumulate(Dictionary<Guid, decimal> bucket, Guid contactId, decimal amount) =>
             bucket[contactId] = bucket.GetValueOrDefault(contactId) + amount;
 
+        // Phase 44 (43 Decision D) -- <b>the annex is filed in NPR, so it reports NPR.</b> Every one
+        // of the five accumulation loops below folds its line at <i>its own document's</i> rate
+        // before the line reaches a bucket, which is the same rule the Purchase Register and the VAT
+        // Summary now follow: a contact's row here is a sum across documents, so two documents in
+        // two currencies have to be made commensurable before they are added to each other.
+        //
+        // Amount and VatAmount are converted separately and then added, not added and then
+        // converted, so that a bill's gross here is exactly the sum of the two figures the Purchase
+        // Register reports for the same bill -- the two reports round identically by construction
+        // rather than by coincidence.
+        static decimal ToBase(decimal amount, decimal vatAmount, decimal exchangeRate) =>
+            ExchangeRates.ToBase(amount, exchangeRate) + ExchangeRates.ToBase(vatAmount, exchangeRate);
+
         var invoicesById = invoices.ToDictionary(x => x.Id);
         foreach (var line in invoiceLines)
         {
-            var contactId = invoicesById[line.InvoiceId].ContactId;
-            var gross = line.Amount + line.VatAmount;
+            var invoice = invoicesById[line.InvoiceId];
+            var contactId = invoice.ContactId;
+            var gross = ToBase(line.Amount, line.VatAmount, invoice.ExchangeRate);
             Accumulate(productTypes[line.ProductId] == ProductType.Goods ? goodsSales : serviceSales, contactId, gross);
         }
 
         var creditNotesById = creditNotes.ToDictionary(x => x.Id);
         foreach (var line in creditNoteLines)
         {
-            var contactId = creditNotesById[line.CreditNoteId].ContactId;
-            var gross = line.Amount + line.VatAmount;
+            var creditNote = creditNotesById[line.CreditNoteId];
+            var contactId = creditNote.ContactId;
+            var gross = ToBase(line.Amount, line.VatAmount, creditNote.ExchangeRate);
             Accumulate(productTypes[line.ProductId] == ProductType.Goods ? goodsSales : serviceSales, contactId, -gross);
         }
 
         var purchaseBillsById = purchaseBills.ToDictionary(x => x.Id);
         foreach (var line in purchaseBillLines)
         {
-            var contactId = purchaseBillsById[line.PurchaseBillId].ContactId;
-            var gross = line.Amount + line.VatAmount;
+            var purchaseBill = purchaseBillsById[line.PurchaseBillId];
+            var contactId = purchaseBill.ContactId;
+            var gross = ToBase(line.Amount, line.VatAmount, purchaseBill.ExchangeRate);
             var bucket = (productTypes[line.ProductId], line.ExpenditureClassification) switch
             {
                 (ProductType.Goods, ExpenditureClassification.Capital) => goodsPurchaseCapital,
@@ -157,14 +173,14 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
             // Expense carries no ProductId (account-based lines) and no ExpenditureClassification --
             // bucketed as Service/Others: Expense is inherently non-goods (no inventory, no
             // Quantity) and "Others" is ExpenditureClassification's own documented default.
-            var contactId = expensesById[line.ExpenseId].ContactId;
-            Accumulate(servicePurchaseOthers, contactId, line.Amount + line.VatAmount);
+            var expense = expensesById[line.ExpenseId];
+            Accumulate(servicePurchaseOthers, expense.ContactId, ToBase(line.Amount, line.VatAmount, expense.ExchangeRate));
         }
 
         foreach (var line in debitNoteLines)
         {
             var debitNote = debitNotesById[line.DebitNoteId];
-            var gross = line.Amount + line.VatAmount;
+            var gross = ToBase(line.Amount, line.VatAmount, debitNote.ExchangeRate);
 
             var classification = ExpenditureClassification.Others;
             if (debitNote.ReferrerType == DocumentType.PurchaseBill && debitNote.ReferrerId is { } sourcePurchaseBillId

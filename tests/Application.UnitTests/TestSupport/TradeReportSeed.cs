@@ -160,14 +160,20 @@ internal sealed record TradeReportSeed(
         new CreateAccountCommandHandler(db, numbers).Handle(
             new CreateAccountCommand(organizationId, name, groupId), CancellationToken.None);
 
+    /// <summary>Phase 44 -- <paramref name="locationId"/> places the invoice at a billing location,
+    /// for the Sales Summary's Group Wise location split. Null leaves it unplaced, which is the
+    /// state a document written while its type was outside LocationScopeMode is in.</summary>
     public async Task<(Guid Id, string Code)> ApproveInvoiceAsync(
         IAppDbContext db, DateOnly date, decimal rate, Guid? contactId = null,
-        Guid? productId = null, decimal quantity = 1m, decimal discountPct = 0m)
+        Guid? productId = null, decimal quantity = 1m, decimal discountPct = 0m, Guid? locationId = null)
     {
         var created = await new CreateInvoiceCommandHandler(db).Handle(
             new CreateInvoiceCommand(
                 this.OrganizationId, contactId ?? this.CustomerId, this.WarehouseId, date, null,
-                [new InvoiceLineInput(productId ?? this.ProductId, quantity, rate, VatRate.NoVat, discountPct)]),
+                [new InvoiceLineInput(productId ?? this.ProductId, quantity, rate, VatRate.NoVat, discountPct)])
+            {
+                LocationId = locationId,
+            },
             CancellationToken.None);
 
         var stock = new StockLedgerService(db);

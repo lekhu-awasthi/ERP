@@ -2416,3 +2416,76 @@ record, not present-and-unused. A field a client can send and the server silentl
 the client's side, exactly like a field that was accepted — the same failure mode as phase-38's
 array parameter binding to null while the request looked fine. If a command refuses a field, take
 it out of the shape, so sending it is a shape a caller can notice.
+
+## A sweep guard over query records cannot see the handler (phase 44)
+
+`ReportLocationSweepGuardTests` checks three things, and all three are about the *query record*: that
+it implements `ILocationFilteredReport`, that its `LocationId` defaults to null, and that its handler
+takes an `ICurrentUserService` at all. None of them can see whether the handler ever puts the filter
+into a `Where`.
+
+`SalesRegisterQueryHandler` and `PurchaseRegisterQueryHandler` passed every check from phase 35b to
+phase 44 while applying the filter to their **return half only** — `SalesReturnReader` and
+`PurchaseReturnReader` honoured it, and the invoice and purchase-bill queries beside them did not.
+The `Where` on the Sales Register's invoice query was untouched since phase 19. So choosing a
+location removed the credit and debit notes from a statutory register and left every invoice and
+bill in it, which is worse than not offering the control: phase-34b's rule with IRD numbers behind
+it.
+
+The remedy is not a cleverer guard. A handler with two document queries that filters one of them is
+not decidable by reflection, so the claim is pinned behaviourally — one test per report, each shown
+to fail against the pre-phase-44 handler — and the guard's own doc comment now states the blind spot,
+so the next reader does not mistake "passes the guard" for "applies the filter".
+
+## Reporting Tags: OR within a category, AND across categories (phase 44)
+
+Phase 19 chose "a document matches when it carries *any* of the selected options" as a judgement
+call. Phase 36 kept it deliberately, recording that what the live drawer does across two categories
+"was not observable on a tenant with tagged data to hand", and that inventing a second rule for a
+sibling report to disagree with was exactly what that phase existed to undo.
+
+Moonbeam has six tag categories. Four runs on Inventory Position settle it:
+
+| Selection | Rows |
+|---|---|
+| BUSINESS{BUSINESS} | 3 |
+| BUSINESS{BUSINESS, asdasd} | 4 — exactly the union |
+| BUSINESS{BUSINESS} + SERVICE{sdfsdfds} | **2** — a strict subset |
+| BUSINESS{both} + SERVICE{sdfsdfds} | 3 |
+
+Adding an option inside a category **grew** the set, which AND-within cannot do. Adding a second
+category **shrank** it, which OR-across cannot do. Standard faceted filtering, and not what was
+built.
+
+The general lesson is about the record, not the rule: a decision written down as *inherited* reads
+later exactly like one written down as *observed*, and only the first is cheap to overturn. Phase
+36's own words are what made this correction quick — it said which tenant it could not see, and why.
+
+## A backfill over approved history needs its own mutator (phase 44)
+
+`Invoice.SetLocation` calls `EnsureDraft()`, and the doc comment says why: an Approved document's
+location is what its numbering pool was drawn from and what every location-filtered report has
+already counted it under, so moving it afterwards would silently restate both.
+
+`BackfillDocumentLocationsCommand` exists precisely for Approved documents — the ones written while
+their type sat outside `LocationScopeMode`, which carry **no** location. Both of `SetLocation`'s
+reasons fail for them: a document with no location was numbered from the *unscoped* pool, so there is
+no location-wise numbering to restate, and it was counted under *no* location, so no filtered
+report's past answer is revised — it was missing from every one of them.
+
+So fifteen aggregates gained `BackfillLocation(Guid)`, which fills a null and throws if a location is
+already set. The guard is not weakened by adding a method that cannot reach past it. Reaching through
+EF's change tracker instead was considered and rejected: the rule belongs in the Domain, where the
+next reader will look for it.
+
+## A stamped audit column is about the past, not the present (phase 44)
+
+`AuditBehavior` now reads the document's location once, after the handler, and freezes it on the
+`Audit` row. Existing rows are left null rather than backfilled, and the phase's own E2E shows why:
+after `BackfillDocumentLocationsCommand` assigned HeadOffice to two purchase bills, the *documents*
+read HeadOffice and their *audit rows* still read null — because at the moment those actions
+happened, the bills had no location.
+
+That is the intended semantics of a stamped column and the reason phase-35b's rule (an append-only
+fact needs a stamped column, never a join back to the document) is about honesty as well as cost. A
+join back would have reported today's location for yesterday's action.

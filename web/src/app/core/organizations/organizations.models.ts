@@ -482,3 +482,16 @@ export interface OrganizationLogoResult {
   hasLogo: boolean;
   contentType: string | null;
 }
+
+/** Phase 44 -- what the billing-location backfill changed, per document type. Types it found
+ *  nothing to do for are omitted rather than reported as zero. */
+export interface BackfilledDocumentTypeCount {
+  readonly documentType: string;
+  readonly updated: number;
+}
+
+export interface BackfillLocationsResult {
+  readonly headOfficeId: string;
+  readonly totalUpdated: number;
+  readonly counts: BackfilledDocumentTypeCount[];
+}

@@ -43,10 +43,12 @@ export class CatalogueReportsService {
     locationId?: string,
     groupByWarehouse = false,
     tagOptionIds: string[] = [],
+    displayWarehouseInColumn = false,
   ): Observable<InventoryPositionReportDto> {
     const params: Record<string, string | string[]> = {
       ...this.stockParams(fromDate, toDate, categoryId, productId, warehouseId, balanceFilter, page, pageSize, locationId ?? null),
       groupByWarehouse: String(groupByWarehouse),
+      displayWarehouseInColumn: String(displayWarehouseInColumn),
     };
     if (tagOptionIds.length > 0) params['tagOptionIds'] = tagOptionIds;
 
@@ -61,10 +63,12 @@ export class CatalogueReportsService {
     productId: string | null, warehouseId: string | null, balanceFilter: InventoryBalanceFilter,
     full: boolean, page: number, pageSize: number, locationId?: string,
     groupByWarehouse = false, tagOptionIds: string[] = [],
+    displayWarehouseInColumn = false,
   ): Observable<Blob> {
     const params: Record<string, string | string[]> = {
       ...this.stockParams(fromDate, toDate, categoryId, productId, warehouseId, balanceFilter, page, pageSize, locationId ?? null),
       groupByWarehouse: String(groupByWarehouse),
+      displayWarehouseInColumn: String(displayWarehouseInColumn),
     };
     if (tagOptionIds.length > 0) params['tagOptionIds'] = tagOptionIds;
     if (locationId) params['locationId'] = locationId;

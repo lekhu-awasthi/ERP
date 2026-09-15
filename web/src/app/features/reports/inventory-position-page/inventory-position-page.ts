@@ -61,6 +61,16 @@ export class InventoryPositionPage {
   /** Phase 36 -- the live drawer's Show Columns checkbox and its Reporting Tags. Grouping adds a
    *  WAREHOUSE column and splits each product's row per warehouse. */
   protected readonly groupByWarehouse = signal(false);
+
+  /** Phase 44 -- the drawer's second Show Columns box. A *modifier* of Group by Warehouse,
+   *  not an alternative: the live control is disabled until that one is ticked (Moonbeam
+   *  2026-09-15), and the server refuses it on its own with a 400 naming the field. Ticking
+   *  it turns the per-warehouse split from extra rows into one quantity column per
+   *  warehouse. */
+  protected readonly displayWarehouseInColumn = signal(false);
+
+  /** The column headers the server sends back, in the order each row's quantities align to. */
+  protected readonly warehouseColumns = signal<string[]>([]);
   protected readonly tagOptions = signal<ReportingTagOption[]>([]);
   protected readonly selectedTagOptionIds = signal<string[]>([]);
 
@@ -112,7 +122,18 @@ export class InventoryPositionPage {
 
   protected toggleGroupByWarehouse(group: boolean): void {
     this.groupByWarehouse.set(group);
+    // Clearing the parent clears the modifier, or the next request would carry a flag the
+    // server refuses -- the screen would show a checked box and a 400.
+    if (!group) {
+      this.displayWarehouseInColumn.set(false);
+    }
     // Page 1: grouping multiplies the row count, so a reader on page 3 would land elsewhere.
+    this.page.set(1);
+    this.load();
+  }
+
+  protected toggleDisplayWarehouseInColumn(display: boolean): void {
+    this.displayWarehouseInColumn.set(display);
     this.page.set(1);
     this.load();
   }
@@ -165,6 +186,7 @@ export class InventoryPositionPage {
         this.organizationId, this.fromDate(), this.toDate(), this.categoryId() || null,
         this.productId() || null, this.warehouseId() || null, this.balanceFilter(), full, page, pageSize,
         this.locationId(), this.groupByWarehouse(), this.selectedTagOptionIds(),
+        this.displayWarehouseInColumn(),
       )
       .subscribe({
         next: (blob) => {
@@ -188,10 +210,15 @@ export class InventoryPositionPage {
         this.productId() || null, this.warehouseId() || null, this.balanceFilter(),
         this.page(), this.pageSize(),
         this.locationId(), this.groupByWarehouse(), this.selectedTagOptionIds(),
+        this.displayWarehouseInColumn(),
       )
       .subscribe({
         next: (report) => {
           this.rows.set(report.items);
+          // Read from the response, not from the request flag: the headers are the server's
+          // answer about which warehouses exist, and the two must not be able to disagree about
+          // how many columns a row has.
+          this.warehouseColumns.set(report.warehouseColumns ?? []);
           this.totalCount.set(report.totalCount);
           this.totalQuantity.set(report.totalQuantity);
           this.totalAmount.set(report.totalAmount);

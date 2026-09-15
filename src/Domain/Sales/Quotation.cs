@@ -232,6 +232,21 @@ public sealed class Quotation
         LocationId = locationId;
     }
 
+    /// <summary>Phase 44 -- fills in a billing location that was never set, for
+    /// <c>BackfillDocumentLocationsCommand</c>. Allowed after Approve, unlike <see cref="SetLocation"/>,
+    /// and refuses to move one that is already set. See <c>Sales.Invoice.BackfillLocation</c> for the
+    /// full reasoning.</summary>
+    public void BackfillLocation(Guid locationId)
+    {
+        if (LocationId is not null)
+        {
+            throw new InvalidOperationException(
+                "This document already has a billing location; the backfill only fills in a missing one.");
+        }
+
+        LocationId = locationId;
+    }
+
     private void EnsureDraft()
     {
         if (Status != QuotationStatus.Draft)

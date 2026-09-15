@@ -17,6 +17,18 @@ namespace ErpApp.Application.UnitTests.Locations;
 /// <para><b>The universe is derived, not listed.</b> A report query is one whose permission key
 /// lives in the <c>Reports.</c> namespace — which is what makes a new report face this question the
 /// moment it is written, instead of vanishing off the bottom of a hand-kept list.</para>
+///
+/// <para><b>What this guard cannot see, stated because phase 44 found it the hard way.</b> Every
+/// check here is about the <i>query record</i>: that it accepts a LocationId, that the default is
+/// "All locations", that its handler could resolve the permission scope. None of them can see
+/// whether the handler actually <i>applies</i> what it accepts — and the Sales Register and the
+/// Purchase Register passed all of them for three phases while narrowing only their return half,
+/// leaving every invoice and every bill in a location-filtered register. A handler with two document
+/// queries that filters one of them is not decidable by reflection, so that claim is pinned
+/// behaviourally instead, one test per report:
+/// <c>SalesRegisterQueryHandlerTests.The_location_filter_narrows_the_invoices_and_not_only_the_credit_notes</c>
+/// and its purchase-side twin. Both were shown to fail against the pre-phase-44 handlers. A new
+/// multi-source report owes the same test; this guard will not ask for it.</para>
 /// </summary>
 public class ReportLocationSweepGuardTests
 {
@@ -26,10 +38,17 @@ public class ReportLocationSweepGuardTests
     /// Report queries that deliberately take no Billing Location filter, each with the reason.
     ///
     /// <para><b>Six come straight from the live census</b> (confirm-live 2026-09-10, all 49 report
-    /// filter bars read): the reference product does not offer the control on them. <b>Three more are
+    /// filter bars read): the reference product does not offer the control on them. <b>Two more are
     /// this codebase's own</b>, and their reason is stronger than the product's — the row they read
     /// carries no location at all, so the filter could not be honestly implemented without inventing
     /// a join to a document that may not exist.</para>
+    ///
+    /// <para><b>System Audit was the third, and phase 44 closed it</b> rather than re-stating the
+    /// exemption. Phase 35b's reasoning was that giving it a location meant either stamping at
+    /// audit-write time or the 17-way join back Decision B rejected for the GL — and the first of
+    /// those turned out to be cheap, because <c>AuditBehavior</c> already runs after the handler and
+    /// already holds the document's (type, id). It is one lookup by primary key on a command that
+    /// has just written, not a join per row on a report over a period.</para>
     /// </summary>
     private static readonly IReadOnlyDictionary<string, string> Exempt = new Dictionary<string, string>(StringComparer.Ordinal)
     {
@@ -50,7 +69,7 @@ public class ReportLocationSweepGuardTests
         ["UserLogQuery"] =
             "Login events. There is no document behind a row, and UserLoginEvent carries no location.",
 
-        // --- this codebase's own three ---
+        // --- this codebase's own two (phase 44 closed the third) ---
         ["MigratedSalesRegisterQuery"] =
             "MigratedSalesRegisterEntry is deliberately not a document (phase 21c): no lifecycle, no "
             + "LocationId column, and the cutover spreadsheet it is imported from has no location "
@@ -58,12 +77,6 @@ public class ReportLocationSweepGuardTests
             + "nothing either way.",
         ["MigratedPurchaseRegisterQuery"] =
             "The Purchase Book counterpart, same reasoning.",
-        ["SystemAuditReportQuery"] =
-            "An Audit row records a command as (UserId, Action, DocumentType, DocumentId) and nothing "
-            + "else -- it has no location, and it is written for commands over rows that are not "
-            + "documents at all. Giving it one means either stamping a location at audit-write time "
-            + "(where an Approve command does not carry one) or the 17-way join back that Decision B "
-            + "rejected for the GL. Carried as phase 35b item #2 rather than guessed at.",
     };
 
     [Fact]

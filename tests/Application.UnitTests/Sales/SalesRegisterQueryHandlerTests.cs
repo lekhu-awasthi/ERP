@@ -26,6 +26,7 @@ using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Tenancy;
+using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.UnitTests.Sales;
 
@@ -223,6 +224,77 @@ public class SalesRegisterQueryHandlerTests
         // 13,300 sold less 5,320 returned, both in rupees.
         Assert.Equal(7_980m, result.TotalValue);
         Assert.Contains(result.Items, x => x.TotalValue == -5_320m);
+    }
+
+    /// <summary>
+    /// Phase 44 -- <b>the Billing Location filter narrows the invoices, not only the credit notes.</b>
+    /// The sales-side twin of the Purchase Register's test, and it fails the same way against the
+    /// code as it stood before this phase: phase 35b taught <c>SalesReturnReader</c> the filter and
+    /// left the invoice query unnarrowed, so choosing a location dropped the returns and kept every
+    /// invoice. See the purchase-side copy for why the sweep guard could not see it.
+    /// </summary>
+    [Fact]
+    public async Task The_location_filter_narrows_the_invoices_and_not_only_the_credit_notes()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+        var (headOffice, branch) = await SeedTwoLocationsAsync(db, seed.OrganizationId);
+
+        await CreateAndApproveLocatedInvoiceAsync(db, seed, new DateOnly(2026, 1, 10), 100m, headOffice);
+        await CreateAndApproveLocatedInvoiceAsync(db, seed, new DateOnly(2026, 1, 11), 250m, branch);
+
+        var all = await RegisterAsync(db, seed, locationId: null);
+        Assert.Equal(2, all.Items.Count);
+        Assert.Equal(350m, all.TotalValue);
+
+        var branchOnly = await RegisterAsync(db, seed, branch);
+        var row = Assert.Single(branchOnly.Items);
+        Assert.Equal(250m, row.TotalValue);
+        Assert.Equal(250m, branchOnly.TotalValue);
+    }
+
+    private static async Task<SalesRegisterDto> RegisterAsync(IAppDbContext db, Seed seed, Guid? locationId) =>
+        await new SalesRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()))
+            .Handle(
+                new SalesRegisterQuery(
+                    seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), null, null)
+                {
+                    LocationId = locationId,
+                },
+                CancellationToken.None);
+
+    private static async Task<(Guid HeadOffice, Guid Branch)> SeedTwoLocationsAsync(IAppDbContext db, Guid organizationId)
+    {
+        var headOffice = BillingLocation.CreateHeadOffice(organizationId);
+        var branch = BillingLocation.Create(organizationId, "BR1", "Branch One", null, null);
+        db.BillingLocations.Add(headOffice);
+        db.BillingLocations.Add(branch);
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        var settings = await db.TenantSettings.SingleAsync(x => x.OrganizationId == organizationId, CancellationToken.None);
+        settings.SetLocationSettings(LocationScopeMode.AllTransactions, locationWiseReportPermission: false);
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        return (headOffice.Id, branch.Id);
+    }
+
+    private static async Task CreateAndApproveLocatedInvoiceAsync(
+        IAppDbContext db, Seed seed, DateOnly date, decimal rate, Guid locationId)
+    {
+        var created = await new CreateInvoiceCommandHandler(db).Handle(
+            new CreateInvoiceCommand(
+                seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
+                [new InvoiceLineInput(seed.ProductId, 1m, rate, VatRate.NoVat)])
+            {
+                LocationId = locationId,
+            },
+            CancellationToken.None);
+
+        var stockLedgerService = new StockLedgerService(db);
+        await new ApproveInvoiceCommandHandler(
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new InvoicePostingRule(),
+            new FifoStockAvailabilityPolicy(db, stockLedgerService), stockLedgerService, new ContactCreditLimitPolicy(db))
+            .Handle(new ApproveInvoiceCommand(seed.OrganizationId, created.Id, OverrideWarning: false), CancellationToken.None);
     }
 
     private static async Task<Guid> CreateAndApproveForeignInvoiceAsync(

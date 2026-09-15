@@ -5,7 +5,9 @@ using ErpApp.Application.Trade.Queries.TradeByContactMonthly;
 using ErpApp.Application.Trade.Queries.TradeByItem;
 using ErpApp.Application.Trade.Queries.TradeByItemMonthly;
 using ErpApp.Application.UnitTests.TestSupport;
+using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Tenancy;
 
 namespace ErpApp.Application.UnitTests.Trade;
 
@@ -302,6 +304,106 @@ public class TradeAnalyticsQueryHandlerTests
 
         Assert.Equal(row.SubTotal - row.Discount, row.NonTaxableSales + row.TaxableSales);
         Assert.Equal(row.NonTaxableSales + row.TaxableSales + row.Vat, row.Total);
+    }
+
+    /// <summary>
+    /// Phase 44 -- <b>Group Wise location</b>, the one group-<i>by</i>-location control in the whole
+    /// report catalogue. Read live on Cadehi 2026-09-15: the checkbox sits beside the Billing
+    /// Location filter, and ticking it inserts a Location column immediately after Date, turning
+    /// `Bhadra, 2083 | 100 | ...` into `Bhadra, 2083 | HeadOffice | 100 | ...`.
+    ///
+    /// <para>The split adds a dimension to the row key and changes no figure: the grouped rows sum
+    /// to the ungrouped row, which is the property asserted here and the reason the implementation
+    /// runs the existing period builder over each slice rather than aggregating a second way.</para>
+    /// </summary>
+    [Fact]
+    public async Task Sales_summary_group_wise_location_splits_a_period_without_changing_its_figures()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await TradeReportSeed.CreateAsync(db);
+        var (headOffice, branch) = await SeedTwoLocationsAsync(db, seed.OrganizationId);
+
+        var shrawan = BsCalendar.ToGregorian(new BsDate(2083, 4, 5))!.Value;
+        await seed.ApproveInvoiceAsync(db, shrawan, 1_000m, locationId: headOffice);
+        await seed.ApproveInvoiceAsync(db, shrawan, 250m, locationId: branch);
+
+        var handler = new SalesSummaryReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
+
+        var ungrouped = await handler.Handle(
+            new SalesSummaryReportQuery(seed.OrganizationId, 2083), CancellationToken.None);
+        var grouped = await handler.Handle(
+            new SalesSummaryReportQuery(seed.OrganizationId, 2083, GroupWiseLocation: true),
+            CancellationToken.None);
+
+        // One period, one row -- and no Location column at all unless it was asked for.
+        var whole = Assert.Single(ungrouped.Rows);
+        Assert.Null(whole.Location);
+        Assert.Equal(1_250m, whole.SubTotal);
+
+        // The same period, one row per location, named and in name order.
+        Assert.Equal(2, grouped.Rows.Count);
+        Assert.Equal(["Branch One", "HeadOffice"], grouped.Rows.Select(r => r.Location));
+        Assert.All(grouped.Rows, r => Assert.Equal("Shrawan, 2083", r.Label));
+
+        Assert.Equal(250m, Assert.Single(grouped.Rows, r => r.Location == "Branch One").SubTotal);
+        Assert.Equal(1_000m, Assert.Single(grouped.Rows, r => r.Location == "HeadOffice").SubTotal);
+
+        // The split changes nothing: the parts sum to the whole, on every money column.
+        Assert.Equal(whole.SubTotal, grouped.Rows.Sum(r => r.SubTotal));
+        Assert.Equal(whole.Discount, grouped.Rows.Sum(r => r.Discount));
+        Assert.Equal(whole.NonTaxableSales, grouped.Rows.Sum(r => r.NonTaxableSales));
+        Assert.Equal(whole.TaxableSales, grouped.Rows.Sum(r => r.TaxableSales));
+        Assert.Equal(whole.Vat, grouped.Rows.Sum(r => r.Vat));
+        Assert.Equal(whole.Total, grouped.Rows.Sum(r => r.Total));
+    }
+
+    /// <summary>
+    /// Phase 44 -- a document with no location is its own group, last, rather than being dropped or
+    /// folded into HeadOffice. It is a real state: phase 32 made LocationId nullable, so anything
+    /// written while its type was outside LocationScopeMode carries none. Dropping it would make the
+    /// grouped view disagree with the ungrouped one, which is the one thing the split must not do.
+    /// </summary>
+    [Fact]
+    public async Task Sales_summary_group_wise_location_keeps_unplaced_documents_as_their_own_group()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await TradeReportSeed.CreateAsync(db);
+        var shrawan = BsCalendar.ToGregorian(new BsDate(2083, 4, 5))!.Value;
+
+        // Raised BEFORE the tenant had any billing location, which is how a document comes to carry
+        // none: LocationResolver reads null as "use the default", and the default is the HeadOffice
+        // row -- so once one exists, nothing written through the command is unplaced. The real
+        // population of unplaced documents is the one written before the feature was turned on.
+        await seed.ApproveInvoiceAsync(db, shrawan, 400m);
+
+        var (headOffice, _) = await SeedTwoLocationsAsync(db, seed.OrganizationId);
+        await seed.ApproveInvoiceAsync(db, shrawan, 1_000m, locationId: headOffice);
+
+        var grouped = await new SalesSummaryReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()))
+            .Handle(
+                new SalesSummaryReportQuery(seed.OrganizationId, 2083, GroupWiseLocation: true),
+                CancellationToken.None);
+
+        Assert.Equal(2, grouped.Rows.Count);
+
+        // Named first, the residue last.
+        Assert.Equal("HeadOffice", grouped.Rows[0].Location);
+        Assert.Null(grouped.Rows[1].Location);
+        Assert.Equal(400m, grouped.Rows[1].SubTotal);
+
+        // Nothing is lost.
+        Assert.Equal(1_400m, grouped.Rows.Sum(r => r.SubTotal));
+    }
+
+    private static async Task<(Guid HeadOffice, Guid Branch)> SeedTwoLocationsAsync(
+        IAppDbContext db, Guid organizationId)
+    {
+        var headOffice = BillingLocation.CreateHeadOffice(organizationId);
+        var branch = BillingLocation.Create(organizationId, "BR1", "Branch One", null, null);
+        db.BillingLocations.Add(headOffice);
+        db.BillingLocations.Add(branch);
+        await db.SaveChangesAsync(CancellationToken.None);
+        return (headOffice.Id, branch.Id);
     }
 
     /// <summary>Only periods with activity appear -- the live Month run returned two rows on a

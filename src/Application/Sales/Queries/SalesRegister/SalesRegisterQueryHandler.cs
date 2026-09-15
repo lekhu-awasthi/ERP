@@ -43,6 +43,14 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db, ICurrentUserServ
                 invoiceQuery = invoiceQuery.Where(x => taggedInvoiceIds.Contains(x.Id));
             }
 
+            // Phase 44 -- the Billing Location filter, which this half never applied. Phase 35b gave
+            // the query its LocationId and taught SalesReturnReader to honour it, so the credit-note
+            // rows narrowed and the invoice rows did not: picking a location removed the returns from
+            // the register and left every invoice in it, which is worse than not offering the filter.
+            // The Sales Master Report has applied it to both its document queries since phase 32.
+            // See the Purchase Register's copy of this comment for why the sweep guard missed it.
+            invoiceQuery = invoiceQuery.AtLocations(request.LocationId, reportLocations);
+
             var invoices = await invoiceQuery
                 .Select(x => new
                 {

@@ -51,6 +51,13 @@ export class SalesSummaryReportPage {
   protected readonly fiscalYear = signal(currentFiscalYear());
   protected readonly mode = signal<SalesSummaryMode>('Month');
 
+  /** Phase 44 -- the live "Group Wise location" checkbox, which sits beside the Billing
+   *  Location filter on the reference product (Cadehi, 2026-09-15) and is the only
+   *  group-*by*-location control in the catalogue. It composes with the filter rather than
+   *  replacing it: the filter chooses which locations are in scope, this chooses whether the
+   *  period's figures are split across them. */
+  protected readonly groupWiseLocation = signal(false);
+
   protected readonly page = signal(1);
   protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
   protected readonly exporting = signal(false);
@@ -66,6 +73,13 @@ export class SalesSummaryReportPage {
 
   protected onModeChange(event: Event): void {
     this.mode.set((event.target as HTMLSelectElement).value as SalesSummaryMode);
+    this.reload();
+  }
+
+  protected onGroupWiseLocationChange(group: boolean): void {
+    this.groupWiseLocation.set(group);
+    // Grouping multiplies the row count, so a reader on page 3 would otherwise land somewhere else
+    // -- the same reason Inventory Position's grouping resets the pager.
     this.reload();
   }
 
@@ -101,7 +115,9 @@ export class SalesSummaryReportPage {
   private runExport(full: boolean, page: number, pageSize: number): void {
     this.exporting.set(true);
     this.reports
-      .exportSalesSummaryReport(this.organizationId, this.fiscalYear(), this.mode(), full, page, pageSize, this.locationId())
+      .exportSalesSummaryReport(
+        this.organizationId, this.fiscalYear(), this.mode(), full, page, pageSize, this.locationId(),
+        this.groupWiseLocation())
       .subscribe({
         next: (blob) => {
           this.exporting.set(false);
@@ -119,7 +135,9 @@ export class SalesSummaryReportPage {
     this.errorMessage.set(null);
 
     this.reports
-      .getSalesSummaryReport(this.organizationId, this.fiscalYear(), this.mode(), this.page(), this.pageSize(), this.locationId())
+      .getSalesSummaryReport(
+        this.organizationId, this.fiscalYear(), this.mode(), this.page(), this.pageSize(), this.locationId(),
+        this.groupWiseLocation())
       .subscribe({
         next: (report) => {
           this.report.set(report);

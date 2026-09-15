@@ -324,6 +324,32 @@ public sealed class Invoice
         LocationId = locationId;
     }
 
+    /// <summary>
+    /// Phase 44 -- fills in a billing location that was never set, for the one-off backfill an Admin
+    /// runs after widening <see cref="Domain.Tenancy.LocationScopeMode"/>
+    /// (<c>BackfillDocumentLocationsCommand</c>).
+    ///
+    /// <para><b>Why this is allowed after Approve when <see cref="SetLocation"/> is not.</b> The two
+    /// reasons that one is draft-only are exactly the two that cannot apply here. A document with no
+    /// location was numbered from the <i>unscoped</i> pool, so there is no location-wise numbering to
+    /// restate. And it was counted under no location at all, so no filtered report's past answer is
+    /// revised -- it was missing from every one of them, which is the defect this repairs.</para>
+    ///
+    /// <para><b>It refuses to move a location that is already set.</b> That is the case
+    /// <see cref="SetLocation"/> guards, and a guard is not weakened by adding a method that cannot
+    /// reach past it.</para>
+    /// </summary>
+    public void BackfillLocation(Guid locationId)
+    {
+        if (LocationId is not null)
+        {
+            throw new InvalidOperationException(
+                "This document already has a billing location; the backfill only fills in a missing one.");
+        }
+
+        LocationId = locationId;
+    }
+
     private void EnsureDraft()
     {
         if (Status != InvoiceStatus.Draft)

@@ -26,7 +26,14 @@ public sealed class InventoryMasterReportQueryHandler(IAppDbContext db, ICurrent
         decimal ItemDiscount,
         decimal TransactionDiscount,
         decimal NetAmount,
-        decimal VatAmount)
+        decimal VatAmount,
+        // Phase 44 -- the warehouse, when the line already knows it and the movement lookup cannot
+        // work it out. WarehouseNamesByLineAsync keys on (DocumentId, ProductId) and takes the first
+        // movement it finds, which is fine for a document that moves a product in one direction and
+        // wrong for a Warehouse Transfer, whose two legs share both keys and differ only in the
+        // warehouse. A transfer therefore states its warehouse per leg; every other loader leaves
+        // this null and the movement lookup answers as before.
+        Guid? WarehouseId = null)
     {
         /// <summary>Gross line value, so that Amount - (ItemDiscount + TransactionDiscount) ==
         /// NetAmount exactly -- the identity <c>TradeLineReader</c> established against live rows.</summary>
@@ -84,6 +91,21 @@ public sealed class InventoryMasterReportQueryHandler(IAppDbContext db, ICurrent
             lines.AddRange(await LoadProductionJournalLinesAsync(request, reportLocations, cancellationToken));
         }
 
+        // Phase 44 -- Warehouse Transfer and Opening Stock, which phase 26c's Decision D excluded.
+        // See the query's own doc comment: the live Txn Type filter offers both, and a transfer's
+        // two-rows-with-blank-money shape -- 26c's stated reason for leaving it out -- is exactly
+        // what the reference product renders. Same contact-filter gate as the two types above, and
+        // for the same reason: neither has a counterparty.
+        if (request.ContactId is null && Include(DocumentType.WarehouseTransfer))
+        {
+            lines.AddRange(await LoadWarehouseTransferLinesAsync(request, reportLocations, cancellationToken));
+        }
+
+        if (request.ContactId is null && Include(DocumentType.OpeningStock))
+        {
+            lines.AddRange(await LoadOpeningStockLinesAsync(request, reportLocations, cancellationToken));
+        }
+
         if (request.ProductId is { } productFilter)
         {
             lines = lines.Where(l => l.ProductId == productFilter).ToList();
@@ -96,6 +118,7 @@ public sealed class InventoryMasterReportQueryHandler(IAppDbContext db, ICurrent
             db, request.OrganizationId, [.. lines.Select(l => (l.DocumentType, l.DocumentId))], cancellationToken);
 
         var warehouses = await WarehouseNamesByLineAsync(request.OrganizationId, lines, cancellationToken);
+        var warehouseNames = await WarehouseNamesAsync(request.OrganizationId, cancellationToken);
         var accounts = await AccountNamesByProductAsync(request.OrganizationId, cancellationToken);
 
         var rows = lines
@@ -111,7 +134,9 @@ public sealed class InventoryMasterReportQueryHandler(IAppDbContext db, ICurrent
                     document?.ContactName,
                     line.DocumentType,
                     line.DocumentId,
-                    warehouses.GetValueOrDefault((line.DocumentId, line.ProductId)),
+                    line.WarehouseId is { } ownWarehouse
+                        ? warehouseNames.GetValueOrDefault(ownWarehouse)
+                        : warehouses.GetValueOrDefault((line.DocumentId, line.ProductId)),
                     AccountFor(line.DocumentType, line.ProductId, accounts),
                     document?.Code ?? string.Empty,
                     document?.Reference,
@@ -323,6 +348,111 @@ public sealed class InventoryMasterReportQueryHandler(IAppDbContext db, ICurrent
     /// <c>StockMovement</c>. See the query's remarks for why this is not the document header: two
     /// of the six types have no warehouse of their own, and a service line has no warehouse at all.
     /// </summary>
+    /// <summary>
+    /// Phase 44 -- one Warehouse Transfer line becomes <b>two report rows</b>, one per leg: the
+    /// receiving warehouse positive, the sending warehouse negative. Confirmed live on Moonbeam
+    /// 2026-09-15, where WT0002 rendered as `Kathmandu +10` and `Patan (10)` for the same product on
+    /// the same date, with Contact, Account, Rate, Amount, both discounts, VAT, Total and Additional
+    /// Cost all blank.
+    ///
+    /// <para>Every money column is zero because a transfer has none to report: the aggregate stores
+    /// a quantity and nothing else, and the FIFO cost it moves is an internal repositioning that
+    /// changes no valuation. Phase 26c predicted precisely this and treated it as the reason to
+    /// exclude the type; the reference product ships it anyway, so this does too.</para>
+    /// </summary>
+    private async Task<List<Line>> LoadWarehouseTransferLinesAsync(
+        InventoryMasterReportQuery request, IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
+    {
+        var documents = await db.WarehouseTransfers
+            .Where(x => x.OrganizationId == request.OrganizationId
+                && x.Status == WarehouseTransferStatus.Approved
+                && x.Date >= request.FromDate && x.Date <= request.ToDate)
+            .AtLocations(request.LocationId, reportLocations)
+            .Select(x => new { x.Id, x.Date, x.FromWarehouseId, x.ToWarehouseId })
+            .ToListAsync(cancellationToken);
+        var ids = documents.Select(x => x.Id).ToList();
+        var headers = documents.ToDictionary(x => x.Id);
+
+        var lines = await db.WarehouseTransferLines
+            .Where(l => ids.Contains(l.WarehouseTransferId))
+            .Select(l => new { l.WarehouseTransferId, l.ProductId, l.Quantity })
+            .ToListAsync(cancellationToken);
+
+        return
+        [
+            .. lines.SelectMany(l =>
+            {
+                var header = headers[l.WarehouseTransferId];
+                Line Leg(Guid warehouseId, decimal quantity) => new(
+                    DocumentType.WarehouseTransfer, l.WarehouseTransferId, header.Date, l.ProductId,
+                    quantity, Rate: 0, ItemDiscount: 0, TransactionDiscount: 0, NetAmount: 0, VatAmount: 0,
+                    WarehouseId: warehouseId);
+
+                return new[]
+                {
+                    Leg(header.ToWarehouseId, l.Quantity),
+                    Leg(header.FromWarehouseId, -l.Quantity),
+                };
+            }),
+        ];
+    }
+
+    /// <summary>
+    /// Phase 44 -- Opening Stock, the other type the live Txn Type filter offers and phase 26c
+    /// excluded. Positive: day zero puts stock in.
+    ///
+    /// <para><b>The date is the tenant's accounting start date, not the row's CreatedAt</b>, and this
+    /// is a decision rather than an observation -- Moonbeam offers the type but had no rows inside
+    /// any period this pass could read, so the live row's date column is unseen. <c>OpeningStockLine</c>
+    /// stores no business date at all (it is keyed by product and warehouse, with no lifecycle), so
+    /// the choice is between the day the figure describes and the day somebody typed it. A figure
+    /// that lands in whichever month it was entered would make a period report disagree with the
+    /// stock it explains, so this uses day zero. Stated here because a future live read may settle
+    /// it differently.</para>
+    ///
+    /// <para>Unlike a transfer it does carry a rate, so the value columns are populated from the row
+    /// rather than zeroed -- the same treatment <c>LoadAdjustmentLinesAsync</c> gives a cost-bearing
+    /// non-trading line.</para>
+    /// </summary>
+    private async Task<List<Line>> LoadOpeningStockLinesAsync(
+        InventoryMasterReportQuery request, IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
+    {
+        var accountingStartDate = await db.Organizations
+            .Where(x => x.Id == request.OrganizationId)
+            .Select(x => (DateOnly?)x.AccountingStartDate)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (accountingStartDate is not { } dayZero
+            || dayZero < request.FromDate || dayZero > request.ToDate)
+        {
+            return [];
+        }
+
+        var lines = await db.OpeningStockLines
+            .Where(l => l.OrganizationId == request.OrganizationId)
+            .AtLocations(request.LocationId, reportLocations)
+            .Select(l => new { l.Id, l.ProductId, l.WarehouseId, l.Quantity, l.Rate })
+            .ToListAsync(cancellationToken);
+
+        return
+        [
+            .. lines.Select(l => new Line(
+                DocumentType.OpeningStock, l.Id, dayZero, l.ProductId,
+                l.Quantity, l.Rate, ItemDiscount: 0, TransactionDiscount: 0,
+                NetAmount: l.Quantity * l.Rate, VatAmount: 0,
+                WarehouseId: l.WarehouseId)),
+        ];
+    }
+
+    /// <summary>Phase 44 -- warehouse names by id, for the lines that name their own warehouse
+    /// instead of leaving it to be inferred from a stock movement.</summary>
+    private async Task<Dictionary<Guid, string>> WarehouseNamesAsync(
+        Guid organizationId, CancellationToken cancellationToken) =>
+        await db.Warehouses
+            .Where(w => w.OrganizationId == organizationId)
+            .Select(w => new { w.Id, w.Name })
+            .ToDictionaryAsync(w => w.Id, w => w.Name, cancellationToken);
+
     private async Task<Dictionary<(Guid DocumentId, Guid ProductId), string>> WarehouseNamesByLineAsync(
         Guid organizationId, IReadOnlyCollection<Line> lines, CancellationToken cancellationToken)
     {

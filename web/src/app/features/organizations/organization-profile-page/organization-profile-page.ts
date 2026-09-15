@@ -3,7 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
-import { OrganizationProfile } from '../../../core/organizations/organizations.models';
+import { BackfillLocationsResult, OrganizationProfile } from '../../../core/organizations/organizations.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
@@ -57,6 +57,17 @@ export class OrganizationProfilePage implements OnDestroy {
   /** Phase 43 — separate from `saving`, which the logo upload owns: the two controls sit in two
    * cards and either can be busy while the other is not. */
   protected readonly savingDetails = signal(false);
+
+  /**
+   * Phase 44 (35a carried item #5, 35b #6) -- the one-off billing-location backfill.
+   *
+   * It lives on this screen rather than getting one of its own because phase 31's rule is that a
+   * tenant-level write is only reachable if you can name both the command and the screen that calls
+   * it, and this is already the Admin-only page about the organization itself.
+   */
+  protected readonly backfilling = signal(false);
+
+  protected readonly backfillResult = signal<BackfillLocationsResult | null>(null);
 
   /** The app is zoneless, so the date the BS control drives lives in its own signal rather than
    * being read off a FormControl inside a computed (phase 17). */
@@ -133,6 +144,23 @@ export class OrganizationProfilePage implements OnDestroy {
       error: (error: unknown) => {
         this.saving.set(false);
         this.errorMessage.set(extractErrorMessage(error));
+      },
+    });
+  }
+
+  protected onBackfillLocations(): void {
+    this.backfilling.set(true);
+    this.backfillResult.set(null);
+    this.errorMessage.set(null);
+
+    this.organizationsService.backfillLocations(this.organizationId).subscribe({
+      next: (result) => {
+        this.backfillResult.set(result);
+        this.backfilling.set(false);
+      },
+      error: (err: unknown) => {
+        this.backfilling.set(false);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not backfill billing locations.');
       },
     });
   }

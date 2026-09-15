@@ -233,24 +233,26 @@ public static class TradeReportEndpoints
         // live catalogue.
         group.MapGet("/reports/sales-summary", async (
             Guid organizationId, int fiscalYear, SalesSummaryMode? mode, int? page, int? pageSize,
-            Guid? locationId, ISender sender, CancellationToken ct) =>
+            Guid? locationId, bool? groupWiseLocation, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesSummaryReportQuery(
                     organizationId, fiscalYear, mode ?? SalesSummaryMode.Month,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId,
+                    GroupWiseLocation: groupWiseLocation ?? false),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/sales-summary/export", async (
             Guid organizationId, int fiscalYear, SalesSummaryMode? mode, bool full, int? page, int? pageSize,
-            Guid? locationId, ISender sender, CancellationToken ct) =>
+            Guid? locationId, bool? groupWiseLocation, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesSummaryReportQuery(
                     organizationId, fiscalYear, mode ?? SalesSummaryMode.Month,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId,
+                    GroupWiseLocation: groupWiseLocation ?? false),
                 ct);
             return ReportSpreadsheetExporter.ExportSalesSummaryReport(result);
         });

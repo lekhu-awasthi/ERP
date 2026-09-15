@@ -168,6 +168,136 @@ public class VatSummaryReportQueryHandlerTests
         return new Seed(organizationId, numberGenerator, customer.Id, supplier.Id, warehouse.Id, product.Id);
     }
 
+    /// <summary>
+    /// Phase 44 (43 Decision D) -- <b>the VAT return is filed in NPR, so this report reports NPR.</b>
+    ///
+    /// <para>All four document types are given a foreign-currency document in the same bucket, which
+    /// is the case that matters here: a bucket is `invoice lines at this rate MINUS credit note lines
+    /// at this rate`, so if the fold happened anywhere after the netting, two documents at two rates
+    /// would be subtracted from each other while still denominated differently.</para>
+    ///
+    /// <para>The partition is asserted too: TotalOutputVat must equal the sum of the buckets'
+    /// output VAT, and TotalInputVat the sum of the buckets' input VAT, in rupees.</para>
+    /// </summary>
+    [Fact]
+    public async Task Foreign_currency_documents_are_reported_in_base_currency_and_still_partition()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        // 100 USD at 133 = 13,300, VAT 13 USD = 1,729.
+        await CreateAndApproveForeignInvoiceAsync(
+            db, seed, new DateOnly(2026, 1, 10), 1m, 100m, VatRate.ThirteenPercentVat, "USD", 133m);
+        // 40 USD at 133 = 5,320, VAT 5.2 USD = 691.60.
+        await CreateAndApproveForeignCreditNoteAsync(
+            db, seed, new DateOnly(2026, 1, 12), 1m, 40m, VatRate.ThirteenPercentVat, "USD", 133m);
+        // 200 USD at 133 = 26,600, VAT 26 USD = 3,458.
+        await CreateAndApproveForeignPurchaseBillAsync(
+            db, seed, new DateOnly(2026, 1, 14), 1m, 200m, VatRate.ThirteenPercentVat, "USD", 133m);
+        // 50 USD at 133 = 6,650, VAT 6.5 USD = 864.50.
+        await CreateAndApproveForeignDebitNoteAsync(
+            db, seed, new DateOnly(2026, 1, 16), 1m, 50m, VatRate.ThirteenPercentVat, "USD", 133m);
+
+        var result = await new VatSummaryReportQueryHandler(db).Handle(
+            new VatSummaryReportQuery(seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31)),
+            CancellationToken.None);
+
+        var sales = Assert.Single(result.SalesBuckets, x => x.VatRate == VatRate.ThirteenPercentVat);
+        Assert.Equal(7_980m, sales.NetSalesAmount);      // 13,300 - 5,320
+        Assert.Equal(1_037.40m, sales.OutputVatAmount);  // 1,729 - 691.60
+
+        var purchases = Assert.Single(result.PurchaseBuckets, x => x.VatRate == VatRate.ThirteenPercentVat);
+        Assert.Equal(19_950m, purchases.NetPurchaseAmount);  // 26,600 - 6,650
+        Assert.Equal(2_593.50m, purchases.InputVatAmount);   // 3,458 - 864.50
+
+        // The partition: the totals are exactly the sums of the buckets they claim to total.
+        Assert.Equal(result.SalesBuckets.Sum(x => x.OutputVatAmount), result.TotalOutputVat);
+        Assert.Equal(result.PurchaseBuckets.Sum(x => x.InputVatAmount), result.TotalInputVat);
+        Assert.Equal(1_037.40m, result.TotalOutputVat);
+        Assert.Equal(2_593.50m, result.TotalInputVat);
+    }
+
+    private static async Task CreateAndApproveForeignInvoiceAsync(
+        IAppDbContext db, Seed seed, DateOnly date, decimal quantity, decimal rate, VatRate vatRate,
+        string currencyCode, decimal exchangeRate)
+    {
+        var created = await new CreateInvoiceCommandHandler(db).Handle(
+            new CreateInvoiceCommand(
+                seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
+                [new InvoiceLineInput(seed.ProductId, quantity, rate, vatRate)])
+            {
+                CurrencyCode = currencyCode,
+                ExchangeRate = exchangeRate,
+            },
+            CancellationToken.None);
+
+        var stockLedgerService = new StockLedgerService(db);
+        await new ApproveInvoiceCommandHandler(
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new InvoicePostingRule(),
+            new FifoStockAvailabilityPolicy(db, stockLedgerService), stockLedgerService, new ContactCreditLimitPolicy(db))
+            .Handle(new ApproveInvoiceCommand(seed.OrganizationId, created.Id, OverrideWarning: false), CancellationToken.None);
+    }
+
+    private static async Task CreateAndApproveForeignCreditNoteAsync(
+        IAppDbContext db, Seed seed, DateOnly date, decimal quantity, decimal rate, VatRate vatRate,
+        string currencyCode, decimal exchangeRate)
+    {
+        var created = await new CreateCreditNoteCommandHandler(db).Handle(
+            new CreateCreditNoteCommand(
+                seed.OrganizationId, seed.CustomerId, date, null,
+                [new CreditNoteLineInput(seed.ProductId, quantity, rate, vatRate)])
+            {
+                CurrencyCode = currencyCode,
+                ExchangeRate = exchangeRate,
+            },
+            CancellationToken.None);
+
+        await new ApproveCreditNoteCommandHandler(
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()),
+            new CreditNotePostingRule(), new StockLedgerService(db))
+            .Handle(new ApproveCreditNoteCommand(seed.OrganizationId, created.Id), CancellationToken.None);
+    }
+
+    private static async Task CreateAndApproveForeignPurchaseBillAsync(
+        IAppDbContext db, Seed seed, DateOnly date, decimal quantity, decimal rate, VatRate vatRate,
+        string currencyCode, decimal exchangeRate)
+    {
+        var created = await new CreatePurchaseBillCommandHandler(db).Handle(
+            new CreatePurchaseBillCommand(
+                seed.OrganizationId, seed.SupplierId, seed.WarehouseId, date, null, null, false, null, null, null, null,
+                [new PurchaseBillLineInput(seed.ProductId, quantity, rate, vatRate, ExpenditureClassification.Others)])
+            {
+                CurrencyCode = currencyCode,
+                ExchangeRate = exchangeRate,
+            },
+            CancellationToken.None);
+
+        await new ApprovePurchaseBillCommandHandler(
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new PurchaseBillPostingRule(),
+            new StockLedgerService(db))
+            .Handle(new ApprovePurchaseBillCommand(seed.OrganizationId, created.Id), CancellationToken.None);
+    }
+
+    private static async Task CreateAndApproveForeignDebitNoteAsync(
+        IAppDbContext db, Seed seed, DateOnly date, decimal quantity, decimal rate, VatRate vatRate,
+        string currencyCode, decimal exchangeRate)
+    {
+        var created = await new CreateDebitNoteCommandHandler(db).Handle(
+            new CreateDebitNoteCommand(
+                seed.OrganizationId, seed.SupplierId, date, null, null,
+                [new DebitNoteLineInput(seed.ProductId, quantity, rate, vatRate)])
+            {
+                CurrencyCode = currencyCode,
+                ExchangeRate = exchangeRate,
+            },
+            CancellationToken.None);
+
+        await new ApproveDebitNoteCommandHandler(
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()),
+            new DebitNotePostingRule(), new StockLedgerService(db))
+            .Handle(new ApproveDebitNoteCommand(seed.OrganizationId, created.Id), CancellationToken.None);
+    }
+
     private static async Task<CreateInvoiceResult> CreateInvoiceAsync(
         IAppDbContext db, Seed seed, DateOnly date, decimal quantity, decimal rate, VatRate vatRate)
     {

@@ -48,6 +48,7 @@ import {
   WorkspaceNameAvailability,
   GeneralSettings,
   SetTenantSubscriptionRequest,
+  BackfillLocationsResult,
 } from './organizations.models';
 
 @Injectable({ providedIn: 'root' })
@@ -274,6 +275,18 @@ export class OrganizationsService {
     return this.http.put<UpdateOrganizationResult>(
       `${this.baseUrl}/${organizationId}/profile`,
       request,
+      { withCredentials: true },
+    );
+  }
+
+  /**
+   * Phase 44 -- the one-off billing-location backfill (35a carried item #5, 35b #6). Admin-only, and
+   * idempotent: a second call reports zero rather than doing anything twice.
+   */
+  backfillLocations(organizationId: string): Observable<BackfillLocationsResult> {
+    return this.http.post<BackfillLocationsResult>(
+      `${this.baseUrl}/${organizationId}/backfill-locations`,
+      {},
       { withCredentials: true },
     );
   }

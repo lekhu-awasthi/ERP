@@ -884,3 +884,37 @@ Moved verbatim; these are the only "read before X" paragraphs those phases have,
   with no special-casing anywhere else — and the Deal/Task tab lists are not symmetric (a Deal
   parents tasks, a task does not), which is asserted in both directions rather than left looking
   like an omission — `docs/phase-43-status.md`
+
+## Phase 44 — report semantics, read live first
+
+**Read this before trusting a recorded control nobody operated, before assuming a report applies the
+filter it accepts, and before folding anything else into base currency.**
+
+Phase 44's premise was that its controls had never been used, and the reads bore that out three
+times over. *Display Warehouse in Column* was not an alternative to *Group by Warehouse* — it is
+`disabled` until that one is ticked, so phase 36's "the two could not be told apart" was a question
+about a parent and its modifier. *Reporting Tags* are OR **within** a category and AND **across**
+categories, which is not what phases 19 and 36 implemented; the old rule survived because it was
+recorded as **inherited** rather than as observed, and a six-category tenant settled it in four runs.
+*Inventory Master's* Txn Type filter offers Opening Balance and Warehouse Transfer, which phase 26c
+excluded — 26c having predicted their exact shape (two rows per transfer, every money column blank)
+and treated that prediction as the reason to leave them out. **A reason to exclude something can be
+correct while the conclusion drawn from it is wrong.**
+
+The phase also shows what a live pass cannot do. The base-currency fold — its headline change — is
+**not observable on either tenant**: Moonbeam is NPR-only and Cadehi has no data. The support is the
+column headers, which are labelled `(रु)`. Section H of the status doc says so plainly rather than
+letting a phase of confirmations imply that everything in it was confirmed.
+
+Its own find is the sweep-guard lesson one layer further on. `ReportLocationSweepGuardTests` asks
+whether a *query record* accepts a `LocationId`; it cannot ask whether the handler applies one. Both
+statutory registers accepted the filter from phase 35b and narrowed only their return half, so
+picking a location dropped the credit and debit notes and kept every invoice and bill. **Whether a
+handler honours what its record accepts is not decidable by reflection** — pin it behaviourally, one
+test per report, and say in the guard's own doc what it cannot see.
+
+Two mechanics worth carrying. A backfill over approved history needs its **own** Domain mutator:
+`SetLocation` is draft-only for two reasons, and a document with *no* location satisfies neither of
+them, so `BackfillLocation` fills a null and refuses to move an assigned value. And a **stamped**
+audit column records where a document was *when the action happened* — when the backfill later moves
+those documents to HeadOffice, the audit rows correctly keep saying null.

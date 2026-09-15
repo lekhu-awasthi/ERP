@@ -82,7 +82,9 @@ internal static class PurchaseReturnReader
         query = query.AtLocations(locationId, reportLocations);
 
         var debitNotes = await query
-            .Select(x => new { x.Id, x.ContactId, x.Code, x.Date, x.ReferrerType, x.ReferrerId })
+            // Phase 44 (43 Decision D) -- ExchangeRate is carried so the seven statutory magnitudes
+            // below can be folded to the base currency. See the fold beneath the line load.
+            .Select(x => new { x.Id, x.ContactId, x.Code, x.Date, x.ReferrerType, x.ReferrerId, x.ExchangeRate })
             .ToListAsync(cancellationToken);
         if (debitNotes.Count == 0)
         {
@@ -132,7 +134,24 @@ internal static class PurchaseReturnReader
                         classification = sourceClassification;
                     }
 
-                    return (line.Amount, line.VatAmount, classification);
+                    // Phase 44 (43 Decision D) -- the fold to base currency, here rather than in the
+                    // Purchase Register that asked for it, for phase 26c's own reason: both statutory
+                    // registers that show a debit note read this reader, so folding in one caller
+                    // would have made the Purchase Register report a foreign return in rupees and the
+                    // Purchase Return Register report the same return in dollars.
+                    //
+                    // Per line, before Bucket sees it -- never on the finished buckets. Bucketed.Total
+                    // is derived as the *sum* of the other seven, so converting the buckets
+                    // independently would let Total stop equalling its parts by a paisa (phase 43's
+                    // sales-side rule, which is phase 28's posting-rule rule arriving in a report).
+                    //
+                    // In memory, after ToListAsync: ExchangeRates.ToBase is a static call, so inside
+                    // the query it is untranslatable on SQL Server and silently evaluated in C# by
+                    // InMemory -- every handler test would pass while the endpoint 500s (phase-34b).
+                    return (
+                        ExchangeRates.ToBase(line.Amount, debitNote.ExchangeRate),
+                        ExchangeRates.ToBase(line.VatAmount, debitNote.ExchangeRate),
+                        classification);
                 });
 
                 return Bucket(classified, isImport);

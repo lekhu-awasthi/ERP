@@ -65,6 +65,13 @@
           <label class="form-label small fw-semibold" for="system-audit-report-page-to-date">To Date</label>
           <app-bs-date-input [inputId]="'system-audit-report-page-to-date'" [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
         </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+          <app-report-location-filter
+            [organizationId]="organizationId"
+            [controlId]="'system-audit-report-page-billing-location'"
+            (locationChange)="onLocationChange($event)"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -90,6 +97,7 @@
                   <th scope="col">User</th>
                   <th scope="col">Action</th>
                   <th scope="col">Document Type</th>
+                  <th scope="col">Location</th>
                   <th scope="col">Document</th>
                 </tr>
               </thead>
@@ -102,6 +110,7 @@
                       <span class="badge bg-primary-subtle text-primary-emphasis">{{ row.action }}</span>
                     </td>
                     <td>{{ row.documentType }}</td>
+                    <td>{{ row.location || '—' }}</td>
                     <td>
                       @if (detailRoute(row); as routeLink) {
                         <a [routerLink]="routeLink" class="link-primary fw-semibold">View</a>

@@ -50,63 +50,67 @@ internal static class InventoryReportSeed
         Guid ProductId,
         Guid SecondProductId);
 
-    internal static async Task<Seed> CreateAsync(IAppDbContext db)
+    /// <summary>Phase 44 -- <paramref name="organizationId"/> lets a caller seed a real
+    /// <c>Organization</c> row first and hand its id in. Most handler tests use a bare Guid and
+    /// never create one; a report that reads a tenant-level fact (the accounting start date the
+    /// Opening Stock rows are dated at) needs the row to exist.</summary>
+    internal static async Task<Seed> CreateAsync(IAppDbContext db, Guid? organizationId = null)
     {
-        var organizationId = Guid.NewGuid();
+        var organization = organizationId ?? Guid.NewGuid();
         var numberGenerator = new FakeDocumentNumberGenerator();
 
         var customer = await new CreateContactCommandHandler(db, numberGenerator).Handle(
             new CreateContactCommand(
-                organizationId, ContactType.Customer, "Acme Retail", null, "301234567", null, null, null, 0m),
+                organization, ContactType.Customer, "Acme Retail", null, "301234567", null, null, null, 0m),
             CancellationToken.None);
         var supplier = await new CreateContactCommandHandler(db, numberGenerator).Handle(
             new CreateContactCommand(
-                organizationId, ContactType.Supplier, "Global Supplies", null, "609876543", null, null, null, 0m),
+                organization, ContactType.Supplier, "Global Supplies", null, "609876543", null, null, null, 0m),
             CancellationToken.None);
 
         var warehouse = await new CreateWarehouseCommandHandler(db).Handle(
-            new CreateWarehouseCommand(organizationId, "Main Warehouse"), CancellationToken.None);
+            new CreateWarehouseCommand(organization, "Main Warehouse"), CancellationToken.None);
 
         var category = await new CreateProductCategoryCommandHandler(db).Handle(
-            new CreateProductCategoryCommand(organizationId, "General", null), CancellationToken.None);
+            new CreateProductCategoryCommand(organization, "General", null), CancellationToken.None);
         var unit = await new CreateUnitOfMeasurementCommandHandler(db).Handle(
-            new CreateUnitOfMeasurementCommand(organizationId, "Piece", "pc"), CancellationToken.None);
+            new CreateUnitOfMeasurementCommand(organization, "Piece", "pc"), CancellationToken.None);
 
         var product = await new CreateProductCommandHandler(db, numberGenerator).Handle(
             new CreateProductCommand(
-                organizationId, ProductType.Goods, "Widget", category.Id, unit.Id, null, true, 150m, 100m,
+                organization, ProductType.Goods, "Widget", category.Id, unit.Id, null, true, 150m, 100m,
                 VatRate.NoVat, 0, true),
             CancellationToken.None);
         var secondProduct = await new CreateProductCommandHandler(db, numberGenerator).Handle(
             new CreateProductCommand(
-                organizationId, ProductType.Goods, "Gadget", category.Id, unit.Id, null, true, 90m, 60m,
+                organization, ProductType.Goods, "Gadget", category.Id, unit.Id, null, true, 90m, 60m,
                 VatRate.NoVat, 0, true),
             CancellationToken.None);
 
         var assetGroup = await new CreateAccountGroupCommandHandler(db).Handle(
-            new CreateAccountGroupCommand(organizationId, "Current Assets", AccountRootType.Asset, null),
+            new CreateAccountGroupCommand(organization, "Current Assets", AccountRootType.Asset, null),
             CancellationToken.None);
         var liabilityGroup = await new CreateAccountGroupCommandHandler(db).Handle(
-            new CreateAccountGroupCommand(organizationId, "Current Liabilities", AccountRootType.Liability, null),
+            new CreateAccountGroupCommand(organization, "Current Liabilities", AccountRootType.Liability, null),
             CancellationToken.None);
         var expenseGroup = await new CreateAccountGroupCommandHandler(db).Handle(
-            new CreateAccountGroupCommand(organizationId, "Operating Expenses", AccountRootType.Expense, null),
+            new CreateAccountGroupCommand(organization, "Operating Expenses", AccountRootType.Expense, null),
             CancellationToken.None);
         var incomeGroup = await new CreateAccountGroupCommandHandler(db).Handle(
-            new CreateAccountGroupCommand(organizationId, "Revenue", AccountRootType.Income, null),
+            new CreateAccountGroupCommand(organization, "Revenue", AccountRootType.Income, null),
             CancellationToken.None);
 
-        var sales = await CreateAccountAsync(db, numberGenerator, organizationId, "Sales", incomeGroup.Id);
-        var receivable = await CreateAccountAsync(db, numberGenerator, organizationId, "Accounts Receivable", assetGroup.Id);
-        var vatPayable = await CreateAccountAsync(db, numberGenerator, organizationId, "VAT Payable", liabilityGroup.Id);
-        var vatReceivable = await CreateAccountAsync(db, numberGenerator, organizationId, "VAT Receivable", assetGroup.Id);
-        var payable = await CreateAccountAsync(db, numberGenerator, organizationId, "Accounts Payable", liabilityGroup.Id);
-        var purchase = await CreateAccountAsync(db, numberGenerator, organizationId, "Purchase Expense", expenseGroup.Id);
-        var inventory = await CreateAccountAsync(db, numberGenerator, organizationId, "Inventory", assetGroup.Id);
-        var cogs = await CreateAccountAsync(db, numberGenerator, organizationId, "Cost of Goods Sold", expenseGroup.Id);
-        var stockAdjustment = await CreateAccountAsync(db, numberGenerator, organizationId, "Inventory Adjustment", expenseGroup.Id);
+        var sales = await CreateAccountAsync(db, numberGenerator, organization, "Sales", incomeGroup.Id);
+        var receivable = await CreateAccountAsync(db, numberGenerator, organization, "Accounts Receivable", assetGroup.Id);
+        var vatPayable = await CreateAccountAsync(db, numberGenerator, organization, "VAT Payable", liabilityGroup.Id);
+        var vatReceivable = await CreateAccountAsync(db, numberGenerator, organization, "VAT Receivable", assetGroup.Id);
+        var payable = await CreateAccountAsync(db, numberGenerator, organization, "Accounts Payable", liabilityGroup.Id);
+        var purchase = await CreateAccountAsync(db, numberGenerator, organization, "Purchase Expense", expenseGroup.Id);
+        var inventory = await CreateAccountAsync(db, numberGenerator, organization, "Inventory", assetGroup.Id);
+        var cogs = await CreateAccountAsync(db, numberGenerator, organization, "Cost of Goods Sold", expenseGroup.Id);
+        var stockAdjustment = await CreateAccountAsync(db, numberGenerator, organization, "Inventory Adjustment", expenseGroup.Id);
 
-        var settings = TenantSettings.CreateDefault(organizationId);
+        var settings = TenantSettings.CreateDefault(organization);
         settings.SetAccountingDefaults(
             sales.Id, receivable.Id, vatPayable.Id, purchase.Id, payable.Id, vatReceivable.Id, null);
         // Phase 37 -- the Inventory Adjustment account is no longer optional for a tenant that
@@ -118,7 +122,7 @@ internal static class InventoryReportSeed
         await db.SaveChangesAsync(CancellationToken.None);
 
         return new Seed(
-            organizationId, numberGenerator, customer.Id, supplier.Id, warehouse.Id,
+            organization, numberGenerator, customer.Id, supplier.Id, warehouse.Id,
             category.Id, product.Id, secondProduct.Id);
     }
 

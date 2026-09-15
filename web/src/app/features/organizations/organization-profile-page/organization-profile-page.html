@@ -141,5 +141,52 @@
         </div>
       </div>
     </form>
+
+    <!--
+      Phase 44 (35a #5, 35b #6). Outside the details form on purpose: it is not one of the profile's
+      fields, it writes documents rather than the organization, and it must not be swept up by the
+      form's own submit.
+    -->
+    <div class="card border-0 shadow-sm mt-4">
+      <div class="card-body p-4">
+        <h2 class="h6 fw-bold mb-1">Billing locations on past documents</h2>
+        <p class="text-muted small mb-3">
+          Documents raised before this organization used billing locations &mdash; or while their type
+          was outside the location scope &mdash; carry none, so every location-filtered report leaves
+          them out while the unfiltered one still counts them. This assigns your HeadOffice to those
+          documents. It only ever fills in a missing location, never moves one that is already set, so
+          running it twice is safe.
+        </p>
+
+        <button
+          type="button"
+          class="btn btn-outline-primary fw-bold"
+          [disabled]="backfilling()"
+          (click)="onBackfillLocations()"
+        >
+          {{ backfilling() ? 'Assigning...' : 'Assign HeadOffice to documents with no location' }}
+        </button>
+
+        @if (backfillResult(); as backfill) {
+          <app-status-banner
+            class="d-block mt-3"
+            [message]="
+              backfill.totalUpdated === 0
+                ? 'No documents needed a billing location.'
+                : backfill.totalUpdated + ' document(s) were assigned to HeadOffice.'
+            "
+            tone="success"
+          />
+
+          @if (backfill.counts.length > 0) {
+            <ul class="small text-muted mb-0 mt-2">
+              @for (count of backfill.counts; track count.documentType) {
+                <li>{{ count.documentType }}: {{ count.updated }}</li>
+              }
+            </ul>
+          }
+        }
+      </div>
+    </div>
   }
 </div>

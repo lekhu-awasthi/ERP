@@ -38,13 +38,21 @@ export class InventoryMasterReportPage {
   /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
   protected readonly locationId = signal('');
 
-  /** The six types this report covers -- see InventoryMasterReportQuery for why not eight. */
+  /**
+   * The eight types this report covers. Phase 44 added WarehouseTransfer and OpeningStock after the
+   * live re-read 26c asked for: the reference product's own Txn Type filter offers both (Moonbeam,
+   * 2026-09-15), and a transfer renders as one row per leg with its money columns blank -- which is
+   * exactly the shape 26c predicted and had treated as the reason to leave it out. Ordered as the
+   * live list is, with Opening Stock first. See InventoryMasterReportQuery for the full record.
+   */
   protected readonly documentTypes = [
+    'OpeningStock',
     'Invoice',
     'CreditNote',
     'PurchaseBill',
     'DebitNote',
     'InventoryAdjustment',
+    'WarehouseTransfer',
     'ProductionJournal',
   ];
 

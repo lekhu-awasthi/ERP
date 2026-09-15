@@ -14,6 +14,7 @@ using ErpApp.Application.Purchasing.Commands.CreateDebitNote;
 using ErpApp.Application.Purchasing.Commands.CreatePurchaseBill;
 using ErpApp.Application.Purchasing.Posting;
 using ErpApp.Application.Purchasing.Queries.PurchaseRegister;
+using ErpApp.Application.Purchasing.Queries.PurchaseReturnRegister;
 using ErpApp.Application.Tenancy.Commands.CreateWarehouse;
 using ErpApp.Application.UnitTests.TestSupport;
 using ErpApp.Domain.Accounting;
@@ -22,6 +23,7 @@ using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Purchasing;
 using ErpApp.Domain.Tenancy;
+using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.UnitTests.Purchasing;
 
@@ -158,6 +160,220 @@ public class PurchaseRegisterQueryHandlerTests
         await db.SaveChangesAsync(CancellationToken.None);
 
         return new Seed(organizationId, numberGenerator, supplier.Id, warehouse.Id, product.Id);
+    }
+
+    /// <summary>
+    /// Phase 44 (43 Decision D) -- <b>the Purchase Register is filed in NPR, so it reports NPR.</b>
+    /// The sales-side counterpart of this test shipped in phase 43; this is the same assertion on
+    /// the purchase side, where the register carries seven statutory magnitudes rather than four.
+    ///
+    /// <para>A 100 USD bill at 133 contributes 13,300 -- not 100 -- and its 13% VAT contributes
+    /// 1,729. The partition is asserted as well as the magnitudes: the seven buckets must still add
+    /// up to the same total, which is the property folding per line (rather than per bucket)
+    /// preserves and folding the finished buckets would break.</para>
+    /// </summary>
+    [Fact]
+    public async Task A_foreign_currency_bill_is_reported_in_base_currency_and_still_partitions()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        await CreateAndApproveForeignPurchaseBillAsync(
+            db, seed, new DateOnly(2026, 1, 10), 100m, "USD", 133m);
+
+        var result = await new PurchaseRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()))
+            .Handle(
+                new PurchaseRegisterQuery(seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), null),
+                CancellationToken.None);
+
+        var row = Assert.Single(result.Items);
+        Assert.Equal(13_300m, row.TaxableNonCapitalLocalValue);
+        Assert.Equal(1_729m, row.TaxableNonCapitalLocalVat);
+
+        // Nothing leaked into another bucket on the way through the fold.
+        Assert.Equal(0m, row.TaxExemptValue);
+        Assert.Equal(0m, row.TaxableNonCapitalImportValue);
+        Assert.Equal(0m, row.TaxableCapitalValue);
+
+        // The partition: the row's buckets sum to the register's footer, in rupees.
+        var rowSum =
+            row.TaxExemptValue
+            + row.TaxableNonCapitalLocalValue + row.TaxableNonCapitalLocalVat
+            + row.TaxableNonCapitalImportValue + row.TaxableNonCapitalImportVat
+            + row.TaxableCapitalValue + row.TaxableCapitalVat;
+        var footerSum =
+            result.TotalTaxExemptValue
+            + result.TotalTaxableNonCapitalLocalValue + result.TotalTaxableNonCapitalLocalVat
+            + result.TotalTaxableNonCapitalImportValue + result.TotalTaxableNonCapitalImportVat
+            + result.TotalTaxableCapitalValue + result.TotalTaxableCapitalVat;
+        Assert.Equal(15_029m, rowSum);
+        Assert.Equal(rowSum, footerSum);
+    }
+
+    /// <summary>
+    /// Phase 44 -- the return half folds too, and it folds <b>inside PurchaseReturnReader</b>, which
+    /// the Purchase Return Register also reads. Asserting both reports on the same note is the point:
+    /// phase 26c's whole reason for the shared reader was that two registers agree by construction,
+    /// and folding in one caller would have made this register report a foreign return in rupees and
+    /// the other report the same return in dollars.
+    /// </summary>
+    [Fact]
+    public async Task A_foreign_currency_return_folds_once_in_the_reader_both_registers_read()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        var bill = await CreateAndApproveForeignPurchaseBillAsync(
+            db, seed, new DateOnly(2026, 1, 10), 100m, "USD", 133m);
+        // Quantity 0.4 at the bill's own rate, not a different rate: the conversion cap keys on
+        // (ProductId, Rate, VatRate, Discount), so a return quotes its source line's rate (phase 6 #4).
+        await CreateAndApproveForeignDebitNoteAsync(
+            db, seed, new DateOnly(2026, 1, 12), 0.4m, 100m, "USD", 133m, bill.Id);
+
+        var register = await new PurchaseRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()))
+            .Handle(
+                new PurchaseRegisterQuery(seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), null),
+                CancellationToken.None);
+        var returnRegister = await new PurchaseReturnRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()))
+            .Handle(
+                new PurchaseReturnRegisterQuery(seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), null),
+                CancellationToken.None);
+
+        // 40 USD at 133 = 5,320, plus 13% VAT of 5.2 USD = 691.60.
+        var noteRow = Assert.Single(register.Items, x => x.DocumentType == DocumentType.DebitNote);
+        Assert.Equal(-5_320m, noteRow.TaxableNonCapitalLocalValue);
+        Assert.Equal(-691.60m, noteRow.TaxableNonCapitalLocalVat);
+
+        // The same note, positive, in the return register -- the same magnitudes, or the shared
+        // reader is not doing its job.
+        var returnRow = Assert.Single(returnRegister.Items);
+        Assert.Equal(5_320m, returnRow.TaxableNonCapitalLocalValue);
+        Assert.Equal(691.60m, returnRow.TaxableNonCapitalLocalVat);
+    }
+
+    private static async Task<(Guid Id, string Code)> CreateAndApproveForeignPurchaseBillAsync(
+        IAppDbContext db, Seed seed, DateOnly date, decimal rate, string currencyCode, decimal exchangeRate)
+    {
+        var created = await new CreatePurchaseBillCommandHandler(db).Handle(
+            new CreatePurchaseBillCommand(
+                seed.OrganizationId, seed.SupplierId, seed.WarehouseId, date, null, null,
+                false, null, null, null, null,
+                [new PurchaseBillLineInput(
+                    seed.ProductId, 1m, rate, VatRate.ThirteenPercentVat, ExpenditureClassification.Others)])
+            {
+                CurrencyCode = currencyCode,
+                ExchangeRate = exchangeRate,
+            },
+            CancellationToken.None);
+
+        var approved = await new ApprovePurchaseBillCommandHandler(
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new PurchaseBillPostingRule(),
+            new StockLedgerService(db))
+            .Handle(new ApprovePurchaseBillCommand(seed.OrganizationId, created.Id), CancellationToken.None);
+
+        return (approved.Id, approved.Code);
+    }
+
+    private static async Task<(Guid Id, string Code)> CreateAndApproveForeignDebitNoteAsync(
+        IAppDbContext db, Seed seed, DateOnly date, decimal quantity, decimal rate, string currencyCode,
+        decimal exchangeRate, Guid referrerPurchaseBillId)
+    {
+        var created = await new CreateDebitNoteCommandHandler(db).Handle(
+            new CreateDebitNoteCommand(
+                seed.OrganizationId, seed.SupplierId, date, null, null,
+                [new DebitNoteLineInput(seed.ProductId, quantity, rate, VatRate.ThirteenPercentVat)],
+                DocumentType.PurchaseBill, referrerPurchaseBillId)
+            {
+                CurrencyCode = currencyCode,
+                ExchangeRate = exchangeRate,
+            },
+            CancellationToken.None);
+
+        var approved = await new ApproveDebitNoteCommandHandler(
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()),
+            new DebitNotePostingRule(), new StockLedgerService(db))
+            .Handle(new ApproveDebitNoteCommand(seed.OrganizationId, created.Id), CancellationToken.None);
+
+        return (approved.Id, approved.Code);
+    }
+
+    /// <summary>
+    /// Phase 44 -- <b>the Billing Location filter narrows the bills, not only the returns.</b>
+    ///
+    /// <para>This test fails against the code as it stood before this phase. Phase 35b gave the query
+    /// its <c>LocationId</c> and taught <c>PurchaseReturnReader</c> to honour it, but never applied
+    /// it to the purchase-bill half -- so choosing a location removed the debit notes from the
+    /// register and left every bill in it. That is phase-34b's rule (a filter a screen displays but
+    /// does not apply is worse than no filter) with a statutory register's numbers behind it.</para>
+    ///
+    /// <para><c>ReportLocationSweepGuardTests</c> could not see it: that guard asks whether the
+    /// <i>query record</i> accepts a LocationId, which this one always did. Whether a handler applies
+    /// what it accepts is not decidable by reflection, so it is pinned here instead, per report.</para>
+    /// </summary>
+    [Fact]
+    public async Task The_location_filter_narrows_the_bills_and_not_only_the_returns()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+        var (headOffice, branch) = await SeedTwoLocationsAsync(db, seed.OrganizationId);
+
+        await CreateAndApproveLocatedPurchaseBillAsync(db, seed, new DateOnly(2026, 1, 10), 100m, headOffice);
+        await CreateAndApproveLocatedPurchaseBillAsync(db, seed, new DateOnly(2026, 1, 11), 250m, branch);
+
+        var all = await RegisterAsync(db, seed, locationId: null);
+        Assert.Equal(2, all.Items.Count);
+        Assert.Equal(350m, all.TotalTaxExemptValue);
+
+        var branchOnly = await RegisterAsync(db, seed, branch);
+        var row = Assert.Single(branchOnly.Items);
+        Assert.Equal(250m, row.TaxExemptValue);
+
+        // The footer follows the filter too -- it is computed over the filtered set, not the period.
+        Assert.Equal(250m, branchOnly.TotalTaxExemptValue);
+    }
+
+    private static async Task<PurchaseRegisterDto> RegisterAsync(IAppDbContext db, Seed seed, Guid? locationId) =>
+        await new PurchaseRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()))
+            .Handle(
+                new PurchaseRegisterQuery(
+                    seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), null)
+                {
+                    LocationId = locationId,
+                },
+                CancellationToken.None);
+
+    private static async Task<(Guid HeadOffice, Guid Branch)> SeedTwoLocationsAsync(IAppDbContext db, Guid organizationId)
+    {
+        var headOffice = BillingLocation.CreateHeadOffice(organizationId);
+        var branch = BillingLocation.Create(organizationId, "BR1", "Branch One", null, null);
+        db.BillingLocations.Add(headOffice);
+        db.BillingLocations.Add(branch);
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        var settings = await db.TenantSettings.SingleAsync(x => x.OrganizationId == organizationId, CancellationToken.None);
+        settings.SetLocationSettings(LocationScopeMode.AllTransactions, locationWiseReportPermission: false);
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        return (headOffice.Id, branch.Id);
+    }
+
+    private static async Task CreateAndApproveLocatedPurchaseBillAsync(
+        IAppDbContext db, Seed seed, DateOnly date, decimal rate, Guid locationId)
+    {
+        var created = await new CreatePurchaseBillCommandHandler(db).Handle(
+            new CreatePurchaseBillCommand(
+                seed.OrganizationId, seed.SupplierId, seed.WarehouseId, date, null, null, false, null, null, null, null,
+                [new PurchaseBillLineInput(
+                    seed.ProductId, 1m, rate, VatRate.NoVat, ExpenditureClassification.Others)])
+            {
+                LocationId = locationId,
+            },
+            CancellationToken.None);
+
+        await new ApprovePurchaseBillCommandHandler(
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new PurchaseBillPostingRule(),
+            new StockLedgerService(db))
+            .Handle(new ApprovePurchaseBillCommand(seed.OrganizationId, created.Id), CancellationToken.None);
     }
 
     private static async Task<(Guid Id, string Code)> CreateAndApprovePurchaseBillAsync(

@@ -144,6 +144,91 @@ public class AnnexThirteenReportQueryHandlerTests
     // See PurchaseMasterReportQueryHandlerTests' matching comment: a single FakeDocumentNumberGenerator
     // instance is shared across every Create/Approve call in one test, or every approved document
     // collides on the same "Foo-0001" code.
+    /// <summary>
+    /// Phase 44 (43 Decision D) -- <b>the annex is filed in NPR, so it reports NPR.</b>
+    ///
+    /// <para>A contact's row here is a sum across every document raised with them, so this is the
+    /// report where mixing currencies is least visible and most wrong: a 100 USD bill and a 100 NPR
+    /// bill would have added to 200 with nothing on the page to say so. The fold happens per line at
+    /// its own document's rate, in all five accumulation loops.</para>
+    ///
+    /// <para>The partition is asserted as TotalActivity against the six columns it totals -- the
+    /// same property the register tests assert, in this report's shape.</para>
+    /// </summary>
+    [Fact]
+    public async Task Foreign_currency_documents_are_reported_in_base_currency_and_still_partition()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        // 100 USD at 133 = 13,300 of goods purchase, Others.
+        await CreateAndApproveForeignPurchaseBillAsync(
+            db, seed, new DateOnly(2026, 1, 10), seed.GoodsProductId, 1m, 100m, "USD", 133m);
+        // 50 USD at 133 = 6,650 of service purchase (an Expense is Service/Others by definition).
+        await CreateAndApproveForeignExpenseAsync(
+            db, seed, new DateOnly(2026, 1, 11), 50m, "USD", 133m);
+
+        var result = await new AnnexThirteenReportQueryHandler(db).Handle(
+            new AnnexThirteenReportQuery(
+                seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31), 0m),
+            CancellationToken.None);
+
+        var supplierRow = Assert.Single(result.Rows, x => x.ContactId == seed.SupplierId);
+        Assert.Equal(13_300m, supplierRow.GoodsPurchaseOthers);
+        Assert.Equal(6_650m, supplierRow.ServicePurchaseOthers);
+        Assert.Equal(0m, supplierRow.GoodsPurchaseCapital);
+        Assert.Equal(0m, supplierRow.ServicePurchaseCapital);
+
+        // The partition: TotalActivity is exactly the six columns it claims to total, in rupees.
+        Assert.Equal(
+            supplierRow.ServicePurchaseCapital + supplierRow.ServicePurchaseOthers
+            + supplierRow.GoodsPurchaseCapital + supplierRow.GoodsPurchaseOthers
+            + supplierRow.ServiceSales + supplierRow.GoodsSales,
+            supplierRow.TotalActivity);
+        Assert.Equal(19_950m, supplierRow.TotalActivity);
+    }
+
+    private static async Task<(Guid Id, string Code)> CreateAndApproveForeignPurchaseBillAsync(
+        IAppDbContext db, Seed seed, DateOnly date, Guid productId, decimal quantity, decimal rate,
+        string currencyCode, decimal exchangeRate)
+    {
+        var created = await new CreatePurchaseBillCommandHandler(db).Handle(
+            new CreatePurchaseBillCommand(
+                seed.OrganizationId, seed.SupplierId, seed.WarehouseId, date, null, null, false, null, null, null, null,
+                [new PurchaseBillLineInput(
+                    productId, quantity, rate, VatRate.NoVat, ExpenditureClassification.Others)])
+            {
+                CurrencyCode = currencyCode,
+                ExchangeRate = exchangeRate,
+            },
+            CancellationToken.None);
+
+        var approved = await new ApprovePurchaseBillCommandHandler(
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new PurchaseBillPostingRule(),
+            new StockLedgerService(db))
+            .Handle(new ApprovePurchaseBillCommand(seed.OrganizationId, created.Id), CancellationToken.None);
+        return (approved.Id, approved.Code);
+    }
+
+    private static async Task<(Guid Id, string Code)> CreateAndApproveForeignExpenseAsync(
+        IAppDbContext db, Seed seed, DateOnly date, decimal amount, string currencyCode, decimal exchangeRate)
+    {
+        var created = await new CreateExpenseCommandHandler(db).Handle(
+            new CreateExpenseCommand(
+                seed.OrganizationId, seed.SupplierId, date, null, null, null, false, null,
+                [new ExpenseLineInput(seed.ExpenseAccountId, amount, VatRate.NoVat)])
+            {
+                CurrencyCode = currencyCode,
+                ExchangeRate = exchangeRate,
+            },
+            CancellationToken.None);
+
+        var approved = await new ApproveExpenseCommandHandler(
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new ExpensePostingRule())
+            .Handle(new ApproveExpenseCommand(seed.OrganizationId, created.Id), CancellationToken.None);
+        return (approved.Id, approved.Code);
+    }
+
     private sealed record Seed(
         Guid OrganizationId, FakeDocumentNumberGenerator NumberGenerator, Guid CustomerId, Guid SupplierId,
         Guid WarehouseId, Guid GoodsProductId, Guid ServiceProductId, Guid ExpenseAccountId, Guid CategoryId, Guid UnitId);

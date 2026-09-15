@@ -176,6 +176,10 @@ export interface RecentTransactionRowDto {
 }
 
 export interface AuditRowDto {
+  /** Phase 44 -- the billing location stamped on the row when the action happened. Null where
+   *  the document carries none (a Deal or Task, an opening-balance line, a type outside the
+   *  tenant's location scope, or any row written before phase 44). */
+  readonly location?: string | null;
   id: string;
   createdAt: string;
   userId: string;

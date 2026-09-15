@@ -21,13 +21,24 @@ namespace ErpApp.Application.Inventory.Queries.InventoryMasterReport;
 /// answers "what did we sell, net". This report answers "what moved", so a return moves stock in.
 /// The two must not share a loader, and do not.</para>
 ///
-/// <para><b>Six document types, not eight.</b> Invoice, CreditNote, PurchaseBill, DebitNote,
-/// InventoryAdjustment and ProductionJournal -- every type the live report's own rows exhibited.
-/// <c>WarehouseTransfer</c> and <c>OpeningStock</c> also move stock but are deliberately absent:
-/// both are internal repositionings with no counterparty, no rate and no tax, so every one of the
-/// money columns this report exists for would be blank, and a transfer would appear twice (once per
-/// leg) as a pair that nets to nothing. Neither appeared in the live output. Recorded as a
-/// confirm-live follow-up rather than guessed at.</para>
+/// <para><b>Eight document types (phase 44) -- 26c's Decision D was falsified by the re-read it
+/// asked for.</b> Invoice, CreditNote, PurchaseBill, DebitNote, InventoryAdjustment,
+/// ProductionJournal, and now <c>WarehouseTransfer</c> and <c>OpeningStock</c>.
+///
+/// <para>Phase 26c excluded the last two on the reasoning that an internal repositioning has no
+/// counterparty, no rate and no tax, so every money column would be blank and a transfer would
+/// appear twice -- once per leg -- as a pair netting to nothing. It recorded the exclusion as a
+/// confirm-live follow-up rather than a settled fact, and the follow-up says the reasoning was
+/// right and the conclusion was wrong. Read on Moonbeam 2026-09-15: the live Txn Type filter offers
+/// seven options -- Opening Balance, Invoice, Credit Note, Purchase Bill, Debit Note, Inventory
+/// Adjustment, Warehouse Transfer -- and filtering to Warehouse Transfer returns exactly the
+/// predicted shape, two rows per transfer with every money column blank. The reference product
+/// ships it, so this does too.</para>
+///
+/// <para>The live list does <b>not</b> offer Production Journal, which this codebase has always
+/// included. Left in place: Moonbeam shows the three production reports in its index, so the
+/// feature looks enabled there, but index visibility was not proven to track entitlement, and
+/// removing a working type on an unproven negative is the wrong risk. Recorded as observed.</para>
 ///
 /// <para><b>The Warehouse column is read from the stock movements the line produced</b>, not from
 /// the document header -- because CreditNote and DebitNote have no <c>WarehouseId</c> of their own

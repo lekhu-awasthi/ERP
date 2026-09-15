@@ -356,6 +356,14 @@ public static class PermissionKeys
     public const string OrganizationProfileView = "Tenancy.Organization.ProfileView";
     public const string OrganizationProfileManage = "Tenancy.Organization.ProfileManage";
 
+    // Phase 44 (35a carried item #5, 35b #6) -- the one-off billing-location backfill. Admin-only,
+    // at the same bar as LockDateManage and ProfileManage above: it is a tenant-wide write over
+    // documents that are already approved and already reported on, and it decides that the
+    // organization's whole back catalogue belongs to its head office. That is a decision about the
+    // business's own history, not a piece of routine working data -- the discriminator CLAUDE.md
+    // states for deriving a key per feature.
+    public const string OrganizationBackfillLocations = "Tenancy.Organization.BackfillLocations";
+
     // Phase 16d (System Audit report) -- a flat per-user activity register naming every Create/
     // Update/Approve/Void action any member of the org took, the same PAN/per-transaction-identity
     // exposure factor that made TdsReportView Admin-only (phase-8b-status.md's discriminator):

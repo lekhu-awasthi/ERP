@@ -6,6 +6,7 @@ using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Trade.Queries.SalesSummaryReport;
 
@@ -46,9 +47,51 @@ public sealed class SalesSummaryReportQueryHandler(IAppDbContext db, ICurrentUse
             db, request.OrganizationId, TradeSide.Sales, fromDate, toDate, cancellationToken,
             request.LocationId, reportLocations);
 
-        var rows = request.Mode == SalesSummaryMode.Month
-            ? BuildMonthRows(facts, months)
-            : BuildDateRows(facts);
+        // Phase 44 -- "Group Wise location". Read live on Cadehi 2026-09-15: ticking it inserts a
+        // Location column immediately after Date and turns one period into one row per location --
+        // it adds a dimension to the row key and changes nothing else about the figures.
+        //
+        // Built by running the existing period builders once per location group rather than by a
+        // second aggregation path, so a grouped row and an ungrouped one are the same arithmetic
+        // over a narrower slice, and the two cannot disagree (phase-36's rule for Inventory
+        // Position, applied here).
+        var locationNames = request.GroupWiseLocation
+            ? await db.BillingLocations
+                .Where(x => x.OrganizationId == request.OrganizationId)
+                .Select(x => new { x.Id, x.Name })
+                .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken)
+            : [];
+
+        List<SalesSummaryRowDto> rows;
+        if (request.GroupWiseLocation)
+        {
+            rows =
+            [
+                .. facts
+                    .GroupBy(x => x.LocationId)
+                    // Named locations in name order, then the no-location group last: it is the
+                    // residue, not a branch, and putting it first would read as one.
+                    .OrderBy(g => g.Key is null)
+                    .ThenBy(
+                        g => g.Key is { } id ? locationNames.GetValueOrDefault(id, string.Empty) : string.Empty,
+                        StringComparer.OrdinalIgnoreCase)
+                    .SelectMany(group =>
+                    {
+                        var name = group.Key is { } id ? locationNames.GetValueOrDefault(id) : null;
+                        var slice = group.ToList();
+                        var periodRows = request.Mode == SalesSummaryMode.Month
+                            ? BuildMonthRows(slice, months)
+                            : BuildDateRows(slice);
+                        return periodRows.Select(row => row with { Location = name });
+                    }),
+            ];
+        }
+        else
+        {
+            rows = request.Mode == SalesSummaryMode.Month
+                ? BuildMonthRows(facts, months)
+                : BuildDateRows(facts);
+        }
 
         var paged = request.ExportAll ? rows.ToUnpagedResult() : rows.ToPagedResult(request.Page, request.PageSize);
 
@@ -101,6 +144,8 @@ public sealed class SalesSummaryReportQueryHandler(IAppDbContext db, ICurrentUse
         var nonTaxable = facts.Where(x => x.VatRate != VatRate.ThirteenPercentVat).Sum(x => x.NetAmount);
         var vat = facts.Sum(x => x.VatAmount);
 
-        return new SalesSummaryRowDto(date, label, subTotal, discount, nonTaxable, taxable, vat, nonTaxable + taxable + vat);
+        return new SalesSummaryRowDto(
+            date, label, Location: null, subTotal, discount, nonTaxable, taxable, vat,
+            nonTaxable + taxable + vat);
     }
 }

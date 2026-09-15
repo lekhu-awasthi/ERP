@@ -234,6 +234,10 @@ export type SalesSummaryMode = 'Date' | 'Month';
  * (phase-23's rule).
  */
 export interface SalesSummaryRowDto {
+  /** Phase 44 -- the billing location this row belongs to, rendered as a Location column
+   *  after Date. Null unless Group Wise location asked for the split, and null within a
+   *  split for the documents that carry no location at all. */
+  readonly location?: string | null;
   date: string | null;
   label: string | null;
   subTotal: number;

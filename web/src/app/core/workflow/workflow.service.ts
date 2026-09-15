@@ -118,10 +118,11 @@ export class WorkflowService {
     toDate: string | null,
     page = 1,
     pageSize = 50,
+    locationId: string | null = null,
   ): Observable<PagedResult<AuditRowDto>> {
     return this.http.get<PagedResult<AuditRowDto>>(`${this.baseUrl(organizationId)}/reports/system-audit`, {
       withCredentials: true,
-      params: this.systemAuditParams(userId, action, documentType, fromDate, toDate, page, pageSize),
+      params: this.systemAuditParams(userId, action, documentType, fromDate, toDate, page, pageSize, locationId),
     });
   }
 
@@ -135,10 +136,14 @@ export class WorkflowService {
     full: boolean,
     page: number,
     pageSize: number,
+    locationId: string | null = null,
   ): Observable<Blob> {
     return this.http.get(`${this.baseUrl(organizationId)}/reports/system-audit/export`, {
       withCredentials: true,
-      params: { ...this.systemAuditParams(userId, action, documentType, fromDate, toDate, page, pageSize), full: String(full) },
+      params: {
+        ...this.systemAuditParams(userId, action, documentType, fromDate, toDate, page, pageSize, locationId),
+        full: String(full),
+      },
       responseType: 'blob',
     });
   }
@@ -224,8 +229,12 @@ export class WorkflowService {
     toDate: string | null,
     page: number,
     pageSize: number,
+    locationId: string | null = null,
   ): Record<string, string> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (locationId) {
+      params['locationId'] = locationId;
+    }
     if (userId) {
       params['userId'] = userId;
     }

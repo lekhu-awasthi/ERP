@@ -51,6 +51,64 @@ public class AuditBehaviorTests
         Assert.Equal(newId, audit.DocumentId);
     }
 
+    /// <summary>
+    /// Phase 44 (35b carried item #2) -- the audit row carries the document's billing location,
+    /// read once at write time by <c>DocumentLocationReader</c>. System Audit was the last report
+    /// with no location filter, and this column is what gives it one.
+    /// </summary>
+    [Fact]
+    public async Task Handle_stamps_the_documents_billing_location_onto_the_audit_row()
+    {
+        var db = TestAppDbContext.Create();
+        var organization = CreateOrganization();
+        db.Organizations.Add(organization);
+
+        var branch = BillingLocation.Create(organization.Id, "BR1", "Branch One", null, null);
+        db.BillingLocations.Add(branch);
+
+        var voucher = JournalVoucher.Create(organization.Id, new DateOnly(2026, 2, 1), null);
+        voucher.SetLocation(branch.Id);
+        db.JournalVouchers.Add(voucher);
+        await db.SaveChangesAsync();
+
+        var behavior = new AuditBehavior<ApproveJournalVoucherCommand, ApproveJournalVoucherResult>(
+            db, new FakeCurrentUserService(Guid.NewGuid()));
+        var command = new ApproveJournalVoucherCommand(organization.Id, voucher.Id);
+        var expected = new ApproveJournalVoucherResult(voucher.Id, "JV-0001", JournalVoucherStatus.Approved, null);
+
+        await behavior.Handle(command, () => Task.FromResult(expected), CancellationToken.None);
+
+        var audit = Assert.Single(db.Audits.Local);
+        Assert.Equal(branch.Id, audit.LocationId);
+    }
+
+    /// <summary>
+    /// A document that carries no location leaves the column null, and that is a normal answer
+    /// rather than a failure -- a type outside the tenant's LocationScopeMode, an opening-balance
+    /// line, or (since phase 43) a Deal or a Task, which are records and not documents at all.
+    /// </summary>
+    [Fact]
+    public async Task Handle_leaves_the_location_null_for_a_document_that_carries_none()
+    {
+        var db = TestAppDbContext.Create();
+        var organization = CreateOrganization();
+        db.Organizations.Add(organization);
+
+        var voucher = JournalVoucher.Create(organization.Id, new DateOnly(2026, 2, 1), null);
+        db.JournalVouchers.Add(voucher);
+        await db.SaveChangesAsync();
+
+        var behavior = new AuditBehavior<ApproveJournalVoucherCommand, ApproveJournalVoucherResult>(
+            db, new FakeCurrentUserService(Guid.NewGuid()));
+        var command = new ApproveJournalVoucherCommand(organization.Id, voucher.Id);
+        var expected = new ApproveJournalVoucherResult(voucher.Id, "JV-0001", JournalVoucherStatus.Approved, null);
+
+        await behavior.Handle(command, () => Task.FromResult(expected), CancellationToken.None);
+
+        var audit = Assert.Single(db.Audits.Local);
+        Assert.Null(audit.LocationId);
+    }
+
     [Fact]
     public async Task Handle_writes_an_audit_row_for_an_approve_command_using_the_commands_own_id()
     {

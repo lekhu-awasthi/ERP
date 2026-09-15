@@ -55,26 +55,27 @@ public static class WorkflowEndpoints
 
         group.MapGet("/reports/system-audit", async (
             Guid organizationId, Guid? userId, string? action, DocumentType? documentType,
-            DateOnly? fromDate, DateOnly? toDate, int? page, int? pageSize,
+            DateOnly? fromDate, DateOnly? toDate, int? page, int? pageSize, Guid? locationId,
             ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SystemAuditReportQuery(
                     organizationId, userId, action, documentType, fromDate, toDate,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/system-audit/export", async (
             Guid organizationId, Guid? userId, string? action, DocumentType? documentType,
-            DateOnly? fromDate, DateOnly? toDate, bool full, int? page, int? pageSize,
+            DateOnly? fromDate, DateOnly? toDate, bool full, int? page, int? pageSize, Guid? locationId,
             ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SystemAuditReportQuery(
                     organizationId, userId, action, documentType, fromDate, toDate,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full,
+                    LocationId: locationId),
                 ct);
             return ReportSpreadsheetExporter.ExportSystemAuditReport(result);
         });

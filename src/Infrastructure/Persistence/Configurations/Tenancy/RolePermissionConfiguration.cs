@@ -393,6 +393,10 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminOrganizationProfileManageId = Guid.Parse("00000000-0000-0000-0002-0000000001bf");
     private static readonly Guid MemberOrganizationProfileManageId = Guid.Parse("00000000-0000-0000-0002-0000000001c0");
 
+    // Phase 44 -- the billing-location backfill. Admin-only; see PermissionKeys for the reasoning.
+    private static readonly Guid AdminOrganizationBackfillLocationsId = Guid.Parse("00000000-0000-0000-0002-0000000001c1");
+    private static readonly Guid MemberOrganizationBackfillLocationsId = Guid.Parse("00000000-0000-0000-0002-0000000001c2");
+
     private static readonly Guid AdminOrganizationLockDateManageId = Guid.Parse("00000000-0000-0000-0002-0000000000fb");
     private static readonly Guid MemberOrganizationLockDateManageId = Guid.Parse("00000000-0000-0000-0002-0000000000fc");
 
@@ -1060,6 +1064,11 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
                 AdminOrganizationProfileManageId, Role.AdminId, PermissionKeys.OrganizationProfileManage, true),
             RolePermission.Create(
                 MemberOrganizationProfileManageId, Role.MemberId, PermissionKeys.OrganizationProfileManage, false),
+
+            RolePermission.Create(
+                AdminOrganizationBackfillLocationsId, Role.AdminId, PermissionKeys.OrganizationBackfillLocations, true),
+            RolePermission.Create(
+                MemberOrganizationBackfillLocationsId, Role.MemberId, PermissionKeys.OrganizationBackfillLocations, false),
 
             RolePermission.Create(AdminSystemAuditViewId, Role.AdminId, PermissionKeys.SystemAuditView, true),
             RolePermission.Create(MemberSystemAuditViewId, Role.MemberId, PermissionKeys.SystemAuditView, false),

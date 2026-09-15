@@ -11,6 +11,7 @@ import { PagedResult, DEFAULT_PAGE_SIZE } from '../../../core/common/paged-resul
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 const EMPTY_REPORT: PagedResult<AuditRowDto> = { items: [], page: 1, pageSize: DEFAULT_PAGE_SIZE, totalCount: 0 };
@@ -39,7 +40,7 @@ const DOCUMENT_TYPES: SystemAuditDocumentType[] = [
  */
 @Component({
   selector: 'app-system-audit-report-page',
-  imports: [RouterLink, PaginationControl, DatePipe, BsDateInput, StatusBanner],
+  imports: [RouterLink, PaginationControl, DatePipe, BsDateInput, ReportLocationFilter, StatusBanner],
   templateUrl: './system-audit-report-page.html',
 })
 export class SystemAuditReportPage {
@@ -61,6 +62,10 @@ export class SystemAuditReportPage {
   protected readonly documentType = signal<SystemAuditDocumentType | ''>('');
   protected readonly fromDate = signal<string>('');
   protected readonly toDate = signal<string>('');
+
+  /** Phase 44 (35b carried item #2) -- the Billing Location filter this report was the last
+   *  of the 43 to lack, now that AuditBehavior stamps a location on every row it writes. */
+  protected readonly locationId = signal<string>('');
 
   protected readonly page = signal(1);
   protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
@@ -125,12 +130,19 @@ export class SystemAuditReportPage {
     this.runExport(true, 1, this.pageSize());
   }
 
+  protected onLocationChange(locationId: string): void {
+    this.locationId.set(locationId);
+    this.page.set(1);
+    this.load();
+  }
+
   private runExport(full: boolean, page: number, pageSize: number): void {
     this.exporting.set(true);
     this.workflowService
       .exportSystemAuditReport(
         this.organizationId, this.userId() || null, this.action() || null, this.documentType() || null,
         this.fromDate() || null, this.toDate() || null, full, page, pageSize,
+        this.locationId() || null,
       )
       .subscribe({
         next: (blob) => {
@@ -152,6 +164,7 @@ export class SystemAuditReportPage {
       .getSystemAuditReport(
         this.organizationId, this.userId() || null, this.action() || null, this.documentType() || null,
         this.fromDate() || null, this.toDate() || null, this.page(), this.pageSize(),
+        this.locationId() || null,
       )
       .subscribe({
         next: (report) => {

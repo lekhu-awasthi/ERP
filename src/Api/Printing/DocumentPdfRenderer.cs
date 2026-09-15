@@ -45,65 +45,85 @@ public static class DocumentPdfRenderer
 
     /// <summary>Organization block on the left, document title and number on the right -- the
     /// arrangement the reference product prints for every document type.</summary>
+    /// <summary>
+    /// Phase 44 (39 carried item #3) -- the header's wider arrangement, brought into line with the
+    /// reference product: the organization block is <b>centred beside the logo</b> and the document
+    /// title is <b>centred below</b>, rather than organization-left / title-right.
+    ///
+    /// <para>Phase 39 recorded this divergence and deliberately did not chase it, because re-laying
+    /// out the one shared layout changes all fifteen document types for a cosmetic reason. It is done
+    /// here as its own item, which is what makes "all fifteen" a reason to be careful rather than a
+    /// reason to decline -- and the existing PDF tests cover exactly that blast radius.</para>
+    ///
+    /// <para><b>The logo is balanced, not just placed.</b> A constant spacer of the same width sits
+    /// on the right of the row, so the organization block is centred on the <i>page</i> rather than
+    /// on the space left over beside the mark. Without it a logo would shift the block right by half
+    /// its own width, which reads as a misalignment rather than as a design.</para>
+    /// </summary>
     private static void RenderHeader(IContainer container, PrintableDocumentDto dto)
     {
-        container.PaddingBottom(10).Row(row =>
+        // Re-checked with the same ImageHeader the upload used, and skipped if the bytes are not one
+        // of the three formats. QuestPDF throws at GeneratePdf time for an image it cannot decode --
+        // after composition, so not catchable around the draw call -- and an organization whose
+        // stored logo has somehow gone bad still needs its invoices to print.
+        var logo = dto.OrganizationLogo is { Length: > 0 } bytes
+                   && ImageHeader.TryRead(new MemoryStream(bytes)) is not null
+            ? bytes
+            : null;
+
+        container.PaddingBottom(10).Column(header =>
         {
-            // Phase 39 -- the logo sits top-left, ahead of the organization block, which is where
-            // the reference product prints it (Invoice print preview, read live 2026-09-13: a square
-            // mark of roughly 80pt at the left edge). Its wider header treatment -- the organization
-            // block centred beside the mark and the document title centred below rather than right-
-            // aligned -- is a divergence this phase records and does not chase: re-laying out the one
-            // shared layout would change all fifteen document types for a cosmetic reason.
-            //
-            // A ConstantItem rather than a RelativeItem so a tall logo cannot squeeze the text, and
-            // FitArea so neither a wide nor a tall image distorts.
-            //
-            // The bytes are re-checked with the same ImageHeader the upload used, and skipped if
-            // they are not one of the three formats. QuestPDF throws at GeneratePdf time for an
-            // image it cannot decode, which is after composition and so not catchable around the
-            // draw call -- and an organization whose stored logo has somehow gone bad still needs
-            // its invoices to print.
-            if (dto.OrganizationLogo is { Length: > 0 } logo && ImageHeader.TryRead(new MemoryStream(logo)) is not null)
+            header.Item().Row(row =>
             {
-                row.ConstantItem(60).AlignTop().Height(60).Image(logo).FitArea();
-                row.ConstantItem(12);
-            }
-
-            row.RelativeItem(2).Column(column =>
-            {
-                column.Item().Text(dto.OrganizationName).Bold().FontSize(16);
-
-                if (!string.IsNullOrWhiteSpace(dto.OrganizationAddress))
+                if (logo is not null)
                 {
-                    column.Item().Text(dto.OrganizationAddress).FontSize(9);
+                    // A ConstantItem rather than a RelativeItem so a tall logo cannot squeeze the
+                    // text, and FitArea so neither a wide nor a tall image distorts.
+                    row.ConstantItem(60).AlignTop().Height(60).Image(logo).FitArea();
+                    row.ConstantItem(12);
                 }
 
-                var contactLine = string.Join(
-                    "  |  ",
-                    new[]
-                    {
-                        dto.OrganizationPhone is { } phone ? $"Phone: {phone}" : null,
-                        dto.OrganizationEmail is { } email ? $"Email: {email}" : null,
-                        dto.OrganizationPan is { } pan ? $"PAN: {pan}" : null,
-                        dto.OrganizationWebsite is { } website ? website : null,
-                    }.Where(x => x is not null));
-
-                if (!string.IsNullOrWhiteSpace(contactLine))
+                row.RelativeItem().AlignMiddle().Column(column =>
                 {
-                    column.Item().Text(contactLine).FontSize(9);
+                    column.Item().AlignCenter().Text(dto.OrganizationName).Bold().FontSize(16);
+
+                    if (!string.IsNullOrWhiteSpace(dto.OrganizationAddress))
+                    {
+                        column.Item().AlignCenter().Text(dto.OrganizationAddress).FontSize(9);
+                    }
+
+                    var contactLine = string.Join(
+                        "  |  ",
+                        new[]
+                        {
+                            dto.OrganizationPhone is { } phone ? $"Phone: {phone}" : null,
+                            dto.OrganizationEmail is { } email ? $"Email: {email}" : null,
+                            dto.OrganizationPan is { } pan ? $"PAN: {pan}" : null,
+                            dto.OrganizationWebsite is { } website ? website : null,
+                        }.Where(x => x is not null));
+
+                    if (!string.IsNullOrWhiteSpace(contactLine))
+                    {
+                        column.Item().AlignCenter().Text(contactLine).FontSize(9);
+                    }
+                });
+
+                if (logo is not null)
+                {
+                    // The counterweight -- see the note above on centring the block on the page.
+                    row.ConstantItem(72);
                 }
             });
 
-            row.RelativeItem().AlignRight().Column(column =>
+            header.Item().PaddingTop(8).Column(column =>
             {
-                column.Item().AlignRight().Text(dto.Title.ToUpperInvariant()).Bold().FontSize(16);
-                column.Item().AlignRight().Text(dto.Code).FontSize(11);
-                column.Item().AlignRight().Text($"Date: {dto.DateText}").FontSize(9);
+                column.Item().AlignCenter().Text(dto.Title.ToUpperInvariant()).Bold().FontSize(16);
+                column.Item().AlignCenter().Text(dto.Code).FontSize(11);
+                column.Item().AlignCenter().Text($"Date: {dto.DateText}").FontSize(9);
 
                 if (!string.IsNullOrWhiteSpace(dto.Reference))
                 {
-                    column.Item().AlignRight().Text($"Ref: {dto.Reference}").FontSize(9);
+                    column.Item().AlignCenter().Text($"Ref: {dto.Reference}").FontSize(9);
                 }
             });
         });

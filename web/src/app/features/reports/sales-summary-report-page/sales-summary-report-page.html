@@ -54,6 +54,24 @@
             (locationChange)="onLocationChange($event)"
           />
         </div>
+        <div class="col-12 col-sm-6 col-lg-3 d-flex align-items-end">
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="sales-summary-report-page-group-wise-location"
+              [checked]="groupWiseLocation()"
+              (change)="onGroupWiseLocationChange($any($event.target).checked)"
+            />
+            <label class="form-check-label small" for="sales-summary-report-page-group-wise-location">
+              Group Wise location
+              <span class="d-block text-muted">
+                On, each period is split into one row per billing location and a LOCATION column
+                appears.
+              </span>
+            </label>
+          </div>
+        </div>
       </div>
       <p class="text-muted small mb-0 mt-3">
         <i aria-hidden="true" class="bi bi-info-circle"></i>
@@ -81,6 +99,9 @@
               <thead>
                 <tr class="text-muted small">
                   <th scope="col">Date</th>
+                  @if (groupWiseLocation()) {
+                    <th scope="col">Location</th>
+                  }
                   <th scope="col" class="text-end">Sub Total</th>
                   <th scope="col" class="text-end">Discount</th>
                   <th scope="col" class="text-end">Non Taxable Sales</th>
@@ -90,9 +111,17 @@
                 </tr>
               </thead>
               <tbody>
-                @for (row of r.rows; track row.label ?? row.date) {
+                <!--
+                  Phase 44: the location is part of the key. With the split on, one period yields
+                  several rows sharing a label, and a track expression that ignored the location
+                  would hand Angular duplicate keys.
+                -->
+                @for (row of r.rows; track (row.label ?? row.date) + '|' + (row.location ?? '')) {
                   <tr>
                     <td>{{ row.label ?? (row.date | nepaliDate) }}</td>
+                    @if (groupWiseLocation()) {
+                      <td>{{ row.location || '—' }}</td>
+                    }
                     <td class="text-end">{{ (row.subTotal | amount) }}</td>
                     <td class="text-end">{{ (row.discount | amount) }}</td>
                     <td class="text-end">{{ (row.nonTaxableSales | amount) }}</td>

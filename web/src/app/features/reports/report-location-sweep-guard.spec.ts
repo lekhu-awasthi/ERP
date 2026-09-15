@@ -41,8 +41,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   'migrated-sales-register-page':
     'A cutover import row is deliberately not a document (phase 21c) and carries no location.',
   'migrated-purchase-register-page': 'The Purchase Book counterpart, same reasoning.',
-  'system-audit-report-page':
-    'An Audit row records a command against a (DocumentType, DocumentId) pair and nothing else.',
   'report-index-page': 'The catalogue itself, not a report.',
 };
 

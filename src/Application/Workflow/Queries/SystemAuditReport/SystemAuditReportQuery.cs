@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
@@ -27,8 +28,11 @@ public sealed record SystemAuditReportQuery(
     DateOnly? ToDate,
     int Page = 1,
     int PageSize = PagingDefaults.DefaultPageSize,
-    bool ExportAll = false)
-    : IRequest<PagedResult<AuditRowDto>>, IRequirePermission, IOrganizationScoped
+    bool ExportAll = false,
+    // Phase 44 (35b carried item #2) -- the Billing Location filter this report was the last to
+    // lack. Null is "All locations", like every other ILocationFilteredReport.
+    Guid? LocationId = null)
+    : IRequest<PagedResult<AuditRowDto>>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.SystemAuditView;
 }
@@ -45,4 +49,12 @@ public sealed record AuditRowDto(
     string Action,
     DocumentType DocumentType,
     Guid DocumentId,
-    PaymentDirection? Direction);
+    PaymentDirection? Direction,
+    /// <summary>
+    /// Phase 44 -- the billing location stamped on the row when the action happened. Null where the
+    /// document carries none: a Deal or a Task (records, not documents), an opening-balance line, a
+    /// type outside the tenant's LocationScopeMode, or any row written before this phase, which is
+    /// left null rather than inferred -- the column records where the document <i>was</i>, and that
+    /// is not knowable after the fact.
+    /// </summary>
+    string? Location = null);

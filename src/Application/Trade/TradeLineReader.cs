@@ -47,7 +47,14 @@ internal static class TradeLineReader
         decimal Amount,
         decimal Discount,
         decimal NetAmount,
-        decimal VatAmount)
+        decimal VatAmount,
+        // Phase 44 -- the source document's billing location, carried so a report can group *by* it
+        // and not only filter on it. Sales Summary's "Group Wise location" is the one control in the
+        // catalogue that groups by location (live on Cadehi, 2026-09-15); every other consumer of
+        // this reader ignores the field. Null where the document carries no location -- a document
+        // written while its type was out of LocationScopeMode, which is a real state and renders as
+        // its own group rather than being dropped.
+        Guid? LocationId = null)
     {
         public decimal TotalAmount => NetAmount + VatAmount;
     }
@@ -77,7 +84,7 @@ internal static class TradeLineReader
             .Where(x => x.OrganizationId == organizationId && x.Status == InvoiceStatus.Approved
                 && x.Date >= fromDate && x.Date <= toDate)
             .AtLocations(locationId, reportLocations)
-            .Select(x => new { x.Id, x.ContactId, x.Date })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.LocationId })
             .ToListAsync(cancellationToken);
         var invoiceIds = invoices.Select(x => x.Id).ToList();
         var invoiceLines = await db.InvoiceLines
@@ -89,7 +96,7 @@ internal static class TradeLineReader
             .Where(x => x.OrganizationId == organizationId && x.Status == CreditNoteStatus.Approved
                 && x.Date >= fromDate && x.Date <= toDate)
             .AtLocations(locationId, reportLocations)
-            .Select(x => new { x.Id, x.ContactId, x.Date })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.LocationId })
             .ToListAsync(cancellationToken);
         var creditNoteIds = creditNotes.Select(x => x.Id).ToList();
         var creditNoteLines = await db.CreditNoteLines
@@ -107,7 +114,8 @@ internal static class TradeLineReader
             var document = invoicesById[line.InvoiceId];
             facts.Add(BuildFact(
                 document.ContactId, line.ProductId, document.Date,
-                line.VatRate, line.Quantity, line.Rate, line.DiscountPct, line.Amount, line.VatAmount, sign: 1));
+                line.VatRate, line.Quantity, line.Rate, line.DiscountPct, line.Amount, line.VatAmount, sign: 1,
+                document.LocationId));
         }
 
         foreach (var line in creditNoteLines)
@@ -115,7 +123,8 @@ internal static class TradeLineReader
             var document = creditNotesById[line.CreditNoteId];
             facts.Add(BuildFact(
                 document.ContactId, line.ProductId, document.Date,
-                line.VatRate, line.Quantity, line.Rate, line.DiscountPct, line.Amount, line.VatAmount, sign: -1));
+                line.VatRate, line.Quantity, line.Rate, line.DiscountPct, line.Amount, line.VatAmount, sign: -1,
+                document.LocationId));
         }
 
         return facts;
@@ -129,7 +138,7 @@ internal static class TradeLineReader
             .Where(x => x.OrganizationId == organizationId && x.Status == PurchaseBillStatus.Approved
                 && x.Date >= fromDate && x.Date <= toDate)
             .AtLocations(locationId, reportLocations)
-            .Select(x => new { x.Id, x.ContactId, x.Date })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.LocationId })
             .ToListAsync(cancellationToken);
         var billIds = bills.Select(x => x.Id).ToList();
         var billLines = await db.PurchaseBillLines
@@ -141,7 +150,7 @@ internal static class TradeLineReader
             .Where(x => x.OrganizationId == organizationId && x.Status == DebitNoteStatus.Approved
                 && x.Date >= fromDate && x.Date <= toDate)
             .AtLocations(locationId, reportLocations)
-            .Select(x => new { x.Id, x.ContactId, x.Date })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.LocationId })
             .ToListAsync(cancellationToken);
         var debitNoteIds = debitNotes.Select(x => x.Id).ToList();
         var debitNoteLines = await db.DebitNoteLines
@@ -159,7 +168,8 @@ internal static class TradeLineReader
             var document = billsById[line.PurchaseBillId];
             facts.Add(BuildFact(
                 document.ContactId, line.ProductId, document.Date,
-                line.VatRate, line.Quantity, line.Rate, line.DiscountPct, line.Amount, line.VatAmount, sign: 1));
+                line.VatRate, line.Quantity, line.Rate, line.DiscountPct, line.Amount, line.VatAmount, sign: 1,
+                document.LocationId));
         }
 
         foreach (var line in debitNoteLines)
@@ -167,7 +177,8 @@ internal static class TradeLineReader
             var document = debitNotesById[line.DebitNoteId];
             facts.Add(BuildFact(
                 document.ContactId, line.ProductId, document.Date,
-                line.VatRate, line.Quantity, line.Rate, line.DiscountPct, line.Amount, line.VatAmount, sign: -1));
+                line.VatRate, line.Quantity, line.Rate, line.DiscountPct, line.Amount, line.VatAmount, sign: -1,
+                document.LocationId));
         }
 
         return facts;
@@ -175,7 +186,8 @@ internal static class TradeLineReader
 
     private static Fact BuildFact(
         Guid contactId, Guid productId, DateOnly date, VatRate vatRate,
-        decimal quantity, decimal rate, decimal discountPct, decimal netAmount, decimal vatAmount, int sign)
+        decimal quantity, decimal rate, decimal discountPct, decimal netAmount, decimal vatAmount, int sign,
+        Guid? locationId = null)
     {
         var gross = quantity * rate;
         var itemDiscount = gross * discountPct / 100m;
@@ -197,6 +209,7 @@ internal static class TradeLineReader
             sign * gross,
             sign * (itemDiscount + transactionDiscount),
             sign * netAmount,
-            sign * vatAmount);
+            sign * vatAmount,
+            locationId);
     }
 }

@@ -47,7 +47,13 @@ public sealed record InventoryPositionReportQuery(
     // no tags of its own: the movements behind it are narrowed to those whose source document
     // carries one of the selected options, which is the only thing "tag" can mean on a report whose
     // rows are products.
-    IReadOnlyList<Guid>? TagOptionIds = null)
+    IReadOnlyList<Guid>? TagOptionIds = null,
+    // Phase 44 -- the drawer's second Show Columns checkbox, live-confirmed on Moonbeam 2026-09-15.
+    // It is a *modifier of* GroupByWarehouse, not an alternative to it: the live control is disabled
+    // until Group by Warehouse is ticked, and ticking both turns the per-warehouse split from extra
+    // rows into extra columns -- one quantity column per warehouse, inserted after Category, with
+    // Qty becoming the signed total across them and Rate/Amount staying single.
+    bool DisplayWarehouseInColumn = false)
     : IRequest<InventoryPositionReportDto>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.InventoryPositionView;
@@ -74,7 +80,18 @@ public sealed record InventoryPositionRowDto(
     string Unit,
     decimal Rate,
     decimal Amount,
-    string? Warehouse = null);
+    string? Warehouse = null,
+    /// <summary>
+    /// Phase 44 -- one quantity per warehouse, positionally aligned to
+    /// <see cref="InventoryPositionReportDto.WarehouseColumns"/>, and null unless
+    /// <c>DisplayWarehouseInColumn</c> asked for the crosstab. Aligned by position rather than keyed
+    /// by name because the header row is the contract: a renderer walks the two lists together and
+    /// cannot put a figure under the wrong warehouse.
+    ///
+    /// <para><c>Quantity</c> remains the signed total across these, which is the identity the live
+    /// report shows (`cream (23)`: Kathmandu (10) + Patan (6) = Qty (16)).</para>
+    /// </summary>
+    IReadOnlyList<decimal>? WarehouseQuantities = null);
 
 /// <summary>
 /// <paramref name="TotalQuantity"/> and <paramref name="TotalAmount"/> cover the whole filtered
@@ -89,4 +106,14 @@ public sealed record InventoryPositionReportDto(
     int PageSize,
     int TotalCount,
     decimal TotalQuantity,
-    decimal TotalAmount);
+    decimal TotalAmount,
+    /// <summary>
+    /// Phase 44 -- the warehouse column headers, in the order every row's
+    /// <see cref="InventoryPositionRowDto.WarehouseQuantities"/> is aligned to. Empty unless the
+    /// crosstab was asked for.
+    ///
+    /// <para>Every warehouse in the tenant appears, not only those with a balance -- the live report
+    /// shows all four of Moonbeam's columns and leaves the empty cells blank, and a column set that
+    /// changed shape with the data would make two runs of one report incomparable.</para>
+    /// </summary>
+    IReadOnlyList<string>? WarehouseColumns = null);

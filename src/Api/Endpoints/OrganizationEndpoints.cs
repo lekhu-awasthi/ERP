@@ -1,6 +1,7 @@
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
+using ErpApp.Application.Tenancy.Commands.BackfillDocumentLocations;
 using ErpApp.Application.Tenancy.Commands.AcceptInvitation;
 using ErpApp.Application.Tenancy.Commands.AcceptRequest;
 using ErpApp.Application.Tenancy.Commands.CreateOrganization;
@@ -379,6 +380,17 @@ public static class OrganizationEndpoints
         // its EDIT DETAILS dialog carries the nine text fields and no upload). These three routes are
         // therefore an addition, labelled as one in docs/phase-39-status.md -- an ERP whose logo can
         // only ever be set during signup is a worse product than one where it can be corrected.
+        // Phase 44 (35a carried item #5, 35b #6) -- the one-off billing-location backfill. POST
+        // because it writes, and it is an action rather than a resource: there is nothing to GET
+        // back afterwards except the counts it already returned. Idempotent, so a retry after a
+        // dropped response is safe and reports zero.
+        group.MapPost("/{organizationId:guid}/backfill-locations", async (
+            Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new BackfillDocumentLocationsCommand(organizationId), ct);
+            return Results.Ok(result);
+        });
+
         group.MapGet("/{organizationId:guid}/profile", async (
             Guid organizationId, ISender sender, CancellationToken ct) =>
         {

@@ -332,9 +332,11 @@ export class TradeReportsService {
     page = 1,
     pageSize = 50,
     locationId?: string,
+    groupWiseLocation = false,
   ): Observable<SalesSummaryReportDto> {
     const params: Record<string, string> = {
       fiscalYear: String(fiscalYear), mode, page: String(page), pageSize: String(pageSize),
+      groupWiseLocation: String(groupWiseLocation),
     };
     if (locationId) params['locationId'] = locationId;
     return this.http.get<SalesSummaryReportDto>(`${this.baseUrl(organizationId)}/reports/sales-summary`, {
@@ -351,9 +353,11 @@ export class TradeReportsService {
     page: number,
     pageSize: number,
     locationId?: string,
+    groupWiseLocation = false,
   ): Observable<Blob> {
     const params: Record<string, string> = {
       fiscalYear: String(fiscalYear), mode, full: String(full), page: String(page), pageSize: String(pageSize),
+      groupWiseLocation: String(groupWiseLocation),
     };
     if (locationId) params['locationId'] = locationId;
     return this.http.get(`${this.baseUrl(organizationId)}/reports/sales-summary/export`, {
