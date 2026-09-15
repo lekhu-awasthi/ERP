@@ -8,6 +8,8 @@ import { ListQueryOptions, applyListOptions } from '../../shared/pagination/list
 import {
   AddSecondaryUnitRequest,
   AddSecondaryUnitResult,
+  SecondaryUnitResult,
+  UpdateSecondaryUnitRequest,
   CreateProductCategoryRequest,
   CreateProductCategoryResult,
   CreateProductRequest,
@@ -315,6 +317,26 @@ export class CatalogService {
     return this.http.post<AddSecondaryUnitResult>(
       `${this.baseUrl(organizationId)}/products/${productId}/secondary-units`,
       request,
+      { withCredentials: true },
+    );
+  }
+
+  updateSecondaryUnit(
+    organizationId: string,
+    productId: string,
+    secondaryUnitId: string,
+    request: UpdateSecondaryUnitRequest,
+  ): Observable<SecondaryUnitResult> {
+    return this.http.put<SecondaryUnitResult>(
+      `${this.baseUrl(organizationId)}/products/${productId}/secondary-units/${secondaryUnitId}`,
+      request,
+      { withCredentials: true },
+    );
+  }
+
+  deleteSecondaryUnit(organizationId: string, productId: string, secondaryUnitId: string): Observable<void> {
+    return this.http.delete<void>(
+      `${this.baseUrl(organizationId)}/products/${productId}/secondary-units/${secondaryUnitId}`,
       { withCredentials: true },
     );
   }

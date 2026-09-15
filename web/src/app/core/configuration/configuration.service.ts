@@ -25,7 +25,9 @@ import {
   CreateReportingTagCategoryRequest,
   CreateReportingTagOptionRequest,
   CustomFieldDefinition,
+  CreateCustomStatusRequest,
   CustomStatus,
+  UpdateCustomStatusRequest,
   CustomTemplate,
   DealStage,
   LeadSource,
@@ -323,6 +325,33 @@ export class ConfigurationService {
 
   listCustomStatuses(organizationId: string): Observable<CustomStatus[]> {
     return this.listAll<CustomStatus>(`${this.baseUrl(organizationId)}/custom-statuses`);
+  }
+
+  createCustomStatus(
+    organizationId: string,
+    request: CreateCustomStatusRequest,
+  ): Observable<CustomStatus> {
+    return this.http.post<CustomStatus>(`${this.baseUrl(organizationId)}/custom-statuses`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updateCustomStatus(
+    organizationId: string,
+    id: string,
+    request: UpdateCustomStatusRequest,
+  ): Observable<CustomStatus> {
+    return this.http.put<CustomStatus>(
+      `${this.baseUrl(organizationId)}/custom-statuses/${id}`,
+      request,
+      { withCredentials: true },
+    );
+  }
+
+  deleteCustomStatus(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/custom-statuses/${id}`, {
+      withCredentials: true,
+    });
   }
 
   /** Write-only, no matching GET -- the target document's own DTO already carries

@@ -14,23 +14,53 @@
     }
 
     @if (editing()) {
-      <select aria-label="Reporting tags" class="form-select" multiple size="5" (change)="onSelectionChange($event)">
-        @for (option of allOptions(); track option.id) {
-          <option [value]="option.id" [selected]="selectedIds().includes(option.id)">{{ option.name }}</option>
-        }
-      </select>
-      <div class="d-flex gap-2 mt-2">
-        <button type="button" class="btn btn-primary btn-sm fw-bold" [disabled]="saving()" (click)="save()">
-          @if (saving()) {
-            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-          } @else {
-            Save
+      @if (hasOptions()) {
+        <label class="form-label small text-muted" for="reporting-tags-editor-options">
+          Choose one or more. Hold Ctrl (Cmd on a Mac) to select several.
+        </label>
+        <select
+          id="reporting-tags-editor-options"
+          class="form-select"
+          multiple
+          size="5"
+          (change)="onSelectionChange($event)"
+        >
+          @for (option of allOptions(); track option.id) {
+            <option [value]="option.id" [selected]="selectedIds().includes(option.id)">{{ option.name }}</option>
           }
-        </button>
-        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" [disabled]="saving()" (click)="cancelEditing()">
-          Cancel
-        </button>
-      </div>
+        </select>
+        <div class="d-flex gap-2 mt-2">
+          <button type="button" class="btn btn-primary btn-sm fw-bold" [disabled]="saving()" (click)="save()">
+            @if (saving()) {
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            } @else {
+              Save
+            }
+          </button>
+          <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" [disabled]="saving()" (click)="cancelEditing()">
+            Cancel
+          </button>
+        </div>
+      } @else {
+        <!-- No options defined: say so and point at the screen that defines them, rather than
+             rendering an empty picker beside a Save button that would save nothing. -->
+        <p class="text-muted small mb-2">
+          This organization has no reporting tags yet. A tag is a <strong>Category</strong> with
+          options underneath it &mdash; for example <em>Region</em> with <em>Kathmandu</em> and
+          <em>Pokhara</em> &mdash; and you pick from those here rather than typing one.
+        </p>
+        <div class="d-flex gap-2">
+          <a
+            class="btn btn-outline-primary btn-sm fw-bold"
+            [routerLink]="['/organizations', organizationId(), 'configuration', 'reporting-tags']"
+          >
+            <i aria-hidden="true" class="bi bi-gear"></i> Set up Reporting Tags
+          </a>
+          <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" (click)="cancelEditing()">
+            Close
+          </button>
+        </div>
+      }
     } @else if (tags().length === 0) {
       <p class="text-muted small mb-0">No reporting tags</p>
     } @else {

@@ -1,4 +1,5 @@
-import { Component, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { ConfigurationService } from '../../core/configuration/configuration.service';
 import { ReportingTagOption } from '../../core/configuration/configuration.models';
@@ -14,7 +15,7 @@ import { extractErrorMessage } from '../../core/auth/api-error';
  */
 @Component({
   selector: 'app-reporting-tags-editor',
-  imports: [],
+  imports: [RouterLink],
   templateUrl: './reporting-tags-editor.html',
 })
 export class ReportingTagsEditor {
@@ -31,6 +32,18 @@ export class ReportingTagsEditor {
   protected readonly tags = signal<TransactionReportingTagDto[]>([]);
   protected readonly allOptions = signal<ReportingTagOption[]>([]);
   protected readonly selectedIds = signal<string[]>([]);
+
+  /**
+   * Whether this tenant has defined any tag options at all.
+   *
+   * <p>A reporting tag is <b>chosen, never typed</b> -- the control is a multi-select over
+   * Category → Option pairs a tenant defines under Configurations → Reporting Tags. On a tenant
+   * that has defined none, Add/Edit used to open a blank grey box with a Save button: nothing to
+   * pick, nothing to type, and no hint that the options live somewhere else. That is the same
+   * defect as a Select Status dropdown with no statuses behind it -- a control silent about why it
+   * is empty -- and it reads as a broken text field rather than an unconfigured picker.</p>
+   */
+  protected readonly hasOptions = computed(() => this.allOptions().length > 0);
 
   constructor() {
     effect(() => {

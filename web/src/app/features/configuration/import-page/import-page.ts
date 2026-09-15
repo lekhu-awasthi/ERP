@@ -1,4 +1,4 @@
-import { Component, OnDestroy, inject, signal } from '@angular/core';
+import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
@@ -96,9 +96,11 @@ export class ImportPage implements OnDestroy {
   protected readonly expandedRows = signal<ImportJobRow[]>([]);
   protected readonly expandedRowsLoading = signal(false);
 
-  // Phase 38 -- the reference product's Upload Type list, in its own order, plus the one addition.
+  // Phase 38 -- the reference product's Upload Type list, in its own order, plus the additions.
   // "Contact Personnel" is that product's "Contact" option under the name this codebase gives the
-  // aggregate, so the label says what a user is actually uploading.
+  // aggregate, so the label says what a user is actually uploading. "Product Attributes Used"
+  // (phase 45) sits immediately before "Product Variant" because that is the order they must be
+  // run in: a variant row is refused unless its parent already offers the combination.
   protected readonly entityTypes: readonly { value: ImportEntityType; label: string }[] = [
     { value: 'Product', label: 'Product' },
     { value: 'Customer', label: 'Customer' },
@@ -107,8 +109,19 @@ export class ImportPage implements OnDestroy {
     { value: 'Account', label: 'Account' },
     { value: 'ProductCategory', label: 'Product Category' },
     { value: 'AccountGroup', label: 'Account Group' },
+    { value: 'ProductAttributePool', label: 'Product Attributes Used' },
     { value: 'ProductVariant', label: 'Product Variant' },
   ];
+
+  /**
+   * Phase 45 -- the Download button said `{{ entityType() }}`, the raw enum value, so a multi-word
+   * type read as "Download ContactPersonnel Template" and this phase's new one as "Download
+   * ProductAttributePool Template". The labels were already here; the button was simply not using
+   * them. Pre-existing since phase 38, and visible in the browser pass on the phase's own control.
+   */
+  protected readonly entityTypeLabel = computed(
+    () => this.entityTypes.find((t) => t.value === this.entityType())?.label ?? this.entityType(),
+  );
 
   protected readonly modes: readonly { value: ImportMode; label: string }[] = [
     { value: 'CreateNew', label: 'Create New Records' },

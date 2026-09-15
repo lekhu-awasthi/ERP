@@ -8,14 +8,16 @@ public sealed class CreateImportJobCommandValidator : AbstractValidator<CreateIm
     private static readonly string[] AllowedExtensions = [".xlsx"];
 
     /// <summary>
-    /// The five upload types this product offers Create New Records for and nothing else.
+    /// The six upload types this product offers Create New Records for and nothing else.
     ///
     /// <para>Two of them are Phase 21c's migrated registers (a historical statutory row has no
     /// "update" story at all). Two more are Phase 38's trees, <b>and those two are the reference
     /// product's own asymmetry</b>: Phase 21a read its "Select action" dropdown live and found it
     /// offers both modes for five of its seven upload types and Create alone for Product Category
     /// and Account Group. The fifth is the variant importer, whose reasoning is its own -- a
-    /// variant's identity is its combination.</para>
+    /// variant's identity is its combination -- and the sixth is phase 45's attribute-pool
+    /// importer, whose rows name an existing product and add a pair that is either present or
+    /// absent, so there is no second mode with anything different to do.</para>
     /// </summary>
     private static readonly ImportEntityType[] CreateOnlyEntityTypes =
     [
@@ -24,6 +26,7 @@ public sealed class CreateImportJobCommandValidator : AbstractValidator<CreateIm
         ImportEntityType.ProductCategory,
         ImportEntityType.AccountGroup,
         ImportEntityType.ProductVariant,
+        ImportEntityType.ProductAttributePool,
     ];
 
     public CreateImportJobCommandValidator()

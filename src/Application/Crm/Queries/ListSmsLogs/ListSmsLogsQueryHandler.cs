@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,15 @@ public sealed class ListSmsLogsQueryHandler(IAppDbContext db) : IRequestHandler<
         if (request.ContactId is { } contactId)
         {
             query = query.Where(x => x.ContactId == contactId);
+        }
+
+        // Inline Contains over this row's own columns -- see SearchTerm's remarks for why there is
+        // no shared matcher (a static call and the StringComparison overload are both untranslatable,
+        // and InMemory hides it by evaluating them in C#).
+        if (SearchTerm.Normalize(request.Search) is { } term)
+        {
+            query = query.Where(x =>
+                x.Title.Contains(term) || x.Content.Contains(term) || x.PhoneNumber.Contains(term));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

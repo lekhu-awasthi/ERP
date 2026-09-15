@@ -2489,3 +2489,86 @@ happened, the bills had no location.
 That is the intended semantics of a stamped column and the reason phase-35b's rule (an append-only
 fact needs a stamped column, never a join back to the document) is about honesty as well as cost. A
 join back would have reported today's location for yesterday's action.
+
+
+## An allow-list reason can be the argument for the opposite conclusion (phase 45)
+
+Phase 24 swept the rule that a variant **parent** may never reach a document line across every
+line-taking handler, and pinned it with `ProductVariantSweepGuardTests` — a guard that reads every
+`*CommandHandler.cs` off disk and fails the build on one that takes product ids without routing
+through `ProductVariantRules`. Six handlers are exempted, each with a written reason. One of them
+read:
+
+> A secondary unit is catalog metadata, not a stock or document line — attaching one to a parent
+> moves nothing and reconciles against nothing. Multi-UOM × variants is explicitly out of scope for
+> Phase 24.
+
+Read once with fresh eyes, that sentence is **the argument for refusing a parent a secondary unit**,
+not for permitting it. "Moves nothing and reconciles against nothing" is precisely what phase 24
+gave as the reason a parent may not carry stock; a conversion rate on a bucket that never receives
+anything converts nothing. The live read agreed — a variant parent's detail page in the reference
+product has no Inventory Details panel at all, no stock figures, no Secondary Unit tab, no Warehouse
+tab, while every variant child has all three.
+
+This is phase 44's lesson from a new direction. There, a control recorded as unbuilt because two
+options could not be told apart turned out to be a parent and its modifier. Here, an exemption's
+stated reason had quietly become the case against itself, and nothing in the guard could notice:
+a guard checks that every exemption names a file that still exists (phase-34a's rule), never that
+the reason still holds.
+
+**The practice:** when a phase's scope finally reaches an area an earlier phase excused, re-read the
+excuse as a claim rather than as a boundary. The remedy is the standing three-layer split — the
+Domain keeps the invariant (`InvalidOperationException`), a rule in `ProductVariantRules` throws the
+`ConflictException` that names the reason, because a Domain invariant reached through an endpoint is
+a 500 that tells the caller nothing (phase-39), and the allow-list entry is **deleted** so the guard
+covers the handler from then on.
+
+## An importer whose row adds to a set its command replaces (phase 45)
+
+`SetProductVariantAttributesCommand` replaces a product's "Attributes Used" pool wholesale. That is
+right for a form, which submits the whole set at once, and wrong for a file, whose rows arrive one
+at a time: phase 45's `ProductAttributePoolImporter` is one row per (product, attribute, option), so
+a straight replace per row would leave each product holding only the last row that named it.
+
+The importer re-reads the product's current pool per row and sends the **union**. Three consequences,
+each deliberate:
+
+- Re-running a file is **idempotent** — a pair already present produces the same pool.
+- An import can never **remove** an option, so it can never strand a variant built from one. Removal
+  stays on the product's own Variants tab, where the refusal that protects those children lives.
+- During the **dry run** nothing is written, so two rows naming one product both plan against the
+  same starting pool. **That is correct**: a validation pass checks rows, it does not accumulate
+  them. `ImportJobProcessor` plans *and then executes* each row in turn during apply (each in its own
+  scope, with its own `IJobActingUser`), so the union really does accumulate there.
+
+That last point is the mirror of `ImportRowContext.PendingKeys`. In a hierarchical importer the dry
+run needs *extra* knowledge — the set of keys the file will create — or it reports a correct file as
+broken. Here it needs none, because a row whose effect an earlier row already had is still a valid
+row. The distinction worth keeping is: **a dry run must not report a correct file as broken; it is
+under no obligation to predict the file's cumulative end state.**
+
+
+## Guard the add and the edit, never the delete (phase 45)
+
+Phase 45 refused a variant **parent** a unit matrix, because a parent holds no stock and a conversion
+rate on it converts nothing. The first version guarded all three verbs -- add, update and delete --
+and that was wrong in a way no test could see.
+
+`SetProductVariantAttributesCommand` promotes an ordinary product to a variant parent, and it does
+not look at the product's secondary units. It should not: the pool is the thing being set. So a
+product can be created with secondary units and become a parent afterwards. Its rows are then stale
+-- and with the delete guarded, they were **permanent**: the client's new visibility gate hid the
+whole card, and the API answered the only verb that could remove them with a 409.
+
+**A delete is never the thing to refuse.** Removing a row that should not exist is the repair, not
+the damage; refusing it turns a recoverable state into an unrecoverable one. The rule generalises
+past this case: when a guard exists because an entity has moved into a role that makes some child
+data meaningless, guard **creating and changing** that data and leave **removing** it open, then make
+the removal reachable -- here the card renders for a parent that still holds rows, read-only except
+Delete, with the reason on screen.
+
+**Why no test caught it**, which is the transferable part. Every handler test constructed the product
+in its *final* role -- an ordinary product, a parent, or a child -- so none could reach "ordinary,
+given units, then promoted". A fixture builds an object in the state the test is about; a user walks
+it through states in an order nobody wrote down. That is the class of bug a browser pass finds and a
+unit test does not, and it is the reason the pass is part of the exit bar rather than a formality.

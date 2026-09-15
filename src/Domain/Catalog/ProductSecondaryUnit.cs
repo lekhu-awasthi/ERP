@@ -31,4 +31,19 @@ public sealed class ProductSecondaryUnit
             PurchasePrice = purchasePrice,
         };
     }
+
+    /// <summary>
+    /// Phase 45 -- the rate and the two prices are editable; <see cref="UnitId"/> is not.
+    ///
+    /// <para>The unit is this row's identity, not one of its values: <see cref="Product"/> refuses
+    /// two rows for one unit, so "change the unit" is a move into another row's place rather than an
+    /// edit of this one. Deleting and re-adding says that plainly; a settable UnitId would let one
+    /// call silently collide with a row the caller never named.</para>
+    /// </summary>
+    internal void Update(decimal conversionRate, decimal sellingPrice, decimal purchasePrice)
+    {
+        ConversionRate = conversionRate;
+        SellingPrice = sellingPrice;
+        PurchasePrice = purchasePrice;
+    }
 }

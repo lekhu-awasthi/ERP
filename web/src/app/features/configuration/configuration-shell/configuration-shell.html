@@ -65,6 +65,21 @@
           <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
         </a>
         <a
+          [routerLink]="['/organizations', organizationId, 'configuration', 'custom-statuses']"
+          class="list-group-item list-group-item-action border rounded-3 mb-3 p-3 d-flex justify-content-between align-items-center"
+        >
+          <div class="d-flex align-items-center gap-3">
+            <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
+              <i aria-hidden="true" class="bi bi-flag fs-4"></i>
+            </div>
+            <div>
+              <h5 class="fw-bold mb-1 text-dark">Custom Statuses</h5>
+              <span class="text-muted small">Stages for Quotations, Orders &amp; Production Orders</span>
+            </div>
+          </div>
+          <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
+        </a>
+        <a
           [routerLink]="['/organizations', organizationId, 'configuration', 'payment-modes']"
           class="list-group-item list-group-item-action border rounded-3 mb-3 p-3 d-flex justify-content-between align-items-center"
         >

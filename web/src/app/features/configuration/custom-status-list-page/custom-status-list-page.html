@@ -1,0 +1,151 @@
+<div class="container py-5" style="max-width: 800px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i aria-hidden="true" class="bi bi-flag fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Custom Statuses</h1>
+          <p class="text-muted small mb-0">
+            The stages a Quotation, Sales Order, Purchase Order or Production Order can be marked
+            with from its list
+          </p>
+        </div>
+      </div>
+      <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'configuration']">
+        <i aria-hidden="true" class="bi bi-arrow-left"></i> Configurations
+      </a>
+    </div>
+  </div>
+
+  <app-status-banner [message]="errorMessage()" />
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <h6 class="fw-bold text-dark mb-3">{{ editingId() ? 'Edit Status' : 'New Status' }}</h6>
+      <form [formGroup]="form" (ngSubmit)="save()" class="row g-3 align-items-end">
+        <div class="col-12 col-sm-4">
+          <label class="form-label small fw-semibold" for="custom-status-list-page-name">Name</label>
+          <input
+            id="custom-status-list-page-name"
+            type="text"
+            class="form-control"
+            formControlName="name"
+            placeholder="e.g. Accepted"
+          />
+        </div>
+        <div class="col-12 col-sm-4">
+          <label class="form-label small fw-semibold" for="custom-status-list-page-document-type">Applies To</label>
+          <select
+            id="custom-status-list-page-document-type"
+            class="form-select"
+            formControlName="documentType"
+          >
+            @for (type of documentTypes; track type.value) {
+              <option [value]="type.value">{{ type.label }}</option>
+            }
+          </select>
+        </div>
+        @if (editingId()) {
+          <div class="col-4 col-sm-2 form-check ps-4">
+            <input type="checkbox" class="form-check-input" id="isActive" formControlName="isActive" />
+            <label class="form-check-label small" for="isActive">Active</label>
+          </div>
+        }
+        <div class="col-12 col-sm-2 d-flex gap-2">
+          <button type="submit" class="btn btn-primary fw-bold flex-fill" [disabled]="saving()">
+            @if (saving()) {
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            } @else {
+              {{ editingId() ? 'Update' : 'Add' }}
+            }
+          </button>
+          @if (editingId()) {
+            <button type="button" class="btn btn-outline-secondary" (click)="startCreate()">Cancel</button>
+          }
+        </div>
+      </form>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4 text-center py-5">
+        <div class="spinner-border text-primary mb-3" role="status"></div>
+        <p class="text-muted mb-0">Loading statuses...</p>
+      </div>
+    </div>
+  } @else {
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body px-4 pt-4 pb-0">
+        <app-lookup-filter
+          controlId="custom-status-search"
+          [shown]="filtered().length"
+          [total]="items().length"
+          (termChange)="term.set($event)"
+        />
+      </div>
+    </div>
+
+    <!-- One section per document type, because a status is scoped to exactly one and only ever
+         appears in that type's own list grid. -->
+    @for (section of sections(); track section.documentType) {
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h6 class="fw-bold text-dark mb-3">{{ section.title }}</h6>
+          @if (section.items.length === 0) {
+            <p class="text-muted small mb-0">
+              No statuses for {{ section.title }} yet. Its list will show "Select Status" with nothing
+              to choose until you add one.
+            </p>
+          } @else {
+            <div class="list-group list-group-flush">
+              @for (item of section.items; track item.id) {
+                <div class="list-group-item border rounded-3 mb-3 p-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                  <div class="d-flex align-items-center gap-3">
+                    <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-circle">
+                      <i aria-hidden="true" class="bi bi-flag fs-5"></i>
+                    </div>
+                    <h6 class="fw-bold mb-0 text-dark">
+                      {{ item.name }}
+                      @if (!item.isActive) {
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis ms-2">Inactive</span>
+                      }
+                    </h6>
+                  </div>
+                  <div class="d-flex gap-2">
+                    @if (confirmingDeleteId() === item.id) {
+                      <span class="small text-danger fw-semibold align-self-center me-1">Delete this status?</span>
+                      <button type="button" class="btn btn-danger btn-sm" (click)="confirmDelete(item)">
+                        <i aria-hidden="true" class="bi bi-check2"></i> Confirm
+                      </button>
+                      <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelDelete()">Cancel</button>
+                    } @else {
+                      <button
+                        type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        [attr.aria-label]="'Edit the ' + item.name + ' status'"
+                        (click)="startEdit(item)"
+                      >
+                        <i aria-hidden="true" class="bi bi-pencil"></i> Edit
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-outline-danger btn-sm"
+                        [attr.aria-label]="'Delete the ' + item.name + ' status'"
+                        (click)="requestDelete(item)"
+                      >
+                        <i aria-hidden="true" class="bi bi-trash"></i> Delete
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    }
+  }
+</div>

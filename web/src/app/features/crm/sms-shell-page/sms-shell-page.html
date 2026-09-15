@@ -79,13 +79,26 @@
   @if (activeTab() === 'History') {
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body p-4">
-        <h6 class="fw-bold text-dark mb-3">SMS History</h6>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <h6 class="fw-bold text-dark mb-0">SMS History</h6>
+          <input
+            type="search"
+            class="form-control form-control-sm"
+            style="max-width: 260px;"
+            placeholder="Search title, message or number…"
+            aria-label="Search SMS history"
+            [value]="historySearch()"
+            (input)="onHistorySearchInput($event)"
+          />
+        </div>
         @if (historyLoading()) {
           <div class="text-center py-4">
             <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
           </div>
         } @else if (historyRows().length === 0) {
-          <p class="text-muted small mb-0">No SMS sent yet.</p>
+          <p class="text-muted small mb-0">
+            {{ historySearch().trim() ? 'No SMS matches that search.' : 'No SMS sent yet.' }}
+          </p>
         } @else {
           <div class="table-responsive">
             <table class="table table-sm align-middle">

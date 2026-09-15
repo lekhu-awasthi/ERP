@@ -110,6 +110,28 @@ describe('SubscriptionNotice', () => {
     expect(bannerText()).toContain('trial');
   });
 
+  /**
+   * <b>Every banner points at a screen, never at a person.</b> The original wording told the user to
+   * "contact your Tigg representative" -- copied from the reference product, where a vendor rep does
+   * the selling. This codebase models exactly one actor: `Tenancy.Subscription.Manage` is seeded to
+   * the tenant's own Admin, so the reader of the banner is the same person who records the term, and
+   * the banner sat above a screen that let them do it. Naming an actor the system has no concept of
+   * is a contradiction, not a courtesy (phase-41 Decision G), so this asserts in both directions.
+   */
+  it('directs the reader to the screen that records a term, not to an actor that does not exist', async () => {
+    await render({ planId: null, planName: 'Trial', daysRemaining: 15, subscriptionAmount: 0 });
+
+    expect(bannerText()).toContain('Subscription & Features');
+    expect(bannerText()).not.toContain('representative');
+  });
+
+  it('does the same when a paid term is running out', async () => {
+    await render({ daysRemaining: 10, planName: 'Standard' });
+
+    expect(bannerText()).toContain('Subscription & Features');
+    expect(bannerText()).not.toContain('representative');
+  });
+
   it('says nothing to a paid tenant a month out', async () => {
     await render({ daysRemaining: 30 });
 
@@ -158,6 +180,8 @@ describe('SubscriptionNotice', () => {
     });
 
     expect(bannerText()).toContain('used up');
+    // ...and the exhausted banner points at the same screen as the other two.
+    expect(bannerText()).not.toContain('representative');
     expect(bannerText()).not.toContain('ends in 5 days');
   });
 

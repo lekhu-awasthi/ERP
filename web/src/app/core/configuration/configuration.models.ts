@@ -210,8 +210,9 @@ export interface UpdateReportingTagOptionRequest {
 // Phase 20b -- Custom Status (config) -- tenant-defined status pipeline, one lookup row per
 // (DocumentType, Name). Backend CRUD has existed since Phase 2; this phase adds the first
 // consumer, the write-side assignment onto Quotation/PurchaseOrder (see sales.models.ts'
-// setCustomStatus). No admin management screen yet -- definitions are curl-seeded, same gap
-// Phase 20a left for CustomFieldDefinition (see phase-20b-status.md's Known limitations).
+// setCustomStatus). Managed from Configurations > Custom Statuses, which phase 20b left unbuilt --
+// its picker shipped on four list screens with no way to define an option, so the dropdown read
+// "Select Status" and offered nothing on every tenant.
 export interface CustomStatus {
   id: string;
   organizationId: string;
@@ -219,6 +220,17 @@ export interface CustomStatus {
   documentType: DocumentType;
   isActive: boolean;
   createdAt: string;
+}
+
+export interface CreateCustomStatusRequest {
+  name: string;
+  documentType: DocumentType;
+}
+
+export interface UpdateCustomStatusRequest {
+  name: string;
+  documentType: DocumentType;
+  isActive: boolean;
 }
 
 // Phase 20a -- Custom Fields (config) -- CustomFieldDefinition { Name, Type, ApplicableDocumentTypes,

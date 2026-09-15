@@ -51,6 +51,10 @@ export class SmsShellPage {
   protected readonly historyPageSize = signal(DEFAULT_PAGE_SIZE);
   protected readonly historyTotalCount = signal(0);
 
+  /** Phase 45 (39 carried item #4). Its own signal, written by the input's handler -- the app is
+   * zoneless, so a `computed()` over a FormControl's value caches for ever (phase-17). */
+  protected readonly historySearch = signal('');
+
   // Templates
   protected readonly templateRows = signal<SmsTemplateRowDto[]>([]);
   protected readonly templatesLoading = signal(true);
@@ -132,19 +136,34 @@ export class SmsShellPage {
     this.loadHistory();
   }
 
+  /** Resets to page 1 like every sibling filter in this codebase -- without it, a narrowing search
+   * applied on page 3 reads as "no data" (phase-35b). */
+  protected onHistorySearchInput(event: Event): void {
+    this.historySearch.set((event.target as HTMLInputElement).value);
+    this.historyPage.set(1);
+    this.loadHistory();
+  }
+
   private loadHistory(): void {
     this.historyLoading.set(true);
-    this.crmService.listSmsHistory(this.organizationId, this.historyPage(), this.historyPageSize()).subscribe({
-      next: (result) => {
-        this.historyRows.set(result.rows);
-        this.historyTotalCount.set(result.totalCount);
-        this.historyLoading.set(false);
-      },
-      error: (err: unknown) => {
-        this.historyLoading.set(false);
-        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load SMS history.');
-      },
-    });
+    this.crmService
+      .listSmsHistory(
+        this.organizationId,
+        this.historyPage(),
+        this.historyPageSize(),
+        this.historySearch().trim() || null,
+      )
+      .subscribe({
+        next: (result) => {
+          this.historyRows.set(result.rows);
+          this.historyTotalCount.set(result.totalCount);
+          this.historyLoading.set(false);
+        },
+        error: (err: unknown) => {
+          this.historyLoading.set(false);
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load SMS history.');
+        },
+      });
   }
 
   // --- Templates ---

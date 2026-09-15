@@ -39,10 +39,6 @@ public class ProductVariantSweepGuardTests
             "Edits a variant child's own fields. Rejects a non-variant itself.",
         ["Catalog/Commands/DeleteProductVariant/DeleteProductVariantCommandHandler.cs"] =
             "Deletes a variant child. Rejects a non-variant itself.",
-        ["Catalog/Commands/AddSecondaryUnit/AddSecondaryUnitCommandHandler.cs"] =
-            "A secondary unit is catalog metadata, not a stock or document line -- attaching one to " +
-            "a parent moves nothing and reconciles against nothing. Multi-UOM x variants is " +
-            "explicitly out of scope for Phase 24 (see docs/phase-24-status.md).",
     };
 
     /// <summary>The sanctioned ways through the rule. Both funnel into ProductVariantRules.</summary>

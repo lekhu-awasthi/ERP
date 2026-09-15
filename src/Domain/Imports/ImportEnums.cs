@@ -73,6 +73,18 @@ public enum ImportEntityType
     /// (which is a different variant) or edit prices, which the ordinary Product importer already
     /// does by code.</para></summary>
     ProductVariant,
+
+    /// <summary>Phase 45 -- a product's "Attributes Used" pool, one row per (product, attribute,
+    /// option) triple.
+    ///
+    /// <para><b>Also not in the reference product's Upload Type list</b>, and an addition for the
+    /// same reason <see cref="ProductVariant"/> is: that importer refuses a row whose parent does
+    /// not already offer the combination, which left it unusable at the scale it exists for. A pool
+    /// is a set of id pairs, so unlike the landed-cost grid phase 38 declined an importer for, its
+    /// file is a fixed rectangle no tenant's data can reshape. Create-only: a pair is present or
+    /// absent, and a row adds rather than replaces so an import can never strand a variant by
+    /// removing the option it is built from.</para></summary>
+    ProductAttributePool,
 }
 
 /// <summary>

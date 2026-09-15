@@ -408,11 +408,113 @@ public sealed class Product
         return (removed, added);
     }
 
+    /// <summary>
+    /// Phase 45 -- multi-UOM x variants, settled by reading the live product rather than by
+    /// deciding in advance (docs/phase-45-status.md's Decision A).
+    ///
+    /// <para><b>A variant owns its unit matrix; it does not inherit one.</b> On the reference
+    /// tenant, variant <c>18001 Iphone 16 Pro Max XXL Blue</c> carries primary unit
+    /// <i>Number (NOS)</i> while its parent and all three of its siblings carry <i>Piecess (ppp)</i>
+    /// -- so a per-variant unit change did not propagate. Each variant's own detail page carries its
+    /// own Secondary Unit table with its own ADD NEW (Measurement Unit, Conversion Rate, Selling
+    /// Price, Purchase Price -- all blank, none pre-filled from the parent) and a per-row Action
+    /// column. That is already what this codebase does for free, because a variant <i>is</i> a
+    /// Product and this collection hangs off the row: nothing was stored, read through, or swept.
+    /// <see cref="CreateVariant"/> copies <see cref="PrimaryUnitId"/> as the creation-time default,
+    /// which is what the live "New Variant Product" form does by having no unit field at all, and it
+    /// deliberately copies <b>no</b> secondary units -- a new variant starts with an empty
+    /// matrix.</para>
+    ///
+    /// <para><b>What did have to change is the parent.</b> A variant parent's detail page in the
+    /// reference product has no Inventory Details panel at all -- no stock, no Secondary Unit tab,
+    /// no Warehouse tab -- and that is the same fact as phase 24's rule that a parent may not reach
+    /// a document line. Phase 24's sweep-guard allow-list excused this method with the words "a
+    /// secondary unit is catalog metadata ... attaching one to a parent moves nothing and reconciles
+    /// against nothing", which is the argument for <i>refusing</i> it, not for permitting it. So a
+    /// parent is refused here.</para>
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The product is a variant parent, the unit is the
+    /// primary unit, or the unit already has a row.</exception>
     public ProductSecondaryUnit AddSecondaryUnit(
         Guid unitId, decimal conversionRate, decimal sellingPrice, decimal purchasePrice)
     {
+        EnsureCarriesAUnitMatrix();
+
+        if (unitId == PrimaryUnitId)
+        {
+            throw new InvalidOperationException(
+                "That is this product's primary unit, which it already sells in; a secondary unit is a different one.");
+        }
+
+        if (_secondaryUnits.Any(x => x.UnitId == unitId))
+        {
+            throw new InvalidOperationException("This product already has a secondary unit for that unit of measurement.");
+        }
+
+        if (conversionRate <= 0)
+        {
+            throw new InvalidOperationException("A conversion rate must be greater than zero.");
+        }
+
+        if (sellingPrice < 0 || purchasePrice < 0)
+        {
+            throw new InvalidOperationException("A secondary unit's prices cannot be negative.");
+        }
+
         var secondaryUnit = ProductSecondaryUnit.Create(Id, unitId, conversionRate, sellingPrice, purchasePrice);
         _secondaryUnits.Add(secondaryUnit);
         return secondaryUnit;
+    }
+
+    /// <summary>
+    /// Phase 45 -- the edit half of the live product's per-row <i>Action</i> column. Without it a
+    /// mistyped conversion rate is permanent, which is the reason this was worth building at the
+    /// same time as the refusal above rather than left as "add-only, like phase 3 shipped it".
+    /// </summary>
+    public ProductSecondaryUnit UpdateSecondaryUnit(
+        Guid secondaryUnitId, decimal conversionRate, decimal sellingPrice, decimal purchasePrice)
+    {
+        EnsureCarriesAUnitMatrix();
+
+        var row = _secondaryUnits.Find(x => x.Id == secondaryUnitId)
+            ?? throw new InvalidOperationException("This product has no such secondary unit.");
+
+        if (conversionRate <= 0)
+        {
+            throw new InvalidOperationException("A conversion rate must be greater than zero.");
+        }
+
+        if (sellingPrice < 0 || purchasePrice < 0)
+        {
+            throw new InvalidOperationException("A secondary unit's prices cannot be negative.");
+        }
+
+        row.Update(conversionRate, sellingPrice, purchasePrice);
+        return row;
+    }
+
+    /// <summary>
+    /// The delete half. Returns the removed row so the handler can delete it through the child
+    /// <c>DbSet</c> rather than leaving it to collection-navigation fixup -- the same reason
+    /// <see cref="SetLocations"/> and <see cref="SetVariantAttributeUsages"/> report their changes
+    /// (phase-4 bug #1 and phase-24 bug #1).
+    /// </summary>
+    public ProductSecondaryUnit RemoveSecondaryUnit(Guid secondaryUnitId)
+    {
+        var row = _secondaryUnits.Find(x => x.Id == secondaryUnitId)
+            ?? throw new InvalidOperationException("This product has no such secondary unit.");
+
+        _secondaryUnits.Remove(row);
+        return row;
+    }
+
+    private void EnsureCarriesAUnitMatrix()
+    {
+        if (HasVariants)
+        {
+            throw new InvalidOperationException(
+                "This product has variants, so it holds no stock of its own and has no units to convert -- "
+                + "set the secondary units on each variant instead.");
+        }
     }
 }

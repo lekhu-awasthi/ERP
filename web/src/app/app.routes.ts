@@ -92,6 +92,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'organizations/:id/configuration/custom-statuses',
+    loadComponent: () =>
+      import('./features/configuration/custom-status-list-page/custom-status-list-page').then(
+        (m) => m.CustomStatusListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/configuration/cost-terms',
     loadComponent: () =>
       import('./features/configuration/cost-term-list-page/cost-term-list-page').then((m) => m.CostTermListPage),

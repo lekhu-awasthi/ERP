@@ -89,10 +89,17 @@ export class SubscriptionNotice {
       return {
         kind: onTrial ? 'trial' : 'expiring',
         tone: days <= 3 ? 'alert-danger' : 'alert-warning',
+        // These point at the screen that actually does the thing. The earlier wording named a
+        // "Tigg representative" -- copied from the reference product, where a vendor rep really does
+        // the selling -- and this codebase models exactly one actor: the tenant's own Admin holds
+        // Tenancy.Subscription.Manage. Telling a user to contact someone the system has no concept
+        // of, on a banner sitting above a screen where that same user records the term, is a
+        // contradiction rather than a courtesy (phase-41 Decision G).
         message: onTrial
-          ? `${remaining} in your trial. Contact your Tigg representative to choose a plan.`
-          : `Your ${sub.planName} subscription ends in ${days} ${days === 1 ? 'day' : 'days'}. ` +
-            'Contact your Tigg representative to renew.',
+          ? `${remaining} in your trial. Record a subscription term under Subscription & Features `
+            + 'to set this organization\u2019s plan.'
+          : `Your ${sub.planName} subscription ends in ${days} ${days === 1 ? 'day' : 'days'}. `
+            + 'Record the new term under Subscription & Features to extend it.',
       };
     }
 
@@ -121,7 +128,7 @@ export class SubscriptionNotice {
       tone: exhausted ? 'alert-danger' : 'alert-warning',
       message: exhausted
         ? `Your ${sub.planName} plan's allowance of ${worst.quota.toLocaleString()} ${worst.label} is used up. ` +
-          'Contact your Tigg representative to add capacity.'
+          'Record a term on a larger plan under Subscription & Features to raise it.'
         : `${worst.used.toLocaleString()} of ${worst.quota.toLocaleString()} ${worst.label} used ` +
           `on the ${sub.planName} plan.`,
     };

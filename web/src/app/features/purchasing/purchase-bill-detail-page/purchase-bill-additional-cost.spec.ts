@@ -277,4 +277,75 @@ describe('PurchaseBillDetailPage — Additional Cost', () => {
     expect(text()).toContain('All Product');
     expect(component.additionalCostTotal()).toBe(0);
   });
+
+  /**
+   * Phase 45 -- the decision phase 38 left open, recorded as a test rather than as a sentence.
+   *
+   * <p>Phase 38 shipped the Import drawer replacing a product's rows rather than merging into them,
+   * and named the cost to the user: "a user who wants to add a second cost term to a product already
+   * in the grid by file must include the existing amount too". Phase 45 keeps replace, and this
+   * pins both halves of what that means, because only one of them is obvious.</p>
+   *
+   * <p><b>Why keep it.</b> The file is generated from the bill in front of you -- one row per goods
+   * line, one column per tenant cost term -- so it is not a fragment naming a product, it is the
+   * whole matrix for the products it names. A merge would make re-uploading a corrected spreadsheet
+   * silently additive: the user who fixes Freight from 600 to 60 and uploads again would get 660,
+   * a number nobody notices until it has reached the FIFO layers. That asymmetry -- a correction
+   * reading as an addition -- is worse than the stated cost of restating an amount, and replace is
+   * what every other child-collection editor in this codebase does (phase-4 bug #1's
+   * snapshot-and-RemoveRange idiom).</p>
+   *
+   * <p><b>The half that is not obvious</b> is that "replace" is scoped per product, not per grid: a
+   * row whose product the file never mentions survives, because the file makes no claim about
+   * it.</p>
+   */
+  it('replaces a products rows from an uploaded grid and leaves unmentioned products alone', () => {
+    const { fixture } = page(detail({ status: 'Draft', approvedAt: null, additionalCosts: [] }));
+    const component = fixture.componentInstance as unknown as {
+      applyAdditionalCostCells: (
+        cells: readonly { productId: string; costTermId: string; amount: number }[],
+      ) => void;
+      additionalCosts: {
+        (): { costTermId: string; productId: string; amount: number }[];
+        set: (rows: { key: number; costTermId: string; productId: string; method: string; amount: number }[]) => void;
+      };
+    };
+
+    component.additionalCosts.set([
+      { key: 1, costTermId: 'ct-freight', productId: 'p-bike', method: 'Value', amount: 600 },
+      { key: 2, costTermId: 'ct-duty', productId: 'p-bike', method: 'Value', amount: 100 },
+      { key: 3, costTermId: 'ct-freight', productId: 'p-helmet', method: 'Value', amount: 60 },
+    ]);
+
+    // The file names only the motorbike, and gives it one term.
+    component.applyAdditionalCostCells([{ productId: 'p-bike', costTermId: 'ct-freight', amount: 900 }]);
+
+    const rows = component.additionalCosts();
+
+    // Replace, not merge: the bike's Custom Duty row is gone rather than kept beside the new Freight.
+    const bike = rows
+      .filter((r) => r.productId === 'p-bike')
+      .map((r) => ({ costTermId: r.costTermId, amount: r.amount }));
+    expect(bike).toEqual([{ costTermId: 'ct-freight', amount: 900 }]);
+
+    // ...but per product: the helmet was not in the file, so the file said nothing about it.
+    const helmet = rows.filter((r) => r.productId === 'p-helmet');
+    expect(helmet.map((r) => r.amount)).toEqual([60]);
+  });
+
+  it('re-uploading a corrected grid overwrites rather than accumulating', () => {
+    const { fixture } = page(detail({ status: 'Draft', approvedAt: null, additionalCosts: [] }));
+    const component = fixture.componentInstance as unknown as {
+      applyAdditionalCostCells: (
+        cells: readonly { productId: string; costTermId: string; amount: number }[],
+      ) => void;
+      additionalCostTotal: () => number;
+    };
+
+    component.applyAdditionalCostCells([{ productId: 'p-bike', costTermId: 'ct-freight', amount: 600 }]);
+    component.applyAdditionalCostCells([{ productId: 'p-bike', costTermId: 'ct-freight', amount: 60 }]);
+
+    // 60, not 660 -- the whole reason replace was kept.
+    expect(component.additionalCostTotal()).toBe(60);
+  });
 });

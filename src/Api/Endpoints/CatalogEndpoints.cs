@@ -3,9 +3,11 @@ using ErpApp.Application.Catalog.Commands.AddVariantAttributeOption;
 using ErpApp.Application.Catalog.Commands.CreateProductVariant;
 using ErpApp.Application.Catalog.Commands.CreateVariantAttribute;
 using ErpApp.Application.Catalog.Commands.DeleteProductVariant;
+using ErpApp.Application.Catalog.Commands.DeleteSecondaryUnit;
 using ErpApp.Application.Catalog.Commands.GenerateProductVariants;
 using ErpApp.Application.Catalog.Commands.SetProductVariantAttributes;
 using ErpApp.Application.Catalog.Commands.UpdateProductVariant;
+using ErpApp.Application.Catalog.Commands.UpdateSecondaryUnit;
 using ErpApp.Application.Catalog.Commands.UpdateVariantAttribute;
 using ErpApp.Application.Catalog.Commands.UpdateVariantAttributeOption;
 using ErpApp.Application.Catalog.Commands.CreateProduct;
@@ -178,6 +180,29 @@ public static class CatalogEndpoints
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/products/{id}/secondary-units/{result.Id}", result);
         });
+
+        // Phase 45 -- the other two thirds of the reference product's Secondary Unit table, whose
+        // rows carry an Action column. UnitId is absent from the update request for the same reason
+        // it is absent from the command: the unit is the row's identity, so changing it is a delete
+        // and an add.
+        group.MapPut("/products/{id:guid}/secondary-units/{secondaryUnitId:guid}", async (
+            Guid organizationId, Guid id, Guid secondaryUnitId, UpdateSecondaryUnitRequest request,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdateSecondaryUnitCommand(
+                    organizationId, id, secondaryUnitId,
+                    request.ConversionRate, request.SellingPrice, request.PurchasePrice),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapDelete("/products/{id:guid}/secondary-units/{secondaryUnitId:guid}", async (
+            Guid organizationId, Guid id, Guid secondaryUnitId, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteSecondaryUnitCommand(organizationId, id, secondaryUnitId), ct);
+            return Results.NoContent();
+        });
     }
 
     private static void MapVariantAttributeEndpoints(RouteGroupBuilder group)
@@ -324,4 +349,6 @@ public static class CatalogEndpoints
         string? Sku, string? Barcode, IReadOnlyList<Guid>? LocationIds);
 
     private sealed record AddSecondaryUnitRequest(Guid UnitId, decimal ConversionRate, decimal SellingPrice, decimal PurchasePrice);
+
+    private sealed record UpdateSecondaryUnitRequest(decimal ConversionRate, decimal SellingPrice, decimal PurchasePrice);
 }

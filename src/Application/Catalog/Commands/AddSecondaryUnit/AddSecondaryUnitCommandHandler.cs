@@ -1,3 +1,4 @@
+using ErpApp.Application.Catalog.Variants;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using MediatR;
@@ -10,9 +11,31 @@ public sealed class AddSecondaryUnitCommandHandler(IAppDbContext db)
 {
     public async Task<AddSecondaryUnitResult> Handle(AddSecondaryUnitCommand request, CancellationToken cancellationToken)
     {
-        var product = await db.Products.SingleOrDefaultAsync(
-            x => x.Id == request.ProductId && x.OrganizationId == request.OrganizationId, cancellationToken)
+        // Include: the duplicate-unit and primary-unit refusals below read this collection, and an
+        // un-Included navigation is empty rather than absent -- it would let every duplicate through.
+        var product = await db.Products
+            .Include(x => x.SecondaryUnits)
+            .SingleOrDefaultAsync(
+                x => x.Id == request.ProductId && x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Product not found.");
+
+        // Phase 45 -- a variant parent has no unit matrix. Phase 24's sweep-guard allow-list excused
+        // this handler on the grounds that "attaching a secondary unit to a parent moves nothing and
+        // reconciles against nothing", which is the argument for refusing it; the live read agreed,
+        // so the exemption is gone and this goes through the rule like every other handler.
+        ProductVariantRules.EnsureCarriesAUnitMatrix(product.Name, product.HasVariants);
+
+        if (request.UnitId == product.PrimaryUnitId)
+        {
+            throw new ConflictException(
+                "That is this product's primary unit, which it already sells in; a secondary unit is a different one.");
+        }
+
+        if (product.SecondaryUnits.Any(x => x.UnitId == request.UnitId))
+        {
+            throw new ConflictException(
+                "This product already has a secondary unit for that unit of measurement. Edit that row instead.");
+        }
 
         var unitExists = await db.UnitsOfMeasurement.AnyAsync(
             x => x.Id == request.UnitId && x.OrganizationId == request.OrganizationId, cancellationToken);

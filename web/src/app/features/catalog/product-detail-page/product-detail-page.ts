@@ -6,7 +6,14 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { buildTreeRows, TreeRow } from '../../../core/common/tree';
 import { CatalogService } from '../../../core/catalog/catalog.service';
 import { ProductVariantPanelComponent } from '../product-variant-panel/product-variant-panel';
-import { Product, ProductCategory, ProductType, UnitOfMeasurement, VatRate } from '../../../core/catalog/catalog.models';
+import {
+  Product,
+  ProductCategory,
+  ProductSecondaryUnit,
+  ProductType,
+  UnitOfMeasurement,
+  VatRate,
+} from '../../../core/catalog/catalog.models';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
 import { BillingLocationStore } from '../../../shared/locations/billing-location-store';
@@ -48,6 +55,41 @@ export class ProductDetailPage {
   protected readonly addingSecondaryUnit = signal(false);
   protected readonly secondaryUnitSaving = signal(false);
 
+  /**
+   * Phase 45 -- the row being edited, and the row whose delete is being confirmed. Plain signals
+   * written by their own handlers, never derived inside a `computed()` (zoneless, phase-17).
+   */
+  protected readonly editingSecondaryUnitId = signal<string | null>(null);
+  protected readonly confirmingDeleteSecondaryUnitId = signal<string | null>(null);
+
+  /**
+   * Phase 45 -- a variant *parent* has no unit matrix. The reference product says it by giving a
+   * parent's detail page no Inventory Details panel at all (no stock, no Secondary Unit tab, no
+   * Warehouse tab), which is the same fact as phase 24's rule that a parent may not reach a
+   * document line: it holds no stock, so there is nothing for a conversion rate to convert. The
+   * server refuses it with a 409; this keeps the control from being offered in the first place.
+   *
+   * <p><b>...unless the parent still holds rows.</b> A product that already had secondary units can
+   * be promoted to a parent afterwards, and hiding the card outright would leave those rows
+   * invisible and unremovable. So a parent with stale rows still sees the table -- read-only except
+   * for Delete, which is the repair.</p>
+   */
+  protected readonly showsSecondaryUnits = computed(
+    () => this.product()?.hasVariants !== true || (this.product()?.secondaryUnits.length ?? 0) > 0,
+  );
+
+  /** True only in the stale case above: a parent that still carries rows it can no longer curate. */
+  protected readonly secondaryUnitsAreStale = computed(
+    () => this.product()?.hasVariants === true && (this.product()?.secondaryUnits.length ?? 0) > 0,
+  );
+
+  /**
+   * ...and a variant *child* is not itself a parent, so it gets no Attributes Used editor. Live, a
+   * variant child's page carries Inventory Details and no variant panel; the parent's carries the
+   * variant panel and no Inventory Details. The two are exactly complementary.
+   */
+  protected readonly showsVariantPanel = computed(() => this.product()?.parentProductId == null);
+
   protected readonly categoryRows = computed<TreeRow<ProductCategory>[]>(() =>
     buildTreeRows(
       this.categories(),
@@ -87,6 +129,11 @@ export class ProductDetailPage {
     vatRate: ['NoVat' as VatRate, Validators.required],
     reOrderLevel: [0, [Validators.required, Validators.min(0)]],
     trackInventory: [true],
+    // The Product screen displayed an Active/Inactive badge and sent `isActive` straight back
+    // unchanged, so the status was readable and unwritable -- phase-31's rule (a field is reachable
+    // only if you can name the command that writes it AND the screen that calls it) failing on the
+    // screen half. UpdateProductCommand has always accepted it; nothing asked the user.
+    isActive: [true],
     salesAccountId: [''],
     salesReturnAccountId: [''],
     purchaseAccountId: [''],
@@ -119,6 +166,8 @@ export class ProductDetailPage {
       this.product.set(null);
       this.errorMessage.set(null);
       this.addingSecondaryUnit.set(false);
+      this.editingSecondaryUnitId.set(null);
+      this.confirmingDeleteSecondaryUnitId.set(null);
 
       this.selectedLocationIds.set([]);
 
@@ -172,6 +221,7 @@ export class ProductDetailPage {
         vatRate: product.vatRate,
         reOrderLevel: product.reOrderLevel,
         trackInventory: product.trackInventory,
+        isActive: product.isActive,
         salesAccountId: product.salesAccountId ?? '',
         salesReturnAccountId: product.salesReturnAccountId ?? '',
         purchaseAccountId: product.purchaseAccountId ?? '',
@@ -210,6 +260,7 @@ export class ProductDetailPage {
       vatRate,
       reOrderLevel,
       trackInventory,
+      isActive,
       salesAccountId,
       salesReturnAccountId,
       purchaseAccountId,
@@ -258,7 +309,7 @@ export class ProductDetailPage {
         vatRate,
         reOrderLevel,
         trackInventory,
-        isActive: this.product()?.isActive ?? true,
+        isActive,
         salesAccountId: salesAccountId || null,
         salesReturnAccountId: salesReturnAccountId || null,
         purchaseAccountId: purchaseAccountId || null,
@@ -308,12 +359,59 @@ export class ProductDetailPage {
   }
 
   protected startAddSecondaryUnit(): void {
+    this.editingSecondaryUnitId.set(null);
+    this.confirmingDeleteSecondaryUnitId.set(null);
     this.secondaryUnitForm.reset({ unitId: '', conversionRate: 1, sellingPrice: 0, purchasePrice: 0 });
+    this.secondaryUnitForm.controls.unitId.enable();
     this.addingSecondaryUnit.set(true);
+  }
+
+  /**
+   * Phase 45 -- editing reuses the same form with the unit control disabled, because the unit is
+   * the row's identity: the command does not accept a new one, so offering the select would be a
+   * control whose value is silently dropped.
+   */
+  protected startEditSecondaryUnit(row: ProductSecondaryUnit): void {
+    this.addingSecondaryUnit.set(false);
+    this.confirmingDeleteSecondaryUnitId.set(null);
+    this.secondaryUnitForm.reset({
+      unitId: row.unitId,
+      conversionRate: row.conversionRate,
+      sellingPrice: row.sellingPrice,
+      purchasePrice: row.purchasePrice,
+    });
+    this.secondaryUnitForm.controls.unitId.disable();
+    this.editingSecondaryUnitId.set(row.id);
   }
 
   protected cancelAddSecondaryUnit(): void {
     this.addingSecondaryUnit.set(false);
+    this.editingSecondaryUnitId.set(null);
+    this.secondaryUnitForm.controls.unitId.enable();
+  }
+
+  protected requestDeleteSecondaryUnit(row: ProductSecondaryUnit): void {
+    this.confirmingDeleteSecondaryUnitId.set(row.id);
+  }
+
+  protected cancelDeleteSecondaryUnit(): void {
+    this.confirmingDeleteSecondaryUnitId.set(null);
+  }
+
+  protected confirmDeleteSecondaryUnit(row: ProductSecondaryUnit): void {
+    this.secondaryUnitSaving.set(true);
+    this.catalogService.deleteSecondaryUnit(this.organizationId, this.routeProductId, row.id).subscribe({
+      next: () => {
+        this.secondaryUnitSaving.set(false);
+        this.confirmingDeleteSecondaryUnitId.set(null);
+        this.load();
+      },
+      error: (err: unknown) => {
+        this.secondaryUnitSaving.set(false);
+        this.confirmingDeleteSecondaryUnitId.set(null);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not delete secondary unit. Please try again.');
+      },
+    });
   }
 
   protected saveSecondaryUnit(): void {
@@ -324,6 +422,24 @@ export class ProductDetailPage {
 
     this.secondaryUnitSaving.set(true);
     const { unitId, conversionRate, sellingPrice, purchasePrice } = this.secondaryUnitForm.getRawValue();
+    const editingId = this.editingSecondaryUnitId();
+
+    // An explicit branch rather than a shared `request$`, because the two result types differ
+    // (CLAUDE.md, phase-4 bug #3).
+    if (editingId) {
+      this.catalogService
+        .updateSecondaryUnit(this.organizationId, this.routeProductId, editingId, {
+          conversionRate,
+          sellingPrice,
+          purchasePrice,
+        })
+        .subscribe({
+          next: () => this.onSecondaryUnitSaved(),
+          error: (err: unknown) =>
+            this.onSecondaryUnitError(err, 'Could not save secondary unit. Please try again.'),
+        });
+      return;
+    }
 
     this.catalogService.addSecondaryUnit(this.organizationId, this.routeProductId, {
       unitId,
@@ -331,16 +447,32 @@ export class ProductDetailPage {
       sellingPrice,
       purchasePrice,
     }).subscribe({
-      next: () => {
-        this.secondaryUnitSaving.set(false);
-        this.addingSecondaryUnit.set(false);
-        this.load();
-      },
-      error: (err: unknown) => {
-        this.secondaryUnitSaving.set(false);
-        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not add secondary unit. Please try again.');
-      },
+      next: () => this.onSecondaryUnitSaved(),
+      error: (err: unknown) =>
+        this.onSecondaryUnitError(err, 'Could not add secondary unit. Please try again.'),
     });
+  }
+
+  /** The server refuses both cases with a 409; the picker simply does not offer them. */
+  protected unitAlreadyUsed(unitId: string): boolean {
+    const product = this.product();
+    if (!product) {
+      return false;
+    }
+    return unitId === product.primaryUnitId || product.secondaryUnits.some((su) => su.unitId === unitId);
+  }
+
+  private onSecondaryUnitSaved(): void {
+    this.secondaryUnitSaving.set(false);
+    this.addingSecondaryUnit.set(false);
+    this.editingSecondaryUnitId.set(null);
+    this.secondaryUnitForm.controls.unitId.enable();
+    this.load();
+  }
+
+  private onSecondaryUnitError(err: unknown, fallback: string): void {
+    this.secondaryUnitSaving.set(false);
+    this.errorMessage.set(extractErrorMessage(err) ?? fallback);
   }
 
   private load(): void {

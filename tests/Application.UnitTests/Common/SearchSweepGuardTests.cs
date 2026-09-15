@@ -56,11 +56,16 @@ public class SearchSweepGuardTests
         ["ListOrganizationMembersQuery"] =
             "A tenant's member list, bounded by how many people it has invited.",
 
-        // The five below became visible when phase 39 widened this guard to recognise bespoke paging
-        // envelopes as well as PagedResult<T>. Every one of them is the rule's own exempt case -- a
-        // panel already scoped to a single parent row -- which is the answer, not a shortcut: the
-        // point of asking the question of every list is that most lists have a good reason, and the
-        // two that did not (Tasks and Deals) are what phase 39 gave a search box.
+        // The six below are what remains of the seven that became visible when phase 39 widened this
+        // guard to recognise bespoke paging envelopes as well as PagedResult<T>. Every one of them is
+        // the rule's own exempt case -- a panel already scoped to a single parent row, or a sequence
+        // whose rows only mean anything in order -- which is the answer, not a shortcut: the point of
+        // asking the question of every list is that most lists have a good reason, and the two that
+        // did not (Tasks and Deals) are what phase 39 gave a search box.
+        //
+        // The seventh was ListSmsLogsQuery, which phase 39 named as the one whose re-entry condition
+        // would be met. Phase 45 met it and gave it a term, so it is no longer here -- an exemption
+        // that names its re-entry condition is only worth writing if somebody later honours it.
         ["ListAttachmentsQuery"] =
             "The Documents tab of one record, already scoped to that (ParentType, ParentId).",
         ["ListCommentsQuery"] =
@@ -76,11 +81,6 @@ public class SearchSweepGuardTests
         ["ListSmsTemplatesQuery"] =
             "A tenant's own SMS templates, bounded by how many it has written -- the same reason "
             + "ListOrganizationMembersQuery is exempt.",
-        ["ListSmsLogsQuery"] =
-            "A send history ordered newest-first, the same shape as the import and export job "
-            + "histories above. Re-entry condition: a tenant sending enough SMS that the last page "
-            + "stops being what they want. This is the first of the seven phase 39 uncovered that "
-            + "would earn a term, and it is named here rather than left as a silent gap.",
     };
 
     [Fact]

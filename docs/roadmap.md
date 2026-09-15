@@ -74,6 +74,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 42 | Performance follow-through: `ToKeyPagedResultAsync` on 16 list handlers (keyset retired, not deferred), Detail General Ledger paged by row with the account boundary disclosed, the period-length id lists removed from five readers, the quota count's covering columns, a measured bundle budget | `phase-42-status.md` |
 | 44 | Report semantics, read live first: the last four statutory reports folded to base currency, Reporting Tags corrected to OR-within/AND-across, Inventory Master's Warehouse Transfer + Opening Stock, Display Warehouse in Column, `sales-summary`'s Group Wise location, System Audit's stamped location, the billing-location backfill command; plus the Billing Location filter both statutory registers accepted and never applied | `phase-44-status.md` |
 | 43 | Aggregate completions: `UpdateOrganizationCommand` (8 editable fields, 3 refused by name), Deal/WorkTask as record parents with detail pages, `TrialStartsAt`/`TrialEndsAt` → `OriginatedAt`/`TermEndsAt`, `DebitNote.WarehouseId` so a standalone Goods return consumes FIFO, the Sales Register folded to base currency, Quick Payment/Receipt's currency control; product-to-location enforcement retired on live evidence | `phase-43-status.md` |
+| 45 | Multi-UOM × variants settled by live read — a variant **owns** its unit matrix, and phase 24's identity decision meant no schema change; a variant parent refused one (the sweep-guard exemption retired); `UpdateSecondaryUnitCommand`/`DeleteSecondaryUnitCommand` plus the primary-unit and duplicate-unit refusals; the `ProductAttributePool` importer (a ninth upload type whose rows add to a set its command replaces); `ListSmsLogsQuery`'s search term; the landed-cost drawer's replace semantics and the dry-run-in-a-transaction question decided and pinned | `phase-45-status.md` |
 
 ---
 
@@ -152,7 +153,7 @@ a person (46, 47).
 - The printed header's centred arrangement (39 #3): one change to the shared layout, verified on all
   fifteen types with the existing PDF tests.
 
-### 45. Multi-UOM × variants, and import ergonomics
+### 45. Multi-UOM × variants, and import ergonomics — **DONE** (see `phase-45-status.md`)
 - **Multi-UOM × variants** (24, carried through 37 and 38): a variant's secondary-unit conversion
   rates and prices, designed once; retire the sweep-guard allow-list reason with it.
 - **Bulk setup of a product's Attributes Used** (38): the ergonomic gap that makes variant import

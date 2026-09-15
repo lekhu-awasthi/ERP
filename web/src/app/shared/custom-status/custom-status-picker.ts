@@ -32,6 +32,17 @@ export class CustomStatusPicker {
 
   protected readonly saving = signal(false);
 
+  /**
+   * Keeps a click on this control from reaching the row anchor it is nested inside -- both the
+   * Angular listener (stopPropagation) and the browser's native navigation (preventDefault). See
+   * the template for why one without the other is worse than neither, and why mousedown gets
+   * stopPropagation alone.
+   */
+  protected swallowClick(event: Event): void {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
   protected onChange(event: Event): void {
     const select = event.target as HTMLSelectElement;
     const value = select.value.length > 0 ? select.value : null;

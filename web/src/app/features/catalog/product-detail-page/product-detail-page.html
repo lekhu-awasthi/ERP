@@ -164,6 +164,12 @@
                       <input type="checkbox" class="form-check-input" id="trackInventory" formControlName="trackInventory" />
                       <label class="form-check-label small" for="trackInventory">Track Inventory</label>
                     </div>
+                    @if (!isNew()) {
+                      <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="isActive" formControlName="isActive" />
+                        <label class="form-check-label small" for="isActive">Active</label>
+                      </div>
+                    }
                   </div>
 
                   @if (!isNew()) {
@@ -267,25 +273,43 @@
         </div>
 
         @if (!isNew() && product(); as p) {
+          @if (showsSecondaryUnits()) {
           <div class="card border-0 shadow-sm">
             <div class="card-body p-4">
               <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="fw-bold text-dark mb-0">Secondary Units</h6>
-                @if (!addingSecondaryUnit()) {
+                <div>
+                  <h6 class="fw-bold text-dark mb-0">Secondary Units</h6>
+                  @if (p.parentProductId) {
+                    <p class="text-muted small mb-0">
+                      This variant's own units, independent of its parent and of its siblings.
+                    </p>
+                  } @else if (secondaryUnitsAreStale()) {
+                    <p class="text-muted small mb-0">
+                      This product now has variants, so it holds no stock of its own and these units
+                      convert nothing. Remove them here; set units on each variant instead.
+                    </p>
+                  }
+                </div>
+                @if (!secondaryUnitsAreStale() && !addingSecondaryUnit() && !editingSecondaryUnitId()) {
                   <button type="button" class="btn btn-outline-secondary btn-sm" (click)="startAddSecondaryUnit()">
                     <i aria-hidden="true" class="bi bi-plus-lg"></i> Add
                   </button>
                 }
               </div>
 
-              @if (addingSecondaryUnit()) {
+              @if (!secondaryUnitsAreStale() && (addingSecondaryUnit() || editingSecondaryUnitId())) {
                 <form [formGroup]="secondaryUnitForm" (ngSubmit)="saveSecondaryUnit()" class="row g-2 align-items-end mb-3">
                   <div class="col-6 col-sm-3">
                     <label class="form-label small fw-semibold" for="product-detail-page-unit">Unit</label>
                     <select id="product-detail-page-unit" class="form-select form-select-sm" formControlName="unitId">
                       <option value="" disabled>Select</option>
                       @for (unit of units(); track unit.id) {
-                        <option [value]="unit.id">{{ unit.name }}</option>
+                        <!-- A unit already on this product, or its primary unit, is refused with a
+                             409; it is simply not offered. While editing, the select is disabled and
+                             shows the row's own unit, so that one must stay listed. -->
+                        @if (!unitAlreadyUsed(unit.id) || editingSecondaryUnitId()) {
+                          <option [value]="unit.id">{{ unit.name }}</option>
+                        }
                       }
                     </select>
                   </div>
@@ -320,6 +344,7 @@
                       <th scope="col">Conversion Rate</th>
                       <th scope="col">Selling Price</th>
                       <th scope="col">Purchase Price</th>
+                      <th scope="col" class="text-end">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -329,6 +354,41 @@
                         <td>{{ su.conversionRate }}</td>
                         <td>{{ su.sellingPrice }}</td>
                         <td>{{ su.purchasePrice }}</td>
+                        <td class="text-end">
+                          @if (confirmingDeleteSecondaryUnitId() === su.id) {
+                            <span class="small text-muted me-2">Remove {{ unitName(su.unitId) }}?</span>
+                            <button
+                              type="button"
+                              class="btn btn-danger btn-sm me-1"
+                              [disabled]="secondaryUnitSaving()"
+                              (click)="confirmDeleteSecondaryUnit(su)"
+                            >
+                              Remove
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelDeleteSecondaryUnit()">
+                              Cancel
+                            </button>
+                          } @else {
+                            @if (!secondaryUnitsAreStale()) {
+                              <button
+                                type="button"
+                                class="btn btn-outline-secondary btn-sm me-1"
+                                [attr.aria-label]="'Edit the ' + unitName(su.unitId) + ' secondary unit'"
+                                (click)="startEditSecondaryUnit(su)"
+                              >
+                                Edit
+                              </button>
+                            }
+                            <button
+                              type="button"
+                              class="btn btn-outline-danger btn-sm"
+                              [attr.aria-label]="'Delete the ' + unitName(su.unitId) + ' secondary unit'"
+                              (click)="requestDeleteSecondaryUnit(su)"
+                            >
+                              Delete
+                            </button>
+                          }
+                        </td>
                       </tr>
                     }
                   </tbody>
@@ -336,12 +396,15 @@
               }
             </div>
           </div>
+          }
 
-          <app-product-variant-panel
-            [organizationId]="organizationId"
-            [productId]="p.id"
-            [productName]="p.name"
-          />
+          @if (showsVariantPanel()) {
+            <app-product-variant-panel
+              [organizationId]="organizationId"
+              [productId]="p.id"
+              [productName]="p.name"
+            />
+          }
         }
       </div>
     </div>

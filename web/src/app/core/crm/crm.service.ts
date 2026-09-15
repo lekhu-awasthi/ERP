@@ -113,10 +113,20 @@ export class CrmService {
     });
   }
 
-  listSmsHistory(organizationId: string, page = 1, pageSize = 50): Observable<SmsLogListDto> {
+  listSmsHistory(
+    organizationId: string,
+    page = 1,
+    pageSize = 50,
+    search: string | null = null,
+  ): Observable<SmsLogListDto> {
+    // Record<string, string>, never a union including {} -- that silently picks HttpClient's
+    // arraybuffer overload (CLAUDE.md, phase-3 bug #4).
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (search) params['search'] = search;
+
     return this.http.get<SmsLogListDto>(`${this.baseUrl(organizationId)}/sms/history`, {
       withCredentials: true,
-      params: { page: String(page), pageSize: String(pageSize) },
+      params,
     });
   }
 

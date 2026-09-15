@@ -75,6 +75,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 41: subscription and plan model — the seeded `SubscriptionPlan` catalogue, `SubscriptionQuotaBehavior`, the shell banner. Before calling a tenant-level limit "enforcement" — `docs/phase-41-status.md`
 - Phase 42: performance follow-through (`ToKeyPagedResultAsync` on 16 lists, Detail General Ledger paged by row, the id lists that were costing more than they saved, the quota index, the bundle budget). Before paging a list, handing SQL a list of ids, or quoting a bundle size — `docs/phase-42-status.md`
 - Phase 43: aggregate completions (`UpdateOrganizationCommand`, Deal/WorkTask as record parents, the term-date rename, `DebitNote.WarehouseId`, the Sales Register folded to base). Before renaming two columns in one migration, or changing what a document does to the stock ledger — `docs/phase-43-status.md`
+- Phase 45: multi-UOM × variants (a variant owns its unit matrix; the parent is refused one), the secondary-unit edit/delete, the `ProductAttributePool` importer. Before deciding an interaction between two features nobody has posed, or excusing a handler in a sweep guard — `docs/phase-45-status.md`
 - Phase 44: report semantics read live first — the last four statutory reports folded to base, Reporting Tags corrected to OR-within/AND-across, Inventory Master's two extra types, Display Warehouse in Column, Group Wise location, System Audit's stamped location, the location backfill. Before trusting a recorded control nobody operated, or assuming a report applies the filter it accepts — `docs/phase-44-status.md`
 
 ## Stack & conventions
@@ -169,6 +170,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A store-side aggregate (`GroupBy...Count()`) must run after the `SaveChangesAsync` that persists what it counts; tracked-but-unsaved rows are invisible to it (phase-21a).
 - A Domain factory/mutator can stay `internal` only while its sole caller is in the Domain assembly (phase-7 bug #1).
 - Never name a Domain type after a common BCL word (`Task` → `WorkTask`) (phase-13).
+- `stopPropagation()` on a control nested in an `<a routerLink>` *causes* navigation: it suppresses RouterLink's listener, which is what would have called `preventDefault()`; a select needs both, and mousedown needs neither (phase-45).
+- Guard the add and the edit, never the **delete**: a product given secondary units and promoted to a variant parent afterwards would otherwise hold rows that are invisible and unremovable (phase-45).
+- A sweep-guard allow-list reason can be the argument for the opposite conclusion: "a secondary unit on a variant parent reconciles against nothing" is why a parent must be *refused* one (phase-45).
 - A **record** parent (Contact, Deal, WorkTask) is a `DocumentType` member that is *not* transactional; that one property is what routes it to its own keys with no special-casing (phase-43).
 - A filter over a tree of tenant-defined groups must match on group **id**, never group name — names are not unique across a chart of accounts (phase-26a bug #1).
 - `decimal` has a signed zero: `-0m` keeps its sign bit and surfaces as `-0` / `-0.00` once cast to `double` for a spreadsheet cell. Accumulate a magnitude only when the value is strictly non-zero — no test catches this, because `-0m == 0m` (phase-26c bug #1).
@@ -221,6 +225,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A pre-commit review needs no findings table: have the validate pass claim **only the rows it rejects** in the existing row ledger, and the apply pass skips them through the same mechanism that makes a crashed import resumable (phase-38).
 - Intra-file parent ordering belongs to **self**-referencing types only — a column pointing at a *different* aggregate is not an edge inside the file. A cycle or a duplicate key fails the whole file with its rows named; an unknown parent is one row's error (phase-38).
 - A dry run writes nothing, so a hierarchical importer's ordinary name lookup cannot see a parent a later row creates; pass the in-file key set down, or the review reports correct files as broken (phase-38's `ImportRowContext.PendingKeys`).
+- An importer whose row *adds* to a set its command replaces wholesale re-reads and sends the union per row; the dry run plans each row from the same start, which is right — it checks rows, not totals (phase-45).
 - A template generated **from the document in front of you** (the landed-cost grid: one column per tenant cost term, one row per bill line) is neither an `ImportTemplateDefinition` nor an `ImportJob` — nothing is written and there is nothing to resume (phase-38).
 
 **Background jobs**
@@ -365,29 +370,31 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–44 are complete.** The v1 sequence (0–25), the parity sequence (26–34c), the
-consolidation sequence (35–41) and the completion phases (42–44) are all done; each phase's story is
+**Phases 0–45 are complete.** The v1 sequence (0–25), the parity sequence (26–34c), the
+consolidation sequence (35–41) and the completion phases (42–45) are all done; each phase's story is
 in its `docs/phase-N-status.md`, and the completed planning entries are archived in
-`docs/roadmap-history.md`. Phase 44 was the phase whose premise was that its controls had never been
-operated, and three live reads overturned decisions this codebase had written down: Display Warehouse
-in Column is a *modifier of* Group by Warehouse rather than an alternative to it; Reporting Tags are
-OR **within** a category and AND **across** categories, not any-of across everything; and Inventory
-Master's Txn Type filter offers the two types 26c excluded — 26c having predicted their exact shape
-and treated it as the reason to leave them out. It also applied phase 43's Decision D to the last
-four statutory reports, closed System Audit's missing location by stamping it in `AuditBehavior`,
-and found that both statutory registers had *accepted* a Billing Location filter since phase 35b
-while never applying it to their primary document half.
+`docs/roadmap-history.md`. Phase 45 answered the interaction phase 24 deferred as "a genuine
+combinatorial design question nobody has posed": a variant **owns** its secondary-unit conversions
+and prices, proven on the reference tenant by one sibling diverging from its parent's primary unit
+while the other three did not follow — and because phase 24 had already decided a variant *is* a
+Product, ownership cost no schema change at all. What the read did force was the mirror of it: a
+variant parent has no unit matrix, which is the same fact as its not reaching a document line, and
+phase 24's sweep-guard allow-list had excused that handler in words that were an argument for the
+refusal. The phase also gave the secondary-unit table its missing edit and delete, added a ninth
+upload type whose rows add to a set its command replaces, and settled the landed-cost drawer and the
+dry-run-in-a-transaction questions as recorded decisions with tests rather than sentences.
 
-**Next: phases 45–47 in `docs/roadmap.md`.** Multi-UOM × variants and import ergonomics (45), then
-the metered add-on axes and subscription edges (46), then the accessibility items that need a person
-with a screen reader (47). The deferred list (DO/GRN, POS, IRD, Marketplace, unrealised forex,
-per-user location, multi-level BOM) is unchanged.
+**Next: phases 46–47 in `docs/roadmap.md`.** The metered add-on axes and subscription edges (46),
+then the accessibility items that need a person with a screen reader (47). The deferred list (DO/GRN,
+POS, IRD, Marketplace, unrealised forex, per-user location, multi-level BOM) is unchanged.
 
-Tests at last count: Domain 666, Application.UnitTests 1130, Api.IntegrationTests 29, Angular 447;
+Tests at last count: Domain 666, Application.UnitTests 1156, Api.IntegrationTests 29, Angular 479;
 `dotnet build` / `dotnet test` / `ng build` / `ng test` all clean, and `ng build` does not warn —
 phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts` (651.92 kB at
-the end of phase 44). `Api.IntegrationTests` still fails nondeterministically under machine load
-and passes on re-run (phase 36/37). `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
+the end of phase 45). `Api.IntegrationTests` needs Docker Desktop running — without it the nine
+Testcontainers-backed tests fail in their constructors before any assertion, which reads like nine
+regressions and is not; it also still fails nondeterministically under machine load and passes on
+re-run (phase 36/37). `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
 check (phase-28), and `ng test` must be run from `web/` (phase-35a).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,

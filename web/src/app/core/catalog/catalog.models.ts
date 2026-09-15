@@ -195,6 +195,22 @@ export interface AddSecondaryUnitResult {
   conversionRate: number;
 }
 
+/** Phase 45. No `unitId`: the unit is the row's identity, so changing it is a delete and an add. */
+export interface UpdateSecondaryUnitRequest {
+  conversionRate: number;
+  sellingPrice: number;
+  purchasePrice: number;
+}
+
+export interface SecondaryUnitResult {
+  id: string;
+  productId: string;
+  unitId: string;
+  conversionRate: number;
+  sellingPrice: number;
+  purchasePrice: number;
+}
+
 
 /**
  * Phase 24 (FR-8.3). Which of the three roles a Product can play a list should return.

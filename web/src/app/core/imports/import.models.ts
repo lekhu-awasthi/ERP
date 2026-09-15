@@ -24,7 +24,10 @@ export type ImportEntityType =
   | 'ProductCategory'
   | 'AccountGroup'
   | 'ContactPersonnel'
-  | 'ProductVariant';
+  | 'ProductVariant'
+  // Phase 45 -- a product's "Attributes Used" pool, one row per (product, attribute, option). Also
+  // not in the reference product's list; it is what makes 'ProductVariant' usable in bulk.
+  | 'ProductAttributePool';
 
 /** The two upload types the Migration screen owns; the Import / Export screen owns the other three. */
 export const MIGRATION_ENTITY_TYPES: readonly ImportEntityType[] = [
@@ -40,6 +43,7 @@ export const MASTER_DATA_ENTITY_TYPES: readonly ImportEntityType[] = [
   'ProductCategory',
   'AccountGroup',
   'ContactPersonnel',
+  'ProductAttributePool',
   'ProductVariant',
 ];
 
@@ -55,6 +59,7 @@ export const CREATE_ONLY_ENTITY_TYPES: readonly ImportEntityType[] = [
   'ProductCategory',
   'AccountGroup',
   'ProductVariant',
+  'ProductAttributePool',
 ];
 
 export type ImportMode = 'CreateNew' | 'UpdateExisting';

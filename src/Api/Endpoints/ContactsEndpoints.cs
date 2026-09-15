@@ -215,10 +215,12 @@ public static class ContactsEndpoints
         });
 
         group.MapGet("/contacts/{contactId:guid}/sms-history", async (
-            Guid organizationId, Guid contactId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            Guid organizationId, Guid contactId, int? page, int? pageSize, string? search,
+            ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListSmsLogsQuery(organizationId, contactId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize), ct);
+                new ListSmsLogsQuery(organizationId, contactId, page ?? 1, pageSize ?? PagingDefaults.MaxPageSize, search),
+                ct);
             return Results.Ok(result);
         });
     }

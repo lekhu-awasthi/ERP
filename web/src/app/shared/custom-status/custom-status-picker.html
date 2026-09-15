@@ -1,8 +1,19 @@
+<!-- This control renders INSIDE each row's `<a [routerLink]>`, so a click on it is also a click
+     inside an anchor. stopPropagation alone is not enough and is actively misleading: it stops
+     RouterLink's own listener -- the one that would have called preventDefault() and navigated in
+     the SPA -- while leaving the browser's native anchor navigation untouched. The result was that
+     opening the dropdown loaded the document instead.
+
+     The two handlers do deliberately different things. mousedown only stops propagation: a native
+     select opens its popup as the DEFAULT ACTION of mousedown, so preventing it here would stop the
+     dropdown opening at all. click does both, because by then the popup is already open and the
+     default action left to prevent is the anchor's navigation. -->
 <select aria-label="Custom status"
   class="form-select form-select-sm"
   style="width: auto;"
   [disabled]="saving()"
-  (click)="$event.stopPropagation()"
+  (mousedown)="$event.stopPropagation()"
+  (click)="swallowClick($event)"
   (change)="onChange($event)"
 >
   <option value="" [selected]="customStatusId() === null">Select Status</option>

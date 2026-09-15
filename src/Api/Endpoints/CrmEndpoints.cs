@@ -134,10 +134,11 @@ public static class CrmEndpoints
         });
 
         group.MapGet("/sms/history", async (
-            Guid organizationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            Guid organizationId, int? page, int? pageSize, string? search, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListSmsLogsQuery(organizationId, ContactId: null, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize), ct);
+                new ListSmsLogsQuery(
+                    organizationId, ContactId: null, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search), ct);
             return Results.Ok(result);
         });
 

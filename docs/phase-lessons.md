@@ -918,3 +918,49 @@ Two mechanics worth carrying. A backfill over approved history needs its **own**
 them, so `BackfillLocation` fills a null and refuses to move an assigned value. And a **stamped**
 audit column records where a document was *when the action happened* — when the backfill later moves
 those documents to HeadOffice, the audit rows correctly keep saying null.
+
+
+## Phase 45 — multi-UOM × variants, and import ergonomics
+
+**Read this before deciding an interaction between two features nobody has posed, or before trusting
+a sweep guard's allow-list.**
+
+Phase 24 left multi-UOM × variants unbuilt with the words "a genuine combinatorial design question
+nobody has posed", and phase 45's kickoff priced the fork honestly: an inherited conversion is a
+read-through, an owned one is "five more columns and a sweep". The answer was **owned** and it cost
+**neither**, because phase 24's own Decision A had already paid for it — a variant *is* a Product, so
+`Product.SecondaryUnits` already hangs off the variant's row and `PrimaryUnitId` is already its own
+column. Nothing was stored, read through or swept, and `dotnet ef migrations
+has-pending-model-changes` reported no change at all. **An identity decision made once keeps paying;
+a question framed as a fork may have already been answered by a decision in another phase.**
+
+The evidence is worth the shape it took. Neither branch is observable from a form, because both look
+identical when every variant happens to agree with its parent. What settled it was one **divergence**
+in the tenant's own data: of four variants of `Iphone 16 Pro Max`, exactly one carries primary unit
+*Number (NOS)* while the parent and the other three carry *Piecess (ppp)*. A per-variant change that
+did not propagate is proof of ownership without performing a write on someone's live tenant — which
+matters, because a read-only pass cannot run the experiment the question seems to demand. **Look for
+a divergence that already exists before reaching for one you would have to create.**
+
+Its own find came from re-reading an excuse. Phase 24's sweep guard exempted
+`AddSecondaryUnitCommandHandler` because "attaching a secondary unit to a parent moves nothing and
+reconciles against nothing" — which is the argument for **refusing** a parent one, used as a reason
+not to look. See `known-gotchas.md`'s "An allow-list reason can be the argument for the opposite
+conclusion". A guard can check that every exemption names a file that still exists; it can never
+check that the reason still holds.
+
+Its second find came from the browser pass, and is the one worth carrying furthest. The phase's
+parent-refusal guarded all three verbs; a product given secondary units and promoted to a parent
+*afterwards* then held rows that were invisible on the form and answered 409 to the only verb that
+could remove them. **A delete is never the thing to refuse** -- removing a row that should not exist
+is the repair, not the damage. No handler test could see it, because every fixture builds the product
+in its final role while a user walks it through states in an order nobody wrote down. That is the
+class of bug the browser pass exists for.
+
+Two mechanics. The `ProductAttributePool` importer's rows **add** to a set its command **replaces**,
+so each row re-reads and sends the union — and the dry run, planning every row from the same start,
+is right rather than broken, because a validation pass checks rows and does not accumulate them
+(the mirror of `ImportRowContext.PendingKeys`). And phase 3's secondary-unit table had shipped
+add-only for forty-two phases: the reference product's per-row `Action` column is what said the edit
+and the delete were missing, which is the ordinary case for **reading the whole control, not just the
+one affordance the phase came for.**

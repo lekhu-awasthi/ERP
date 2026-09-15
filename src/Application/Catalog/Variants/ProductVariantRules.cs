@@ -54,6 +54,27 @@ public static class ProductVariantRules
         }
     }
 
+    /// <summary>
+    /// Phase 45 -- a variant <b>parent</b> has no unit matrix, which is the same fact as
+    /// <see cref="EnsureTransactable"/> seen from the catalog side: a parent holds no stock, so
+    /// there is nothing for a conversion rate to convert. The reference product says it by giving a
+    /// parent's detail page no Inventory Details panel at all -- no stock figures, no Secondary Unit
+    /// tab, no Warehouse tab -- while every variant child has its own (read live 2026-09-15).
+    ///
+    /// <para>The Domain enforces this too, but a Domain invariant reached through an endpoint is a
+    /// <b>500</b>, which tells the caller nothing (phase-39). This is the 409 that names the reason,
+    /// with the Domain check left as the backstop.</para>
+    /// </summary>
+    public static void EnsureCarriesAUnitMatrix(string productName, bool hasVariants)
+    {
+        if (hasVariants)
+        {
+            throw new ConflictException(
+                $"'{productName}' has variants, so it holds no stock of its own and has no units to convert -- "
+                + "set the secondary units on each of its variants instead.");
+        }
+    }
+
     /// <summary>Single-product form, for the one caller that already holds the entity.</summary>
     public static void EnsureTransactable(string productName, bool hasVariants)
     {
