@@ -13,6 +13,8 @@ import { DocumentType } from '../../core/sales/sales.models';
  *
  * `options` is passed in by the parent (loaded once per page, not once per row) rather than
  * self-loaded, since a self-loading effect here would fire one HTTP call per rendered row.
+ *
+ * Phase 47 -- it is a *sibling* of the row's link now, not a child of it. See the template.
  */
 @Component({
   selector: 'app-custom-status-picker',
@@ -31,17 +33,6 @@ export class CustomStatusPicker {
   readonly statusChange = output<string | null>();
 
   protected readonly saving = signal(false);
-
-  /**
-   * Keeps a click on this control from reaching the row anchor it is nested inside -- both the
-   * Angular listener (stopPropagation) and the browser's native navigation (preventDefault). See
-   * the template for why one without the other is worse than neither, and why mousedown gets
-   * stopPropagation alone.
-   */
-  protected swallowClick(event: Event): void {
-    event.stopPropagation();
-    event.preventDefault();
-  }
 
   protected onChange(event: Event): void {
     const select = event.target as HTMLSelectElement;

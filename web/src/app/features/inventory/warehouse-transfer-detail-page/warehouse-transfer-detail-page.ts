@@ -16,6 +16,7 @@ import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
+import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableLine {
@@ -31,7 +32,7 @@ let nextLineKey = 1;
  * or GL Transactions section here, unlike every other transactional detail page. */
 @Component({
   selector: 'app-warehouse-transfer-detail-page',
-  imports: [RouterLink, DatePipe, BsDateInput, DocumentTabs, ReportingTagsEditor, DocumentLocationPicker, StatusBanner],
+  imports: [RouterLink, DatePipe, BsDateInput, DocumentTabs, ReportingTagsEditor, DocumentLocationPicker, StatusBanner, FieldErrorMessage],
   templateUrl: './warehouse-transfer-detail-page.html',
 })
 export class WarehouseTransferDetailPage {
@@ -49,6 +50,12 @@ export class WarehouseTransferDetailPage {
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
+
+  /**
+   * Phase 47 -- the form's per-field error state. Takes this page's own `errorMessage` signal rather
+   * than owning a second one, so the banner and the field marking cannot disagree (see `FieldError`).
+   */
+  protected readonly fieldError = new FieldError(this.errorMessage);
   protected readonly warehouseTransfer = signal<WarehouseTransferDetail | null>(null);
   protected readonly products = signal<Product[]>([]);
   protected readonly warehouses = signal<Warehouse[]>([]);
@@ -143,11 +150,11 @@ export class WarehouseTransferDetailPage {
 
   protected saveDraft(): void {
     if (!this.fromWarehouseId() || !this.toWarehouseId()) {
-      this.errorMessage.set('Select both a From Warehouse and a To Warehouse.');
+      this.fieldError.fail('warehouse-transfer-detail-page-from-warehouse', 'Select both a From Warehouse and a To Warehouse.');
       return;
     }
     if (this.fromWarehouseId() === this.toWarehouseId()) {
-      this.errorMessage.set('From Warehouse and To Warehouse must differ.');
+      this.fieldError.fail('warehouse-transfer-detail-page-to-warehouse', 'From Warehouse and To Warehouse must differ.');
       return;
     }
 

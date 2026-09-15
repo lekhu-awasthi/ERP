@@ -70,20 +70,28 @@
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold" for="warehouse-transfer-detail-page-from-warehouse">From Warehouse *</label>
             <select id="warehouse-transfer-detail-page-from-warehouse" class="form-select" (change)="fromWarehouseId.set($any($event.target).value)" [disabled]="!isDraft()">
+              [class.is-invalid]="fieldError.is('warehouse-transfer-detail-page-from-warehouse')"
+              [attr.aria-invalid]="fieldError.invalid('warehouse-transfer-detail-page-from-warehouse')"
+              [attr.aria-describedby]="fieldError.describedBy('warehouse-transfer-detail-page-from-warehouse')"
               <option value="" disabled [selected]="!fromWarehouseId()">Select a warehouse</option>
               @for (warehouse of warehouses(); track warehouse.id) {
                 <option [value]="warehouse.id" [selected]="warehouse.id === fromWarehouseId()">{{ warehouse.name }}</option>
               }
             </select>
+            <app-field-error [state]="fieldError" control="warehouse-transfer-detail-page-from-warehouse" />
           </div>
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold" for="warehouse-transfer-detail-page-to-warehouse">To Warehouse *</label>
             <select id="warehouse-transfer-detail-page-to-warehouse" class="form-select" (change)="toWarehouseId.set($any($event.target).value)" [disabled]="!isDraft()">
+              [class.is-invalid]="fieldError.is('warehouse-transfer-detail-page-to-warehouse')"
+              [attr.aria-invalid]="fieldError.invalid('warehouse-transfer-detail-page-to-warehouse')"
+              [attr.aria-describedby]="fieldError.describedBy('warehouse-transfer-detail-page-to-warehouse')"
               <option value="" disabled [selected]="!toWarehouseId()">Select a warehouse</option>
               @for (warehouse of warehouses(); track warehouse.id) {
                 <option [value]="warehouse.id" [selected]="warehouse.id === toWarehouseId()">{{ warehouse.name }}</option>
               }
             </select>
+            <app-field-error [state]="fieldError" control="warehouse-transfer-detail-page-to-warehouse" />
             @if (fromWarehouseId() && toWarehouseId() && fromWarehouseId() === toWarehouseId()) {
               <p class="form-text text-danger">From and To warehouses must differ.</p>
             }

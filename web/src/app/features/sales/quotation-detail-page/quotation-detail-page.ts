@@ -22,6 +22,7 @@ import { TermsEditor } from '../../../shared/terms/terms-editor';
 import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
+import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableLine {
@@ -44,7 +45,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-quotation-detail-page',
-  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, AmountPipe, BsDateInput, DocumentTabs, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner],
+  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, AmountPipe, BsDateInput, DocumentTabs, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner, FieldErrorMessage],
   templateUrl: './quotation-detail-page.html',
 })
 export class QuotationDetailPage {
@@ -71,6 +72,12 @@ export class QuotationDetailPage {
   protected readonly converting = signal(false);
   protected readonly printing = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
+
+  /**
+   * Phase 47 -- the form's per-field error state. Takes this page's own `errorMessage` signal rather
+   * than owning a second one, so the banner and the field marking cannot disagree (see `FieldError`).
+   */
+  protected readonly fieldError = new FieldError(this.errorMessage);
   protected readonly quotation = signal<QuotationDetail | null>(null);
   protected readonly customers = signal<Contact[]>([]);
   protected readonly products = signal<Product[]>([]);
@@ -241,7 +248,7 @@ export class QuotationDetailPage {
 
   protected saveDraft(): void {
     if (!this.contactId()) {
-      this.errorMessage.set('Select a Customer.');
+      this.fieldError.fail('quotation-detail-page-customer', 'Select a Customer.');
       return;
     }
 

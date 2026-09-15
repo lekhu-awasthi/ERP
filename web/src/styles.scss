@@ -303,3 +303,25 @@ body {
 .form-select:focus-visible {
   outline-offset: 0;
 }
+
+/*
+  Phase 47 — the ring follows a `stretched-link` out to the row it stretches over.
+
+  Four document grids used to be one `<a>` per row with a `<select>` inside it. The select is now
+  outside the link and the link is a small anchor on the document code, which fixes the markup and
+  would have shrunk the focus indicator from a whole row to four characters of text — trading one
+  defect for a worse one, since 2.4.7 is about seeing *where you are*. The link's own ring is
+  suppressed and the row paints it instead, at the same measured colour and offset as every other
+  control in the app.
+
+  `:has()` rather than a class on the row: the row does not know whether its link is focused, and a
+  component that grows a stretched link later gets this for free.
+*/
+.list-group-item:has(.stretched-link:focus-visible) {
+  outline: 2px solid #0a58ca;
+  outline-offset: 2px;
+}
+
+.stretched-link:focus-visible {
+  outline: none !important;
+}

@@ -76,6 +76,9 @@
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold" for="debit-note-detail-page-supplier">Supplier</label>
             <select id="debit-note-detail-page-supplier"
+              [class.is-invalid]="fieldError.is('debit-note-detail-page-supplier')"
+              [attr.aria-invalid]="fieldError.invalid('debit-note-detail-page-supplier')"
+              [attr.aria-describedby]="fieldError.describedBy('debit-note-detail-page-supplier')"
               class="form-select"
               (change)="contactId.set($any($event.target).value)"
               [disabled]="!isDraft() || isLinkedToSource()"
@@ -85,6 +88,7 @@
                 <option [value]="supplier.id" [selected]="supplier.id === contactId()">{{ supplier.code }} — {{ supplier.name }}</option>
               }
             </select>
+            <app-field-error [state]="fieldError" control="debit-note-detail-page-supplier" />
           </div>
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold" for="debit-note-detail-page-date">Date</label>

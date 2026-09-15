@@ -21,8 +21,13 @@ public sealed record ListWarehouseTransfersQuery(
     // 2026-09-10). Independent of phase 32b's permission scope above it: a caller may hold every
     // location and still want one branch's rows. Optional and trailing, so null is "All" and
     // every pre-phase-35 caller keeps its behaviour.
-    Guid? LocationId = null)
-    : IRequest<PagedResult<WarehouseTransfer>>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILocationFilteredQuery, ISearchableQuery, IDateRangeFilteredQuery
+    Guid? LocationId = null,
+    // Phase 47 -- the chrome's `Sort by`, swept from the one consumer phase 40 proved the seam
+    // with. Optional and trailing, so null is this list's own default and every existing caller
+    // keeps its behaviour. The two orderings are the two indexes `TenantIndexConvention` gives a
+    // document -- see `ISortableQuery` for why that, and not taste, is what decides the menu.
+    string? Sort = null)
+    : IRequest<PagedResult<WarehouseTransfer>>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILocationFilteredQuery, ISearchableQuery, IDateRangeFilteredQuery, ISortableQuery
 {
     public string PermissionKey => PermissionKeys.WarehouseTransferView;
 

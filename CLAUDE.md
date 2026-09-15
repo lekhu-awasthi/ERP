@@ -77,6 +77,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 43: aggregate completions (`UpdateOrganizationCommand`, Deal/WorkTask as record parents, the term-date rename, `DebitNote.WarehouseId`, the Sales Register folded to base). Before renaming two columns in one migration, or changing what a document does to the stock ledger — `docs/phase-43-status.md`
 - Phase 45: multi-UOM × variants (a variant owns its unit matrix; the parent is refused one), the secondary-unit edit/delete, the `ProductAttributePool` importer, plus a review pass that added the Custom Statuses screen and five UI fixes. Before deciding an interaction between two features nobody has posed, excusing a handler in a sweep guard, or nesting a control in a row anchor — `docs/phase-45-status.md`
 - Phase 46: metered add-on axes — the AI-scan ceiling (20/day, Nepal-local, counted from the audit trail), the allowance *year*, locations as a record not a ceiling, SMS already metered. Before adding a metered axis, or trusting a shape the roadmap named — `docs/phase-46-status.md`
+- Phase 47: accessibility completion (Sort by on all 16 document lists, the nested control removed, per-field errors on 13 forms, the search-parity table, the drop list decided). The NVDA hour is still undone. Before sweeping "the N screens that qualify", or defending a control against its container — `docs/phase-47-status.md`
 - Phase 44: report semantics read live first — the last four statutory reports folded to base, Reporting Tags corrected to OR-within/AND-across, Inventory Master's two extra types, Display Warehouse in Column, Group Wise location, System Audit's stamped location, the location backfill. Before trusting a recorded control nobody operated, or assuming a report applies the filter it accepts — `docs/phase-44-status.md`
 
 ## Stack & conventions
@@ -158,6 +159,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Same door, third time: a store-side `Sum` over an already-projected record is untranslatable, InMemory evaluates it, and only an E2E sees the 500. Project after `Skip`/`Take` (phase-42).
 - Single-argument `Contains` is case-**insensitive** on SQL Server (collation) and case-**sensitive** on InMemory; a handler test must search with the stored casing or it pins a behaviour production lacks (phase-34b).
 - Every tenant-scoped table needs an index leading on `OrganizationId`; `TenantIndexConvention` derives them and throws at model build for an entity it cannot classify (phase-34c).
+- …but it recognises a business date by **name** (`Date`, `PostedAt`), so `Cheque.ChequeDate` is invisible to it and the Cheque Register has always ordered by an unindexed column (phase-47).
 - An index added for one path changes the plan for every other path on the table (list 10× faster, no-match search 1.8× slower); re-measure the paths you did not touch (phase-34c).
 - A materialised id list handed back to SQL becomes an `OPENJSON` parameter as long as the list; a report that loads its period then re-queries children by `ids.Contains` is linear in the period, not in the page. `JournalReportQueryHandler` is the shape that is not (phase-34c).
 - …and the converse: a list long enough to be worth avoiding is too long to send. Narrowing by 35,001 ids cost 182,545 reads against ~1,500 for the scan; join the *query*, or drop it (phase-42).
@@ -304,6 +306,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A control that hides itself owns its own label, or its caption outlives it — `ListChrome` named a location filter that renders nothing on a single-location tenant, on 22 screens, invisibly to any source-level guard (phase-40).
 - An ARIA grouping with no `aria-label` is worse than no role: it announces "group" and adds a boundary carrying nothing. `role="group"` over native radios should be `radiogroup` — the browser is already doing the roving selection (phase-40).
 - A backtick inside a comment inside an inline `template:` literal terminates the template; the compiler blames the `@Component` decorator (phase-40).
+- A `computed()` records only the signals it actually **read**, so a `&&` short-circuiting past the signal on the first evaluation leaves it dependency-free and frozen; every test that calls the setter before reading passes (phase-47).
+- A control nested in an `<a>` is invalid HTML no handler repairs: row a `<div>`, link a `stretched-link`, controls siblings at `position-relative z-2` (the overlay is z-index 1), and the ring moves to the row via `:has()` (phase-47).
 
 **Multi-way switches on a document-attached mechanism**
 - A shared UI panel is not evidence of a shared model: email templates are their own resource, so `EmailTemplate` is its own aggregate and `CustomTemplateType.Email` was deleted (phase-30).
@@ -318,6 +322,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A 403 proves the key only beside a 200 from the same user on the same organization in the same run; log in before `accept-invitation` or the membership stays `Invited` (phase-41).
 - `sqlcmd -S localhost` against a **named** instance returns nothing and reports nothing; read the instance from the connection string (`DESKTOP-H0R00ME\SQLEXPRESS` here). Only printing every status code makes the resulting 400 visible (phase-41).
 - Two implementations of one rule in two languages are pinned to a shared table both suites read (`rich-text-cases.json`, the `bs-date` table), never to each other (phase-39, phase-26b).
+- …and the half with a database runs against **SQL Server**, not InMemory: `search-cases.json`'s subject is case-insensitivity, which is the collation's and not the expression's (phase-47).
+- A source-scanning guard cannot tell a comment from markup — five templates failed the nesting check on their own explanatory comments. Strip comments once, and assert both that they are gone and that nothing else is (phase-47).
+- Derive the N in "sweep the N screens that qualify": the roadmap's 18 document lists were 16 screens over 15 queries, and the single exemption was an index gap nobody had noticed (phase-47).
 - A guard whose predicate names a **type** silently stops covering anything solved before that type existed: `SearchSweepGuardTests` recognised only `PagedResult<T>`, so the two list queries that predate it were invisible — and were exactly the two the phase had to fix (phase-39).
 - …and a predicate naming a **file extension** does the same: `a11y-sweep-guard`'s glob missed five inline-`template:` components for six phases. Widening it found nothing wrong, which is the honest result and not the same as never having looked (phase-40).
 - A guard that accepts two spellings on one side must accept both on the other: it recognised `[for]` and `[attr.for]` on a label but only `[id]` on a control, so a control naming itself `[attr.id]` read as unnamed (phase-40).
@@ -364,6 +371,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 ` or `	` inside an embedded script arrives as a literal newline or tab — a syntax error if you are lucky and a corrupted path if you are not (phase-39).
 - A script inserting an import after "the last `
 import ` line" lands *inside* a multi-line `import { … }` block; anchor on the statement's closing line (phase-35a).
+- A scripted insert *before* a method lands between it and its doc comment; the unit to anchor on is the comment plus the declaration (phase-47, phase-35a's rule in mirror).
+- One sweep can span two newline conventions — three of 42 files were LF in a CRLF repo; detect per file, and let the asserted anchor count abort rather than rewrite three files invisibly (phase-47).
 - A lazy `.*?` between two anchors spans the instances between them; exclude the closing marker (`((?:(?!</label>).)*?)`) and derive the expected count a second way (phase-34a).
 - A positional derivation (column index → header text) is *confidently wrong* where the position lies — a `colspan` cell, a cell with its own label. A wrong accessible name is worse than none; audit for the shapes the first pass cannot see (phase-34a).
 - In the browser pane the **screenshot is ground truth**: after a viewport resize, `getComputedStyle`/`getBoundingClientRect` can lag the rendering (a drawer measured on-screen while the screenshot showed it tucked away). Reload after emulating a viewport (phase-34b).
@@ -378,39 +387,45 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–46 are complete.** The v1 sequence (0–25), the parity sequence (26–34c), the
-consolidation sequence (35–41) and the completion phases (42–46) are all done; each phase's story is
-in its `docs/phase-N-status.md`, and the completed planning entries are archived in
-`docs/roadmap-history.md`. Phase 46 was planned around the roadmap's sentence that each remaining
-metered axis is "a reader plus a ceiling on the plan row", and the reads showed the three are three
-different kinds of thing. **AI scans** are a published ceiling the project had recorded and never
-carried into a decision — *"Up to 20 scans per day"*, identical on every tier and every term length,
-sold by no add-on — so they are a rate limit on the one action that spends money outward per call,
-counted per Nepal-local day from the append-only `Audit` rows because the document's own timestamp is
-overwritten by every re-scan. **Billing locations** are sold per unit and capped nowhere: the
-reference tenant runs three on a plain Enabled flag with an unbounded list and no charge shown, so
-the purchased count is a record and refuses nothing — phase 43's product-to-location precedent,
-reached the same way and reversing this phase's own plan. **SMS** was already metered by the right
-mechanism in phase 18, and the live *Add SMS Credit* control is still a phone number. The same read
-also caught a defect in phase 41: every published quota is per *year* and the 3-year tab repeats the
-same figures beside a tripled price, so the transaction window is now the allowance **year**, not the
-whole term.
+**Phases 0–47 are complete, and 47 was the last planned phase.** The v1 sequence (0–25), the parity
+sequence (26–34c), the consolidation sequence (35–41) and the completion phases (42–47) are all done;
+each phase's story is in its `docs/phase-N-status.md`, and every completed planning entry is archived
+in `docs/roadmap-history.md`. `docs/roadmap.md` no longer carries a forward plan — it carries a
+**"What remains"** statement instead, and that is the doc to read before picking anything up.
 
-**Next: phase 47 in `docs/roadmap.md`** — the accessibility items that need a person with a screen
-reader. The deferred list (DO/GRN, POS, IRD, Marketplace, unrealised forex, per-user location,
-multi-level BOM) is unchanged, and the vendor-side actor remains the re-entry condition for every
-subscription ceiling. **Cadehi's trial ends 2026-09-22** — the first observable expiry this project
-has had a date for, and the read that would settle phase 31/46's derived expiry behaviour.
+**What remains, in three kinds.** One item needs a *person*: **an hour with NVDA**, on Windows, over
+the live regions, the rich-text toolbar's roving tabindex, the phase-46 subscription panels and phase
+47's field-level errors. Phases 40 and 47 both built everything derivable and both recorded plainly
+that no screen reader was run, because none is available in this environment; it was not simulated,
+and it is the only thing between this codebase and a finished WCAG 2.1 AA story. One item has a
+*date*: **Cadehi's trial ends 2026-09-22**, the first observable expiry this project has ever had one
+for, and the single read that settles what phases 31 and 46 both had to derive. Everything else is
+either **deferred with its re-entry condition** (DO/GRN, the vendor-side actor, unrealised forex,
+per-user location, multi-level BOM, POS, IRD e-filing, marketplace) or **dropped with its reason**
+(phase 47 Decision G's seven items) — both lists are in the roadmap, and neither is a gap left by
+omission.
 
-Tests at last count: Domain 674, Application.UnitTests 1181, Api.IntegrationTests 29, Angular 487;
+Phase 47 itself swept `Sort by` to all **16** document lists — the derived number, not the roadmap's
+inherited 18 — behind a guard whose behavioural half seeds two documents whose creation order and
+business date disagree and drives every one of the fifteen handlers through both orderings (phase
+44's lesson: a guard over query *records* cannot see the handler). The four grids that rendered a
+`<select>` inside an `<a routerLink>` stopped nesting it rather than defending against it, and what
+replaces the component's own compensating handlers is a whole-app guard whose interesting half is
+derived — the selectors of every component that renders a control, because a regex for `<select>`
+inside `<a>` finds none of the four. Thirteen document forms gained per-field `aria-invalid`,
+`aria-describedby` and focus movement, keyed on the control's own DOM id so the guard can check both
+ends. The lookup filter and the server's `?search=` are pinned to `search-cases.json`, whose server
+half runs against **real SQL Server** because its subject is a collation property InMemory lacks.
+
+Tests at last count: Domain 674, Application.UnitTests 1185, Api.IntegrationTests 30, Angular 522;
 `dotnet build` / `dotnet test` / `ng build` / `ng test` all clean, and `ng build` does not warn —
-phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts` (652.08 kB at
-the end of phase 46). `Api.IntegrationTests` needs Docker Desktop running — without it the nine
-Testcontainers-backed tests fail in their constructors before any assertion, which reads like nine
+phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts` (652.23 kB at
+the end of phase 47). `Api.IntegrationTests` needs Docker Desktop running — without it the
+Testcontainers-backed tests fail in their constructors before any assertion, which reads like
 regressions and is not; it also still fails nondeterministically under machine load and passes on
-re-run (phase 36/37). `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
-check (phase-28), and `ng test` must be run from `web/` (phase-35a) on **Node 24** (`nvm use 24.11.0`
-— v16 dies with `availableParallelism is not a function`).
+re-run (phase 36/37). `tsc --noEmit` does not cover `web/src/app`; `ng build` is the check (phase-28),
+and `ng test` must be run from `web/` (phase-35a) on **Node 24** (`nvm use 24.11.0` — v16 dies with
+`availableParallelism is not a function`).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

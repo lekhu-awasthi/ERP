@@ -79,6 +79,9 @@
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold" for="credit-note-detail-page-customer">Customer</label>
             <select id="credit-note-detail-page-customer"
+              [class.is-invalid]="fieldError.is('credit-note-detail-page-customer')"
+              [attr.aria-invalid]="fieldError.invalid('credit-note-detail-page-customer')"
+              [attr.aria-describedby]="fieldError.describedBy('credit-note-detail-page-customer')"
               class="form-select"
               [value]="contactId()"
               (change)="contactId.set($any($event.target).value)"
@@ -89,6 +92,7 @@
                 <option [value]="customer.id">{{ customer.code }} — {{ customer.name }}</option>
               }
             </select>
+            <app-field-error [state]="fieldError" control="credit-note-detail-page-customer" />
           </div>
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold" for="credit-note-detail-page-date">Date</label>

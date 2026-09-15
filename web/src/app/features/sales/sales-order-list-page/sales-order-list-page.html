@@ -10,6 +10,9 @@
     [totalCount]="totalCount()"
     [loading]="loading()"
     [dateScoped]="true"
+    [sortOptions]="sortOptions"
+    [sort]="filter.sort()"
+    (sortChange)="onSort($event)"
     (searchChange)="onSearch($event)"
   >
     <div listActions class="d-flex align-items-center gap-2 flex-wrap">
@@ -53,23 +56,35 @@
       } @else {
         <div class="list-group list-group-flush">
           @for (item of items(); track item.id) {
-            <a
-              class="list-group-item list-group-item-action border rounded-3 mb-3 p-3 d-flex justify-content-between align-items-center flex-wrap gap-3"
-              [routerLink]="['/organizations', organizationId, 'sales', 'sales-orders', item.id]"
+            <!-- Phase 47 -- the row is a <div> and the link sits inside it, not the other way
+                 round. A <select> nested in an <a> is invalid HTML that no event handler makes
+                 valid: the control is inside the link's accessible name, and a keyboard user who
+                 tabs onto the picker is standing inside a link they did not ask to be in. Phase 45
+                 fixed the *navigation*; this fixes the nesting. Bootstrap's `stretched-link` keeps
+                 the whole-row click target a mouse user already had, and the control cluster below
+                 sits above its overlay. The focus ring follows the inner link out to the row --
+                 see `styles.scss`. -->
+            <div
+              class="list-group-item list-group-item-action border rounded-3 mb-3 p-3 d-flex justify-content-between align-items-center flex-wrap gap-3 position-relative"
             >
               <div class="d-flex align-items-center gap-3">
                 <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-circle">
                   <i aria-hidden="true" class="bi bi-cart-check fs-5"></i>
                 </div>
                 <div>
-                  <h6 class="fw-bold mb-1 text-dark">{{ item.code }}</h6>
+                  <h6 class="fw-bold mb-1 text-dark">
+                    <a class="stretched-link text-reset text-decoration-none" [routerLink]="['/organizations', organizationId, 'sales', 'sales-orders', item.id]">{{ item.code }}</a>
+                  </h6>
                   <!-- Phase 35a -- the LOCATION every live document grid carries in
                        second position. Renders nothing when the row has none. -->
                   <app-location-name [organizationId]="organizationId" [locationId]="item.locationId" />
                   <span class="text-muted small">{{ item.date | nepaliDate }}{{ item.reference ? ' · ' + item.reference : '' }}</span>
                 </div>
               </div>
-              <div class="d-flex align-items-center gap-3">
+              <!-- position-relative + z-2: Bootstrap paints `stretched-link`'s overlay at
+                   z-index 1, so a control that is merely positioned still sits underneath it
+                   and the row link swallows the click. -->
+              <div class="d-flex align-items-center gap-3 position-relative z-2">
                 <app-custom-status-picker
                   [organizationId]="organizationId"
                   documentType="SalesOrder"
@@ -87,7 +102,7 @@
                 }
                 <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
               </div>
-            </a>
+            </div>
           }
         </div>
         <app-pagination-control

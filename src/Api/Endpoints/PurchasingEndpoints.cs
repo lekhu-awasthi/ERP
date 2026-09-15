@@ -60,10 +60,10 @@ public static class PurchasingEndpoints
     private static void MapPurchaseOrderEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/purchase-orders", async (
-            Guid organizationId, PurchaseOrderStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, ISender sender, CancellationToken ct) =>
+            Guid organizationId, PurchaseOrderStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, string? sort, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListPurchaseOrdersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId), ct);
+                new ListPurchaseOrdersQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId, sort), ct);
             return Results.Ok(result);
         });
 
@@ -114,10 +114,10 @@ public static class PurchasingEndpoints
     private static void MapPurchaseBillEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/purchase-bills", async (
-            Guid organizationId, PurchaseBillStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, ISender sender, CancellationToken ct) =>
+            Guid organizationId, PurchaseBillStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, string? sort, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListPurchaseBillsQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId), ct);
+                new ListPurchaseBillsQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId, sort), ct);
             return Results.Ok(result);
         });
 
@@ -249,10 +249,10 @@ public static class PurchasingEndpoints
     private static void MapExpenseEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/expenses", async (
-            Guid organizationId, ExpenseStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, ISender sender, CancellationToken ct) =>
+            Guid organizationId, ExpenseStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, string? sort, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListExpensesQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId), ct);
+                new ListExpensesQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId, sort), ct);
             return Results.Ok(result);
         });
 
@@ -311,10 +311,10 @@ public static class PurchasingEndpoints
     private static void MapDebitNoteEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/debit-notes", async (
-            Guid organizationId, DebitNoteStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, ISender sender, CancellationToken ct) =>
+            Guid organizationId, DebitNoteStatus? status, int? page, int? pageSize, string? search, DateOnly? fromDate, DateOnly? toDate, Guid? locationId, string? sort, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new ListDebitNotesQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId), ct);
+                new ListDebitNotesQuery(organizationId, status, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, search, fromDate, toDate, locationId, sort), ct);
             return Results.Ok(result);
         });
 

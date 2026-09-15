@@ -26,6 +26,7 @@ import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
 import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
+import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableAllocation {
@@ -43,7 +44,7 @@ let nextAllocationKey = 1;
  * -- exact mirror of Customer Payment's posting"). */
 @Component({
   selector: 'app-supplier-payment-detail-page',
-  imports: [RouterLink, DatePipe, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, SendEmailDialog, DocumentLocationPicker, CurrencyRateFields, StatusBanner],
+  imports: [RouterLink, DatePipe, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, SendEmailDialog, DocumentLocationPicker, CurrencyRateFields, StatusBanner, FieldErrorMessage],
   templateUrl: './supplier-payment-detail-page.html',
 })
 export class SupplierPaymentDetailPage {
@@ -71,6 +72,12 @@ export class SupplierPaymentDetailPage {
   protected readonly previewingGl = signal(false);
   protected readonly glPreview = signal<GlLinePreviewDto[] | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
+
+  /**
+   * Phase 47 -- the form's per-field error state. Takes this page's own `errorMessage` signal rather
+   * than owning a second one, so the banner and the field marking cannot disagree (see `FieldError`).
+   */
+  protected readonly fieldError = new FieldError(this.errorMessage);
   protected readonly payment = signal<PaymentDetail | null>(null);
   protected readonly suppliers = signal<Contact[]>([]);
   protected readonly accounts = signal<Account[]>([]);
@@ -255,15 +262,15 @@ export class SupplierPaymentDetailPage {
 
   protected saveDraft(): void {
     if (!this.contactId()) {
-      this.errorMessage.set('Select a Supplier.');
+      this.fieldError.fail('supplier-payment-detail-page-paid-to-supplier', 'Select a Supplier.');
       return;
     }
     if (!this.accountId()) {
-      this.errorMessage.set('Select a cash/bank Account.');
+      this.fieldError.fail('supplier-payment-detail-page-paid-from-account', 'Select a cash/bank Account.');
       return;
     }
     if (this.amount() <= 0) {
-      this.errorMessage.set('Amount must be greater than zero.');
+      this.fieldError.fail('supplier-payment-detail-page-amount', 'Amount must be greater than zero.');
       return;
     }
 

@@ -71,11 +71,15 @@
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold" for="inventory-adjustment-detail-page-warehouse">Warehouse *</label>
             <select id="inventory-adjustment-detail-page-warehouse" class="form-select" (change)="warehouseId.set($any($event.target).value)" [disabled]="!isDraft()">
+              [class.is-invalid]="fieldError.is('inventory-adjustment-detail-page-warehouse')"
+              [attr.aria-invalid]="fieldError.invalid('inventory-adjustment-detail-page-warehouse')"
+              [attr.aria-describedby]="fieldError.describedBy('inventory-adjustment-detail-page-warehouse')"
               <option value="" disabled [selected]="!warehouseId()">Select a warehouse</option>
               @for (warehouse of warehouses(); track warehouse.id) {
                 <option [value]="warehouse.id" [selected]="warehouse.id === warehouseId()">{{ warehouse.name }}</option>
               }
             </select>
+            <app-field-error [state]="fieldError" control="inventory-adjustment-detail-page-warehouse" />
           </div>
           <div class="col-12 col-sm-3">
             <label class="form-label small fw-semibold" for="inventory-adjustment-detail-page-date">Date</label>

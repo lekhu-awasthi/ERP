@@ -61,7 +61,64 @@ const inlineEntries = Object.entries(inlineTemplates)
   .map(([path, source]) => [path, TEMPLATE_LITERAL.exec(source)?.[1] ?? ''] as const)
   .filter(([, template]) => template.trim().length > 0);
 
-const entries: readonly (readonly [string, string])[] = [...Object.entries(templates), ...inlineEntries];
+/**
+ * Phase 47 — <b>an HTML comment is prose, not markup, and these assertions are regexes.</b>
+ *
+ * Every check in this file scans raw template text, so a comment that happens to *mention* a tag is
+ * indistinguishable from one. The nesting check added below reported five templates on its first
+ * run, and all five were comments explaining the very rule being checked — including this phase's
+ * own "a &lt;select&gt; nested in an &lt;a&gt; is invalid HTML". Phase 40 met the mirror of this (a
+ * backtick inside a comment inside an inline `template:` terminating the literal).
+ *
+ * Stripping comments can only remove false positives: markup that is commented out does not render,
+ * so it cannot be an accessibility defect either. The offsets shift with the text, which is why it
+ * happens once, here, rather than per assertion.
+ */
+const HTML_COMMENT = /<!--[\s\S]*?-->/g;
+
+const entries: readonly (readonly [string, string])[] = [
+  ...Object.entries(templates),
+  ...inlineEntries,
+].map(([path, source]) => [path, source.replace(HTML_COMMENT, '')] as const);
+
+/**
+ * Phase 47 — <b>the selectors of every component whose own template renders an interactive
+ * control</b>, derived from the source rather than listed.
+ *
+ * The nesting check below asks whether a link contains a control. A regex for `<select>` inside
+ * `<a>` would have found nothing on the four grids that actually shipped the defect, because what
+ * they nest is `<app-custom-status-picker>` — a component. Listing the component selectors by hand
+ * would make this phase's own list the wrong list the moment a sixteenth control component is
+ * written (phase 30's lesson: find the rule, not the sample). So each `.ts` is read for its
+ * `selector` and its template, and a selector joins this set when that template renders a control.
+ */
+const CONTROL_COMPONENTS: ReadonlySet<string> = (() => {
+  const selectors = new Set<string>();
+  const RENDERS_CONTROL = /<(input|select|textarea|button)\b/;
+
+  for (const [path, source] of Object.entries(inlineTemplates)) {
+    if (path.endsWith('.spec.ts')) {
+      continue;
+    }
+
+    const selector = /selector:\s*'([^']+)'/.exec(source)?.[1];
+
+    if (!selector) {
+      continue;
+    }
+
+    const templateUrl = /templateUrl:\s*'\.\/([^']+)'/.exec(source)?.[1];
+    const template = templateUrl
+      ? (templates[`${path.slice(0, path.lastIndexOf('/'))}/${templateUrl}`] ?? '')
+      : (TEMPLATE_LITERAL.exec(source)?.[1] ?? '');
+
+    if (RENDERS_CONTROL.test(template.replace(HTML_COMMENT, ''))) {
+      selectors.add(selector);
+    }
+  }
+
+  return selectors;
+})();
 
 /**
  * The global stylesheet, read off disk so the contrast rules can be checked against what ships.
@@ -379,6 +436,141 @@ describe('Phase 34a accessibility sweep', () => {
           'exist before the message does.',
       ),
     ).toEqual([]);
+  });
+
+  it('never nests an interactive control inside a link or a button (WCAG 4.1.2, 2.1.1)', () => {
+    // Phase 47. Four document grids rendered a `<select>` inside the row's `<a [routerLink]>`.
+    // Phase 45 found it as a *navigation* bug and fixed the navigation; the nesting itself is the
+    // accessibility defect, and it is not one a browser recovers from. An interactive element
+    // inside a link is folded into that link's accessible name, so the row announces as one
+    // control with the options read out as its label; the keyboard user who tabs onto the select
+    // is inside a link they never chose to enter; and HTML's parser is entitled to move the
+    // element out of the anchor entirely, which is how the same markup behaves differently in two
+    // browsers.
+    //
+    // The interesting half is CONTROL_COMPONENTS, derived rather than listed: a scan for
+    // `<select>` inside `<a>` cannot see `<app-custom-status-picker>`, which is exactly the shape
+    // that shipped. So the selectors of every component whose own template renders a control are
+    // collected first, and a nested one of those counts the same as a nested `<select>`.
+    const found: string[] = [];
+
+    for (const [path, source] of entries) {
+      for (const m of matches(source, CLICKABLE)) {
+        const inner = m[3];
+        const nested = [...matches(inner, /<(input|select|textarea|button|a)\b/g).map((c) => `<${c[1]}>`)];
+
+        for (const selector of CONTROL_COMPONENTS) {
+          if (new RegExp(`<${selector}\\b`).test(inner)) {
+            nested.push(`<${selector}>`);
+          }
+        }
+
+        if (nested.length > 0) {
+          found.push(`${path}  <${m[1]}> contains ${[...new Set(nested)].join(', ')}`);
+        }
+      }
+    }
+
+    expect(
+      found,
+      report(
+        found,
+        'Take the control out of the link. The row pattern that works is a <div> carrying the ' +
+          'row classes, an <a class="stretched-link"> on the row\'s title for the click target, ' +
+          'and the controls as siblings with position-relative z-2 so they sit above the ' +
+          'overlay — see any of the four document grids.',
+      ),
+    ).toEqual([]);
+  });
+
+  it('associates every field-level error with the control it is about (WCAG 3.3.1, 1.3.1)', () => {
+    // Phase 47 (phase 40 carried item #2). This is 34a's mirror question — *which labels name no
+    // control?* — asked of messages instead: which error messages name no control, and which
+    // failing controls name no message. Both directions matter, and they fail differently. A
+    // `fail()` with no `<app-field-error>` announces in the banner and marks a control the screen
+    // reader then reads with a dangling `aria-describedby`; an `<app-field-error>` no `fail()` ever
+    // names is an element that never renders, which looks like working markup forever.
+    //
+    // Keyed on the control's DOM id throughout, which is what makes both ends checkable from the
+    // source at all: the message's id, the `aria-describedby` that points at it and the `fail()`
+    // call are all derived from that one string.
+    const found: string[] = [];
+    let pairs = 0;
+
+    for (const [path, raw] of Object.entries(templates)) {
+      const template = raw.replace(HTML_COMMENT, '');
+      const component = inlineTemplates[path.replace(/\.html$/, '.ts')] ?? '';
+
+      const failed = new Set(matches(component, /fieldError\.fail\('([a-z0-9-]+)'/g).map((m) => m[1]));
+      const described = new Set(
+        matches(template, /<app-field-error\b(?:[^>"]|"[^"]*")*?\bcontrol="([a-z0-9-]+)"/gs).map((m) => m[1]),
+      );
+
+      for (const control of failed) {
+        if (!described.has(control)) {
+          found.push(`${path}  fails at '${control}' and renders no <app-field-error> for it`);
+        }
+      }
+
+      for (const control of described) {
+        if (!failed.has(control)) {
+          found.push(`${path}  renders <app-field-error control="${control}"> that nothing ever sets`);
+          continue;
+        }
+
+        if (!new RegExp(`id="${control}"`).test(template)) {
+          found.push(`${path}  names control '${control}', which is not an id in this template`);
+        }
+
+        for (const binding of [
+          `[class.is-invalid]="fieldError.is('${control}')"`,
+          `[attr.aria-invalid]="fieldError.invalid('${control}')"`,
+          `[attr.aria-describedby]="fieldError.describedBy('${control}')"`,
+        ]) {
+          if (!template.includes(binding)) {
+            found.push(`${path}  '${control}' is missing ${binding}`);
+          }
+        }
+
+        pairs += 1;
+      }
+    }
+
+    expect(
+      found,
+      report(
+        found,
+        'A field-level error has three parts that have to agree: the fail() that sets it, the ' +
+          'three bindings on the control, and the <app-field-error> the aria-describedby points ' +
+          'at. See any document form for the shape.',
+      ),
+    ).toEqual([]);
+
+    // Non-vacuity: this assertion would pass over an empty app. Sixteen pairs across thirteen
+    // document forms at the time of writing.
+    expect(pairs, 'the field-error scan found no associated fields at all').toBeGreaterThanOrEqual(16);
+  });
+
+  it('scans markup and not the prose in comments, without losing the markup around them', () => {
+    // Phase 47. The stripping above is what stops a comment explaining a rule from failing that
+    // rule, and both halves need saying: that comments are gone, and that nothing *else* is. The
+    // second half is the one that would fail if the pattern were greedy — a single `[\s\S]*` would
+    // swallow everything between the first `<!--` and the last `-->` in a template, which on these
+    // pages is most of the file, and every other assertion here would quietly go vacuous.
+    const quotation = entries.find(([path]) => path.endsWith('/quotation-list-page.html'))![1];
+
+    expect(quotation).not.toContain('<!--');
+    expect(quotation).not.toContain('invalid HTML that no event handler makes');
+    expect(quotation).toContain('<app-custom-status-picker');
+    expect(quotation).toContain('stretched-link');
+  });
+
+  it('finds the control-bearing components that the nesting check is derived from', () => {
+    // Without this the derivation could quietly collapse to an empty set and the check above would
+    // pass vacuously for every component-shaped control — which is the exact hole it exists to
+    // close. `app-custom-status-picker` is named because it is the one that shipped nested.
+    expect(CONTROL_COMPONENTS.size).toBeGreaterThan(10);
+    expect(CONTROL_COMPONENTS.has('app-custom-status-picker')).toBe(true);
   });
 
   it('keeps every allow-list entry pointing at a template that still exists', () => {

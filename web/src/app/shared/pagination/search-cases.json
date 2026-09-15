@@ -1,0 +1,54 @@
+{
+  "$comment": [
+    "Phase 47 (phase 40 carried item #5). The contract between the two places this app answers the",
+    "question 'does this row match what I typed'.",
+    "",
+    "There are two, and there have to be. A paginated list cannot hold its rows, so its term goes to",
+    "the server and becomes `x.Column.Contains(term)` in a handler's Where. A Configurations lookup",
+    "already holds every row, so sending a request per keystroke would be a round trip that can",
+    "reorder against the typing; its term goes to `matchesLookup` in the browser. Phase 40 shipped",
+    "both and said plainly that nothing made them agree: 'they agree today; nothing enforces that",
+    "they keep agreeing'.",
+    "",
+    "This file is what enforces it, in the arrangement phase 26b made for BsCalendar/bs-date.ts and",
+    "phase 39 for the two rich-text sanitisers: neither implementation is the source of truth for the",
+    "other -- this table is, and both suites read it.",
+    "",
+    "The server half runs against a REAL SQL Server (Api.IntegrationTests, Testcontainers) and not",
+    "against the InMemory provider, because the two disagree about the only interesting property:",
+    "single-argument `Contains` is case-INsensitive on SQL Server (its default collation does it, not",
+    "the expression) and case-SENSITIVE on InMemory. A parity test run on InMemory would pin a",
+    "behaviour production does not have, which is the standing gotcha this file exists inside.",
+    "",
+    "`haystack` is one stored value, `needle` is what the user typed, `matches` is what BOTH sides",
+    "must answer."
+  ],
+  "cases": [
+    { "why": "the ordinary case: a substring anywhere in the value", "haystack": "Nepal Investment Bank", "needle": "Investment", "matches": true },
+    { "why": "a prefix", "haystack": "Nepal Investment Bank", "needle": "Nepal", "matches": true },
+    { "why": "a suffix", "haystack": "Nepal Investment Bank", "needle": "Bank", "matches": true },
+    { "why": "no match is no match", "haystack": "Nepal Investment Bank", "needle": "Kumari", "matches": false },
+    { "why": "an empty term matches everything -- the unfiltered list", "haystack": "Nepal Investment Bank", "needle": "", "matches": true },
+
+    { "why": "typed lower, stored capitalised", "haystack": "Nepal Investment Bank", "needle": "investment", "matches": true },
+    { "why": "typed upper, stored capitalised", "haystack": "Nepal Investment Bank", "needle": "INVESTMENT", "matches": true },
+    { "why": "typed mixed, stored lower", "haystack": "kumari bank", "needle": "KuMaRi", "matches": true },
+
+    { "why": "a leading space is trimmed before matching, not treated as part of the term", "haystack": "Kumari Bank", "needle": "  Kumari", "matches": true },
+    { "why": "a trailing space likewise", "haystack": "Kumari Bank", "needle": "Kumari  ", "matches": true },
+    { "why": "whitespace alone is an empty box somebody tabbed through, not a term", "haystack": "Kumari Bank", "needle": "   ", "matches": true },
+    { "why": "an interior space is part of the term", "haystack": "Kumari Bank", "needle": "ri Ba", "matches": true },
+    { "why": "and so does not match when the value has no space there", "haystack": "KumariBank", "needle": "ri Ba", "matches": false },
+
+    { "why": "a percent sign is a character the user typed, never a wildcard", "haystack": "Discount 10% terms", "needle": "10%", "matches": true },
+    { "why": "and a bare percent matches only a value that contains one", "haystack": "Kumari Bank", "needle": "%", "matches": false },
+    { "why": "an underscore is a character too, not 'any single character'", "haystack": "Kumari Bank", "needle": "_", "matches": false },
+    { "why": "an underscore that really is in the value matches", "haystack": "OPENING_BALANCE", "needle": "NG_BA", "matches": true },
+    { "why": "a square bracket is not a LIKE character class", "haystack": "Kumari Bank", "needle": "[a-z]", "matches": false },
+    { "why": "square brackets that are in the value match", "haystack": "Term [draft]", "needle": "[draft]", "matches": true },
+
+    { "why": "Devanagari matches itself", "haystack": "नेपाल बैंक", "needle": "बैंक", "matches": true },
+    { "why": "a digit run inside a document number", "haystack": "INV-2026-0007", "needle": "2026", "matches": true },
+    { "why": "a hyphenated fragment", "haystack": "INV-2026-0007", "needle": "-0007", "matches": true }
+  ]
+}

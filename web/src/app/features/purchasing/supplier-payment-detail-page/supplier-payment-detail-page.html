@@ -89,6 +89,9 @@
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold" for="supplier-payment-detail-page-paid-to-supplier">Paid To (Supplier)</label>
             <select id="supplier-payment-detail-page-paid-to-supplier"
+              [class.is-invalid]="fieldError.is('supplier-payment-detail-page-paid-to-supplier')"
+              [attr.aria-invalid]="fieldError.invalid('supplier-payment-detail-page-paid-to-supplier')"
+              [attr.aria-describedby]="fieldError.describedBy('supplier-payment-detail-page-paid-to-supplier')"
               class="form-select"
               (change)="contactId.set($any($event.target).value)"
               [disabled]="!isDraft()"
@@ -98,6 +101,7 @@
                 <option [value]="supplier.id" [selected]="supplier.id === contactId()">{{ supplier.code }} — {{ supplier.name }}</option>
               }
             </select>
+            <app-field-error [state]="fieldError" control="supplier-payment-detail-page-paid-to-supplier" />
           </div>
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold" for="supplier-payment-detail-page-date">Date</label>
@@ -124,6 +128,9 @@
           <div class="col-12 col-sm-4">
             <label class="form-label small fw-semibold" for="supplier-payment-detail-page-paid-from-account">Paid From Account *</label>
             <select id="supplier-payment-detail-page-paid-from-account"
+              [class.is-invalid]="fieldError.is('supplier-payment-detail-page-paid-from-account')"
+              [attr.aria-invalid]="fieldError.invalid('supplier-payment-detail-page-paid-from-account')"
+              [attr.aria-describedby]="fieldError.describedBy('supplier-payment-detail-page-paid-from-account')"
               class="form-select"
               (change)="accountId.set($any($event.target).value)"
               [disabled]="!isDraft()"
@@ -133,10 +140,14 @@
                 <option [value]="account.id" [selected]="account.id === accountId()">{{ account.code }} — {{ account.name }}</option>
               }
             </select>
+            <app-field-error [state]="fieldError" control="supplier-payment-detail-page-paid-from-account" />
           </div>
           <div class="col-12 col-sm-4">
             <label class="form-label small fw-semibold" for="supplier-payment-detail-page-amount">Amount *</label>
             <input id="supplier-payment-detail-page-amount"
+              [class.is-invalid]="fieldError.is('supplier-payment-detail-page-amount')"
+              [attr.aria-invalid]="fieldError.invalid('supplier-payment-detail-page-amount')"
+              [attr.aria-describedby]="fieldError.describedBy('supplier-payment-detail-page-amount')"
               type="number"
               class="form-control"
               min="0"
@@ -145,6 +156,7 @@
               (input)="amount.set($any($event.target).valueAsNumber || 0)"
               [disabled]="!isDraft()"
             />
+            <app-field-error [state]="fieldError" control="supplier-payment-detail-page-amount" />
           </div>
           <div class="col-12">
             <label class="form-label small fw-semibold" for="supplier-payment-detail-page-reference">Reference</label>

@@ -63,7 +63,16 @@ public sealed class ListWarehouseTransfersQueryHandler(IAppDbContext db, ICurren
             query = query.Where(x => x.Date <= toDate);
         }
 
-        return await query.ToKeyPagedResultAsync(
-            x => x.Id, q => q.OrderByDescending(x => x.CreatedAt), request.Page, request.PageSize, cancellationToken);
+        // Phase 47 -- the chrome's Sort by control, and the only two orderings this table is indexed
+        // for: `(OrganizationId, CreatedAt DESC)` and `(OrganizationId, Date)`, both built by
+        // `TenantIndexConvention`. Either one is a seek plus an ordered range scan; anything else
+        // would be a sort over the whole filtered set, which the pager would hide (34c).
+        IOrderedQueryable<WarehouseTransfer> Order(IQueryable<WarehouseTransfer> source) => request.Sort switch
+        {
+            ListSort.DocumentDate => source.OrderByDescending(x => x.Date).ThenByDescending(x => x.CreatedAt),
+            _ => source.OrderByDescending(x => x.CreatedAt),
+        };
+
+        return await query.ToKeyPagedResultAsync(x => x.Id, Order, request.Page, request.PageSize, cancellationToken);
     }
 }

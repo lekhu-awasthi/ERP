@@ -22,6 +22,7 @@ import { TermsEditor } from '../../../shared/terms/terms-editor';
 import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
+import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableLine {
@@ -49,7 +50,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-sales-order-detail-page',
-  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner],
+  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner, FieldErrorMessage],
   templateUrl: './sales-order-detail-page.html',
 })
 export class SalesOrderDetailPage {
@@ -77,6 +78,12 @@ export class SalesOrderDetailPage {
   protected readonly voiding = signal(false);
   protected readonly printing = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
+
+  /**
+   * Phase 47 -- the form's per-field error state. Takes this page's own `errorMessage` signal rather
+   * than owning a second one, so the banner and the field marking cannot disagree (see `FieldError`).
+   */
+  protected readonly fieldError = new FieldError(this.errorMessage);
   protected readonly salesOrder = signal<SalesOrderDetail | null>(null);
   protected readonly customers = signal<Contact[]>([]);
   protected readonly products = signal<Product[]>([]);
@@ -246,7 +253,7 @@ export class SalesOrderDetailPage {
 
   protected saveDraft(): void {
     if (!this.contactId()) {
-      this.errorMessage.set('Select a Customer.');
+      this.fieldError.fail('sales-order-detail-page-customer', 'Select a Customer.');
       return;
     }
 

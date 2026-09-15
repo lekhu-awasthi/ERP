@@ -10,6 +10,9 @@
     [totalCount]="totalCount()"
     [loading]="loading()"
     [dateScoped]="true"
+    [sortOptions]="sortOptions"
+    [sort]="filter.sort()"
+    (sortChange)="onSort($event)"
     (searchChange)="onSearch($event)"
   >
     <div listActions class="d-flex align-items-center gap-2 flex-wrap">

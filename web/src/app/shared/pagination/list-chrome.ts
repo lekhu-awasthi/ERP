@@ -128,3 +128,25 @@ export interface ListSortOption {
   readonly value: string;
   readonly label: string;
 }
+
+/**
+ * Phase 47 — the two orderings every document list offers, in one place.
+ *
+ * <b>Why a function and not fifteen literals.</b> Phase 40 shipped the invoice list's menu as a
+ * two-entry array in the component, with the reasoning beside it; sweeping that to the other
+ * fourteen would have been fourteen copies of a decision, and the moment `TenantIndexConvention`
+ * grows or loses an index for documents, fourteen places would have to agree about it. The wire
+ * values are the server's `ListSort` members, which are a reading of the schema — `CreatedAt DESC`
+ * for the list index and the document's own business date for the range index — so the only thing
+ * a screen chooses is what to *call* its date, which is the argument.
+ *
+ * @param dateLabel the screen's own name for its business date ("Invoice date", "Bill date"). Not
+ *   derived from the heading: "Expenses" would give "Expenses date", and a label a user reads is
+ *   not somewhere to save four words of typing.
+ */
+export function documentSortOptions(dateLabel: string): readonly ListSortOption[] {
+  return [
+    { value: 'newest', label: 'Recently added' },
+    { value: 'date', label: dateLabel },
+  ];
+}

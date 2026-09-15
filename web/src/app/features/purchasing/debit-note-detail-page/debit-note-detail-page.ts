@@ -27,6 +27,7 @@ import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
+import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableLine {
@@ -48,7 +49,7 @@ let nextLineKey = 1;
  * so a full reversal nets Accounts Payable and TDS Payable back to zero. */
 @Component({
   selector: 'app-debit-note-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner, FieldErrorMessage],
   templateUrl: './debit-note-detail-page.html',
 })
 export class DebitNoteDetailPage {
@@ -78,6 +79,12 @@ export class DebitNoteDetailPage {
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
+
+  /**
+   * Phase 47 -- the form's per-field error state. Takes this page's own `errorMessage` signal rather
+   * than owning a second one, so the banner and the field marking cannot disagree (see `FieldError`).
+   */
+  protected readonly fieldError = new FieldError(this.errorMessage);
   protected readonly debitNote = signal<DebitNoteDetail | null>(null);
   protected readonly suppliers = signal<Contact[]>([]);
   protected readonly products = signal<Product[]>([]);
@@ -251,7 +258,7 @@ export class DebitNoteDetailPage {
 
   protected saveDraft(): void {
     if (!this.contactId()) {
-      this.errorMessage.set('Select a Supplier.');
+      this.fieldError.fail('debit-note-detail-page-supplier', 'Select a Supplier.');
       return;
     }
 

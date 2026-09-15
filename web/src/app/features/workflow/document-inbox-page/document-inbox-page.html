@@ -46,6 +46,24 @@
                 <span class="d-block mt-1">Model: <code>{{ setting.modelId }}</code></span>
               }
             </p>
+
+            <!-- Phase 47 (phase 46 limitation #5) -- the allowance, where the spending happens.
+                 Phase 46 metered AI scans per Nepal-local day and put the meter on the Subscription
+                 screen, which meant a user's first knowledge of the ceiling was a 409 from
+                 SubscriptionQuotaBehavior. A message you only meet by failing is doing accessibility
+                 work it was not designed for: it arrives in the live region as an interruption,
+                 after the click, with no way to have known beforehand. -->
+            @if (scanAllowance(); as allowance) {
+              <p class="small mb-0 mt-2" [class.text-muted]="allowance.left > 0" [class.text-danger-emphasis]="allowance.left === 0">
+                <i aria-hidden="true" class="bi bi-speedometer2"></i>
+                {{ allowance.used }} of {{ allowance.quota }} AI scans used today
+                @if (allowance.left > 0) {
+                  <span>&mdash; {{ allowance.left }} left.</span>
+                } @else {
+                  <span>&mdash; none left until tomorrow. Extraction will be refused until then.</span>
+                }
+              </p>
+            }
           </div>
           <div class="text-end">
             <div class="form-check form-switch fs-5">

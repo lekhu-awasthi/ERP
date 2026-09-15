@@ -78,6 +78,9 @@
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold" for="quotation-detail-page-customer">Customer</label>
             <select id="quotation-detail-page-customer"
+              [class.is-invalid]="fieldError.is('quotation-detail-page-customer')"
+              [attr.aria-invalid]="fieldError.invalid('quotation-detail-page-customer')"
+              [attr.aria-describedby]="fieldError.describedBy('quotation-detail-page-customer')"
               class="form-select"
               (change)="contactId.set($any($event.target).value)"
               [disabled]="!isDraft()"
@@ -87,6 +90,7 @@
                 <option [value]="customer.id" [selected]="customer.id === contactId()">{{ customer.code }} — {{ customer.name }}</option>
               }
             </select>
+            <app-field-error [state]="fieldError" control="quotation-detail-page-customer" />
           </div>
           <div class="col-6 col-sm-3">
             <label class="form-label small fw-semibold" for="quotation-detail-page-date">Date</label>

@@ -7,7 +7,7 @@ import { Invoice, InvoiceStatus } from '../../../core/sales/sales.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
-import { ListChrome } from '../../../shared/pagination/list-chrome';
+import { ListChrome, documentSortOptions } from '../../../shared/pagination/list-chrome';
 import { ListFilter } from '../../../shared/pagination/list-query-options';
 import { DateRangeService } from '../../../shared/platform/date-range.service';
 import { LocationName } from '../../../shared/locations/location-name';
@@ -53,10 +53,7 @@ export class InvoiceListPage {
    *
    * The invoice list is the right first consumer for the same reason: it is the one 34c measured.
    */
-  protected readonly sortOptions = [
-    { value: 'newest', label: 'Recently added' },
-    { value: 'date', label: 'Invoice date' },
-  ];
+  protected readonly sortOptions = documentSortOptions('Invoice date');
 
   constructor() {
     this.load();

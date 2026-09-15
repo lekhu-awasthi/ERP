@@ -7,22 +7,25 @@ import { ConfigurationService } from '../../core/configuration/configuration.ser
 import { CustomStatusPicker } from './custom-status-picker';
 
 /**
- * The picker renders **inside** each list row's `<a [routerLink]>`, which is why these two
- * assertions exist and why they are opposites.
+ * The picker used to render **inside** each list row's `<a [routerLink]>`, and carried two opposite
+ * event handlers to survive that: a click that stopped propagation *and* prevented the default
+ * (stopping propagation alone suppressed RouterLink's own listener, the one that calls
+ * preventDefault, so native anchor navigation opened the document), and a mousedown that did
+ * neither, because a native `<select>` opens its popup as the default action of mousedown.
  *
- * <p><b>The bug they pin.</b> Clicking Select Status on the Quotation list opened the quotation
- * instead of the dropdown. The control already called `stopPropagation()`, and that was not merely
- * insufficient — it was the cause. Stopping propagation prevents RouterLink's own click listener
- * from running, and RouterLink's listener is the thing that calls `preventDefault()` before
- * navigating in-app. Suppressing it left the browser's *native* anchor navigation as the only
- * behaviour, so the row loaded. The guard has to prevent the default as well.</p>
+ * <p><b>Phase 47 removed the nesting instead.</b> A control inside a link is invalid HTML that no
+ * handler makes valid — it lands in the link's accessible name, and a keyboard user who tabs onto
+ * it is standing inside a link. The four rows are now a `<div>` with a `stretched-link` on the
+ * document code, so this control is a sibling of the link. The two navigation assertions are gone
+ * with the handlers they pinned; what replaces them is stronger and lives in
+ * `a11y-sweep-guard.spec.ts`: <i>no</i> template nests an interactive control in a link or a
+ * button, asserted over every template in the app rather than over this one component.</p>
  *
- * <p><b>And mousedown must NOT prevent the default</b>, which is the half a later "consistency"
- * edit would most plausibly break: a native `<select>` opens its popup as the default action of
- * mousedown, so preventing it there stops the dropdown opening at all. Both directions are asserted
- * so neither can be tidied into the other.</p>
+ * <p>The assertion kept here is the one about this component's own job — what it saves — plus the
+ * new one that it no longer swallows a click, so a later "restore the guard" edit has to argue with
+ * a test rather than with a comment.</p>
  */
-describe('CustomStatusPicker — nested inside a row anchor', () => {
+describe('CustomStatusPicker — a sibling of the row link, not a child of it', () => {
   const organizationId = '11111111-1111-1111-1111-111111111111';
   const documentId = '22222222-2222-2222-2222-222222222222';
 
@@ -66,22 +69,15 @@ describe('CustomStatusPicker — nested inside a row anchor', () => {
     return (fixture.nativeElement as HTMLElement).querySelector('select')!;
   }
 
-  it('prevents the row anchor from navigating when the control is clicked', async () => {
+  it('no longer swallows the click, because there is no anchor left to swallow it from', async () => {
     await render();
 
     const event = new MouseEvent('click', { bubbles: true, cancelable: true });
     select().dispatchEvent(event);
 
-    // Without this the browser follows the enclosing <a href> and the document opens.
-    expect(event.defaultPrevented).toBe(true);
-  });
-
-  it('lets mousedown keep its default, or the dropdown would never open', async () => {
-    await render();
-
-    const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
-    select().dispatchEvent(event);
-
+    // Phase 45 had to prevent this; phase 47 made it unnecessary by taking the control out of the
+    // link. Asserted rather than assumed, so the workaround cannot quietly come back with the
+    // nesting it was for.
     expect(event.defaultPrevented).toBe(false);
   });
 

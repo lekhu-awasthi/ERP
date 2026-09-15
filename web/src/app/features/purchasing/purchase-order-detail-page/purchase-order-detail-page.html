@@ -88,6 +88,9 @@
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold" for="purchase-order-detail-page-supplier">Supplier</label>
             <select id="purchase-order-detail-page-supplier"
+              [class.is-invalid]="fieldError.is('purchase-order-detail-page-supplier')"
+              [attr.aria-invalid]="fieldError.invalid('purchase-order-detail-page-supplier')"
+              [attr.aria-describedby]="fieldError.describedBy('purchase-order-detail-page-supplier')"
               class="form-select"
               (change)="contactId.set($any($event.target).value)"
               [disabled]="!isDraft()"
@@ -97,6 +100,7 @@
                 <option [value]="supplier.id" [selected]="supplier.id === contactId()">{{ supplier.code }} — {{ supplier.name }}</option>
               }
             </select>
+            <app-field-error [state]="fieldError" control="purchase-order-detail-page-supplier" />
           </div>
           <div class="col-6 col-sm-3">
             <label class="form-label small fw-semibold" for="purchase-order-detail-page-date">Date</label>

@@ -76,6 +76,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 43 | Aggregate completions: `UpdateOrganizationCommand` (8 editable fields, 3 refused by name), Deal/WorkTask as record parents with detail pages, `TrialStartsAt`/`TrialEndsAt` → `OriginatedAt`/`TermEndsAt`, `DebitNote.WarehouseId` so a standalone Goods return consumes FIFO, the Sales Register folded to base currency, Quick Payment/Receipt's currency control; product-to-location enforcement retired on live evidence | `phase-43-status.md` |
 | 46 | Metered add-on axes, where the roadmap premise that each axis is "a reader plus a ceiling" was wrong for two of three: the **AI-scan** ceiling (20/day on every tier and term length, sold by no add-on, per Nepal-local day, counted from the append-only `Audit` rows because a re-scan overwrites the document timestamp); **billing locations** as a purchased *record* that refuses nothing, on live evidence that the reference product caps them nowhere; **SMS** declared already-metered by phase 18's credit ledger; the transaction window corrected from the term to the allowance **year**; the entitlement mismatch surfaced and compared server-side; master-data creation gated past expiry | `phase-46-status.md` |
 | 45 | Multi-UOM × variants settled by live read — a variant **owns** its unit matrix, and phase 24's identity decision meant no schema change; a variant parent refused one (the sweep-guard exemption retired); `UpdateSecondaryUnitCommand`/`DeleteSecondaryUnitCommand` plus the primary-unit and duplicate-unit refusals; the `ProductAttributePool` importer (a ninth upload type whose rows add to a set its command replaces); `ListSmsLogsQuery`'s search term; the landed-cost drawer's replace semantics and the dry-run-in-a-transaction question decided and pinned | `phase-45-status.md` |
+| 47 | Accessibility completion: `Sort by` swept to all 16 document lists (the derived number, not the roadmap's 18) with a guard whose behavioural half drives every handler through both orderings; the four grids' `<select>`-inside-`<a>` removed rather than defended, with a whole-app nesting guard derived from which components render a control; per-field `aria-invalid`/`aria-describedby` plus focus movement on 13 document forms; the lookup/server search parity table pinned against real SQL Server; the drop list decided item by item; the AI-scan allowance shown where scanning happens. **The NVDA hour is still not done** — no screen reader is available in this environment, and it was not simulated | `phase-47-status.md` |
 
 ---
 
@@ -90,118 +91,47 @@ each `docs/phase-N-status.md`, and the 2026-09-02 and 2026-09-10 confirm-live ap
 
 ---
 
-## Completion phases (42–47) — from the carried items of phases 34c–41 (planned 2026-09-14)
+## Completion phases (42–47) — complete
 
 **Method.** Every "Carried items / Known limitations / Follow-ups" section from `phase-34c` through
 `phase-41` was read, each item was checked against the later phases that claimed it, and what is
 still open was grouped by the code it touches. Items the reference product also lacks, or that need
-an actor this codebase does not model, stay deferred with their re-entry condition. No new
-reference-tenant read was needed to plan; two phases (44, 45) name the read they need before coding.
+an actor this codebase does not model, stay deferred with their re-entry condition. Two phases (44,
+45) named the read they needed before coding, and both reads overturned recorded decisions.
 
-**Ordering rule.** What is already measured goes first (42 — the numbers exist and the fixes are
-scoped), then aggregate completions that many later screens depend on (43), then report semantics
-needing a live re-read (44), then breadth (45), then the two that need either a product decision or
-a person (46, 47).
-
-### 42. Performance follow-through (34c's carried items, 41 #3)
-- **The report layer is linear in the period** (34c #1): convert the seven readers that materialise
-  a whole period to the `JournalReportQueryHandler` shape — page the keys, fetch detail for the page,
-  SQL aggregates for phase-16c's footer totals. Measure each before and after on `tools/scale/`.
-- **`DetailGeneralLedgerQuery` returns 59.5 MB at `pageSize=50`** (34c #2): a report-semantics
-  decision — page by row within an account, or cap rows per account and disclose it in the response;
-  recommend the first, since the live report is a flat ledger.
-- **List search on a no-match term costs 0.9–1.4 s** (34c #6): the two-step handler (ids from the
-  covering index, then order and page) behind the shared search helper, so all 25 `List*Query` types
-  get it from one place (phase-35b's shared-helper rule: it owns every condition).
-- **Offset pagination's tail** (34c #5): decide keyset pagination once, with `PagedResult<T>`, the
-  list chrome and both sweep guards in scope — or record the re-entry condition as unmet and say so.
-- **The quota usage count** (41 #3): measure `SubscriptionUsageReader` at the Professional ceiling on
-  the 50k dataset before quoting a number; add the covering index only if the measurement asks.
-- The initial bundle (651 kB against 500 kB): Bootstrap CSS and the eager routes; decide whether the
-  budget or the bundle moves, and pin whichever with a test.
-
-### 43. Aggregate completions — the fields and pages that exist on one side only
-- **`UpdateOrganizationCommand`** for the nine read-only Organization detail fields (39 #2 — the
-  aggregate has been create-only since phase 1b; phase-31's rule that a field needs a nameable
-  command and screen).
-- **Deal and Task detail pages** (39 #1): `Deal` and `WorkTask` join the three polymorphic parent
-  enums, a third route family, per-parent permission re-checks, migration and guard updates —
-  phase-27a's sweep over two new parent types, bridged by name (the ordinal-cast gotcha).
-- **Rename `TrialStartsAt`/`TrialEndsAt` to term dates** (41 #2) across Domain, DTO, Angular and
-  consumers, in one scripted edit with asserted anchor counts.
-- **Product-to-location enforced at save** (36 #1), not only on the picker — after the two Cadehi
-  writes 35b named (a product scoped to one location, an invoice raised at another) decide whether
-  the reference product refuses it; if it does not, retire the enforcement idea with the evidence.
-- **A `Payment`'s currency control on Quick Payment/Receipt** (36 #6); **the Sales Register's money
-  columns in base currency** (36 #5, a decision with statutory weight — the register is filed in NPR).
-- **The standalone Debit Note's Goods line** (37 #1): a `WarehouseId` on the aggregate so the return
-  consumes from somewhere, or credit the Purchase account instead; choose the first — it is what the
-  Credit Note already does on the sales side.
-
-### 44. Report semantics that need a live re-read first — **DONE** (see `phase-44-status.md`)
-- Re-read Moonbeam (multi-warehouse, populated) for: *Display Warehouse in Column* vs *Group by
-  Warehouse* on Inventory Position (36 #2), Reporting Tags on the Journal report, Reporting Tags +
-  group-by-warehouse on Inventory Position, Group By Bill / Include Credit Note on the Sales Register
-  (35b #3), and Inventory Master's Txn Type filter for WarehouseTransfer / OpeningStock rows (37 #3,
-  26c Decision D). Re-read Cadehi for `sales-summary`'s Group Wise location grouping (36 #4).
-- Build only what the reads show; record each absent control as such.
-- **System Audit's location** (35b #2): stamp at audit-write time by loading the row's location in
-  `AuditBehavior` for location-bearing types, or exempt with the reason; recommend the stamp, since
-  32b's row scoping otherwise has a hole in the one report that names every action.
-- **Documents written while their type was out of scope carry no location** (35a #5, 35b #6): a
-  one-off backfill command to HeadOffice, run by Admin when `LocationScopeMode` widens, with the
-  count reported — not a silent migration.
-- The printed header's centred arrangement (39 #3): one change to the shared layout, verified on all
-  fifteen types with the existing PDF tests.
-
-### 45. Multi-UOM × variants, and import ergonomics — **DONE** (see `phase-45-status.md`)
-- **Multi-UOM × variants** (24, carried through 37 and 38): a variant's secondary-unit conversion
-  rates and prices, designed once; retire the sweep-guard allow-list reason with it.
-- **Bulk setup of a product's Attributes Used** (38): the ergonomic gap that makes variant import
-  create-only in practice; a small importer or a multi-select on the product form.
-- **The landed-cost drawer merges per product** instead of replacing (38); **the dry run inside a
-  rolled-back transaction** (38) is a design decision to make explicitly — recommend no, and record
-  that Confirm Upload's post-hoc errors are the accepted shape.
-- `ListSmsLogsQuery` gets its search term (39 #4, the one exemption that would earn it).
-
-### 46. Metered add-on axes and the subscription edges — **DONE** (see `phase-46-status.md`)
-- The premise "each new axis is a reader plus a ceiling on the plan row" was wrong for two of the
-  three. **AI scans** are a published per-**day** rate limit (20 on every tier, every term length,
-  sold by no add-on), counted from the append-only `Audit` rows because
-  `UploadedDocument.ExtractionAttemptedAt` is overwritten by every re-scan. **Billing locations** are
-  sold per unit and capped nowhere in the reference product, so the purchased count is a record that
-  refuses nothing. **SMS** was already metered by phase 18's credit ledger, which is the right
-  mechanism for a purchased balance; nothing built.
-- **Plan change vs entitlement flags** (41 #5): surfaced, never reconciled — and compared on the
-  server, because the plan tick-list and the tenant feature list use two vocabularies.
-- **The quota race** (41 #6): left documented, as recommended.
-- **Expired-tenant behaviour** (41 #7, 31 #5/#6): narrowed rather than taken whole — a third marker
-  gates master-data creation past expiry, while settings edits and the renewal command stay open.
-  Still derived; **Cadehi's trial ends 2026-09-22**, the first observable expiry with a date.
-- The vendor-side actor stays a re-entry condition (41 #1), now confirmed live on all three axes.
-
-### 47. Accessibility completion — the parts that need a person
-- **An hour with NVDA** (40 #1): a person, on Windows, hears the live regions and the roving toolbar;
-  the session records what was heard, and fixes only what was heard to be wrong.
-- **`aria-describedby` on every document form** (40 #2): per-field error association beyond the 15
-  fields that had messages; the pattern exists, the sweep is the work, and a guard pins it.
-- **`Sort by` across the 18 qualifying document lists** (40 #4), now that one consumer has proved the
-  seam — with the rule that the offered orderings are read from `TenantIndexConvention`.
-- **Lookup vs server search parity** (40 #5): a test that feeds both `matchesLookup` and a `LIKE`
-  query the same cases, in the shared-table style of `rich-text-cases.json`.
-- The `role="toolbar"` extraction waits for a second toolbar (40 #6); the two `NG8113` warnings go
-  whenever those two files are next opened (39 #8).
-
-**Recommended drop list (decided, not silently omitted):** `Organization > Developer Mode` and
-`> Documents`, `Product.PrintProfileId`, the Marketplace flag, the Service Charge column, supplier
-credit-limit enforcement, `customtags` in the rich-text toolbar (39 #6 — unresolvable without a tenant
-where it works), and rich-text tables/images (39 #5 — re-entry: a tenant who needs a table in their
-terms).
+The planning entries for 42–47 moved verbatim to `docs/roadmap-history.md` on 2026-09-15; the
+outcomes are in each `docs/phase-N-status.md`, and the index table above carries the one-line
+summaries. **Phase 47 was the last planned phase.** What follows replaces the forward plan.
 
 ---
 
-## Deferred beyond this roadmap (post-v1 — seams kept, no phases planned)
-Explicit decisions (2026-08-18, revised 2026-09-02, 2026-09-10 and 2026-09-14), not omissions:
+## What remains (2026-09-15)
+
+Nothing is planned. What is left falls into three kinds, and each says what would start it.
+
+### One item that needs a person, not a decision
+
+**An hour with NVDA**, on Windows, on the live regions, the rich-text toolbar's roving tabindex, the
+three phase-46 subscription panels and phase 47's field-level errors. Phases 40 and 47 both built
+what could be derived and both recorded plainly that no screen reader was run, because none is
+available in this environment. This is the only item in this section, and it is the only thing
+standing between the codebase and a finished WCAG 2.1 AA story. **Start condition:** a person with
+headphones. Record what is heard verbatim before changing anything — phase 40's own rule, and the
+reason its first focus sweep nearly reported an app-wide 2.4.7 failure that did not exist.
+
+### One re-entry condition with a date
+
+**Cadehi's trial ends 2026-09-22.** It is the first observable expiry this project has ever had a
+date for, and one read settles what phases 31 and 46 both had to derive: what a tenant can and cannot
+do once its term is over. Phase 46 narrowed the behaviour rather than guessing at it whole — a third
+marker gates master-data creation past expiry while settings edits and the renewal command stay open
+— and named this read as the thing that would confirm or correct it.
+
+### Deferred beyond this roadmap (post-v1 — seams kept, no phases planned)
+
+Explicit decisions (2026-08-18, revised 2026-09-02, 2026-09-10, 2026-09-14 and 2026-09-15), not
+omissions:
+
 - **Delivery Note / Goods Received Note (physical-movement inventory).** `TenantSettings.InventoryTrackingMode`
   is the seam. Cadehi's General page offers *Physical Movement*; with Accounting Movement selected no
   DO/GRN appears anywhere. **Re-entry:** the user flips that setting on the Cadehi trial tenant and
@@ -210,6 +140,8 @@ Explicit decisions (2026-08-18, revised 2026-09-02, 2026-09-10 and 2026-09-14), 
   account).
 - **A vendor-side actor** (41 Decision G): every subscription ceiling is self-liftable until an actor
   outside `OrganizationId` exists. A console, a support role, or an API key — a phase of its own.
+  Phase 46 confirmed this live on all three metered axes, and phase 47's `LocationQuota` decision
+  (Decision H #2) waits on the same thing.
 - **Unrealised forex revaluation at period end** (28 Decision A): no revaluation document exists in
   the reference product; only the realised account does.
 - **Per-user location assignment** (32b #4): both live tenants' Users screens have no location
@@ -223,5 +155,25 @@ Explicit decisions (2026-08-18, revised 2026-09-02, 2026-09-10 and 2026-09-14), 
   Annex reports omit rather than fake those columns (Phase 8f precedent).
 - **Marketplace / third-party app ecosystem**: a permission flag in the research, nothing more.
 
+### Dropped, with the reason (phase 47, Decision G)
+
+Not deferred — decided against, so that no future session has to re-open them from a list. The full
+reasoning and the re-entry condition for each is in `docs/phase-47-status.md`:
+`Organization > Developer Mode` (API credential management — a platform feature, confirm-lived in
+phase 25), `Organization > Documents` (a bare upload zone over phase 18's `Attachment`),
+`Product.PrintProfileId` (live-confirmed to do nothing observable), the Marketplace flag, the Service
+Charge column (a product flag this codebase does not model, printing `-` on every live row), supplier
+credit-limit enforcement (the setting's own wording says Customer), `customtags` in the rich-text
+toolbar, and rich-text tables/images (a *renderer* capability before a toolbar one).
+
+### Carried engineering items, each named in a status doc
+
+Small, specific and each with its own re-entry condition — read the phase's own doc rather than this
+list: `Cheque`'s missing date index (47 #2, wants a `tools/scale/` measurement first), the Attributes
+Used editor's flat checkbox list (45 #1 / 47 #3), two banner-only messages that name no single
+control (47 #4), `role="toolbar"`'s roving tabindex with one consumer (40 #6 / 47 #5), and the
+`ListSort`-to-`TenantIndexConvention` correspondence that no test asserts because the two live in
+different assemblies (40 / 47 #6).
+
 ---
-*Living doc — re-order/re-scope as real constraints surface. When picking up a phase: read its confirmed shape in `erp-module-scan.md` first; if the screen was never opened in the hands-on pass, confirm it against the live Tigg UAT tenant through the Browser pane (user logs in themselves) before writing code — the Phase 8f Annex 5 lesson: the speculative design and the real screen had nothing in common. Every phase ends with its own `phase-N-status.md`; CLAUDE.md's known-gotchas list is the pre-flight checklist for migrations, EF Core LINQ, and Angular selects.*
+*Living doc — re-order/re-scope as real constraints surface. When picking up work: read its confirmed shape in `erp-module-scan.md` first; if the screen was never opened in the hands-on pass, confirm it against the live Tigg UAT tenant through the Browser pane (user logs in themselves) before writing code — the Phase 8f Annex 5 lesson: the speculative design and the real screen had nothing in common. Every phase ends with its own `phase-N-status.md`; CLAUDE.md's known-gotchas list is the pre-flight checklist for migrations, EF Core LINQ, and Angular selects.*

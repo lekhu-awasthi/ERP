@@ -7,7 +7,7 @@ import { CreditNote, CreditNoteStatus } from '../../../core/sales/sales.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
-import { ListChrome } from '../../../shared/pagination/list-chrome';
+import { ListChrome, documentSortOptions } from '../../../shared/pagination/list-chrome';
 import { ListFilter } from '../../../shared/pagination/list-query-options';
 import { DateRangeService } from '../../../shared/platform/date-range.service';
 import { LocationName } from '../../../shared/locations/location-name';
@@ -84,6 +84,20 @@ export class CreditNoteListPage {
    */
   protected onLocation(locationId: string): void {
     this.filter.location.set(locationId);
+    this.page.set(1);
+    this.load();
+  }
+
+  /**
+   * Phase 47 -- the chrome's `Sort by`, swept from the invoice list phase 40 proved the seam with.
+   * Two options because two is how many orderings `TenantIndexConvention` indexes this document
+   * for; see `documentSortOptions`.
+   */
+  protected readonly sortOptions = documentSortOptions('Credit note date');
+
+  /** Resets to page 1 like every other filter on this page -- see `onSearch`. */
+  protected onSort(sort: string): void {
+    this.filter.sort.set(sort);
     this.page.set(1);
     this.load();
   }

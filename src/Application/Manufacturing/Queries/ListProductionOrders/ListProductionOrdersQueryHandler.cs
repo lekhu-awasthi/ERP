@@ -57,13 +57,25 @@ public sealed class ListProductionOrdersQueryHandler(IAppDbContext db, ICurrentU
             orders = orders.Where(x => x.Date <= toDate);
         }
 
-        var query =
+        var joined =
             from order in orders
             join product in db.Products on order.ProductId equals product.Id
-            orderby order.CreatedAt descending
-            select new ProductionOrderListItemDto(
-                order.Id, order.Code, order.Date, order.Reference, order.ProductId, product.Name,
-                order.OutputQuantity, order.Status, order.CustomStatusId, order.LocationId);
+            select new { order, product };
+
+        // Phase 47 -- the chrome's Sort by control. The ordering is applied to the *joined* query
+        // rather than to `orders` before it, because this is one of the two lists that project a
+        // DTO: the projection drops `CreatedAt`, so ordering after it could only offer one of the
+        // two options. Ordering before the join would leave EF free to discard it.
+        var ordered = request.Sort switch
+        {
+            ListSort.DocumentDate => joined
+                .OrderByDescending(x => x.order.Date).ThenByDescending(x => x.order.CreatedAt),
+            _ => joined.OrderByDescending(x => x.order.CreatedAt),
+        };
+
+        var query = ordered.Select(x => new ProductionOrderListItemDto(
+            x.order.Id, x.order.Code, x.order.Date, x.order.Reference, x.order.ProductId, x.product.Name,
+            x.order.OutputQuantity, x.order.Status, x.order.CustomStatusId, x.order.LocationId));
 
         return await query.ToPagedResultAsync(request.Page, request.PageSize, cancellationToken);
     }

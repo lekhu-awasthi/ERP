@@ -85,6 +85,9 @@
           <div class="col-12 col-sm-4">
             <label class="form-label small fw-semibold" for="cash-transfer-detail-page-from-account">From Account</label>
             <select id="cash-transfer-detail-page-from-account"
+              [class.is-invalid]="fieldError.is('cash-transfer-detail-page-from-account')"
+              [attr.aria-invalid]="fieldError.invalid('cash-transfer-detail-page-from-account')"
+              [attr.aria-describedby]="fieldError.describedBy('cash-transfer-detail-page-from-account')"
               class="form-select"
               [value]="fromAccountId()"
               (change)="fromAccountId.set($any($event.target).value)"
@@ -95,6 +98,7 @@
                 <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
               }
             </select>
+            <app-field-error [state]="fieldError" control="cash-transfer-detail-page-from-account" />
           </div>
           <div class="col-12 col-sm-4">
             <label class="form-label small fw-semibold" for="cash-transfer-detail-page-reference">Reference</label>

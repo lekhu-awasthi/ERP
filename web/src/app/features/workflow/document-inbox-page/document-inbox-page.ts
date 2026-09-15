@@ -16,6 +16,7 @@ import { InboxService } from '../../../core/workflow/inbox.service';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { SubscriptionStore } from '../../../shared/platform/subscription.store';
 
 /**
  * Phase 22 (FR-10.3) -- Workflow > Document. Lives beside the Transaction Approval queue, matching
@@ -43,6 +44,7 @@ export class DocumentInboxPage {
   private readonly router = inject(Router);
   private readonly inboxService = inject(InboxService);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly subscriptionStore = inject(SubscriptionStore);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -83,6 +85,28 @@ export class DocumentInboxPage {
 
   /** Both gates must be open for the Extract button to do anything: the deployment must have a
    * credential, and this tenant must have opted in. The template names whichever is missing. */
+  /**
+   * Phase 47 (phase 46 limitation #5) -- today's AI-scan allowance, on the screen that spends it.
+   *
+   * <p>Reads the shared `SubscriptionStore` rather than issuing its own call, so the figure here and
+   * the meter on the Subscription screen are one read (phase 41's rule: state two surfaces show needs
+   * a shared store when one of them changes). Null when the tenant is unmetered -- a zero quota means
+   * "no ceiling" on this axis -- or while the read is still in flight, and the line simply does not
+   * render: a counter that says nothing is worse than no counter.</p>
+   */
+  protected readonly scanAllowance = computed(() => {
+    const subscription = this.subscriptionStore.subscription(this.organizationId)();
+
+    if (!subscription || subscription.usage.dailyAiScanQuota <= 0) {
+      return null;
+    }
+
+    const used = subscription.usage.aiScansUsed;
+    const quota = subscription.usage.dailyAiScanQuota;
+
+    return { used, quota, left: Math.max(0, quota - used) };
+  });
+
   protected readonly extractionAvailable = computed(() => {
     const setting = this.extractionSetting();
     return !!setting && setting.enabled && setting.extractorConfigured;
@@ -337,6 +361,9 @@ export class DocumentInboxPage {
       next: (updated) => {
         this.busyDocumentId.set(null);
         this.documents.update((docs) => docs.map((d) => (d.id === updated.id ? updated : d)));
+        // Phase 47 -- a scan has just been spent (or a clear has not), so the shared store is out of
+        // date by one. `reload` is the store's own "a screen has reason to believe usage has moved".
+        this.subscriptionStore.reload(this.organizationId);
         // A hand-filed or reopened document may have moved off the tab being viewed.
         if (updated.status !== this.status()) {
           this.load();

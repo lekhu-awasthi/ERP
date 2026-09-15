@@ -16,6 +16,7 @@ import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-cus
 import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
+import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableLine {
@@ -34,7 +35,7 @@ let nextLineKey = 1;
  * credit). */
 @Component({
   selector: 'app-cash-transfer-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner, FieldErrorMessage],
   templateUrl: './cash-transfer-detail-page.html',
 })
 export class CashTransferDetailPage {
@@ -59,6 +60,12 @@ export class CashTransferDetailPage {
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
+
+  /**
+   * Phase 47 -- the form's per-field error state. Takes this page's own `errorMessage` signal rather
+   * than owning a second one, so the banner and the field marking cannot disagree (see `FieldError`).
+   */
+  protected readonly fieldError = new FieldError(this.errorMessage);
   protected readonly cashTransfer = signal<CashTransferDetail | null>(null);
   protected readonly accounts = signal<Account[]>([]);
   protected readonly isNew = signal(false);
@@ -150,7 +157,7 @@ this.exchangeRate.set(1);
   protected saveDraft(): void {
     const fromAccountId = this.fromAccountId();
     if (!fromAccountId) {
-      this.errorMessage.set('Select a From Account.');
+      this.fieldError.fail('cash-transfer-detail-page-from-account', 'Select a From Account.');
       return;
     }
 

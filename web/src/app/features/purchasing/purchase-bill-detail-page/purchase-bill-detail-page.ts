@@ -42,6 +42,7 @@ import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-cus
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { defaultWarehouseSeed } from '../../../shared/locations/default-warehouse-seed';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
+import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableLine {
@@ -75,7 +76,7 @@ let nextAdditionalCostKey = 1;
  * "Convert to Credit Note". */
 @Component({
   selector: 'app-purchase-bill-detail-page',
-  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner],
+  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner, FieldErrorMessage],
   templateUrl: './purchase-bill-detail-page.html',
 })
 export class PurchaseBillDetailPage {
@@ -111,6 +112,12 @@ export class PurchaseBillDetailPage {
   protected readonly previewingGl = signal(false);
   protected readonly glPreview = signal<{ accountId: string; debit: number; credit: number }[] | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
+
+  /**
+   * Phase 47 -- the form's per-field error state. Takes this page's own `errorMessage` signal rather
+   * than owning a second one, so the banner and the field marking cannot disagree (see `FieldError`).
+   */
+  protected readonly fieldError = new FieldError(this.errorMessage);
   protected readonly purchaseBill = signal<PurchaseBillDetail | null>(null);
   protected readonly suppliers = signal<Contact[]>([]);
   protected readonly products = signal<Product[]>([]);
@@ -466,11 +473,11 @@ export class PurchaseBillDetailPage {
 
   protected saveDraft(): void {
     if (!this.contactId()) {
-      this.errorMessage.set('Select a Supplier.');
+      this.fieldError.fail('purchase-bill-detail-page-supplier', 'Select a Supplier.');
       return;
     }
     if (!this.warehouseId()) {
-      this.errorMessage.set('Select a Warehouse.');
+      this.fieldError.fail('purchase-bill-detail-page-warehouse', 'Select a Warehouse.');
       return;
     }
     if (this.isImport() && (!this.importCountry() || !this.importDate() || !this.importDocumentNo())) {

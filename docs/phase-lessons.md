@@ -1035,3 +1035,60 @@ agreement. Compare where both sides are typed.
 settings panel. Taking the dependency is not spending the allowance. Name the exclusions with their
 reasons, and assert each named exclusion still exists so a rename cannot leave a stale excuse behind
 that exempts some future handler of the same name — `docs/phase-46-status.md`
+
+**Before sweeping a seam across "the N screens that qualify"**: derive N, do not inherit it. The
+roadmap said 18 document lists, carried from phase 40's shape census, which had written "~18"; the
+derivation — *a document list is a paginated query that also filters by date range*, which is phase
+34b's own rule for "this aggregate has a business date" and the same sentence `TenantIndexConvention`
+reads — gives **15 queries over 16 screens**, because `ListPaymentsQuery` backs two of them. The one
+exemption is worth more than the count: `ListChequesQuery` fails the rule twice over, and the second
+failure is a finding — the convention recognises a business date by *name* (`Date`, `PostedAt`) and a
+cheque spells its `ChequeDate`, so the Cheque Register's ordering column has never been indexed.
+
+**Before writing a sweep guard over request records**: phase 44's lesson is that it cannot see
+whether the *handler* does what the record promises, so give it a behavioural half. Phase 47's seeds
+two documents whose creation order and business date deliberately **disagree** and drives every one
+of the fifteen real handlers through both orderings; a seed where they agreed would prove nothing.
+Three things make that generic rather than fifteen hand-written tests — every handler has the
+identical two-argument constructor, the aggregate is derivable from the query's name, and every
+aggregate is built through **its own `Create` factory** with only `CreatedAt` stamped afterwards.
+Name the two arguments a factory refuses at zero rather than defaulting them, so the sixteenth
+document type fails loudly instead of being fed a value its factory rejects.
+
+**Before defending a control against the container it is in**: ask whether the container is the
+defect. Phase 45 correctly diagnosed why a `<select>` inside a row's `<a routerLink>` navigated, and
+fixed the navigation; the nesting itself is a WCAG failure no event handler can repair — the control
+lands inside the link's accessible name, a keyboard user tabs into a link they did not choose, and
+the parser may hoist the element out. The row becomes a `<div>`, the link a `stretched-link` on the
+title, the controls siblings at `position-relative z-2` (the overlay is `z-index: 1`, so
+`position-relative` alone is not enough), and the focus ring has to follow the link back out to the
+row or the indicator shrinks from a whole row to four characters. What replaces the component's own
+defence is a guard over every template — and its interesting half is *derived*: a regex for
+`<select>` inside `<a>` finds nothing, because what these four grids nest is a **component**.
+
+**Before associating a validation message with its field across many forms**: key on the control's
+**DOM id**, which phase 34a already made stable and unique on every control in the app. One string
+then yields the message element's id, the `aria-describedby` that points at it and the `fail()` call,
+all by derivation — which is the only reason a guard can check *both* ends (a `fail()` with no
+message element dangles its `aria-describedby`; a message element nothing ever names never renders,
+and looks like working markup forever). Derive the "which field is at fault" state from the page's
+own error-message signal rather than storing a flag, or a field stays painted red under a message
+about something else. And read that signal **unconditionally** inside the `computed()`: a `&&` that
+short-circuits past it on the first (unfailed) render leaves the computed with no dependencies and
+frozen for the life of the page — while every unit test that calls `fail()` before reading passes.
+
+**Before pinning two implementations of one rule to a shared table**: run the half that has a
+database *against the database*. Phase 47's search-parity table is phase 26b's and phase 39's
+arrangement, but its server half lives in `Api.IntegrationTests` against SQL Server rather than in
+`Application.UnitTests`, because the property it is mostly about — case-insensitivity — belongs to
+the collation and the InMemory provider does not have it. The cases worth writing are the ones where
+a concatenated `LIKE` pattern would genuinely diverge (`%`, `_`, `[a-z]`); they agree, and that is a
+verified answer rather than an assumption.
+
+**Before the last planned phase ends**: decide the drop list item by item, in the status doc, with a
+re-entry condition each. An item left in a list nobody re-reads is a permanent silent gap, and the
+reasons are already recorded — phase 25 confirm-lived `Organization > Developer Mode` (API credential
+management, a platform feature) and `> Documents` (a bare upload zone, phase 18's `Attachment` with
+`ParentType=Organization`); phase 26b confirmed the Service Charge column prints `-` on every row;
+phase 31 recorded that a supplier's credit limit is stored and, by the setting's own wording, never
+enforced. — `docs/phase-47-status.md`

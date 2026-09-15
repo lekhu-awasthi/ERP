@@ -26,6 +26,7 @@ import { TermsEditor } from '../../../shared/terms/terms-editor';
 import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
+import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableLine {
@@ -44,7 +45,7 @@ let nextLineKey = 1;
  * Quotation. Approve posts CreditNotePostingRule's exact reverse of InvoicePostingRule. */
 @Component({
   selector: 'app-credit-note-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner, FieldErrorMessage],
   templateUrl: './credit-note-detail-page.html',
 })
 export class CreditNoteDetailPage {
@@ -73,6 +74,12 @@ export class CreditNoteDetailPage {
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
+
+  /**
+   * Phase 47 -- the form's per-field error state. Takes this page's own `errorMessage` signal rather
+   * than owning a second one, so the banner and the field marking cannot disagree (see `FieldError`).
+   */
+  protected readonly fieldError = new FieldError(this.errorMessage);
   protected readonly creditNote = signal<CreditNoteDetail | null>(null);
   protected readonly customers = signal<Contact[]>([]);
   protected readonly products = signal<Product[]>([]);
@@ -260,7 +267,7 @@ export class CreditNoteDetailPage {
 
   protected saveDraft(): void {
     if (!this.contactId()) {
-      this.errorMessage.set('Select a Customer.');
+      this.fieldError.fail('credit-note-detail-page-customer', 'Select a Customer.');
       return;
     }
 

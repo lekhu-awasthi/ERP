@@ -24,6 +24,7 @@ import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { defaultWarehouseSeed } from '../../../shared/locations/default-warehouse-seed';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
+import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableLine {
@@ -43,7 +44,7 @@ let nextLineKey = 1;
  * section once Approved, same as every GL-posting document type. */
 @Component({
   selector: 'app-inventory-adjustment-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, DocumentLocationPicker, StatusBanner],
+  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, DocumentLocationPicker, StatusBanner, FieldErrorMessage],
   templateUrl: './inventory-adjustment-detail-page.html',
 })
 export class InventoryAdjustmentDetailPage {
@@ -62,6 +63,12 @@ export class InventoryAdjustmentDetailPage {
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
+
+  /**
+   * Phase 47 -- the form's per-field error state. Takes this page's own `errorMessage` signal rather
+   * than owning a second one, so the banner and the field marking cannot disagree (see `FieldError`).
+   */
+  protected readonly fieldError = new FieldError(this.errorMessage);
   protected readonly inventoryAdjustment = signal<InventoryAdjustmentDetail | null>(null);
   protected readonly products = signal<Product[]>([]);
   protected readonly warehouses = signal<Warehouse[]>([]);
@@ -177,7 +184,7 @@ export class InventoryAdjustmentDetailPage {
 
   protected saveDraft(): void {
     if (!this.warehouseId()) {
-      this.errorMessage.set('Select a Warehouse.');
+      this.fieldError.fail('inventory-adjustment-detail-page-warehouse', 'Select a Warehouse.');
       return;
     }
 

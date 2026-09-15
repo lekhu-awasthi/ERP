@@ -27,6 +27,7 @@ import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-cus
 import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
+import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableLine {
@@ -48,7 +49,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-expense-detail-page',
-  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner],
+  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner, FieldErrorMessage],
   templateUrl: './expense-detail-page.html',
 })
 export class ExpenseDetailPage {
@@ -79,6 +80,12 @@ export class ExpenseDetailPage {
   protected readonly previewingGl = signal(false);
   protected readonly glPreview = signal<{ accountId: string; debit: number; credit: number }[] | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
+
+  /**
+   * Phase 47 -- the form's per-field error state. Takes this page's own `errorMessage` signal rather
+   * than owning a second one, so the banner and the field marking cannot disagree (see `FieldError`).
+   */
+  protected readonly fieldError = new FieldError(this.errorMessage);
   protected readonly expense = signal<ExpenseDetail | null>(null);
   protected readonly suppliers = signal<Contact[]>([]);
   protected readonly accounts = signal<Account[]>([]);
@@ -271,7 +278,7 @@ this.exchangeRate.set(1);
 
   protected saveDraft(): void {
     if (!this.contactId()) {
-      this.errorMessage.set('Select a Supplier.');
+      this.fieldError.fail('expense-detail-page-supplier', 'Select a Supplier.');
       return;
     }
 

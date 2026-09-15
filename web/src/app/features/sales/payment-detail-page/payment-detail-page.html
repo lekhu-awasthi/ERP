@@ -89,6 +89,9 @@
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold" for="payment-detail-page-customer">Customer</label>
             <select id="payment-detail-page-customer"
+              [class.is-invalid]="fieldError.is('payment-detail-page-customer')"
+              [attr.aria-invalid]="fieldError.invalid('payment-detail-page-customer')"
+              [attr.aria-describedby]="fieldError.describedBy('payment-detail-page-customer')"
               class="form-select"
               (change)="contactId.set($any($event.target).value)"
               [disabled]="!isDraft()"
@@ -98,6 +101,7 @@
                 <option [value]="customer.id" [selected]="customer.id === contactId()">{{ customer.code }} — {{ customer.name }}</option>
               }
             </select>
+            <app-field-error [state]="fieldError" control="payment-detail-page-customer" />
           </div>
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold" for="payment-detail-page-date">Date</label>
@@ -124,6 +128,9 @@
           <div class="col-12 col-sm-4">
             <label class="form-label small fw-semibold" for="payment-detail-page-deposit-to-account">Deposit To Account *</label>
             <select id="payment-detail-page-deposit-to-account"
+              [class.is-invalid]="fieldError.is('payment-detail-page-deposit-to-account')"
+              [attr.aria-invalid]="fieldError.invalid('payment-detail-page-deposit-to-account')"
+              [attr.aria-describedby]="fieldError.describedBy('payment-detail-page-deposit-to-account')"
               class="form-select"
               (change)="accountId.set($any($event.target).value)"
               [disabled]="!isDraft()"
@@ -133,10 +140,14 @@
                 <option [value]="account.id" [selected]="account.id === accountId()">{{ account.code }} — {{ account.name }}</option>
               }
             </select>
+            <app-field-error [state]="fieldError" control="payment-detail-page-deposit-to-account" />
           </div>
           <div class="col-12 col-sm-4">
             <label class="form-label small fw-semibold" for="payment-detail-page-amount">Amount *</label>
             <input id="payment-detail-page-amount"
+              [class.is-invalid]="fieldError.is('payment-detail-page-amount')"
+              [attr.aria-invalid]="fieldError.invalid('payment-detail-page-amount')"
+              [attr.aria-describedby]="fieldError.describedBy('payment-detail-page-amount')"
               type="number"
               class="form-control"
               min="0"
@@ -145,6 +156,7 @@
               (input)="amount.set($any($event.target).valueAsNumber || 0)"
               [disabled]="!isDraft()"
             />
+            <app-field-error [state]="fieldError" control="payment-detail-page-amount" />
           </div>
           <div class="col-12">
             <label class="form-label small fw-semibold" for="payment-detail-page-reference">Reference</label>

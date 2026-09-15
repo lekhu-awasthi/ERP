@@ -11,5 +11,6 @@ public sealed class ListDebitNotesQueryValidator : AbstractValidator<ListDebitNo
         this.ValidatePaging(x => x.Page, x => x.PageSize);
         this.ValidateSearch(x => x.Search);
         this.ValidateDateRange(x => x.FromDate, x => x.ToDate);
+        this.ValidateSort(x => x.Sort, ListSort.DocumentOrderings);
     }
 }

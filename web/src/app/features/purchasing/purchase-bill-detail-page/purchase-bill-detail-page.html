@@ -97,6 +97,9 @@
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold" for="purchase-bill-detail-page-supplier">Supplier</label>
             <select id="purchase-bill-detail-page-supplier"
+              [class.is-invalid]="fieldError.is('purchase-bill-detail-page-supplier')"
+              [attr.aria-invalid]="fieldError.invalid('purchase-bill-detail-page-supplier')"
+              [attr.aria-describedby]="fieldError.describedBy('purchase-bill-detail-page-supplier')"
               class="form-select"
               (change)="onContactChange($any($event.target).value)"
               [disabled]="!isDraft()"
@@ -106,10 +109,14 @@
                 <option [value]="supplier.id" [selected]="supplier.id === contactId()">{{ supplier.code }} — {{ supplier.name }}</option>
               }
             </select>
+            <app-field-error [state]="fieldError" control="purchase-bill-detail-page-supplier" />
           </div>
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold" for="purchase-bill-detail-page-warehouse">Warehouse *</label>
             <select id="purchase-bill-detail-page-warehouse"
+              [class.is-invalid]="fieldError.is('purchase-bill-detail-page-warehouse')"
+              [attr.aria-invalid]="fieldError.invalid('purchase-bill-detail-page-warehouse')"
+              [attr.aria-describedby]="fieldError.describedBy('purchase-bill-detail-page-warehouse')"
               class="form-select"
               (change)="warehouseId.set($any($event.target).value)"
               [disabled]="!isDraft()"
@@ -119,6 +126,7 @@
                 <option [value]="warehouse.id" [selected]="warehouse.id === warehouseId()">{{ warehouse.name }}</option>
               }
             </select>
+            <app-field-error [state]="fieldError" control="purchase-bill-detail-page-warehouse" />
             @if (warehouses().length === 0) {
               <p class="form-text text-danger">
                 No warehouses yet -- <a [routerLink]="['/organizations', organizationId, 'warehouses']">add one</a> first.

@@ -2703,3 +2703,170 @@ reasons, in the same `IReadOnlyDictionary<string, string>` shape phase 41 used f
 GL-posting types — and a second test asserts every named exclusion still exists, so deleting or
 renaming a handler cannot leave a stale excuse behind that silently exempts a future handler that
 happens to share its name.
+
+## A `computed()` that short-circuits past its signal never recomputes (phase 47)
+
+Angular's `computed()` records, as its dependency set, exactly the signals the evaluation it is
+memoising actually **read**. That is not a subtlety in a graph where every branch reads something; it
+is a trap the moment a `&&` can skip the signal.
+
+Phase 47's `FieldError` derived "which control is the current message about" like this:
+
+```ts
+this.active = computed(() => {
+  const owner = this.owner;                                       // a plain field, not a signal
+  return owner !== null && this.errorMessage() === owner.message  // <- short-circuits
+    ? owner.control : null;
+});
+```
+
+On a form that has not failed yet — which is the first render of every form — `owner` is null, `&&`
+short-circuits, and `this.errorMessage()` is **never reached**. The computed memoises `null` with an
+*empty* dependency set, and no later `fail()` can wake it: there is no signal whose change would
+invalidate it. Every document form in the app rendered without `aria-invalid`, without
+`aria-describedby` and without `is-invalid`, while the banner announced correctly and focus moved
+correctly, because both of those are done imperatively by `fail()` itself. A confusing symptom: two
+thirds of the feature worked.
+
+**Read the signal first and unconditionally.** One line, and the ordering is load-bearing enough to
+carry a comment saying so.
+
+**Why no test caught it.** All six of `field-error.spec.ts`'s tests called `fail()` before reading
+anything, so the first evaluation always had `owner` set and always reached the signal. The test that
+now pins it reads the computed **before** the first failure and then asserts it reacts — which is the
+ordering a real page has and a test naturally does not.
+
+This is the mirror of CLAUDE.md's standing expression-tree gotcha: there, the problem is that an
+expression tree does **not** short-circuit and hands EF a null; here, the problem is that a reactive
+closure **does** short-circuit and hands the graph nothing. Both are about a `||`/`&&` whose skipped
+half was the part that mattered.
+
+## An HTML comment is prose, and a source-scanning guard cannot tell (phase 47)
+
+`a11y-sweep-guard.spec.ts` is regexes over raw template text, deliberately — an Angular template is
+not HTML and every parser worth using would either choke on the control-flow blocks or normalise away
+the attributes being checked. The cost of that decision only appeared when phase 47 added a check for
+*interactive controls nested inside a link*: its first run named five templates, and all five were
+**comments explaining the rule being checked**, including the phase's own "a &lt;select&gt; nested in
+an &lt;a&gt; is invalid HTML that no event handler makes valid".
+
+Comments are now stripped once, where `entries` is built, so every assertion in the file benefits and
+the character offsets stay consistent for the ones that use them. Stripping can only remove false
+positives: markup that is commented out does not render, so it cannot be an accessibility defect.
+
+Two halves have to be asserted, and the second is the one that matters: that comments are gone **and
+that nothing else is**. A greedy `<!--[\s\S]*-->` would swallow everything between the first `<!--`
+and the last `-->`, which on these templates is most of the file — and every other assertion in the
+guard would then pass over an empty string, which is phase 34a's empty-stylesheet failure in a new
+place.
+
+Phase 40 met the same class of trap from the other side: a backtick inside a comment inside an inline
+`template:` literal terminates the template, and the compiler blames the decorator.
+
+## A nested control is the defect; the navigation was only the symptom (phase 47)
+
+Phase 45 found that clicking the Custom Status picker on a document list opened the document, traced
+it exactly right (`stopPropagation` suppresses RouterLink's own listener — the one that calls
+`preventDefault` — leaving native anchor navigation as the only behaviour), and fixed it with a
+click handler that does both and a mousedown handler that does neither.
+
+It left the `<select>` inside the `<a>`, and that is the accessibility defect:
+
+* the control's text is folded into the **link's accessible name**, so the row announces as one
+  control with the options read out as part of its label;
+* a keyboard user who tabs onto the select is standing **inside a link** they never chose to enter;
+* HTML's parser is entitled to hoist the element out of the anchor, which is how identical markup
+  behaves differently in two browsers.
+
+The shape that works: the row is a `<div>` carrying the row classes plus `position-relative`, the
+link is an `<a class="stretched-link">` on the row's title, and the controls are siblings with
+`position-relative z-2`.
+
+**`z-2` is load-bearing and `position-relative` alone is not.** Bootstrap paints `stretched-link`'s
+overlay at `z-index: 1`, so a merely-positioned control still sits underneath it and the row link
+swallows the click. Verify it rather than reasoning about it: `document.elementFromPoint` at the
+control's own centre must return the control.
+
+**And the focus ring has to follow.** The link is now a small anchor on the title, so `:focus-visible`
+on it shrinks the indicator from a whole row to a few characters of text — trading one defect for a
+worse one, since 2.4.7 is about seeing *where you are*. Suppress the link's own ring and paint the
+row's through `:has(.stretched-link:focus-visible)`.
+
+**What replaces a component defending itself is a guard over every template — and its interesting
+half must be derived.** A regex for `<select>` inside `<a>` finds **nothing** on the four grids that
+actually shipped this, because what they nest is a *component*. So collect the selector of every
+component whose own template renders a control, and treat a nested one of those the same as a nested
+`<select>`. The sixteenth control component is then covered on the day it is written.
+
+## A scripted insert must anchor on the whole declaration, comment included (phase 47)
+
+Phase 35a's lesson was that a script inserting an import after "the last `import ` line" lands
+*inside* a multi-line `import { … }` block, and the fix was to anchor on the statement's **closing**
+line. Phase 47 hit its mirror image. A sweep that inserted a new field and method before
+`protected onSearch(term: string): void {` landed between that method and its own doc comment, on
+fifteen files at once, orphaning the comment above an unrelated field:
+
+```ts
+  /**
+   * Phase 34b -- the shared list chrome's search box. Resets to page 1, because …
+   */
+  /**
+   * Phase 47 -- the chrome's `Sort by` …
+   */
+  protected readonly sortOptions = …
+```
+
+The unit being anchored on is **the comment plus the declaration**, not the declaration. Anchor on
+the comment block's opening line when inserting before, and on the statement's closing line when
+inserting after. Both failures compile, and neither is visible in a diff stat.
+
+## One sweep, two newline conventions (phase 47)
+
+Three of the forty-two files in phase 47's server-side sweep are LF while the rest are CRLF, in a
+repository that is otherwise CRLF throughout. A script anchored on `\r\n` aborted on the third file
+with an anchor that *looked* correct — which is the useful failure, and only because the script
+asserted its anchor count before writing anything. A script that had merely written would have
+rewritten three whole files invisibly, which is phase 33's `sed -i` gotcha reached from a different
+direction.
+
+Detect the newline per file (`"\r\n" if "\r\n" in raw else "\n"`), normalise to LF for matching, and
+write back with the file's own. Phase 32's rule — assert every anchor count before writing — is what
+turns this from a silent rewrite into an abort.
+
+## A parity test between two implementations must run against the real one (phase 47)
+
+Phase 40 shipped two answers to "does this row match what I typed": the paginated lists send a term
+to the server (`x.Column.Contains(term)` in a handler's `Where`), the Configurations lookups filter
+in the browser (`matchesLookup`). It said plainly that nothing made them agree.
+
+The shared-table arrangement is phase 26b's and phase 39's — one JSON file both suites read, neither
+implementation the source of truth for the other. What is specific here is **where the server half
+runs**: `Api.IntegrationTests`, against SQL Server in a container, *not* `Application.UnitTests`.
+The property the table is mostly about is case-insensitivity, and that comes from the collation, not
+from the expression: single-argument `Contains` is case-insensitive on SQL Server and
+case-**sensitive** on InMemory. A parity test on InMemory would pin a behaviour production does not
+have — which is the standing gotcha the whole exercise lives inside.
+
+The cases worth writing are the ones where a `LIKE` pattern built by string concatenation would
+genuinely have diverged: `%`, a bare `_`, and `[a-z]` are characters the user typed, not wildcards
+and not a character class. They agree today — and that is a *verified* answer rather than an
+assumption, which is the reason to write the case rather than reason about it.
+
+## A convention that matches by name is a list, and a list becomes a wrong list (phase 47)
+
+`TenantIndexConvention` says, in its own docstring, that "an entity that carries `OrganizationId`
+*and* a business date is a document" and gets both the report index and the list index. It recognises
+that business date by **name**: `Date`, then `PostedAt`. `Cheque` spells its `ChequeDate`, so it
+falls through to the master-data branch, keeps only its hand-written `(OrganizationId, Status)` — and
+its list's existing `ORDER BY ChequeDate DESC` has been a sort over the whole filtered set since
+phase 17.
+
+The convention does not throw for it, because the throw asks a different question: *does this
+tenant-scoped entity have any leading-`OrganizationId` index at all*, and `(OrganizationId, Status)`
+satisfies that. So the gap is silent in both directions.
+
+Phase 30's rule, in an unexpected place: **a list sampled from a few screens becomes a wrong list;
+find the rule.** Here the rule would be a marker or a mapped property rather than a name list — and
+the reason phase 47 carried it rather than adding `"ChequeDate"` is phase 34c's: an index added for
+one access path changes the plan for every other path over the same table, so it wants a measurement
+on the 50k dataset, not a one-line edit at the end of an unrelated phase.

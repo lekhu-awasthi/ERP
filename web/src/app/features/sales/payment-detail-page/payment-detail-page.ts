@@ -27,6 +27,7 @@ import { PrintingService } from '../../../core/printing/printing.service';
 import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download-file';
 import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
+import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 interface EditableAllocation {
@@ -43,7 +44,7 @@ let nextAllocationKey = 1;
  * confirmed in erp-module-scan.md's hands-on pass. */
 @Component({
   selector: 'app-payment-detail-page',
-  imports: [RouterLink, DatePipe, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner],
+  imports: [RouterLink, DatePipe, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner, FieldErrorMessage],
   templateUrl: './payment-detail-page.html',
 })
 export class PaymentDetailPage {
@@ -75,6 +76,12 @@ export class PaymentDetailPage {
   protected readonly previewingGl = signal(false);
   protected readonly glPreview = signal<GlLinePreviewDto[] | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
+
+  /**
+   * Phase 47 -- the form's per-field error state. Takes this page's own `errorMessage` signal rather
+   * than owning a second one, so the banner and the field marking cannot disagree (see `FieldError`).
+   */
+  protected readonly fieldError = new FieldError(this.errorMessage);
   protected readonly payment = signal<PaymentDetail | null>(null);
   protected readonly customers = signal<Contact[]>([]);
   protected readonly accounts = signal<Account[]>([]);
@@ -252,15 +259,15 @@ export class PaymentDetailPage {
 
   protected saveDraft(): void {
     if (!this.contactId()) {
-      this.errorMessage.set('Select a Customer.');
+      this.fieldError.fail('payment-detail-page-customer', 'Select a Customer.');
       return;
     }
     if (!this.accountId()) {
-      this.errorMessage.set('Select a cash/bank Account.');
+      this.fieldError.fail('payment-detail-page-deposit-to-account', 'Select a cash/bank Account.');
       return;
     }
     if (this.amount() <= 0) {
-      this.errorMessage.set('Amount must be greater than zero.');
+      this.fieldError.fail('payment-detail-page-amount', 'Amount must be greater than zero.');
       return;
     }
 
