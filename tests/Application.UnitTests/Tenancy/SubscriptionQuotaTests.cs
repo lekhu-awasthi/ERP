@@ -36,7 +36,7 @@ public class SubscriptionQuotaTests
         // than as "no limit", this is the shape that would brick every trial on its first invoice.
         await PostEntriesAsync(db, 25);
 
-        Assert.Equal(0, await SubscriptionUsageReader.CountTransactionsAsync(db, subscription, default));
+        Assert.Equal(0, await SubscriptionUsageReader.CountTransactionsAsync(db, subscription, DateTimeOffset.UtcNow, default));
         await ApproveAsync(db);
     }
 
@@ -54,7 +54,7 @@ public class SubscriptionQuotaTests
         await PostEntryAsync(db, DocumentType.Invoice, invoiceId);
         await PostEntryAsync(db, DocumentType.Invoice, invoiceId);
 
-        Assert.Equal(1, await SubscriptionUsageReader.CountTransactionsAsync(db, subscription, default));
+        Assert.Equal(1, await SubscriptionUsageReader.CountTransactionsAsync(db, subscription, DateTimeOffset.UtcNow, default));
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public class SubscriptionQuotaTests
         await PostEntryAsync(db, DocumentType.OpeningBalance, Guid.NewGuid());
         await PostEntryAsync(db, DocumentType.OpeningStock, Guid.NewGuid());
 
-        Assert.Equal(1, await SubscriptionUsageReader.CountTransactionsAsync(db, subscription, default));
+        Assert.Equal(1, await SubscriptionUsageReader.CountTransactionsAsync(db, subscription, DateTimeOffset.UtcNow, default));
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public class SubscriptionQuotaTests
         await PostEntryAsync(db, DocumentType.Invoice, Guid.NewGuid(), subscription.TermStartsAt.AddDays(-5));
         await PostEntryAsync(db, DocumentType.Invoice, Guid.NewGuid());
 
-        Assert.Equal(1, await SubscriptionUsageReader.CountTransactionsAsync(db, subscription, default));
+        Assert.Equal(1, await SubscriptionUsageReader.CountTransactionsAsync(db, subscription, DateTimeOffset.UtcNow, default));
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public class SubscriptionQuotaTests
 
         await PostEntryAsync(db, DocumentType.Invoice, Guid.NewGuid(), organizationId: Guid.NewGuid());
 
-        Assert.Equal(0, await SubscriptionUsageReader.CountTransactionsAsync(db, subscription, default));
+        Assert.Equal(0, await SubscriptionUsageReader.CountTransactionsAsync(db, subscription, DateTimeOffset.UtcNow, default));
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public class SubscriptionQuotaTests
 
         var behavior = new SubscriptionQuotaBehavior<
             ErpApp.Application.Catalog.Commands.CreateProduct.CreateProductCommand,
-            ErpApp.Application.Catalog.Commands.CreateProduct.CreateProductResult>(db);
+            ErpApp.Application.Catalog.Commands.CreateProduct.CreateProductResult>(db, TimeProvider.System);
 
         var command = new ErpApp.Application.Catalog.Commands.CreateProduct.CreateProductCommand(
             OrganizationId, ProductType.Service, "Consulting", Guid.NewGuid(),
@@ -166,7 +166,7 @@ public class SubscriptionQuotaTests
         await Assert.ThrowsAsync<SubscriptionQuotaExceededException>(() => ApproveAsync(db));
 
         var plan = await SeedPlanAsync(db);
-        await new SetTenantSubscriptionCommandHandler(db).Handle(
+        await new SetTenantSubscriptionCommandHandler(db, TimeProvider.System).Handle(
             new SetTenantSubscriptionCommand(OrganizationId, plan.Id, DateTimeOffset.UtcNow.AddDays(365)),
             CancellationToken.None);
 
@@ -184,7 +184,7 @@ public class SubscriptionQuotaTests
         await SeedSubscriptionAsync(db, transactionQuota: 0, productQuota: 0);
         var plan = await SeedPlanAsync(db);
 
-        var handler = new SetTenantSubscriptionCommandHandler(db);
+        var handler = new SetTenantSubscriptionCommandHandler(db, TimeProvider.System);
 
         var plain = await handler.Handle(
             new SetTenantSubscriptionCommand(OrganizationId, plan.Id, DateTimeOffset.UtcNow.AddDays(365)),
@@ -215,7 +215,7 @@ public class SubscriptionQuotaTests
         var db = TestAppDbContext.Create();
         await SeedSubscriptionAsync(db, transactionQuota: 5, productQuota: 5);
 
-        var result = await new SetTenantSubscriptionCommandHandler(db).Handle(
+        var result = await new SetTenantSubscriptionCommandHandler(db, TimeProvider.System).Handle(
             new SetTenantSubscriptionCommand(OrganizationId, null, DateTimeOffset.UtcNow.AddDays(15)),
             CancellationToken.None);
 
@@ -231,7 +231,7 @@ public class SubscriptionQuotaTests
         var db = TestAppDbContext.Create();
         await SeedSubscriptionAsync(db, transactionQuota: 0, productQuota: 0);
 
-        await Assert.ThrowsAsync<NotFoundException>(() => new SetTenantSubscriptionCommandHandler(db).Handle(
+        await Assert.ThrowsAsync<NotFoundException>(() => new SetTenantSubscriptionCommandHandler(db, TimeProvider.System).Handle(
             new SetTenantSubscriptionCommand(OrganizationId, Guid.NewGuid(), DateTimeOffset.UtcNow.AddDays(365)),
             CancellationToken.None));
     }
@@ -249,7 +249,7 @@ public class SubscriptionQuotaTests
         await PostEntriesAsync(db, 4);
         await SeedProductAsync(db);
 
-        var usage = await SubscriptionUsageReader.ReadAsync(db, subscription, default);
+        var usage = await SubscriptionUsageReader.ReadAsync(db, subscription, DateTimeOffset.UtcNow, default);
 
         Assert.Equal(4, usage.TransactionsUsed);
         Assert.Equal(1, usage.TransactionsRemaining);
@@ -264,7 +264,7 @@ public class SubscriptionQuotaTests
     [Fact]
     public void An_unmetered_usage_reports_no_remaining_rather_than_a_negative_one()
     {
-        var usage = new SubscriptionUsage(0, 0, 0, 0);
+        var usage = new SubscriptionUsage(0, 0, 0, 0, 0, 0, 0, 0);
 
         Assert.False(usage.TransactionsMetered);
         Assert.False(usage.ProductsMetered);
@@ -277,7 +277,7 @@ public class SubscriptionQuotaTests
     /// negative assertions below catch.</summary>
     private static async Task ApproveAsync(IAppDbContext db)
     {
-        var behavior = new SubscriptionQuotaBehavior<ApproveInvoiceCommand, ApproveInvoiceResult>(db);
+        var behavior = new SubscriptionQuotaBehavior<ApproveInvoiceCommand, ApproveInvoiceResult>(db, TimeProvider.System);
         var expected = new ApproveInvoiceResult(Guid.NewGuid(), "INV-1", InvoiceStatus.Approved, DateTimeOffset.UtcNow);
 
         var actual = await behavior.Handle(
@@ -301,7 +301,8 @@ public class SubscriptionQuotaTests
         {
             subscription.SetPlan(
                 null, "Standard", DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(364),
-                20_000m, productQuota, transactionQuota, irdVerified: false);
+                20_000m, productQuota, transactionQuota, TenantSubscription.DefaultDailyAiScanQuota, 0,
+                irdVerified: false);
             await db.SaveChangesAsync(CancellationToken.None);
         }
 
@@ -313,7 +314,7 @@ public class SubscriptionQuotaTests
         var plan = SubscriptionPlan.Create(
             Guid.NewGuid(), "Standard", "Standard",
             "Best for SME organizations that require accounting & inventory tracking",
-            2, 20_000m, 5_000, 50_000,
+            2, 20_000m, 5_000, 50_000, TenantSubscription.DefaultDailyAiScanQuota,
             trackInventoryIncluded: true, multipleWarehousesIncluded: true, landedCostIncluded: true,
             manufacturingIncluded: false, posIncluded: false, multiCurrencyIncluded: true,
             developerApiIncluded: false);

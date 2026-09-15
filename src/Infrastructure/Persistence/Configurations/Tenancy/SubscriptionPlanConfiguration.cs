@@ -26,6 +26,16 @@ public sealed class SubscriptionPlanConfiguration : IEntityTypeConfiguration<Sub
     private static readonly Guid StandardId = Guid.Parse("00000000-0000-0000-0003-000000000002");
     private static readonly Guid ProfessionalId = Guid.Parse("00000000-0000-0000-0003-000000000003");
 
+    /// <summary>
+    /// Phase 46 -- "Scan with AI - Up to 20 scans per day", stated identically on all three tiers and
+    /// on all three term-length tabs (tiggapp.com/pricing, read 2026-09-15). Written once here
+    /// because three literal 20s in a seed are three chances for a later edit to change two of them,
+    /// and because a tier differing from the others is exactly the kind of change that should have to
+    /// name itself. It is deliberately the same constant
+    /// <see cref="TenantSubscription.DefaultDailyAiScanQuota"/> holds for tenants with no plan.
+    /// </summary>
+    private const int PublishedDailyAiScanQuota = TenantSubscription.DefaultDailyAiScanQuota;
+
     public void Configure(EntityTypeBuilder<SubscriptionPlan> builder)
     {
         builder.ToTable("SubscriptionPlans", schema: "tenancy");
@@ -42,6 +52,7 @@ public sealed class SubscriptionPlanConfiguration : IEntityTypeConfiguration<Sub
 
         builder.Property(x => x.ProductQuota).IsRequired();
         builder.Property(x => x.TransactionQuota).IsRequired();
+        builder.Property(x => x.DailyAiScanQuota).IsRequired();
         builder.Property(x => x.TrackInventoryIncluded).IsRequired();
         builder.Property(x => x.MultipleWarehousesIncluded).IsRequired();
         builder.Property(x => x.LandedCostIncluded).IsRequired();
@@ -57,16 +68,19 @@ public sealed class SubscriptionPlanConfiguration : IEntityTypeConfiguration<Sub
         builder.HasData(
             Anonymous(
                 BasicId, "Basic", "Basic", 1, 15_000m, productQuota: 1_000, transactionQuota: 30_000,
+                dailyAiScanQuota: PublishedDailyAiScanQuota,
                 "Best for service based businesses that require basic accounting",
                 trackInventory: false, multipleWarehouses: false, landedCost: false,
                 manufacturing: false, pos: false, multiCurrency: true, developerApi: false),
             Anonymous(
                 StandardId, "Standard", "Standard", 2, 20_000m, productQuota: 5_000, transactionQuota: 50_000,
+                dailyAiScanQuota: PublishedDailyAiScanQuota,
                 "Best for SME organizations that require accounting & inventory tracking",
                 trackInventory: true, multipleWarehouses: true, landedCost: true,
                 manufacturing: false, pos: false, multiCurrency: true, developerApi: false),
             Anonymous(
                 ProfessionalId, "Professional", "Professional", 3, 32_000m, productQuota: 10_000, transactionQuota: 200_000,
+                dailyAiScanQuota: PublishedDailyAiScanQuota,
                 "Best for Retail/Restaurants that require POS along with accounting & inventory tracking",
                 trackInventory: true, multipleWarehouses: true, landedCost: true,
                 manufacturing: true, pos: true, multiCurrency: true, developerApi: true));
@@ -87,6 +101,7 @@ public sealed class SubscriptionPlanConfiguration : IEntityTypeConfiguration<Sub
         decimal annualAmount,
         int productQuota,
         int transactionQuota,
+        int dailyAiScanQuota,
         string description,
         bool trackInventory,
         bool multipleWarehouses,
@@ -106,6 +121,7 @@ public sealed class SubscriptionPlanConfiguration : IEntityTypeConfiguration<Sub
             AnnualAmount = annualAmount,
             ProductQuota = productQuota,
             TransactionQuota = transactionQuota,
+            DailyAiScanQuota = dailyAiScanQuota,
             TrackInventoryIncluded = trackInventory,
             MultipleWarehousesIncluded = multipleWarehouses,
             LandedCostIncluded = landedCost,

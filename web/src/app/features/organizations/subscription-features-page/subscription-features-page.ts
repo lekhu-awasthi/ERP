@@ -61,6 +61,10 @@ export class SubscriptionFeaturesPage {
   protected readonly renewAmount = signal<string>('');
   protected readonly renewProductQuota = signal<string>('');
   protected readonly renewTransactionQuota = signal<string>('');
+  /** Phase 46 -- blank takes the published 20; a number here exempts or restricts one tenant. */
+  protected readonly renewDailyAiScanQuota = signal<string>('');
+  /** Phase 46 -- how many billing locations were paid for. Blank leaves what is already recorded. */
+  protected readonly renewLocationQuota = signal<string>('');
   protected readonly renewIrdVerified = signal(false);
 
   /** The catalogue row currently chosen in the picker, for the tick-list preview beneath it. */
@@ -74,6 +78,52 @@ export class SubscriptionFeaturesPage {
 
   protected readonly productMeter = computed(() =>
     this.meter(this.subscription()?.usage.productsUsed, this.subscription()?.usage.productQuota),
+  );
+
+  /**
+   * Phase 46. Same shape as the two above and a different kind of thing: this ceiling refreshes at
+   * the tenant's own midnight and no add-on raises it, so the panel says so instead of pointing at a
+   * bigger plan that grants exactly the same 20.
+   */
+  protected readonly aiScanMeter = computed(() =>
+    this.meter(this.subscription()?.usage.aiScansUsed, this.subscription()?.usage.dailyAiScanQuota),
+  );
+
+  /**
+   * Phase 46 -- locations in use beside locations purchased. Deliberately NOT a meter: the reference
+   * product does not cap locations (Cadehi runs three on a plain Enabled flag with an unbounded
+   * list), so drawing a bar that fills up would promise a refusal that never comes.
+   */
+  protected readonly locations = computed(() => {
+    const usage = this.subscription()?.usage;
+
+    return {
+      used: usage?.locationsUsed ?? 0,
+      purchased: usage?.locationQuota ?? 0,
+      recorded: (usage?.locationQuota ?? 0) > 0,
+      overPurchased: (usage?.locationQuota ?? 0) > 0 && (usage?.locationsUsed ?? 0) > (usage?.locationQuota ?? 0),
+    };
+  });
+
+  /**
+   * Phase 41 carried item #5, surfaced rather than reconciled. A plan change does not touch the
+   * entitlement flags, by design and for phase 31's reason -- letting a billing event flip
+   * TrackInventory off under a tenant with stock already in a FIFO ledger is the failure that
+   * prevents. The consequence is that a tenant can legitimately hold a feature its recorded tier
+   * does not include, and until this phase nothing anywhere said so.
+   *
+   * The comparison itself is the server's: the plan tick-list and the tenant feature list use two
+   * different vocabularies and two different granularities, so pairing them in the browser by
+   * display name would match nothing and render as "no mismatches". Split in both directions here
+   * only because the useful next step differs -- one is something to pay for, the other something
+   * to ask to have switched on.
+   */
+  protected readonly heldNotIncluded = computed(
+    () => this.subscription()?.entitlementMismatches.filter((x) => x.heldButNotIncluded) ?? [],
+  );
+
+  protected readonly includedNotHeld = computed(
+    () => this.subscription()?.entitlementMismatches.filter((x) => !x.heldButNotIncluded) ?? [],
   );
 
   /**
@@ -130,6 +180,8 @@ export class SubscriptionFeaturesPage {
         subscriptionAmount: this.optionalNumber(this.renewAmount()),
         productQuota: this.optionalNumber(this.renewProductQuota()),
         transactionQuota: this.optionalNumber(this.renewTransactionQuota()),
+        dailyAiScanQuota: this.optionalNumber(this.renewDailyAiScanQuota()),
+        locationQuota: this.optionalNumber(this.renewLocationQuota()),
         irdVerified: this.renewIrdVerified(),
       })
       .subscribe({
@@ -195,6 +247,8 @@ export class SubscriptionFeaturesPage {
     this.renewAmount.set('');
     this.renewProductQuota.set('');
     this.renewTransactionQuota.set('');
+    this.renewDailyAiScanQuota.set('');
+    this.renewLocationQuota.set('');
   }
 }
 

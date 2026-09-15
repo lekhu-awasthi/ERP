@@ -7,7 +7,7 @@ namespace ErpApp.Application.Accounting.Commands.CreateAccount;
 public sealed record CreateAccountCommand(
     Guid OrganizationId, string Name, Guid GroupId,
     AccountKind Kind = AccountKind.Other, Guid? BankId = null, string? AccountNumber = null)
-    : IRequest<CreateAccountResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<CreateAccountResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData
 {
     public string PermissionKey => PermissionKeys.AccountManage;
 }

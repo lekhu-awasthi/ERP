@@ -75,7 +75,7 @@
 
         <div class="mb-4">
           <div class="d-flex justify-content-between align-items-baseline mb-1">
-            <span class="small fw-semibold text-dark" id="usage-transactions-label">Transactions this term</span>
+            <span class="small fw-semibold text-dark" id="usage-transactions-label">Transactions this subscription year</span>
             <span class="small text-muted">
               @if (transactionMeter().metered) {
                 {{ transactionMeter().used | number }} of {{ transactionMeter().quota | number }}
@@ -100,6 +100,13 @@
             An invoice, bill, payment, journal voucher or any other document that posts to the ledger counts once,
             whether or not it is later voided. Quotations, sales orders, purchase orders and production orders do
             not count.
+          </p>
+          <!-- Phase 46 -- the window is the allowance YEAR, not the term. On a one-year term the two are
+               the same and this line is merely reassuring; on a multi-year term it is the only place that
+               says the 50,000 is per year rather than for the whole three. -->
+          <p class="form-text mb-0">
+            Counted from {{ sub.allowanceYearStartsAt | slice: 0 : 10 }} to {{ sub.allowanceYearEndsAt | slice: 0 : 10 }}. A plan
+            allows this many each year; a multi-year term renews the allowance on each anniversary.
           </p>
         </div>
 
@@ -128,8 +135,101 @@
           </div>
           <p class="form-text mb-0">Variants count as products, each carrying its own code and price.</p>
         </div>
+
+        <!-- Phase 46. Deliberately worded differently from the two above: this allowance refreshes
+             every day and no add-on sells more of it, so there is no larger plan to point at. -->
+        <div class="mt-4">
+          <div class="d-flex justify-content-between align-items-baseline mb-1">
+            <span class="small fw-semibold text-dark" id="usage-scans-label">AI scans today</span>
+            <span class="small text-muted">
+              @if (aiScanMeter().metered) {
+                {{ aiScanMeter().used | number }} of {{ aiScanMeter().quota | number }}
+              } @else {
+                {{ aiScanMeter().used | number }} &mdash; no limit on this plan
+              }
+            </span>
+          </div>
+          <div class="progress" style="height: 0.5rem;">
+            <div
+              class="progress-bar"
+              [class]="aiScanMeter().tone"
+              role="progressbar"
+              aria-labelledby="usage-scans-label"
+              [attr.aria-valuenow]="aiScanMeter().percent"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              [style.width.%]="aiScanMeter().percent"
+            ></div>
+          </div>
+          <p class="form-text mb-0">
+            Every plan includes the same 20 scans a day and there is no add-on for more, so this is the one
+            allowance a larger plan does not raise. It resets at midnight; documents can always be entered by hand.
+          </p>
+        </div>
+
+        <!-- Phase 46 -- a record, not a meter, and the wording carries that. Confirmed live on the
+             reference product: billing locations are an Enabled flag over an unbounded list, with no
+             cap, no remaining count and no charge shown anywhere in the product. -->
+        <div class="mt-4">
+          <div class="d-flex justify-content-between align-items-baseline mb-1">
+            <span class="small fw-semibold text-dark">Billing locations</span>
+            <span class="small text-muted">
+              @if (locations().recorded) {
+                {{ locations().used | number }} in use, {{ locations().purchased | number }} recorded as purchased
+              } @else {
+                {{ locations().used | number }} in use
+              }
+            </span>
+          </div>
+          <p class="form-text mb-0">
+            @if (locations().overPurchased) {
+              More locations are in use than were recorded as purchased. Nothing is blocked &mdash; this is a record
+              of what was bought, not a limit &mdash; but the purchased count below is probably out of date.
+            } @else {
+              Locations are charged for individually rather than included in a plan. Recording how many were
+              purchased is optional and never restricts what this organization can do.
+            }
+          </p>
+        </div>
       </div>
     </div>
+
+    <!-- Phase 46 (phase 41 carried item #5) -- a plan change deliberately does not touch the
+         entitlement flags, so a tenant can legitimately hold a feature its tier does not sell. That
+         has always been true and nothing ever said it. Surfaced, never reconciled. -->
+    @if (heldNotIncluded().length || includedNotHeld().length) {
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h2 class="h5 fw-bold mb-1 text-dark">Features that differ from this plan</h2>
+          <p class="text-muted small mb-3">
+            Recording a subscription term never switches a feature on or off &mdash; turning inventory tracking off
+            underneath stock that is already valued would corrupt it. So these differences are expected, and are
+            shown rather than corrected.
+          </p>
+
+          @if (heldNotIncluded().length) {
+            <p class="small fw-semibold text-dark mb-1">In use here, but not part of this plan</p>
+            <ul class="small text-muted mb-3">
+              @for (item of heldNotIncluded(); track item.feature) {
+                <li>{{ item.displayName }}</li>
+              }
+            </ul>
+          }
+
+          @if (includedNotHeld().length) {
+            <p class="small fw-semibold text-dark mb-1">Part of this plan, but not switched on here</p>
+            <ul class="small text-muted mb-0">
+              @for (item of includedNotHeld(); track item.feature) {
+                <li>{{ item.displayName }}</li>
+              }
+            </ul>
+            <p class="form-text mb-0">
+              Accounting Features are chosen when an organization is created and cannot be changed afterwards.
+            </p>
+          }
+        </div>
+      </div>
+    }
 
     <!-- Phase 31 added this control; phase 41 replaced its free-text plan name with the catalogue.
          Past the end date the organization is read-only for business documents, so recording a term
@@ -258,6 +358,34 @@
                 (input)="renewTransactionQuota.set($any($event.target).value)"
               />
               <div class="form-text">0 means no limit.</div>
+            </div>
+            <!-- Phase 46. Both boxes behave like the two above -- empty means "leave it alone" -- but
+                 they mean different things, and the help text is the only place that can say so. -->
+            <div class="col-12 col-sm-4">
+              <label class="form-label small fw-semibold" for="renew-scan-quota">AI scans per day</label>
+              <input
+                id="renew-scan-quota"
+                type="number"
+                min="0"
+                step="1"
+                class="form-control"
+                [value]="renewDailyAiScanQuota()"
+                (input)="renewDailyAiScanQuota.set($any($event.target).value)"
+              />
+              <div class="form-text">Empty uses the plan's 20. 0 removes the limit entirely.</div>
+            </div>
+            <div class="col-12 col-sm-4">
+              <label class="form-label small fw-semibold" for="renew-location-quota">Billing locations purchased</label>
+              <input
+                id="renew-location-quota"
+                type="number"
+                min="0"
+                step="1"
+                class="form-control"
+                [value]="renewLocationQuota()"
+                (input)="renewLocationQuota.set($any($event.target).value)"
+              />
+              <div class="form-text">A record of what was bought. It never limits how many can be created.</div>
             </div>
             <div class="col-12">
               <div class="form-check">

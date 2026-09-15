@@ -1121,3 +1121,67 @@ additional 10,000**; SMS **Rs 0.99 per credit** (incl. VAT).
 
 Consequences are written up in `docs/phase-41-status.md`; the figures are seeded verbatim into
 `SubscriptionPlanConfiguration`.
+
+---
+
+## The metered-axis read (2026-09-15, phase 46) — the price list again, and Cadehi
+
+Two reads on one day: the vendor's public pricing page (no login) and the Cadehi tenant (the user
+signed in; nothing was saved, one modal opened and dismissed). Moonbeam was not available on this
+account.
+
+### The price list, re-read — what phase 41 recorded and did not carry
+
+The tier table is unchanged from the 2026-09-14 reading above. **Two things in it matter to phase 46
+and were not carried into any decision at the time:**
+
+1. **"Scan with AI - Up to 20 scans per day"**, verbatim, on **all three tiers**. It is in the table
+   above (the `AI scans / day` row) and was dropped from phase-41-status.md's own summary table, which
+   is why the roadmap wrote the AI axis as an unpriced invention. The **add-on collection sells no
+   extra scans** — so this is the one published ceiling with no commercial lever behind it.
+2. **The quotas do not scale with term length.** On the *3 years* tab the prices change (Rs 35,000 /
+   50,000 / 80,000, shown against struck-through Rs 45,000 / 60,000 / 96,000) and **every quota line
+   is byte-identical**: "Up to 5,000 products", "Up to 50,000 transactions / year", "Up to 20 scans
+   per day". The *Lifetime* tab likewise. A term is therefore a number of allowance **years** bought
+   at once, not one long allowance — which is what phase 41's whole-term quota window got wrong.
+
+The `/tigg-ai` page defines the unit: upload invoices or bills "individually or in bulk" and the AI
+extracts vendor, quantities, amounts, dates, discounts, taxes and totals. One scan = one document
+extracted, which is exactly one `ExtractInboxDocumentCommand`. **The "in bulk" wording is why phase
+46's scan ceiling is a marker interface rather than a type check** — a second entry point is
+foreseeable and must not arrive unmetered.
+
+### Cadehi Enterprises (`cadehi.tigg.app`), read-only
+
+- **Configurations > Tigg Subscriptions** (`#/config/tigg-subscription`): banner *"Your Tigg
+  subscription is currently active and will expire in 7 days"*, over seven read-only rows —
+  Subscription Plan `Standard ( 0 Txn, 0 Products)`, Subscription Amount `0.00`, Expiry Date
+  `22-09-2026`, Location Enabled `Yes`, Warehouse Enabled `Yes`, IRD Verified `No`, IRD Sync Enabled
+  `No`. **No controls of any kind. No SMS row, no AI-scan row, no location count.** The shell banner
+  reads *"7 days remaining in your trial account. Upgrade now for uninterrupted access."* with a
+  **CONTACT US** action.
+  **This trial expires 2026-09-22** — the first observable expiry this project has had a date for,
+  and the read that would settle phase 31/46's derived read-only behaviour.
+- **CRM > SMS > Overview**: tabs Overview / SMS History / Templates / Credit History / **Gateway
+  Settings**. `0` *Total Available Credits*, `0` *Total Credit Used*, a **SEND SMS** button, and an
+  **Add SMS Credit** link whose entire behaviour is to reveal *"Require more SMS credits? Contact us
+  at 9801831190 or email support@tiggapp.com."* Identical in substance to what phase 18 recorded.
+  (*Gateway Settings* is a tab this codebase does not have — phase 18 deferred the real gateway.
+  Noted, not scoped.)
+- **Configurations > Organization > Features**: **Billing Location — Enabled**, `+ ADD NEW LOCATION`,
+  *Show Inactive*, an **Advanced** panel, and three rows: `HO HeadOffice` (warehouse: Main
+  Warehouse), `1002 POS Restaurant`, `1003 POS Retail`. **No count, no cap, no price shown anywhere.**
+  The *Add New Location* dialog asks for Location Code, Location Name, Address and Warehouse, and a
+  Save button — and says nothing about a charge or a remaining allowance. Also on the page: Multiple
+  Warehouse (Enabled, one warehouse) and Multiple Currency (nine seeded currencies).
+- **Workflow > Document**: the inbox, empty (`0 - 0 / 0`), with a drag-and-drop upload target, Pending
+  and Done tabs, and **no scan-allowance counter anywhere on the screen**.
+
+### The conclusion phase 46 drew
+
+**None of the three add-on axes is metered inside the product, and nothing on the Subscriptions
+screen is editable by anyone.** Phase 41's Decision G characterisation — an accurate record of what
+was sold and an honest guard against drifting past it unnoticed, not a control that survives an
+adversary — now rests on live evidence for all three axes rather than on inference from one.
+
+Consequences are written up in `docs/phase-46-status.md`.

@@ -18,13 +18,21 @@ namespace ErpApp.Application.Common.Behaviors;
 /// lock date freezes, for the same reason: it is what "the books" means. Reusing it means this
 /// phase adds no sweep, and it means a marker can never drift out of sync between the two gates.</para>
 ///
+/// <para><b>Phase 46 added a third marker, <see cref="IExpirySensitiveMasterData"/></b> (phase 31
+/// carried item #6). Products, contacts, accounts, warehouses and billing locations are not
+/// documents, so none of them carried a lock-date marker, so an expired tenant could build a whole
+/// chart of accounts and product catalogue indefinitely and for free. Phase 31 excluded
+/// "configuration edits" for a reason that only ever covered <i>fixing</i> something; setting up a
+/// new business was never argued for and was allowed by the same gap.</para>
+///
 /// <para><b>What deliberately still works past expiry, and why.</b> Every query (so the tenant can
 /// read, print and export everything it has -- "read-only" has to actually mean readable);
-/// configuration edits, so an expired tenant is not also locked out of fixing a wrong account or a
-/// wrong contact; and <c>SetTenantSubscriptionCommand</c>, which is the one command that can lift
-/// the expiry and would otherwise be unreachable from inside the very tenant that needs it. That
-/// last exclusion is not an accident of the marker set: that command carries no document date and
-/// could not implement either marker if it tried.</para>
+/// <b>settings</b> edits, so an expired tenant is not also locked out of correcting a wrong default
+/// account or a wrong general setting before it renews -- which is phase 31's reason, kept intact and
+/// now narrowed to what it actually argued for; and <c>SetTenantSubscriptionCommand</c>, which is the
+/// one command that can lift the expiry and would otherwise be unreachable from inside the very
+/// tenant that needs it. That last exclusion is not an accident of the marker set: that command
+/// carries no document date and could not implement any of the three markers if it tried.</para>
 ///
 /// <para><b>Registration order.</b> After <c>AuthorizationBehavior</c> and beside
 /// <c>FeatureGateBehavior</c>, so a caller with no membership of the organization gets a 403 before
@@ -42,7 +50,7 @@ public sealed class SubscriptionExpiryBehavior<TRequest, TResponse>(IAppDbContex
     public async Task<TResponse> Handle(
         TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
     {
-        if (request is not (ILockDateSensitive or ILockDateSensitiveDocument)
+        if (request is not (ILockDateSensitive or ILockDateSensitiveDocument or IExpirySensitiveMasterData)
             || request is not IOrganizationScoped scoped)
         {
             return await next();

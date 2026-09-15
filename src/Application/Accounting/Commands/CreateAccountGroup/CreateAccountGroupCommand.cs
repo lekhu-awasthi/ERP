@@ -5,7 +5,7 @@ using MediatR;
 namespace ErpApp.Application.Accounting.Commands.CreateAccountGroup;
 
 public sealed record CreateAccountGroupCommand(Guid OrganizationId, string Name, AccountRootType RootType, Guid? ParentGroupId)
-    : IRequest<CreateAccountGroupResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<CreateAccountGroupResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData
 {
     public string PermissionKey => PermissionKeys.AccountGroupManage;
 }

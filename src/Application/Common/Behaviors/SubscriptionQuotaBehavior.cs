@@ -11,11 +11,19 @@ namespace ErpApp.Application.Common.Behaviors;
 /// Phase 41 -- the sixth pipeline behavior, and the one that makes the plan catalogue mean something:
 /// it refuses a command once the tenant has spent the allowance its plan sold it.
 ///
-/// <para><b>Two ceilings, from the vendor's own price list</b> (tiggapp.com/pricing, read
-/// 2026-09-14): transactions per subscription term (Basic 30,000, Standard 50,000, Professional
-/// 200,000) and products (1,000 / 5,000 / 10,000), each extensible by an add-on. A stored ceiling of
-/// <c>0</c> means not metered, which is every trial and every tenant created before this phase, so
-/// the overwhelmingly common path through this behavior is two field reads and a delegate call.</para>
+/// <para><b>Three ceilings, from the vendor's own price list</b> (tiggapp.com/pricing, read
+/// 2026-09-14 and re-read 2026-09-15): transactions per subscription <i>year</i> (Basic 30,000,
+/// Standard 50,000, Professional 200,000) and products (1,000 / 5,000 / 10,000), each extensible by
+/// an add-on, plus phase 46's <b>AI scans per day</b> (20 on every tier, extensible by nothing). A
+/// stored ceiling of <c>0</c> means not metered, so the overwhelmingly common path through this
+/// behavior is a field read and a delegate call.</para>
+
+/// <para><b>Phase 46 -- the scan ceiling is a different kind of thing from the other two, and it is
+/// worth knowing which.</b> Transactions and products are commercial levers: the vendor sells more
+/// of each, so the ceiling represents a purchase and the tenant's own Admin raising it is the
+/// two-party problem named below. The scan ceiling is not sold at any price; it is a rate limit on
+/// the one action in this product that spends money outward per call. It is enforced here because
+/// the cost is real, not because anybody is billing for it.</para>
 ///
 /// <para><b>Why a behavior rather than a check in eleven handlers.</b> The same reason phase 31 gave
 /// for expiry and phase 20f for entitlements: the question is "may this organization do this at all",
@@ -37,14 +45,14 @@ namespace ErpApp.Application.Common.Behaviors;
 /// it is phase 41's headline carried item and the re-entry condition is written up in
 /// docs/phase-41-status.md.</para>
 /// </summary>
-public sealed class SubscriptionQuotaBehavior<TRequest, TResponse>(IAppDbContext db)
+public sealed class SubscriptionQuotaBehavior<TRequest, TResponse>(IAppDbContext db, TimeProvider timeProvider)
     : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull
 {
     public async Task<TResponse> Handle(
         TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
     {
-        if (request is not (IMeteredTransaction or IMeteredProduct))
+        if (request is not (IMeteredTransaction or IMeteredProduct or IMeteredAiScan))
         {
             return await next();
         }
@@ -73,9 +81,11 @@ public sealed class SubscriptionQuotaBehavior<TRequest, TResponse>(IAppDbContext
             return await next();
         }
 
+        var now = timeProvider.GetUtcNow();
+
         if (request is IMeteredTransaction && subscription.TransactionQuota > 0)
         {
-            var used = await SubscriptionUsageReader.CountTransactionsAsync(db, subscription, cancellationToken);
+            var used = await SubscriptionUsageReader.CountTransactionsAsync(db, subscription, now, cancellationToken);
 
             // >= , not > : the ceiling is how many the tenant may have, so the request that would
             // make it one more than that is the one to refuse.
@@ -94,6 +104,19 @@ public sealed class SubscriptionQuotaBehavior<TRequest, TResponse>(IAppDbContext
             {
                 throw new SubscriptionQuotaExceededException(
                     SubscriptionQuotaKind.Products, subscription.PlanName, used, subscription.ProductQuota);
+            }
+        }
+
+        if (request is IMeteredAiScan && subscription.DailyAiScanQuota > 0)
+        {
+            // Counted from the append-only audit trail rather than the document's own
+            // ExtractionAttemptedAt, which a re-scan overwrites -- see the reader.
+            var used = await SubscriptionUsageReader.CountAiScansTodayAsync(db, subscription, now, cancellationToken);
+
+            if (used >= subscription.DailyAiScanQuota)
+            {
+                throw new SubscriptionQuotaExceededException(
+                    SubscriptionQuotaKind.AiScans, subscription.PlanName, used, subscription.DailyAiScanQuota);
             }
         }
 

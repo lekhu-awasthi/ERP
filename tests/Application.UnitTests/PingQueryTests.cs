@@ -28,6 +28,9 @@ public class PingQueryTests
         // PingQuery doesn't implement IRequirePermission, so neither is actually used.
         services.AddSingleton(TestAppDbContext.Create());
         services.AddSingleton<ICurrentUserService>(new FakeCurrentUserService(Guid.NewGuid()));
+        // Phase 46: SubscriptionQuotaBehavior reads the clock to resolve the tenant's allowance
+        // year and its Nepal-local day, so the container owes a TimeProvider as well.
+        services.AddSingleton(TimeProvider.System);
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 

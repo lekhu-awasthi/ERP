@@ -38,6 +38,7 @@ public sealed record SubscriptionPlanDto(
     decimal AnnualAmount,
     int ProductQuota,
     int TransactionQuota,
+    int DailyAiScanQuota,
     IReadOnlyList<SubscriptionPlanFeatureDto> IncludedFeatures);
 
 public sealed record SubscriptionPlanFeatureDto(string Name, bool IsIncluded);

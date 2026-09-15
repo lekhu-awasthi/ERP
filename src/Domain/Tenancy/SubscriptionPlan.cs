@@ -63,6 +63,24 @@ public sealed class SubscriptionPlan
     /// additional 10,000. See <c>DocumentMechanisms.MeteredTransactions</c> for what counts.</summary>
     public int TransactionQuota { get; private set; }
 
+    /// <summary>
+    /// Phase 46 -- AI document scans per <b>day</b>, published verbatim as "Scan with AI - Up to 20
+    /// scans per day" and confirmed live on tiggapp.com/pricing (2026-09-15).
+    ///
+    /// <para><b>The one quota that is identical on every tier and cannot be bought.</b> All three
+    /// tiers state 20, the 1-year / 3-year / Lifetime tabs state 20, and the add-on collection --
+    /// which sells extra products, extra transactions, extra locations, SMS credits and IRD Billing
+    /// -- has no AI line at all. So unlike the other two ceilings this one is not a commercial lever
+    /// being represented; it is a rate limit on an expensive outward call, and it is per day rather
+    /// than per term.</para>
+    ///
+    /// <para>It is a column here rather than a constant because a tier that priced scans differently
+    /// would be a price-list change, which in this codebase is a migration (see the type remarks) --
+    /// and because the seeded value is then stated once, in the same place as the other two, instead
+    /// of being a literal three layers down.</para>
+    /// </summary>
+    public int DailyAiScanQuota { get; private set; }
+
     public bool TrackInventoryIncluded { get; private set; }
     public bool MultipleWarehousesIncluded { get; private set; }
     public bool LandedCostIncluded { get; private set; }
@@ -90,6 +108,7 @@ public sealed class SubscriptionPlan
         decimal annualAmount,
         int productQuota,
         int transactionQuota,
+        int dailyAiScanQuota,
         bool trackInventoryIncluded,
         bool multipleWarehousesIncluded,
         bool landedCostIncluded,
@@ -118,10 +137,10 @@ public sealed class SubscriptionPlan
         // states both ceilings -- every tier on the price list names a product and a transaction
         // cap -- so a catalogue row with a zero quota would be a plan that silently sells unlimited
         // use, which is the one mistake here that costs money.
-        if (productQuota <= 0 || transactionQuota <= 0)
+        if (productQuota <= 0 || transactionQuota <= 0 || dailyAiScanQuota <= 0)
         {
             throw new InvalidOperationException(
-                "A subscription plan must state a positive product and transaction quota; "
+                "A subscription plan must state a positive product, transaction and daily AI scan quota; "
                 + "zero is the subscription-level 'not metered' sentinel and is not a sellable tier.");
         }
 
@@ -135,6 +154,7 @@ public sealed class SubscriptionPlan
             AnnualAmount = annualAmount,
             ProductQuota = productQuota,
             TransactionQuota = transactionQuota,
+            DailyAiScanQuota = dailyAiScanQuota,
             TrackInventoryIncluded = trackInventoryIncluded,
             MultipleWarehousesIncluded = multipleWarehousesIncluded,
             LandedCostIncluded = landedCostIncluded,

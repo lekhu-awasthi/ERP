@@ -977,3 +977,61 @@ is right rather than broken, because a validation pass checks rows and does not 
 add-only for forty-two phases: the reference product's per-row `Action` column is what said the edit
 and the delete were missing, which is the ordinary case for **reading the whole control, not just the
 one affordance the phase came for.**
+
+## Phase 46 — metered add-on axes, and three axes that were three different things
+
+**Read this before adding a metered axis, before trusting a shape a roadmap entry names, before
+counting anything per day, or before deciding what a scaffolded migration default means.**
+
+**Before adding a metered axis**: the roadmap said each remaining one was "a reader plus a ceiling on
+the plan row", which was a fair generalisation from the two that existed and wrong for two of the
+three that followed. **AI scans** are a per-**day** rate limit published at 20 on every tier and every
+term length and sold by no add-on — not a commercial lever at all, but a cap on the only action in
+the product that spends money outward per call. **Billing locations** are sold per unit and capped
+nowhere: the reference tenant runs three on a plain *Enabled* flag, the list is unbounded, the Add
+New Location dialog names no cap and no charge, and the Subscriptions screen has no location row —
+so the purchased count is a *record* and refuses nothing, which is phase 43's product-to-location
+precedent reached the same way and reversing this phase's own plan. **SMS** was already metered, by
+the right mechanism, since phase 18: a purchased balance is a ledger you spend down, and the live
+*Add SMS Credit* control is still a phone number. A shape is not a finding; find the rule per axis.
+
+**Before treating a recorded fact as evidence**: *"Scan with AI — Up to 20 scans per day"* had been
+sitting in `erp-module-scan.md`'s own price-list appendix since phase 41, which recorded it and then
+dropped it from that phase's summary table — which is why the roadmap wrote the AI axis as an
+unpriced invention. A fact recorded in the scan but never carried into a decision is not yet
+evidence. Re-reading the page cost one page load. (The same read also caught a defect in phase 41:
+every published quota is per *year* and the 3-year tab repeats the identical figures beside a tripled
+price, so counting over the whole term gave a three-year tenant one year's allowance.)
+
+**Before counting anything per day**: derive it from the append-only history, never from a timestamp
+the aggregate updates in place. `UploadedDocument.ExtractionAttemptedAt` is overwritten by every
+re-scan, so it answers "when was this last scanned" and ten paid re-runs of one bill would have
+counted as one. The count reads the `Audit` rows phase 22 already writes — and because
+`AuditBehavior` writes *after* the handler, the figure a request sees is exactly "attempts before
+this one today", which is what a ceiling compares against. Phase 26c's
+`StockMovement`-not-`StockLedgerEntry` rule, somewhere with no stock in it. The window is the
+**Nepal-local** day (`NepalTime.StartOfLocalDay`): UTC midnight is 05:45 in Kathmandu, so a UTC key
+hands every tenant a second allowance each morning.
+
+**Before reading a scaffolded migration default**: phase 31's `DueDate` and phase 41's `TermStartsAt`
+were wrong in a visible way. `DailyAiScanQuota int NOT NULL DEFAULT 0` is wrong in an *invisible*
+one — zero is this codebase's not-metered sentinel, so every existing tenant would have come out with
+an unlimited allowance, the feature would have applied to nobody, and the only evidence would have
+been the API bill. Phase 37's refinement decides it: a default is safe exactly when it is already the
+truth about the rows that are there. `LocationQuota`'s 0 was, and kept its default; this one was not.
+The general form: **zero-means-unmetered is right for an allowance somebody bought and exactly wrong
+for a cost control.**
+
+**Before joining two lists that describe the same thing**: the plan tick-list speaks the price list
+("Multiple currency", "POS (Retail/Restro)") and a tenant's features speak the signup wizard
+("Multi-Currency Support", "Point of Sale (Retail)"), and they are not the same length — one POS row
+covers two tenant flags, two published rows have no tenant flag, and one tenant flag is an add-on no
+tier includes. Joining them by display name matches nothing and renders as *"no mismatches"*: phase
+27a's ordinal enum bridge through a different door, failing the same way, quietly, looking like
+agreement. Compare where both sides are typed.
+
+**Before writing a sweep guard whose predicate names a dependency**: "handlers taking
+`IDocumentExtractor`" found three, and two of them only read `IsConfigured`/`ModelId` to render a
+settings panel. Taking the dependency is not spending the allowance. Name the exclusions with their
+reasons, and assert each named exclusion still exists so a rename cannot leave a stale excuse behind
+that exempts some future handler of the same name — `docs/phase-46-status.md`

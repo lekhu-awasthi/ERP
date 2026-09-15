@@ -20,6 +20,8 @@ public sealed class TenantSubscriptionConfiguration : IEntityTypeConfiguration<T
         builder.Property(s => s.SubscriptionAmount).HasPrecision(18, 2).IsRequired();
         builder.Property(s => s.ProductQuota).IsRequired();
         builder.Property(s => s.TransactionQuota).IsRequired();
+        builder.Property(s => s.DailyAiScanQuota).IsRequired();
+        builder.Property(s => s.LocationQuota).IsRequired();
         builder.Property(s => s.IrdVerified).IsRequired();
         builder.Property(s => s.TrackInventoryEnabled).IsRequired();
         builder.Property(s => s.MultipleLocationsEnabled).IsRequired();

@@ -1,12 +1,13 @@
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Tenancy.Queries.GetTenantSubscription;
+using ErpApp.Domain.Tenancy;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Tenancy.Commands.SetTenantSubscription;
 
-public sealed class SetTenantSubscriptionCommandHandler(IAppDbContext db)
+public sealed class SetTenantSubscriptionCommandHandler(IAppDbContext db, TimeProvider timeProvider)
     : IRequestHandler<SetTenantSubscriptionCommand, TenantSubscriptionDto>
 {
     /// <summary>The plan name recorded for a term with no catalogue plan behind it -- a trial, or an
@@ -37,6 +38,19 @@ public sealed class SetTenantSubscriptionCommandHandler(IAppDbContext db)
         var productQuota = request.ProductQuota ?? plan?.ProductQuota ?? 0;
         var transactionQuota = request.TransactionQuota ?? plan?.TransactionQuota ?? 0;
 
+        // Phase 46. The scan allowance defaults differently from the two above: with no plan they
+        // fall back to the unmetered trial sentinel, but this one falls back to the published 20,
+        // because an unmetered scan allowance is uncapped spend on a paid API rather than a generous
+        // trial. See TenantSubscription.DailyAiScanQuota.
+        var dailyAiScanQuota = request.DailyAiScanQuota
+            ?? plan?.DailyAiScanQuota
+            ?? TenantSubscription.DefaultDailyAiScanQuota;
+
+        // A record of what was bought, never a ceiling -- the reference product does not cap
+        // locations. Defaults to what is already recorded rather than to a plan value, because no
+        // tier includes locations: every one of them is an add-on line.
+        var locationQuota = request.LocationQuota ?? subscription.LocationQuota;
+
         // The term starts now. It is a Domain parameter rather than a Domain UtcNow so that
         // back-dating stays expressible, but nothing in this product back-dates one yet and letting
         // a caller choose would let a tenant re-open a spent transaction allowance at will.
@@ -48,12 +62,15 @@ public sealed class SetTenantSubscriptionCommandHandler(IAppDbContext db)
             amount,
             productQuota,
             transactionQuota,
+            dailyAiScanQuota,
+            locationQuota,
             request.IrdVerified);
 
         await db.SaveChangesAsync(cancellationToken);
 
-        var usage = await SubscriptionUsageReader.ReadAsync(db, subscription, cancellationToken);
+        var now = timeProvider.GetUtcNow();
+        var usage = await SubscriptionUsageReader.ReadAsync(db, subscription, now, cancellationToken);
 
-        return GetTenantSubscriptionQueryHandler.ToDto(subscription, usage);
+        return GetTenantSubscriptionQueryHandler.ToDto(subscription, usage, now, plan);
     }
 }

@@ -4,7 +4,7 @@ using MediatR;
 namespace ErpApp.Application.Tenancy.Commands.UpdateWarehouse;
 
 public sealed record UpdateWarehouseCommand(Guid OrganizationId, Guid Id, string Name, bool IsActive)
-    : IRequest<UpdateWarehouseResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<UpdateWarehouseResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData
 {
     public string PermissionKey => PermissionKeys.WarehouseManage;
 }

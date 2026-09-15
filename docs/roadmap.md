@@ -74,6 +74,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 42 | Performance follow-through: `ToKeyPagedResultAsync` on 16 list handlers (keyset retired, not deferred), Detail General Ledger paged by row with the account boundary disclosed, the period-length id lists removed from five readers, the quota count's covering columns, a measured bundle budget | `phase-42-status.md` |
 | 44 | Report semantics, read live first: the last four statutory reports folded to base currency, Reporting Tags corrected to OR-within/AND-across, Inventory Master's Warehouse Transfer + Opening Stock, Display Warehouse in Column, `sales-summary`'s Group Wise location, System Audit's stamped location, the billing-location backfill command; plus the Billing Location filter both statutory registers accepted and never applied | `phase-44-status.md` |
 | 43 | Aggregate completions: `UpdateOrganizationCommand` (8 editable fields, 3 refused by name), Deal/WorkTask as record parents with detail pages, `TrialStartsAt`/`TrialEndsAt` → `OriginatedAt`/`TermEndsAt`, `DebitNote.WarehouseId` so a standalone Goods return consumes FIFO, the Sales Register folded to base currency, Quick Payment/Receipt's currency control; product-to-location enforcement retired on live evidence | `phase-43-status.md` |
+| 46 | Metered add-on axes, where the roadmap premise that each axis is "a reader plus a ceiling" was wrong for two of three: the **AI-scan** ceiling (20/day on every tier and term length, sold by no add-on, per Nepal-local day, counted from the append-only `Audit` rows because a re-scan overwrites the document timestamp); **billing locations** as a purchased *record* that refuses nothing, on live evidence that the reference product caps them nowhere; **SMS** declared already-metered by phase 18's credit ledger; the transaction window corrected from the term to the allowance **year**; the entitlement mismatch surfaced and compared server-side; master-data creation gated past expiry | `phase-46-status.md` |
 | 45 | Multi-UOM × variants settled by live read — a variant **owns** its unit matrix, and phase 24's identity decision meant no schema change; a variant parent refused one (the sweep-guard exemption retired); `UpdateSecondaryUnitCommand`/`DeleteSecondaryUnitCommand` plus the primary-unit and duplicate-unit refusals; the `ProductAttributePool` importer (a ninth upload type whose rows add to a set its command replaces); `ListSmsLogsQuery`'s search term; the landed-cost drawer's replace semantics and the dry-run-in-a-transaction question decided and pinned | `phase-45-status.md` |
 
 ---
@@ -163,18 +164,21 @@ a person (46, 47).
   that Confirm Upload's post-hoc errors are the accepted shape.
 - `ListSmsLogsQuery` gets its search term (39 #4, the one exemption that would earn it).
 
-### 46. Metered add-on axes and the subscription edges
-- **Billing locations, SMS credits and AI scans as metered axes** (41 #4): `SubscriptionQuotaBehavior`
-  already meters two; each new axis is a reader plus a ceiling on the plan row. SMS credits already
-  have a ledger (phase 18); AI scans have a log (phase 22).
-- **Plan change vs entitlement flags** (41 #5): keep the flags un-reconciled by design but surface
-  the mismatch on the subscription screen.
-- **The quota race** (41 #6): a claim-row under a unique index per (organization, term, ordinal) if a
-  hard limit is ever wanted; otherwise leave the overshoot documented.
-- **Expired-tenant behaviour** (41 #7, 31 #5): still derived; the Terms price read-only access, so
-  read-only is the end state — confirm on a tenant if one ever expires, and extend the gate over
-  configuration writes (31 #6) at the same time.
-- The vendor-side actor stays a re-entry condition (41 #1); nothing in this phase pretends otherwise.
+### 46. Metered add-on axes and the subscription edges — **DONE** (see `phase-46-status.md`)
+- The premise "each new axis is a reader plus a ceiling on the plan row" was wrong for two of the
+  three. **AI scans** are a published per-**day** rate limit (20 on every tier, every term length,
+  sold by no add-on), counted from the append-only `Audit` rows because
+  `UploadedDocument.ExtractionAttemptedAt` is overwritten by every re-scan. **Billing locations** are
+  sold per unit and capped nowhere in the reference product, so the purchased count is a record that
+  refuses nothing. **SMS** was already metered by phase 18's credit ledger, which is the right
+  mechanism for a purchased balance; nothing built.
+- **Plan change vs entitlement flags** (41 #5): surfaced, never reconciled — and compared on the
+  server, because the plan tick-list and the tenant feature list use two vocabularies.
+- **The quota race** (41 #6): left documented, as recommended.
+- **Expired-tenant behaviour** (41 #7, 31 #5/#6): narrowed rather than taken whole — a third marker
+  gates master-data creation past expiry, while settings edits and the renewal command stay open.
+  Still derived; **Cadehi's trial ends 2026-09-22**, the first observable expiry with a date.
+- The vendor-side actor stays a re-entry condition (41 #1), now confirmed live on all three axes.
 
 ### 47. Accessibility completion — the parts that need a person
 - **An hour with NVDA** (40 #1): a person, on Windows, hears the live regions and the roving toolbar;

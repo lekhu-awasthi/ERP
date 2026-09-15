@@ -5,7 +5,7 @@ using MediatR;
 namespace ErpApp.Application.Accounting.Commands.UpdateAccountGroup;
 
 public sealed record UpdateAccountGroupCommand(Guid OrganizationId, Guid Id, string Name, Guid? ParentGroupId, bool IsActive)
-    : IRequest<UpdateAccountGroupResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<UpdateAccountGroupResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData
 {
     public string PermissionKey => PermissionKeys.AccountGroupManage;
 }

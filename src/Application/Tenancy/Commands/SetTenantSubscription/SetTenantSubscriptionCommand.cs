@@ -36,6 +36,12 @@ namespace ErpApp.Application.Tenancy.Commands.SetTenantSubscription;
 /// what a trial extension records.</param>
 /// <param name="TransactionQuota">As <paramref name="ProductQuota"/>, for transactions per term
 /// (Rs 1,000 per additional 10,000).</param>
+/// <param name="DailyAiScanQuota">Phase 46 -- AI extractions per day. Defaults to the plan's, or to
+/// the published 20 when there is no plan; <c>0</c> exempts the tenant entirely, which is a
+/// deliberate act rather than the trial default the other two quotas have.</param>
+/// <param name="LocationQuota">Phase 46 -- how many billing locations were paid for (Rs 5,000 each
+/// per year). A record only: nothing refuses on it, because the reference product does not cap
+/// locations. Defaults to the count already recorded, so an unrelated save cannot clear it.</param>
 /// <param name="IrdVerified">Whether the IRD Billing add-on has been paid for.</param>
 public sealed record SetTenantSubscriptionCommand(
     Guid OrganizationId,
@@ -44,6 +50,8 @@ public sealed record SetTenantSubscriptionCommand(
     decimal? SubscriptionAmount = null,
     int? ProductQuota = null,
     int? TransactionQuota = null,
+    int? DailyAiScanQuota = null,
+    int? LocationQuota = null,
     bool IrdVerified = false)
     : IRequest<TenantSubscriptionDto>, IRequirePermission, IOrganizationScoped
 {

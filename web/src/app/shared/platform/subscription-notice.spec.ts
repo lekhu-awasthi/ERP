@@ -37,7 +37,10 @@ describe('SubscriptionNotice', () => {
     subscriptionAmount: 20000,
     irdVerified: false,
     irdSyncEnabled: false,
-    usage: { transactionsUsed: 0, transactionQuota: 50000, productsUsed: 0, productQuota: 5000 },
+    allowanceYearStartsAt: '2026-01-01T00:00:00Z',
+    allowanceYearEndsAt: '2027-01-01T00:00:00Z',
+    entitlementMismatches: [],
+    usage: { transactionsUsed: 0, transactionQuota: 50000, productsUsed: 0, productQuota: 5000, aiScansUsed: 0, dailyAiScanQuota: 20, locationsUsed: 1, locationQuota: 0 },
     features: [],
   };
 
@@ -103,7 +106,7 @@ describe('SubscriptionNotice', () => {
       planId: null,
       planName: 'Trial',
       daysRemaining: 15,
-      usage: { transactionsUsed: 0, transactionQuota: 0, productsUsed: 0, productQuota: 0 },
+      usage: { transactionsUsed: 0, transactionQuota: 0, productsUsed: 0, productQuota: 0, aiScansUsed: 0, dailyAiScanQuota: 20, locationsUsed: 1, locationQuota: 0 },
     });
 
     expect(bannerText()).not.toContain('used up');
@@ -153,7 +156,7 @@ describe('SubscriptionNotice', () => {
 
   it('warns as an allowance runs low, naming the axis that is closest', async () => {
     await render({
-      usage: { transactionsUsed: 4800, transactionQuota: 5000, productsUsed: 1, productQuota: 5000 },
+      usage: { transactionsUsed: 4800, transactionQuota: 5000, productsUsed: 1, productQuota: 5000, aiScansUsed: 0, dailyAiScanQuota: 20, locationsUsed: 1, locationQuota: 0 },
     });
 
     expect(bannerText()).toContain('transactions for this term');
@@ -162,7 +165,7 @@ describe('SubscriptionNotice', () => {
 
   it('says nothing while an allowance is merely in use', async () => {
     await render({
-      usage: { transactionsUsed: 2500, transactionQuota: 5000, productsUsed: 0, productQuota: 5000 },
+      usage: { transactionsUsed: 2500, transactionQuota: 5000, productsUsed: 0, productQuota: 5000, aiScansUsed: 0, dailyAiScanQuota: 20, locationsUsed: 1, locationQuota: 0 },
     });
 
     expect(hasBanner()).toBe(false);
@@ -176,7 +179,7 @@ describe('SubscriptionNotice', () => {
   it('puts a spent allowance ahead of an approaching end date', async () => {
     await render({
       daysRemaining: 5,
-      usage: { transactionsUsed: 5000, transactionQuota: 5000, productsUsed: 0, productQuota: 5000 },
+      usage: { transactionsUsed: 5000, transactionQuota: 5000, productsUsed: 0, productQuota: 5000, aiScansUsed: 0, dailyAiScanQuota: 20, locationsUsed: 1, locationQuota: 0 },
     });
 
     expect(bannerText()).toContain('used up');
@@ -189,7 +192,7 @@ describe('SubscriptionNotice', () => {
   it('puts an ended subscription ahead of a spent allowance', async () => {
     await render({
       isTrialActive: false,
-      usage: { transactionsUsed: 5000, transactionQuota: 5000, productsUsed: 0, productQuota: 5000 },
+      usage: { transactionsUsed: 5000, transactionQuota: 5000, productsUsed: 0, productQuota: 5000, aiScansUsed: 0, dailyAiScanQuota: 20, locationsUsed: 1, locationQuota: 0 },
     });
 
     expect(bannerText()).toContain('subscription has ended');

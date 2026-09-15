@@ -90,6 +90,44 @@ public sealed class TenantSubscription
     public int TransactionQuota { get; private set; }
 
     /// <summary>
+    /// Phase 46 -- the ceiling on AI document extractions per <b>Nepal-local day</b>. Zero means not
+    /// metered, as for the two above.
+    ///
+    /// <para><b>Per day, and not purchasable.</b> Every published tier states "Up to 20 scans per
+    /// day" and the add-on collection sells no extra scans, so this is the one metered axis that is
+    /// not a commercial lever. What it is instead is a rate limit on the only action in this product
+    /// that spends money outward per call (phase 22's <c>IDocumentExtractor</c>), which is why it is
+    /// worth enforcing even though nobody is selling it.</para>
+    ///
+    /// <para><b>Unlike the other two, a trial is metered.</b> Phase 41's zero-means-unmetered is
+    /// right for an allowance somebody <i>bought</i> -- a trial that could create no products would
+    /// be a trial of nothing. It is exactly wrong here: unmetered would mean a free trial with
+    /// uncapped spend on a paid API. So <see cref="CreateTrial"/> seeds the published 20 rather than
+    /// the sentinel, and the sentinel stays available for a tenant deliberately exempted.</para>
+    /// </summary>
+    public int DailyAiScanQuota { get; private set; }
+
+    /// <summary>
+    /// Phase 46 -- how many billing locations this tenant has <b>paid for</b> (Rs 5,000 per location
+    /// per year on the published add-on list). Zero means no purchased count has been recorded.
+    ///
+    /// <para><b>A record, not a ceiling -- and that distinction was settled by reading the live
+    /// product, against this phase's own plan.</b> Cadehi runs three locations with Billing Location
+    /// simply <i>Enabled</i>: the list is unbounded, the Add New Location dialog states no cap, no
+    /// remaining count and no charge, and the Subscriptions screen shows no location row at all. So
+    /// the reference product bills per location commercially and enforces nothing, and
+    /// <c>CreateBillingLocationCommandHandler</c> keeps phase 32's boolean cap-at-one as the only
+    /// refusal. Building a refusing ceiling here would have shipped an enforcement the product
+    /// demonstrably does not have -- phase 43's product-to-location precedent, arrived at the same
+    /// way.</para>
+    ///
+    /// <para>It is stored anyway because the commercial record is otherwise incomplete: without it
+    /// nothing says a tenant running three locations bought three, and the subscription screen can
+    /// show what was sold beside what is in use.</para>
+    /// </summary>
+    public int LocationQuota { get; private set; }
+
+    /// <summary>
     /// Phase 41 -- the IRD Billing add-on (Rs 15,000, one-time on the published price list), shown
     /// as the reference product's own <b>IRD Verified</b> row. Distinct from
     /// <see cref="IrdSyncEnabled"/>, which is the integration switch: a tenant can have paid for
@@ -107,6 +145,14 @@ public sealed class TenantSubscription
     // Reserved per architecture-spec.md §4.1/§6 -- no IRD e-filing integration designed yet,
     // so this can never be enabled at creation; a later phase flips it on once that's built.
     public bool IrdSyncEnabled { get; private set; }
+
+    /// <summary>
+    /// The published per-day AI scan allowance, identical on Basic, Standard and Professional and on
+    /// every term length (tiggapp.com/pricing, read 2026-09-15). Named here because a trial has no
+    /// plan row to read it from, and because the migration that backfills existing tenants must use
+    /// the same number the seeded catalogue does.
+    /// </summary>
+    public const int DefaultDailyAiScanQuota = 20;
 
     private TenantSubscription()
     {
@@ -132,6 +178,10 @@ public sealed class TenantSubscription
             SubscriptionAmount = 0m,
             ProductQuota = 0,
             TransactionQuota = 0,
+            // Not the sentinel, deliberately -- see DailyAiScanQuota. A trial is the case where an
+            // uncapped paid-API call matters most, and 20 is what every published tier grants.
+            DailyAiScanQuota = DefaultDailyAiScanQuota,
+            LocationQuota = 0,
             IrdVerified = false,
             TrackInventoryEnabled = features.TrackInventory,
             MultipleLocationsEnabled = features.MultipleLocations,
@@ -174,6 +224,8 @@ public sealed class TenantSubscription
         decimal subscriptionAmount,
         int productQuota,
         int transactionQuota,
+        int dailyAiScanQuota,
+        int locationQuota,
         bool irdVerified)
     {
         if (string.IsNullOrWhiteSpace(planName))
@@ -198,10 +250,17 @@ public sealed class TenantSubscription
 
         // Zero is the "not metered" sentinel; anything below it is neither a ceiling nor a
         // sentinel, and would read as "unlimited" through every comparison that follows.
-        if (productQuota < 0 || transactionQuota < 0)
+        if (productQuota < 0 || transactionQuota < 0 || dailyAiScanQuota < 0)
         {
             throw new InvalidOperationException(
                 "A subscription quota cannot be negative; zero means not metered.");
+        }
+
+        // Not a ceiling and never enforced (see LocationQuota), but a negative count of purchased
+        // locations is not a record of anything either.
+        if (locationQuota < 0)
+        {
+            throw new InvalidOperationException("A purchased location count cannot be negative.");
         }
 
         PlanId = planId;
@@ -211,6 +270,8 @@ public sealed class TenantSubscription
         SubscriptionAmount = subscriptionAmount;
         ProductQuota = productQuota;
         TransactionQuota = transactionQuota;
+        DailyAiScanQuota = dailyAiScanQuota;
+        LocationQuota = locationQuota;
         IrdVerified = irdVerified;
     }
 

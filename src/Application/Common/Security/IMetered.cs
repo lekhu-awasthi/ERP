@@ -46,3 +46,16 @@ public interface IMeteredTransaction
 /// variants would let a tenant multiply its real catalogue without touching the ceiling.</para>
 /// </summary>
 public interface IMeteredProduct;
+
+/// <summary>
+/// Phase 46 -- marks the request that spends one of the tenant's daily AI-scan allowance.
+///
+/// <para><b>One implementer, and that is not an argument against the interface.</b>
+/// <c>ExtractInboxDocumentCommand</c> is the only request in the product that calls
+/// <c>IDocumentExtractor</c>, so this could have been a type check in the behavior. It is a marker
+/// because the other two axes are, because the sweep guard can then ask the same question of all
+/// three, and because the day a second extraction entry point appears (a bulk scan, the reference
+/// product's own "upload them in bulk") the ceiling must cover it without anybody remembering
+/// this file exists.</para>
+/// </summary>
+public interface IMeteredAiScan;

@@ -132,6 +132,99 @@ public class MeteredTransactionSweepGuardTests
     }
 
     /// <summary>
+    /// Phase 46 -- the same question asked of the scan axis, which is why the ceiling is a marker
+    /// interface rather than a type check in the behavior for its single implementer.
+    ///
+    /// <para>Extraction is the only action in this product that spends money outward per call, and
+    /// the reference product's own AI page advertises scanning documents "individually or in bulk".
+    /// So a second entry point is a foreseeable change, and the failure mode if one arrives unmarked
+    /// is silent: the bulk path would be free, uncapped, and billed to whoever runs the deployment.
+    /// This asserts the set is exactly what it is today, so adding one fails here until somebody
+    /// decides whether it spends the allowance.</para>
+    /// </summary>
+    [Fact]
+    public void The_scan_ceiling_covers_exactly_the_commands_that_call_the_extractor()
+    {
+        var metered = ApplicationAssembly
+            .GetTypes()
+            .Where(t => t is { IsAbstract: false, IsInterface: false } && typeof(IMeteredAiScan).IsAssignableFrom(t))
+            .Select(t => t.Name)
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToList();
+
+        Assert.Equal(["ExtractInboxDocumentCommand"], metered);
+    }
+
+    /// <summary>
+    /// Handlers that take <c>IDocumentExtractor</c> without ever spending a scan, each with its
+    /// reason -- the same shape as <see cref="UnmeteredPostingSources"/> above, and written out for
+    /// the same reason: an exclusion stated positively is a decision, an exclusion left out of a
+    /// list is an oversight nobody can tell from a decision.
+    ///
+    /// <para><b>Taking the dependency is not the same as spending the allowance</b>, which is what
+    /// the first draft of the guard below got wrong. Both of these read
+    /// <c>IsConfigured</c> and <c>ModelId</c> -- local properties describing whether a credential
+    /// exists and which model would be used -- to render the AI settings panel. Neither sends
+    /// anything anywhere.</para>
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, string> UnmeteredExtractorConsumers =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["GetAiDocumentExtractionSettingQueryHandler"] =
+                "Reads IsConfigured/ModelId to render the settings panel; makes no vendor call.",
+            ["UpdateAiDocumentExtractionSettingCommandHandler"] =
+                "Returns the same two metadata properties beside the saved flag; makes no vendor call.",
+        };
+
+    /// <summary>
+    /// The other direction, and the one that would actually bite. A request that reaches
+    /// <c>IDocumentExtractor</c> without implementing the marker is an uncapped paid call; this finds
+    /// it by looking for the dependency rather than for the marker, so the two cannot agree merely
+    /// because somebody updated both halves of one list.
+    /// </summary>
+    [Fact]
+    public void Nothing_reaches_the_extractor_without_being_metered()
+    {
+        var extractorConsumers = ApplicationAssembly
+            .GetTypes()
+            .Where(t => t is { IsAbstract: false, IsInterface: false })
+            .Where(t => t.GetConstructors().Any(c => c.GetParameters().Any(
+                param => param.ParameterType == typeof(ErpApp.Application.Common.DocumentExtraction.IDocumentExtractor))))
+            .Select(t => t.Name)
+            .Where(name => !UnmeteredExtractorConsumers.ContainsKey(name))
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToList();
+
+        // One handler, and it is the handler of the one marked command. If a second appears, its
+        // command must implement IMeteredAiScan -- or this phase's ceiling has a hole in it.
+        Assert.Equal(["ExtractInboxDocumentCommandHandler"], extractorConsumers);
+    }
+
+    /// <summary>Every named exclusion still exists, so a handler that is deleted or renamed cannot
+    /// leave a stale excuse behind that silently exempts some future handler of the same name.</summary>
+    [Fact]
+    public void Every_unmetered_extractor_consumer_still_exists()
+    {
+        var present = ApplicationAssembly.GetTypes().Select(t => t.Name).ToHashSet(StringComparer.Ordinal);
+
+        Assert.All(UnmeteredExtractorConsumers.Keys, name => Assert.Contains(name, present));
+    }
+
+    /// <summary>
+    /// Phase 46 -- the three axes are deliberately not interchangeable, and this pins the one that
+    /// is missing. Locations are sold per unit like products and transactions, but the reference
+    /// product does not cap them (Cadehi runs three on an Enabled flag with an unbounded list), so
+    /// <c>LocationQuota</c> is a record and there is no quota kind that could refuse one.
+    /// </summary>
+    [Fact]
+    public void There_is_no_refusal_kind_for_locations_or_sms()
+    {
+        var kinds = Enum.GetNames<ErpApp.Application.Common.Exceptions.SubscriptionQuotaKind>();
+
+        Assert.Equal(["AiScans", "Products", "Transactions"], kinds.OrderBy(x => x, StringComparer.Ordinal));
+    }
+
+    /// <summary>
     /// Creating a command record without running a constructor: every metered command is a positional
     /// record whose parameters differ, and this guard only ever reads an expression-bodied property
     /// that closes over a constant.

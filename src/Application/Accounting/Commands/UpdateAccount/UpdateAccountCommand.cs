@@ -7,7 +7,7 @@ namespace ErpApp.Application.Accounting.Commands.UpdateAccount;
 public sealed record UpdateAccountCommand(
     Guid OrganizationId, Guid Id, string Name, Guid GroupId, bool IsActive,
     AccountKind Kind = AccountKind.Other, Guid? BankId = null, string? AccountNumber = null)
-    : IRequest<UpdateAccountResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<UpdateAccountResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData
 {
     public string PermissionKey => PermissionKeys.AccountManage;
 }

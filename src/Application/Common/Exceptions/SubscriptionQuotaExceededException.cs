@@ -6,6 +6,10 @@ public enum SubscriptionQuotaKind
 {
     Transactions = 1,
     Products = 2,
+
+    /// <summary>Phase 46 -- AI document extractions per Nepal-local day. Unlike the other two this
+    /// ceiling cannot be bought up, so its message does not offer an add-on that does not exist.</summary>
+    AiScans = 3,
 }
 
 /// <summary>
@@ -35,12 +39,32 @@ public sealed class SubscriptionQuotaExceededException(
 
     private static string BuildMessage(SubscriptionQuotaKind kind, string planName, int used, int quota)
     {
-        var noun = kind == SubscriptionQuotaKind.Transactions ? "transaction" : "product";
+        var noun = kind switch
+        {
+            SubscriptionQuotaKind.Transactions => "transaction",
+            SubscriptionQuotaKind.AiScans => "AI scan",
+            _ => "product",
+        };
+
         var unit = quota == 1 ? noun : noun + "s";
-        var window = kind == SubscriptionQuotaKind.Transactions ? " for this subscription term" : string.Empty;
+
+        var window = kind switch
+        {
+            SubscriptionQuotaKind.Transactions => " for this subscription year",
+            SubscriptionQuotaKind.AiScans => " per day",
+            _ => string.Empty,
+        };
+
         var verb = used == 1 ? "has" : "have";
 
-        return $"The {planName} plan allows {quota:N0} {unit}{window}, and {used:N0} {verb} been used. "
-            + "Contact your Tigg representative to add capacity or move to a higher plan.";
+        // A daily scan allowance is the one ceiling here with no add-on behind it -- every published
+        // tier grants the same 20 and the add-on list sells no more -- so pointing the reader at a
+        // bigger plan would be pointing at a plan that grants exactly as many. It refills instead,
+        // which is the only true next step and the only one worth printing.
+        var remedy = kind == SubscriptionQuotaKind.AiScans
+            ? "The allowance refreshes at midnight; documents can still be entered by hand in the meantime."
+            : "Record a higher plan or an add-on on Configurations > Subscription & Features to add capacity.";
+
+        return $"The {planName} plan allows {quota:N0} {unit}{window}, and {used:N0} {verb} been used. {remedy}";
     }
 }

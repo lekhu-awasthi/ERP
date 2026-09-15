@@ -30,7 +30,7 @@ public sealed record UpdateProductCommand(
     string? Sku = null,
     string? Barcode = null,
     IReadOnlyList<Guid>? LocationIds = null)
-    : IRequest<UpdateProductResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<UpdateProductResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData
 {
     public string PermissionKey => PermissionKeys.ProductManage;
 }

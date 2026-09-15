@@ -16,7 +16,7 @@ public sealed record UpdateBillingLocationCommand(
     string? Address,
     Guid? WarehouseId,
     bool IsActive)
-    : IRequest, IRequirePermission, IOrganizationScoped
+    : IRequest, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData
 {
     public string PermissionKey => PermissionKeys.BillingLocationManage;
 }

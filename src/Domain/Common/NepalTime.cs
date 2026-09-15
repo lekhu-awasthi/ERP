@@ -26,6 +26,22 @@ public static class NepalTime
     /// <summary>The local calendar date an instant falls on.</summary>
     public static DateOnly LocalDate(DateTimeOffset instant) => DateOnly.FromDateTime(ToLocal(instant).DateTime);
 
+    /// <summary>
+    /// The instant local midnight began for the day <paramref name="instant"/> falls on -- the open
+    /// end of the window is <c>StartOfLocalDay(instant).AddDays(1)</c>.
+    ///
+    /// <para>Phase 46 -- the AI-scan allowance is "up to 20 scans per day" (the vendor's published
+    /// wording), and a day is the tenant's day. Deriving the boundary here rather than at the call
+    /// site is what stops a UTC <c>Date</c> from silently defining it: UTC midnight is 05:45 local,
+    /// so a scan run at 05:00 Nepal time belongs to the previous UTC day and would be counted
+    /// against the wrong allowance.</para>
+    /// </summary>
+    public static DateTimeOffset StartOfLocalDay(DateTimeOffset instant)
+    {
+        var local = ToLocal(instant);
+        return new DateTimeOffset(local.Year, local.Month, local.Day, 0, 0, 0, Offset);
+    }
+
     /// <summary>The local wall-clock time of day an instant falls on, truncated to whole minutes
     /// (the resolution the alert time picker and <see cref="ErpApp.Domain.Configuration.AlertDefinition.ScheduleTime"/>
     /// both work in).</summary>

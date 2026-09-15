@@ -25,7 +25,7 @@ public sealed record CreateProductCommand(
     string? Sku = null,
     string? Barcode = null,
     IReadOnlyList<Guid>? LocationIds = null)
-    : IRequest<CreateProductResult>, IRequirePermission, IOrganizationScoped, IMeteredProduct
+    : IRequest<CreateProductResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData, IMeteredProduct
 {
     public string PermissionKey => PermissionKeys.ProductManage;
 }

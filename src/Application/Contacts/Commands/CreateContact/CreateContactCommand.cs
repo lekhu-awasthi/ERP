@@ -25,7 +25,7 @@ public sealed record CreateContactCommand(
     decimal CreditLimit = 0m,
     Guid? CreditTermId = null,
     bool AcceptsReverseTransactions = false)
-    : IRequest<CreateContactResult>, IRequirePermission, IOrganizationScoped, IAuditableRequest
+    : IRequest<CreateContactResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData, IAuditableRequest
 {
     public string PermissionKey => PermissionKeys.ContactManage;
 

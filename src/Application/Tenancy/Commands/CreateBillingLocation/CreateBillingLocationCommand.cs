@@ -20,7 +20,7 @@ public sealed record CreateBillingLocationCommand(
     string Name,
     string? Address = null,
     Guid? WarehouseId = null)
-    : IRequest<CreateBillingLocationResult>, IRequirePermission, IOrganizationScoped
+    : IRequest<CreateBillingLocationResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData
 {
     public string PermissionKey => PermissionKeys.BillingLocationManage;
 }

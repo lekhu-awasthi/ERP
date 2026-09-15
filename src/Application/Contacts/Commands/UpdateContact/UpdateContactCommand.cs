@@ -24,7 +24,7 @@ public sealed record UpdateContactCommand(
     decimal CreditLimit = 0m,
     Guid? CreditTermId = null,
     bool AcceptsReverseTransactions = false)
-    : IRequest<UpdateContactResult>, IRequirePermission, IOrganizationScoped, IAuditableRequestWithId
+    : IRequest<UpdateContactResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData, IAuditableRequestWithId
 {
     public string PermissionKey => PermissionKeys.ContactManage;
 

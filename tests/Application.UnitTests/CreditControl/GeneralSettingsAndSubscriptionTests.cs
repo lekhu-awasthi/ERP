@@ -109,7 +109,7 @@ public class GeneralSettingsAndSubscriptionTests
             x => x == typeof(ErpApp.Application.Common.Security.ILockDateSensitive)
                 || x == typeof(ErpApp.Application.Common.Security.ILockDateSensitiveDocument));
 
-        var result = await new SetTenantSubscriptionCommandHandler(db).Handle(renewal, CancellationToken.None);
+        var result = await new SetTenantSubscriptionCommandHandler(db, TimeProvider.System).Handle(renewal, CancellationToken.None);
 
         Assert.True(result.IsTrialActive);
         Assert.Equal("Standard", result.PlanName);
@@ -132,7 +132,7 @@ public class GeneralSettingsAndSubscriptionTests
             seed.OrganizationId, new AccountingFeatureSelections(false, false, false, false, Manufacturing: true, false, false)));
         await db.SaveChangesAsync(CancellationToken.None);
 
-        var result = await new SetTenantSubscriptionCommandHandler(db).Handle(
+        var result = await new SetTenantSubscriptionCommandHandler(db, TimeProvider.System).Handle(
             new SetTenantSubscriptionCommand(
                 seed.OrganizationId, (await SeedStandardPlanAsync(db)).Id, DateTimeOffset.UtcNow.AddDays(365)),
             CancellationToken.None);
@@ -160,7 +160,7 @@ public class GeneralSettingsAndSubscriptionTests
     private static async Task<SubscriptionPlan> SeedStandardPlanAsync(IAppDbContext db)
     {
         var plan = SubscriptionPlan.Create(
-            Guid.NewGuid(), "Standard", "Standard", "SME tier", 2, 20_000m, 5_000, 50_000,
+            Guid.NewGuid(), "Standard", "Standard", "SME tier", 2, 20_000m, 5_000, 50_000, TenantSubscription.DefaultDailyAiScanQuota,
             trackInventoryIncluded: true, multipleWarehousesIncluded: true, landedCostIncluded: true,
             manufacturingIncluded: false, posIncluded: false, multiCurrencyIncluded: true,
             developerApiIncluded: false);

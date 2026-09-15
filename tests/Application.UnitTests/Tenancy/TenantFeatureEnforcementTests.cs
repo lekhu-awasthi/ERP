@@ -116,7 +116,7 @@ public class TenantFeatureEnforcementTests
         var organization = await new CreateOrganizationCommandHandler(db, currentUser, new FakeTurnstileVerifier()).Handle(
             OrganizationCommand("subscription-org", multipleWarehouses: true), CancellationToken.None);
 
-        var result = await new GetTenantSubscriptionQueryHandler(db).Handle(
+        var result = await new GetTenantSubscriptionQueryHandler(db, TimeProvider.System).Handle(
             new GetTenantSubscriptionQuery(organization.OrganizationId), CancellationToken.None);
 
         Assert.Equal("Trial", result.PlanName);
@@ -140,7 +140,7 @@ public class TenantFeatureEnforcementTests
     {
         var db = TestAppDbContext.Create();
 
-        await Assert.ThrowsAsync<NotFoundException>(() => new GetTenantSubscriptionQueryHandler(db).Handle(
+        await Assert.ThrowsAsync<NotFoundException>(() => new GetTenantSubscriptionQueryHandler(db, TimeProvider.System).Handle(
             new GetTenantSubscriptionQuery(Guid.NewGuid()), CancellationToken.None));
     }
 }

@@ -2602,3 +2602,104 @@ shared component (one change, all four grids) and left the nesting, because a fo
 change had its own risk. A sweep for the shape — anchors with `routerLink` containing
 `select|button|input|textarea|app-*-picker` — finds exactly four instances, all the same component,
 which is what made the contained fix safe to reason about.
+
+## A per-day count comes from the audit trail, never the aggregate's own timestamp (phase 46)
+
+`UploadedDocument.ExtractionAttemptedAt` records when a document was **last** scanned. It is
+overwritten by every re-extraction, so it holds one instant per document and cannot answer "how many
+scans happened today" — ten re-runs against one supplier bill would count as one, and those ten are
+ten real, paid API calls. The expensive case is exactly the case it cannot see.
+
+The append-only source already existed: phase 22 audits every extraction, because it is the one
+action in the product that sends a customer's document outward. `SubscriptionUsageReader
+.CountAiScansTodayAsync` counts `Audit` rows with `DocumentType.DocumentExtraction` inside the
+Nepal-local day. Two properties make that work and both are worth stating:
+
+- `AuditBehavior` writes its row **after** the handler succeeds, so a request currently being metered
+  has not written one yet. The count is exactly "attempts before this one today", which is the figure
+  a ceiling compares against — no off-by-one, and no need to exclude self.
+- The window is `NepalTime.StartOfLocalDay`, not `DateTime.UtcNow.Date`. UTC midnight is 05:45 in
+  Kathmandu: a UTC key hands every tenant a fresh allowance each morning between 00:00 and 05:45
+  local, and refuses them in the evening against scans belonging to a day already over.
+
+This is phase 26c's rule — *a dated stock report derives from `StockMovement`, never
+`StockLedgerEntry`, whose `QuantityRemaining` is decremented in place* — in an area with no stock in
+it. The generalisation: **a figure "as of a date" comes from the history; a figure "as of now" may
+come from the field.**
+
+## Zero means unmetered for an allowance, and the opposite for a cost control (phase 46)
+
+Phase 31 confirmed live that a stored `0` credit limit means *no limit*, and phase 41 made the same
+reading the sentinel on both subscription quotas. That is right for an allowance somebody **bought**:
+a trial has purchased nothing, and a trial that could create no products would be a trial of nothing.
+
+It is exactly wrong for the AI-scan ceiling, which is not a purchase but a cap on outward spend.
+Unmetered there means a free trial with uncapped calls against a paid API. So `CreateTrial` seeds the
+published 20 rather than the sentinel, `SetTenantSubscriptionCommand` falls back to 20 rather than to
+0 when there is no plan, and the sentinel stays available only as a deliberate exemption nothing
+reaches by accident.
+
+The migration is where this bites hardest. `dotnet ef` scaffolded
+`DailyAiScanQuota int NOT NULL DEFAULT 0` — and unlike phase 31's `DueDate '0001-01-01'` or phase
+41's back-dated `TermStartsAt`, that value looks *entirely plausible*. Every existing tenant would
+have come out unmetered, the ceiling would have applied to nobody, nothing would have failed, no test
+would have caught it, and the only evidence would have been the API bill. Rewritten by hand as
+add-nullable → `UPDATE … SET 20` → alter-to-NOT-NULL, and verified with a predicate that reads
+backwards under the scaffolded version (156/156 at 20, 0 at 0).
+
+`LocationQuota` in the same migration **kept** its scaffolded `DEFAULT 0`, and the contrast is the
+rule: phase 37's refinement says a default is safe exactly when it is already the truth about the
+rows that are there. No tenant had recorded a purchased location count, so 0 is a fact about them.
+
+## A purchased quantity is not automatically a ceiling (phase 46)
+
+The published price list sells Billing Location at Rs 5,000 per location per year, which reads like a
+count ceiling and was planned as one. The live product caps nothing: the reference tenant runs three
+locations on a plain *Enabled* flag, the list is unbounded, the Add New Location dialog asks for code,
+name, address and warehouse and mentions no cap, no remaining count and no charge, and the
+Subscriptions screen carries no location row at all. The metering is commercial and happens on an
+invoice, not in software.
+
+So `TenantSubscription.LocationQuota` is stored, displayed beside the count in use, and never
+compared in order to refuse; phase 32's boolean cap-at-one remains the only refusal. This is phase
+43's product-to-location moment — *the reference product saves and approves a document naming an
+out-of-location product, so the enforcement idea is retired with the evidence* — reached the same way
+and reversing the phase's own written plan.
+
+The absence is pinned rather than left implicit: `SubscriptionQuotaKind` has exactly three members,
+asserted by name, so adding a location refusal fails a test whose comment explains why it should not
+exist.
+
+## Two lists describing one thing in two vocabularies cannot be joined by name (phase 46)
+
+A subscription plan's tick-list is the price list's wording — "Multiple currency", "Inventory
+tracking", "POS (Retail/Restro)". A tenant's entitlement list is the signup wizard's —
+"Multi-Currency Support", "Track Inventory", "Point of Sale (Retail)". Surfacing phase 41's
+plan-vs-entitlement mismatch means pairing them, and the first attempt did it in the browser by
+display name.
+
+It matches nothing. Worse, it renders as *"no mismatches"*, which is also the correct output most of
+the time, so it would have looked right on every tenant that had no mismatch and stayed wrong on
+every tenant that did. This is phase 27a's ordinal-enum bridge through a different door and it fails
+identically: quietly, and looking like agreement.
+
+The lists are not even the same length. One POS row covers two tenant flags; Landed Cost and
+Developer API are published per tier with no tenant flag at all; Multiple Locations has a tenant flag
+but no tier includes it, because it is an add-on. The comparison moved to
+`GetTenantSubscriptionQueryHandler`, where it is a typed pairing of the six entitlements both sides
+have an opinion about, with the four exclusions written down and reasoned.
+
+## A guard predicate naming a dependency is not naming the behaviour (phase 46)
+
+The AI-scan ceiling's second sweep-guard direction asks "what reaches the extractor without being
+metered", and looked for handlers whose constructor takes `IDocumentExtractor`. That found three, and
+two of them — `GetAiDocumentExtractionSettingQueryHandler` and
+`UpdateAiDocumentExtractionSettingCommandHandler` — only read `IsConfigured` and `ModelId`, local
+properties describing whether a credential exists and which model would be used, to render the
+settings panel. Neither sends anything anywhere.
+
+Taking the dependency is not spending the allowance. The two are named as exclusions with their
+reasons, in the same `IReadOnlyDictionary<string, string>` shape phase 41 used for the unmetered
+GL-posting types — and a second test asserts every named exclusion still exists, so deleting or
+renaming a handler cannot leave a stale excuse behind that silently exempts a future handler that
+happens to share its name.

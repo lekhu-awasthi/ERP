@@ -34,6 +34,7 @@ public sealed class ListSubscriptionPlansQueryHandler(IAppDbContext db)
             plan.AnnualAmount,
             plan.ProductQuota,
             plan.TransactionQuota,
+            plan.DailyAiScanQuota,
             [
                 new SubscriptionPlanFeatureDto("Multiple currency", plan.MultiCurrencyIncluded),
                 new SubscriptionPlanFeatureDto("Inventory tracking", plan.TrackInventoryIncluded),

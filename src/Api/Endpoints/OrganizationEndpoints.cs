@@ -487,6 +487,8 @@ public static class OrganizationEndpoints
                     request.SubscriptionAmount,
                     request.ProductQuota,
                     request.TransactionQuota,
+                    request.DailyAiScanQuota,
+                    request.LocationQuota,
                     request.IrdVerified),
                 ct);
             return Results.Ok(result);
@@ -502,6 +504,8 @@ public static class OrganizationEndpoints
         decimal? SubscriptionAmount = null,
         int? ProductQuota = null,
         int? TransactionQuota = null,
+        int? DailyAiScanQuota = null,
+        int? LocationQuota = null,
         bool IrdVerified = false);
 
     private sealed record UpdateGeneralSettingsRequest(

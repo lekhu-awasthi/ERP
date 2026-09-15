@@ -35,7 +35,7 @@ namespace ErpApp.Application.Workflow.Commands.ExtractInboxDocument;
 /// things that throw here are the gates -- and a caller asking to extract from a spreadsheet.</para>
 /// </summary>
 public sealed record ExtractInboxDocumentCommand(Guid OrganizationId, Guid DocumentId)
-    : IRequest<InboxDocumentDto>, IRequirePermission, IOrganizationScoped, IAuditableRequestWithId
+    : IRequest<InboxDocumentDto>, IRequirePermission, IOrganizationScoped, IAuditableRequestWithId, IMeteredAiScan
 {
     public string PermissionKey => PermissionKeys.InboxDocumentExtract;
 

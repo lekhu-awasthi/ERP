@@ -76,6 +76,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 42: performance follow-through (`ToKeyPagedResultAsync` on 16 lists, Detail General Ledger paged by row, the id lists that were costing more than they saved, the quota index, the bundle budget). Before paging a list, handing SQL a list of ids, or quoting a bundle size — `docs/phase-42-status.md`
 - Phase 43: aggregate completions (`UpdateOrganizationCommand`, Deal/WorkTask as record parents, the term-date rename, `DebitNote.WarehouseId`, the Sales Register folded to base). Before renaming two columns in one migration, or changing what a document does to the stock ledger — `docs/phase-43-status.md`
 - Phase 45: multi-UOM × variants (a variant owns its unit matrix; the parent is refused one), the secondary-unit edit/delete, the `ProductAttributePool` importer, plus a review pass that added the Custom Statuses screen and five UI fixes. Before deciding an interaction between two features nobody has posed, excusing a handler in a sweep guard, or nesting a control in a row anchor — `docs/phase-45-status.md`
+- Phase 46: metered add-on axes — the AI-scan ceiling (20/day, Nepal-local, counted from the audit trail), the allowance *year*, locations as a record not a ceiling, SMS already metered. Before adding a metered axis, or trusting a shape the roadmap named — `docs/phase-46-status.md`
 - Phase 44: report semantics read live first — the last four statutory reports folded to base, Reporting Tags corrected to OR-within/AND-across, Inventory Master's two extra types, Display Warehouse in Column, Group Wise location, System Audit's stamped location, the location backfill. Before trusting a recorded control nobody operated, or assuming a report applies the filter it accepts — `docs/phase-44-status.md`
 
 ## Stack & conventions
@@ -189,6 +190,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A FIFO layer stores a unit cost rounded to `ProductionJournal.UnitCostScale`; build a value-transforming GL entry from the values actually created and name the rounding residue (phase-25).
 - `GlJournalEntry` stores no copy of its document's number, reference or business date — only `SourceDocumentType`/`SourceDocumentId`/`PostedAt`; any report showing those must join back across the 11 GL-posting types, and must show the same date field it filters on (phase-26a).
 - A dated stock report derives from `StockMovement`, never `StockLedgerEntry`, whose `QuantityRemaining` is decremented in place and only answers "as of now" (phase-26c).
+- Same rule outside stock: a per-day count comes from the append-only `Audit` rows, never `UploadedDocument.ExtractionAttemptedAt`, which a re-scan overwrites — ten paid re-runs would count as one (phase-46).
 - An oversell leaves a shortfall layer (a negative `StockLedgerEntry` at the last known cost) when the Negative Item Balance verdict allows it; `ConsumeAsync` takes the verdict, never the setting (phase-37).
 - A Debit Note line carries no `ExpenditureClassification` or `IsImport` of its own; both are resolved from the source Purchase Bill's matching line by (PurchaseBillId, ProductId, Rate, VatRate) (phase-19, phase-26c's `PurchaseReturnReader`).
 - Convert a currency on a posting rule's **inputs**, never on its finished `GlLineInput` list: every rule derives its balancing leg as a *sum* of the others, so converting afterwards rounds that leg independently and breaks `sum(Debit)==sum(Credit)` intermittently (phase-28).
@@ -209,6 +211,10 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A field an aggregate refuses to expose should be **absent** from the request record, not merely unwritten — present-and-ignored reads to a client as accepted (phase-43's `WorkspaceName`).
 - Before calling a tenant-level limit "enforcement", ask who can write it: `Tenancy.Subscription.Manage` sits on the tenant's own Admin, so a quota is a record and a guard, not a control (phase-41).
 - A field dead on two free-trial tenants is one sample, not two; read what the vendor publishes (its price list sells the "dead" fields) before asking for another tenant (phase-41).
+- …and a fact recorded in the scan but not carried into the decision is not yet evidence: "AI scans / day: 20" sat in the price-list appendix for a phase while the roadmap called that axis an invention (phase-46).
+- Zero-means-unmetered is right for an allowance somebody **bought** and exactly wrong for a **cost control**: on the scan axis it is a free trial with uncapped spend on a paid API, so the trial seeds the published ceiling (phase-46).
+- A scaffolded migration default can be *plausible* and still mean the opposite of what is wanted — `DailyAiScanQuota DEFAULT 0` is "unmetered", so the feature would have applied to nobody with the API bill as the only evidence (phase-46).
+- Locations are sold per unit and capped nowhere: the reference product runs three on an Enabled flag with an unbounded list and no charge shown, so a purchased count is a record, never a ceiling (phase-46, phase-43's precedent).
 - Two confirmable warnings on one document need two override flags and a `warningKind` on the 422, or confirming the first waives the second (phase-31).
 - A non-nullable column on a populated table needs a hand-written backfill unless the default is already true of the existing rows (`ValueAdjustment` needed none) (phase-31, phase-37).
 - A permission that depends on the requested value as well as the loaded row is the `AttachmentAccess` pattern; the E2E must show 404 on a missing row and 403 on a real one (phase-31's cheque bounce).
@@ -304,6 +310,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A list sampled from a few screens becomes a wrong list; find the **rule**. Send Email is not on all 15 printable types but on the 6 whose email-template context exists — a rule that also settles the types never probed, asserted in both directions by a guard test (phase-30, correcting phase-27b).
 - When the real permission key depends on the row about to be loaded, declare a blanket seeded key for `AuthorizationBehavior`, then re-check the real key in the handler with the identical `ForbiddenException` (phase-27a, `AttachmentAccess`).
 - Never bridge overlapping enums (`DocumentType` and the parent-type enums) by ordinal cast; bridge by name with `Enum.TryParse` and pin it with a divergent-ordinal guard test (phase-27a).
+- …and two lists describing one thing in two vocabularies cannot be joined by display name at all: the plan tick-list speaks the price list and a tenant's features speak the signup wizard, so the join matches nothing and renders as agreement. Compare where both sides are typed (phase-46).
+- A guard predicate naming a **dependency** is not naming the behaviour: two handlers inject `IDocumentExtractor` only to read `IsConfigured`/`ModelId`, so the exclusions must be named with reasons and asserted to still exist (phase-46).
 
 **Testing and manual E2E**
 - A vendor's always-pass dummy credential (Turnstile `1x000…AA`) accepts any input; proving the negative path needs the always-fail one (`2x000…AA`) swapped in (phase-20g).
@@ -370,32 +378,39 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–45 are complete.** The v1 sequence (0–25), the parity sequence (26–34c), the
-consolidation sequence (35–41) and the completion phases (42–45) are all done; each phase's story is
+**Phases 0–46 are complete.** The v1 sequence (0–25), the parity sequence (26–34c), the
+consolidation sequence (35–41) and the completion phases (42–46) are all done; each phase's story is
 in its `docs/phase-N-status.md`, and the completed planning entries are archived in
-`docs/roadmap-history.md`. Phase 45 answered the interaction phase 24 deferred as "a genuine
-combinatorial design question nobody has posed": a variant **owns** its secondary-unit conversions
-and prices, proven on the reference tenant by one sibling diverging from its parent's primary unit
-while the other three did not follow — and because phase 24 had already decided a variant *is* a
-Product, ownership cost no schema change at all. What the read did force was the mirror of it: a
-variant parent has no unit matrix, which is the same fact as its not reaching a document line, and
-phase 24's sweep-guard allow-list had excused that handler in words that were an argument for the
-refusal. The phase also gave the secondary-unit table its missing edit and delete, added a ninth
-upload type whose rows add to a set its command replaces, and settled the landed-cost drawer and the
-dry-run-in-a-transaction questions as recorded decisions with tests rather than sentences.
+`docs/roadmap-history.md`. Phase 46 was planned around the roadmap's sentence that each remaining
+metered axis is "a reader plus a ceiling on the plan row", and the reads showed the three are three
+different kinds of thing. **AI scans** are a published ceiling the project had recorded and never
+carried into a decision — *"Up to 20 scans per day"*, identical on every tier and every term length,
+sold by no add-on — so they are a rate limit on the one action that spends money outward per call,
+counted per Nepal-local day from the append-only `Audit` rows because the document's own timestamp is
+overwritten by every re-scan. **Billing locations** are sold per unit and capped nowhere: the
+reference tenant runs three on a plain Enabled flag with an unbounded list and no charge shown, so
+the purchased count is a record and refuses nothing — phase 43's product-to-location precedent,
+reached the same way and reversing this phase's own plan. **SMS** was already metered by the right
+mechanism in phase 18, and the live *Add SMS Credit* control is still a phone number. The same read
+also caught a defect in phase 41: every published quota is per *year* and the 3-year tab repeats the
+same figures beside a tripled price, so the transaction window is now the allowance **year**, not the
+whole term.
 
-**Next: phases 46–47 in `docs/roadmap.md`.** The metered add-on axes and subscription edges (46),
-then the accessibility items that need a person with a screen reader (47). The deferred list (DO/GRN,
-POS, IRD, Marketplace, unrealised forex, per-user location, multi-level BOM) is unchanged.
+**Next: phase 47 in `docs/roadmap.md`** — the accessibility items that need a person with a screen
+reader. The deferred list (DO/GRN, POS, IRD, Marketplace, unrealised forex, per-user location,
+multi-level BOM) is unchanged, and the vendor-side actor remains the re-entry condition for every
+subscription ceiling. **Cadehi's trial ends 2026-09-22** — the first observable expiry this project
+has had a date for, and the read that would settle phase 31/46's derived expiry behaviour.
 
-Tests at last count: Domain 666, Application.UnitTests 1156, Api.IntegrationTests 29, Angular 479;
+Tests at last count: Domain 674, Application.UnitTests 1181, Api.IntegrationTests 29, Angular 487;
 `dotnet build` / `dotnet test` / `ng build` / `ng test` all clean, and `ng build` does not warn —
-phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts` (651.92 kB at
-the end of phase 45). `Api.IntegrationTests` needs Docker Desktop running — without it the nine
+phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts` (652.08 kB at
+the end of phase 46). `Api.IntegrationTests` needs Docker Desktop running — without it the nine
 Testcontainers-backed tests fail in their constructors before any assertion, which reads like nine
 regressions and is not; it also still fails nondeterministically under machine load and passes on
 re-run (phase 36/37). `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
-check (phase-28), and `ng test` must be run from `web/` (phase-35a).
+check (phase-28), and `ng test` must be run from `web/` (phase-35a) on **Node 24** (`nvm use 24.11.0`
+— v16 dies with `availableParallelism is not a function`).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

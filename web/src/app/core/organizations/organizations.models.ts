@@ -361,6 +361,18 @@ export interface SubscriptionUsage {
   transactionQuota: number;
   productsUsed: number;
   productQuota: number;
+  /**
+   * Phase 46 -- extractions already run today, on the tenant's own (Nepal) day. Its ceiling is per
+   * DAY and is the one allowance no add-on sells, so a screen showing it must not offer to buy more.
+   */
+  aiScansUsed: number;
+  dailyAiScanQuota: number;
+  /**
+   * Phase 46 -- billing locations in use, beside `locationQuota`, the number purchased. Reported for
+   * comparison only: the reference product does not cap locations, so nothing refuses on this pair.
+   */
+  locationsUsed: number;
+  locationQuota: number;
 }
 
 export interface TenantSubscription {
@@ -379,8 +391,30 @@ export interface TenantSubscription {
   /** The IRD Billing add-on. Not the same thing as `irdSyncEnabled`, which is the integration. */
   irdVerified: boolean;
   irdSyncEnabled: boolean;
+  /**
+   * Phase 46 -- the window the transaction allowance is counted over, which is the current
+   * anniversary year within the term rather than the whole term. They differ only on a multi-year
+   * term, which is exactly the case phase 41 got wrong.
+   */
+  allowanceYearStartsAt: string;
+  allowanceYearEndsAt: string;
   usage: SubscriptionUsage;
   features: TenantFeatureState[];
+  /**
+   * Phase 46 -- entitlements on which the recorded tier and the tenant's own flags disagree.
+   * Computed on the server, because the plan's tick-list speaks the price list's wording and a
+   * tenant's features speak the signup wizard's; joining them here by display name would match
+   * nothing and look like agreement.
+   */
+  entitlementMismatches: EntitlementMismatch[];
+}
+
+export interface EntitlementMismatch {
+  feature: string;
+  displayName: string;
+  /** True: the tenant has it and the tier does not sell it. False: the tier sells it and the tenant
+   *  does not have it (entitlements are fixed at Organization creation -- phase 20f). */
+  heldButNotIncluded: boolean;
 }
 
 /**
@@ -396,6 +430,8 @@ export interface SubscriptionPlan {
   annualAmount: number;
   productQuota: number;
   transactionQuota: number;
+  /** Phase 46 -- "Up to 20 scans per day", identical on every published tier. */
+  dailyAiScanQuota: number;
   includedFeatures: SubscriptionPlanFeature[];
 }
 
@@ -435,6 +471,10 @@ export interface SetTenantSubscriptionRequest {
   subscriptionAmount?: number;
   productQuota?: number;
   transactionQuota?: number;
+  /** Phase 46 -- omitted to take the plan's published 20. */
+  dailyAiScanQuota?: number;
+  /** Phase 46 -- how many billing locations were paid for. A record, never a ceiling. */
+  locationQuota?: number;
   irdVerified?: boolean;
 }
 
