@@ -44,8 +44,72 @@ internal static class TenantIndexConvention
     /// The business-date column, in the order it is looked for. <c>Date</c> is what fourteen
     /// document aggregates call it; <c>PostedAt</c> is <see cref="Domain.Accounting.GlJournalEntry"/>'s
     /// name for the same thing, and is what all three financial statements filter on.
+    ///
+    /// <para><b>Phase 50.</b> This list was wrong, and it was wrong in three places rather than one.
+    /// Phase 47 predicted the failure mode exactly — <i>a convention matching by name is a list, and
+    /// a list becomes a wrong list</i> — having found that <see cref="Domain.Payments.Cheque"/>
+    /// spells its date <c>ChequeDate</c> and so fell through to the master-data branch in silence.
+    /// Asking the mirror question (which tenant-scoped entities carry a business date this list never
+    /// looked at?) found two more: <c>StockLedgerEntry</c> and <c>StockMovement</c> both spell theirs
+    /// <c>TransactionDate</c>. Those two were fine, but <b>by luck and not by rule</b> — each carries
+    /// a hand-written <c>(OrganizationId, ProductId, WarehouseId, TransactionDate)</c> composite, so
+    /// <see cref="HasLeadingTenantIndex"/> waved them through without anyone knowing a classification
+    /// had been missed.</para>
+    ///
+    /// <para>So the name list stays — it is right for fourteen of seventeen and reading it is how you
+    /// learn what a document is here — but it is no longer allowed to be <i>silently</i> wrong. An
+    /// entity it fails to classify is declared in <see cref="DeclaredBusinessDates"/> or excused in
+    /// <see cref="DatesThatAreNotBusinessDates"/>, and anything in neither fails the model build with
+    /// the property named. The list can still be incomplete; it can no longer be incomplete without
+    /// somebody being told.</para>
     /// </summary>
     private static readonly string[] BusinessDateNames = [nameof(Domain.Sales.Invoice.Date), "PostedAt"];
+
+    /// <summary>
+    /// A document whose business date <see cref="BusinessDateNames"/> cannot find, and what its list
+    /// orders by — because the second half is not free either.
+    ///
+    /// <para><c>ListOrdersByCreatedAt</c> is the assumption the fourteen name-matched documents all
+    /// satisfy and that the convention had baked in: every document list orders <c>CreatedAt DESC</c>,
+    /// so every document table gets that index beside its date one. The Cheque Register does not —
+    /// it orders by <c>ChequeDate DESC</c>, has no <c>Sort by</c> menu at all
+    /// (<c>SortSweepGuardTests.Exempt</c> says why), and so would carry a second index that nothing
+    /// on the screen could ever ask for. Phase 50 measured that it is not needed and declined to add
+    /// it; an index nobody orders by is write cost plus one more way for the optimizer to change its
+    /// mind about a plan (phase 34c's first finding).</para>
+    /// </summary>
+    private sealed record DeclaredDate(string Column, bool ListOrdersByCreatedAt);
+
+    private static readonly IReadOnlyDictionary<string, DeclaredDate> DeclaredBusinessDates =
+        new Dictionary<string, DeclaredDate>(StringComparer.Ordinal)
+        {
+            ["Cheque"] = new(nameof(Domain.Payments.Cheque.ChequeDate), ListOrdersByCreatedAt: false),
+        };
+
+    /// <summary>
+    /// Tenant-scoped entities that carry a required date which is <b>not</b> a document's business
+    /// date, each with the reason. This is the half that makes the name list safe: without it, "no
+    /// business date found" and "master data" are the same answer, which is the state
+    /// <see cref="Domain.Payments.Cheque"/> sat in from phase 17 to phase 50.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, string> DatesThatAreNotBusinessDates =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["StockLedgerEntry"] =
+                "TransactionDate is a FIFO layer's date, and nothing reads a tenant's layers by date "
+                + "alone -- every reader is keyed by product and warehouse first, which is what the "
+                + "hand-written (OrganizationId, ProductId, WarehouseId, TransactionDate) composite "
+                + "serves. Phase 26c: a dated stock report derives from StockMovement, not from here.",
+            ["StockMovement"] =
+                "The same shape and the same composite. This IS what a dated stock report reads, and "
+                + "it reads it per product and warehouse -- a tenant-wide movement list by date is "
+                + "not a screen.",
+            ["AlertSendLog"] =
+                "OccurrenceDate is a job claim's key, not a business date: it exists to make "
+                + "(AlertDefinitionId, OccurrenceDate, Recipient) unique so a send happens exactly "
+                + "once (phase 20e). Nothing ranges over it, and the row carries "
+                + "(OrganizationId, CreatedAt) for the audit list that does.",
+        };
 
     /// <summary>
     /// The two master-data collections whose list ordering is not the column their per-tenant unique
@@ -135,6 +199,7 @@ internal static class TenantIndexConvention
     public static void Apply(ModelBuilder modelBuilder)
     {
         var unindexed = new List<string>();
+        var unclassifiedDates = new List<string>();
 
         foreach (var entity in modelBuilder.Model.GetEntityTypes())
         {
@@ -143,25 +208,62 @@ internal static class TenantIndexConvention
                 continue;
             }
 
+            // Derived first, declared second: fourteen of seventeen spell it Date or PostedAt, and
+            // the declaration exists for the ones that do not (phase 50).
             var businessDate = BusinessDateNames
                 .Select(entity.FindProperty)
                 .FirstOrDefault(p => p is not null);
 
+            var listOrdersByCreatedAt = true;
+
+            if (businessDate is null
+                && DeclaredBusinessDates.TryGetValue(entity.ClrType.Name, out var declared))
+            {
+                businessDate = entity.FindProperty(declared.Column)
+                    ?? throw new InvalidOperationException(
+                        $"TenantIndexConvention declares {entity.ClrType.Name}.{declared.Column} as its "
+                        + "business date, and the entity has no such property. The declaration and the "
+                        + "aggregate have diverged -- one of them is wrong.");
+
+                listOrdersByCreatedAt = declared.ListOrdersByCreatedAt;
+            }
+
             if (businessDate is not null)
             {
-                AddIndex(modelBuilder, entity, [OrganizationId, businessDate.Name], descendingLast: false,
-                    includes: ReportPathIncludes);
+                // Ascending for the fourteen, because their date index serves a range filter and the
+                // ordering is CreatedAt's job. Descending for a document whose list orders by this
+                // very column: the same declaration that says "no CreatedAt index" is what makes this
+                // index the ordering index too, and the direction is then worth declaring. Measured
+                // on the 50,000-cheque tenant, register first page, the two passes taken back to back
+                // with statistics refreshed and the plan cache cleared between them: 1,450 logical
+                // reads and 29.2 ms of CPU ascending, 1,286 and 24.4 ms descending. A modest win and
+                // reported as one -- an earlier probe read it as nearly 2x, and that probe carried a
+                // different plan-cache state, which is the difference between a measurement and a
+                // number (phase 50).
+                AddIndex(modelBuilder, entity, [OrganizationId, businessDate.Name],
+                    descendingLast: !listOrdersByCreatedAt, includes: ReportPathIncludes);
 
                 // The list path. A document without CreatedAt would be an aggregate no list screen
                 // can order -- there is none today, and the null check keeps this a rule rather than
-                // an assumption about all fourteen.
-                if (entity.FindProperty(CreatedAt) is not null)
+                // an assumption about all fourteen. A document whose list orders by its business date
+                // instead (the Cheque Register) asks for no second index: the one above is already it.
+                if (listOrdersByCreatedAt && entity.FindProperty(CreatedAt) is not null)
                 {
                     AddIndex(modelBuilder, entity, [OrganizationId, CreatedAt], descendingLast: true);
                 }
 
                 AddSearchIndex(modelBuilder, entity);
                 continue;
+            }
+
+            // The mirror question, asked of every entity the derivation just failed to classify:
+            // does it carry a required date that nobody has decided about? "No business date found"
+            // and "master data" used to be the same answer here, which is how a cheque's date went
+            // unindexed for thirty-three phases (phase 50).
+            if (RequiredDateProperty(entity) is { } strayDate
+                && !DatesThatAreNotBusinessDates.ContainsKey(entity.ClrType.Name))
+            {
+                unclassifiedDates.Add($"{entity.ClrType.Name}.{strayDate}");
             }
 
             if (MasterDataOrdering.TryGetValue(entity.ClrType.Name, out var orderingColumn))
@@ -186,6 +288,17 @@ internal static class TenantIndexConvention
             }
 
             unindexed.Add(entity.ClrType.Name);
+        }
+
+        if (unclassifiedDates.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "These tenant-scoped entities carry a required date that this convention did not "
+                + "recognise as a business date, so each was classified as master data by default and "
+                + "silently given no (OrganizationId, <date>) index. Decide which it is: declare the "
+                + "column in TenantIndexConvention.DeclaredBusinessDates if the entity is a document, "
+                + "or name it in DatesThatAreNotBusinessDates with the reason its date is not one:\n  "
+                + string.Join("\n  ", unclassifiedDates));
         }
 
         if (unindexed.Count > 0)
@@ -264,4 +377,19 @@ internal static class TenantIndexConvention
 
     private static bool HasLeadingTenantIndex(IMutableEntityType entity) =>
         entity.GetIndexes().Any(i => i.Properties[0].Name == OrganizationId);
+
+    /// <summary>
+    /// The name of a required <see cref="DateOnly"/> property, if the entity has one.
+    ///
+    /// <para><c>DateOnly</c> and required, both deliberately. A business date in this codebase is
+    /// always a <c>DateOnly</c> — <c>CreatedAt</c>, <c>PostedAt</c> as an instant, and every audit
+    /// stamp are <c>DateTimeOffset</c>, so the type alone separates "the day this document happened"
+    /// from "when the row was written". And required, because a nullable one is a secondary date a
+    /// document carries beside its own: <c>Invoice.DueDate</c>, <c>Quotation.ExpiryDate</c>,
+    /// <c>Cheque.ReceivedDate</c>. Neither half is a guess about names, which is the point.</para>
+    /// </summary>
+    private static string? RequiredDateProperty(IMutableEntityType entity) =>
+        entity.GetProperties()
+            .FirstOrDefault(p => p.ClrType == typeof(DateOnly) && !p.IsNullable)
+            ?.Name;
 }

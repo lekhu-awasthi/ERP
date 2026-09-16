@@ -81,6 +81,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 47: accessibility completion (Sort by on 16 document lists, the nested control removed, per-field errors on 13 forms, the drop list). The NVDA hour is undone. Before sweeping "the N screens that qualify" — `docs/phase-47-status.md`
 - Phase 48: shared display components + record pages (every date *output* through `NepaliDatePipe`, instant-aware; `app-deal-form`/`app-task-form` for create and edit). Before rendering a timestamp, or trusting a carried item's own count — `docs/phase-48-status.md`
 - Phase 49: the expiry decision (we keep an expired tenant and mark it, where the reference product deletes it from the list), `IsActive`, Nepal-anchored term ends, SMS on the Subscription screen. Before copying a behaviour read live, or diverging from one — `docs/phase-49-status.md`
+- Phase 50: measured indexes (`Cheque`'s date index + key-paging), the convention's declaration mechanism, `tests/Infrastructure.UnitTests`. Before adding an index, or writing a cross-assembly invariant test — `docs/phase-50-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -162,7 +163,10 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Single-argument `Contains` is case-**insensitive** on SQL Server (collation) and case-**sensitive** on InMemory; a handler test must search with the stored casing or it pins a behaviour production lacks (phase-34b).
 - Every tenant-scoped table needs an index leading on `OrganizationId`; `TenantIndexConvention` derives them and throws at model build for an entity it cannot classify (phase-34c).
 - …but it recognises a business date by **name** (`Date`, `PostedAt`), so `Cheque.ChequeDate` is invisible to it and the Cheque Register has always ordered by an unindexed column (phase-47).
+- Asking the mirror question found **three** such dates, and the two stock tables were right only by luck of a hand-written composite; not classifying now fails the model build (phase-50).
 - An index added for one path changes the plan for every other path on the table (list 10× faster, no-match search 1.8× slower); re-measure the paths you did not touch (phase-34c).
+- …including a change *you* reasoned into: tenant predicates on a join's other three tables fixed the search path and took a sibling tab from 2,143 logical reads to 83,308 (phase-50).
+- A list that searches a **joined** column (only `ListChequesQuery` does) cannot be indexed out of it — the OR spans two tables, so the row is formed before the term is evaluated; a covering index bought 0.03% (phase-50).
 - A materialised id list handed back to SQL becomes an `OPENJSON` parameter as long as the list; a report that loads its period then re-queries children by `ids.Contains` is linear in the period, not in the page. `JournalReportQueryHandler` is the shape that is not (phase-34c).
 - …and the converse: a list long enough to be worth avoiding is too long to send. Narrowing by 35,001 ids cost 182,545 reads against ~1,500 for the scan; join the *query*, or drop it (phase-42).
 - A page's rows are fetched before they are eliminated: an offset of 49,950 costs 153,705 logical reads for whole entities and 571 for ids. Count, page the keys, fetch those rows (`ToKeyPagedResultAsync`, phase-42).
@@ -268,6 +272,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 **Report filters and live-read semantics**
 - A sweep guard over *query records* cannot see whether a **handler** applies the filter it accepts; both statutory registers narrowed only their return half for three phases. Pin it behaviourally, per report (phase-44).
+- A sweep whose set is a screen **shape** is silently blind to every other shape: the Cheque Register escaped 34c's indexes, 42's key-paging and 47's sort menu, one screen missed three times (phase-50).
 - Reporting Tags are **OR within a category, AND across categories** — measured on a six-category tenant; phases 19/36's "any-of across everything" was inherited, never observed (phase-44).
 - A control recorded as "unbuilt because two options could not be told apart" may just be a **parent and its modifier**: Display Warehouse in Column is `disabled` until Group by Warehouse is ticked (phase-44).
 - A reason to exclude something can be right while the conclusion is wrong: 26c predicted Warehouse Transfer's two-rows-with-blank-money shape exactly, and the reference product ships it (phase-44).
@@ -345,6 +350,10 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A test suite that passes with **fewer** tests than the previous run is a failure — check what a rewriting script produced by counting it, not by whether the build is green (phase-27b).
 - A guard must assert its input is **non-empty**, not merely defined: Vite returns an empty string for `?raw`/`?inline` on a compiled `.scss`, so `toBeDefined()` passed and every assertion over it was vacuous (phase-34a).
 - Prove a guard bites by injecting a regression — but back the file up and restore it **by hash**, never `git checkout --`, which reverts the phase's own work on that file too (phase-34a).
+- …and `touch` it afterwards: a restored backup carries an *older* mtime, MSBuild skips the rebuild, and the suite keeps failing on an injected regression the source no longer contains (phase-50).
+- A guard asserting a rule's concrete *consequences* is not a guard on the rule: the ListSort test checked two indexes exist and passed the injected third ordering. Drive it from the thing that can change (phase-50).
+- A cross-assembly invariant decidable from types and model metadata belongs in a unit-test project referencing both, never `Api.IntegrationTests` — a guard inside a Docker-gated failure is not read (phase-50).
+- Wall time on a working machine cannot settle one screen's plan (two identical passes moved a report 4×); read logical reads and CPU from `sys.dm_exec_query_stats` (`tools/scale/probe-cheque-io.sh`, phase-50).
 - A uniform sweep is worth more than its subject: asking one question of every paginated list found two queries with **no validator at all** and one whose search term had reached a `LIKE` uncapped since phase 25 (phase-34b).
 - A bash helper that both **prints and returns** is a trap under `$( )` — it returns the printed line too; fourteen malformed ids became a `PUT` storing nulls that surfaced as a 409 three steps later. Have it set a global (phase-34b, same family as a function whose assignment a subshell discards).
 - Map one enum onto another **by name** (`Enum.TryParse`), never by ordinal, and add a test asserting every member has a counterpart — an ordinal cast compiles, works today, and silently reports the wrong value the first time a member is inserted (phase-26a).
@@ -381,30 +390,34 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–49 are complete.** The v1 sequence (0–25), parity (26–34c), consolidation (35–41),
-completion (42–47) and the first two continuation phases (48, 49) are all done; each phase's story is
-in its `docs/phase-N-status.md`, and every finished planning entry is archived in
+**Phases 0–50 are complete.** The v1 sequence (0–25), parity (26–34c), consolidation (35–41),
+completion (42–47) and the first three continuation phases (48, 49, 50) are all done; each phase's
+story is in its `docs/phase-N-status.md`, and every finished planning entry is archived in
 `docs/roadmap-history.md`.
 
-**Phase 49 settled what expiry means here, and chose to diverge.** The reference product removes an
-expired *trial* from the owner's namespace list entirely; this product keeps the organization, leaves
-it readable and **marks it** (`OrganizationSummaryDto.IsExpired`, a badge on the picker). The reason
-is in `docs/phase-49-status.md` Decision A and turns on the read being zero samples of paid
-behaviour. Seventeen organizations in the dev database were already read-only with nothing saying so.
+**Phase 50 was gated on a measurement, and the measurement refused three things.** `Cheque` now
+carries `(OrganizationId, ChequeDate DESC)` and its list pages by key — first page 168.6 ms of CPU to
+29.5, last page 680.0 to 40.9, a non-matching search 430,084 logical reads to 3,957. Refused with
+numbers: a covering search index (0.03%), a `UNION` rewrite, and the phase's own idea of putting the
+tenant predicate on the three joined tables, which fixed search and took a sibling tab to 83,308
+reads. `TenantIndexConvention` can no longer classify a stray date as master data — it fails the
+model build — and `tests/Infrastructure.UnitTests` is now where a cross-assembly invariant lives.
 
-**Next: phases 50–52 in `docs/roadmap.md`.** 50 is **measurement-gated, not date-gated** — its
-`Cheque` indexes need before/after numbers from the 50k dataset in `tools/scale/` before any are
-added, plus the cross-assembly-guard decision (`ListSort` vs `TenantIndexConvention`). Then 51
-(**batch and serial tracking** — new scope from the reference product's August 2026 release; its
-kickoff should carry phase 49's unspent live extras, because the Product Batch / Product Serial No
-reports still need reading from an account holding their permission keys), and 52 (a unit on the
-document line, which is what would make phase 45's secondary units mean something). Two items sit
-outside the sequence with their own start conditions: **an hour with NVDA** (needs a person with
-headphones; phases 40, 47 and 48 built everything derivable and recorded plainly that nothing was
-heard) and **full-text search** (a semantics change, not a performance fix). The deferred and dropped
-lists are in the roadmap and are unchanged.
+**Next: phases 51–52 in `docs/roadmap.md`.** 51 is **batch and serial tracking**, new scope from the
+reference product's August 2026 release and fully specified by the 2026-09-16 live read *except* for
+the Product Batch / Product Serial No report columns — phase 49 did not take that read and **nor did
+phase 50**, so 51 either takes it or designs from the two product tabs and says so (the phase-8f
+rule). Its first decision is the modelling one: does a batch key the FIFO layer or hang off it, and
+is a serial a layer of quantity one or its own aggregate. Then 52 (a unit on the document line, which
+is what would make phase 45's secondary units mean something). Two items sit outside the sequence
+with their own start conditions: **an hour with NVDA** (needs a person with headphones; phases 40,
+47, 48 built everything derivable and recorded plainly that nothing was heard) and **full-text
+search** (a semantics change, not a performance fix) — to which phase 50 adds the Cheque Register's
+*matching* search term, which is a semantic or structural question and provably not an index one.
+The deferred and dropped lists are in the roadmap and are unchanged.
 
-Tests at last count: Domain 674, Application.UnitTests 1188, Api.IntegrationTests 30, Angular 561;
+Tests at last count: Domain 674, Application.UnitTests 1188, **Infrastructure.UnitTests 8 (new in
+50)**, Api.IntegrationTests 30, Angular 561 — unchanged, because phase 50 changed no Angular code.
 `dotnet build` / `dotnet test` / `ng build` / `ng test` all clean, and `ng build` does not warn —
 phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts`, and the bundle
 sits at 643.39 kB since phase 48 took Angular's `DatePipe` out of 19 components.
@@ -414,7 +427,8 @@ regressions and is not (10 of 30 did exactly this in phase 48, and all 30 passed
 started); it also fails nondeterministically under machine load and passes on re-run (phase 36/37).
 `tsc --noEmit` does not cover `web/src/app`; `ng build` is the check (phase-28), and `ng test` must be
 run from `web/` (phase-35a) on **Node 24** (`nvm use 24.11.0` — v16 dies with
-`availableParallelism is not a function`).
+`availableParallelism is not a function`). `tools/scale/` now seeds cheques too, and when the subject
+is one screen the number to trust is `probe-cheque-io.sh`, not the wall clock (phase-50).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

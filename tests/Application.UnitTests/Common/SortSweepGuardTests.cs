@@ -43,23 +43,31 @@ public class SortSweepGuardTests
     /// Document-list queries that deliberately offer no ordering, each with the reason.
     ///
     /// <para>There is one, and it is worth more than its own exemption: it is the case that shows the
-    /// rule has teeth. An ordering may be offered exactly when an index leads on
-    /// <c>(OrganizationId, &lt;that column&gt;)</c>, and <c>Cheque</c> has neither — because
-    /// <c>TenantIndexConvention</c> recognises a business date by <b>name</b>
-    /// (<c>Date</c>, <c>PostedAt</c>) and a cheque spells its <c>ChequeDate</c>. Its screen is also
-    /// not a document list: <c>cheque-register-page</c> is a dashboard with two status tabs and a
-    /// state-transition action per row, carries no <c>app-list-chrome</c>, and is filed under
-    /// Accounting — phase 40's Decision F evidence for <c>transaction-list-page</c>, arrived at the
-    /// same way. Both halves agree, which is why this is an exemption rather than an index.</para>
+    /// rule has teeth. Phase 47 gave it <b>two</b> reasons — the screen is not a document list, and
+    /// the aggregate carried neither index the rule requires, because <c>TenantIndexConvention</c>
+    /// recognised a business date by <b>name</b> and a cheque spells its <c>ChequeDate</c>.</para>
+    ///
+    /// <para><b>Phase 50 measured the second reason away.</b> <c>Cheque</c> now carries
+    /// <c>(OrganizationId, ChequeDate)</c>, so the exemption rests on the screen alone:
+    /// <c>cheque-register-page</c> is a dashboard with two status tabs and a state-transition action
+    /// per row, carries no <c>app-list-chrome</c>, and is filed under Accounting — phase 40's
+    /// Decision F evidence for <c>transaction-list-page</c>, arrived at the same way. That remains a
+    /// good reason and it is why this is still an exemption. But it is now <i>one</i> reason, and the
+    /// half that has gone is stated rather than deleted, because a reader who remembers the old
+    /// sentence would otherwise carry on believing the schema is what it was. If this screen ever
+    /// grows list chrome, the index is already there and the exemption should go — which is the
+    /// opposite of what the phase-47 text implies, and is phase 45's lesson that an allow-list reason
+    /// can become the argument for the other conclusion.</para>
     /// </summary>
     private static readonly IReadOnlyDictionary<string, string> Exempt =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["ListChequesQuery"] =
                 "The Cheque Register, not a document list: a dashboard plus two status tabs, no list "
-                + "chrome, and a per-row status transition rather than a row you open. Its aggregate "
-                + "also carries neither index the rule requires -- TenantIndexConvention matches a "
-                + "business date by name and a cheque's is ChequeDate -- so both halves agree.",
+                + "chrome, and a per-row status transition rather than a row you open. NOTE that this "
+                + "is now the only reason -- phase 50 added (OrganizationId, ChequeDate) on a "
+                + "measurement, so the aggregate no longer lacks the index the rule requires. See "
+                + "ListSortIndexCorrespondenceTests.The_cheque_exemptions_index_half_has_been_measured_away.",
         };
 
     [Fact]

@@ -27,14 +27,21 @@ bash tools/scale/seed-master.sh
 sqlcmd -S <server> -d ErpApp -E -C -i tools/scale/seed-bulk.sql \
   -v OrgId="<guid>" NumInvoices=50000 NumContacts=50000 NumProducts=20000 NumBills=20000
 
+# 2b. The Cheque Register's 50,000 cheques and the Draft payments they hang off (phase 50).
+sqlcmd -S <server> -d ErpApp -E -C -i tools/scale/seed-cheques.sql \
+  -v OrgId="<guid>" NumCheques=50000
+
 # 3. Before EVERY measurement pass, on both sides of any comparison.
 sqlcmd -S <server> -d ErpApp -E -C -i tools/scale/refresh-stats.sql
 
-# 4. The pass itself: 33 endpoints x (2 warm-up + 10 timed) requests.
+# 4. The pass itself: 41 endpoints x (2 warm-up + 10 timed) requests.
 bash tools/scale/run-measurement.sh <label> 10
 
 # 5. The comparison table, with Decision A's budget applied.
 bash tools/scale/summarise.sh before after after2
+
+# 6. When the subject is ONE screen, this is the number to trust (phase 50).
+bash tools/scale/probe-cheque-io.sh <label>
 ```
 
 ## Three things that will bite
@@ -53,6 +60,39 @@ bash tools/scale/summarise.sh before after after2
   Claims about reports in the status doc come from within-pass period-sensitivity probes instead.
 
 ## The committed results
+
+### Phase 50 (2026-09-16) — the current pair, and a second instrument
+
+Taken on the **same** tenant as phase 42, with `seed-cheques.sql` run against it — so `Payments` and
+`Cheques` each hold 50,000 more rows than they did in phase 42, and the phase-42 files are therefore
+not comparable with these either. Use each pair within itself.
+
+| file | what it is |
+|---|---|
+| `results-p50-before.csv` | The pre-phase schema, after the cheques were seeded. |
+| `results-p50-after.csv` / `results-p50-after2.csv` | Two passes of the index-only configuration. |
+| `results-p50-after3.csv` | The **shipped** configuration: the index plus key-paging. |
+| `probe-cheque-p50-before.csv` | No index. The baseline every claim is against. |
+| `probe-cheque-p50-A-index-asc.csv` | `(OrganizationId, ChequeDate)` ascending, as first scaffolded. |
+| `probe-cheque-p50-B-index-desc.csv` | The same index descending — the direction that shipped, and the pair that justifies it (1,450/29.2 ms against 1,286/24.4 ms on the first page). |
+| `probe-cheque-p50-C-covering-search.csv` | **Refused.** The covering `(OrganizationId, ChequeNo)` search index: 591,494 logical reads to 588,456 on a non-matching term. 0.03%. |
+| `probe-cheque-p50-D-tenant-predicate.csv` | **Refused.** The tenant predicate on the three joined tables: better for search, and the Received tab from 2,090 logical reads to 83,734. |
+| `probe-cheque-p50-shipped.csv` | What ships: the descending index plus `ToKeyPagedResultAsync`. |
+| `probe-cheque-p50-early-desc-probe.csv` | An exploratory pass kept only because the status doc corrects a number from it — it read the ascending/descending gap as nearly 2× on a different plan-cache state, and the controlled pair above says 1.13×. |
+| `comparison-phase50.md` | `summarise.sh p50-before p50-after3`. |
+
+**The fifth thing that will bite, and phase 50 built a tool for it:** on a working machine the wall
+clock cannot answer a question this small. Between this phase's before and after passes
+`stmt.trial-balance` "improved" from 5,319 ms to 1,117 ms and `reg.sales-register` "regressed" from
+3,132 ms to 5,190 ms, and the phase changed neither. **`probe-cheque-io.sh` is what the phase's
+claims actually rest on**: per path it clears the plan cache, issues three requests, and reads the
+per-execution logical reads and CPU out of `sys.dm_exec_query_stats`. Those are properties of the
+plan rather than of the machine, they reproduce, and any future phase measuring one screen should
+copy that script rather than the 41-endpoint pass.
+
+Note also that `run-measurement.sh` now asserts **two** tables are populated, not one. The `Cheques`
+table held five rows in the whole database before this phase, which would have read as a
+spectacularly fast register.
 
 ### Phase 42 (2026-09-14) — the current pair
 

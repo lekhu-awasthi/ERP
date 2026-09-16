@@ -22,4 +22,7 @@
   <Folder Name="/tests/Domain.UnitTests/">
     <Project Path="tests/Domain.UnitTests/ErpApp.Domain.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/tests/Infrastructure.UnitTests/">
+    <Project Path="tests/Infrastructure.UnitTests/ErpApp.Infrastructure.UnitTests.csproj" />
+  </Folder>
 </Solution>

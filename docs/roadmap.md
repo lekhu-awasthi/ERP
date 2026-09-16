@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–49)
+## Completed phases (0–50)
 
 Detail lives in each phase's own status doc — this table is the index, not the history.
 
@@ -79,6 +79,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 46 | Metered add-on axes, where the roadmap premise that each axis is "a reader plus a ceiling" was wrong for two of three: the **AI-scan** ceiling (20/day on every tier and term length, sold by no add-on, per Nepal-local day, counted from the append-only `Audit` rows because a re-scan overwrites the document timestamp); **billing locations** as a purchased *record* that refuses nothing, on live evidence that the reference product caps them nowhere; **SMS** declared already-metered by phase 18's credit ledger; the transaction window corrected from the term to the allowance **year**; the entitlement mismatch surfaced and compared server-side; master-data creation gated past expiry | `phase-46-status.md` |
 | 45 | Multi-UOM × variants settled by live read — a variant **owns** its unit matrix, and phase 24's identity decision meant no schema change; a variant parent refused one (the sweep-guard exemption retired); `UpdateSecondaryUnitCommand`/`DeleteSecondaryUnitCommand` plus the primary-unit and duplicate-unit refusals; the `ProductAttributePool` importer (a ninth upload type whose rows add to a set its command replaces); `ListSmsLogsQuery`'s search term; the landed-cost drawer's replace semantics and the dry-run-in-a-transaction question decided and pinned | `phase-45-status.md` |
 | 47 | Accessibility completion: `Sort by` swept to all 16 document lists (the derived number, not the roadmap's 18) with a guard whose behavioural half drives every handler through both orderings; the four grids' `<select>`-inside-`<a>` removed rather than defended, with a whole-app nesting guard derived from which components render a control; per-field `aria-invalid`/`aria-describedby` plus focus movement on 13 document forms; the lookup/server search parity table pinned against real SQL Server; the drop list decided item by item; the AI-scan allowance shown where scanning happens. **The NVDA hour is still not done** — no screen reader is available in this environment, and it was not simulated | `phase-47-status.md` |
+| 50 | Measured indexes, and the guards that cross an assembly boundary. Gated on `tools/scale/`, which had to be extended first — the `Cheques` table held **five rows in the whole database**, so the harness gained `seed-cheques.sql` (50,000 cheques on Draft payments, which owe no GL) and a second data-presence assertion. `Cheque` gets `(OrganizationId, ChequeDate DESC)` and `ListChequesQueryHandler` moves to `ToKeyPagedResultAsync`: first page 2,001 logical reads / 168.6 ms CPU → 1,082 / 29.5, last page 4,422 / 680.0 → 1,289 / 40.9, date range 2,606 / 49.4 → 577 / 13.7, a non-matching search 430,084 / 2,258 → 3,957 / 865 (phase 42's count-of-zero short-circuit, which is what made the index shippable at all). **Three configurations were measured and refused**, one of them this phase's own idea: a covering search index (0.03%), a `UNION` rewrite (no better), and tenant predicates on the three joined tables — correct in idiom, better for search, and 39× worse on the Received tab, found only by re-measuring the untouched paths. The convention's name list now fails the model build rather than classifying a stray date as master data (the mirror question found **three** missed dates, two of them correct only by luck of a hand-written composite), and `tests/Infrastructure.UnitTests` settles where a cross-assembly invariant lives — `ListSort`'s correspondence to `TenantIndexConvention` is finally asserted, after its first version passed the injected regression | `phase-50-status.md` |
 
 ---
 
@@ -179,7 +180,7 @@ worth taking — but nothing waits on it.
   silently go stale as locations are added (46 #6); SMS has no usage row on the Subscription screen
   though its ledger balance is on the SMS Overview tab (46 #7).
 
-### 50. Measured indexes, and the guards that cross an assembly boundary
+### 50. Measured indexes, and the guards that cross an assembly boundary — **complete**, see `docs/phase-50-status.md`
 - **`Cheque` has no leading-tenant date index and its list already orders by an unindexed column**
   (47 #2). `TenantIndexConvention.BusinessDateNames` matches by *name*, and `ChequeDate` is not on it.
   The fix is two index adds and one migration; the reason it was not done is phase 34c's rule that a

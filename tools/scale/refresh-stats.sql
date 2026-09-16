@@ -22,6 +22,7 @@ UPDATE STATISTICS accounting.GlJournalEntries WITH FULLSCAN;
 UPDATE STATISTICS accounting.Accounts WITH FULLSCAN;
 UPDATE STATISTICS payments.Payments WITH FULLSCAN;
 UPDATE STATISTICS payments.PaymentAllocations WITH FULLSCAN;
+UPDATE STATISTICS payments.Cheques WITH FULLSCAN;  -- phase 50
 
 -- A cold procedure cache, so neither pass inherits a plan compiled against the other's indexes.
 DBCC FREEPROCCACHE WITH NO_INFOMSGS;

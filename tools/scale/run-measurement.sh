@@ -5,6 +5,11 @@
 #   degrades at the tail, and every list here uses Skip/Take); the three financial statements; the
 #   two heaviest registers; and global search.
 #
+# Phase 50 added the Cheque Register's eight paths. They are here for the reason 34c gives for
+# every other row: an index added for one access path changes the plan for every other path over
+# the same table, so the paths this phase did NOT touch have to be in the same pass as the one it
+# did.
+#
 # Everything here is server wall time as the client sees it (curl's %{time_total} against a
 # localhost API over HTTPS), which is the number NFR-5.1 is about. Each row is RUNS timed samples
 # after WARMUP untimed ones, and the report prints p50/p95/max WITH the run count -- a single number
@@ -57,6 +62,16 @@ if [[ "$probe_bytes" -lt 1000 ]]; then
   exit 1
 fi
 
+# Phase 50 -- the same assertion for the Cheque half, and it is not a formality: this table held
+# five rows in the entire database before seed-cheques.sql, so a pass taken without it would have
+# read 20 ms across every cheque row and called an unindexed sort fast.
+chq_bytes="$(curl -sk -o /dev/null -w '%{size_download}' -b "$JAR" "$API$B/cheques?page=1&pageSize=50")"
+if [[ "$chq_bytes" -lt 1000 ]]; then
+  echo "FATAL: organization $ORG returned ${chq_bytes} bytes for a 50-row cheque page -- run" >&2
+  echo "       tools/scale/seed-cheques.sql against it before measuring the register." >&2
+  exit 1
+fi
+
 # name<TAB>path. The four volume lists get first page, last page, a search that hits, a search that
 # misses and a date range; every other list is here at its first page so the per-request floor is
 # visible next to them.
@@ -91,6 +106,14 @@ rep.detail-general-ledger	$B/reports/detail-general-ledger?fromDate=$FROM&toDate
 rep.general-ledger-summary	$B/reports/general-ledger-summary?fromDate=$FROM&toDate=$TO&page=1&pageSize=50
 rep.customer-ageing	$B/reports/customer-ageing-summary?asOfDate=$TO&page=1&pageSize=50
 rep.sales-by-customer	$B/reports/sales-by-customer?fromDate=$FROM&toDate=$TO&page=1&pageSize=50
+cheques.page1	$B/cheques?page=1&pageSize=50
+cheques.last	$B/cheques?page=1000&pageSize=50
+cheques.received	$B/cheques?page=1&pageSize=50&direction=Received
+cheques.status	$B/cheques?page=1&pageSize=50&status=Pending
+cheques.daterange	$B/cheques?page=1&pageSize=50&fromDate=2025-01-01&toDate=2025-03-31
+cheques.search.hit	$B/cheques?page=1&pageSize=50&search=CHQ-0004
+cheques.search.miss	$B/cheques?page=1&pageSize=50&search=ZZQQXX
+cheques.dashboard	$B/cheques/dashboard-summary
 search.common	$B/search?term=Everest
 search.code	$B/search?term=SVC-01
 search.miss	$B/search?term=ZZQQXX

@@ -1,0 +1,9 @@
+path,statements,avg_logical_reads,avg_cpu_ms,avg_elapsed_ms
+cheques.page1,2,877,17.9,18.0
+cheques.last,2,4063,709.2,709.3
+cheques.received,2,1666,25.9,25.9
+cheques.status,2,1057,9.9,9.9
+cheques.daterange,2,643,3.4,3.4
+cheques.search.hit,2,358893,1721.9,1722.5
+cheques.search.miss,2,588456,2424.4,2424.6
+cheques.dashboard,2,1776,41.6,41.6

@@ -1,0 +1,41 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Phase 50. The home for a cross-assembly invariant.
+
+    Application.UnitTests references Application and nothing below it, which is correct and is why
+    the ListSort/TenantIndexConvention correspondence went two phases with a sentence on each side
+    and a test on neither: the rule spans Application (which orderings a list may offer) and
+    Infrastructure (which indexes exist), and no existing project could see both.
+
+    The rule this project settles, for every future invariant of the same shape: an invariant that
+    can be decided from TYPES AND MODEL METADATA belongs in a unit-test project that references both
+    assemblies; only an invariant that needs a live database belongs in Api.IntegrationTests. The
+    EF model builds without a connection, so nothing here needs SQL Server, Docker, or a fixture,
+    which matters: Api.IntegrationTests fails in its constructors when Docker Desktop is off, and a
+    structural invariant hiding inside that failure is a guard nobody reads.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Infrastructure\ErpApp.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

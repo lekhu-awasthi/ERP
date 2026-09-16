@@ -3070,3 +3070,164 @@ server-side over the whole ledger, never summed over a page — phase 16c's foot
 without the key gets a 403 the screen swallows and **renders no row at all**, which is phase 47's rule
 — a counter that says nothing is worse than no counter — applied to a permission instead of a loading
 state. The decision stays the server's.
+
+## A sweep whose set is a screen shape is blind to every other shape (phase 50)
+
+Three sweeps, in three different phases, derived their set from *a document list*:
+`TenantIndexConvention` (34c) gave the two indexes to entities with a business date;
+`ToKeyPagedResultAsync` (42) was applied to "every paginated document list", and got sixteen;
+`SortSweepGuardTests` (47) offered `Sort by` to the same population. The Cheque Register is not a
+document list — it is a dashboard with two status tabs and a per-row state transition — so **it was
+invisible to all three**, and each sweep reported completion.
+
+The screen was therefore the only list in the application with no leading-tenant date index, ordering
+by an unindexed column, paging by offset, at 50,000 rows. None of the three sweeps was wrong about
+its own set. The failure is that a set derived from a shape says nothing about the things outside the
+shape, and says nothing *loudly* — there is no residue to notice.
+
+What follows: when a sweep excludes something, the exclusion is a claim about that thing and needs
+its own home. Phase 47 did this correctly — `SortSweepGuardTests.Exempt` names `ListChequesQuery` with
+a reason — and it is why the register was findable at all. Phases 34c and 42 left no such record, and
+their omission was found only because phase 50 went looking with a measurement.
+
+## Asking the mirror question of a name list (phase 50)
+
+`TenantIndexConvention.BusinessDateNames` was `["Date", "PostedAt"]`. Phase 47 found that
+`Cheque.ChequeDate` is not on it. The useful question is not "is the list wrong here" but **"what
+else does it miss"** — which is answerable from the model rather than by inspection, since a business
+date in this codebase is always a required `DateOnly` (audit stamps are all `DateTimeOffset`, and a
+nullable one is a secondary date like `Invoice.DueDate`).
+
+The honest answer was **three, not one**: `Cheque.ChequeDate`, `StockLedgerEntry.TransactionDate` and
+`StockMovement.TransactionDate`. The two stock tables were not slow, and that is the uncomfortable
+part — each carries a hand-written `(OrganizationId, ProductId, WarehouseId, TransactionDate)`
+composite, so the convention's `HasLeadingTenantIndex` escape hatch waved them through. They were
+correct **by luck**: had that composite led on anything else, nothing would have said so.
+
+The fix is not a longer list. It is that *failing to classify* is no longer the same as *master
+data*: an entity with a required `DateOnly` that the names miss must be declared in
+`DeclaredBusinessDates` or excused in `DatesThatAreNotBusinessDates`, and anything in neither fails
+the model build with the property named. The list can still be incomplete; it can no longer be
+incomplete without somebody being told.
+
+## Where a cross-assembly invariant lives (phase 50)
+
+`ISortableQuery` says an ordering may be offered exactly when an index leads on
+`(OrganizationId, <that column>)`, and calls the menu "a reading of Infrastructure's
+`TenantIndexConvention`". Both sides carried the sentence for two phases and neither carried a test,
+for a structural reason: `Application.UnitTests` references Application only, and the convention is
+in Infrastructure.
+
+**The rule, decided once and applying to every cross-assembly invariant after it: an invariant
+decidable from types and model metadata belongs in a unit-test project referencing both assemblies;
+only an invariant needing a live database belongs in `Api.IntegrationTests`.**
+
+`tests/Infrastructure.UnitTests` is that project. The EF model builds without a connection —
+`new AppDbContext(options).Model` with a SQL Server connection string that is never dialled — so
+nothing there needs Docker. That is the argument against the alternative: `Api.IntegrationTests`
+fails in its constructors with `DockerEndpointAuthConfig` whenever Docker Desktop is off, which this
+project's own CLAUDE.md tells people to expect and ignore, and a build-failing structural invariant
+hiding inside a routinely-ignored failure is not a guard.
+
+The provider must be SQL Server and not InMemory: the indexes under test carry provider-specific
+metadata (descending key order, INCLUDE columns, filters), and InMemory does not model an index at
+all.
+
+## A guard that asserts the facts instead of the rule (phase 50)
+
+The first version of `ListSortIndexCorrespondenceTests` asserted that every sortable list's entity
+has a `(OrganizationId, CreatedAt)` index and a `(OrganizationId, <business date>)` index. Phase 34a's
+rule is to prove a guard bites by injecting the regression, so `ListSort.Amount = "amount"` was added
+to `DocumentOrderings` — **and the test passed.**
+
+It was asserting that two indexes exist. They do. The *rule* is about the orderings on offer, and the
+test never read `ListSort.DocumentOrderings` at all, so a third member was invisible to it: exactly
+the failure the class was written to prevent, in the class written to prevent it.
+
+Rewritten, it iterates `DocumentOrderings` through a map of ordering → column and fails first on any
+member the map does not know, with the message that an ordering nobody can name a column for is an
+ordering nobody can index. The general form: **a guard derived from the concrete consequences of a
+rule is not a guard on the rule.** Drive it from the thing that can change.
+
+Related: the business date is resolved from the *model* (the single required `DateOnly`, tie-broken
+to `Date`), never from the convention's own declaration — a test that asked the convention which
+column it chose and then checked it had indexed that column would assert the convention equals
+itself.
+
+## Restoring a file by hash still leaves an older mtime (phase 50)
+
+Phase 34a's rule is to back a file up and restore it **by hash**, never `git checkout --`, which
+would revert the phase's own work on that file. Doing exactly that, `md5sum -c` reported OK, the
+source on disk was clean — and the test suite kept failing with the injected regression in its
+message.
+
+`cp file file.bak` stamps the backup with the time of the copy, which is *before* the injection edit;
+`mv file.bak file` carries that older mtime back. MSBuild compares source mtime to assembly mtime,
+finds the source older, and skips the rebuild. The suite runs the injected binary while every file
+you can read says otherwise.
+
+`touch` the restored file before rebuilding. The tell is that the failure message quotes something
+that no longer exists in the source.
+
+## An index for one path, a plan for every path — this time it was our own change (phase 50)
+
+Phase 34c's finding is that an index added for one access path changes the plan for every other path
+over the same table. Phase 50 hit it three times on one table, and the third is the instructive one.
+
+1. **The index itself.** `(OrganizationId, ChequeDate)` took the register's first page from 2,001
+   logical reads to 1,286 and its date range from 2,606 to 992 — and took a search term matching
+   nothing from 430,084 to **590,603**, because the optimizer stopped scanning once and started
+   seeking the ordering index with a lookup per row. Identical in mechanism to 34c's own.
+2. **The covering index that should have fixed it.** 34c fixed its version with a covering search
+   index, so the same was built here: `(OrganizationId, ChequeNo)` INCLUDE-ing every projected column.
+   Measured: 591,494 → **588,456**. A 0.03 % improvement, because the cost was never the `Cheques`
+   scan (see the next entry).
+3. **A change made by reasoning, not measuring.** The statistics showed `Contacts` being read 153,134
+   times — the whole table across all three tenants — because the tenant predicate sat only on the
+   `Cheques` side of a four-table join. Stating `OrganizationId` on all four is correct in this
+   codebase's idiom (there is no global query filter, so a join that does not say it is a join across
+   every tenant) and it did improve the search path, 591,494 reads to 325,357.
+
+   Then the paths it was *not* for were re-measured: the Received tab went from 2,143 logical reads to
+   **83,308**, the status tab from 1,388 to **67,284**, the first page from 29 ms of CPU to **554 ms**.
+   Four tenant predicates gave the optimizer four new leading-`OrganizationId` indexes to drive from
+   and it chose wrong on every path but one. Reverted.
+
+The rule has a corollary worth stating separately: **re-measuring the untouched paths is not a
+formality you perform on someone else's change.**
+
+## A list that searches a joined column cannot be indexed out of it (phase 50)
+
+`ListChequesQuery` matches `cheque.ChequeNo.Contains(term) || contact.Name.Contains(term)`. Every
+other list in the application matches its own `Code` and `Reference` — which is precisely why
+`TenantIndexConvention`'s covering search index is expressible as a rule over columns at all, and why
+`SearchKeyOrder` never had to think about a second table.
+
+The consequence is not subtle: the OR spans two tables three joins apart, so the optimizer must form
+the joined row for all 50,000 cheques before it can evaluate the term. No index on `Cheques` changes
+that, which is what the 0.03 % above is measuring. A hand-written `UNION` of the two halves was also
+measured and was not better (1,547 ms CPU against 1,625 ms), because neither half can seek a
+`LIKE '%term%'` either.
+
+What does fix the *non-matching* case is not an index at all: phase 42's `ToKeyPagedResultAsync`
+short-circuits when the count is zero, so the page query is never issued — 590,603 reads to **3,957**.
+The matching case remains, and the honest options are semantic or structural (drop the contact-name
+half, or denormalise `ContactId`/`ContactName` onto `Cheque` the way `AccountId` already is), never
+another index.
+
+## Wall time cannot answer a question this small, so measure the plan (phase 50)
+
+The 41-endpoint pass could not separate this phase's change from what the machine was doing. Between
+the before pass and the after pass `stmt.trial-balance` "improved" from 5,319 ms to 1,117 ms and
+`reg.sales-register` "regressed" from 3,132 ms to 5,190 ms; the phase changed neither, and a reader
+taking either number as a result would be reading the machine.
+
+`tools/scale/probe-cheque-io.sh` is the response, and any future phase whose subject is one screen
+should copy it rather than the whole pass: per path, clear the plan cache, issue three requests, then
+read the per-execution **logical reads and CPU** back out of `sys.dm_exec_query_stats` for every
+cached statement naming the table. Those are properties of the plan. They reproduce across passes on
+a busy machine, and every claim phase 50 makes rests on them; the wall-clock table is corroboration
+and is labelled as such.
+
+A second, smaller trap from the same script: `sqlcmd` rejects `-s ' '` ("Unexpected argument") and
+`-W` is mutually exclusive with `-y`/`-Y`. Use `-s','` and split on the comma.
