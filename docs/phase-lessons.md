@@ -1208,6 +1208,14 @@ increment site that needed them (`ApprovePurchaseBillCommandHandler`) shipped un
 layer, and the first symptom was three steps later in another subsystem. *A sweep driven by the
 compiler stops exactly where the compiler stops.*
 
+**The browser pass earned its place twice, and both times against the phase's own author.** A
+scaled-down screenshot made the new `Item Batch` column look crushed; measuring said 167 px in an
+1118 px table with no overflow — so the picture misled and the measurement corrected it, which is the
+reverse of phase 34b's usual direction and worth holding both ways. And `Category` / `Primary Unit`
+rendering as `—` looked like a regression until the cause turned out to be the E2E script's own last
+step, which leaves the test user on a role holding two keys. An E2E that ends by restricting its own
+user hands the browser pass a broken-looking app.
+
 **Design-from-the-tabs is the phase-8f rule and it was invoked out loud.** The two new reports'
 column sets have never been read, because the vendor gates them behind keys its demo Admin does not
 hold. Decision A says so in the status doc, in both query doc comments, in both Angular page doc

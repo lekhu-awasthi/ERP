@@ -337,6 +337,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A guard predicate naming a **dependency** is not naming the behaviour: two handlers inject `IDocumentExtractor` only to read `IsConfigured`/`ModelId`, so the exclusions must be named with reasons and asserted to still exist (phase-46).
 
 **Testing and manual E2E**
+- An E2E that ends by moving its own user onto a restricted role leaves the browser pass looking at a broken app — lookups 403 and unrelated fields render as em dashes; restore the role, or prove the 403 last against a throwaway user (phase-51).
 - A sweep driven by the compiler stops exactly where the compiler stops: changing `ConsumeAsync`'s **return type** enumerated all five consume sites, while adding **optional parameters** to `IncrementAsync` enumerated none — and the one increment site that needed them shipped un-swept past every green test (phase-51).
 - A vendor's always-pass dummy credential (Turnstile `1x000…AA`) accepts any input; proving the negative path needs the always-fail one (`2x000…AA`) swapped in (phase-20g).
 - A 403 proves the key only beside a 200 from the same user on the same organization in the same run; log in before `accept-invitation` or the membership stays `Invited` (phase-41).

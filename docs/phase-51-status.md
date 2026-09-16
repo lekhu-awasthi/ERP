@@ -419,8 +419,8 @@ document does not already carry.
 
 ## What the manual E2E proved, and the one bug only it could find
 
-A fresh Organization, seeded entirely by curl, with the browser reserved for nothing (this phase's
-new UI is covered by Angular specs; the E2E's job is the ledger). Every status code printed.
+A fresh Organization, master data seeded entirely by curl, browser clicks reserved for this phase's
+own new UI — CLAUDE.md's bar, met in both halves. Every status code printed.
 
 ### The conservation law, read out of SQL Server
 
@@ -483,6 +483,54 @@ The `NOPE` case is worth its own sentence: the tenant's Negative Item Balance se
 oversell on this organization (Invoice 1's earlier run produced a shortfall layer when the batch was
 short), and the serialised issue was refused anyway. That is Decision C's claim, demonstrated
 against the setting rather than asserted around it.
+
+
+### The browser pass
+
+Driven through the Browser pane on the phase-25 Step 3 recipe (dev cert, the `erp-web-ssl` profile,
+curl's `erp_auth` transplanted via `document.cookie`), against the same organization the curl E2E
+built — so the two halves are looking at one ledger rather than two.
+
+**A whole Purchase Bill was created and approved through the UI**, not through curl: supplier,
+warehouse, product, Qty 7, `Item Batch` = `BROWSERBATCH`, Rate 150. It saved (amount computed
+1,050.00), **read the batch back into the control after a reload** — which is phase 35a's rule
+demonstrated on screen rather than inferred from a DTO — approved, and then appeared on the product's
+Batch tab as `BROWSERBATCH | — | — | 7 Carton`.
+
+Then the conservation law was re-read in SQL, and it still holds with a UI-authored document in it:
+
+```
+FifoLayers   InventoryAccount   MovementHistory   Law
+3830.0000    3830.0000          3830.0000         HOLDS     (2780 + 7 x 150)
+Total 24.0000 = SumOfBatches 23.0000 + UnBatched 1.0000     HOLDS
+```
+
+What the pass checked, and what it found:
+
+| Checked | Result |
+|---|---|
+| `Item Batch` column position on both grids | between Qty and Rate, as the read shows |
+| Column width, Purchase Bill / Invoice | 167 px / 162 px, table 1118 px in an 1118 px wrapper — **no overflow** |
+| Accessible names on both new controls | `Item Batch` and `Serial numbers` resolve via `find` |
+| Batch tab | `BATCH123 10 Carton`, `BATCH999 6`, `BROWSERBATCH 7` — matches SQL exactly |
+| Serial tab | `A1 / Kathmandu / 16-09-2026 22:57`; J9 correctly absent (issued) |
+| `NepaliDatePipe` `'datetime'` mode | 17:12 UTC rendered 22:57 — the Nepal day and time, phase 48's rule working |
+| Product Batch Report | three rows, server-computed footer **23.00** |
+| Product Serial No Report | `In Stock` / `Issued` badges as words, footer `1 in stock, 1 issued` |
+| Status filter actually filters | `Issued` → one row, footer recomputes to `0 in stock, 1 issued` |
+| Reports index | both entries present under **Inventory** |
+| Mobile (375 px) | **no page horizontal scroll** (375 = 375); the wide table scrolls inside `.table-responsive` |
+| Network on the new pages | all 200 |
+
+**Two things the pass corrected, and both were mine rather than the code's.** A scaled-down first
+screenshot made the `Item Batch` column look crushed; measuring it said 167 px and no overflow, which
+is phase 34b's rule working in the direction nobody expects — *the picture can mislead as well as
+correct, so measure the thing the claim is about.* And `Category` and `Primary Unit` rendered as `—`
+on the product page, which looked like a phase-51 regression and was not: the E2E's last step leaves
+the test user on a custom role holding only `Reports.ProductSerial.View` and `Catalog.Product.View`,
+so the lookup calls legitimately 403. Restoring Admin restored the labels. **An E2E that ends by
+restricting its own user leaves the browser pass looking at a broken app** — worth knowing before the
+next phase copies the script.
 
 ### The permission proof
 
