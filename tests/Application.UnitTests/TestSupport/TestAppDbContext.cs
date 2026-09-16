@@ -81,6 +81,7 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<UnitOfMeasurement> UnitsOfMeasurement => Set<UnitOfMeasurement>();
 
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<ProductBatch> ProductBatches => Set<ProductBatch>();
 
     public DbSet<ProductSecondaryUnit> ProductSecondaryUnits => Set<ProductSecondaryUnit>();
     public DbSet<VariantAttribute> VariantAttributes => Set<VariantAttribute>();
@@ -150,6 +151,7 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<StockLedgerEntry> StockLedgerEntries => Set<StockLedgerEntry>();
 
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<DocumentLineSerial> DocumentLineSerials => Set<DocumentLineSerial>();
 
     public DbSet<WarehouseTransfer> WarehouseTransfers => Set<WarehouseTransfer>();
 

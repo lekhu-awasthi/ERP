@@ -21,5 +21,10 @@ public sealed class CreditNoteLineConfiguration : IEntityTypeConfiguration<Credi
         builder.Property(x => x.VatAmount).HasPrecision(18, 4).IsRequired();
 
         builder.HasOne<Product>().WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
+
+        // Phase 51 -- the batch this line receives into or issues from. Restrict, not Cascade:
+        // deleting a batch that a document line names would silently rewrite an approved document.
+        builder.HasOne<ProductBatch>().WithMany().HasForeignKey(x => x.BatchId).OnDelete(DeleteBehavior.Restrict);
+
     }
 }

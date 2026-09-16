@@ -27,6 +27,13 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(x => x.ValuationMethod).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.ReOrderLevel).IsRequired();
         builder.Property(x => x.TrackInventory).IsRequired();
+        // Phase 51 -- both default false, so the migration's DEFAULT 0 is already true of every
+        // existing row and needs no backfill (CLAUDE.md, phase 31/37). Unlike phase 46's
+        // DailyAiScanQuota, a false default here means "off", which is what "additive, and a tenant
+        // that never turns it on sees no new control" requires -- a scaffolded default can be
+        // plausible and still mean the opposite of what is wanted, so it is checked, not assumed.
+        builder.Property(x => x.BatchTracking).IsRequired().HasDefaultValue(false);
+        builder.Property(x => x.SerialTracking).IsRequired().HasDefaultValue(false);
         builder.Property(x => x.IsActive).IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
 

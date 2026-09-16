@@ -22,5 +22,10 @@ public sealed class InvoiceLineConfiguration : IEntityTypeConfiguration<InvoiceL
         builder.Property(x => x.CogsUnitCost).HasPrecision(18, 4);
 
         builder.HasOne<Product>().WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
+
+        // Phase 51 -- the batch this line receives into or issues from. Restrict, not Cascade:
+        // deleting a batch that a document line names would silently rewrite an approved document.
+        builder.HasOne<ProductBatch>().WithMany().HasForeignKey(x => x.BatchId).OnDelete(DeleteBehavior.Restrict);
+
     }
 }

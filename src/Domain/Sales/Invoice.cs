@@ -218,12 +218,19 @@ public sealed class Invoice
         _lines.Clear();
         foreach (var line in existing)
         {
+            // Phase 51 -- line.BatchId rides through this rebuild. Flipping the export flag
+            // re-creates every line to coerce its VAT rate, and a field left off this call is
+            // silently dropped by an action that has nothing to do with it (phase 35a: adding a
+            // field to many aggregates owes write, read, and every prefill between).
             _lines.Add(InvoiceLine.Create(
-                Id, line.ProductId, line.Quantity, line.Rate, VatRate.ZeroVat, line.DiscountPct, DiscountPct));
+                Id, line.ProductId, line.Quantity, line.Rate, VatRate.ZeroVat, line.DiscountPct, DiscountPct,
+                line.BatchId));
         }
     }
 
-    public void AddLine(Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct)
+    public void AddLine(
+        Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct,
+        Guid? batchId = null)
     {
         EnsureDraft();
 
@@ -239,7 +246,8 @@ public sealed class Invoice
         // never offered. Enforced in the aggregate so no entry path can bypass it.
         var effectiveVatRate = IsExport ? VatRate.ZeroVat : vatRate;
 
-        _lines.Add(InvoiceLine.Create(Id, productId, quantity, rate, effectiveVatRate, discountPct, DiscountPct));
+        _lines.Add(InvoiceLine.Create(
+            Id, productId, quantity, rate, effectiveVatRate, discountPct, DiscountPct, batchId));
     }
 
     private static void EnsureValidDiscountPct(decimal discountPct)

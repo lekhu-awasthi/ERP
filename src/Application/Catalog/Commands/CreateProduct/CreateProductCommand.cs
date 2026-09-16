@@ -9,6 +9,10 @@ namespace ErpApp.Application.Catalog.Commands.CreateProduct;
     /// <c>All</c> and what every product created before this phase has. Trailing and optional, so
     /// no existing caller changes -- but see phase-27b's gotcha: the Api's own request record has to
     /// carry it too, or it binds to null in silence.</param>
+    /// <param name="BatchTracking">Phase 51 -- stock of this product is tracked by batch. Off by
+    /// default. Goods with Track Inventory on, or the command is refused naming the field.</param>
+    /// <param name="SerialTracking">Phase 51 -- stock of this product is tracked by serial number,
+    /// one physical unit per FIFO layer. Same preconditions as <paramref name="BatchTracking"/>.</param>
 public sealed record CreateProductCommand(
     Guid OrganizationId,
     ProductType Type,
@@ -24,7 +28,9 @@ public sealed record CreateProductCommand(
     bool TrackInventory,
     string? Sku = null,
     string? Barcode = null,
-    IReadOnlyList<Guid>? LocationIds = null)
+    IReadOnlyList<Guid>? LocationIds = null,
+    bool BatchTracking = false,
+    bool SerialTracking = false)
     : IRequest<CreateProductResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData, IMeteredProduct
 {
     public string PermissionKey => PermissionKeys.ProductManage;

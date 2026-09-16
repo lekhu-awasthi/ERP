@@ -29,7 +29,9 @@ public sealed record UpdateProductCommand(
     Guid? PurchaseReturnAccountId = null,
     string? Sku = null,
     string? Barcode = null,
-    IReadOnlyList<Guid>? LocationIds = null)
+    IReadOnlyList<Guid>? LocationIds = null,
+    bool BatchTracking = false,
+    bool SerialTracking = false)
     : IRequest<UpdateProductResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData
 {
     public string PermissionKey => PermissionKeys.ProductManage;

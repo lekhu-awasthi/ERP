@@ -164,6 +164,19 @@
                       <input type="checkbox" class="form-check-input" id="trackInventory" formControlName="trackInventory" />
                       <label class="form-check-label small" for="trackInventory">Track Inventory</label>
                     </div>
+                    <!-- Phase 51. Shown only where the server will accept them: both are dimensions
+                         OF the stock ledger, so a Service product or one with Track Inventory off
+                         has no layers for them to key. -->
+                    @if (canTrackStockDimensions()) {
+                      <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="batchTracking" formControlName="batchTracking" />
+                        <label class="form-check-label small" for="batchTracking">Batch Tracking</label>
+                      </div>
+                      <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="serialTracking" formControlName="serialTracking" />
+                        <label class="form-check-label small" for="serialTracking">Serial Number Tracking</label>
+                      </div>
+                    }
                     @if (!isNew()) {
                       <div class="form-check">
                         <input type="checkbox" class="form-check-input" id="isActive" formControlName="isActive" />
@@ -259,6 +272,14 @@
                 <dd class="col-8">{{ p.availableForSale ? 'Yes' : 'No' }}</dd>
                 <dt class="col-4 text-muted small">Track Inventory</dt>
                 <dd class="col-8">{{ p.trackInventory ? 'Yes' : 'No' }}</dd>
+                @if (p.batchTracking) {
+                  <dt class="col-4 small text-body-secondary">Batch Tracking</dt>
+                  <dd class="col-8">Yes</dd>
+                }
+                @if (p.serialTracking) {
+                  <dt class="col-4 small text-body-secondary">Serial Number Tracking</dt>
+                  <dd class="col-8">Yes</dd>
+                }
                 <dt class="col-4 text-muted small">Sales Account</dt>
                 <dd class="col-8">{{ accountLabel(p.salesAccountId) }}</dd>
                 <dt class="col-4 text-muted small">Sales Return Account</dt>
@@ -271,6 +292,84 @@
             }
           </div>
         </div>
+
+        @if (!isNew() && product(); as p) {
+          <!-- Phase 51 -- the two new Inventory Details tabs, read live on 2026-09-16. Rendered only
+               for a product that is actually tracked that way, which is the same additive rule the
+               toggles follow: a tenant that never turns them on sees nothing new here either. -->
+          @if (p.batchTracking) {
+            <div class="card border-0 shadow-sm mt-4">
+              <div class="card-body p-4">
+                <h6 class="fw-bold text-dark mb-1">Batch</h6>
+                <p class="text-muted small">
+                  Quantity is summed from this batch's FIFO layers, so it always agrees with Stock
+                  Position — the batch row itself holds no quantity.
+                </p>
+                @if (batchRows().length === 0) {
+                  <p class="text-muted small mb-0">No batches yet. A batch is created by approving a Purchase Bill that names one.</p>
+                } @else {
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                      <thead>
+                        <tr class="text-muted small">
+                          <th scope="col">Batch No.</th>
+                          <th scope="col">Manufacture Date</th>
+                          <th scope="col">Expiry Date</th>
+                          <th scope="col" class="text-end">Quantity</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (row of batchRows(); track row.id) {
+                          <tr>
+                            <td class="fw-semibold">{{ row.batchNo }}</td>
+                            <td>{{ row.manufactureDate ? (row.manufactureDate | nepaliDate) : '—' }}</td>
+                            <td>{{ row.expiryDate ? (row.expiryDate | nepaliDate) : '—' }}</td>
+                            <td class="text-end">{{ row.quantity }} {{ row.unitName }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          @if (p.serialTracking) {
+            <div class="card border-0 shadow-sm mt-4">
+              <div class="card-body p-4">
+                <h6 class="fw-bold text-dark mb-1">Serial Number</h6>
+                <p class="text-muted small">
+                  One row per physical unit in stock. Issued units are on the Product Serial No Report.
+                </p>
+                @if (serialRows().length === 0) {
+                  <p class="text-muted small mb-0">No serial numbers in stock.</p>
+                } @else {
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                      <thead>
+                        <tr class="text-muted small">
+                          <th scope="col">Serial No.</th>
+                          <th scope="col">Warehouse</th>
+                          <th scope="col">Created At</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (row of serialRows(); track row.serialNo) {
+                          <tr>
+                            <td class="fw-semibold">{{ row.serialNo }}</td>
+                            <td>{{ row.warehouseName }}</td>
+                            <td>{{ row.createdAt | nepaliDate: 'datetime' }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        }
 
         @if (!isNew() && product(); as p) {
           @if (showsSecondaryUnits()) {

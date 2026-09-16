@@ -969,6 +969,18 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'organizations/:id/reports/product-batch',
+    loadComponent: () =>
+      import('./features/reports/product-batch-report-page/product-batch-report-page').then((m) => m.ProductBatchReportPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/reports/product-serial',
+    loadComponent: () =>
+      import('./features/reports/product-serial-report-page/product-serial-report-page').then((m) => m.ProductSerialReportPage),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/reports/inventory-position',
     loadComponent: () =>
       import('./features/reports/inventory-position-page/inventory-position-page').then((m) => m.InventoryPositionPage),

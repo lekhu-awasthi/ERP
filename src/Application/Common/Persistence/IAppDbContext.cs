@@ -59,6 +59,7 @@ public interface IAppDbContext
     DbSet<ProductCategory> ProductCategories { get; }
     DbSet<UnitOfMeasurement> UnitsOfMeasurement { get; }
     DbSet<Product> Products { get; }
+    DbSet<ProductBatch> ProductBatches { get; }
     DbSet<ProductSecondaryUnit> ProductSecondaryUnits { get; }
     DbSet<VariantAttribute> VariantAttributes { get; }
     DbSet<VariantAttributeOption> VariantAttributeOptions { get; }
@@ -102,6 +103,7 @@ public interface IAppDbContext
     DbSet<DebitNoteLine> DebitNoteLines { get; }
     DbSet<StockLedgerEntry> StockLedgerEntries { get; }
     DbSet<StockMovement> StockMovements { get; }
+    DbSet<DocumentLineSerial> DocumentLineSerials { get; }
     DbSet<WarehouseTransfer> WarehouseTransfers { get; }
     DbSet<WarehouseTransferLine> WarehouseTransferLines { get; }
     DbSet<InventoryAdjustment> InventoryAdjustments { get; }

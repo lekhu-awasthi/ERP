@@ -1,7 +1,9 @@
 using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Inventory.Stock;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Sales;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +18,15 @@ public sealed class GetInvoiceQueryHandler(IAppDbContext db) : IRequestHandler<G
             .Include(x => x.Lines)
             .SingleOrDefaultAsync(x => x.Id == request.Id && x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Invoice not found.");
+
+
+        // Phase 51 -- the batch each line names and the serials it lists, read back through the one
+        // shared reader so two detail queries cannot drift in how they answer the same question.
+        var batches = await LineAllocationReader.LoadBatchesAsync(
+            db, request.OrganizationId, invoice.Lines.Select(x => x.BatchId), cancellationToken);
+        var serials = await LineAllocationReader.LoadSerialsAsync(
+            db, request.OrganizationId, DocumentLineParentType.InvoiceLine,
+            invoice.Lines.Select(x => x.Id).ToList(), cancellationToken);
 
         IReadOnlyList<PostedGlLineDto>? glLines = null;
 
@@ -59,7 +70,11 @@ public sealed class GetInvoiceQueryHandler(IAppDbContext db) : IRequestHandler<G
             invoice.GrandTotal,
             invoice.Terms,
             invoice.Lines.Select(x => new InvoiceLineDto(
-                x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount)).ToList(),
+                x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount,
+                x.BatchId is null ? null : batches.GetValueOrDefault(x.BatchId.Value)?.BatchNo,
+                x.BatchId is null ? null : batches.GetValueOrDefault(x.BatchId.Value)?.ManufactureDate,
+                x.BatchId is null ? null : batches.GetValueOrDefault(x.BatchId.Value)?.ExpiryDate,
+                serials.TryGetValue(x.Id, out var lineSerials) ? lineSerials : [])).ToList(),
             glLines,
             invoice.CurrencyCode,
             invoice.ExchangeRate);

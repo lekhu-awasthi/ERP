@@ -39,6 +39,25 @@ public class ProductVariantSweepGuardTests
             "Edits a variant child's own fields. Rejects a non-variant itself.",
         ["Catalog/Commands/DeleteProductVariant/DeleteProductVariantCommandHandler.cs"] =
             "Deletes a variant child. Rejects a non-variant itself.",
+
+        // Phase 51. Both of these read the product ids of an ALREADY-CREATED document's lines, not
+        // ids from their own request -- the variant refusal happens at Create, which is where a
+        // product id enters the system, and that is phase 24's design rather than an oversight here.
+        //
+        // They are listed now because phase 51 gave each of them a
+        // StockTrackingRules.EnsureNotTrackedAsync call that projects `x.ProductId` from a line
+        // collection, and TakesProductIdsFromRequest is a *heuristic*: it matches `x.ProductId)`
+        // within 80 characters of `cancellationToken`. The Inventory Adjustment call landed inside
+        // that window and the Production Journal call landed just outside it -- so one tripped the
+        // guard and the other was saved by character distance. Both are exempt for the same reason,
+        // so both are named, because an exemption that depends on formatting is phase 50's
+        // right-by-luck problem in a second place.
+        ["Inventory/Commands/ApproveInventoryAdjustment/ApproveInventoryAdjustmentCommandHandler.cs"] =
+            "Approves an existing adjustment: its lines' product ids were refused-if-parent at Create "
+            + "(InventoryValidation.EnsureProductsExistAsync). Takes no product id from its request.",
+        ["Manufacturing/Commands/ApproveProductionJournal/ApproveProductionJournalCommandHandler.cs"] =
+            "Approves an existing journal: its raw-material, by-product and output ids were "
+            + "refused-if-parent at Create (ManufacturingValidation). Takes no product id from its request.",
     };
 
     /// <summary>The sanctioned ways through the rule. Both funnel into ProductVariantRules.</summary>

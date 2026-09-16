@@ -46,6 +46,20 @@ public class NepalTimeTests
         Assert.Equal(new TimeOnly(6, 15), NepalTime.LocalTimeOfDay(earlyUtc));
     }
 
+    /// <summary>The boundary the AI-scan daily allowance is counted against: a scan run at
+    /// 05:00 Nepal time is before UTC midnight, so a UTC-based day start would bill it to the
+    /// wrong day.</summary>
+    [Fact]
+    public void StartOfLocalDay_is_local_midnight_not_UTC_midnight()
+    {
+        var lateEveningUtc = new DateTimeOffset(2026, 6, 15, 18, 30, 0, TimeSpan.Zero);
+
+        var dayStart = NepalTime.StartOfLocalDay(lateEveningUtc);
+
+        Assert.Equal(new DateTimeOffset(2026, 6, 16, 0, 0, 0, NepalTime.Offset), dayStart);
+        Assert.Equal(new DateTime(2026, 6, 15, 18, 15, 0, DateTimeKind.Utc), dayStart.UtcDateTime);
+    }
+
     [Fact]
     public void LocalTimeOfDay_truncates_seconds_to_the_pickers_resolution()
     {

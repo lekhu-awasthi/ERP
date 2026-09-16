@@ -82,6 +82,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 48: shared display components + record pages (every date *output* through `NepaliDatePipe`, instant-aware; `app-deal-form`/`app-task-form` for create and edit). Before rendering a timestamp, or trusting a carried item's own count — `docs/phase-48-status.md`
 - Phase 49: the expiry decision (we keep an expired tenant and mark it, where the reference product deletes it from the list), `IsActive`, Nepal-anchored term ends, SMS on the Subscription screen. Before copying a behaviour read live, or diverging from one — `docs/phase-49-status.md`
 - Phase 50: measured indexes (`Cheque`'s date index + key-paging), the convention's declaration mechanism, `tests/Infrastructure.UnitTests`. Before adding an index, or writing a cross-assembly invariant test — `docs/phase-50-status.md`
+- Phase 51: batch and serial tracking — both are keys on the FIFO layer, neither carries a quantity. Before adding a dimension to the stock ledger, or sweeping a change through optional parameters — `docs/phase-51-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -187,6 +188,10 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `decimal` has a signed zero: `-0m` keeps its sign bit and surfaces as `-0` / `-0.00` once cast to `double` for a spreadsheet cell. Accumulate a magnitude only when the value is strictly non-zero — no test catches this, because `-0m == 0m` (phase-26c bug #1).
 
 **GL posting, documents and domain invariants**
+- A dimension that is a `GROUP BY` over the one quantity cannot drift from it; a dimension with its own quantity column is phase 37's two-of-three-views failure waiting to happen. `ProductBatch` stores no quantity (phase-51).
+- A serial is a FIFO layer of **quantity one**, so specific identification and FIFO are the same walk with a different selector — and the report's *Status* filter is `QuantityRemaining`, not a modelled lifecycle (phase-51).
+- A serialised issue is refused whatever the Negative Item Balance setting says: naming a unit that was never received is a typo, not an oversell (phase-51).
+- A shortfall carries **whatever key the request named** — the batch when one was named and came up short, none when the walk was unnarrowed; and a receipt fills same-batch debts first, then un-batched ones, or an un-batched debt on a tracked product is unrepayable forever (phase-51).
 - A "reverse of X" posting rule can balance its own entry while leaving a paired control account (AP net of TDS) permanently off; trace the net effect on every account across original + reversal (phase-6 bug #3).
 - Reversals mirror the original entry's own posted lines via `GlJournalEntry.PostReversalOf` (a second entry, never a mutation); never re-derive a reversal from the posting rule (phase-16a).
 - "One GL entry per Approved document" is a habit, not an invariant; reverse the outstanding net of every entry via `SourceDocumentGlEntries`, never `SingleAsync` (phase-36).
@@ -332,6 +337,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A guard predicate naming a **dependency** is not naming the behaviour: two handlers inject `IDocumentExtractor` only to read `IsConfigured`/`ModelId`, so the exclusions must be named with reasons and asserted to still exist (phase-46).
 
 **Testing and manual E2E**
+- A sweep driven by the compiler stops exactly where the compiler stops: changing `ConsumeAsync`'s **return type** enumerated all five consume sites, while adding **optional parameters** to `IncrementAsync` enumerated none — and the one increment site that needed them shipped un-swept past every green test (phase-51).
 - A vendor's always-pass dummy credential (Turnstile `1x000…AA`) accepts any input; proving the negative path needs the always-fail one (`2x000…AA`) swapped in (phase-20g).
 - A 403 proves the key only beside a 200 from the same user on the same organization in the same run; log in before `accept-invitation` or the membership stays `Invited` (phase-41).
 - Two implementations of one rule in two languages are pinned to a shared table both suites read (`rich-text-cases.json`, the `bs-date` table), never to each other (phase-39, phase-26b).
@@ -390,45 +396,49 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–50 are complete.** The v1 sequence (0–25), parity (26–34c), consolidation (35–41),
-completion (42–47) and the first three continuation phases (48, 49, 50) are all done; each phase's
-story is in its `docs/phase-N-status.md`, and every finished planning entry is archived in
-`docs/roadmap-history.md`.
+**Phases 0–51 are complete.** The v1 sequence (0–25), parity (26–34c), consolidation (35–41),
+completion (42–47) and the continuation phases (48–51) are all done; each phase's story is in its
+`docs/phase-N-status.md`, and every finished planning entry is archived in `docs/roadmap-history.md`.
 
-**Phase 50 was gated on a measurement, and the measurement refused three things.** `Cheque` now
-carries `(OrganizationId, ChequeDate DESC)` and its list pages by key — first page 168.6 ms of CPU to
-29.5, last page 680.0 to 40.9, a non-matching search 430,084 logical reads to 3,957. Refused with
-numbers: a covering search index (0.03%), a `UNION` rewrite, and the phase's own idea of putting the
-tenant predicate on the three joined tables, which fixed search and took a sibling tab to 83,308
-reads. `TenantIndexConvention` can no longer classify a stray date as master data — it fails the
-model build — and `tests/Infrastructure.UnitTests` is now where a cross-assembly invariant lives.
+**Phase 51 added the first new *feature* since 47, and its modelling question had one answer.** A
+batch and a serial are both **keys on the FIFO layer**, and neither carries a quantity of its own:
+`ProductBatch` is an identity row with no `Quantity` column, so a batch's on-hand is a `GROUP BY`
+over the layers carrying its id; a serial is a layer of **quantity one**, which makes specific
+identification the ordinary FIFO walk with one more predicate, and makes the reports' *Status*
+filter (`In Stock` / `Issued`) nothing but `QuantityRemaining`. Proven in SQL on a fresh
+organization: `FifoLayers = InventoryAccount = MovementHistory = 2780.0000`, and
+`Total 17 = SumOfBatches 16 + UnBatched 1`. The control is on the Invoice and Purchase Bill line
+grids, which is where the 2026-09-16 read put it; everywhere else either derives the allocation
+(Credit Note, Debit Note, Warehouse Transfer) or **refuses** a tracked product with a named 409
+(Opening Stock, Inventory Adjustment, Production Journal — `StockTrackingRules.RefusedPaths`, each
+with its reason and re-entry condition). **The two new reports' column sets were never read** — the
+vendor gates them behind keys its demo Admin lacks, and this phase invoked the phase-8f rule
+explicitly rather than silently.
 
-**Next: phases 51–52 in `docs/roadmap.md`.** 51 is **batch and serial tracking**, new scope from the
-reference product's August 2026 release and fully specified by the 2026-09-16 live read *except* for
-the Product Batch / Product Serial No report columns — phase 49 did not take that read and **nor did
-phase 50**, so 51 either takes it or designs from the two product tabs and says so (the phase-8f
-rule). Its first decision is the modelling one: does a batch key the FIFO layer or hang off it, and
-is a serial a layer of quantity one or its own aggregate. Then 52 (a unit on the document line, which
-is what would make phase 45's secondary units mean something). Two items sit outside the sequence
-with their own start conditions: **an hour with NVDA** (needs a person with headphones; phases 40,
-47, 48 built everything derivable and recorded plainly that nothing was heard) and **full-text
-search** (a semantics change, not a performance fix) — to which phase 50 adds the Cheque Register's
-*matching* search term, which is a semantic or structural question and provably not an index one.
-The deferred and dropped lists are in the roadmap and are unchanged.
+**Next: phase 52 in `docs/roadmap.md`** — a unit on the document line, which is what would make
+phase 45's secondary units mean something. Its first decision is what an approved document, a return
+and a conversion do when the product's conversion rate is later edited (a stored factor versus a live
+lookup, the same choice phase 37's cost catch-up made). Phase 51 left that dimension cheaper to add:
+the four line types already carry an allocation, and `LineStockAllocator` is the one place a line's
+worth of stock is moved. Three items sit outside the sequence with their own start conditions: **an
+hour with NVDA** (needs a person with headphones), **full-text search** (a semantics change, not a
+performance fix), and **the two traceability reports' real columns** (needs an account holding
+`Reports.ProductBatch.View`'s vendor equivalent). The deferred and dropped lists are in the roadmap
+and are unchanged.
 
-Tests at last count: Domain 674, Application.UnitTests 1188, **Infrastructure.UnitTests 8 (new in
-50)**, Api.IntegrationTests 30, Angular 561 — unchanged, because phase 50 changed no Angular code.
-`dotnet build` / `dotnet test` / `ng build` / `ng test` all clean, and `ng build` does not warn —
-phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts`, and the bundle
-sits at 643.39 kB since phase 48 took Angular's `DatePipe` out of 19 components.
-`Api.IntegrationTests` needs Docker Desktop running: without it the Testcontainers-backed tests fail
-in their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like
-regressions and is not (10 of 30 did exactly this in phase 48, and all 30 passed once Docker was
-started); it also fails nondeterministically under machine load and passes on re-run (phase 36/37).
-`tsc --noEmit` does not cover `web/src/app`; `ng build` is the check (phase-28), and `ng test` must be
-run from `web/` (phase-35a) on **Node 24** (`nvm use 24.11.0` — v16 dies with
-`availableParallelism is not a function`). `tools/scale/` now seeds cheques too, and when the subject
-is one screen the number to trust is `probe-cheque-io.sh`, not the wall clock (phase-50).
+Tests at last count: Domain **688**, Application.UnitTests **1212**, Infrastructure.UnitTests **12**,
+Api.IntegrationTests 30, Angular **576**. `dotnet build` / `dotnet test` / `ng build` / `ng test` all
+clean, and `ng build` does not warn — phase 42's measured 680 kB initial-bundle budget is pinned by
+`build-budget.spec.ts`, and the bundle sits at **643.68 kB**. `Api.IntegrationTests` needs Docker
+Desktop running: without it the Testcontainers-backed tests fail in their constructors with
+`DockerEndpointAuthConfig` before any assertion, which reads like regressions and is not; it also
+fails nondeterministically under machine load and passes on re-run (phase 36/37). `tsc --noEmit` does
+not cover `web/src/app`; `ng build` is the check (phase-28), and `ng test` must be run from `web/`
+(phase-35a) on **Node 24** (`nvm use 24.11.0` — v16 dies with `availableParallelism is not a
+function`). When the subject is one screen's plan, the number to trust is `tools/scale/`, not the
+wall clock (phase-50); phase 51 took **no** performance measurement and claims none, but it did add
+an index to `StockLedgerEntry`, so a later phase touching stock performance should re-measure the
+FIFO walk.
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

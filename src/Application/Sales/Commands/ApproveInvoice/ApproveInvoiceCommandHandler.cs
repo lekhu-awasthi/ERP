@@ -10,6 +10,7 @@ using ErpApp.Application.Sales.Stock;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Sales;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -122,11 +123,22 @@ public sealed class ApproveInvoiceCommandHandler(
 
         invoice.Approve(currentUser.UserId, code);
 
+        // Phase 51 -- the serials each Goods line names, loaded once for the whole document rather
+        // than per line. A line of a non-serialised product is simply absent from the dictionary.
+        var serialsByLine = await LineStockAllocator.LoadSerialsAsync(
+            db, request.OrganizationId, DocumentLineParentType.InvoiceLine,
+            goodsLines.Select(x => x.Id).ToList(), cancellationToken);
+
         var totalCogs = 0m;
         foreach (var line in goodsLines)
         {
-            var averageUnitCost = await stockLedgerService.ConsumeAsync(
-                request.OrganizationId, line.ProductId, invoice.WarehouseId, line.Quantity,
+            // Phase 51 -- line.BatchId narrows the FIFO walk to one batch when the line named one,
+            // and the serials (if any) turn this into one call per physical unit. A line that names
+            // neither takes exactly the path it took before this phase.
+            var consumption = await LineStockAllocator.ConsumeLineAsync(
+                stockLedgerService, request.OrganizationId, line.ProductId, invoice.WarehouseId,
+                line.Quantity, line.BatchId,
+                serialsByLine.TryGetValue(line.Id, out var serials) ? serials : [],
                 DocumentType.Invoice, invoice.Id, invoice.Date, cancellationToken, invoice.LocationId,
                 // Phase 37 -- the Negative Item Balance setting made real. The gate above has
                 // already turned it into a verdict (and, on Warn, has already been confirmed by the
@@ -134,8 +146,9 @@ public sealed class ApproveInvoiceCommandHandler(
                 // a shortfall layer at the product's last known cost rather than a 409 from the
                 // engine that would have made Warn and Do Nothing indistinguishable from Reject.
                 allowNegative: true);
-            line.RecordCogsUnitCost(averageUnitCost);
-            totalCogs += line.Quantity * averageUnitCost;
+
+            line.RecordCogsUnitCost(consumption.AverageUnitCost);
+            totalCogs += line.Quantity * consumption.AverageUnitCost;
         }
 
         if (totalCogs > 0)

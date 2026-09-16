@@ -20,11 +20,13 @@ import {
   CreateVariantAttributeRequest,
   GenerateProductVariantsResult,
   Product,
+  ProductBatchTabRow,
   ProductCategory,
   ProductType,
   ProductVariant,
   ProductVariantAttributesResult,
   ProductVariantFilter,
+  ProductSerialTabRow,
   ProductVariantPanel,
   UnitOfMeasurement,
   UpdateProductCategoryRequest,
@@ -281,6 +283,50 @@ export class CatalogService {
 
   getProduct(organizationId: string, id: string): Observable<Product> {
     return this.http.get<Product>(`${this.baseUrl(organizationId)}/products/${id}`, { withCredentials: true });
+  }
+
+  /**
+   * Phase 51 -- the product detail page's Batch tab. `params` is annotated
+   * `Record<string, string>`: a union including `{}` silently resolves to the `arraybuffer`
+   * overload (phase-3 bug #4).
+   */
+  listProductBatches(
+    organizationId: string,
+    productId: string,
+    filters: { warehouseId?: string | null; search?: string | null } = {},
+  ): Observable<ProductBatchTabRow[]> {
+    const params: Record<string, string> = {};
+    if (filters.warehouseId) {
+      params['warehouseId'] = filters.warehouseId;
+    }
+    if (filters.search) {
+      params['search'] = filters.search;
+    }
+
+    return this.http.get<ProductBatchTabRow[]>(
+      `${this.baseUrl(organizationId)}/products/${productId}/batches`,
+      { params, withCredentials: true },
+    );
+  }
+
+  /** Phase 51 -- the Serial Number tab. Shows what is in stock; the report is where Issued lives. */
+  listProductSerials(
+    organizationId: string,
+    productId: string,
+    filters: { warehouseId?: string | null; search?: string | null } = {},
+  ): Observable<ProductSerialTabRow[]> {
+    const params: Record<string, string> = {};
+    if (filters.warehouseId) {
+      params['warehouseId'] = filters.warehouseId;
+    }
+    if (filters.search) {
+      params['search'] = filters.search;
+    }
+
+    return this.http.get<ProductSerialTabRow[]>(
+      `${this.baseUrl(organizationId)}/products/${productId}/serials`,
+      { params, withCredentials: true },
+    );
   }
 
   /**

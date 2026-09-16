@@ -1,0 +1,111 @@
+<div class="container py-5" style="max-width: 1100px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-success bg-gradient text-white p-2.5 rounded-3">
+          <i aria-hidden="true" class="bi bi-box-seam fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Product Batch Report</h1>
+          <p class="text-muted small mb-0">Batches received in the period, with their live quantity on hand</p>
+        </div>
+      </div>
+      <a [routerLink]="['/organizations', organizationId, 'reports', 'product-serial']" class="btn btn-outline-secondary btn-sm fw-bold">
+        <i aria-hidden="true" class="bi bi-upc-scan"></i> Product Serial No Report
+      </a>
+    </div>
+  </div>
+
+  <app-status-banner [message]="errorMessage()" />
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold" for="product-batch-report-page-from-date">From Date</label>
+          <app-bs-date-input [inputId]="'product-batch-report-page-from-date'" [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold" for="product-batch-report-page-to-date">To Date</label>
+          <app-bs-date-input [inputId]="'product-batch-report-page-to-date'" [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold" for="product-batch-report-page-group-by">Group By</label>
+          <select id="product-batch-report-page-group-by" class="form-select" (change)="onGroupByChange($event)">
+            @for (option of groupByOptions; track option) {
+              <option [value]="option" [selected]="option === groupBy()">{{ option }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <app-report-location-filter
+            [organizationId]="organizationId"
+            [controlId]="'product-batch-report-page-billing-location'"
+            (locationChange)="onLocationChange($event)"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <p class="text-muted small mb-0">Loading…</p>
+      } @else if (rows().length === 0) {
+        <p class="text-muted small mb-0">No batches received in this period.</p>
+      } @else {
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr class="text-muted small">
+                <th scope="col">Batch No.</th>
+                <th scope="col">Product</th>
+                <th scope="col">Manufacture Date</th>
+                <th scope="col">Expiry Date</th>
+                @if (groupBy() === 'Warehouse') {
+                  <th scope="col">Warehouse</th>
+                }
+                <th scope="col" class="text-end">Quantity</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.batchId + (row.warehouseId ?? '')) {
+                <tr>
+                  <td class="fw-semibold">{{ row.batchNo }}</td>
+                  <td>{{ row.productCode }} — {{ row.productName }}</td>
+                  <!-- Every date a user reads goes through NepaliDatePipe: Angular's own DatePipe
+                       ignores DatePreferenceService entirely (phase 23, still biting in phase 48). -->
+                  <td>{{ row.manufactureDate ? (row.manufactureDate | nepaliDate) : '—' }}</td>
+                  <td>{{ row.expiryDate ? (row.expiryDate | nepaliDate) : '—' }}</td>
+                  @if (groupBy() === 'Warehouse') {
+                    <td>{{ row.warehouseName ?? '—' }}</td>
+                  }
+                  <td class="text-end">{{ (row.quantity | amount) }} {{ row.unitName }}</td>
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr class="fw-bold border-top">
+                <td [attr.colspan]="groupBy() === 'Warehouse' ? 5 : 4">Total</td>
+                <!-- Server-computed over the full filtered set, not a reduce over this page
+                     (phase-16c bug #1). -->
+                <td class="text-end">{{ (totalQuantity() | amount) }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        @if (totalPages() > 1) {
+          <nav aria-label="Product Batch Report pages" class="d-flex justify-content-between align-items-center mt-3">
+            <span class="small text-body-secondary">Page {{ page() }} of {{ totalPages() }} — {{ totalCount() }} row(s)</span>
+            <div class="btn-group">
+              <button type="button" class="btn btn-outline-secondary btn-sm" [disabled]="page() <= 1" (click)="goToPage(page() - 1)">Previous</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" [disabled]="page() >= totalPages()" (click)="goToPage(page() + 1)">Next</button>
+            </div>
+          </nav>
+        }
+      }
+    </div>
+  </div>
+</div>

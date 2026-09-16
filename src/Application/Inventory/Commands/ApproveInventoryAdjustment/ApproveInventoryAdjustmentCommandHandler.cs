@@ -68,6 +68,14 @@ public sealed class ApproveInventoryAdjustmentCommandHandler(
         var decreaseAmount = 0m;
         var costCatchUp = 0m;
 
+        // Phase 51 -- an Inventory Adjustment cannot say which batch or serials it moves, so a
+        // tracked product is refused here with a named 409 rather than quietly creating an
+        // un-batched layer that reconciles against nothing. The reason, and the re-entry condition,
+        // are recorded in StockTrackingRules.RefusedPaths.
+        await StockTrackingRules.EnsureNotTrackedAsync(
+            db, request.OrganizationId, inventoryAdjustment.Lines.Select(x => x.ProductId),
+            "Inventory Adjustment", cancellationToken);
+
         foreach (var line in inventoryAdjustment.Lines)
         {
             if (line.Direction == InventoryAdjustmentDirection.Increase)
@@ -80,10 +88,10 @@ public sealed class ApproveInventoryAdjustmentCommandHandler(
             }
             else
             {
-                var averageUnitCost = await stockLedgerService.ConsumeAsync(
+                var averageUnitCost = (await stockLedgerService.ConsumeAsync(
                     request.OrganizationId, line.ProductId, inventoryAdjustment.WarehouseId, line.Quantity,
                     DocumentType.InventoryAdjustment, inventoryAdjustment.Id, inventoryAdjustment.Date, cancellationToken,
-                    inventoryAdjustment.LocationId);
+                    inventoryAdjustment.LocationId)).AverageUnitCost;
                 line.RecordConsumedUnitCost(averageUnitCost);
                 decreaseAmount += line.Quantity * averageUnitCost;
             }

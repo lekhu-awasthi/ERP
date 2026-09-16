@@ -68,6 +68,9 @@ describe('ProductDetailPage — secondary units', () => {
       valuationMethod: 'Fifo',
       reOrderLevel: 0,
       trackInventory: true,
+      // Phase 51 -- both default off, which is what makes the feature additive.
+      batchTracking: false,
+      serialTracking: false,
       isActive: true,
       createdAt: '2026-09-15T00:00:00Z',
       sku: null,

@@ -286,6 +286,10 @@
               <tr class="text-muted small">
                 <th scope="col" style="min-width: 220px;">Product</th>
                 <th scope="col" style="width: 100px;" class="text-end">Qty</th>
+                <!-- Phase 51 -- the Item Batch column sits between Qty and Rate, which is exactly
+                     where the 2026-09-16 read found it on both this grid and the Purchase Bill's:
+                     Product / service | Qty | Item Batch | Rate | Discount | Tax | Amount. -->
+                <th scope="col" style="width: 180px;">Item Batch</th>
                 <th scope="col" style="width: 120px;" class="text-end">Rate</th>
                 <th scope="col" style="width: 100px;" class="text-end">Discount %</th>
                 <th scope="col" style="width: 140px;">VAT</th>
@@ -323,6 +327,40 @@
                       />
                     } @else {
                       {{ line.quantity }}
+                    }
+                  </td>
+                  <td>
+                    @if (isDraft()) {
+                      <!-- Free text, not a picker: on a receipt the batch usually does not exist
+                           yet, and naming it is how it comes into being. The server mints it on a
+                           receipt and refuses an unknown one on an issue, with a 400 naming the
+                           line. A product that is not batch-tracked is refused a batch outright,
+                           so leaving this blank is the ordinary case for almost every line. -->
+                      <input
+                        [attr.aria-label]="'Item Batch'"
+                        type="text"
+                        class="form-control form-control-sm"
+                        placeholder="Batch no"
+                        maxlength="100"
+                        [value]="line.batchNo"
+                        (input)="onBatchNoChange(line.key, $event)"
+                      />
+                      <!-- One physical unit per serial, so a line of quantity five names five.
+                           Comma- or newline-separated; the server refuses a count that does not
+                           match the quantity, and names the line. -->
+                      <input
+                        [attr.aria-label]="'Serial numbers'"
+                        type="text"
+                        class="form-control form-control-sm mt-1"
+                        placeholder="Serial nos (comma separated)"
+                        [value]="line.serialsText"
+                        (input)="onSerialsChange(line.key, $event)"
+                      />
+                    } @else {
+                      <span class="small">{{ line.batchNo || '—' }}</span>
+                      @if (line.serialsText) {
+                        <div class="small text-body-secondary">{{ line.serialsText }}</div>
+                      }
                     }
                   </td>
                   <td class="text-end">

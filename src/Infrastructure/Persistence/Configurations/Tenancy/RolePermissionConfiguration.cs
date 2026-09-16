@@ -724,6 +724,20 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminUserPreferenceManageId = Guid.Parse("00000000-0000-0000-0002-0000000001bb");
     private static readonly Guid MemberUserPreferenceManageId = Guid.Parse("00000000-0000-0000-0002-0000000001bc");
 
+    // Phase 51 -- the two traceability reports. Both Admin+Member; the derivation is recorded on the
+    // constants in PermissionKeys.cs, where the reasoning belongs.
+    //
+    // These continue from 01c2, which is the highest id in the WHOLE file and not the highest in the
+    // block above -- the ids are grouped by feature, so the blocks are not in id order and reading
+    // the last block gives the wrong answer. The first attempt at this phase took 01bd..01c0 from
+    // the preceding block and collided with the Organization Profile keys 340 lines earlier.
+    // Infrastructure.UnitTests caught it instantly, at model build, which is precisely the class of
+    // invariant phase 50 created that project for.
+    private static readonly Guid AdminProductBatchReportViewId = Guid.Parse("00000000-0000-0000-0002-0000000001c3");
+    private static readonly Guid MemberProductBatchReportViewId = Guid.Parse("00000000-0000-0000-0002-0000000001c4");
+    private static readonly Guid AdminProductSerialReportViewId = Guid.Parse("00000000-0000-0000-0002-0000000001c5");
+    private static readonly Guid MemberProductSerialReportViewId = Guid.Parse("00000000-0000-0000-0002-0000000001c6");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1287,6 +1301,10 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminGlobalSearchViewId, Role.AdminId, PermissionKeys.GlobalSearchView, true),
             RolePermission.Create(MemberGlobalSearchViewId, Role.MemberId, PermissionKeys.GlobalSearchView, true),
             RolePermission.Create(AdminUserPreferenceManageId, Role.AdminId, PermissionKeys.UserPreferenceManage, true),
-            RolePermission.Create(MemberUserPreferenceManageId, Role.MemberId, PermissionKeys.UserPreferenceManage, true));
+            RolePermission.Create(MemberUserPreferenceManageId, Role.MemberId, PermissionKeys.UserPreferenceManage, true),
+            RolePermission.Create(AdminProductBatchReportViewId, Role.AdminId, PermissionKeys.ProductBatchReportView, true),
+            RolePermission.Create(MemberProductBatchReportViewId, Role.MemberId, PermissionKeys.ProductBatchReportView, true),
+            RolePermission.Create(AdminProductSerialReportViewId, Role.AdminId, PermissionKeys.ProductSerialReportView, true),
+            RolePermission.Create(MemberProductSerialReportViewId, Role.MemberId, PermissionKeys.ProductSerialReportView, true));
     }
 }

@@ -11,6 +11,8 @@ import {
   InventoryMovementReportDto,
   InventoryPositionReportDto,
   NetTradingAssetsDto,
+  ProductBatchReportDto,
+  ProductSerialReportDto,
   PurchaseReturnRegisterDto,
   SalesReturnRegisterDto,
   UserLogDto,
@@ -296,6 +298,49 @@ export class CatalogueReportsService {
     if (documentType) params['documentType'] = documentType;
     if (locationId) params['locationId'] = locationId;
     return params;
+  }
+
+  /**
+   * Phase 51 -- the Product Batch Report. `params` annotated `Record<string, string>`: a union
+   * including `{}` silently resolves to the `arraybuffer` overload (phase-3 bug #4).
+   */
+  getProductBatchReport(
+    organizationId: string,
+    fromDate: string, toDate: string,
+    productId: string | null, warehouseId: string | null,
+    groupBy: string, page: number, pageSize: number, locationId: string | null,
+  ): Observable<ProductBatchReportDto> {
+    const params: Record<string, string> = {
+      fromDate, toDate, groupBy, page: String(page), pageSize: String(pageSize),
+    };
+    if (productId) params['productId'] = productId;
+    if (warehouseId) params['warehouseId'] = warehouseId;
+    if (locationId) params['locationId'] = locationId;
+
+    return this.http.get<ProductBatchReportDto>(
+      `${this.baseUrl(organizationId)}/reports/product-batch`,
+      { params, withCredentials: true },
+    );
+  }
+
+  /** Phase 51 -- the Product Serial No Report. */
+  getProductSerialReport(
+    organizationId: string,
+    fromDate: string, toDate: string,
+    productId: string | null, warehouseId: string | null,
+    status: string, groupBy: string, page: number, pageSize: number, locationId: string | null,
+  ): Observable<ProductSerialReportDto> {
+    const params: Record<string, string> = {
+      fromDate, toDate, status, groupBy, page: String(page), pageSize: String(pageSize),
+    };
+    if (productId) params['productId'] = productId;
+    if (warehouseId) params['warehouseId'] = warehouseId;
+    if (locationId) params['locationId'] = locationId;
+
+    return this.http.get<ProductSerialReportDto>(
+      `${this.baseUrl(organizationId)}/reports/product-serial`,
+      { params, withCredentials: true },
+    );
   }
 
   private registerParams(

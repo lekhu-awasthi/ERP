@@ -3231,3 +3231,94 @@ and is labelled as such.
 
 A second, smaller trap from the same script: `sqlcmd` rejects `-s ' '` ("Unexpected argument") and
 `-W` is mutually exclusive with `-y`/`-Y`. Use `-s','` and split on the comma.
+
+## A dimension with its own quantity is a second truth (phase 51)
+
+Phase 37's finding was that a stock value has to reach three views — the FIFO layers, the Inventory
+account, the movement history — or two of them can be patched into agreement while the third drifts.
+Phase 51 had to add a *fourth* thing that has a quantity (a batch) and chose to make it not have one.
+
+`ProductBatch` stores batch number, manufacture date and expiry date, and **no quantity at all**. A
+batch's on-hand per warehouse is `SUM(QuantityRemaining)` over the `StockLedgerEntry` rows carrying
+its `BatchId`; its dated movement is the same filter over `StockMovement`. There is one quantity in
+the system and the batch dimension is a `GROUP BY` over it, so the product tab, the Product Batch
+Report and Stock Position cannot disagree — not because they are reconciled, but because they are
+the same number grouped differently.
+
+The rejected design is worth stating because it is the obvious one: a batch-quantity ledger,
+incremented and decremented alongside the layers. It would have had to be kept in step by every one
+of the nine `Increment`/`Consume` call sites, and every one of those is a chance to miss.
+
+**The mirror rule, for the next dimension:** if you are about to give a new entity a quantity column,
+ask what already has that quantity. If something does, the new entity wants a foreign key on the
+existing row, not a column of its own.
+
+## A serial is a layer of quantity one, and its lifecycle was already in the ledger (phase 51)
+
+The reference product's Serial Number tab shows three columns — SERIAL NO. / WAREHOUSE / CREATED AT
+— while its Product Serial No Report carries a **Status** filter. The kickoff flagged the gap
+explicitly: a Status filter implies a lifecycle the tab does not show, *treat that as a question for
+the read, not an invention*.
+
+Modelling a serial as a `StockLedgerEntry` with `QuantityIn = 1` answered it without inventing
+anything. `QuantityRemaining` is `1` while the unit is in stock and `0` once it has been issued, so
+*In Stock* and *Issued* are a projection of a column that has existed since phase 7. The three tab
+columns are the layer's own `SerialNo`, `WarehouseId` and `CreatedAt`, and the unit's cost comes free
+in `UnitCost`.
+
+Three consequences follow and each is a rule:
+
+- **Specific identification and FIFO are the same walk.** Issuing serial `J9` must relieve `J9`'s
+  layer even when an older layer exists, which is not FIFO — but under a layer of quantity one it is
+  `ConsumeAsync` with one more predicate and exactly one candidate layer. No second engine.
+- **A serialised issue can never go negative**, whatever the tenant's Negative Item Balance setting
+  says. That setting exists so a business can sell goods it has not booked in yet; naming a physical
+  unit that was never received is a typo, not an oversell, and a shortfall layer of quantity one
+  carrying a serial number would be a second in-stock row for a serial that does not exist.
+- **Uniqueness is over *in-stock* layers only.** A serial that is issued and later returned by a
+  Credit Note re-enters stock as a **new** layer with the same number, while the old row stays as
+  history the kardex reconstructs from. So the unique index is filtered on
+  `[SerialNo] IS NOT NULL AND [QuantityRemaining] > 0` — the first half is the standing nullable-
+  unique-index rule, the second half *is* the model. InMemory enforces neither, so the race is
+  verified against SQL Server.
+
+## A shortfall carries whatever key the request named (phase 51)
+
+Adding a dimension to the ledger means deciding what an **oversell** produces, and the answer that
+keeps the model uniform is: the shortfall layer carries the key the request asked for.
+
+- A line named a batch and that batch came up short → the shortfall carries that `BatchId`. The
+  batch's derived quantity goes negative, which is exactly as honest as the product's own quantity
+  going negative.
+- The walk was unnarrowed and the product came up short → the shortfall carries **no** batch, which
+  is correct: units that were never received belong to no batch.
+- A serial was named → no shortfall is possible at all (above).
+
+**The half that is load-bearing and non-obvious** is the fill order. `FillShortfallsAsync` pays
+same-batch debts first and un-batched debts second, and the second clause is not a nicety: every
+receipt of a batch-tracked product carries a batch, so without it an un-batched debt could never be
+repaid by anything, and the product's on-hand would be understated forever. A receipt of batch B
+must also never settle batch C's debt, which is the same predicate seen from the other side.
+
+## A sweep driven by the compiler stops exactly where the compiler stops (phase 51)
+
+Phase 51 threaded two new arguments through `IStockLedgerService` and got exactly half a sweep, for
+a reason worth generalising.
+
+`ConsumeAsync`'s **return type** changed — from `decimal` to a `StockConsumption` record — so every
+one of its five call sites failed to compile, was visited, and was correct from the first green
+build. `IncrementAsync` only gained two **optional parameters**, so nothing failed to compile, and
+the one increment site that needed them was never visited.
+
+The result: `ApprovePurchaseBillCommandHandler` called `IncrementAsync` with the arguments it had
+always called it with, so **every receipt of a batch-tracked product created an un-batched layer**.
+`dotnet build` was clean. `dotnet test` was clean, 1,900 tests. The Create path resolved the batch
+correctly, stored it on the line, minted the `ProductBatch` row, and the detail DTO read it all back
+— so the draft looked right on the screen. The first symptom appeared three steps later and in
+another subsystem: the Batch tab showed `BATCH123: 0` and `BATCH999: -4`, because the batch had no
+stock and a narrowed consume against it had therefore left a shortfall.
+
+**Only the manual E2E could find it**, which is the argument for the E2E bar existing at all. The
+practical rule: when adding a parameter to a widely-called method, either make the call sites fail to
+compile (change the return type, or make the parameter required at the call sites that must supply
+it), or enumerate them by hand and write down the list — never rely on having remembered.

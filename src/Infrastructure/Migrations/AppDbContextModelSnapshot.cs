@@ -466,6 +466,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasMaxLength(60)
                         .HasColumnType("nvarchar(60)");
 
+                    b.Property<bool>("BatchTracking")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<Guid>("CategoryId")
                         .HasColumnType("uniqueidentifier");
 
@@ -528,6 +533,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<bool>("SerialTracking")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Sku")
                         .HasMaxLength(60)
                         .HasColumnType("nvarchar(60)");
@@ -578,6 +588,42 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasFilter("[ParentProductId] IS NOT NULL");
 
                     b.ToTable("Products", "catalog");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Catalog.ProductBatch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("BatchNo")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateOnly?>("ExpiryDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("ManufactureDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("OrganizationId", "ProductId", "BatchNo")
+                        .IsUnique();
+
+                    b.ToTable("ProductBatches", "catalog");
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Catalog.ProductCategory", b =>
@@ -2525,6 +2571,41 @@ namespace ErpApp.Infrastructure.Migrations
                     b.ToTable("ImportJobRows", "imports");
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Inventory.DocumentLineSerial", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ParentLineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ParentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("SerialNo")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "ParentType", "ParentLineId");
+
+                    b.HasIndex("OrganizationId", "ParentType", "ParentLineId", "SerialNo")
+                        .IsUnique();
+
+                    b.ToTable("DocumentLineSerials", "inventory");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Inventory.InventoryAdjustment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2684,6 +2765,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("BatchId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -2703,6 +2787,10 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<decimal>("QuantityRemaining")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("SerialNo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<Guid>("SourceDocumentId")
                         .HasColumnType("uniqueidentifier");
@@ -2724,9 +2812,15 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BatchId");
+
                     b.HasIndex("ProductId");
 
                     b.HasIndex("WarehouseId");
+
+                    b.HasIndex("OrganizationId", "ProductId", "SerialNo")
+                        .IsUnique()
+                        .HasFilter("[SerialNo] IS NOT NULL AND [QuantityRemaining] > 0");
 
                     b.HasIndex("OrganizationId", "ProductId", "WarehouseId", "TransactionDate");
 
@@ -2737,6 +2831,9 @@ namespace ErpApp.Infrastructure.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("BatchId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTimeOffset>("CreatedAt")
@@ -2759,6 +2856,10 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<decimal>("Quantity")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("SerialNo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<Guid>("SourceDocumentId")
                         .HasColumnType("uniqueidentifier");
@@ -2785,6 +2886,8 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BatchId");
 
                     b.HasIndex("ProductId");
 
@@ -3700,6 +3803,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<Guid?>("BatchId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal?>("ConsumedUnitCost")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -3732,6 +3838,8 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("nvarchar(30)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BatchId");
 
                     b.HasIndex("DebitNoteId");
 
@@ -4162,6 +4270,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<Guid?>("BatchId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("DiscountPct")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -4195,6 +4306,8 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("nvarchar(30)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BatchId");
 
                     b.HasIndex("ProductId");
 
@@ -4449,6 +4562,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<Guid?>("BatchId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("CreditNoteId")
                         .HasColumnType("uniqueidentifier");
 
@@ -4477,6 +4593,8 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("nvarchar(30)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BatchId");
 
                     b.HasIndex("CreditNoteId");
 
@@ -4613,6 +4731,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<Guid?>("BatchId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal?>("CogsUnitCost")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -4645,6 +4766,8 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("nvarchar(30)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BatchId");
 
                     b.HasIndex("InvoiceId");
 
@@ -8440,6 +8563,34 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = true,
                             PermissionKey = "Platform.UserPreference.Manage",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001c3"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.ProductBatch.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001c4"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.ProductBatch.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001c5"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.ProductSerial.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001c6"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.ProductSerial.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 
@@ -9191,6 +9342,15 @@ namespace ErpApp.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Catalog.ProductBatch", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Catalog.ProductCategory", b =>
                 {
                     b.HasOne("ErpApp.Domain.Catalog.ProductCategory", null)
@@ -9515,6 +9675,11 @@ namespace ErpApp.Infrastructure.Migrations
 
             modelBuilder.Entity("ErpApp.Domain.Inventory.StockLedgerEntry", b =>
                 {
+                    b.HasOne("ErpApp.Domain.Catalog.ProductBatch", null)
+                        .WithMany()
+                        .HasForeignKey("BatchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Catalog.Product", null)
                         .WithMany()
                         .HasForeignKey("ProductId")
@@ -9530,6 +9695,11 @@ namespace ErpApp.Infrastructure.Migrations
 
             modelBuilder.Entity("ErpApp.Domain.Inventory.StockMovement", b =>
                 {
+                    b.HasOne("ErpApp.Domain.Catalog.ProductBatch", null)
+                        .WithMany()
+                        .HasForeignKey("BatchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Catalog.Product", null)
                         .WithMany()
                         .HasForeignKey("ProductId")
@@ -9832,6 +10002,11 @@ namespace ErpApp.Infrastructure.Migrations
 
             modelBuilder.Entity("ErpApp.Domain.Purchasing.DebitNoteLine", b =>
                 {
+                    b.HasOne("ErpApp.Domain.Catalog.ProductBatch", null)
+                        .WithMany()
+                        .HasForeignKey("BatchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Purchasing.DebitNote", null)
                         .WithMany("Lines")
                         .HasForeignKey("DebitNoteId")
@@ -9941,6 +10116,11 @@ namespace ErpApp.Infrastructure.Migrations
 
             modelBuilder.Entity("ErpApp.Domain.Purchasing.PurchaseBillLine", b =>
                 {
+                    b.HasOne("ErpApp.Domain.Catalog.ProductBatch", null)
+                        .WithMany()
+                        .HasForeignKey("BatchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Catalog.Product", null)
                         .WithMany()
                         .HasForeignKey("ProductId")
@@ -10004,6 +10184,11 @@ namespace ErpApp.Infrastructure.Migrations
 
             modelBuilder.Entity("ErpApp.Domain.Sales.CreditNoteLine", b =>
                 {
+                    b.HasOne("ErpApp.Domain.Catalog.ProductBatch", null)
+                        .WithMany()
+                        .HasForeignKey("BatchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Sales.CreditNote", null)
                         .WithMany("Lines")
                         .HasForeignKey("CreditNoteId")
@@ -10039,6 +10224,11 @@ namespace ErpApp.Infrastructure.Migrations
 
             modelBuilder.Entity("ErpApp.Domain.Sales.InvoiceLine", b =>
                 {
+                    b.HasOne("ErpApp.Domain.Catalog.ProductBatch", null)
+                        .WithMany()
+                        .HasForeignKey("BatchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Sales.Invoice", null)
                         .WithMany("Lines")
                         .HasForeignKey("InvoiceId")

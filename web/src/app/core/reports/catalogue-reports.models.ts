@@ -260,3 +260,68 @@ export interface UserLogDto {
   readonly pageSize: number;
   readonly totalCount: number;
 }
+
+/**
+ * Phase 51 -- Product Batch Report. **These columns were never read**: the vendor gates the report
+ * behind a permission key its demo Admin does not hold, so this shape is derived from the product
+ * detail Batch tab (BATCH NO. / MANUFACTURE DATE / EXPIRY DATE / QUANTITY) plus the catalogue's own
+ * filter list (Period / Group By / Warehouse). See `docs/phase-51-status.md` Decision A.
+ */
+export interface ProductBatchRowDto {
+  readonly batchId: string;
+  readonly batchNo: string;
+  readonly productId: string;
+  readonly productCode: string;
+  readonly productName: string;
+  readonly manufactureDate: string | null;
+  readonly expiryDate: string | null;
+  readonly warehouseId: string | null;
+  readonly warehouseName: string | null;
+  readonly quantity: number;
+  readonly unitName: string;
+}
+
+export interface ProductBatchReportDto {
+  readonly fromDate: string;
+  readonly toDate: string;
+  readonly items: ProductBatchRowDto[];
+  readonly page: number;
+  readonly pageSize: number;
+  readonly totalCount: number;
+  /** Over the full filtered set, computed server-side -- never a reduce over one page (phase-16c). */
+  readonly totalQuantity: number;
+}
+
+export type ProductSerialStatus = 'InStock' | 'Issued';
+
+/**
+ * Phase 51 -- Product Serial No Report. Same caveat as the batch report: columns unread, derived
+ * from the Serial Number tab (SERIAL NO. / WAREHOUSE / CREATED AT) and the catalogue's filters
+ * (Period / Group By / Status).
+ *
+ * `status` is the interesting one: the catalogue shows a Status filter that the tab's three columns
+ * do not explain, and it was *not* invented -- because a serial is a FIFO layer of quantity one,
+ * its lifecycle is already `QuantityRemaining`.
+ */
+export interface ProductSerialRowDto {
+  readonly serialNo: string;
+  readonly productId: string;
+  readonly productCode: string;
+  readonly productName: string;
+  readonly warehouseId: string;
+  readonly warehouseName: string;
+  readonly status: ProductSerialStatus;
+  readonly createdAt: string;
+  readonly unitCost: number;
+}
+
+export interface ProductSerialReportDto {
+  readonly fromDate: string;
+  readonly toDate: string;
+  readonly items: ProductSerialRowDto[];
+  readonly page: number;
+  readonly pageSize: number;
+  readonly totalCount: number;
+  readonly inStockCount: number;
+  readonly issuedCount: number;
+}

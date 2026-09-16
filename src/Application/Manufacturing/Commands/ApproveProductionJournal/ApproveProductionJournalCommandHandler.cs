@@ -107,17 +107,27 @@ public sealed class ApproveProductionJournalCommandHandler(
 
         journal.Approve(currentUser.UserId, code);
 
+        // Phase 51 -- both sides of a Production Journal would need an allocation control (which
+        // batch was consumed, which batch the output becomes), and the read specifies neither, so a
+        // tracked product is refused with a named 409. See StockTrackingRules.RefusedPaths.
+        await StockTrackingRules.EnsureNotTrackedAsync(
+            db, request.OrganizationId,
+            journal.RawMaterials.Select(x => x.ProductId)
+                .Concat(journal.ByProducts.Select(x => x.ProductId))
+                .Append(journal.ProductId),
+            "Production Journal", cancellationToken);
+
         // Step 2 -- consume, recording each line's real FIFO cost.
         foreach (var line in journal.RawMaterials)
         {
-            var consumedUnitCost = await stockLedgerService.ConsumeAsync(
+            var consumedUnitCost = (await stockLedgerService.ConsumeAsync(
                 request.OrganizationId, line.ProductId, journal.WarehouseId, line.Quantity,
                 DocumentType.ProductionJournal, journal.Id, journal.Date, cancellationToken, journal.LocationId,
                 // Phase 37 -- the availability gate above has already applied the tenant's Negative
                 // Item Balance setting and, on Warn, has already been confirmed; anything the layers
                 // cannot cover becomes a shortfall layer rather than a 409 from down here. A Reject
                 // tenant never reaches this line with a shortfall.
-                allowNegative: true);
+                allowNegative: true)).AverageUnitCost;
 
             // Multiply the UNROUNDED average, not the value the column will round on write --
             // this product is exactly what left the ledger.

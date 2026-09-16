@@ -1,7 +1,9 @@
 using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Inventory.Stock;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Purchasing;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +19,15 @@ public sealed class GetPurchaseBillQueryHandler(IAppDbContext db) : IRequestHand
             .Include(x => x.AdditionalCosts).ThenInclude(x => x.Allocations)
             .SingleOrDefaultAsync(x => x.Id == request.Id && x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Purchase bill not found.");
+
+
+        // Phase 51 -- the batch each line names and the serials it lists, read back through the one
+        // shared reader so two detail queries cannot drift in how they answer the same question.
+        var batches = await LineAllocationReader.LoadBatchesAsync(
+            db, request.OrganizationId, purchaseBill.Lines.Select(x => x.BatchId), cancellationToken);
+        var serials = await LineAllocationReader.LoadSerialsAsync(
+            db, request.OrganizationId, DocumentLineParentType.PurchaseBillLine,
+            purchaseBill.Lines.Select(x => x.Id).ToList(), cancellationToken);
 
         IReadOnlyList<PostedGlLineDto>? glLines = null;
 
@@ -61,7 +72,12 @@ public sealed class GetPurchaseBillQueryHandler(IAppDbContext db) : IRequestHand
             purchaseBill.DiscountPct,
             purchaseBill.GrandTotal,
             purchaseBill.Lines.Select(x => new PurchaseBillLineDto(
-                x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount, x.ExpenditureClassification)).ToList(),
+                x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount,
+                x.ExpenditureClassification,
+                x.BatchId is null ? null : batches.GetValueOrDefault(x.BatchId.Value)?.BatchNo,
+                x.BatchId is null ? null : batches.GetValueOrDefault(x.BatchId.Value)?.ManufactureDate,
+                x.BatchId is null ? null : batches.GetValueOrDefault(x.BatchId.Value)?.ExpiryDate,
+                serials.TryGetValue(x.Id, out var lineSerials) ? lineSerials : [])).ToList(),
             glLines,
             purchaseBill.CurrencyCode,
             purchaseBill.ExchangeRate,

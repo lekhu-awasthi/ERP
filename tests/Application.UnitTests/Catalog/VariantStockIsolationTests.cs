@@ -148,9 +148,9 @@ public class VariantStockIsolationTests
         await db.SaveChangesAsync();
 
         // Issue 15 Large-Blue: 10 @ 100 + 5 @ 200 = 2000 over 15 = 133.333...
-        var averageCost = await service.ConsumeAsync(
+        var averageCost = (await service.ConsumeAsync(
             OrganizationId, largeBlue.Id, WarehouseId, 15m, DocumentType.Invoice, Guid.NewGuid(),
-            new DateOnly(2026, 2, 1), CancellationToken.None);
+            new DateOnly(2026, 2, 1), CancellationToken.None)).AverageUnitCost;
         await db.SaveChangesAsync();
 
         Assert.Equal(2000m / 15m, averageCost);

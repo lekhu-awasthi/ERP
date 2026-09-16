@@ -125,6 +125,16 @@ export interface InvoiceLineInput {
   rate: number;
   vatRate: VatRate;
   discountPct: number;
+  /**
+   * Phase 51 -- the batch this line receives into or issues from, by **number**. Null when the
+   * product is not batch-tracked; refused with a 400 if it is sent for one that is not.
+   */
+  batchNo?: string | null;
+  /** Phase 51 -- carried only when the batch is being created, or filling a blank on an existing one. */
+  manufactureDate?: string | null;
+  expiryDate?: string | null;
+  /** Phase 51 -- one per physical unit: exactly `quantity` of them when the product is serialised. */
+  serialNumbers?: string[] | null;
 }
 
 export interface Invoice {
@@ -165,6 +175,11 @@ export interface InvoiceLineDto extends InvoiceLineInput {
   id: string;
   amount: number;
   vatAmount: number;
+  /** Phase 51 -- the named batch's own dates, so the form can show them without a second call. */
+  manufactureDate: string | null;
+  expiryDate: string | null;
+  /** Phase 51 -- always present, empty for a line of a product that is not serial-tracked. */
+  serialNumbers: string[];
 }
 
 export interface PostedGlLineDto {

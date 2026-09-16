@@ -8,6 +8,7 @@ using ErpApp.Application.Purchasing.Posting;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Purchasing;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -124,6 +125,11 @@ public sealed class ApprovePurchaseBillCommandHandler(
         var layerValueCreated = 0m;
         var costCatchUp = 0m;
 
+        // Phase 51 -- the serials each line names, loaded once for the whole document.
+        var serialsByLine = await LineStockAllocator.LoadSerialsAsync(
+            db, request.OrganizationId, DocumentLineParentType.PurchaseBillLine,
+            purchaseBill.Lines.Select(x => x.Id).ToList(), cancellationToken);
+
         foreach (var line in purchaseBill.Lines)
         {
             if (!goodsProductIds.Contains(line.ProductId))
@@ -153,9 +159,16 @@ public sealed class ApprovePurchaseBillCommandHandler(
             goodsAmountBase += ExchangeRates.ToBase(line.Amount, purchaseBill.ExchangeRate);
             layerValueCreated += unitCost * line.Quantity;
 
-            costCatchUp += await stockLedgerService.IncrementAsync(
-                request.OrganizationId, line.ProductId, purchaseBill.WarehouseId, line.Quantity,
-                unitCost, DocumentType.PurchaseBill, purchaseBill.Id, purchaseBill.Date, cancellationToken,
+            // Phase 51 -- the receipt carries the line's batch, and splits into one layer per
+            // serial when the line names any. This is where a batch comes into existence as stock:
+            // the ProductBatch row was minted at Create (it is master data a draft has to be able to
+            // show back), but until a receipt is approved the batch has no quantity, because it has
+            // no layers.
+            costCatchUp += await LineStockAllocator.IncrementLineAsync(
+                stockLedgerService, request.OrganizationId, line.ProductId, purchaseBill.WarehouseId,
+                line.Quantity, unitCost, line.BatchId,
+                serialsByLine.TryGetValue(line.Id, out var serials) ? serials : [],
+                DocumentType.PurchaseBill, purchaseBill.Id, purchaseBill.Date, cancellationToken,
                 purchaseBill.LocationId);
         }
 

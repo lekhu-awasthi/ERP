@@ -95,6 +95,17 @@ export interface Product {
   isActive: boolean;
   createdAt: string;
 
+  /**
+   * Phase 51 -- stock of this product is tracked by batch. Off by default, and the form only shows
+   * the control for a Goods product with Track Inventory on, because that is the server's rule
+   * (`Product.EnsureTrackingIsCoherent`) rather than a cosmetic one.
+   */
+  batchTracking: boolean;
+
+  /** Phase 51 -- stock tracked by serial number, one physical unit per FIFO layer. Same rule. */
+  serialTracking: boolean;
+
+
   /** FR-8.3. Present on every product -- a variant IS a product (Phase 24, Decision A). */
   sku: string | null;
   barcode: string | null;
@@ -145,6 +156,9 @@ export interface CreateProductRequest {
   barcode?: string | null;
   /** Phase 36. Omitted or empty means every location. */
   locationIds?: string[] | null;
+  /** Phase 51. Both default false on the server, so an older client is unaffected. */
+  batchTracking?: boolean;
+  serialTracking?: boolean;
 }
 
 export interface CreateProductResult {
@@ -174,6 +188,9 @@ export interface UpdateProductRequest {
   barcode?: string | null;
   /** Phase 36. Omitted or empty means every location. */
   locationIds?: string[] | null;
+  /** Phase 51. */
+  batchTracking?: boolean;
+  serialTracking?: boolean;
 }
 
 export interface UpdateProductResult {
@@ -329,4 +346,35 @@ export interface SuggestedProductRate {
   rate: number;
   vatRate: VatRate;
   source: 'ProductSellingPrice' | 'RecentSale';
+}
+
+/**
+ * Phase 51 -- one row of the product detail page's **Batch** tab, read live on 2026-09-16:
+ * BATCH NO. / MANUFACTURE DATE / EXPIRY DATE / QUANTITY, with a Select Warehouse filter and a
+ * batch search box.
+ *
+ * `quantity` is a GROUP BY over the FIFO layers carrying this batch's id -- the batch row itself
+ * stores no quantity, which is what makes this tab and Stock Position incapable of disagreeing.
+ */
+export interface ProductBatchTabRow {
+  id: string;
+  batchNo: string;
+  manufactureDate: string | null;
+  expiryDate: string | null;
+  quantity: number;
+  unitName: string;
+  warehouseId: string | null;
+  warehouseName: string | null;
+}
+
+/**
+ * Phase 51 -- one row of the **Serial Number** tab: SERIAL NO. / WAREHOUSE / CREATED AT, the three
+ * columns read live. Each row is one physical unit, which in this model is one FIFO layer of
+ * quantity one.
+ */
+export interface ProductSerialTabRow {
+  serialNo: string;
+  warehouseId: string;
+  warehouseName: string;
+  createdAt: string;
 }

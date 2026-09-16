@@ -858,6 +858,34 @@ public static class PermissionKeys
     public const string ExceptionalReportView = "Reports.ExceptionalReport.View";
     public const string UserLogView = "Reports.UserLog.View";
 
+    // Phase 51 (batch and serial tracking) -- both Admin+Member, derived rather than defaulted.
+    //
+    // CLAUDE.md's rule is "flat per-transaction registers and anything exposing PAN/contact identity
+    // -> Admin-only; bounded rollups and routine daily-use working data -> Admin+Member", and the
+    // nearest already-decided neighbours are the phase-26c inventory keys immediately above, whose
+    // recorded reasoning reads: "quantity, rate and value per product, with no contact anywhere ...
+    // the working data a stock operator needs hourly".
+    //
+    // Both of these are strictly NARROWER than that shape. The Product Batch Report carries a batch
+    // number, two dates, a warehouse and a quantity; the Product Serial No Report carries a serial
+    // number, a warehouse and a status. No contact, no rate, no margin, no document number. Neither
+    // can warrant more protection than InventoryPositionView, which a Member already holds -- making
+    // them Admin-only would restrict data those users can already read, which is the inconsistency
+    // phase 14's matrix editor makes visible.
+    //
+    // **The one piece of contrary evidence, set aside consciously rather than missed:** the
+    // reference product gates its own two reports behind keys its demo Admin does not hold (that is
+    // why their column sets are unread -- see phase-51-status.md Decision A). That is evidence about
+    // THEIR split and not automatically ours, which the kickoff says and which is worth repeating
+    // where the decision actually lives.
+    //
+    // No key for batches or serials themselves: a batch is created by approving a Purchase Bill and
+    // read on the product detail page, so it rides Catalog.Product.View and the document's own
+    // approve key -- the same reasoning phase 24 used for variants ("creating a variant is creating
+    // a product"). There is no batch-management screen to gate.
+    public const string ProductBatchReportView = "Reports.ProductBatch.View";
+    public const string ProductSerialReportView = "Reports.ProductSerial.View";
+
     // Phase 27a (cross-cutting rollout sweep) -- a single blanket key for the two attachment
     // operations that are addressed by attachment id alone: download and delete. Every other
     // document-attached mechanism (custom fields, reporting tags, custom status, task lists, the

@@ -19,7 +19,9 @@ using ErpApp.Application.Catalog.Commands.UpdateUnitOfMeasurement;
 using ErpApp.Application.Catalog.Queries.GetProduct;
 using ErpApp.Application.Catalog.Queries.SuggestProductRate;
 using ErpApp.Application.Catalog.Queries.ListProductVariants;
+using ErpApp.Application.Catalog.Queries.ListProductBatches;
 using ErpApp.Application.Catalog.Queries.ListProducts;
+using ErpApp.Application.Catalog.Queries.ListProductSerials;
 using ErpApp.Application.Catalog.Queries.ListVariantAttributes;
 using ErpApp.Application.Catalog.Variants;
 using ErpApp.Application.Common.Pagination;
@@ -152,7 +154,7 @@ public static class CatalogEndpoints
                     organizationId, request.Type, request.Name, request.CategoryId, request.PrimaryUnitId,
                     request.HsCode, request.AvailableForSale, request.SellingPrice, request.PurchasePrice,
                     request.VatRate, request.ReOrderLevel, request.TrackInventory, request.Sku, request.Barcode,
-                    request.LocationIds),
+                    request.LocationIds, request.BatchTracking, request.SerialTracking),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/products/{result.Id}", result);
         });
@@ -166,8 +168,31 @@ public static class CatalogEndpoints
                     request.AvailableForSale, request.SellingPrice, request.PurchasePrice, request.VatRate,
                     request.ReOrderLevel, request.TrackInventory, request.IsActive,
                     request.SalesAccountId, request.SalesReturnAccountId, request.PurchaseAccountId, request.PurchaseReturnAccountId,
-                    request.Sku, request.Barcode, request.LocationIds),
+                    request.Sku, request.Barcode, request.LocationIds,
+                    request.BatchTracking, request.SerialTracking),
                 ct);
+            return Results.Ok(result);
+        });
+
+        // Phase 51 -- the product detail page's two new Inventory Details tabs, Batch and Serial
+        // Number, both read live on 2026-09-16 (unlike the two reports). Neither carries a key of
+        // its own: both ride Catalog.Product.View, because a batch is created by approving a
+        // Purchase Bill and there is no batch-management screen to gate.
+        group.MapGet("/products/{id:guid}/batches", async (
+            Guid organizationId, Guid id, Guid? warehouseId, string? search,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListProductBatchesQuery(organizationId, id, warehouseId, search), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/products/{id:guid}/serials", async (
+            Guid organizationId, Guid id, Guid? warehouseId, string? search,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListProductSerialsQuery(organizationId, id, warehouseId, search), ct);
             return Results.Ok(result);
         });
 
@@ -340,13 +365,18 @@ public static class CatalogEndpoints
     private sealed record CreateProductRequest(
         ProductType Type, string Name, Guid CategoryId, Guid PrimaryUnitId, string? HsCode, bool AvailableForSale,
         decimal SellingPrice, decimal PurchasePrice, VatRate VatRate, int ReOrderLevel, bool TrackInventory,
-        string? Sku, string? Barcode, IReadOnlyList<Guid>? LocationIds);
+        string? Sku, string? Barcode, IReadOnlyList<Guid>? LocationIds,
+        // Phase 51. Carried on the Api's own record, not only on the command: a trailing optional
+        // parameter added to a command reaches nothing until this record has it too -- it compiles,
+        // every test passes, and the field binds to null in silence (phase-27b's Terms).
+        bool BatchTracking, bool SerialTracking);
 
     private sealed record UpdateProductRequest(
         string Name, Guid CategoryId, Guid PrimaryUnitId, string? HsCode, bool AvailableForSale,
         decimal SellingPrice, decimal PurchasePrice, VatRate VatRate, int ReOrderLevel, bool TrackInventory, bool IsActive,
         Guid? SalesAccountId, Guid? SalesReturnAccountId, Guid? PurchaseAccountId, Guid? PurchaseReturnAccountId,
-        string? Sku, string? Barcode, IReadOnlyList<Guid>? LocationIds);
+        string? Sku, string? Barcode, IReadOnlyList<Guid>? LocationIds,
+        bool BatchTracking, bool SerialTracking);
 
     private sealed record AddSecondaryUnitRequest(Guid UnitId, decimal ConversionRate, decimal SellingPrice, decimal PurchasePrice);
 

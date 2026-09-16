@@ -52,6 +52,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<ProductCategory> ProductCategories => Set<ProductCategory>();
     public DbSet<UnitOfMeasurement> UnitsOfMeasurement => Set<UnitOfMeasurement>();
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<ProductBatch> ProductBatches => Set<ProductBatch>();
     public DbSet<ProductSecondaryUnit> ProductSecondaryUnits => Set<ProductSecondaryUnit>();
     public DbSet<VariantAttribute> VariantAttributes => Set<VariantAttribute>();
     public DbSet<VariantAttributeOption> VariantAttributeOptions => Set<VariantAttributeOption>();
@@ -90,6 +91,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<DebitNoteLine> DebitNoteLines => Set<DebitNoteLine>();
     public DbSet<StockLedgerEntry> StockLedgerEntries => Set<StockLedgerEntry>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<DocumentLineSerial> DocumentLineSerials => Set<DocumentLineSerial>();
     public DbSet<WarehouseTransfer> WarehouseTransfers => Set<WarehouseTransfer>();
     public DbSet<WarehouseTransferLine> WarehouseTransferLines => Set<WarehouseTransferLine>();
     public DbSet<InventoryAdjustment> InventoryAdjustments => Set<InventoryAdjustment>();

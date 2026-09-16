@@ -31,6 +31,14 @@ public sealed class StockMovementConfiguration : IEntityTypeConfiguration<StockM
         // so the seek is already the (OrganizationId, ProductId, WarehouseId, TransactionDate) index
         // below and the location is a residual predicate over what that has narrowed. Phase 34c
         // measured what a second index over the same table does to the paths that do not use it.
+        // Phase 51 -- the batch and serial dimensions, stamped at write time. Phase 35b's rule and
+        // its reason: an append-only fact row carries only its source ids, so filtering it by a
+        // dimension needs a column. Un-indexed on their own, same argument as LocationId's above.
+        builder.Property(x => x.BatchId);
+        builder.Property(x => x.SerialNo).HasMaxLength(DocumentLineSerial.SerialNoMaxLength);
+
+        builder.HasOne<ProductBatch>().WithMany().HasForeignKey(x => x.BatchId).OnDelete(DeleteBehavior.Restrict);
+
         builder.Property(x => x.LocationId);
 
         builder.HasOne<Product>().WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);

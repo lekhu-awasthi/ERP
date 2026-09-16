@@ -57,15 +57,30 @@ public sealed class ApproveWarehouseTransferCommandHandler(
             // business can sell goods it has not booked in yet; moving goods between its own
             // shelves is not that, and a transfer out of stock that is not there would create a
             // shortfall in one warehouse and value in another out of nothing.
-            var averageUnitCost = await stockLedgerService.ConsumeAsync(
+            var consumption = await stockLedgerService.ConsumeAsync(
                 request.OrganizationId, line.ProductId, warehouseTransfer.FromWarehouseId, line.Quantity,
                 DocumentType.WarehouseTransfer, warehouseTransfer.Id, warehouseTransfer.Date, cancellationToken,
                 warehouseTransfer.LocationId);
 
-            costCatchUp += await stockLedgerService.IncrementAsync(
-                request.OrganizationId, line.ProductId, warehouseTransfer.ToWarehouseId, line.Quantity, averageUnitCost,
-                DocumentType.WarehouseTransfer, warehouseTransfer.Id, warehouseTransfer.Date, cancellationToken,
-                warehouseTransfer.LocationId);
+            // Phase 51 -- the destination is rebuilt relief by relief, not from one averaged cost.
+            //
+            // A transfer needs no Item Batch control of its own precisely because of this: it moves
+            // whatever the source warehouse actually gave up, carrying each batch, each serial and
+            // each unit cost across unchanged. Re-creating one averaged layer -- which is what this
+            // did before -- would have destroyed the batch identity outright (two batches out of
+            // Kathmandu, one un-batched layer into Pokhara) and, as a pre-existing simplification
+            // nobody had cause to notice, collapsed two genuinely different unit costs into one.
+            //
+            // A shortfall relief is skipped: the source side of a transfer is a hard reject (see
+            // above), so there should never be one, and re-creating stock that was not there would
+            // manufacture value out of nothing.
+            foreach (var relief in consumption.Reliefs.Where(x => !x.Shortfall))
+            {
+                costCatchUp += await stockLedgerService.IncrementAsync(
+                    request.OrganizationId, line.ProductId, warehouseTransfer.ToWarehouseId, relief.Quantity,
+                    relief.UnitCost, DocumentType.WarehouseTransfer, warehouseTransfer.Id, warehouseTransfer.Date,
+                    cancellationToken, warehouseTransfer.LocationId, relief.BatchId, relief.SerialNo);
+            }
         }
 
         // Phase 37 -- a transfer posts nothing to the ledger in the ordinary case (it moves value

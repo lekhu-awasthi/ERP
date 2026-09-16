@@ -114,6 +114,16 @@ export interface PurchaseBillLineInput {
   vatRate: VatRate;
   expenditureClassification: ExpenditureClassification;
   discountPct: number;
+  /**
+   * Phase 51 -- the batch this line receives into, by **number**. On a receipt the batch may not
+   * exist yet: naming it is how it comes into being. **Required** when the product is
+   * batch-tracked, because stock cannot come into existence belonging to no batch.
+   */
+  batchNo?: string | null;
+  manufactureDate?: string | null;
+  expiryDate?: string | null;
+  /** Phase 51 -- one per physical unit received. */
+  serialNumbers?: string[] | null;
 }
 
 export interface PurchaseBill {
@@ -175,6 +185,10 @@ export interface PurchaseBillLineDto extends PurchaseBillLineInput {
   id: string;
   amount: number;
   vatAmount: number;
+  /** Phase 51 -- the named batch's own dates. */
+  manufactureDate: string | null;
+  expiryDate: string | null;
+  serialNumbers: string[];
 }
 
 export interface PurchaseBillDetail extends PurchaseBill {

@@ -52,6 +52,15 @@ public sealed class CreateOrUpdateOpeningStockLineCommandHandler(IAppDbContext d
         var locationId = await LocationResolver.ResolveAsync(
             db, request.OrganizationId, DocumentType.OpeningStock, request.LocationId, cancellationToken);
 
+        // Phase 51 -- an opening stock line is keyed (Product, Warehouse) and unique on it, so a
+        // batch would have to join that key: a unique-index change on a populated table, and a
+        // nullable column in a unique index is the at-most-one-sentinel trap phase 32 hit. A tracked
+        // product is therefore refused here with a named 409, and the ordinary way to give one
+        // opening stock is a back-dated Purchase Bill, which carries the batch today. See
+        // StockTrackingRules.RefusedPaths, where the reason and the re-entry condition live.
+        await StockTrackingRules.EnsureNotTrackedAsync(
+            db, request.OrganizationId, [request.ProductId], "Opening Stock", cancellationToken);
+
         var line = await db.OpeningStockLines.SingleOrDefaultAsync(
             x => x.OrganizationId == request.OrganizationId && x.ProductId == request.ProductId
                 && x.WarehouseId == request.WarehouseId,

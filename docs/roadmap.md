@@ -80,6 +80,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 45 | Multi-UOM × variants settled by live read — a variant **owns** its unit matrix, and phase 24's identity decision meant no schema change; a variant parent refused one (the sweep-guard exemption retired); `UpdateSecondaryUnitCommand`/`DeleteSecondaryUnitCommand` plus the primary-unit and duplicate-unit refusals; the `ProductAttributePool` importer (a ninth upload type whose rows add to a set its command replaces); `ListSmsLogsQuery`'s search term; the landed-cost drawer's replace semantics and the dry-run-in-a-transaction question decided and pinned | `phase-45-status.md` |
 | 47 | Accessibility completion: `Sort by` swept to all 16 document lists (the derived number, not the roadmap's 18) with a guard whose behavioural half drives every handler through both orderings; the four grids' `<select>`-inside-`<a>` removed rather than defended, with a whole-app nesting guard derived from which components render a control; per-field `aria-invalid`/`aria-describedby` plus focus movement on 13 document forms; the lookup/server search parity table pinned against real SQL Server; the drop list decided item by item; the AI-scan allowance shown where scanning happens. **The NVDA hour is still not done** — no screen reader is available in this environment, and it was not simulated | `phase-47-status.md` |
 | 50 | Measured indexes, and the guards that cross an assembly boundary. Gated on `tools/scale/`, which had to be extended first — the `Cheques` table held **five rows in the whole database**, so the harness gained `seed-cheques.sql` (50,000 cheques on Draft payments, which owe no GL) and a second data-presence assertion. `Cheque` gets `(OrganizationId, ChequeDate DESC)` and `ListChequesQueryHandler` moves to `ToKeyPagedResultAsync`: first page 2,001 logical reads / 168.6 ms CPU → 1,082 / 29.5, last page 4,422 / 680.0 → 1,289 / 40.9, date range 2,606 / 49.4 → 577 / 13.7, a non-matching search 430,084 / 2,258 → 3,957 / 865 (phase 42's count-of-zero short-circuit, which is what made the index shippable at all). **Three configurations were measured and refused**, one of them this phase's own idea: a covering search index (0.03%), a `UNION` rewrite (no better), and tenant predicates on the three joined tables — correct in idiom, better for search, and 39× worse on the Received tab, found only by re-measuring the untouched paths. The convention's name list now fails the model build rather than classifying a stray date as master data (the mirror question found **three** missed dates, two of them correct only by luck of a hand-written composite), and `tests/Infrastructure.UnitTests` settles where a cross-assembly invariant lives — `ListSort`'s correspondence to `TenantIndexConvention` is finally asserted, after its first version passed the injected regression | `phase-50-status.md` |
+| 51 | Batch and serial tracking — the first new *feature* since 47, and its modelling question had one answer: **a batch and a serial are both keys on the FIFO layer, and neither carries a quantity of its own.** `ProductBatch` has no `Quantity` column, so a batch's on-hand is a `GROUP BY` over the layers carrying its id — phase 37's two-of-three-views drift made impossible rather than guarded against. A serial is a layer of **quantity one**, which makes specific identification the ordinary FIFO walk with one more predicate, gives the unit its cost for free, and turns the report catalogue's *Status* filter — which the kickoff warned against inventing a lifecycle for — into `QuantityRemaining` being 1 or 0. Proven in SQL on a fresh organization: `FifoLayers = InventoryAccount = MovementHistory = 2780.0000`, `Total 17 = SumOfBatches 16 + UnBatched 1`, zero serialised layers not of size one, an issue naming BATCH999 taking 130 while the older cheaper BATCH123 stayed whole, and J9 issued while the older A1 stayed in stock. The control is on the Invoice and Purchase Bill grids (where the read put it); everywhere else **derives** (Credit Note, Debit Note, and Warehouse Transfer, which now rebuilds its destination relief by relief instead of collapsing two batches and two costs into one averaged layer) or **refuses** with a named 409 (Opening Stock, Inventory Adjustment, Production Journal — each with its reason and re-entry condition, guard-tested in both directions). **The two reports' column sets were never read** — the vendor gates them behind keys its demo Admin lacks, and the phase-8f rule was invoked explicitly rather than silently. One bug reached only the E2E: `IncrementAsync` gained *optional* parameters, so nothing failed to compile, and the one increment site that needed them shipped un-swept past 1,900 green tests — *a sweep driven by the compiler stops exactly where the compiler stops* | `phase-51-status.md` |
 
 ---
 
@@ -196,7 +197,7 @@ worth taking — but nothing waits on it.
 - **`role="toolbar"`'s roving tabindex still has one consumer** (40 #6, 47 #5). Extract it only if a
   second toolbar appears in this phase's work; otherwise re-record it, which is the honest outcome.
 
-### 51. Batch and serial tracking — new scope from the August 2026 release
+### 51. Batch and serial tracking — **complete**, see `docs/phase-51-status.md`
 **The reference product shipped the traceability its banner had been claiming, and the 2026-09-10 pass
 correctly found none of it.** The full shape read on 2026-09-16 is in `docs/erp-module-scan.md` under
 "The August 2026 release"; in summary: two new `Product` toggles (**Batch Tracking**, **Serial Number
@@ -223,7 +224,7 @@ Product Batch Report and a Product Serial No Report.
 - Expect the tenant-defined **Custom Fields** named Batch NO / Lot / Expiry to become a migration
   question for real tenants once a native feature exists beside them.
 
-### 52. A unit on the document line
+### 52. A unit on the document line — **next**
 **The phase that makes phase 45 mean something.** A secondary unit is priced catalog metadata today
 and *nothing consumes it*: no document line stores a unit, so a conversion rate converts nothing
 (45 #2). Closing it is a change to every line-bearing aggregate — the line stores the unit it was
@@ -249,6 +250,14 @@ available in this environment; it was not simulated. It is the only thing standi
 codebase and a finished WCAG 2.1 AA story. **Start condition:** a person with headphones. Record what
 is heard verbatim before changing anything — phase 40's own rule, and the reason its first focus sweep
 nearly reported an app-wide 2.4.7 failure that did not exist.
+
+**The two traceability reports' real column sets** (51 carried #1). Phase 51 built the Product Batch
+Report and the Product Serial No Report from the product detail tabs and the catalogue's filter
+lists, because the vendor gates both reports behind permission keys its demo Admin does not hold —
+the phase-8f rule, invoked explicitly. One page load each would settle whether this codebase's column
+order, grouping and totals match. **Start condition:** an account or tenant holding those two keys.
+Ask before falling back again — phase 32's lesson is that a second tenant existed and four written
+scope decisions were wrong.
 
 **Full-text search** (42 carried #1). List search on a term matching nothing is fixed — a count of
 zero is now a complete answer — but a term matching many rows still costs what a `LIKE` costs. Phase

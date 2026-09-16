@@ -30,9 +30,9 @@ public class StockLedgerServiceTests
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
-        var averageCost = await service.ConsumeAsync(
+        var averageCost = (await service.ConsumeAsync(
             OrganizationId, ProductId, WarehouseId, 10m, DocumentType.Invoice, Guid.NewGuid(),
-            new DateOnly(2026, 1, 5), CancellationToken.None);
+            new DateOnly(2026, 1, 5), CancellationToken.None)).AverageUnitCost;
         await db.SaveChangesAsync(CancellationToken.None);
 
         Assert.Equal(5m, averageCost);
@@ -51,9 +51,9 @@ public class StockLedgerServiceTests
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
-        var averageCost = await service.ConsumeAsync(
+        var averageCost = (await service.ConsumeAsync(
             OrganizationId, ProductId, WarehouseId, 4m, DocumentType.Invoice, Guid.NewGuid(),
-            new DateOnly(2026, 1, 5), CancellationToken.None);
+            new DateOnly(2026, 1, 5), CancellationToken.None)).AverageUnitCost;
         await db.SaveChangesAsync(CancellationToken.None);
 
         Assert.Equal(5m, averageCost);
@@ -79,9 +79,9 @@ public class StockLedgerServiceTests
 
         // Consuming 8 should take all 5 of the older (cheaper) layer, then 3 of the newer one:
         // (5*10 + 3*20) / 8 = 13.75.
-        var averageCost = await service.ConsumeAsync(
+        var averageCost = (await service.ConsumeAsync(
             OrganizationId, ProductId, WarehouseId, 8m, DocumentType.Invoice, Guid.NewGuid(),
-            new DateOnly(2026, 1, 15), CancellationToken.None);
+            new DateOnly(2026, 1, 15), CancellationToken.None)).AverageUnitCost;
         await db.SaveChangesAsync(CancellationToken.None);
 
         Assert.Equal(13.75m, averageCost);
@@ -107,9 +107,9 @@ public class StockLedgerServiceTests
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
-        var averageCost = await service.ConsumeAsync(
+        var averageCost = (await service.ConsumeAsync(
             OrganizationId, ProductId, WarehouseId, 5m, DocumentType.Invoice, Guid.NewGuid(),
-            new DateOnly(2026, 3, 1), CancellationToken.None);
+            new DateOnly(2026, 3, 1), CancellationToken.None)).AverageUnitCost;
         await db.SaveChangesAsync(CancellationToken.None);
 
         Assert.Equal(1m, averageCost);
@@ -145,9 +145,9 @@ public class StockLedgerServiceTests
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
-        var averageCost = await service.ConsumeAsync(
+        var averageCost = (await service.ConsumeAsync(
             OrganizationId, ProductId, WarehouseId, 0m, DocumentType.Invoice, Guid.NewGuid(),
-            new DateOnly(2026, 1, 5), CancellationToken.None);
+            new DateOnly(2026, 1, 5), CancellationToken.None)).AverageUnitCost;
 
         Assert.Equal(0m, averageCost);
         var layer = await db.StockLedgerEntries.SingleAsync();

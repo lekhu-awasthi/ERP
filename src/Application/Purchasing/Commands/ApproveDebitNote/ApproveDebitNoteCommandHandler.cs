@@ -8,6 +8,7 @@ using ErpApp.Application.Purchasing.Posting;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Purchasing;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -140,11 +141,26 @@ public sealed class ApproveDebitNoteCommandHandler(
             // is stored in base and must not be folded a second time (phase 28).
             var relievedInventoryCost = 0m;
 
+            // Phase 51 -- a Debit Note line's batch is prefilled from the Purchase Bill line it
+            // returns (see the conversion template) and is editable, which is phase 19's
+            // ExpenditureClassification precedent: a return line's attributes are resolved from the
+            // source bill's matching line rather than re-derived. Here the batch only narrows which
+            // layers FIFO may choose -- phase 37's answer to what a return relieves *at* is
+            // untouched, because it is still whatever those layers give up.
+            var serialsByLine = await LineStockAllocator.LoadSerialsAsync(
+                db, request.OrganizationId, DocumentLineParentType.DebitNoteLine,
+                goodsLines.Select(x => x.Id).ToList(), cancellationToken);
+
             foreach (var line in goodsLines)
             {
-                var averageUnitCost = await stockLedgerService.ConsumeAsync(
-                    request.OrganizationId, line.ProductId, warehouseId, line.Quantity,
-                    DocumentType.DebitNote, debitNote.Id, debitNote.Date, cancellationToken, debitNote.LocationId);
+                var consumption = await LineStockAllocator.ConsumeLineAsync(
+                    stockLedgerService, request.OrganizationId, line.ProductId, warehouseId,
+                    line.Quantity, line.BatchId,
+                    serialsByLine.TryGetValue(line.Id, out var serials) ? serials : [],
+                    DocumentType.DebitNote, debitNote.Id, debitNote.Date, cancellationToken,
+                    debitNote.LocationId);
+
+                var averageUnitCost = consumption.AverageUnitCost;
                 line.RecordConsumedUnitCost(averageUnitCost);
                 relievedInventoryCost += line.Quantity * averageUnitCost;
 

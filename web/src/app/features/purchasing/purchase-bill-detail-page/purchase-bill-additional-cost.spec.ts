@@ -77,6 +77,10 @@ describe('PurchaseBillDetailPage — Additional Cost', () => {
           discountPct: 0,
           amount: 6000,
           vatAmount: 0,
+          // Phase 51 -- present on every line DTO; null/empty for a product that is not tracked.
+          manufactureDate: null,
+          expiryDate: null,
+          serialNumbers: [],
         },
         {
           id: 'l-helmet',
@@ -88,6 +92,10 @@ describe('PurchaseBillDetailPage — Additional Cost', () => {
           discountPct: 0,
           amount: 600,
           vatAmount: 0,
+          // Phase 51 -- present on every line DTO; null/empty for a product that is not tracked.
+          manufactureDate: null,
+          expiryDate: null,
+          serialNumbers: [],
         },
       ],
       glLines: null,
@@ -241,6 +249,10 @@ describe('PurchaseBillDetailPage — Additional Cost', () => {
             discountPct: 0,
             amount: 900,
             vatAmount: 0,
+            // Phase 51 -- present on every line DTO; null/empty for a product that is not tracked.
+            manufactureDate: null,
+            expiryDate: null,
+            serialNumbers: [],
           },
         ],
       }),

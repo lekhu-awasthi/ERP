@@ -16,9 +16,23 @@ public sealed record GetPurchaseBillQuery(Guid OrganizationId, Guid Id)
     public Guid LocationDocumentId => Id;
 }
 
+/// <param name="BatchNo">Phase 51 -- the batch this line names, by number, or null. Read back as a
+/// number rather than an id because that is what the form's one Item Batch control holds and what
+/// the client would have to resolve otherwise. Phase 35a's rule is the reason this is here at all:
+/// a detail DTO that drops a field the write path stored means the form can never show it, and that
+/// phase found 14 of 15 detail reads doing exactly that.</param>
+/// <param name="ManufactureDate">Phase 51 -- the named batch's own dates, so the form can show them
+/// beside the number without a second round trip. Null when the line names no batch.</param>
+/// <param name="ExpiryDate">See <paramref name="ManufactureDate"/>.</param>
+/// <param name="SerialNumbers">Phase 51 -- the serial numbers this line names, one per physical
+/// unit. Empty for every line of every product that is not serial-tracked.</param>
 public sealed record PurchaseBillLineDto(
     Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal Amount, decimal VatAmount,
-    ExpenditureClassification ExpenditureClassification);
+    ExpenditureClassification ExpenditureClassification,
+    string? BatchNo,
+    DateOnly? ManufactureDate,
+    DateOnly? ExpiryDate,
+    IReadOnlyList<string> SerialNumbers);
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
 

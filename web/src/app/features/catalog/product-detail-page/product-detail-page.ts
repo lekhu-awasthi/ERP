@@ -8,6 +8,8 @@ import { CatalogService } from '../../../core/catalog/catalog.service';
 import { ProductVariantPanelComponent } from '../product-variant-panel/product-variant-panel';
 import {
   Product,
+  ProductBatchTabRow,
+  ProductSerialTabRow,
   ProductCategory,
   ProductSecondaryUnit,
   ProductType,
@@ -17,6 +19,7 @@ import {
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
 import { BillingLocationStore } from '../../../shared/locations/billing-location-store';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /** Record-detail-page chrome for Product, mirroring contact-detail-page's shape (left
@@ -25,7 +28,7 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
  * this subscribes to route.paramMap instead of reading route.snapshot once). */
 @Component({
   selector: 'app-product-detail-page',
-  imports: [ReactiveFormsModule, RouterLink, ProductVariantPanelComponent, StatusBanner],
+  imports: [ReactiveFormsModule, RouterLink, ProductVariantPanelComponent, StatusBanner, NepaliDatePipe],
   templateUrl: './product-detail-page.html',
 })
 export class ProductDetailPage {
@@ -129,6 +132,11 @@ export class ProductDetailPage {
     vatRate: ['NoVat' as VatRate, Validators.required],
     reOrderLevel: [0, [Validators.required, Validators.min(0)]],
     trackInventory: [true],
+    // Phase 51 -- the two traceability toggles, read live on 2026-09-16 beside Track Inventory on
+    // the full New Product form (behind "+ Add More Details"). Both off by default, so a tenant
+    // that never turns them on sees no new control.
+    batchTracking: [false],
+    serialTracking: [false],
     // The Product screen displayed an Active/Inactive badge and sent `isActive` straight back
     // unchanged, so the status was readable and unwritable -- phase-31's rule (a field is reachable
     // only if you can name the command that writes it AND the screen that calls it) failing on the
@@ -140,6 +148,35 @@ export class ProductDetailPage {
     purchaseReturnAccountId: [''],
   });
 
+  /**
+   * Phase 51 -- the two form values the traceability toggles depend on, mirrored into signals.
+   *
+   * <p>The app is zoneless, so a `computed()` over a plain `FormControl.value` caches forever
+   * (phase 17): the UI-driving value has to live in its own `signal()` written when the control
+   * changes. One `valueChanges` subscription in the constructor covers both, rather than a
+   * `(change)` handler on a checkbox and another on a five-way radio set.</p>
+   */
+  private readonly productType = signal<ProductType>('Goods');
+  private readonly tracksInventory = signal(true);
+
+  /**
+   * Phase 51 -- whether Batch Tracking and Serial Number Tracking may be offered at all. Both are
+   * dimensions *of the stock ledger*, so a Service product has no layers for them to key and a
+   * Goods product with Track Inventory off is the tenant saying it does not want any. The server
+   * refuses both cases (`Product.EnsureTrackingIsCoherent`, and a 400 from the validator); this
+   * keeps the controls from being offered in the first place.
+   */
+  /**
+   * Phase 51 -- the Batch and Serial Number tab rows. Loaded after the product resolves, and only
+   * when its own flag is on: the tabs are as additive as the toggles are.
+   */
+  protected readonly batchRows = signal<ProductBatchTabRow[]>([]);
+  protected readonly serialRows = signal<ProductSerialTabRow[]>([]);
+
+  protected readonly canTrackStockDimensions = computed(
+    () => this.productType() === 'Goods' && this.tracksInventory(),
+  );
+
   protected readonly secondaryUnitForm = this.fb.nonNullable.group({
     unitId: ['', Validators.required],
     conversionRate: [1, [Validators.required, Validators.min(0.000001)]],
@@ -148,6 +185,15 @@ export class ProductDetailPage {
   });
 
   constructor() {
+    // Phase 51 -- see productType/tracksInventory. Subscribed once here, never created lazily
+    // inside a `computed()`, which throws NG0600 the moment its source resolves synchronously
+    // (phase 35a's BillingLocationStore).
+    this.form.valueChanges.subscribe(() => {
+      const value = this.form.getRawValue();
+      this.productType.set(value.type);
+      this.tracksInventory.set(value.trackInventory);
+    });
+
     this.catalogService.listProductCategories(this.organizationId).subscribe({
       next: (categories) => this.categories.set(categories),
     });
@@ -185,6 +231,8 @@ export class ProductDetailPage {
           vatRate: 'NoVat',
           reOrderLevel: 0,
           trackInventory: true,
+          batchTracking: false,
+          serialTracking: false,
           salesAccountId: '',
           salesReturnAccountId: '',
           purchaseAccountId: '',
@@ -221,6 +269,8 @@ export class ProductDetailPage {
         vatRate: product.vatRate,
         reOrderLevel: product.reOrderLevel,
         trackInventory: product.trackInventory,
+        batchTracking: product.batchTracking,
+        serialTracking: product.serialTracking,
         isActive: product.isActive,
         salesAccountId: product.salesAccountId ?? '',
         salesReturnAccountId: product.salesReturnAccountId ?? '',
@@ -260,6 +310,8 @@ export class ProductDetailPage {
       vatRate,
       reOrderLevel,
       trackInventory,
+      batchTracking,
+      serialTracking,
       isActive,
       salesAccountId,
       salesReturnAccountId,
@@ -283,6 +335,12 @@ export class ProductDetailPage {
           reOrderLevel,
           trackInventory,
           locationIds: this.selectedLocationIds(),
+          // Phase 51 -- coerced to false rather than sent as typed, because the server refuses
+          // either flag on a Service product or with Track Inventory off. Sending what a hidden
+          // control still holds would turn a control the user cannot see into a 400 they cannot
+          // explain.
+          batchTracking: this.canTrackStockDimensions() && batchTracking,
+          serialTracking: this.canTrackStockDimensions() && serialTracking,
         })
         .subscribe({
           next: (result) => {
@@ -309,6 +367,8 @@ export class ProductDetailPage {
         vatRate,
         reOrderLevel,
         trackInventory,
+        batchTracking: this.canTrackStockDimensions() && batchTracking,
+        serialTracking: this.canTrackStockDimensions() && serialTracking,
         isActive,
         salesAccountId: salesAccountId || null,
         salesReturnAccountId: salesReturnAccountId || null,
@@ -475,12 +535,35 @@ export class ProductDetailPage {
     this.errorMessage.set(extractErrorMessage(err) ?? fallback);
   }
 
+  /**
+   * Phase 51 -- the Batch and Serial Number tabs, fetched only for a product actually tracked that
+   * way. Two requests rather than folding the rows into the product DTO, so a tenant with neither
+   * flag on pays nothing and the product detail read is unchanged.
+   */
+  private loadTraceabilityTabs(product: Product): void {
+    this.batchRows.set([]);
+    this.serialRows.set([]);
+
+    if (product.batchTracking) {
+      this.catalogService.listProductBatches(this.organizationId, product.id).subscribe({
+        next: (rows) => this.batchRows.set(rows),
+      });
+    }
+
+    if (product.serialTracking) {
+      this.catalogService.listProductSerials(this.organizationId, product.id).subscribe({
+        next: (rows) => this.serialRows.set(rows),
+      });
+    }
+  }
+
   private load(): void {
     this.loading.set(true);
     this.catalogService.getProduct(this.organizationId, this.routeProductId).subscribe({
       next: (product) => {
         this.product.set(product);
         this.loading.set(false);
+        this.loadTraceabilityTabs(product);
       },
       error: (err: unknown) => {
         this.loading.set(false);

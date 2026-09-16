@@ -1175,3 +1175,41 @@ The fourteen entries that had grown past one short line, moved verbatim; their s
 - Phase 48: the shared display components and the record pages — every date the app *outputs* routed through `NepaliDatePipe` (23 uses of Angular's `DatePipe` plus 4 raw ISO strings, not the 4 the roadmap named), the pipe made instant-aware so a day is the Nepal day, `app-deal-form`/`app-task-form` serving create and edit because nothing had ever called `updateDeal`/`updateTask`, `MARK AS DONE` on the Task page, the line-table message pointed at the Add Line button, the Attributes Used filter and Select all, and phase 44's four screens given specs. Before rendering a timestamp, before believing a carried item's own count, or before pointing a field error at something that is not a control — `docs/phase-48-status.md`
 - Phase 49: the expiry decision and the divergence that owed a surface — an expired tenant is kept and marked (`IsExpired` on the picker) where the reference product deletes it, `IsTrialActive` renamed `IsActive`, term dates anchored to +05:45 on both the read and the write, SMS on the Subscription screen. Before copying a behaviour read live, or diverging from one — `docs/phase-49-status.md`
 - Phase 50: measured indexes and the guards that cross an assembly boundary — `(OrganizationId, ChequeDate DESC)` and `ToKeyPagedResultAsync` on the Cheque Register, both because a number said so; `TenantIndexConvention` given a declaration mechanism that fails the model build rather than classifying a stray date as master data; `tests/Infrastructure.UnitTests` created and the rule set that a cross-assembly invariant decidable from types and model metadata lives there, not in `Api.IntegrationTests`. Three configurations were measured and refused, one of them this phase's own idea. Before adding an index, before quoting wall time on a busy machine, or before trusting a sweep whose set is derived from a screen shape — `docs/phase-50-status.md`
+
+## Phase 51 — batch and serial tracking
+
+**Read this before adding any dimension to the stock ledger, before designing a screen whose live
+original you could not open, or before sweeping a change through optional parameters.**
+
+The phase's whole result is one sentence: *a batch and a serial are both keys on the FIFO layer, and
+neither carries a quantity of its own.* `ProductBatch` has no `Quantity` column on purpose, so a
+batch's on-hand is a `GROUP BY` over the layers carrying its id — and a dimension that is a `GROUP
+BY` cannot drift from the thing it groups, which is phase 37's two-of-three-views failure made
+impossible rather than guarded against. A serial is a layer of **quantity one**, which collapses
+three separate-looking problems at once: specific identification becomes the ordinary FIFO walk with
+one more predicate, the unit's cost comes free, and the report catalogue's *Status* filter — which
+the kickoff explicitly warned against inventing a lifecycle for — turns out to be `QuantityRemaining`
+being 1 or 0. Nothing had to be modelled for it; it was already in the ledger since phase 7.
+
+**Where a control goes is a rule, not a list** (phase 30, applied). The read shows one `Item Batch`
+column on the Invoice and Purchase Bill grids and says nothing about the other seven stock paths, so
+the rule is: the control is where the read put it, and every other path either **derives** the
+allocation from its source or **refuses** a tracked product with a named 409.
+`StockTrackingRules.RefusedPaths` holds the three refusals with a reason and a re-entry condition
+each, and `StockTrackingSweepGuardTests` asserts the list and the enforcement in both directions —
+including that a path declared refused is actually refused somewhere, which is how the phase found
+it had declared Opening Stock and never wired it.
+
+**Its sharpest finding is about sweeps.** Changing `ConsumeAsync`'s **return type** made the
+compiler enumerate all five consume sites, so the consume half was complete and correct from the
+first build. Adding **optional parameters** to `IncrementAsync` enumerated nothing — and the one
+increment site that needed them (`ApprovePurchaseBillCommandHandler`) shipped un-swept past a green
+`dotnet build`, a green `dotnet test` and a correct detail DTO. Every receipt created an un-batched
+layer, and the first symptom was three steps later in another subsystem. *A sweep driven by the
+compiler stops exactly where the compiler stops.*
+
+**Design-from-the-tabs is the phase-8f rule and it was invoked out loud.** The two new reports'
+column sets have never been read, because the vendor gates them behind keys its demo Admin does not
+hold. Decision A says so in the status doc, in both query doc comments, in both Angular page doc
+comments and in the models file — five places, because the constraint is inherited by anyone who
+later compares these screens to the reference product and wonders why they differ.

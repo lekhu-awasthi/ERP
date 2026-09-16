@@ -13,6 +13,13 @@ namespace ErpApp.Domain.Inventory;
 /// call (not per FIFO layer touched inside a multi-layer Consume) -- a kardex reports one line per
 /// document/transaction, not per internal layer-walk step, and Consume's own weighted-average
 /// UnitCost is exactly the right figure to show for an Out row anyway.
+///
+/// <para><b>Phase 51 corrects that last sentence.</b> One row is written per distinct <i>relief</i>
+/// -- per (BatchId, SerialNo, UnitCost) the walk actually took -- rather than per call. For an
+/// untracked product that is still exactly one row and nothing about the kardex changes. For a
+/// batch-tracked product it is one row per batch, which is what a kardex for a batch-tracked
+/// product should show; for a serialised one it is one row per unit, which is what "a row per
+/// physical unit" means.</para>
 /// </summary>
 public sealed class StockMovement
 {
@@ -67,6 +74,17 @@ public sealed class StockMovement
     /// </summary>
     public decimal ValueAdjustment { get; private set; }
 
+    /// <summary>Phase 51 -- the batch this movement relieved or created, stamped at write time.
+    /// Phase 35b's rule, for the same reason it gave: an append-only fact row carries only its
+    /// source ids, so filtering it by a dimension needs a column. A dated batch report reads this
+    /// table, never <see cref="StockLedgerEntry"/>, whose QuantityRemaining is decremented in place
+    /// and only answers "as of now" (phase 26c).</summary>
+    public Guid? BatchId { get; private set; }
+
+    /// <summary>Phase 51 -- the serial number this movement relieved or created. Same rule and same
+    /// reason as <see cref="BatchId"/>.</summary>
+    public string? SerialNo { get; private set; }
+
     private StockMovement()
     {
     }
@@ -84,7 +102,9 @@ public sealed class StockMovement
         DocumentType sourceDocumentType,
         Guid sourceDocumentId,
         DateOnly transactionDate,
-        Guid? locationId = null)
+        Guid? locationId = null,
+        Guid? batchId = null,
+        string? serialNo = null)
     {
         return new StockMovement
         {
@@ -99,6 +119,8 @@ public sealed class StockMovement
             SourceDocumentId = sourceDocumentId,
             TransactionDate = transactionDate,
             LocationId = locationId,
+            BatchId = batchId,
+            SerialNo = string.IsNullOrWhiteSpace(serialNo) ? null : serialNo.Trim(),
             CreatedAt = DateTimeOffset.UtcNow,
         };
     }
@@ -120,7 +142,8 @@ public sealed class StockMovement
         DocumentType sourceDocumentType,
         Guid sourceDocumentId,
         DateOnly transactionDate,
-        Guid? locationId = null)
+        Guid? locationId = null,
+        Guid? batchId = null)
     {
         if (signedAmount == 0)
         {
@@ -141,6 +164,7 @@ public sealed class StockMovement
             SourceDocumentId = sourceDocumentId,
             TransactionDate = transactionDate,
             LocationId = locationId,
+            BatchId = batchId,
             CreatedAt = DateTimeOffset.UtcNow,
         };
     }

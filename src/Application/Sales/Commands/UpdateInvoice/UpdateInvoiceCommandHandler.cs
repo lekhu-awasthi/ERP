@@ -2,7 +2,9 @@ using ErpApp.Application.Common.Documents;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Inventory.Stock;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Sales;
 using MediatR;
@@ -58,10 +60,27 @@ public sealed class UpdateInvoiceCommandHandler(IAppDbContext db)
             cancellationToken));
         invoice.SetTerms(request.Terms);
         invoice.ClearLines();
-        foreach (var line in request.Lines)
+        // Phase 51 -- resolve (and, on a receipt, mint) the batch each line names, then add the
+        // lines carrying the ids, then write the serial rows against the line ids AddLine minted.
+        // The order matters: a line id does not exist until AddLine has run, and the serial rows are
+        // keyed by it.
+        var allocations = await DocumentLineAllocationWriter.ResolveBatchesAsync(
+            db, request.OrganizationId,
+            request.Lines.Select(x => new DocumentLineAllocationWriter.LineAllocationInput(
+                x.ProductId, x.Quantity, x.BatchNo, x.ManufactureDate, x.ExpiryDate, x.SerialNumbers)).ToList(),
+            isReceipt: false, cancellationToken);
+
+        for (var i = 0; i < request.Lines.Count; i++)
         {
-            invoice.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);
+            var line = request.Lines[i];
+            invoice.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct, allocations[i]);
         }
+
+        await DocumentLineAllocationWriter.ReplaceSerialsAsync(
+            db, request.OrganizationId, DocumentLineParentType.InvoiceLine,
+            oldLines.Select(x => x.Id).ToList(),
+            invoice.Lines.Select((l, i) => (l.Id, request.Lines[i].SerialNumbers)).ToList(),
+            cancellationToken);
 
         db.InvoiceLines.RemoveRange(oldLines);
         db.InvoiceLines.AddRange(invoice.Lines);

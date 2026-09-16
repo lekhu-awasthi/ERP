@@ -48,6 +48,40 @@ public sealed class StockLedgerEntry
     /// </summary>
     public Guid? LocationId { get; private set; }
 
+    /// <summary>
+    /// Phase 51 -- the <b>batch</b> this layer belongs to, or null when the product is not
+    /// batch-tracked (which is every layer written before this phase, and every layer of every
+    /// product whose Batch Tracking flag is off).
+    ///
+    /// <para>This is the whole of the batch dimension: <see cref="Domain.Catalog.ProductBatch"/>
+    /// stores no quantity, so a batch's on-hand is <c>SUM(QuantityRemaining)</c> over the layers
+    /// carrying its id, grouped by warehouse. Keying the layer rather than hanging a second ledger
+    /// off it is what makes the phase-25 conservation law hold by construction: a dimension that is
+    /// a GROUP BY cannot drift from the thing it groups.</para>
+    ///
+    /// <para>A <b>shortfall</b> layer carries whatever key the request named -- the batch when a
+    /// line named one and that batch came up short, null when the FIFO walk across every batch came
+    /// up short, because units that were never received belong to no batch.</para>
+    /// </summary>
+    public Guid? BatchId { get; private set; }
+
+    /// <summary>
+    /// Phase 51 -- the <b>serial number</b> of the single physical unit this layer is, or null when
+    /// the product is not serial-tracked.
+    ///
+    /// <para>When it is set, <see cref="QuantityIn"/> is exactly <c>1</c>, and that is the model:
+    /// a serial is a layer of quantity one. Its lifecycle -- the <i>Status</i> filter on the report
+    /// catalogue, which the product tab's three columns do not explain -- is
+    /// <see cref="QuantityRemaining"/>: <c>1</c> is In Stock and <c>0</c> is Issued. Nothing had to
+    /// be invented for it; it was already in the ledger.</para>
+    ///
+    /// <para>Uniqueness is over <b>in-stock</b> layers only: a serial that is issued and later
+    /// returned re-enters stock as a new layer with the same number, while the old row stays as the
+    /// history the kardex reconstructs from. See the filtered unique index in
+    /// <c>StockLedgerEntryConfiguration</c>.</para>
+    /// </summary>
+    public string? SerialNo { get; private set; }
+
     private StockLedgerEntry()
     {
     }
@@ -61,7 +95,9 @@ public sealed class StockLedgerEntry
         DocumentType sourceDocumentType,
         Guid sourceDocumentId,
         DateOnly transactionDate,
-        Guid? locationId = null)
+        Guid? locationId = null,
+        Guid? batchId = null,
+        string? serialNo = null)
     {
         if (quantityIn <= 0)
         {
@@ -71,6 +107,15 @@ public sealed class StockLedgerEntry
         if (unitCost < 0)
         {
             throw new InvalidOperationException("A stock ledger entry's Unit Cost cannot be negative.");
+        }
+
+        // Phase 51 -- a serial IS the layer, so a serialised layer of any other size would be a
+        // second physical unit sharing one number. Every caller splits a serialised line into one
+        // Increment per serial before it reaches here; this is the invariant that says so.
+        if (serialNo is not null && quantityIn != 1m)
+        {
+            throw new InvalidOperationException(
+                "A serial-numbered stock ledger entry is exactly one physical unit, so its Quantity In must be 1.");
         }
 
         return new StockLedgerEntry
@@ -86,6 +131,8 @@ public sealed class StockLedgerEntry
             UnitCost = unitCost,
             TransactionDate = transactionDate,
             LocationId = locationId,
+            BatchId = batchId,
+            SerialNo = Normalize(serialNo),
             CreatedAt = DateTimeOffset.UtcNow,
         };
     }
@@ -113,7 +160,8 @@ public sealed class StockLedgerEntry
         DocumentType sourceDocumentType,
         Guid sourceDocumentId,
         DateOnly transactionDate,
-        Guid? locationId = null)
+        Guid? locationId = null,
+        Guid? batchId = null)
     {
         if (shortfallQuantity <= 0)
         {
@@ -138,6 +186,7 @@ public sealed class StockLedgerEntry
             UnitCost = assumedUnitCost,
             TransactionDate = transactionDate,
             LocationId = locationId,
+            BatchId = batchId,
             CreatedAt = DateTimeOffset.UtcNow,
         };
     }
@@ -191,5 +240,11 @@ public sealed class StockLedgerEntry
         }
 
         QuantityRemaining -= quantity;
+    }
+
+    private static string? Normalize(string? value)
+    {
+        var trimmed = value?.Trim();
+        return string.IsNullOrEmpty(trimmed) ? null : trimmed;
     }
 }

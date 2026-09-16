@@ -7,6 +7,8 @@ using ErpApp.Application.Inventory.Queries.InventoryLedgerReport;
 using ErpApp.Application.Inventory.Queries.InventoryMasterReport;
 using ErpApp.Application.Inventory.Queries.InventoryMovementReport;
 using ErpApp.Application.Inventory.Queries.InventoryPositionReport;
+using ErpApp.Application.Inventory.Queries.ProductBatchReport;
+using ErpApp.Application.Inventory.Queries.ProductSerialReport;
 using ErpApp.Application.Purchasing.Queries.PurchaseReturnRegister;
 using ErpApp.Application.Sales.Queries.SalesReturnRegister;
 using ErpApp.Domain.Common;
@@ -96,6 +98,39 @@ public static class CatalogueReportEndpoints
 
     private static void MapInventoryReports(RouteGroupBuilder group)
     {
+        // Phase 51 -- the two traceability reports. Their column sets were never read (the vendor
+        // gates them behind keys its demo Admin lacks); see the query doc comments and
+        // phase-51-status.md Decision A.
+        group.MapGet("/reports/product-batch", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate,
+            Guid? productId, Guid? warehouseId, ProductBatchGroupBy? groupBy,
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ProductBatchReportQuery(
+                    organizationId, fromDate, toDate, productId, warehouseId,
+                    groupBy ?? ProductBatchGroupBy.None,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/product-serial", async (
+            Guid organizationId, DateOnly fromDate, DateOnly toDate,
+            Guid? productId, Guid? warehouseId, ProductSerialStatusFilter? status,
+            ProductSerialGroupBy? groupBy, int? page, int? pageSize, Guid? locationId,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ProductSerialReportQuery(
+                    organizationId, fromDate, toDate, productId, warehouseId,
+                    status ?? ProductSerialStatusFilter.All,
+                    groupBy ?? ProductSerialGroupBy.None,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
+                ct);
+            return Results.Ok(result);
+        });
+
         group.MapGet("/reports/inventory-position", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate,
             Guid? categoryId, Guid? productId, Guid? warehouseId, InventoryBalanceFilter? balanceFilter,

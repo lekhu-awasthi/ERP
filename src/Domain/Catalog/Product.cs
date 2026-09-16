@@ -60,6 +60,38 @@ public sealed class Product
     public ValuationMethod ValuationMethod { get; private set; }
     public int ReOrderLevel { get; private set; }
     public bool TrackInventory { get; private set; }
+
+    /// <summary>
+    /// Phase 51 -- the product's stock is tracked by <b>batch</b>: every receipt names the batch it
+    /// belongs to, and a batch's quantity is a GROUP BY over the FIFO layers carrying its id (see
+    /// <see cref="ProductBatch"/>). Off by default, so a tenant that never turns it on sees no new
+    /// control -- the same additive shape as <see cref="TrackInventory"/>.
+    ///
+    /// <para><b>The parent/variant rule, stated once.</b> The flag is copied down by
+    /// <see cref="CreateVariant"/> exactly as <see cref="TrackInventory"/> already is, so on a
+    /// variant <i>parent</i> it is a template for the variants it generates and nothing else. A
+    /// parent can never hold a batch, and it needs no new rule to stop it: a batch is minted only by
+    /// a document line naming one, and phase 24's <c>ProductVariantRules</c> already refuses a
+    /// parent on every document line in the app. That is why phase 51 added no refusal of its own --
+    /// the existing rule covers it transitively, which <c>ProductTrackingFlagTests</c> asserts so
+    /// the reasoning is not merely believed.</para>
+    /// </summary>
+    public bool BatchTracking { get; private set; }
+
+    /// <summary>
+    /// Phase 51 -- the product's stock is tracked by <b>serial number</b>: one physical unit per
+    /// row, which in this model is a FIFO layer of quantity one carrying
+    /// <c>StockLedgerEntry.SerialNo</c>. Off by default; copied down by
+    /// <see cref="CreateVariant"/>; same parent rule as <see cref="BatchTracking"/>.
+    ///
+    /// <para>Serial tracking is <b>specific identification</b> -- issuing serial J9 relieves J9's
+    /// layer even when an older layer exists -- which under a layer of quantity one is the ordinary
+    /// FIFO walk with one more predicate, not a second engine. It also means a serialised product
+    /// can never go negative whatever the tenant's Negative Item Balance setting says: "issue a
+    /// serial that was never received" is a typo, not an oversell.</para>
+    /// </summary>
+    public bool SerialTracking { get; private set; }
+
     public bool IsActive { get; private set; }
 
     /// <summary>FR-8.3's own two nouns, alongside the pricing this type already carried. Present on
@@ -134,8 +166,12 @@ public sealed class Product
         int reOrderLevel,
         bool trackInventory,
         string? sku = null,
-        string? barcode = null)
+        string? barcode = null,
+        bool batchTracking = false,
+        bool serialTracking = false)
     {
+        EnsureTrackingIsCoherent(type, trackInventory, batchTracking, serialTracking);
+
         return new Product
         {
             Id = Guid.NewGuid(),
@@ -153,6 +189,8 @@ public sealed class Product
             ValuationMethod = ValuationMethod.Fifo,
             ReOrderLevel = reOrderLevel,
             TrackInventory = trackInventory,
+            BatchTracking = batchTracking,
+            SerialTracking = serialTracking,
             Sku = Normalize(sku),
             Barcode = Normalize(barcode),
             IsActive = true,
@@ -173,8 +211,12 @@ public sealed class Product
         bool trackInventory,
         bool isActive,
         string? sku = null,
-        string? barcode = null)
+        string? barcode = null,
+        bool batchTracking = false,
+        bool serialTracking = false)
     {
+        EnsureTrackingIsCoherent(Type, trackInventory, batchTracking, serialTracking);
+
         Name = name;
         CategoryId = categoryId;
         PrimaryUnitId = primaryUnitId;
@@ -185,9 +227,45 @@ public sealed class Product
         VatRate = vatRate;
         ReOrderLevel = reOrderLevel;
         TrackInventory = trackInventory;
+        BatchTracking = batchTracking;
+        SerialTracking = serialTracking;
         IsActive = isActive;
         Sku = Normalize(sku);
         Barcode = Normalize(barcode);
+    }
+
+    /// <summary>
+    /// Phase 51 -- batch and serial tracking are dimensions <b>of the stock ledger</b>, so a product
+    /// that has no stock ledger cannot carry either. A Service product never reaches
+    /// <c>IStockLedgerService</c> at all, and a Goods product with Track Inventory off is the tenant
+    /// saying it does not want layers for this item.
+    ///
+    /// <para>The validator raises the same refusal as a 400 naming the field; this is the Domain
+    /// backstop, because a Domain invariant reached through an endpoint is a 500 that tells the
+    /// caller nothing (phase 39).</para>
+    /// </summary>
+    private static void EnsureTrackingIsCoherent(
+        ProductType type, bool trackInventory, bool batchTracking, bool serialTracking)
+    {
+        if (!batchTracking && !serialTracking)
+        {
+            return;
+        }
+
+        var dimension = batchTracking ? "Batch Tracking" : "Serial Number Tracking";
+
+        if (type != ProductType.Goods)
+        {
+            throw new InvalidOperationException(
+                $"{dimension} applies to the stock ledger, so it can only be set on a Goods product.");
+        }
+
+        if (!trackInventory)
+        {
+            throw new InvalidOperationException(
+                $"{dimension} needs Track Inventory switched on -- it is a dimension of the stock "
+                + "ledger, and without inventory tracking there are no layers to carry it.");
+        }
     }
 
     /// <summary>Promotes an ordinary product to a variant parent. Idempotent.</summary>
@@ -332,6 +410,8 @@ public sealed class Product
             ValuationMethod = ValuationMethod,
             ReOrderLevel = ReOrderLevel,
             TrackInventory = TrackInventory,
+            BatchTracking = BatchTracking,
+            SerialTracking = SerialTracking,
             Sku = Normalize(sku),
             Barcode = Normalize(barcode),
             ParentProductId = Id,

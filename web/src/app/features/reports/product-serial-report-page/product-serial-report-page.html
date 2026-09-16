@@ -1,0 +1,119 @@
+<div class="container py-5" style="max-width: 1100px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-success bg-gradient text-white p-2.5 rounded-3">
+          <i aria-hidden="true" class="bi bi-upc-scan fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Product Serial No Report</h1>
+          <p class="text-muted small mb-0">One row per physical unit received in the period</p>
+        </div>
+      </div>
+      <a [routerLink]="['/organizations', organizationId, 'reports', 'product-batch']" class="btn btn-outline-secondary btn-sm fw-bold">
+        <i aria-hidden="true" class="bi bi-box-seam"></i> Product Batch Report
+      </a>
+    </div>
+  </div>
+
+  <app-status-banner [message]="errorMessage()" />
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold" for="product-serial-report-page-from-date">From Date</label>
+          <app-bs-date-input [inputId]="'product-serial-report-page-from-date'" [inputClass]="'form-control'" [value]="fromDate()" (valueChange)="onFromDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold" for="product-serial-report-page-to-date">To Date</label>
+          <app-bs-date-input [inputId]="'product-serial-report-page-to-date'" [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold" for="product-serial-report-page-status">Status</label>
+          <select id="product-serial-report-page-status" class="form-select" (change)="onStatusChange($event)">
+            @for (option of statusOptions; track option) {
+              <option [value]="option" [selected]="option === status()">{{ option === 'All' ? 'All' : statusLabel(option) }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold" for="product-serial-report-page-group-by">Group By</label>
+          <select id="product-serial-report-page-group-by" class="form-select" (change)="onGroupByChange($event)">
+            @for (option of groupByOptions; track option) {
+              <option [value]="option" [selected]="option === groupBy()">{{ option }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <app-report-location-filter
+            [organizationId]="organizationId"
+            [controlId]="'product-serial-report-page-billing-location'"
+            (locationChange)="onLocationChange($event)"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <p class="text-muted small mb-0">Loading…</p>
+      } @else if (rows().length === 0) {
+        <p class="text-muted small mb-0">No serial numbers received in this period.</p>
+      } @else {
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr class="text-muted small">
+                <th scope="col">Serial No.</th>
+                <th scope="col">Product</th>
+                <th scope="col">Warehouse</th>
+                <th scope="col">Status</th>
+                <th scope="col">Created At</th>
+                <th scope="col" class="text-end">Unit Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.serialNo + row.warehouseId + row.createdAt) {
+                <tr>
+                  <td class="fw-semibold">{{ row.serialNo }}</td>
+                  <td>{{ row.productCode }} — {{ row.productName }}</td>
+                  <td>{{ row.warehouseName }}</td>
+                  <td>
+                    <span class="badge" [class.text-bg-success]="row.status === 'InStock'" [class.text-bg-secondary]="row.status !== 'InStock'">
+                      {{ statusLabel(row.status) }}
+                    </span>
+                  </td>
+                  <!-- An instant, rendered as its Nepal day and time -- never slice(0, 10) of its UTC
+                       form, which names yesterday between 18:15 and 24:00 UTC (phase 48). -->
+                  <td>{{ row.createdAt | nepaliDate: 'datetime' }}</td>
+                  <td class="text-end">{{ (row.unitCost | amount) }}</td>
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr class="fw-bold border-top">
+                <td colspan="6">
+                  <!-- Over the full filtered set, computed server-side (phase-16c bug #1). -->
+                  {{ inStockCount() }} in stock, {{ issuedCount() }} issued
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        @if (totalPages() > 1) {
+          <nav aria-label="Product Serial No Report pages" class="d-flex justify-content-between align-items-center mt-3">
+            <span class="small text-body-secondary">Page {{ page() }} of {{ totalPages() }} — {{ totalCount() }} row(s)</span>
+            <div class="btn-group">
+              <button type="button" class="btn btn-outline-secondary btn-sm" [disabled]="page() <= 1" (click)="goToPage(page() - 1)">Previous</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" [disabled]="page() >= totalPages()" (click)="goToPage(page() + 1)">Next</button>
+            </div>
+          </nav>
+        }
+      }
+    </div>
+  </div>
+</div>

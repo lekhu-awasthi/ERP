@@ -45,6 +45,21 @@ interface EditableLine {
   rate: number;
   vatRate: VatRate;
   discountPct: number;
+  /**
+   * Phase 51 -- the allocation the line names. `batchNo` is a *number*, not an id: on a receipt the
+   * batch may not exist yet, and naming it is how it comes into being (the 2026-09-16 read shows
+   * one Item Batch column on both the Invoice and the Purchase Bill grid, so the same control
+   * creates and consumes).
+   *
+   * `serialsText` is the raw comma- or newline-separated text the user typed; `toLineInputs` parses
+   * it. A line of quantity five names five serials, because the Serial Number tab is one row per
+   * physical unit -- so this cannot be a single value the way the batch is. The asymmetry is forced
+   * by the data, not chosen.
+   */
+  batchNo: string;
+  manufactureDate: string;
+  expiryDate: string;
+  serialsText: string;
 }
 
 let nextLineKey = 1;
@@ -235,7 +250,19 @@ export class InvoiceDetailPage {
           this.discountPct.set(template.discountPct);
           this.lines.set(
             template.lines.length > 0
-              ? template.lines.map((l) => ({ key: nextLineKey++, ...l }))
+              ? template.lines.map((l) => ({
+                  key: nextLineKey++,
+                  ...l,
+                  // Phase 51 -- a conversion template carries the source document's own allocation
+                  // where the server sends one (Quotation -> Invoice, Purchase Order -> Bill), and
+                  // blank where it does not. Defaulted here rather than left undefined, so the
+                  // editable line type stays exhaustive and a missing field is a compile error
+                  // rather than a silently empty control.
+                  batchNo: ('batchNo' in l ? (l.batchNo ?? '') : ''),
+                  manufactureDate: ('manufactureDate' in l ? (l.manufactureDate ?? '') : ''),
+                  expiryDate: ('expiryDate' in l ? (l.expiryDate ?? '') : ''),
+                  serialsText: ('serialNumbers' in l ? (l.serialNumbers ?? []).join(', ') : ''),
+                }))
               : [this.newLine()],
           );
         } else {
@@ -306,6 +333,14 @@ export class InvoiceDetailPage {
             rate: l.rate ?? 0,
             vatRate: this.products().find((p) => p.id === l.productId)?.vatRate ?? ('NoVat' as VatRate),
             discountPct: 0,
+            // Phase 51 -- an AI-extracted document names no batch and no serials (phase 22 reads a
+            // supplier's PDF, not our ledger), so these start blank and the user fills them. Blank
+            // is refused by the server for a tracked product, which is the right failure: the
+            // extraction cannot invent a batch number that has to match physical goods.
+            batchNo: '',
+            manufactureDate: '',
+            expiryDate: '',
+            serialsText: '',
           }));
 
         if (lines.length > 0) {
@@ -667,7 +702,18 @@ Approve anyway?`)) {
   private toLineInputs(): InvoiceLineInput[] | null {
     const lines = this.lines()
       .filter((l) => l.productId && l.quantity > 0)
-      .map((l) => ({ productId: l.productId, quantity: l.quantity, rate: l.rate, vatRate: l.vatRate, discountPct: l.discountPct }));
+      .map((l) => ({
+        productId: l.productId,
+        quantity: l.quantity,
+        rate: l.rate,
+        vatRate: l.vatRate,
+        discountPct: l.discountPct,
+        // Phase 51. Null rather than '' for an unnamed batch: the server reads a blank as "no
+        // batch", and a product that is not batch-tracked is refused a batch outright, so sending
+        // an empty string would be sending a value.
+        batchNo: l.batchNo.trim() || null,
+        serialNumbers: this.parseSerials(l.serialsText),
+      }));
 
     if (lines.length === 0) {
       this.fieldError.fail('invoice-detail-page-add-line', 'Add at least one line with a Product and a Quantity.');
@@ -677,12 +723,49 @@ Approve anyway?`)) {
     return lines;
   }
 
+
+  /**
+   * Phase 51 -- the serial numbers a line names, from the free text the row's control holds.
+   * Split on commas and newlines, trimmed, blanks dropped. Duplicates are NOT removed here: the
+   * server refuses a line naming the same serial twice with a 400 that names the number, and
+   * silently de-duplicating would turn "I typed A1 twice by mistake" into a line of the wrong size.
+   */
+
+  /** Phase 51 -- the Item Batch control. Written into the line signal by the control's own event
+   *  handler, never derived in a `computed()` over a form value (zoneless, phase 17). */
+  protected onBatchNoChange(key: number, event: Event): void {
+    this.updateLine(key, { batchNo: (event.target as HTMLInputElement).value });
+  }
+
+  /** Phase 51 -- the serial list, kept as raw text and parsed at submit time by `parseSerials`. */
+  protected onSerialsChange(key: number, event: Event): void {
+    this.updateLine(key, { serialsText: (event.target as HTMLInputElement).value });
+  }
+
+  protected parseSerials(text: string): string[] {
+    return text
+      .split(/[,\n]/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }
+
   private updateLine(key: number, patch: Partial<Omit<EditableLine, 'key'>>): void {
     this.lines.update((lines) => lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   }
 
   private newLine(): EditableLine {
-    return { key: nextLineKey++, productId: '', quantity: 1, rate: 0, vatRate: 'NoVat', discountPct: 0 };
+    return {
+      key: nextLineKey++,
+      productId: '',
+      quantity: 1,
+      rate: 0,
+      vatRate: 'NoVat',
+      discountPct: 0,
+      batchNo: '',
+      manufactureDate: '',
+      expiryDate: '',
+      serialsText: '',
+    };
   }
 
   private today(): string {
@@ -723,6 +806,13 @@ Approve anyway?`)) {
                 rate: l.rate,
                 vatRate: l.vatRate,
                 discountPct: l.discountPct,
+                // Phase 51 -- read back, not only written. Phase 35a found 14 of 15 detail reads
+                // dropping a field the write path stored, which makes the field invisible on the
+                // form and unrecoverable on the next save.
+                batchNo: l.batchNo ?? '',
+                manufactureDate: l.manufactureDate ?? '',
+                expiryDate: l.expiryDate ?? '',
+                serialsText: (l.serialNumbers ?? []).join(', '),
               }))
             : [this.newLine()],
         );
