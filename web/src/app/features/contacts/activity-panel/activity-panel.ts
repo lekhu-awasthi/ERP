@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
@@ -7,9 +6,10 @@ import { ActivityRowDto, CommentRowDto } from '../../../core/contacts/contacts.m
 import { SmsLogRowDto } from '../../../core/crm/crm.models';
 import { CommunicationsService } from '../../../core/communications/communications.service';
 import { EmailLogRow } from '../../../core/communications/communications.models';
-import { TabParent, hasSmsHistory, tabParentId } from '../../../core/contacts/tab-parent';
+import { TabParent, hasSmsHistory, tabParentId, tabParentNoun } from '../../../core/contacts/tab-parent';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 type ActivitySubTab = 'Comments' | 'Activities' | 'SmsHistory' | 'EmailLogs';
@@ -21,7 +21,7 @@ type ActivitySubTab = 'Comments' | 'Activities' | 'SmsHistory' | 'EmailLogs';
  * empty-state message only -- not a faked working tab. */
 @Component({
   selector: 'app-activity-panel',
-  imports: [PaginationControl, DatePipe, StatusBanner],
+  imports: [PaginationControl, NepaliDatePipe, StatusBanner],
   templateUrl: './activity-panel.html',
 })
 export class ActivityPanel implements OnInit {
@@ -35,6 +35,9 @@ export class ActivityPanel implements OnInit {
    * document Activity tab shows three sub-tabs where the Contact tab shows four. Driven off the
    * parent rather than an extra flag, so a caller cannot get the pair inconsistent. */
   protected readonly showsSmsHistory = computed(() => hasSmsHistory(this.parent()));
+
+  /** Phase 48 -- "Asha created this deal", not "…this contact" on all 17 hosts. */
+  protected readonly parentNoun = computed(() => tabParentNoun(this.parent()));
 
   protected readonly subTab = signal<ActivitySubTab>('Comments');
   protected readonly errorMessage = signal<string | null>(null);

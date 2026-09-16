@@ -40,6 +40,7 @@ export class TaskDetailPage {
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly task = signal<TaskRow | null>(null);
+  protected readonly completing = signal(false);
 
   protected readonly tabs: readonly TaskTab[] = ['Overview', 'Documents', 'Activity'];
   protected readonly activeTab = signal<TaskTab>('Overview');
@@ -52,6 +53,26 @@ export class TaskDetailPage {
 
   protected switchTab(tab: TaskTab): void {
     this.activeTab.set(tab);
+  }
+
+  /**
+   * Phase 48 (43 carried item #7) -- the same `UpdateTaskStatusCommand` the list's checkmark sends.
+   * Reloading rather than patching the signal locally is what keeps the Activity tab honest: the
+   * status change writes an audit row, and the feed beside this button should show it.
+   */
+  protected markDone(): void {
+    this.completing.set(true);
+    this.errorMessage.set(null);
+    this.workflowService.updateTaskStatus(this.organizationId, this.taskId, 'Done').subscribe({
+      next: () => {
+        this.completing.set(false);
+        this.load();
+      },
+      error: (error: unknown) => {
+        this.completing.set(false);
+        this.errorMessage.set(extractErrorMessage(error) ?? 'Could not mark the task done.');
+      },
+    });
   }
 
   private load(): void {

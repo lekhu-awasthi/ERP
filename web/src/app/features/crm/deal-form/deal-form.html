@@ -1,0 +1,82 @@
+<form [formGroup]="form" (ngSubmit)="submit()" class="card border-0 bg-light-subtle border mb-3">
+  <div class="card-body p-3">
+    <app-status-banner [message]="errorMessage()" spacing="mb-3" />
+
+    <div class="row g-3">
+      @if (needsContactPicker()) {
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold" [for]="idPrefix() + '-contact'">Contact</label>
+          <select [id]="idPrefix() + '-contact'" class="form-select form-select-sm" formControlName="contactId">
+            <option value="" disabled>Select...</option>
+            @for (contact of dealableContacts(); track contact.id) {
+              <option [value]="contact.id">{{ contact.name }} ({{ contact.type }})</option>
+            }
+          </select>
+        </div>
+      } @else if (isEdit() && deal(); as row) {
+        <!-- Context, not a control: UpdateDealCommand carries no ContactId, and a select that
+             silently discards its value reads to a user as accepted. -->
+        <div class="col-12 col-sm-6">
+          <span class="form-label small fw-semibold d-block">Contact</span>
+          <p class="form-control-plaintext form-control-sm mb-0">{{ row.contactName }}</p>
+        </div>
+      }
+      <div class="col-12 col-sm-6">
+        <label class="form-label small fw-semibold" [for]="idPrefix() + '-title'">Title</label>
+        <input [id]="idPrefix() + '-title'" type="text" class="form-control form-control-sm" formControlName="title" />
+      </div>
+      <div class="col-6 col-sm-4">
+        <label class="form-label small fw-semibold" [for]="idPrefix() + '-lead-source'">Lead Source</label>
+        <select [id]="idPrefix() + '-lead-source'" class="form-select form-select-sm" formControlName="leadSourceId">
+          <option value="">None</option>
+          @for (source of leadSources(); track source.id) {
+            <option [value]="source.id">{{ source.name }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-6 col-sm-4">
+        <label class="form-label small fw-semibold" [for]="idPrefix() + '-expected-revenue'">Expected Revenue</label>
+        <input [id]="idPrefix() + '-expected-revenue'" type="number" class="form-control form-control-sm" formControlName="expectedRevenue" min="0" />
+      </div>
+      <div class="col-12 col-sm-4">
+        <label class="form-label small fw-semibold" [for]="idPrefix() + '-expected-closing-date'">Expected Closing Date</label>
+        <app-bs-date-input [inputId]="idPrefix() + '-expected-closing-date'" [inputClass]="'form-control form-control-sm'" formControlName="expectedClosingDate" />
+      </div>
+      <div class="col-12">
+        <label class="form-label small fw-semibold" [for]="idPrefix() + '-description'">Description</label>
+        <textarea [id]="idPrefix() + '-description'" class="form-control form-control-sm" formControlName="description" rows="2"></textarea>
+      </div>
+      <div class="col-12" role="group" [attr.aria-labelledby]="idPrefix() + '-assignees-group'">
+        <span class="form-label small fw-semibold d-block" [id]="idPrefix() + '-assignees-group'">Assign To</span>
+        @for (member of members(); track member.userId) {
+          <div class="form-check form-check-inline">
+            <input
+              type="checkbox"
+              class="form-check-input"
+              [id]="idPrefix() + '-assignee-' + member.userId"
+              [checked]="selectedAssigneeIds().has(member.userId)"
+              (change)="toggleAssignee(member.userId)"
+            />
+            <label class="form-check-label small" [for]="idPrefix() + '-assignee-' + member.userId">{{ member.fullName }}</label>
+          </div>
+        }
+      </div>
+      <div class="col-12 form-check">
+        <input type="checkbox" class="form-check-input" [id]="idPrefix() + '-is-private'" formControlName="isPrivate" />
+        <label class="form-check-label small" [for]="idPrefix() + '-is-private'">Make this deal private</label>
+      </div>
+      <div class="col-12 d-flex gap-2">
+        <button type="submit" class="btn btn-primary btn-sm fw-bold" [disabled]="saving()">
+          @if (saving()) {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+          } @else if (isEdit()) {
+            Save Deal
+          } @else {
+            Create Deal
+          }
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancel()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</form>

@@ -86,7 +86,7 @@
       [(locationId)]="locationId"
     />
             @if (order(); as doc) {
-              <span class="text-muted small">Created {{ doc.createdAt | date: 'medium' }}</span>
+              <span class="text-muted small">Created {{ doc.createdAt | nepaliDate: 'datetime-seconds' }}</span>
             }
           </div>
           @if (order(); as doc) {

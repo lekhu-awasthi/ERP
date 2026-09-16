@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
@@ -20,6 +19,7 @@ import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 interface EditableMaterial {
   key: number;
@@ -50,7 +50,7 @@ let nextKey = 1;
  */
 @Component({
   selector: 'app-production-order-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, DocumentLocationPicker, StatusBanner],
+  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, DocumentLocationPicker, StatusBanner, NepaliDatePipe],
   templateUrl: './production-order-detail-page.html',
 })
 export class ProductionOrderDetailPage {

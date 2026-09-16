@@ -79,6 +79,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 45: multi-UOM × variants (a variant owns its unit matrix; a parent is refused one), the `ProductAttributePool` importer. Before deciding an interaction nobody has posed, or nesting a control in a row anchor — `docs/phase-45-status.md`
 - Phase 46: metered add-on axes — the AI-scan ceiling (20/day, from the audit trail), the allowance year, locations as a record not a ceiling. Before adding a metered axis — `docs/phase-46-status.md`
 - Phase 47: accessibility completion (Sort by on 16 document lists, the nested control removed, per-field errors on 13 forms, the drop list). The NVDA hour is undone. Before sweeping "the N screens that qualify" — `docs/phase-47-status.md`
+- Phase 48: shared display components + record pages (every date *output* through `NepaliDatePipe`, instant-aware; `app-deal-form`/`app-task-form` for create and edit). Before rendering a timestamp, or trusting a carried item's own count — `docs/phase-48-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -280,6 +281,10 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - The app is zoneless: a `computed()` over a plain `FormControl.value` caches forever; track UI-driving values in their own `signal()` written by the control's event handler (phase-17).
 - A cached signal created lazily inside a `computed()` throws `NG0600` the moment its source resolves **synchronously** (a test double); real HTTP hides it. `untracked()` the subscribe and the writes (phase-35a's `BillingLocationStore`).
 - Bootstrap's JavaScript is not loaded anywhere (`angular.json` has no `scripts`), so `data-bs-toggle` does nothing; drive menus from a signal (phase-22).
+- Angular's `DatePipe` ignores `DatePreferenceService` entirely, so `| date:` renders Gregorian whatever the BS toggle says; phase 23's guard banned date *inputs* and nobody asked the mirror question about date **output** (phase-48).
+- `NepaliDatePipe` takes an instant's **Nepal** day, never `slice(0, 10)` of its UTC form — between 18:15 and 24:00 UTC that names yesterday, which the Transaction List had been doing since phase 26a (phase-48).
+- One calendar gets one pipe: a time is a **mode** on `NepaliDatePipe` (`'datetime'`, `'datetime-seconds'`) rendered from the same shifted instant, never a second pipe (phase-48).
+- A field error must name a **control**: `aria-invalid` is not valid on a `table`, so a line-table message points at the **Add Line button** — the thing that fixes it, and where focus should land (phase-48).
 - The app routes by **path**, not by hash — the reference product's own URLs are hash-based, so a browser pass against `#/organizations/…` bounces to Sign In with the cookie working perfectly; check `location.href` before suspecting the cookie (phase-39).
 - A `.dropdown-menu` inside `.table-responsive` is clipped by the implied `overflow-y`; render it `position: fixed` at coordinates captured on open (phase-22).
 - A pipe rendering from a global signal with an unchanging argument must be `pure: false` and memoize internally (`NepaliDatePipe`, phase-23).
@@ -372,30 +377,32 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–47 are complete.** The v1 sequence (0–25), parity (26–34c), consolidation (35–41) and
-completion (42–47) are all done; each phase's story is in its `docs/phase-N-status.md`, and every
-finished planning entry is archived in `docs/roadmap-history.md`.
+**Phases 0–48 are complete.** The v1 sequence (0–25), parity (26–34c), consolidation (35–41),
+completion (42–47) and the first continuation phase (48) are all done; each phase's story is in its
+`docs/phase-N-status.md`, and every finished planning entry is archived in `docs/roadmap-history.md`.
 
-**Next: phases 48–52 in `docs/roadmap.md`** (planned 2026-09-16 from the carried items of phases
-42–47, plus one live read): the shared display components and the record pages, the expiry read that
-needs 2026-09-22 to have passed, the measurement-gated indexes, then **batch and serial tracking** —
-new scope, because the reference product's August 2026 release shipped the traceability its banner
-had been claiming since before the 2026-09-10 pass found none of it (`docs/erp-module-scan.md`, "The
-August 2026 release"), taking its reports catalogue from 50 to 52 — and last a unit on the document
-line, which is what would make phase 45's secondary units mean something. Two items sit outside the sequence with
-their own start conditions: **an hour with NVDA** (needs a person with headphones; phases 40 and 47
-built everything derivable and recorded plainly that nothing was heard) and **full-text search**
-(a semantics change, not a performance fix — phase 42 carried item #1). The deferred and dropped
-lists are in the roadmap and are unchanged.
+**Next: phases 49–52 in `docs/roadmap.md`.** Phase 49 is **date-gated on 2026-09-22** — Cadehi's trial
+ends then, and it is the first observable tenant expiry this project has ever had a date for, which
+is what settles the behaviour phases 31 and 46 both had to derive. (Confirmed live on 2026-09-16: the
+banner read "6 days remaining".) Then 50 (measurement-gated indexes and the guards that cross an
+assembly boundary), 51 (**batch and serial tracking** — new scope from the reference product's August
+2026 release), and 52 (a unit on the document line, which is what would make phase 45's secondary
+units mean something). Two items sit outside the sequence with their own start conditions: **an hour
+with NVDA** (needs a person with headphones; phases 40, 47 and 48 built everything derivable and
+recorded plainly that nothing was heard) and **full-text search** (a semantics change, not a
+performance fix). The deferred and dropped lists are in the roadmap and are unchanged.
 
-Tests at last count: Domain 674, Application.UnitTests 1185, Api.IntegrationTests 30, Angular 522;
+Tests at last count: Domain 674, Application.UnitTests 1185, Api.IntegrationTests 30, Angular 554;
 `dotnet build` / `dotnet test` / `ng build` / `ng test` all clean, and `ng build` does not warn —
-phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts` (652.23 kB).
+phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts`, and phase 48
+brought the bundle *down* to 643.39 kB by taking Angular's `DatePipe` out of 19 components.
 `Api.IntegrationTests` needs Docker Desktop running: without it the Testcontainers-backed tests fail
-in their constructors before any assertion, which reads like regressions and is not; it also fails
-nondeterministically under machine load and passes on re-run (phase 36/37). `tsc --noEmit` does not
-cover `web/src/app`; `ng build` is the check (phase-28), and `ng test` must be run from `web/`
-(phase-35a) on **Node 24** (`nvm use 24.11.0` — v16 dies with `availableParallelism is not a function`).
+in their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like
+regressions and is not (10 of 30 did exactly this in phase 48, and all 30 passed once Docker was
+started); it also fails nondeterministically under machine load and passes on re-run (phase 36/37).
+`tsc --noEmit` does not cover `web/src/app`; `ng build` is the check (phase-28), and `ng test` must be
+run from `web/` (phase-35a) on **Node 24** (`nvm use 24.11.0` — v16 dies with
+`availableParallelism is not a function`).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

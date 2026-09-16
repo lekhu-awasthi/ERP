@@ -31,11 +31,44 @@
             <p class="text-muted small mb-3">
               No variant attributes exist yet. Create one under Products → Variant Attributes first.
             </p>
+          } @else {
+            <!-- Phase 48 (45 #1). A flat checkbox list of every option of every attribute is
+                 tolerable at the reference tenant's 16 attributes and a keyboard problem at 60.
+                 A filter and a per-attribute Select all, not a redesign. -->
+            <div class="mb-3">
+              <label class="form-label small fw-semibold" for="variant-attribute-filter">Filter</label>
+              <input
+                id="variant-attribute-filter"
+                type="search"
+                class="form-control form-control-sm"
+                style="max-width: 320px;"
+                placeholder="Filter attributes and options..."
+                [value]="attributeFilter()"
+                (input)="onAttributeFilterInput($event)"
+              />
+            </div>
           }
 
-          @for (attribute of catalog(); track attribute.id) {
+          @for (attribute of filteredCatalog(); track attribute.id) {
             <div class="mb-3">
-              <div class="small fw-semibold mb-2">{{ attribute.name }}</div>
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <span class="small fw-semibold">{{ attribute.name }}</span>
+                <span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">
+                  {{ selectedCount(attribute) }} of {{ attribute.options.length }}
+                </span>
+                <button
+                  type="button"
+                  class="btn btn-link btn-sm p-0 small"
+                  (click)="toggleAll(attribute)"
+                >
+                  @if (areAllSelected(attribute)) {
+                    Clear all
+                  } @else {
+                    Select all
+                  }
+                  <span class="visually-hidden"> {{ attribute.name }} options</span>
+                </button>
+              </div>
               <div class="d-flex flex-wrap gap-3">
                 @for (option of attribute.options; track option.id) {
                   <div class="form-check">
@@ -51,6 +84,10 @@
                 }
               </div>
             </div>
+          } @empty {
+            @if (catalog().length > 0) {
+              <p class="text-muted small mb-3">No attribute or option matches "{{ attributeFilter() }}".</p>
+            }
           }
 
           <div class="d-flex gap-2 mt-3">

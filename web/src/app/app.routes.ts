@@ -1028,6 +1028,16 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    // Phase 48 (43 carried item #4) -- editing a Deal. Both update commands have existed since
+    // phases 13/15 and were callable from no screen at all; this is the screen half of phase 31's
+    // rule. Not in NavigationCatalog: the path carries a `:param`, so the coverage sweep skips it,
+    // and an edit form is not a screen anyone searches for or pins.
+    path: 'organizations/:id/crm/deals/:dealId/edit',
+    loadComponent: () =>
+      import('./features/crm/deal-edit-page/deal-edit-page').then((m) => m.DealEditPage),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/workflow/tasks',
     loadComponent: () =>
       import('./features/workflow/task-list-page/task-list-page').then((m) => m.TaskListPage),
@@ -1037,6 +1047,13 @@ export const routes: Routes = [
     path: 'organizations/:id/workflow/tasks/:taskId',
     loadComponent: () =>
       import('./features/workflow/task-detail-page/task-detail-page').then((m) => m.TaskDetailPage),
+    canActivate: [authGuard],
+  },
+  {
+    // Phase 48 -- editing a Task. See the Deal edit route above.
+    path: 'organizations/:id/workflow/tasks/:taskId/edit',
+    loadComponent: () =>
+      import('./features/workflow/task-edit-page/task-edit-page').then((m) => m.TaskEditPage),
     canActivate: [authGuard],
   },
   {

@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
@@ -28,6 +27,7 @@ import { DocumentLocationPicker } from '../../../shared/locations/document-locat
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 interface EditableLine {
   key: number;
@@ -45,7 +45,7 @@ let nextLineKey = 1;
  * Quotation. Approve posts CreditNotePostingRule's exact reverse of InvoicePostingRule. */
 @Component({
   selector: 'app-credit-note-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner, FieldErrorMessage],
+  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner, FieldErrorMessage, NepaliDatePipe],
   templateUrl: './credit-note-detail-page.html',
 })
 export class CreditNoteDetailPage {
@@ -377,7 +377,7 @@ export class CreditNoteDetailPage {
       .map((l) => ({ productId: l.productId, quantity: l.quantity, rate: l.rate, vatRate: l.vatRate, discountPct: l.discountPct }));
 
     if (lines.length === 0) {
-      this.errorMessage.set('Add at least one line with a Product and a Quantity.');
+      this.fieldError.fail('credit-note-detail-page-add-line', 'Add at least one line with a Product and a Quantity.');
       return null;
     }
 

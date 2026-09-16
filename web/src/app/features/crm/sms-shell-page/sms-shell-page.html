@@ -61,7 +61,7 @@
               <tbody>
                 @for (row of recentSms(); track row.id) {
                   <tr>
-                    <td>{{ row.sentAt | date: 'short' }}</td>
+                    <td>{{ row.sentAt | nepaliDate: 'datetime' }}</td>
                     <td>{{ row.contactName }}</td>
                     <td>{{ row.title }}</td>
                     <td>{{ row.phoneNumber }}</td>
@@ -115,7 +115,7 @@
               <tbody>
                 @for (row of historyRows(); track row.id) {
                   <tr>
-                    <td>{{ row.sentAt | date: 'short' }}</td>
+                    <td>{{ row.sentAt | nepaliDate: 'datetime' }}</td>
                     <td>{{ row.contactName }}</td>
                     <td>{{ row.title }}</td>
                     <td class="text-truncate" style="max-width: 240px;">{{ row.content }}</td>
@@ -272,7 +272,7 @@
               <tbody>
                 @for (row of ledgerRows(); track row.id) {
                   <tr>
-                    <td>{{ row.createdAt | date: 'short' }}</td>
+                    <td>{{ row.createdAt | nepaliDate: 'datetime' }}</td>
                     <td>{{ row.type }}</td>
                     <td class="text-end" [class.text-success]="row.changeAmount > 0" [class.text-danger]="row.changeAmount < 0">
                       {{ row.changeAmount > 0 ? '+' : '' }}{{ row.changeAmount }}

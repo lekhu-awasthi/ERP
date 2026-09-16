@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, effect, inject, input, signal } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
@@ -6,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { InboxDocument, InboxTargetType } from '../../core/workflow/inbox.models';
 import { InboxService } from '../../core/workflow/inbox.service';
 import { triggerBlobDownload } from '../download-file';
+import { NepaliDatePipe } from '../../shared/formatting/nepali-date-pipe';
 
 /**
  * Phase 22 (FR-10.3), <b>exit criterion #2</b>: "the source image stays linked and viewable from the
@@ -25,7 +25,7 @@ import { triggerBlobDownload } from '../download-file';
  */
 @Component({
   selector: 'app-source-document-panel',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, NepaliDatePipe],
   templateUrl: './source-document-panel.html',
 })
 export class SourceDocumentPanel {

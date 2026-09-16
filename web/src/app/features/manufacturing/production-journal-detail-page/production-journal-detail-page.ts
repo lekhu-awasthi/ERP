@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
@@ -25,6 +24,7 @@ import { DocumentLocationPicker } from '../../../shared/locations/document-locat
 import { defaultWarehouseSeed } from '../../../shared/locations/default-warehouse-seed';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 interface EditableMaterial {
   key: number;
@@ -59,7 +59,7 @@ let nextKey = 1;
  */
 @Component({
   selector: 'app-production-journal-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, DocumentLocationPicker, StatusBanner],
+  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, DocumentLocationPicker, StatusBanner, NepaliDatePipe],
   templateUrl: './production-journal-detail-page.html',
 })
 export class ProductionJournalDetailPage {

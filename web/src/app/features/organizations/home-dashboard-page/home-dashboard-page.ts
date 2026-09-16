@@ -17,6 +17,7 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { CalendarToggle } from '../../../shared/formatting/calendar-toggle';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { nepalToday } from '../../../shared/formatting/nepal-time';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { QuickLinks } from '../../../shared/platform/quick-links';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
@@ -334,14 +335,6 @@ function addDays(iso: string, days: number): string {
   return new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 }
 
-/**
- * Today on the Nepal wall clock (UTC+05:45), never UTC -- mirrors `Domain/Common/NepalTime`. Between
- * 18:15 and 24:00 UTC the Nepal date is already tomorrow, so a UTC "today" would silently key the
- * dashboard to the wrong day.
- */
-function nepalToday(): string {
-  return new Date(Date.now() + (5 * 60 + 45) * 60_000).toISOString().slice(0, 10);
-}
 
 function startOfNepalMonth(): string {
   return `${nepalToday().slice(0, 7)}-01`;

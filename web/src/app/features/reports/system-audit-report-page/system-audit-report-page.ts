@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
@@ -13,6 +12,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 const EMPTY_REPORT: PagedResult<AuditRowDto> = { items: [], page: 1, pageSize: DEFAULT_PAGE_SIZE, totalCount: 0 };
 
@@ -40,7 +40,7 @@ const DOCUMENT_TYPES: SystemAuditDocumentType[] = [
  */
 @Component({
   selector: 'app-system-audit-report-page',
-  imports: [RouterLink, PaginationControl, DatePipe, BsDateInput, ReportLocationFilter, StatusBanner],
+  imports: [RouterLink, PaginationControl, BsDateInput, ReportLocationFilter, StatusBanner, NepaliDatePipe],
   templateUrl: './system-audit-report-page.html',
 })
 export class SystemAuditReportPage {

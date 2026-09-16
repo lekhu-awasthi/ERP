@@ -12,7 +12,7 @@
             <div>
               <span class="fw-bold">{{ document.fileName }}</span>
               <span class="text-muted small ms-2">
-                uploaded by {{ document.uploadedByName }} on {{ document.uploadedAt | date: 'mediumDate' }}
+                uploaded by {{ document.uploadedByName }} on {{ document.uploadedAt | nepaliDate: 'date' }}
               </span>
               @if (document.extractionStatus === 'Succeeded' && document.extractionModelId) {
                 <span class="badge text-bg-warning text-dark ms-2" [title]="'Read by ' + document.extractionModelId">

@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, input, signal } from '@angular/core';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
@@ -9,6 +8,7 @@ import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 const ALLOWED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt'];
 const MAX_SIZE_BYTES = 10 * 1024 * 1024;
@@ -21,7 +21,7 @@ const MAX_SIZE_BYTES = 10 * 1024 * 1024;
  * actual enforcement point. */
 @Component({
   selector: 'app-attachment-list',
-  imports: [PaginationControl, DatePipe, StatusBanner],
+  imports: [PaginationControl, StatusBanner, NepaliDatePipe],
   templateUrl: './attachment-list.html',
 })
 export class AttachmentList implements OnInit {

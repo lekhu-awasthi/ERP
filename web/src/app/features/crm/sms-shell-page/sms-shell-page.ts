@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -14,6 +13,7 @@ import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { SendSmsForm } from '../send-sms-form/send-sms-form';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 type SmsTab = 'Overview' | 'History' | 'Templates' | 'CreditHistory';
 
@@ -25,7 +25,7 @@ type SmsTab = 'Overview' | 'History' | 'Templates' | 'CreditHistory';
  */
 @Component({
   selector: 'app-sms-shell-page',
-  imports: [ReactiveFormsModule, PaginationControl, SendSmsForm, DatePipe, StatusBanner],
+  imports: [ReactiveFormsModule, PaginationControl, SendSmsForm, StatusBanner, NepaliDatePipe],
   templateUrl: './sms-shell-page.html',
 })
 export class SmsShellPage {

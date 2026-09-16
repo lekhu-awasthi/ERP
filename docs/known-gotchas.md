@@ -2870,3 +2870,106 @@ find the rule.** Here the rule would be a marker or a mapped property rather tha
 the reason phase 47 carried it rather than adding `"ChequeDate"` is phase 34c's: an index added for
 one access path changes the plan for every other path over the same table, so it wants a measurement
 on the 50k dataset, not a one-line edit at the end of an unrelated phase.
+
+
+## Angular's `DatePipe` silently ignores the calendar toggle (phase 48)
+
+`NFR-1.1` says a date a user reads is rendered in the calendar that user chose, and phase 23 built
+`NepaliDatePipe` plus a sweep guard to enforce it. The guard enforced one half. It banned native date
+**inputs** (`<input type="date">`) and inline `.toFixed(2)`, and nobody had asked the mirror
+question — *which dates does this app **output**, and do they honour the toggle?*
+
+The answer was **23 uses of `| date:` across 19 templates**, plus four raw ISO interpolations in
+`activity-panel.html`. `| date:` is not a near-miss on the house format; it is Angular's own
+`DatePipe`, which knows nothing about `DatePreferenceService` and renders a Gregorian date in the
+browser's locale. A tenant reading in BS saw `Approved Sep 14, 2026, 7:24:44 PM` underneath a
+document whose own Invoice Date, three inches away, said `29-05-2083`. One screen, two calendars.
+
+Three things make this worth a heading rather than a line.
+
+**It hid behind a guard that looked like it covered the area.** `sweep-guard.spec.ts` is *the*
+"dates a user reads" file, it had been green for 25 phases, and it was only ever asked about inputs.
+A guard's name is not its scope.
+
+**One of the sites had a recorded reason.** `user-log-page` carried, since phase 26c: *"The timestamp
+is rendered with Angular's own `DatePipe`, not `NepaliDatePipe`: this is a to-the-second audit trail,
+and the seconds matter more here than the calendar does."* Read once that is a trade-off. Read again
+it is a false choice — a BS date carries seconds perfectly well — and the consequence was that the
+one report where being certain *which day* a sign-in happened on matters most was the one report
+showing the wrong calendar. That is phase 45's lesson (*an allow-list reason can be the argument for
+the opposite conclusion*) arriving through a code comment instead of an allow-list. The fix was a
+third pipe mode, `'datetime-seconds'`: keep the seconds, obey the calendar.
+
+**The remedy is a mode, never a second pipe.** Two pipes for one calendar is exactly the divergence
+phase-26b's shared `bs-date` table exists to prevent. `NepaliDateMode` is `'date' | 'datetime' |
+'datetime-seconds'`, and the time is rendered from *the same shifted instant* that produced the date,
+so the two halves cannot disagree about which day it is.
+
+When mapping the old formats, preserve what each screen already showed rather than imposing a house
+style: Angular's `'medium'` includes seconds and `'short'` does not, so they map to different modes.
+
+
+## Slicing an instant to ten characters gives you the UTC day (phase 48)
+
+`NepaliDatePipe` tolerated a full timestamp with `value.length > 10 ? value.slice(0, 10) : value`,
+which reads as defensive and is a bug. Nepal is UTC+05:45, so between 18:15 and 24:00 UTC that slice
+names the day **before** the one the event happened on in Kathmandu.
+
+This was not confined to the phase that found it. `transaction-list-page` has piped `approvedAt` and
+`createdAt` — both `DateTimeOffset` — through this pipe since phase 26a, and has therefore been
+dating every late-evening approval to the previous day, on a screen whose entire purpose is telling
+you when things happened.
+
+**The shift belongs in the pipe, not at the call sites**, and the reason is the useful part: a caller
+holding a string cannot tell whether it is a `DateOnly` (no time zone, render as-is) or a
+`DateTimeOffset` (an instant, whose day is its Nepal day). The pipe can — the presence of a time
+component *is* the discriminator. Anything that decides per call site will be got wrong by the next
+person to add a field.
+
+Test it with an instant that straddles the boundary (`20:30Z` renders as the *next* day) and assert
+the absence of the UTC day as well as the presence of the Nepal one. A test at noon passes either
+way.
+
+And this was the client's **third** copy of `(5 * 60 + 45) * 60_000` — `home-dashboard-page` and
+`bs-date-input` each had their own, each with its own paragraph about the same boundary. CLAUDE.md's
+rule is to retire copies 1..N before writing copy N+1; `shared/formatting/nepal-time.ts` is now the
+only one, mirroring `Domain/Common/NepalTime`.
+
+
+## A carried item's own count is a starting point, not a measurement (phase 48)
+
+Phase 43 recorded the timestamp defect as `{{ row.createdAt }}` "on two lines" of a component with
+"17 hosts", and the roadmap carried that forward. Both facts are true. Neither is the size of the
+problem, which was 27 render sites across 20 files — the other 23 being a *different* spelling of the
+same mistake that nobody had grepped for.
+
+Phase 43 also recorded that "editing a Deal or a Task still happens through the inline form on its
+list". It does not. Those forms are **create-only**, and `grep` for callers of `updateDeal` /
+`updateTask` across `web/src/app` returns nothing at all: two commands, reachable over HTTP since
+phases 13 and 15, callable from no screen. A typo in a deal's title was permanent. That is phase 31's
+rule (*a field is reachable only if you can name the command that writes it **and** the screen that
+calls it*) failing on the screen half, in a note that asserted the screen existed.
+
+This is phase 47's *derive the N* generalised: a carried item names a defect its own phase declined
+to fix, written from the outside, often in one sentence. **Re-derive the extent before scoping the
+work** — grep for the mechanism, not for the instance that was reported.
+
+
+## A field error has to point at a control, and a table is not one (phase 48)
+
+Phase 47 wired `aria-invalid` / `aria-describedby` / focus movement to 13 document forms and left two
+messages banner-only, naming the fix: *"a message that points at the table, which needs a target
+element the table does not have yet"*.
+
+Building that shows why it stayed open. `FieldError`'s contract is three bindings on one element, and
+**`aria-invalid` is not a supported state of the `table` role** — it is not a global ARIA attribute.
+A `<div tabindex="-1">` wrapper would satisfy the guard's string match while making a weaker
+accessibility claim than the guard implies, which is worse than leaving it.
+
+The right target was never the table: it is the **Add Line button**. It is a real control, natively
+focusable, carries `aria-invalid` legitimately, and it is *what the user presses to fix the problem* —
+so `fail()`'s focus move lands on the fix rather than on the evidence.
+
+The general rule: when a validation message is about a *collection*, point it at the control that
+adds to the collection. Pointing at the collection's container is an accessibility gesture; pointing
+at the button is an instruction.

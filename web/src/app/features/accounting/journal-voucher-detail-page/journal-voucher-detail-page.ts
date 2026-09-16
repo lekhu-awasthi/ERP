@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
@@ -19,6 +18,8 @@ import { CustomFieldsEditor } from '../../../shared/custom-fields/custom-fields-
 import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-custom-fields';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 interface EditableLine {
   key: number;
@@ -47,7 +48,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-journal-voucher-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner],
+  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner, NepaliDatePipe, FieldErrorMessage],
   templateUrl: './journal-voucher-detail-page.html',
 })
 export class JournalVoucherDetailPage {
@@ -74,6 +75,10 @@ export class JournalVoucherDetailPage {
   protected readonly voiding = signal(false);
   protected readonly printing = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
+
+  /** Phase 48 -- takes the page's own errorMessage signal, so the banner and the marked
+   * control can never disagree (see `FieldError`). */
+  protected readonly fieldError = new FieldError(this.errorMessage);
   protected readonly journalVoucher = signal<JournalVoucherDetail | null>(null);
   protected readonly accounts = signal<Account[]>([]);
   protected readonly contacts = signal<Contact[]>([]);
@@ -289,7 +294,7 @@ Approve anyway?`)) {
       .map((l) => ({ accountId: l.accountId, debit: l.debit || 0, credit: l.credit || 0, contactId: l.contactId }));
 
     if (lines.length === 0) {
-      this.errorMessage.set('Add at least one line with an Account and a Debit or Credit amount.');
+      this.fieldError.fail('journal-voucher-detail-page-add-line', 'Add at least one line with an Account and a Debit or Credit amount.');
       return null;
     }
 

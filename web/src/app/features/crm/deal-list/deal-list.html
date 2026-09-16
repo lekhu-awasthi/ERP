@@ -36,80 +36,13 @@
 <app-status-banner [message]="errorMessage()" spacing="mb-3" />
 
 @if (showCreateForm()) {
-  <form [formGroup]="form" (ngSubmit)="submitCreate()" class="card border-0 bg-light-subtle border mb-3">
-    <div class="card-body p-3">
-      <div class="row g-3">
-        @if (!contactId()) {
-          <div class="col-12 col-sm-6">
-            <label class="form-label small fw-semibold" for="deal-list-contact">Contact</label>
-            <select id="deal-list-contact" class="form-select form-select-sm" formControlName="contactId">
-              <option value="" disabled [selected]="!form.get('contactId')?.value">Select...</option>
-              @for (contact of dealableContacts(); track contact.id) {
-                <option [value]="contact.id" [selected]="contact.id === form.get('contactId')?.value">
-                  {{ contact.name }} ({{ contact.type }})
-                </option>
-              }
-            </select>
-          </div>
-        }
-        <div class="col-12 col-sm-6">
-          <label class="form-label small fw-semibold" for="deal-list-title">Title</label>
-          <input id="deal-list-title" type="text" class="form-control form-control-sm" formControlName="title" />
-        </div>
-        <div class="col-6 col-sm-4">
-          <label class="form-label small fw-semibold" for="deal-list-lead-source">Lead Source</label>
-          <select id="deal-list-lead-source" class="form-select form-select-sm" formControlName="leadSourceId">
-            <option value="" [selected]="!form.get('leadSourceId')?.value">None</option>
-            @for (source of leadSources(); track source.id) {
-              <option [value]="source.id" [selected]="source.id === form.get('leadSourceId')?.value">
-                {{ source.name }}
-              </option>
-            }
-          </select>
-        </div>
-        <div class="col-6 col-sm-4">
-          <label class="form-label small fw-semibold" for="deal-list-expected-revenue">Expected Revenue</label>
-          <input id="deal-list-expected-revenue" type="number" class="form-control form-control-sm" formControlName="expectedRevenue" min="0" />
-        </div>
-        <div class="col-12 col-sm-4">
-          <label class="form-label small fw-semibold" for="deal-list-expected-closing-date">Expected Closing Date</label>
-          <app-bs-date-input [inputId]="'deal-list-expected-closing-date'" [inputClass]="'form-control form-control-sm'" formControlName="expectedClosingDate" />
-        </div>
-        <div class="col-12">
-          <label class="form-label small fw-semibold" for="deal-list-description">Description</label>
-          <textarea id="deal-list-description" class="form-control form-control-sm" formControlName="description" rows="2"></textarea>
-        </div>
-        <div class="col-12" role="group" aria-labelledby="deal-assignees-group">
-          <span class="form-label small fw-semibold d-block" id="deal-assignees-group">Assign To</span>
-          @for (member of members(); track member.userId) {
-            <div class="form-check form-check-inline">
-              <input
-                type="checkbox"
-                class="form-check-input"
-                [id]="'assignee-' + member.userId"
-                [checked]="selectedAssigneeIds().has(member.userId)"
-                (change)="toggleAssignee(member.userId)"
-              />
-              <label class="form-check-label small" [for]="'assignee-' + member.userId">{{ member.fullName }}</label>
-            </div>
-          }
-        </div>
-        <div class="col-12 form-check">
-          <input type="checkbox" class="form-check-input" id="isPrivate" formControlName="isPrivate" />
-          <label class="form-check-label small" for="isPrivate">Make this deal private</label>
-        </div>
-        <div class="col-12">
-          <button type="submit" class="btn btn-primary btn-sm fw-bold" [disabled]="saving()">
-            @if (saving()) {
-              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-            } @else {
-              Create Deal
-            }
-          </button>
-        </div>
-      </div>
-    </div>
-  </form>
+  <app-deal-form
+    [organizationId]="organizationId()"
+    [contactId]="contactId()"
+    idPrefix="deal-list"
+    (saved)="onCreated()"
+    (cancelled)="toggleCreateForm()"
+  />
 }
 
 @if (loading()) {

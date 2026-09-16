@@ -51,6 +51,29 @@ export function tabParentId(parent: TabParent): string {
 }
 
 /**
+ * What this parent is called in a sentence about it — "Asha created this <b>deal</b>".
+ *
+ * <p>Phase 48. The Activity sub-tab said "…d this contact" on all 17 hosts, because phase 18 wrote
+ * that line for a Contact and phase 27a parameterised the component around it without revisiting
+ * the one sentence that names the parent. A document type is rendered from its own name rather than
+ * a lookup table, so a new `DocumentType` member reads correctly the day it is added instead of
+ * silently falling back — the table is the thing that would go stale.</p>
+ */
+export function tabParentNoun(parent: TabParent): string {
+  switch (parent.kind) {
+    case 'Contact':
+      return 'contact';
+    case 'Deal':
+      return 'deal';
+    case 'Task':
+      return 'task';
+    default:
+      // `PurchaseBill` -> `purchase bill`.
+      return parent.documentType.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+  }
+}
+
+/**
  * Whether this parent has an SMS History sub-tab on its Activity tab. Contacts do (a contact has a
  * phone number and Phase 18 built per-contact SMS history); documents do not -- live-confirmed, the
  * document Activity tab shows exactly three sub-tabs, Comments / Activities / Emails, where the

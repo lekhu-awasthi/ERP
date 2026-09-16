@@ -39,7 +39,7 @@
         @for (row of commentRows(); track row.id) {
           <div class="list-group-item">
             <p class="mb-1">{{ row.content }}</p>
-            <span class="text-muted small">{{ row.authorName }} · {{ row.createdAt }}</span>
+            <span class="text-muted small">{{ row.authorName }} · {{ row.createdAt | nepaliDate: 'datetime-seconds' }}</span>
           </div>
         }
       </div>
@@ -64,8 +64,8 @@
       <div class="list-group list-group-flush mb-3">
         @for (row of activityRows(); track row.id) {
           <div class="list-group-item">
-            <p class="mb-1">{{ row.userName }} {{ row.action }}d this contact</p>
-            <span class="text-muted small">{{ row.createdAt }}</span>
+            <p class="mb-1">{{ row.userName }} {{ row.action }}d this {{ parentNoun() }}</p>
+            <span class="text-muted small">{{ row.createdAt | nepaliDate: 'datetime-seconds' }}</span>
           </div>
         }
       </div>
@@ -100,7 +100,7 @@
           <tbody>
             @for (row of smsRows(); track row.id) {
               <tr>
-                <td>{{ row.sentAt }}</td>
+                <td class="text-nowrap">{{ row.sentAt | nepaliDate: 'datetime-seconds' }}</td>
                 <td>{{ row.title }}</td>
                 <td class="text-truncate" style="max-width: 260px;">{{ row.content }}</td>
                 <td class="text-end">{{ row.creditsUsed }}</td>
@@ -143,7 +143,7 @@
           <tbody>
             @for (row of emailRows(); track row.id) {
               <tr>
-                <td class="text-nowrap">{{ row.createdAt | date: 'short' }}</td>
+                <td class="text-nowrap">{{ row.createdAt | nepaliDate: 'datetime-seconds' }}</td>
                 <td>
                   {{ row.recipients }}
                   @if (row.cc) {

@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
@@ -28,6 +27,7 @@ import { CurrencyRateFields } from '../../../shared/currency/currency-rate-field
 import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 interface EditableAllocation {
   key: number;
@@ -44,7 +44,7 @@ let nextAllocationKey = 1;
  * -- exact mirror of Customer Payment's posting"). */
 @Component({
   selector: 'app-supplier-payment-detail-page',
-  imports: [RouterLink, DatePipe, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, SendEmailDialog, DocumentLocationPicker, CurrencyRateFields, StatusBanner, FieldErrorMessage],
+  imports: [RouterLink, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, SendEmailDialog, DocumentLocationPicker, CurrencyRateFields, StatusBanner, FieldErrorMessage, NepaliDatePipe],
   templateUrl: './supplier-payment-detail-page.html',
 })
 export class SupplierPaymentDetailPage {

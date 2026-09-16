@@ -117,6 +117,61 @@ describe('InventoryPositionPage', () => {
     expect(text()).toContain('940.000');
   });
 
+  /**
+   * Phase 48, closing phase 44's carried item #6 for this screen.
+   *
+   * Phase 44's live read (Moonbeam, 2026-09-15) settled a pair phase 36 could not tell apart on a
+   * tenant it believed had one warehouse: <b>Display Warehouse in Column is not an alternative to
+   * Group by Warehouse, it is a modifier of it</b>, `disabled` until that one is ticked. The server
+   * refuses it alone with a 400 naming the field, so a screen that let the pair drift would show a
+   * checked box above an error.
+   */
+  describe('the warehouse column pair (phase 44)', () => {
+    function groupBox(element: HTMLElement): HTMLInputElement {
+      return element.querySelector<HTMLInputElement>('#inventory-position-page-group-by-warehouse')!;
+    }
+
+    function columnBox(element: HTMLElement): HTMLInputElement {
+      return element.querySelector<HTMLInputElement>('#inventory-position-page-display-warehouse-in-column')!;
+    }
+
+    function tick(fixture: { detectChanges(): void }, box: HTMLInputElement, checked: boolean): void {
+      box.checked = checked;
+      box.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+    }
+
+    it('disables the modifier until its parent is ticked', () => {
+      const { element } = page();
+
+      expect(groupBox(element), 'Group by Warehouse was not found').toBeTruthy();
+      expect(columnBox(element).disabled, 'the modifier must start disabled').toBe(true);
+    });
+
+    it('enables the modifier once the parent is ticked', () => {
+      const { element, fixture } = page();
+
+      tick(fixture, groupBox(element), true);
+
+      expect(columnBox(element).disabled).toBe(false);
+    });
+
+    it('clears the modifier when the parent is unticked', () => {
+      // Otherwise the next request carries a flag the server refuses on its own, and the screen
+      // shows a checked box above a 400.
+      const { element, fixture } = page();
+
+      tick(fixture, groupBox(element), true);
+      tick(fixture, columnBox(element), true);
+      expect(columnBox(element).checked).toBe(true);
+
+      tick(fixture, groupBox(element), false);
+
+      expect(columnBox(element).checked, 'unticking the parent must clear the modifier').toBe(false);
+      expect(columnBox(element).disabled).toBe(true);
+    });
+  });
+
   it('shows an empty state rather than a blank table', () => {
     const { text } = page({ items: [], totalCount: 0, totalQuantity: 0, totalAmount: 0 });
 

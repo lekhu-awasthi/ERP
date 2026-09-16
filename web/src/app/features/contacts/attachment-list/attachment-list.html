@@ -35,7 +35,7 @@
             <div>
               <p class="fw-semibold mb-0 text-dark">{{ row.fileName }}</p>
               <span class="text-muted small">
-                {{ formatSize(row.sizeBytes) }} · {{ row.uploadedByName }} · {{ row.uploadedAt | date: 'short' }}
+                {{ formatSize(row.sizeBytes) }} · {{ row.uploadedByName }} · {{ row.uploadedAt | nepaliDate: 'datetime' }}
               </span>
             </div>
           </div>

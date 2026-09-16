@@ -3,6 +3,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 import { BS_MONTH_NAMES, BsDate, FIRST_BS_YEAR, LAST_BS_YEAR, adToBs, bsDaysInMonth, bsToAd, formatBs, parseBs } from './bs-date';
 import { DatePreferenceService } from './date-preference';
+import { nepalToday } from './nepal-time';
 
 interface DayCell {
   readonly bsDay: number;
@@ -327,11 +328,10 @@ function toIsoOrder(dmy: string): string {
 /**
  * Today on the <b>Nepal wall clock</b>, never UTC -- this is a Nepal-only product, and between
  * 18:15 and 24:00 UTC the Nepal calendar date is already tomorrow, so a UTC-derived "today" would
- * silently highlight the wrong day in the picker. Mirrors `Domain/Common/NepalTime`'s fixed
- * UTC+05:45 offset (Nepal has had no DST since 1986). Note this is a time-zone concern and is
- * separate from the BS calendar conversion itself.
+ * silently highlight the wrong day in the picker. Note this is a time-zone concern and is separate
+ * from the BS calendar conversion itself; phase 48 moved the offset to `nepal-time.ts`, which is
+ * now the app's only copy of it.
  */
 function isoToday(): string {
-  const nowMs = Date.now() + (5 * 60 + 45) * 60_000;
-  return new Date(nowMs).toISOString().slice(0, 10);
+  return nepalToday();
 }

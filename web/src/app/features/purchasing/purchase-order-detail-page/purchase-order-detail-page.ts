@@ -363,7 +363,7 @@ export class PurchaseOrderDetailPage {
       .map((l) => ({ productId: l.productId, quantity: l.quantity, rate: l.rate, vatRate: l.vatRate, discountPct: l.discountPct }));
 
     if (lines.length === 0) {
-      this.errorMessage.set('Add at least one line with a Product and a Quantity.');
+      this.fieldError.fail('purchase-order-detail-page-add-line', 'Add at least one line with a Product and a Quantity.');
       return null;
     }
 

@@ -1,20 +1,15 @@
 import { LowerCasePipe } from '@angular/common';
 import { Component, OnInit, inject, input, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
-import { TaskType } from '../../../core/configuration/configuration.models';
-import { ConfigurationService } from '../../../core/configuration/configuration.service';
-import { OrganizationMember } from '../../../core/organizations/organizations.models';
-import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { TaskParentType, TaskRow, TaskStatus } from '../../../core/workflow/workflow.models';
 import { WorkflowService } from '../../../core/workflow/workflow.service';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
-import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { TaskForm } from '../task-form/task-form';
 
 /**
  * Shared Task list component (roadmap Phase 13) -- reused, not duplicated, across its two
@@ -26,14 +21,11 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
  */
 @Component({
   selector: 'app-task-list',
-  imports: [ReactiveFormsModule, LowerCasePipe, RouterLink, PaginationControl, BsDateInput, NepaliDatePipe, StatusBanner],
+  imports: [LowerCasePipe, RouterLink, PaginationControl, NepaliDatePipe, StatusBanner, TaskForm],
   templateUrl: './task-list.html',
 })
 export class TaskList implements OnInit {
   private readonly workflowService = inject(WorkflowService);
-  private readonly configurationService = inject(ConfigurationService);
-  private readonly organizationsService = inject(OrganizationsService);
-  private readonly fb = inject(FormBuilder);
 
   readonly organizationId = input.required<string>();
   /**
@@ -64,11 +56,7 @@ export class TaskList implements OnInit {
   protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
   protected readonly totalCount = signal(0);
 
-  protected readonly taskTypes = signal<TaskType[]>([]);
-  protected readonly members = signal<OrganizationMember[]>([]);
-
   protected readonly showCreateForm = signal(false);
-  protected readonly saving = signal(false);
 
   /**
    * Every filter on this list calls `page.set(1)` before reloading, and a swept-in one has to copy
@@ -81,25 +69,9 @@ export class TaskList implements OnInit {
     this.load();
   }
 
-  protected readonly form = this.fb.nonNullable.group({
-    title: ['', [Validators.required, Validators.maxLength(200)]],
-    description: [''],
-    assignedToUserId: [''],
-    dueDate: [''],
-    taskTypeId: ['', Validators.required],
-    priority: ['Normal' as 'Normal' | 'Urgent', Validators.required],
-    isPrivate: [false],
-  });
-
   // Reads required inputs, so this runs from ngOnInit (guaranteed after Angular has bound the
   // inputs), not the constructor (NG8118 -- an input() isn't readable that early).
   ngOnInit(): void {
-    this.configurationService.listTaskTypes(this.organizationId()).subscribe({
-      next: (types) => this.taskTypes.set(types),
-    });
-    this.organizationsService.listMembers(this.organizationId()).subscribe({
-      next: (members) => this.members.set(members),
-    });
     this.load();
   }
 
@@ -123,52 +95,17 @@ export class TaskList implements OnInit {
   protected toggleCreateForm(): void {
     this.showCreateForm.set(!this.showCreateForm());
     this.errorMessage.set(null);
-    this.form.reset({
-      title: '',
-      description: '',
-      assignedToUserId: '',
-      dueDate: '',
-      taskTypeId: '',
-      priority: 'Normal',
-      isPrivate: false,
-    });
   }
 
-  protected submitCreate(): void {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      return;
-    }
-
-    this.saving.set(true);
-    this.errorMessage.set(null);
-
-    const { title, description, assignedToUserId, dueDate, taskTypeId, priority, isPrivate } = this.form.getRawValue();
-
-    this.workflowService
-      .createTask(this.organizationId(), {
-        parentType: this.parentType() ?? 'Organization',
-        parentId: this.parentId() ?? this.organizationId(),
-        title,
-        description: description || null,
-        assignedToUserId: assignedToUserId || null,
-        dueDate: dueDate || null,
-        taskTypeId,
-        priority,
-        isPrivate,
-      })
-      .subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.showCreateForm.set(false);
-          this.activeStatus.set('Pending');
-          this.load();
-        },
-        error: (err: unknown) => {
-          this.saving.set(false);
-          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not create task. Please try again.');
-        },
-      });
+  /**
+   * Phase 48 -- `app-task-form` owns the fields, the validation and the POST; this list owns only
+   * the reload. A new task is always Pending, so switching to that tab is showing the user the row
+   * they just made rather than a guess.
+   */
+  protected onCreated(): void {
+    this.showCreateForm.set(false);
+    this.activeStatus.set('Pending');
+    this.load();
   }
 
   protected start(row: TaskRow): void {

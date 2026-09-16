@@ -39,62 +39,14 @@
 <app-status-banner [message]="errorMessage()" spacing="mb-3" />
 
 @if (showCreateForm()) {
-  <form [formGroup]="form" (ngSubmit)="submitCreate()" class="card border-0 bg-light-subtle border mb-3">
-    <div class="card-body p-3">
-      <div class="row g-3">
-        <div class="col-12 col-sm-6">
-          <label class="form-label small fw-semibold" for="task-list-title">Title</label>
-          <input id="task-list-title" type="text" class="form-control form-control-sm" formControlName="title" />
-        </div>
-        <div class="col-6 col-sm-3">
-          <label class="form-label small fw-semibold" for="task-list-type">Type</label>
-          <select id="task-list-type" class="form-select form-select-sm" formControlName="taskTypeId">
-            <option value="" disabled>Select...</option>
-            @for (type of taskTypes(); track type.id) {
-              <option [value]="type.id">{{ type.name }}</option>
-            }
-          </select>
-        </div>
-        <div class="col-6 col-sm-3">
-          <label class="form-label small fw-semibold" for="task-list-priority">Priority</label>
-          <select id="task-list-priority" class="form-select form-select-sm" formControlName="priority">
-            <option value="Normal">Normal</option>
-            <option value="Urgent">Urgent</option>
-          </select>
-        </div>
-        <div class="col-12">
-          <label class="form-label small fw-semibold" for="task-list-description">Description</label>
-          <textarea id="task-list-description" class="form-control form-control-sm" formControlName="description" rows="2"></textarea>
-        </div>
-        <div class="col-6 col-sm-4">
-          <label class="form-label small fw-semibold" for="task-list-due-date">Due Date</label>
-          <app-bs-date-input [inputId]="'task-list-due-date'" [inputClass]="'form-control form-control-sm'" formControlName="dueDate" />
-        </div>
-        <div class="col-6 col-sm-5">
-          <label class="form-label small fw-semibold" for="task-list-assigned-to">Assigned To</label>
-          <select id="task-list-assigned-to" class="form-select form-select-sm" formControlName="assignedToUserId">
-            <option value="">Unassigned</option>
-            @for (member of members(); track member.userId) {
-              <option [value]="member.userId">{{ member.fullName }}</option>
-            }
-          </select>
-        </div>
-        <div class="col-12 col-sm-3 form-check pt-4 ps-4">
-          <input type="checkbox" class="form-check-input" id="isPrivate" formControlName="isPrivate" />
-          <label class="form-check-label small" for="isPrivate">Private</label>
-        </div>
-        <div class="col-12">
-          <button type="submit" class="btn btn-primary btn-sm fw-bold" [disabled]="saving()">
-            @if (saving()) {
-              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-            } @else {
-              Create Task
-            }
-          </button>
-        </div>
-      </div>
-    </div>
-  </form>
+  <app-task-form
+    [organizationId]="organizationId()"
+    [parentType]="parentType()"
+    [parentId]="parentId()"
+    idPrefix="task-list"
+    (saved)="onCreated()"
+    (cancelled)="toggleCreateForm()"
+  />
 }
 
 @if (loading()) {

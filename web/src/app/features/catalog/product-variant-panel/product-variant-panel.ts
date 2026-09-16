@@ -104,10 +104,76 @@ export class ProductVariantPanelComponent implements OnInit {
 
   protected cancelEditAttributes(): void {
     this.editingAttributes.set(false);
+    this.attributeFilter.set('');
   }
+
+  /**
+   * Phase 48 (45 carried item #1, 47 Decision H #3) -- the filter term for the Attributes Used
+   * editor. Its own signal written by the input handler, never a `computed()` over a FormControl:
+   * the app is zoneless and that caches for ever (phase-17).
+   */
+  protected readonly attributeFilter = signal('');
+
+  protected onAttributeFilterInput(event: Event): void {
+    this.attributeFilter.set((event.target as HTMLInputElement).value);
+  }
+
+  /**
+   * The catalogue narrowed by the filter term. An attribute survives if its <i>own</i> name matches
+   * (keeping all its options) or if any option matches (keeping just those), so typing "Red" finds
+   * the colour and typing "Colour" finds every colour -- both are things a user means by that box.
+   *
+   * <p>An attribute whose options are all filtered out is dropped entirely rather than rendered
+   * empty, because a heading over nothing reads as "this attribute has no options".</p>
+   */
+  protected readonly filteredCatalog = computed(() => {
+    const term = this.attributeFilter().trim().toLowerCase();
+    if (!term) {
+      return this.catalog();
+    }
+    return this.catalog()
+      .map((attribute) =>
+        attribute.name.toLowerCase().includes(term)
+          ? attribute
+          : { ...attribute, options: attribute.options.filter((o) => o.value.toLowerCase().includes(term)) },
+      )
+      .filter((attribute) => attribute.options.length > 0);
+  });
 
   protected isOptionSelected(optionId: string): boolean {
     return this.selectedOptionIds().has(optionId);
+  }
+
+  /**
+   * Whether every <i>currently visible</i> option of this attribute is selected -- visible, not all,
+   * so that Select all beside a filtered list does what the list in front of the user says. The
+   * argument is the already-filtered attribute for the same reason.
+   */
+  protected areAllSelected(attribute: VariantAttribute): boolean {
+    const selected = this.selectedOptionIds();
+    return attribute.options.length > 0 && attribute.options.every((o) => selected.has(o.id));
+  }
+
+  /** Select all / Clear all for one attribute's visible options. */
+  protected toggleAll(attribute: VariantAttribute): void {
+    const selectAll = !this.areAllSelected(attribute);
+    this.selectedOptionIds.update((current) => {
+      const next = new Set(current);
+      for (const option of attribute.options) {
+        if (selectAll) {
+          next.add(option.id);
+        } else {
+          next.delete(option.id);
+        }
+      }
+      return next;
+    });
+  }
+
+  /** How many of this attribute's options are selected, for the count beside its name. */
+  protected selectedCount(attribute: VariantAttribute): number {
+    const selected = this.selectedOptionIds();
+    return attribute.options.filter((o) => selected.has(o.id)).length;
   }
 
   protected toggleOption(optionId: string): void {

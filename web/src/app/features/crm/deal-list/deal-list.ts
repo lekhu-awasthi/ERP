@@ -1,22 +1,17 @@
 import { Component, OnInit, inject, input, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
-import { DealStage, LeadSource } from '../../../core/configuration/configuration.models';
-import { Contact } from '../../../core/contacts/contacts.models';
-import { ContactsService } from '../../../core/contacts/contacts.service';
+import { DealStage } from '../../../core/configuration/configuration.models';
 import { CrmService } from '../../../core/crm/crm.service';
 import { DealRow, DealStatus } from '../../../core/crm/crm.models';
-import { OrganizationMember } from '../../../core/organizations/organizations.models';
-import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
-import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { DealForm } from '../deal-form/deal-form';
 
 /**
  * Shared Deal list component (roadmap Phase 15) -- reused, not duplicated, across its two
@@ -32,15 +27,12 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
  */
 @Component({
   selector: 'app-deal-list',
-  imports: [ReactiveFormsModule, RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, StatusBanner],
+  imports: [RouterLink, PaginationControl, AmountPipe, NepaliDatePipe, StatusBanner, DealForm],
   templateUrl: './deal-list.html',
 })
 export class DealList implements OnInit {
   private readonly crmService = inject(CrmService);
   private readonly configurationService = inject(ConfigurationService);
-  private readonly contactsService = inject(ContactsService);
-  private readonly organizationsService = inject(OrganizationsService);
-  private readonly fb = inject(FormBuilder);
 
   readonly organizationId = input.required<string>();
   readonly contactId = input<string | null>(null);
@@ -56,13 +48,9 @@ export class DealList implements OnInit {
   protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
   protected readonly totalCount = signal(0);
 
-  protected readonly leadSources = signal<LeadSource[]>([]);
   protected readonly dealStages = signal<DealStage[]>([]);
-  protected readonly members = signal<OrganizationMember[]>([]);
-  protected readonly dealableContacts = signal<Contact[]>([]);
 
   protected readonly showCreateForm = signal(false);
-  protected readonly saving = signal(false);
 
   /** Phase 39 -- the search box the live CRM > Deals list carries. Its own signal, written by the
    * input handler: the app is zoneless, so a `computed()` over a FormControl's value caches for
@@ -77,35 +65,16 @@ export class DealList implements OnInit {
     this.load();
   }
 
-  protected readonly form = this.fb.nonNullable.group({
-    contactId: ['', Validators.required],
-    title: ['', [Validators.required, Validators.maxLength(200)]],
-    description: [''],
-    leadSourceId: [''],
-    expectedRevenue: [0, [Validators.required, Validators.min(0)]],
-    expectedClosingDate: [''],
-    isPrivate: [false],
-  });
-
-  protected readonly selectedAssigneeIds = signal<Set<string>>(new Set());
-
   // Reads required inputs, so this runs from ngOnInit (guaranteed after Angular has bound the
   // inputs), not the constructor (NG8118 -- an input() isn't readable that early).
+  //
+  // Deal stages stay here and not in app-deal-form: they drive the per-row inline Stage dropdown on
+  // the grid, which is a list control rather than a form field (the live Update Deals modal has no
+  // Stage either).
   ngOnInit(): void {
-    this.configurationService.listLeadSources(this.organizationId()).subscribe({
-      next: (sources) => this.leadSources.set(sources),
-    });
     this.configurationService.listDealStages(this.organizationId()).subscribe({
       next: (stages) => this.dealStages.set(stages.sort((a, b) => a.sortOrder - b.sortOrder)),
     });
-    this.organizationsService.listMembers(this.organizationId()).subscribe({
-      next: (members) => this.members.set(members),
-    });
-    if (!this.contactId()) {
-      this.contactsService.listAllContacts(this.organizationId()).subscribe({
-        next: (contacts) => this.dealableContacts.set(contacts.filter((c) => c.type !== 'Supplier')),
-      });
-    }
     this.load();
   }
 
@@ -129,63 +98,13 @@ export class DealList implements OnInit {
   protected toggleCreateForm(): void {
     this.showCreateForm.set(!this.showCreateForm());
     this.errorMessage.set(null);
-    this.selectedAssigneeIds.set(new Set());
-    this.form.reset({
-      contactId: this.contactId() ?? '',
-      title: '',
-      description: '',
-      leadSourceId: '',
-      expectedRevenue: 0,
-      expectedClosingDate: '',
-      isPrivate: false,
-    });
   }
 
-  protected toggleAssignee(userId: string): void {
-    const next = new Set(this.selectedAssigneeIds());
-    if (next.has(userId)) {
-      next.delete(userId);
-    } else {
-      next.add(userId);
-    }
-    this.selectedAssigneeIds.set(next);
-  }
-
-  protected submitCreate(): void {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      return;
-    }
-
-    this.saving.set(true);
-    this.errorMessage.set(null);
-
-    const { contactId, title, description, leadSourceId, expectedRevenue, expectedClosingDate, isPrivate } =
-      this.form.getRawValue();
-
-    this.crmService
-      .createDeal(this.organizationId(), {
-        contactId,
-        title,
-        assigneeUserIds: [...this.selectedAssigneeIds()],
-        leadSourceId: leadSourceId || null,
-        description: description || null,
-        expectedRevenue,
-        expectedClosingDate: expectedClosingDate || null,
-        isPrivate,
-      })
-      .subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.showCreateForm.set(false);
-          this.activeStatus.set('Pending');
-          this.load();
-        },
-        error: (err: unknown) => {
-          this.saving.set(false);
-          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not create deal. Please try again.');
-        },
-      });
+  /** Phase 48 -- see TaskList.onCreated; a new deal is always Pending. */
+  protected onCreated(): void {
+    this.showCreateForm.set(false);
+    this.activeStatus.set('Pending');
+    this.load();
   }
 
   protected changeStage(row: DealRow, event: Event): void {

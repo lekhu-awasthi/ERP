@@ -241,11 +241,23 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h6 class="fw-bold text-dark mb-0">Lines</h6>
           @if (isDraft()) {
-            <button type="button" class="btn btn-outline-primary btn-sm" (click)="addLine()">
+            <button
+              type="button"
+              class="btn btn-outline-primary btn-sm"
+              id="invoice-detail-page-add-line"
+              [class.is-invalid]="fieldError.is('invoice-detail-page-add-line')"
+              [attr.aria-invalid]="fieldError.invalid('invoice-detail-page-add-line')"
+              [attr.aria-describedby]="fieldError.describedBy('invoice-detail-page-add-line')"
+              (click)="addLine()"
+            >
               <i aria-hidden="true" class="bi bi-plus-lg"></i> Add Line
             </button>
           }
         </div>
+
+        <!-- Phase 48 (47 #4). "Add at least one line" was banner-only because it named no control.
+             The control it names is the button that adds one. -->
+        <app-field-error [state]="fieldError" control="invoice-detail-page-add-line" />
 
         <div class="table-responsive">
           <table class="table align-middle">
@@ -472,7 +484,7 @@
               </table>
             </div>
             <p class="text-muted small mb-0 mt-2">
-              Approved {{ inv.approvedAt | date: 'medium' }}
+              Approved {{ inv.approvedAt | nepaliDate: 'datetime-seconds' }}
             </p>
           </div>
         </div>

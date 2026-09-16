@@ -2,6 +2,20 @@ import { Pipe, PipeTransform, inject } from '@angular/core';
 
 import { adToBs, formatBs } from './bs-date';
 import { DatePreferenceService } from './date-preference';
+import { instantToNepal, isInstant } from './nepal-time';
+
+/**
+ * How much of an instant to show. `'date'` (the default) is the calendar date alone; `'datetime'`
+ * appends the Nepal wall-clock time as `HH:mm`; `'datetime-seconds'` appends `HH:mm:ss`.
+ *
+ * <p>The third exists because two audit screens need to the second — and that is a reason to render
+ * seconds, never a reason to render the wrong calendar. `user-log-page` had carried the sentence
+ * "the seconds matter more here than the calendar does" since phase 26c, which reads as a decision
+ * and is really a false choice: nothing about a BS date prevents it carrying seconds. An Admin
+ * reading the sign-in log with the calendar set to BS saw Gregorian dates, in the one report where
+ * being sure which day something happened on matters most.</p>
+ */
+export type NepaliDateMode = 'date' | 'datetime' | 'datetime-seconds';
 
 /**
  * NFR-1.1's display half: renders an ISO `yyyy-MM-dd` date in whichever calendar the user has
@@ -20,17 +34,55 @@ import { DatePreferenceService } from './date-preference';
  * something wrong. `bs-date.ts` only covers BS 2000..2092 (AD 1943-04-14..2036-04-13); a date
  * outside it renders as a visibly-AD date, which is honest and non-destructive, where a guessed BS
  * date would not be.
+ *
+ * <h4>Phase 48 — an <i>instant</i> is shifted to the Nepal wall clock before its date is taken</h4>
+ *
+ * <p>Most values reaching this pipe are `DateOnly` — a business date with no time zone, which needs
+ * no shifting. Some are `DateTimeOffset`s serialised as UTC (`2026-09-14T20:00:00+00:00`), and the
+ * previous implementation took `slice(0, 10)` of those, which is the <b>UTC</b> day. Between 18:15
+ * and 24:00 UTC that is the day before the one the event happened on in Kathmandu, so the
+ * Transaction List has been dating late-evening approvals to the previous day since phase 12. The
+ * shift happens here rather than at each call site because a caller cannot tell from a string
+ * whether it is looking at a date or an instant — but this pipe can.</p>
+ *
+ * <p><b>`| nepaliDate: 'datetime'`</b> adds the wall-clock time. It is a mode on this pipe and not a
+ * second pipe, because two pipes for one calendar is the divergence phase-26b's shared table exists
+ * to prevent: the time is rendered from the same shifted instant that produced the date, so the two
+ * halves can never disagree about which day it is. Asking for a time on a date-only value returns
+ * the date alone rather than inventing `00:00`.</p>
  */
 @Pipe({ name: 'nepaliDate', pure: false })
 export class NepaliDatePipe implements PipeTransform {
   private readonly preference = inject(DatePreferenceService);
 
-  transform(value: string | null | undefined): string {
+  transform(value: string | null | undefined, mode: NepaliDateMode = 'date'): string {
     if (!value) {
       return '';
     }
-    // Tolerate a full ISO timestamp by taking just the date part -- some DTO fields are instants.
-    const iso = value.length > 10 ? value.slice(0, 10) : value;
+
+    // A calendar date carries no time zone and is rendered as it stands; an instant is an event,
+    // and the day it happened on is its day in Kathmandu.
+    if (!isInstant(value)) {
+      return this.render(value);
+    }
+
+    const nepal = instantToNepal(value);
+    if (nepal === null) {
+      return value; // Unparseable: show it rather than render NaN.
+    }
+
+    const date = this.render(nepal.date);
+    switch (mode) {
+      case 'datetime':
+        return `${date} ${nepal.time}`;
+      case 'datetime-seconds':
+        return `${date} ${nepal.seconds}`;
+      default:
+        return date;
+    }
+  }
+
+  private render(iso: string): string {
     return this.preference.isBs() ? toBsDisplay(iso) : toAdDisplay(iso);
   }
 }

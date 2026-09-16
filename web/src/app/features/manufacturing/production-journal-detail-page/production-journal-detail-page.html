@@ -63,7 +63,7 @@
     />
             @if (journal(); as doc) {
               <span class="text-muted small">
-                Created {{ doc.createdAt | date: 'medium' }}
+                Created {{ doc.createdAt | nepaliDate: 'datetime-seconds' }}
                 @if (doc.referrerId) {
                   · converted from a Production Order
                 }

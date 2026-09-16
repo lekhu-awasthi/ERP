@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
@@ -18,6 +17,7 @@ import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 interface EditableLine {
   key: number;
@@ -35,7 +35,7 @@ let nextLineKey = 1;
  * credit). */
 @Component({
   selector: 'app-cash-transfer-detail-page',
-  imports: [RouterLink, DatePipe, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner, FieldErrorMessage],
+  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner, FieldErrorMessage, NepaliDatePipe],
   templateUrl: './cash-transfer-detail-page.html',
 })
 export class CashTransferDetailPage {
@@ -250,7 +250,7 @@ Approve anyway?`)) {
       .map((l) => ({ toAccountId: l.toAccountId, amount: l.amount }));
 
     if (lines.length === 0) {
-      this.errorMessage.set('Add at least one destination line with an Account and an Amount.');
+      this.fieldError.fail('cash-transfer-detail-page-add-line', 'Add at least one destination line with an Account and an Amount.');
       return null;
     }
 

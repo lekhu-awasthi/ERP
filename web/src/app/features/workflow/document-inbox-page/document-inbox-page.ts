@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -36,7 +36,7 @@ import { SubscriptionStore } from '../../../shared/platform/subscription.store';
  */
 @Component({
   selector: 'app-document-inbox-page',
-  imports: [RouterLink, DatePipe, DecimalPipe, NepaliDatePipe, StatusBanner],
+  imports: [RouterLink, DecimalPipe, NepaliDatePipe, StatusBanner],
   templateUrl: './document-inbox-page.html',
 })
 export class DocumentInboxPage {

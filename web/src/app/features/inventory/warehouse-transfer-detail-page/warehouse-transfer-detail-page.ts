@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
@@ -18,6 +17,7 @@ import { DocumentLocationPicker } from '../../../shared/locations/document-locat
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 interface EditableLine {
   key: number;
@@ -32,7 +32,7 @@ let nextLineKey = 1;
  * or GL Transactions section here, unlike every other transactional detail page. */
 @Component({
   selector: 'app-warehouse-transfer-detail-page',
-  imports: [RouterLink, DatePipe, BsDateInput, DocumentTabs, ReportingTagsEditor, DocumentLocationPicker, StatusBanner, FieldErrorMessage],
+  imports: [RouterLink, BsDateInput, DocumentTabs, ReportingTagsEditor, DocumentLocationPicker, StatusBanner, FieldErrorMessage, NepaliDatePipe],
   templateUrl: './warehouse-transfer-detail-page.html',
 })
 export class WarehouseTransferDetailPage {
@@ -241,7 +241,7 @@ export class WarehouseTransferDetailPage {
       .map((l) => ({ productId: l.productId, quantity: l.quantity }));
 
     if (lines.length === 0) {
-      this.errorMessage.set('Add at least one line with a Product and a Quantity.');
+      this.fieldError.fail('warehouse-transfer-detail-page-add-line', 'Add at least one line with a Product and a Quantity.');
       return null;
     }
 

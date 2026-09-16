@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
@@ -29,6 +28,7 @@ import { openBlankTabForPrint, openBlobInNewTab } from '../../../shared/download
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 interface EditableLine {
   key: number;
@@ -49,7 +49,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-expense-detail-page',
-  imports: [RouterLink, DatePipe, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner, FieldErrorMessage],
+  imports: [RouterLink, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner, FieldErrorMessage, NepaliDatePipe],
   templateUrl: './expense-detail-page.html',
 })
 export class ExpenseDetailPage {
@@ -380,7 +380,7 @@ this.exchangeRate.set(1);
       .map((l) => ({ accountId: l.accountId, amount: l.amount, vatRate: l.vatRate }));
 
     if (lines.length === 0) {
-      this.errorMessage.set('Add at least one line with an Account and an Amount.');
+      this.fieldError.fail('expense-detail-page-add-line', 'Add at least one line with an Account and an Amount.');
       return null;
     }
 

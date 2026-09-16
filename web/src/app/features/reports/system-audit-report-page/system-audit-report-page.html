@@ -104,7 +104,7 @@
               <tbody>
                 @for (row of r.items; track row.id) {
                   <tr>
-                    <td>{{ row.createdAt | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+                    <td>{{ row.createdAt | nepaliDate: 'datetime-seconds' }}</td>
                     <td>{{ row.userName }}</td>
                     <td>
                       <span class="badge bg-primary-subtle text-primary-emphasis">{{ row.action }}</span>

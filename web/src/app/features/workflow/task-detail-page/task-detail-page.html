@@ -4,6 +4,27 @@
       <i aria-hidden="true" class="bi bi-arrow-left"></i> Tasks
     </a>
     <h1 class="h4 fw-bold mb-0 text-dark">{{ task()?.title ?? 'Task' }}</h1>
+
+    <!-- Phase 48 (43 items #4 and #7). The live page carries both in its top bar: MARK AS DONE
+         beside OPTION > Edit (read 2026-09-16). Done is terminal -- WorkTask.TransitionStatus only
+         moves forward -- so the button is absent, not disabled, once the task is Done. -->
+    @if (task(); as row) {
+      <div class="ms-auto d-flex gap-2">
+        @if (row.status !== 'Done') {
+          <button type="button" class="btn btn-success btn-sm fw-bold" [disabled]="completing()" (click)="markDone()">
+            @if (completing()) {
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            } @else {
+              MARK AS DONE
+            }
+          </button>
+        }
+        <a
+          class="btn btn-outline-secondary btn-sm"
+          [routerLink]="['/organizations', organizationId, 'workflow', 'tasks', taskId, 'edit']"
+        >Edit</a>
+      </div>
+    }
   </div>
 
   <app-status-banner [message]="errorMessage()" />

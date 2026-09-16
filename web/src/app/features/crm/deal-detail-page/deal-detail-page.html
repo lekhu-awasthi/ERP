@@ -4,6 +4,15 @@
       <i aria-hidden="true" class="bi bi-arrow-left"></i> Deals
     </a>
     <h1 class="h4 fw-bold mb-0 text-dark">{{ deal()?.title ?? 'Deal' }}</h1>
+
+    <!-- Phase 48 (43 carried item #4). The live page reaches this through OPTION > Edit; this app
+         has no modal mechanism (phase 22: Bootstrap's JS is not loaded), so it is a route. -->
+    @if (deal()) {
+      <a
+        class="btn btn-outline-secondary btn-sm ms-auto"
+        [routerLink]="['/organizations', organizationId, 'crm', 'deals', dealId, 'edit']"
+      >Edit</a>
+    }
   </div>
 
   <app-status-banner [message]="errorMessage()" />

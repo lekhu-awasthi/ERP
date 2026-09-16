@@ -199,7 +199,7 @@
                     }
                   </td>
                   <td class="small text-muted">
-                    <div>{{ document.uploadedAt | date: 'mediumDate' }}</div>
+                    <div>{{ document.uploadedAt | nepaliDate: 'date' }}</div>
                     <div>{{ document.uploadedByName }}</div>
                   </td>
                   <td class="small">
@@ -405,7 +405,7 @@
               @if (document.extractionModelId) {
                 <div class="form-text mt-2">
                   Read by <code>{{ document.extractionModelId }}</code> on
-                  {{ document.extractionAttemptedAt | date: 'medium' }}.
+                  {{ document.extractionAttemptedAt | nepaliDate: 'datetime-seconds' }}.
                 </div>
               }
             </div>
@@ -430,7 +430,7 @@
             <div class="alert alert-success small mb-0">
               This document was converted into a
               <a class="fw-bold" [routerLink]="route">{{ targetLabels[document.linkedTransactionType!] }}</a>
-              on {{ document.linkedAt | date: 'medium' }}. To create another transaction from the same page, upload
+              on {{ document.linkedAt | nepaliDate: 'datetime-seconds' }}. To create another transaction from the same page, upload
               the file again.
             </div>
           }

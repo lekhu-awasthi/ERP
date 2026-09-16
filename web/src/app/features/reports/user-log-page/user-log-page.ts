@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
@@ -12,17 +11,23 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 /**
  * Phase 26c -- the login/logout/failed-login event log. Admin-only, because it discloses per-person
  * IP addresses, devices and the addresses that failed to sign in.
  *
- * The timestamp is rendered with Angular's own `DatePipe`, not `NepaliDatePipe`: this is a
- * to-the-second audit trail, and the seconds matter more here than the calendar does.
+ * <b>Phase 48 corrects this page's own recorded reason.</b> It said the timestamp used Angular's
+ * `DatePipe` rather than `NepaliDatePipe` because "this is a to-the-second audit trail, and the
+ * seconds matter more here than the calendar does" — which reads as a trade-off and is a false
+ * choice: a BS date carries seconds perfectly well. The effect was that an Admin with the calendar
+ * set to BS read Gregorian dates here, on the one report where being certain which day a sign-in
+ * happened on matters most. It now renders `| nepaliDate: 'datetime-seconds'` — the seconds kept,
+ * the calendar obeyed.
  */
 @Component({
   selector: 'app-user-log-page',
-  imports: [RouterLink, DatePipe, PaginationControl, BsDateInput, StatusBanner],
+  imports: [RouterLink, PaginationControl, BsDateInput, StatusBanner, NepaliDatePipe],
   templateUrl: './user-log-page.html',
 })
 export class UserLogPage {
