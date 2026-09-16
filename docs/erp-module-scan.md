@@ -1,4 +1,4 @@
-﻿# Moonbeam ERP (Tigg) — Module Scan
+# Moonbeam ERP (Tigg) — Module Scan
 
 Source: https://moonbeamtradingandsuppliers.tigguat.com/erp/#/ (a tenant instance of the "Tigg" ERP/POS/CRM+Accounting platform, tigg.app). Logged in with demo credentials. This doc is built incrementally, module by module, to spec out a similar Clean-Architecture (.NET LTS + Angular LTS, CQRS) application.
 
@@ -1185,3 +1185,56 @@ was sold and an honest guard against drifting past it unnoticed, not a control t
 adversary — now rests on live evidence for all three axes rather than on inference from one.
 
 Consequences are written up in `docs/phase-46-status.md`.
+
+---
+
+## The August 2026 release: batch and serial traceability (Moonbeam, read-only, 2026-09-16)
+
+Read after the user logged in; nothing was entered or saved, and two modals were opened and
+dismissed. **This corrects the 2026-09-10 finding** that the login banner's "product traceability"
+had no counterpart on any form: it did not then, and it does now. The banner's other claims are
+unchanged — branch-level accounting is the Billing Locations this codebase built in phases 32/35a/35b,
+and e-commerce remains a PRD non-goal.
+
+### Where it is captured
+- **`Product` gained two toggles**, sitting beside the existing Track Inventory on the full New
+  Product form (behind "+ Add More Details"): **Batch Tracking** and **Serial Number Tracking**, both
+  off by default. The collapsed modal is unchanged (Type, Name, Code, Category, Tax, Primary Unit,
+  HS Code, Available For Sale) — note the **Location** selector read on Cadehi on 2026-09-10 is *not*
+  on Moonbeam's collapsed form, so that control is entitlement- or build-dependent.
+- **The Invoice and Purchase Bill line grids both gained an `Item Batch` column**, between Qty and
+  Rate: `Product / service | Qty | Item Batch | Rate | Discount | Tax | Amount`. Same column on both
+  sides, so a batch is created on receipt and consumed on issue through the same control.
+- The old workaround is still visible beside the new feature: Moonbeam's tenant-defined **Custom
+  Fields** on those same forms are still named Batch NO, Manufacturing Date, Expiry Date and Lot.
+  A tenant that faked traceability with custom fields now has a native feature to migrate to, which
+  is the outcome phase 35b guessed at when it declined to model the custom fields as traceability.
+
+### Where it is read
+- **Product detail → Inventory Details** is now a five-tab strip: Recent Transaction, Secondary Unit,
+  **Warehouse**, **Batch**, **Serial Number**. (The Warehouse tab is also new since the scan and
+  should be checked against this codebase's own product Overview.)
+  - **Batch tab** — columns BATCH NO. / MANUFACTURE DATE / EXPIRY DATE / QUANTITY, with a *Select
+    Warehouse* filter and a batch search box. Observed row: `BATCH123 | 01-09-2026 | 03-09-2026 |
+    2 CTN`. So a batch carries manufacture and expiry dates and a **per-warehouse quantity**.
+  - **Serial Number tab** — columns SERIAL NO. / WAREHOUSE / CREATED AT. Observed eight serials
+    (`A1`, `A2`, `J9`, `J10`, `J12`, `J13`, `X123`, `X345`), all in Kathmandu. So a serial is a row
+    per physical unit, located at a warehouse.
+- **The Reports catalogue is 50 → 52.** Two new entries under Inventory Report:
+  - **Product Batch Report** — `#/reports/new/batch-tracking-report`; filters Period, **Group By**,
+    **Warehouse**.
+  - **Product Serial No Report** — `#/reports/new/serial-number-tracking-report`; filters Period,
+    **Group By**, **Status**. Group By offers **None** (default), **Product**, **Warehouse**. A
+    *Status* filter implies a serial has a lifecycle (in stock versus issued), which the tab's three
+    columns do not show.
+  - **Both return `permission denied` for the demo Admin**, so the vendor gates new reports behind new
+    permission keys that this tenant's role does not hold — the same shape as this codebase's own
+    `Reports.*` keys. Their column sets are therefore **unread**, and any phase that builds them must
+    either obtain a role that holds the keys or design from the tabs and say so.
+
+### What this means for the rebuild
+A batch is a **second dimension on a FIFO layer** (quantity per product per warehouse per batch, with
+dates), and a serial is a **row per unit** at a warehouse. Both are captured on the same line control
+on both the buying and selling sides, so the line has to carry the allocation. That is a change to
+every line-bearing aggregate and to `StockLedgerService`, which is why it is its own phase rather
+than an addition to one.

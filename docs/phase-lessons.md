@@ -1092,3 +1092,24 @@ management, a platform feature) and `> Documents` (a bare upload zone, phase 18'
 `ParentType=Organization`); phase 26b confirmed the Service Charge column prints `-` on every row;
 phase 31 recorded that a supplier's credit limit is stored and, by the setting's own wording, never
 enforced. — `docs/phase-47-status.md`
+
+---
+
+## Phase index entries as written in CLAUDE.md before the 2026-09-16 trim
+
+The fourteen entries that had grown past one short line, moved verbatim; their shortened forms in CLAUDE.md keep the same "before X" hooks.
+
+- Phase 8a–8f: financial/statutory reports (TB, BS, P&L, VAT, TDS, Annex 13, Annex 5). 8b before a report-test suite seeding via real handlers; 8c before seeding a Goods Product in tests; 8f is the confirm-live-first precedent — `docs/phase-8a-status.md` … `phase-8f-status.md`
+- Phase 25: manufacturing (BOM → Production Order → Production Journal, perpetual-inventory posting). Before a value-transforming posting rule, a shared FluentValidation helper, or a browser pass in a non-interactive session — `docs/phase-25-status.md`
+- Phase 26c: Reports catalogue completed (inventory reports, return registers, Net Trading Assets, Exceptional, User Log). Before a stock report, a report that must agree with a register, or a write on an unauthenticated path — `docs/phase-26c-status.md`
+- Phase 27b: print for all 15 types, BS dates in server output, last pagers, wizard Turnstile, feature route guard, first `CustomTemplate` consumers. Before adding a print type, a server-rendered date, or a template consumer — `docs/phase-27b-status.md`
+- Phase 31: credit control + the Configurations > General screen; three dead settings enforced; stored `DueDate`; cheque bounce voids its payment; subscription expiry. Before enforcing a tenant setting, a second confirmable warning, or a NOT NULL column on a populated table — `docs/phase-31-status.md`
+- Phase 32: Billing Locations (HeadOffice seeded, cap at one, nullable `LocationId` on 17 types, Advanced panel, location-wise numbering). Before declaring a screen un-confirm-liveable, or letting a setting choose which types store a field — `docs/phase-32-status.md`
+- Phase 32b: per-location permission scope (second matrix, nullable `RolePermission.LocationId`, one branch in `AuthorizationBehavior`). Before a permission that depends on an unread row, or a request over a location-bearing type — `docs/phase-32b-status.md`
+- Phase 34b: the shell on `NavigationCatalog` (zero page-template edits), Reports index, list chrome (search on 25 queries, date range on 16). Before a paginated list query, a displayed-but-unowned filter, or `overflow` on a layout container — `docs/phase-34b-status.md`
+- Phase 42: performance follow-through (`ToKeyPagedResultAsync` on 16 lists, Detail General Ledger paged by row, the id lists that were costing more than they saved, the quota index, the bundle budget). Before paging a list, handing SQL a list of ids, or quoting a bundle size — `docs/phase-42-status.md`
+- Phase 43: aggregate completions (`UpdateOrganizationCommand`, Deal/WorkTask as record parents, the term-date rename, `DebitNote.WarehouseId`, the Sales Register folded to base). Before renaming two columns in one migration, or changing what a document does to the stock ledger — `docs/phase-43-status.md`
+- Phase 45: multi-UOM × variants (a variant owns its unit matrix; the parent is refused one), the secondary-unit edit/delete, the `ProductAttributePool` importer, plus a review pass that added the Custom Statuses screen and five UI fixes. Before deciding an interaction between two features nobody has posed, excusing a handler in a sweep guard, or nesting a control in a row anchor — `docs/phase-45-status.md`
+- Phase 46: metered add-on axes — the AI-scan ceiling (20/day, Nepal-local, counted from the audit trail), the allowance *year*, locations as a record not a ceiling, SMS already metered. Before adding a metered axis, or trusting a shape the roadmap named — `docs/phase-46-status.md`
+- Phase 47: accessibility completion (Sort by on all 16 document lists, the nested control removed, per-field errors on 13 forms, the search-parity table, the drop list decided). The NVDA hour is still undone. Before sweeping "the N screens that qualify", or defending a control against its container — `docs/phase-47-status.md`
+- Phase 44: report semantics read live first — the last four statutory reports folded to base, Reporting Tags corrected to OR-within/AND-across, Inventory Master's two extra types, Display Warehouse in Column, Group Wise location, System Audit's stamped location, the location backfill. Before trusting a recorded control nobody operated, or assuming a report applies the filter it accepts — `docs/phase-44-status.md`

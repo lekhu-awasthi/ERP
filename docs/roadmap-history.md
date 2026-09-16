@@ -1276,3 +1276,132 @@ Explicit decisions (2026-08-18, revised 2026-09-02, 2026-09-10 and 2026-09-14), 
 
 ---
 *Living doc — re-order/re-scope as real constraints surface. When picking up a phase: read its confirmed shape in `erp-module-scan.md` first; if the screen was never opened in the hands-on pass, confirm it against the live Tigg UAT tenant through the Browser pane (user logs in themselves) before writing code — the Phase 8f Annex 5 lesson: the speculative design and the real screen had nothing in common. Every phase ends with its own `phase-N-status.md`; CLAUDE.md's known-gotchas list is the pre-flight checklist for migrations, EF Core LINQ, and Angular selects.*
+
+---
+
+## The "What remains" statement as it stood on 2026-09-15, and CLAUDE.md's Current status at the end of phase 47
+
+Both moved here on 2026-09-16 when the remaining work was turned into phases 48–51; the deferred and dropped lists live on in `docs/roadmap.md`.
+
+## What remains (2026-09-15)
+
+Nothing is planned. What is left falls into three kinds, and each says what would start it.
+
+### One item that needs a person, not a decision
+
+**An hour with NVDA**, on Windows, on the live regions, the rich-text toolbar's roving tabindex, the
+three phase-46 subscription panels and phase 47's field-level errors. Phases 40 and 47 both built
+what could be derived and both recorded plainly that no screen reader was run, because none is
+available in this environment. This is the only item in this section, and it is the only thing
+standing between the codebase and a finished WCAG 2.1 AA story. **Start condition:** a person with
+headphones. Record what is heard verbatim before changing anything — phase 40's own rule, and the
+reason its first focus sweep nearly reported an app-wide 2.4.7 failure that did not exist.
+
+### One re-entry condition with a date
+
+**Cadehi's trial ends 2026-09-22.** It is the first observable expiry this project has ever had a
+date for, and one read settles what phases 31 and 46 both had to derive: what a tenant can and cannot
+do once its term is over. Phase 46 narrowed the behaviour rather than guessing at it whole — a third
+marker gates master-data creation past expiry while settings edits and the renewal command stay open
+— and named this read as the thing that would confirm or correct it.
+
+### Deferred beyond this roadmap (post-v1 — seams kept, no phases planned)
+
+Explicit decisions (2026-08-18, revised 2026-09-02, 2026-09-10, 2026-09-14 and 2026-09-15), not
+omissions:
+
+- **Delivery Note / Goods Received Note (physical-movement inventory).** `TenantSettings.InventoryTrackingMode`
+  is the seam. Cadehi's General page offers *Physical Movement*; with Accounting Movement selected no
+  DO/GRN appears anywhere. **Re-entry:** the user flips that setting on the Cadehi trial tenant and
+  the screens are read; then it is a phase of its own (FIFO consumption moves from Invoice/Bill
+  Approve to DO/GRN Approve under a handler-level gate, plus a goods-received-not-billed default
+  account).
+- **A vendor-side actor** (41 Decision G): every subscription ceiling is self-liftable until an actor
+  outside `OrganizationId` exists. A console, a support role, or an API key — a phase of its own.
+  Phase 46 confirmed this live on all three metered axes, and phase 47's `LocationQuota` decision
+  (Decision H #2) waits on the same thing.
+- **Unrealised forex revaluation at period end** (28 Decision A): no revaluation document exists in
+  the reference product; only the realised account does.
+- **Per-user location assignment** (32b #4): both live tenants' Users screens have no location
+  column; the role carries the scope.
+- **Multi-level BOM explosion** (25): the live Planning report states "Multiple Level: No".
+- **E-commerce / marketplace SKUs** (`marketplace_skus`, `sku_id` on the product JSON; the vendor's
+  August 2026 release notes name "e-commerce sales"): a public storefront is a PRD non-goal.
+- **POS Retail / POS Restaurant** front-ends (PRD non-goal): Phase 32 models the location *types*
+  so a POS phase is additive later.
+- **IRD e-filing integration** (Annex 5's Sync-with-IRD columns): aspirational until committed; the
+  Annex reports omit rather than fake those columns (Phase 8f precedent).
+- **Marketplace / third-party app ecosystem**: a permission flag in the research, nothing more.
+
+### Dropped, with the reason (phase 47, Decision G)
+
+Not deferred — decided against, so that no future session has to re-open them from a list. The full
+reasoning and the re-entry condition for each is in `docs/phase-47-status.md`:
+`Organization > Developer Mode` (API credential management — a platform feature, confirm-lived in
+phase 25), `Organization > Documents` (a bare upload zone over phase 18's `Attachment`),
+`Product.PrintProfileId` (live-confirmed to do nothing observable), the Marketplace flag, the Service
+Charge column (a product flag this codebase does not model, printing `-` on every live row), supplier
+credit-limit enforcement (the setting's own wording says Customer), `customtags` in the rich-text
+toolbar, and rich-text tables/images (a *renderer* capability before a toolbar one).
+
+### Carried engineering items, each named in a status doc
+
+Small, specific and each with its own re-entry condition — read the phase's own doc rather than this
+list: `Cheque`'s missing date index (47 #2, wants a `tools/scale/` measurement first), the Attributes
+Used editor's flat checkbox list (45 #1 / 47 #3), two banner-only messages that name no single
+control (47 #4), `role="toolbar"`'s roving tabindex with one consumer (40 #6 / 47 #5), and the
+`ListSort`-to-`TenantIndexConvention` correspondence that no test asserts because the two live in
+different assemblies (40 / 47 #6).
+
+---
+
+### CLAUDE.md Current status, end of phase 47
+
+## Current status
+
+**Phases 0–47 are complete, and 47 was the last planned phase.** The v1 sequence (0–25), the parity
+sequence (26–34c), the consolidation sequence (35–41) and the completion phases (42–47) are all done;
+each phase's story is in its `docs/phase-N-status.md`, and every completed planning entry is archived
+in `docs/roadmap-history.md`. `docs/roadmap.md` no longer carries a forward plan — it carries a
+**"What remains"** statement instead, and that is the doc to read before picking anything up.
+
+**What remains, in three kinds.** One item needs a *person*: **an hour with NVDA**, on Windows, over
+the live regions, the rich-text toolbar's roving tabindex, the phase-46 subscription panels and phase
+47's field-level errors. Phases 40 and 47 both built everything derivable and both recorded plainly
+that no screen reader was run, because none is available in this environment; it was not simulated,
+and it is the only thing between this codebase and a finished WCAG 2.1 AA story. One item has a
+*date*: **Cadehi's trial ends 2026-09-22**, the first observable expiry this project has ever had one
+for, and the single read that settles what phases 31 and 46 both had to derive. Everything else is
+either **deferred with its re-entry condition** (DO/GRN, the vendor-side actor, unrealised forex,
+per-user location, multi-level BOM, POS, IRD e-filing, marketplace) or **dropped with its reason**
+(phase 47 Decision G's seven items) — both lists are in the roadmap, and neither is a gap left by
+omission.
+
+Phase 47 itself swept `Sort by` to all **16** document lists — the derived number, not the roadmap's
+inherited 18 — behind a guard whose behavioural half seeds two documents whose creation order and
+business date disagree and drives every one of the fifteen handlers through both orderings (phase
+44's lesson: a guard over query *records* cannot see the handler). The four grids that rendered a
+`<select>` inside an `<a routerLink>` stopped nesting it rather than defending against it, and what
+replaces the component's own compensating handlers is a whole-app guard whose interesting half is
+derived — the selectors of every component that renders a control, because a regex for `<select>`
+inside `<a>` finds none of the four. Thirteen document forms gained per-field `aria-invalid`,
+`aria-describedby` and focus movement, keyed on the control's own DOM id so the guard can check both
+ends. The lookup filter and the server's `?search=` are pinned to `search-cases.json`, whose server
+half runs against **real SQL Server** because its subject is a collation property InMemory lacks.
+
+Tests at last count: Domain 674, Application.UnitTests 1185, Api.IntegrationTests 30, Angular 522;
+`dotnet build` / `dotnet test` / `ng build` / `ng test` all clean, and `ng build` does not warn —
+phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts` (652.23 kB at
+the end of phase 47). `Api.IntegrationTests` needs Docker Desktop running — without it the
+Testcontainers-backed tests fail in their constructors before any assertion, which reads like
+regressions and is not; it also still fails nondeterministically under machine load and passes on
+re-run (phase 36/37). `tsc --noEmit` does not cover `web/src/app`; `ng build` is the check (phase-28),
+and `ng test` must be run from `web/` (phase-35a) on **Node 24** (`nvm use 24.11.0` — v16 dies with
+`availableParallelism is not a function`).
+
+**Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
+append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a
+short orientation (what is done, what is next, test counts) — the phase's own story belongs in its
+`docs/phase-N-status.md`, never here. Gotchas stay one line here (under ~220 characters); the
+narrative goes in `docs/known-gotchas.md`.
+

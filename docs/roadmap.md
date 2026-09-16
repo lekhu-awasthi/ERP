@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–41)
+## Completed phases (0–47)
 
 Detail lives in each phase's own status doc — this table is the index, not the history.
 
@@ -105,39 +105,143 @@ summaries. **Phase 47 was the last planned phase.** What follows replaces the fo
 
 ---
 
-## What remains (2026-09-15)
+## Continuation phases (48–52) — from the carried items of phases 42–47, plus one live read (planned 2026-09-16)
 
-Nothing is planned. What is left falls into three kinds, and each says what would start it.
+**Method.** Every "Carried items / Known limitations / Follow-ups" section from `phase-42` through
+`phase-47` was read, and each open item placed where it is cheapest to close beside its neighbours;
+every bullet below traces to a numbered item in a status doc. Then the reference product was read
+live, because its login banner advertises an August 2026 release and the last catalogue diff was
+2026-09-02. **That read found genuinely new scope** — see phase 51 — so this sequence is not only a
+backlog. The two items that cannot be scheduled by a session are kept out of the sequence rather than
+padded into it. The 2026-09-15 "What remains" statement this replaces is in `docs/roadmap-history.md`.
 
-### One item that needs a person, not a decision
+**Ordering rule.** The visible defect first (48), then the phase with a date on it (49), then the
+work a measurement has to authorise (50), then the two that add a dimension to every document line
+(51, 52) — traceability before units, because traceability is fully specified by the live read today
+and units are not.
 
-**An hour with NVDA**, on Windows, on the live regions, the rich-text toolbar's roving tabindex, the
+### 48. The shared display components and the record pages
+- **`activity-panel.html` renders comment timestamps as raw ISO strings** (`2026-09-14T14:00:21.099…`)
+  on **17 hosts** — the Contact tab since phase 18, every document tab since 27a, both record pages
+  since 43. Phase-23's rule is that a date a user reads goes through `NepaliDatePipe`, and this is the
+  one place in the app that breaks it (43 #6). The decision is the format (BS date alone, or date and
+  time); changing a 17-host component at the end of a phase is why 43 declined to do it itself.
+- **Neither record detail page has an edit form** (43 #4): editing a Deal or a Task still happens
+  through the inline form on its list, where it has been since phases 15 and 13, while the live pages
+  have a left-rail edit. **`MARK AS DONE` is missing from the Task detail page** (43 #7) — reachable
+  from the list, so a convenience rather than an unreachable field.
+- **Phase 44 added four screens and no Angular tests** (44 #6). Its doc calls that a gap, not a claim.
+- **The Attributes Used editor is a flat checkbox list** of every option of every tenant attribute,
+  with no per-attribute *Select all* and no filter (45 #1, 47 #3). Tolerable at the reference tenant's
+  16 attributes; the first tenant with 60 will feel it.
+- **Two messages per document form are still banner-only** (47 #4) — the line-table one and Purchase
+  Bill's import trio — because neither names one control. The honest improvement is a message that
+  points at the *table*, which needs a target element the table does not have yet.
+
+### 49. The expiry read, and phase 46's own surfaces
+**Start condition: on or after 2026-09-22**, when Cadehi's trial ends.
+- **Read the expired tenant** (46 #2, 47 #7, 31 #5) — the first observable expiry this project has
+  ever had a date for, and the read that settles what phases 31 and 46 both had to derive. Phase 46
+  narrowed the behaviour rather than guessing it whole: a third marker gates master-data creation past
+  expiry while settings edits and the renewal command stay open. The read either confirms that shape
+  or corrects it. Record what is seen before changing anything; if the tenant renews itself or the
+  read proves impossible, say so and keep the derivation, labelled as one.
+- **While logged in, two cheap extras**, both already named as re-entry conditions: flip Cadehi's
+  *Mode of Inventory Tracking* to **Physical Movement** and read the Delivery Note / GRN screens the
+  deferred list has been waiting on (the user's call, since it is a config write on their tenant); and
+  re-read the **Product Batch / Product Serial No** reports from an account that holds their
+  permission keys, since the 2026-09-16 pass got `permission denied` on both and phase 51 needs their
+  columns.
+- **Then close phase 46's UI gaps**, which need no read: nothing surfaces the AI-scan allowance where
+  scanning happens, so the first a user knows of the ceiling is a 409 (46 #5 — the reference product
+  shows nothing either, which is why it was not built, and it is ours to improve); `LocationQuota` can
+  silently go stale as locations are added (46 #6); SMS has no usage row on the Subscription screen
+  though its ledger balance is on the SMS Overview tab (46 #7).
+
+### 50. Measured indexes, and the guards that cross an assembly boundary
+- **`Cheque` has no leading-tenant date index and its list already orders by an unindexed column**
+  (47 #2). `TenantIndexConvention.BusinessDateNames` matches by *name*, and `ChequeDate` is not on it.
+  The fix is two index adds and one migration; the reason it was not done is phase 34c's rule that a
+  measurement comes first, because an index added for one path changes the plan for every other path
+  on the same table. **Run `tools/scale/` before and after** — and, while the convention is open, ask
+  what else its name list is missing, since phase 47's lesson is that a convention matching by name is
+  a list, and a list becomes a wrong list.
+- **`ListSort`'s correspondence to `TenantIndexConvention` is asserted by nothing** (40, 47 #6):
+  `Application.UnitTests` references Application only, and the convention lives in Infrastructure.
+  Both sides carry the sentence and neither carries a test. Decide where such a test belongs — an
+  Infrastructure test project, or `Api.IntegrationTests` against the built model — and, having decided
+  once, the answer applies to every future cross-assembly invariant.
+- **`role="toolbar"`'s roving tabindex still has one consumer** (40 #6, 47 #5). Extract it only if a
+  second toolbar appears in this phase's work; otherwise re-record it, which is the honest outcome.
+
+### 51. Batch and serial tracking — new scope from the August 2026 release
+**The reference product shipped the traceability its banner had been claiming, and the 2026-09-10 pass
+correctly found none of it.** The full shape read on 2026-09-16 is in `docs/erp-module-scan.md` under
+"The August 2026 release"; in summary: two new `Product` toggles (**Batch Tracking**, **Serial Number
+Tracking**) beside Track Inventory; an **`Item Batch`** column on both the Invoice and the Purchase
+Bill line grid, so a batch is created on receipt and consumed on issue through one control; **Batch**
+and **Serial Number** tabs on product detail (batch no / manufacture date / expiry date / quantity
+per warehouse; serial no / warehouse / created-at); and the reports catalogue at **52**, with a
+Product Batch Report and a Product Serial No Report.
+- **The modelling question to settle first, before any line changes:** a batch is a *second dimension
+  on a FIFO layer* (a quantity per product per warehouse per batch, carrying two dates), while a
+  serial is *a row per physical unit*. Phase 37's shortfall layer and phase 7's `StockLedgerEntry` are
+  what both have to fit into, and phase 29's landed cost already rides on the layer's unit cost.
+  Decide whether a batch keys the layer or hangs off it — and whether a serial is a layer of quantity
+  one or its own aggregate — with the phase-25 conservation law as the acceptance test.
+- **Both flags are per product and default off**, so this is additive: a tenant that never turns them
+  on sees no new control, which is the same shape as `TrackInventory` and the phase-20f feature gates.
+- **Two reports are unread**, because the demo Admin got `permission denied` on both (the vendor gates
+  them behind new keys). Either phase 49 obtains an account that holds them, or this phase designs
+  from the two product tabs and records that the column sets were never read — the phase-8f rule.
+- The *Status* filter on the serial report implies a serial has a lifecycle the tab's three columns do
+  not show; treat that as a question for the read, not an invention.
+- Expect the tenant-defined **Custom Fields** named Batch NO / Lot / Expiry to become a migration
+  question for real tenants once a native feature exists beside them.
+
+### 52. A unit on the document line
+**The phase that makes phase 45 mean something.** A secondary unit is priced catalog metadata today
+and *nothing consumes it*: no document line stores a unit, so a conversion rate converts nothing
+(45 #2). Closing it is a change to every line-bearing aggregate — the line stores the unit it was
+entered in and the factor applied, quantities reach the stock ledger and the GL in the primary unit,
+and every report showing a quantity has to say which unit it means.
+- It follows 51 deliberately: both add a dimension to the same line, 51's is specified by a live read
+  today and this one is not, and the second change is cheaper on a line that already carries one.
+- Settle **what an approved document, a return and a conversion do when the product's conversion rate
+  is later edited** before touching a line; a stored factor versus a live lookup is the same choice
+  phase 37's cost catch-up made, and the scan records `100BTL` on a Moonbeam invoice line as the
+  display shape to match.
+- Multi-UOM × variants (45) already gives a variant its own unit matrix, so the parent/variant rule is
+  settled; this phase consumes it rather than re-deciding it.
+
+---
+
+## Outside the sequence — two items a session cannot schedule
+
+**An hour with NVDA**, on Windows, over the live regions, the rich-text toolbar's roving tabindex, the
 three phase-46 subscription panels and phase 47's field-level errors. Phases 40 and 47 both built
-what could be derived and both recorded plainly that no screen reader was run, because none is
-available in this environment. This is the only item in this section, and it is the only thing
-standing between the codebase and a finished WCAG 2.1 AA story. **Start condition:** a person with
-headphones. Record what is heard verbatim before changing anything — phase 40's own rule, and the
-reason its first focus sweep nearly reported an app-wide 2.4.7 failure that did not exist.
+everything derivable and both recorded plainly that no screen reader was run, because none is
+available in this environment; it was not simulated. It is the only thing standing between this
+codebase and a finished WCAG 2.1 AA story. **Start condition:** a person with headphones. Record what
+is heard verbatim before changing anything — phase 40's own rule, and the reason its first focus sweep
+nearly reported an app-wide 2.4.7 failure that did not exist.
 
-### One re-entry condition with a date
+**Full-text search** (42 carried #1). List search on a term matching nothing is fixed — a count of
+zero is now a complete answer — but a term matching many rows still costs what a `LIKE` costs. Phase
+42 was explicit that the remedy is a *semantics* change, not a performance fix, and so not something
+to do because it is next. **Start condition:** a tenant complaining about search latency, or a product
+decision about what "search" should mean.
+## Deferred beyond this roadmap (post-v1 — seams kept, no phases planned)
 
-**Cadehi's trial ends 2026-09-22.** It is the first observable expiry this project has ever had a
-date for, and one read settles what phases 31 and 46 both had to derive: what a tenant can and cannot
-do once its term is over. Phase 46 narrowed the behaviour rather than guessing at it whole — a third
-marker gates master-data creation past expiry while settings edits and the renewal command stay open
-— and named this read as the thing that would confirm or correct it.
-
-### Deferred beyond this roadmap (post-v1 — seams kept, no phases planned)
-
-Explicit decisions (2026-08-18, revised 2026-09-02, 2026-09-10, 2026-09-14 and 2026-09-15), not
-omissions:
+Explicit decisions (2026-08-18, revised 2026-09-02, 2026-09-10, 2026-09-14, 2026-09-15 and
+2026-09-16), not omissions:
 
 - **Delivery Note / Goods Received Note (physical-movement inventory).** `TenantSettings.InventoryTrackingMode`
   is the seam. Cadehi's General page offers *Physical Movement*; with Accounting Movement selected no
   DO/GRN appears anywhere. **Re-entry:** the user flips that setting on the Cadehi trial tenant and
-  the screens are read; then it is a phase of its own (FIFO consumption moves from Invoice/Bill
-  Approve to DO/GRN Approve under a handler-level gate, plus a goods-received-not-billed default
-  account).
+  the screens are read — phase 49 is the session that is already logging in, so it is the cheapest
+  chance to do it; then it is a phase of its own (FIFO consumption moves from Invoice/Bill Approve to
+  DO/GRN Approve under a handler-level gate, plus a goods-received-not-billed default account).
 - **A vendor-side actor** (41 Decision G): every subscription ceiling is self-liftable until an actor
   outside `OrganizationId` exists. A console, a support role, or an API key — a phase of its own.
   Phase 46 confirmed this live on all three metered axes, and phase 47's `LocationQuota` decision
@@ -155,7 +259,7 @@ omissions:
   Annex reports omit rather than fake those columns (Phase 8f precedent).
 - **Marketplace / third-party app ecosystem**: a permission flag in the research, nothing more.
 
-### Dropped, with the reason (phase 47, Decision G)
+## Dropped, with the reason (phase 47, Decision G)
 
 Not deferred — decided against, so that no future session has to re-open them from a list. The full
 reasoning and the re-entry condition for each is in `docs/phase-47-status.md`:
@@ -166,14 +270,14 @@ Charge column (a product flag this codebase does not model, printing `-` on ever
 credit-limit enforcement (the setting's own wording says Customer), `customtags` in the rich-text
 toolbar, and rich-text tables/images (a *renderer* capability before a toolbar one).
 
-### Carried engineering items, each named in a status doc
+## Settled, not carried
 
-Small, specific and each with its own re-entry condition — read the phase's own doc rather than this
-list: `Cheque`'s missing date index (47 #2, wants a `tools/scale/` measurement first), the Attributes
-Used editor's flat checkbox list (45 #1 / 47 #3), two banner-only messages that name no single
-control (47 #4), `role="toolbar"`'s roving tabindex with one consumer (40 #6 / 47 #5), and the
-`ListSort`-to-`TenantIndexConvention` correspondence that no test asserts because the two live in
-different assemblies (40 / 47 #6).
+Recorded here so no future reading re-opens them: **keyset pagination** was retired rather than
+deferred (42 — the tail's cost was the row fetch, and `ToKeyPagedResultAsync` fixes it inside
+`PagedResult<T>`); **product-to-location** is a picker filter and always will be (43 #2 — the
+reference product saves *and* approves a document naming an out-of-location product); and **a
+standalone Credit Note putting no stock back** is deliberate asymmetry, not a divergence, because its
+GL posts no Inventory leg either (43 #3).
 
 ---
 *Living doc — re-order/re-scope as real constraints surface. When picking up work: read its confirmed shape in `erp-module-scan.md` first; if the screen was never opened in the hands-on pass, confirm it against the live Tigg UAT tenant through the Browser pane (user logs in themselves) before writing code — the Phase 8f Annex 5 lesson: the speculative design and the real screen had nothing in common. Every phase ends with its own `phase-N-status.md`; CLAUDE.md's known-gotchas list is the pre-flight checklist for migrations, EF Core LINQ, and Angular selects.*

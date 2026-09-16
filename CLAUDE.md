@@ -21,7 +21,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 5: sales chain Quotation → Invoice → Payment, conversion pattern, Warehouse. Native `<select>` race, part 1 — `docs/phase-5-status.md`
 - Phase 6: purchase chain, Expense, DebitNote, TDS. Before any "Convert to X" flow or "reverse of X" posting rule — `docs/phase-6-status.md`
 - Phase 7: FIFO stock ledger, COGS, transfers/adjustments; addendum on the Inventory-account posting fix. Before changing what a posting rule debits/credits — `docs/phase-7-status.md`
-- Phase 8a–8f: financial/statutory reports (TB, BS, P&L, VAT, TDS, Annex 13, Annex 5). 8b before a report-test suite seeding via real handlers; 8c before seeding a Goods Product in tests; 8f is the confirm-live-first precedent — `docs/phase-8a-status.md` … `phase-8f-status.md`
+- Phase 8a–8f: financial/statutory reports (TB, BS, P&L, VAT, TDS, Annex 13, Annex 5). 8b before a report-test suite; 8c before seeding a Goods Product; 8f is the confirm-live-first precedent — `docs/phase-8a-status.md`…`8f`
 - Phase 9: Ageing Summary/Statement. Before a generic `IQueryable` helper with a `Func` selector, or a hand-written permission-seed migration — `docs/phase-9-status.md`
 - Phase 10: Contact Overview tab — `docs/phase-10-status.md`
 - Phase 11: payment-allocation fix. Scripted-E2E environment gotchas — `docs/phase-11-status.md`
@@ -49,21 +49,21 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 22: document inbox with AI extraction. Before sending tenant data to a third party, or any cross-document prefill — `docs/phase-22-status.md`
 - Phase 23: Nepali localization (dates stored AD, BS is presentation only, range 2000–2092). Before rendering any date/amount or any app-wide sweep — `docs/phase-23-status.md`
 - Phase 24: variants are Products with a parent pointer. Before a second "child of a Product" concept or appending to a tracked parent's collection — `docs/phase-24-status.md`
-- Phase 25: manufacturing (BOM → Production Order → Production Journal, perpetual-inventory posting). Before a value-transforming posting rule, a shared FluentValidation helper, or a browser pass in a non-interactive session — `docs/phase-25-status.md`
+- Phase 25: manufacturing (BOM → Production Order → Production Journal, perpetual posting). Before a value-transforming posting rule or a shared FluentValidation helper — `docs/phase-25-status.md`
 - Phase 26a: the five missing Accounting reports + FR-9.1's Compare column. Before a period-over-period comparison, or a report joining `GlLine` back to its document — `docs/phase-26a-status.md`
 - Phase 26b: Receivable/Payable + Sales/Purchase analytics (13 reports), server-side BS calendar. Before ageing anything, or a fiscal-year-keyed report — `docs/phase-26b-status.md`
-- Phase 26c: Reports catalogue completed (inventory reports, return registers, Net Trading Assets, Exceptional, User Log). Before a stock report, a report that must agree with a register, or a write on an unauthenticated path — `docs/phase-26c-status.md`
+- Phase 26c: Reports catalogue completed (inventory, return registers, Net Trading Assets, Exceptional, User Log). Before a stock report, or one that must agree with a register — `docs/phase-26c-status.md`
 - Phase 27a: Custom Fields/Status/Reporting Tags/Tasks-Documents-Activity swept to every type; polymorphic `Comment`. Before adding a `DocumentType` member or a second mechanism sweep — `docs/phase-27a-status.md`
-- Phase 27b: print for all 15 types, BS dates in server output, last pagers, wizard Turnstile, feature route guard, first `CustomTemplate` consumers. Before adding a print type, a server-rendered date, or a template consumer — `docs/phase-27b-status.md`
+- Phase 27b: print for all 15 types, BS dates in server output, wizard Turnstile, feature route guard. Before adding a print type or a server-rendered date — `docs/phase-27b-status.md`
 - Phase 28: multi-currency (Currency list, rate on 12 types, fold on posting-rule inputs, realised forex on allocation). Before converting anything into the GL or gating a feature flag — `docs/phase-28-status.md`
 - Phase 29: landed cost (Additional Cost on the Purchase Bill, capitalised into FIFO layers, Landed Cost Clearing account). Before capitalising into a stock layer or adding a tenant-default GL account — `docs/phase-29-status.md`
 - Phase 30: Communications (Send Email on 6 types + Contact, Email Logs, Email Templates, `AlertMedium.Sms`). Before wiring Send Email, or a job that reads through a permission-gated request — `docs/phase-30-status.md`
-- Phase 31: credit control + the Configurations > General screen; three dead settings enforced; stored `DueDate`; cheque bounce voids its payment; subscription expiry. Before enforcing a tenant setting, a second confirmable warning, or a NOT NULL column on a populated table — `docs/phase-31-status.md`
-- Phase 32: Billing Locations (HeadOffice seeded, cap at one, nullable `LocationId` on 17 types, Advanced panel, location-wise numbering). Before declaring a screen un-confirm-liveable, or letting a setting choose which types store a field — `docs/phase-32-status.md`
-- Phase 32b: per-location permission scope (second matrix, nullable `RolePermission.LocationId`, one branch in `AuthorizationBehavior`). Before a permission that depends on an unread row, or a request over a location-bearing type — `docs/phase-32b-status.md`
+- Phase 31: credit control, Configurations > General, three dead settings enforced, stored `DueDate`, cheque bounce. Before enforcing a tenant setting, or a NOT NULL column on a populated table — `docs/phase-31-status.md`
+- Phase 32: Billing Locations (HeadOffice seeded, cap at one, `LocationId` on 17 types, location-wise numbering). Before letting a setting choose which types store a field — `docs/phase-32-status.md`
+- Phase 32b: per-location permission scope (nullable `RolePermission.LocationId`, one branch in `AuthorizationBehavior`). Before a permission depending on an unread row — `docs/phase-32b-status.md`
 - Phase 33: platform chrome (global search, History, Quick Links, the `UserPreference` per-user store). Before a per-user setting or a cross-type search — `docs/phase-33-status.md`
 - Phase 34a: WCAG 2.1 AA sweep + `a11y-sweep-guard.spec.ts`. Before adding a template, choosing a colour, or scripting an edit between two anchors — `docs/phase-34a-status.md`
-- Phase 34b: the shell on `NavigationCatalog` (zero page-template edits), Reports index, list chrome (search on 25 queries, date range on 16). Before a paginated list query, a displayed-but-unowned filter, or `overflow` on a layout container — `docs/phase-34b-status.md`
+- Phase 34b: the shell on `NavigationCatalog` (zero page-template edits), Reports index, list chrome. Before a paginated list query, or a displayed-but-unowned filter — `docs/phase-34b-status.md`
 - Phase 34c: scale — the 50k-invoice dataset in `tools/scale/`, p95 budgets per screen class, `TenantIndexConvention`, the shell `@defer`ed. Before adding an index or quoting a performance number — `docs/phase-34c-status.md`
 - Phase 35a: ledger drill-down + the location picker/filter on all 15 document forms and lists. Before adding a field to many aggregates at once — `docs/phase-35a-status.md`
 - Phase 35b: the location dimension in reports (`LocationId` stamped on the fact tables, the filter on 36 queries). Before filtering an append-only fact table or proving a location permission — `docs/phase-35b-status.md`
@@ -73,12 +73,12 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 39: the sanitised rich-text control, the Organization logo, standalone Deals/Tasks routes, the search results page. Before storing anything a user typed that is rendered later — `docs/phase-39-status.md`
 - Phase 40: the human WCAG pass (keyboard census, one focus ring, always-present live regions) + list-chrome leftovers. Before claiming an a11y criterion or writing a status message — `docs/phase-40-status.md`
 - Phase 41: subscription and plan model — the seeded `SubscriptionPlan` catalogue, `SubscriptionQuotaBehavior`, the shell banner. Before calling a tenant-level limit "enforcement" — `docs/phase-41-status.md`
-- Phase 42: performance follow-through (`ToKeyPagedResultAsync` on 16 lists, Detail General Ledger paged by row, the id lists that were costing more than they saved, the quota index, the bundle budget). Before paging a list, handing SQL a list of ids, or quoting a bundle size — `docs/phase-42-status.md`
-- Phase 43: aggregate completions (`UpdateOrganizationCommand`, Deal/WorkTask as record parents, the term-date rename, `DebitNote.WarehouseId`, the Sales Register folded to base). Before renaming two columns in one migration, or changing what a document does to the stock ledger — `docs/phase-43-status.md`
-- Phase 45: multi-UOM × variants (a variant owns its unit matrix; the parent is refused one), the secondary-unit edit/delete, the `ProductAttributePool` importer, plus a review pass that added the Custom Statuses screen and five UI fixes. Before deciding an interaction between two features nobody has posed, excusing a handler in a sweep guard, or nesting a control in a row anchor — `docs/phase-45-status.md`
-- Phase 46: metered add-on axes — the AI-scan ceiling (20/day, Nepal-local, counted from the audit trail), the allowance *year*, locations as a record not a ceiling, SMS already metered. Before adding a metered axis, or trusting a shape the roadmap named — `docs/phase-46-status.md`
-- Phase 47: accessibility completion (Sort by on all 16 document lists, the nested control removed, per-field errors on 13 forms, the search-parity table, the drop list decided). The NVDA hour is still undone. Before sweeping "the N screens that qualify", or defending a control against its container — `docs/phase-47-status.md`
-- Phase 44: report semantics read live first — the last four statutory reports folded to base, Reporting Tags corrected to OR-within/AND-across, Inventory Master's two extra types, Display Warehouse in Column, Group Wise location, System Audit's stamped location, the location backfill. Before trusting a recorded control nobody operated, or assuming a report applies the filter it accepts — `docs/phase-44-status.md`
+- Phase 42: performance follow-through (`ToKeyPagedResultAsync` on 16 lists, Detail GL paged by row, the bundle budget). Before paging a list, handing SQL a list of ids, or quoting a bundle size — `docs/phase-42-status.md`
+- Phase 43: aggregate completions (`UpdateOrganizationCommand`, Deal/WorkTask as record parents, `DebitNote.WarehouseId`). Before two column renames in one migration, or changing what a document does to stock — `docs/phase-43-status.md`
+- Phase 44: report semantics read live first (four registers folded to base, Reporting Tags as OR-within/AND-across, System Audit's location, the backfill). Before assuming a report applies the filter it accepts — `docs/phase-44-status.md`
+- Phase 45: multi-UOM × variants (a variant owns its unit matrix; a parent is refused one), the `ProductAttributePool` importer. Before deciding an interaction nobody has posed, or nesting a control in a row anchor — `docs/phase-45-status.md`
+- Phase 46: metered add-on axes — the AI-scan ceiling (20/day, from the audit trail), the allowance year, locations as a record not a ceiling. Before adding a metered axis — `docs/phase-46-status.md`
+- Phase 47: accessibility completion (Sort by on 16 document lists, the nested control removed, per-field errors on 13 forms, the drop list). The NVDA hour is undone. Before sweeping "the N screens that qualify" — `docs/phase-47-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -320,7 +320,6 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 **Testing and manual E2E**
 - A vendor's always-pass dummy credential (Turnstile `1x000…AA`) accepts any input; proving the negative path needs the always-fail one (`2x000…AA`) swapped in (phase-20g).
 - A 403 proves the key only beside a 200 from the same user on the same organization in the same run; log in before `accept-invitation` or the membership stays `Invited` (phase-41).
-- `sqlcmd -S localhost` against a **named** instance returns nothing and reports nothing; read the instance from the connection string (`DESKTOP-H0R00ME\SQLEXPRESS` here). Only printing every status code makes the resulting 400 visible (phase-41).
 - Two implementations of one rule in two languages are pinned to a shared table both suites read (`rich-text-cases.json`, the `bs-date` table), never to each other (phase-39, phase-26b).
 - …and the half with a database runs against **SQL Server**, not InMemory: `search-cases.json`'s subject is case-insensitivity, which is the collation's and not the expression's (phase-47).
 - A source-scanning guard cannot tell a comment from markup — five templates failed the nesting check on their own explanatory comments. Strip comments once, and assert both that they are gone and that nothing else is (phase-47).
@@ -331,37 +330,24 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - "Is this screen a list or a report" resisted for two phases because the premise was false — this codebase has three list shapes, and 34b's two undecidable screens were one report and one configuration lookup (phase-40).
 - A Domain invariant reached through an endpoint is a **500**, which tells a caller nothing; add the same rule to the validator for a 400 that names the field and keep the Domain check as the backstop. Only the E2E sees this — every handler test constructs a valid command (phase-39).
 - `curl -F name=<value` reads the value as a **file path** when it starts with `<`, reporting exit 26 and HTTP 000 — phase-30's symptom, a different cause. Rich text always starts with `<p>`; use `--form-string` (phase-39).
+- **Endpoint and `sqlcmd` shapes an E2E needs — request field names, enum members, route quirks, seeding order — are a lookup table in `docs/e2e-recipes.md`.** Read it before writing a seed script; a wrong field name is usually a 400 naming no field.
 - `UpdateRolePermissionsCommand.Grants` is a dictionary, not a list, and system Admin/Member roles cannot be edited (409) — a negative-permission proof needs a custom role.
 - A browser pass in a non-interactive session works by exporting the ASP.NET dev cert, starting the `erp-web-ssl` profile, and transplanting curl's `erp_auth` cookie via `document.cookie` (phase-25 Step 3).
-- A registered user has no verification code until `POST /api/auth/request-verification-code`; a Member-role user is the only way to prove a document-scoped 403, since Admin is seeded with every key (phase-27b).
 - A test suite that passes with **fewer** tests than the previous run is a failure — check what a rewriting script produced by counting it, not by whether the build is green (phase-27b).
 - A guard must assert its input is **non-empty**, not merely defined: Vite returns an empty string for `?raw`/`?inline` on a compiled `.scss`, so `toBeDefined()` passed and every assertion over it was vacuous (phase-34a).
 - Prove a guard bites by injecting a regression — but back the file up and restore it **by hash**, never `git checkout --`, which reverts the phase's own work on that file too (phase-34a).
 - A uniform sweep is worth more than its subject: asking one question of every paginated list found two queries with **no validator at all** and one whose search term had reached a `LIKE` uncapped since phase 25 (phase-34b).
-- `POST /products` takes **`primaryUnitId`**; `POST /accounts` takes **`{name, groupId, kind}`** only (no `code`, and `kind` is an `AccountKind` — `"Normal"` fails to deserialise with a 400 naming no field); a fresh organization has **no warehouse** (phase-34b).
 - A bash helper that both **prints and returns** is a trap under `$( )` — it returns the printed line too; fourteen malformed ids became a `PUT` storing nulls that surfaced as a 409 three steps later. Have it set a global (phase-34b, same family as a function whose assignment a subshell discards).
 - Map one enum onto another **by name** (`Enum.TryParse`), never by ordinal, and add a test asserting every member has a counterpart — an ordinal cast compiles, works today, and silently reports the wrong value the first time a member is inserted (phase-26a).
 - A shared reader that several reports agree through is worth more than each report deriving its own figure: Invoice Age's total balance equals Customer Receivable Summary's closing balance *by construction* because both read `ContactLedgerReader` (phase-26b).
 - Two reports agree only through one shared reader plus a test reading both on the same data (`OutstandingDocumentReader`); patching divergences leaves coincidence (phase-36).
-- Print every approval's status code in a seed script; `POST /api/organizations` returns `organizationId`, and the GL defaults are one `PUT /accounting-defaults` with all eleven accounts (phase-26c).
 - Driving the reference product's Browser pane needs coordinates from `getBoundingClientRect`: its accessibility tree is nearly empty and `find` matches nothing. Its GENERATE control's DOM text is "Generate" — the capitals are CSS `text-transform` (phase-26c).
-- A fresh Organization has no Accounts or Account Groups; an E2E posts one group per `AccountRootType` (singular `Asset`/`Liability`/`Equity`/`Income`/`Expense`) before any account (phase-27a).
-- `identity` is a reserved word in T-SQL — reading a verification code needs `[identity].VerificationCodes`, and every document-scoped 403 proof needs a Member user, which needs that code (phase-28).
 - `tsc --noEmit -p tsconfig.json` does not typecheck `web/src/app`; it came back clean while `ng build` reported 22 `TS2339` errors. `ng build` is the real check (phase-28).
 - Run `ng test` from `web/`, never as `npx --prefix web ng test` from the root: `a11y-sweep-guard.spec.ts` reads `src/styles.scss` via `process.cwd()` and fails for the wrong reason (phase-35a).
-- `POST /accounts` `kind` is `Other`/`Bank`/`Cash`; `POST /organizations` needs `accountingStartDate` + `workspaceName`; `POST /auth/register` needs `phone`; `locationGrants` is a list of `{locationId, grants}`; lists are paged (`['items'][0]['id']`) (phase-35a).
 - A `Reports.*` key cannot be granted per location; a report's location scope comes from the caller's transaction grants via `AnyGrantedLocationsAsync` (phase-35b).
-- `POST /organizations` entitlement flags are `multipleLocations`/`multipleWarehouses`/`trackInventory` (no `Enabled` suffix); `POST /billing-locations` needs `address`; invitations return `membershipId`; `vatRate` is `ThirteenPercentVat` (phase-35b).
-- `sqlcmd -Q` prints "(N rows affected)" into a captured value; `SET NOCOUNT ON` belongs beside `SET QUOTED_IDENTIFIER ON` at the top of every script (phase-35b).
-- `sqlcmd -i` chokes on a forward-slash absolute path, reporting "-E and the -U/-P options are mutually exclusive"; run it from a relative path (phase-36).
-- `POST /auth/register` needs `turnstileToken` as well as `phone`, and `POST /organizations/{id}/invitations` takes **`roleId`** (system Member = `…-0001-000000000002`), not a role name (phase-36).
 - The Angular suite times out nondeterministically under machine load — always the *first* test in a file, always at 5000 ms, in files the change never touched. Re-run before believing it (phase-36); `Api.IntegrationTests` does the same under Testcontainers (phase-37).
-- `PUT /general-settings` takes `RecentSellingPrice`/`ExclusiveOfVat`/`AccountingMovement` — not the guessable names — and a wrong member is a 400 naming no field; a negative-permission proof for a key **Member legitimately holds** needs a custom role with no grants (phase-37).
 - A Goods line consumes stock regardless of `TrackInventory`, so on a tenant without that feature a Goods product cannot be invoiced at all (403 on opening stock, 409 on approve); seed a **Service** line when an E2E just needs an approved sales document (phase-30).
 - curl cannot read a file for `-F` upload here — every path form gives exit 26 and HTTP `000`, which reads like a server fault; drive the file leg from a short Python `urllib` script (phase-30).
-- `POST /api/organizations` needs `industry` and a non-empty `turnstileToken`; accept-invitation is `/api/organizations/memberships/{id}/accept-invitation` with no org segment; units are `/units-of-measurement`; credit terms are under `/configuration/` (phase-31).
-- `POST /accounts` takes `groupId`; `POST /products` takes `type`, not `productType`, and the wrong name silently yields a Goods product that 409s at Approve about the warehouse (phase-32).
-- `POST /products` needs `categoryId`; creates return 201; configuration lookups live under `/organizations/{id}/configuration/...`; a fresh organization has no warehouse, unit, category or product (phase-40).
 - A scripted multi-file edit must assert its anchor count before writing and preserve each file's CRLF/BOM (phase-32).
 - `dotnet run --project src/Api` with no `--launch-profile` binds **5155 only**, not the 7104 the Angular dev environment calls; and a stale listener on 5155 makes the https profile fail to start (phase-30).
 
@@ -383,52 +369,36 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 - A `sed -i` over a glob rewrites every matched file and flips CRLF to LF on Windows even where the pattern never fires; restrict the file list (phase-30).
 - When a generator script emits Angular templates through `str.format`, interpolation braces need escaping in the *format string* but not in a substituted value — `{{{{ x }}}}` in a value ships literally and fails as NG5002 (phase-26b).
 - A benchmark against an empty tenant looks fast (20 ms p95, all 200); a harness must assert its target is populated before timing it (phase-34c).
-- `sqlcmd -i` runs with `QUOTED_IDENTIFIER OFF`, so any `INSERT` into a table with a filtered index fails; put `SET QUOTED_IDENTIFIER ON` at the top of every script. `-W` and `-y/-Y` are also mutually exclusive (phase-34c).
 
 ## Current status
 
-**Phases 0–47 are complete, and 47 was the last planned phase.** The v1 sequence (0–25), the parity
-sequence (26–34c), the consolidation sequence (35–41) and the completion phases (42–47) are all done;
-each phase's story is in its `docs/phase-N-status.md`, and every completed planning entry is archived
-in `docs/roadmap-history.md`. `docs/roadmap.md` no longer carries a forward plan — it carries a
-**"What remains"** statement instead, and that is the doc to read before picking anything up.
+**Phases 0–47 are complete.** The v1 sequence (0–25), parity (26–34c), consolidation (35–41) and
+completion (42–47) are all done; each phase's story is in its `docs/phase-N-status.md`, and every
+finished planning entry is archived in `docs/roadmap-history.md`.
 
-**What remains, in three kinds.** One item needs a *person*: **an hour with NVDA**, on Windows, over
-the live regions, the rich-text toolbar's roving tabindex, the phase-46 subscription panels and phase
-47's field-level errors. Phases 40 and 47 both built everything derivable and both recorded plainly
-that no screen reader was run, because none is available in this environment; it was not simulated,
-and it is the only thing between this codebase and a finished WCAG 2.1 AA story. One item has a
-*date*: **Cadehi's trial ends 2026-09-22**, the first observable expiry this project has ever had one
-for, and the single read that settles what phases 31 and 46 both had to derive. Everything else is
-either **deferred with its re-entry condition** (DO/GRN, the vendor-side actor, unrealised forex,
-per-user location, multi-level BOM, POS, IRD e-filing, marketplace) or **dropped with its reason**
-(phase 47 Decision G's seven items) — both lists are in the roadmap, and neither is a gap left by
-omission.
-
-Phase 47 itself swept `Sort by` to all **16** document lists — the derived number, not the roadmap's
-inherited 18 — behind a guard whose behavioural half seeds two documents whose creation order and
-business date disagree and drives every one of the fifteen handlers through both orderings (phase
-44's lesson: a guard over query *records* cannot see the handler). The four grids that rendered a
-`<select>` inside an `<a routerLink>` stopped nesting it rather than defending against it, and what
-replaces the component's own compensating handlers is a whole-app guard whose interesting half is
-derived — the selectors of every component that renders a control, because a regex for `<select>`
-inside `<a>` finds none of the four. Thirteen document forms gained per-field `aria-invalid`,
-`aria-describedby` and focus movement, keyed on the control's own DOM id so the guard can check both
-ends. The lookup filter and the server's `?search=` are pinned to `search-cases.json`, whose server
-half runs against **real SQL Server** because its subject is a collation property InMemory lacks.
+**Next: phases 48–52 in `docs/roadmap.md`** (planned 2026-09-16 from the carried items of phases
+42–47, plus one live read): the shared display components and the record pages, the expiry read that
+needs 2026-09-22 to have passed, the measurement-gated indexes, then **batch and serial tracking** —
+new scope, because the reference product's August 2026 release shipped the traceability its banner
+had been claiming since before the 2026-09-10 pass found none of it (`docs/erp-module-scan.md`, "The
+August 2026 release"), taking its reports catalogue from 50 to 52 — and last a unit on the document
+line, which is what would make phase 45's secondary units mean something. Two items sit outside the sequence with
+their own start conditions: **an hour with NVDA** (needs a person with headphones; phases 40 and 47
+built everything derivable and recorded plainly that nothing was heard) and **full-text search**
+(a semantics change, not a performance fix — phase 42 carried item #1). The deferred and dropped
+lists are in the roadmap and are unchanged.
 
 Tests at last count: Domain 674, Application.UnitTests 1185, Api.IntegrationTests 30, Angular 522;
 `dotnet build` / `dotnet test` / `ng build` / `ng test` all clean, and `ng build` does not warn —
-phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts` (652.23 kB at
-the end of phase 47). `Api.IntegrationTests` needs Docker Desktop running — without it the
-Testcontainers-backed tests fail in their constructors before any assertion, which reads like
-regressions and is not; it also still fails nondeterministically under machine load and passes on
-re-run (phase 36/37). `tsc --noEmit` does not cover `web/src/app`; `ng build` is the check (phase-28),
-and `ng test` must be run from `web/` (phase-35a) on **Node 24** (`nvm use 24.11.0` — v16 dies with
-`availableParallelism is not a function`).
+phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts` (652.23 kB).
+`Api.IntegrationTests` needs Docker Desktop running: without it the Testcontainers-backed tests fail
+in their constructors before any assertion, which reads like regressions and is not; it also fails
+nondeterministically under machine load and passes on re-run (phase 36/37). `tsc --noEmit` does not
+cover `web/src/app`; `ng build` is the check (phase-28), and `ng test` must be run from `web/`
+(phase-35a) on **Node 24** (`nvm use 24.11.0` — v16 dies with `availableParallelism is not a function`).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a
 short orientation (what is done, what is next, test counts) — the phase's own story belongs in its
 `docs/phase-N-status.md`, never here. Gotchas stay one line here (under ~220 characters); the
-narrative goes in `docs/known-gotchas.md`.
+narrative goes in `docs/known-gotchas.md`, and endpoint shapes go in `docs/e2e-recipes.md`.
