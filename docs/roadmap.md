@@ -140,13 +140,32 @@ and units are not.
   points at the *table*, which needs a target element the table does not have yet.
 
 ### 49. The expiry read, and phase 46's own surfaces
-**Start condition: on or after 2026-09-22**, when Cadehi's trial ends.
-- **Read the expired tenant** (46 #2, 47 #7, 31 #5) — the first observable expiry this project has
-  ever had a date for, and the read that settles what phases 31 and 46 both had to derive. Phase 46
-  narrowed the behaviour rather than guessing it whole: a third marker gates master-data creation past
-  expiry while settings edits and the renewal command stay open. The read either confirms that shape
-  or corrects it. Record what is seen before changing anything; if the tenant renews itself or the
-  read proves impossible, say so and keep the derivation, labelled as one.
+**No longer date-gated — the read was done on 2026-09-16**, a week early, because a *second* trial
+tenant (`abcagro`, 15 days) had already expired. Full write-up in `docs/erp-module-scan.md`, "An
+**expired** trial tenant, read against a live one". Cadehi still expires **22-09-2026** (the server's
+own `expiry_date`, not a banner), so a confirming second sample is available from that date and is
+worth taking — but nothing waits on it.
+- **What the read found** (46 #2, 47 #7, 31 #5). On a trial, expiry **removes the tenant from the
+  owner's namespace list**, server-side: `GET /api/v1/me/namespaces` returns `total: 0`, `data: []`,
+  `error:false` — an ordinary successful empty result — and the portal then renders its *first-run
+  onboarding modal*. A user whose only tenant has expired is presented as a user who has never had
+  one. **This falsifies phase 46's derivation rather than refining it:** 46 reasoned that expiry gates
+  *master-data creation* behind a third marker while settings and renewal stay open, and there is no
+  degraded mode at all — there is no tenant to be in.
+- **The scope limit is load-bearing and belongs in the phase's first decision.** Both tenants read
+  were trials (`subscription_status: "Demo"`, `amount: 0`). This is one sample of *trial* behaviour
+  and **zero** samples of paid behaviour (phase 41's rule). A vendor retiring a free trial's workspace
+  while keeping a lapsed customer's data is entirely ordinary, and the two are different products.
+- **So the phase's real question is not "what does expiry do" but "what should ours do".** Matching
+  the reference product is a much larger change than a guard — this codebase has no concept of a
+  membership disappearing, and `AuthorizationBehavior` verifies org membership on every request — and
+  it is a **product** decision, not a technical one: a tenant whose data silently vanishes at trial
+  end is a choice with support and trust consequences. Decide it explicitly, with the evidence
+  attached and the trial/paid distinction named, rather than by reflex in either direction. Keeping
+  phase 46's narrower guard and *recording why we diverge* is a legitimate outcome.
+- **A hypothesis to test, not to assume:** the live namespace row carries `inactive` /
+  `inactive_by_id` / `inactive_at`, so expiry plausibly sets that triple and the list filters on it.
+  Consistent with the schema, **not observed** — the expired row cannot be seen at all.
 - **While logged in, two cheap extras**, both already named as re-entry conditions: flip Cadehi's
   *Mode of Inventory Tracking* to **Physical Movement** and read the Delivery Note / GRN screens the
   deferred list has been waiting on (the user's call, since it is a config write on their tenant); and

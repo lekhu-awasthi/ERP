@@ -1238,3 +1238,84 @@ dates), and a serial is a **row per unit** at a warehouse. Both are captured on 
 on both the buying and selling sides, so the line has to carry the allocation. That is a change to
 every line-bearing aggregate and to `StockLedgerService`, which is why it is its own phase rather
 than an addition to one.
+
+
+## An **expired** trial tenant, read against a live one (2026-09-16, `me.tiggapp.com/erp/`, read-only)
+
+The read phase 49 was waiting for, available a week early because a **second** trial tenant
+(`abcagro`, a 15-day trial) had already expired. The user logged in; no credentials were entered by
+the agent and none are recorded here. Nothing was saved. Both accounts are **trials** — see the
+scope limit at the bottom, which is the most important paragraph here.
+
+### The portal
+
+Both tenants are reachable through one multi-tenant portal at `https://me.tiggapp.com/erp/#/`, whose
+API is `https://admin-api.tigg.app`. At this layer the product calls an organization a
+**`namespace`** — `/api/v1/me/namespaces`, `/api/v1/me/namespace-requests`. After sign-in the portal
+shows an *Organization List* with tabs `Your Organization` / `Requests` / `Invitation`.
+
+### The A/B
+
+The same endpoint, the same page, one variable changed:
+
+| Account | `GET /api/v1/me/namespaces?limit=20&page=1` |
+|---|---|
+| **Expired trial** (`abcagro`) | `200` — `{"data":[], "meta_data":{"total":0,"total_pages":0,…}, "error":false}` |
+| **Live trial** (`cadehi`) | `200` — `{"data":[{…one row…}], "meta_data":{"total":1,…}, "error":false}` |
+
+**The expired organization is absent from the server's own list payload.** It is not hidden by the
+client, not returned with a flag for the UI to filter, and not refused at the door: the response is
+an ordinary successful empty result with `error:false`. The portal then renders its **first-run
+onboarding modal** — *"Welcome to Tigg 🎉 … Congratulations on taking the first step toward
+hassle-free accounting"* with an **Add New Organization** button. The product presents a user whose
+only tenant has expired as a user who has never had one.
+
+### What the live row carries
+
+The Cadehi row is the shape of a namespace record, and several fields settle things this project had
+derived:
+
+```
+subscription_status : "Demo"          <- the trial marker
+subscription_start_date : "07-09-2026"
+expiry_date : "22-09-2026"            <- phase 49's date, from the server, not a banner
+renewed_date : "07-09-2026"
+managed_by : "tigg"   type : "Standard"   amount : 0
+inactive : false      inactive_by_id : null      inactive_at : null
+is_billing_location_enabled : true    billing_location_count : 3
+is_warehouse_enabled : true           warehouse_count : 5
+track_inventory : true   is_manufacturing_enabled : true   is_ai_enabled : true
+multi_currency_enabled : true   is_pos_enabled : true   sms_credit_available : 0
+```
+
+`billing_location_count: 3` agrees with phase 46's live read of three locations, from a second
+direction.
+
+**A hypothesis, labelled as one:** the row carries an explicit `inactive` / `inactive_by_id` /
+`inactive_at` triple, and the natural reading is that expiry sets it and `/me/namespaces` filters
+inactive rows out. That is *consistent with the schema and not observed* — the expired row cannot be
+seen at all, which is the whole point. Do not write it down as the mechanism.
+
+### One inference this read killed on the spot
+
+The expired account's access token carries `payload.namespace = ""`, which looked like a second,
+independent signal that the identity had been detached from its tenant. **The control falsified it
+immediately: Cadehi's token carries `payload.namespace = ""` too.** The portal's login token simply
+does not bind a namespace; it is bound later, per tenant. Without the control this would have been
+written down as corroboration, and it is noise.
+
+That is the reason the control was run at all, and it is phase 44's lesson arriving one layer down:
+a signal read on one side of an A/B is not evidence until the other side has been read.
+
+### The scope limit, which is the point
+
+**Both tenants are trials** (`subscription_status: "Demo"`, `amount: 0`). Nothing here says what
+happens to a **paying** customer at the end of a term — a vendor may well retire a free trial's
+workspace and keep a lapsed customer's data intact, and those are different products even though
+they share an expiry date field. Phase 41's rule applies exactly: *a field dead on two free-trial
+tenants is one sample, not two.* Two trials are still one sample of trial behaviour and **zero**
+samples of paid behaviour.
+
+So the finding is: **on a trial, expiry removes the tenant from the owner's namespace list.** Any
+sentence about paid tenants is unevidenced, and the price list (read 2026-09-14, above) is the only
+other source this project has.

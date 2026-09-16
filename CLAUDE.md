@@ -381,10 +381,12 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 completion (42–47) and the first continuation phase (48) are all done; each phase's story is in its
 `docs/phase-N-status.md`, and every finished planning entry is archived in `docs/roadmap-history.md`.
 
-**Next: phases 49–52 in `docs/roadmap.md`.** Phase 49 is **date-gated on 2026-09-22** — Cadehi's trial
-ends then, and it is the first observable tenant expiry this project has ever had a date for, which
-is what settles the behaviour phases 31 and 46 both had to derive. (Confirmed live on 2026-09-16: the
-banner read "6 days remaining".) Then 50 (measurement-gated indexes and the guards that cross an
+**Next: phases 49–52 in `docs/roadmap.md`.** Phase 49 is **no longer date-gated**: its expiry read was
+done on 2026-09-16 against a second trial tenant that had already expired, and it **falsified phase
+46's derivation** — on a trial, expiry removes the tenant from the owner's namespace list entirely
+(`/me/namespaces` returns `total: 0`), so there is no degraded mode to gate. Both tenants read were
+trials, so that is zero samples of paid behaviour, and the phase's first decision is what *ours*
+should do rather than what theirs does (`docs/erp-module-scan.md`, the 2026-09-16 entry). Then 50 (measurement-gated indexes and the guards that cross an
 assembly boundary), 51 (**batch and serial tracking** — new scope from the reference product's August
 2026 release), and 52 (a unit on the document line, which is what would make phase 45's secondary
 units mean something). Two items sit outside the sequence with their own start conditions: **an hour
