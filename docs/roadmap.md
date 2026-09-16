@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–47)
+## Completed phases (0–49)
 
 Detail lives in each phase's own status doc — this table is the index, not the history.
 
@@ -73,6 +73,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 41 | Subscription and plan model: the seeded `SubscriptionPlan` catalogue, commercial terms on `TenantSubscription`, quota enforcement on both axes (`SubscriptionQuotaBehavior`), the shell subscription banner | `phase-41-status.md` |
 | 42 | Performance follow-through: `ToKeyPagedResultAsync` on 16 list handlers (keyset retired, not deferred), Detail General Ledger paged by row with the account boundary disclosed, the period-length id lists removed from five readers, the quota count's covering columns, a measured bundle budget | `phase-42-status.md` |
 | 48 | The shared display components and the record pages: every date the app **outputs** routed through `NepaliDatePipe` — 23 uses of Angular's `DatePipe` across 19 templates plus 4 raw ISO strings, where the roadmap had named 4 — and the pipe made instant-aware, so a timestamp's day is its **Nepal** day rather than its UTC one (`transaction-list-page` had been dating late-evening approvals to the previous day since phase 26a); `app-deal-form`/`app-task-form` serving create *and* edit, because phase 43 recorded editing as happening on the list and that form is create-only — nothing in the app had ever called `updateDeal` or `updateTask`; `MARK AS DONE` on the Task detail page; the line-table message pointed at the **Add Line button** rather than the table (`aria-invalid` is not a supported state of the table role); the Attributes Used filter and per-attribute Select all; phase 44's four screens given the specs its own doc called a gap | `phase-48-status.md` |
+| 49 | The expiry decision, and phase 46's own surfaces. The 2026-09-16 read found that the reference product removes an expired **trial** from the owner's namespace list entirely (`total: 0`, then first-run onboarding); this phase **declined to match it** — one sample of trial behaviour, zero of paid, and a membership that disappears would make an expired tenant unreadable, contradicting the read-only promise the 409 already makes. The organization stays, stays readable, and is **marked**: `OrganizationSummaryDto` gains `TermEndsAt`/`IsExpired`, the picker renders *Expired — read-only* and the switcher marks its option (17 of the dev database's 139 organizations turned out to be silently read-only). Plus `IsTrialActive` → `IsActive` (phase 43's rename finishing one layer up), a term end anchored to the end of its **Nepal** day in both directions rather than `T23:59:59Z` read back by `slice(0, 10)`, and the SMS balance row on the Subscription screen read through the SMS module's own query so `Crm.SmsCreditLedger.View` stays where phase 18 put it. `LocationQuota` staleness upheld as declined; the AI-scan surface was already built in 47 | `phase-49-status.md` |
 | 44 | Report semantics, read live first: the last four statutory reports folded to base currency, Reporting Tags corrected to OR-within/AND-across, Inventory Master's Warehouse Transfer + Opening Stock, Display Warehouse in Column, `sales-summary`'s Group Wise location, System Audit's stamped location, the billing-location backfill command; plus the Billing Location filter both statutory registers accepted and never applied | `phase-44-status.md` |
 | 43 | Aggregate completions: `UpdateOrganizationCommand` (8 editable fields, 3 refused by name), Deal/WorkTask as record parents with detail pages, `TrialStartsAt`/`TrialEndsAt` → `OriginatedAt`/`TermEndsAt`, `DebitNote.WarehouseId` so a standalone Goods return consumes FIFO, the Sales Register folded to base currency, Quick Payment/Receipt's currency control; product-to-location enforcement retired on live evidence | `phase-43-status.md` |
 | 46 | Metered add-on axes, where the roadmap premise that each axis is "a reader plus a ceiling" was wrong for two of three: the **AI-scan** ceiling (20/day on every tier and term length, sold by no add-on, per Nepal-local day, counted from the append-only `Audit` rows because a re-scan overwrites the document timestamp); **billing locations** as a purchased *record* that refuses nothing, on live evidence that the reference product caps them nowhere; **SMS** declared already-metered by phase 18's credit ledger; the transaction window corrected from the term to the allowance **year**; the entitlement mismatch surfaced and compared server-side; master-data creation gated past expiry | `phase-46-status.md` |
@@ -139,7 +140,7 @@ and units are not.
   Bill's import trio — because neither names one control. The honest improvement is a message that
   points at the *table*, which needs a target element the table does not have yet.
 
-### 49. The expiry read, and phase 46's own surfaces
+### 49. The expiry read, and phase 46's own surfaces — **complete**, see `docs/phase-49-status.md`
 **No longer date-gated — the read was done on 2026-09-16**, a week early, because a *second* trial
 tenant (`abcagro`, 15 days) had already expired. Full write-up in `docs/erp-module-scan.md`, "An
 **expired** trial tenant, read against a live one". Cadehi still expires **22-09-2026** (the server's
@@ -211,9 +212,11 @@ Product Batch Report and a Product Serial No Report.
   one or its own aggregate — with the phase-25 conservation law as the acceptance test.
 - **Both flags are per product and default off**, so this is additive: a tenant that never turns them
   on sees no new control, which is the same shape as `TrackInventory` and the phase-20f feature gates.
-- **Two reports are unread**, because the demo Admin got `permission denied` on both (the vendor gates
-  them behind new keys). Either phase 49 obtains an account that holds them, or this phase designs
-  from the two product tabs and records that the column sets were never read — the phase-8f rule.
+- **Two reports are still unread.** The demo Admin got `permission denied` on both (the vendor gates
+  them behind new keys), and **phase 49 did not obtain an account that holds them** — its own live
+  extras went untaken, because they need the user at a browser and nothing in 49 waited on them. So
+  this is now *this* phase's read to take, or its decision to design from the two product tabs and
+  record that the column sets were never read — the phase-8f rule.
 - The *Status* filter on the serial report implies a serial has a lifecycle the tab's three columns do
   not show; treat that as a question for the read, not an invention.
 - Expect the tenant-defined **Custom Fields** named Batch NO / Lot / Expiry to become a migration

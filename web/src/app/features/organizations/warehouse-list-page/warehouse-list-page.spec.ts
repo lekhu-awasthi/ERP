@@ -75,7 +75,7 @@ describe('WarehouseListPage (MultipleWarehouses is a cap, not a block)', () => {
                 planName: 'Trial',
                 originatedAt: '2026-09-01',
                 termEndsAt: '2026-10-01',
-                isTrialActive: true,
+                isActive: true,
                 daysRemaining: 20,
                 irdSyncEnabled: false,
                 features: [

@@ -1,12 +1,14 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 
 import {
+  SetTenantSubscriptionRequest,
   SubscriptionPlan,
   TenantSubscription,
 } from '../../../core/organizations/organizations.models';
+import { CrmService } from '../../../core/crm/crm.service';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { SubscriptionFeaturesPage } from './subscription-features-page';
 
@@ -23,6 +25,7 @@ import { SubscriptionFeaturesPage } from './subscription-features-page';
  */
 describe('SubscriptionFeaturesPage', () => {
   let fixture: ComponentFixture<SubscriptionFeaturesPage>;
+  let savedRequest: SetTenantSubscriptionRequest | null = null;
 
   const basePlan: SubscriptionPlan = {
     id: 'plan-standard',
@@ -46,7 +49,7 @@ describe('SubscriptionFeaturesPage', () => {
     originatedAt: '2026-01-01T00:00:00Z',
     termStartsAt: '2026-01-01T00:00:00Z',
     termEndsAt: '2027-01-01T00:00:00Z',
-    isTrialActive: true,
+    isActive: true,
     daysRemaining: 200,
     subscriptionAmount: 20000,
     irdVerified: false,
@@ -67,8 +70,17 @@ describe('SubscriptionFeaturesPage', () => {
     entitlementMismatches: [],
   };
 
-  async function render(overrides: Partial<TenantSubscription>): Promise<void> {
+  /**
+   * Phase 49 — `smsBalance` of `null` stands for the read failing, which is what a role without
+   * `Crm.SmsCreditLedger.View` gets. That role holds `Tenancy.Subscription.View` (every role does,
+   * because the shell reads it), so the two are genuinely separable and the screen has to cope.
+   */
+  async function render(
+    overrides: Partial<TenantSubscription>,
+    smsBalance: number | null = 250,
+  ): Promise<void> {
     const subscription = { ...baseSubscription, ...overrides };
+    savedRequest = null;
 
     await TestBed.configureTestingModule({
       imports: [SubscriptionFeaturesPage],
@@ -84,7 +96,19 @@ describe('SubscriptionFeaturesPage', () => {
           useValue: {
             getSubscription: () => of(subscription),
             getSubscriptionPlans: () => of([basePlan]),
-            setSubscription: () => of(subscription),
+            setSubscription: (_id: string, request: SetTenantSubscriptionRequest) => {
+              savedRequest = request;
+              return of(subscription);
+            },
+          },
+        },
+        {
+          provide: CrmService,
+          useValue: {
+            listSmsCreditLedger: () =>
+              smsBalance === null
+                ? throwError(() => new Error('forbidden'))
+                : of({ balance: smsBalance, rows: [], page: 1, pageSize: 1, totalCount: 0 }),
           },
         },
       ],
@@ -177,6 +201,59 @@ describe('SubscriptionFeaturesPage', () => {
 
     expect(text()).toContain('Part of this plan, but not switched on here');
     expect(text()).toContain('cannot be changed afterwards');
+  });
+
+  /**
+   * Phase 49 (phase 46 limitation #7). SMS is the one metered axis this screen had no row for, and
+   * the reason it is a balance rather than a meter is the reason it was missing: it is bought and
+   * spent down, not granted per term. Shown, and shown as what it is.
+   */
+  it('shows the SMS credit balance as a balance rather than an allowance', async () => {
+    await render({});
+
+    expect(text()).toContain('SMS credits');
+    expect(text()).toContain('250 remaining');
+    expect(text()).toContain('not an allowance for this term');
+  });
+
+  /**
+   * The permission boundary stays where phase 18 put it: the balance is read through the SMS
+   * module's own query, so a role without `Crm.SmsCreditLedger.View` gets no row at all rather than
+   * a zero it would read as "out of credits".
+   */
+  it('renders no SMS row when the ledger read is refused', async () => {
+    await render({}, null);
+
+    expect(text()).not.toContain('SMS credits');
+  });
+
+  /**
+   * Phase 49 — which day does a term end on.
+   *
+   * <p>The stored value is an instant and the box holds a calendar day, so the two have to agree
+   * about the clock. `2027-01-01T23:59:59Z` is 05:44 on the 2nd in Kathmandu, which is the day
+   * `NepaliDatePipe` correctly renders — so before this phase the box said the 1st while any other
+   * rendering of the same value said the 2nd. Both halves are asserted here, because fixing only the
+   * read would ratchet the term forward one day on every save.</p>
+   */
+  it('prefills the end date as the Nepal day of the stored instant', async () => {
+    await render({ termEndsAt: '2027-01-01T23:59:59Z' });
+
+    const input = (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLInputElement>('#subscription-features-page-ends-on');
+
+    expect(input?.value).toBe('2027-01-02');
+  });
+
+  it('sends the chosen day as the end of that day on the Nepal wall clock', async () => {
+    await render({ termEndsAt: '2027-01-01T23:59:59Z' });
+
+    const save = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')]
+      .find((b) => b.textContent?.trim() === 'Save');
+    save!.click();
+    await fixture.whenStable();
+
+    expect(savedRequest?.endsAt).toBe('2027-01-02T23:59:59+05:45');
   });
 
   /** No mismatch, no panel: a heading that is always present, reading "nothing to report", is noise

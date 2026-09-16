@@ -24,7 +24,7 @@
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
           <div>
             <h2 class="h5 fw-bold mb-1 text-dark">{{ sub.planName }} plan</h2>
-            @if (sub.isTrialActive) {
+            @if (sub.isActive) {
               <p class="text-muted small mb-0">
                 Active — expires {{ sub.termEndsAt | slice: 0 : 10 }}
                 ({{ sub.daysRemaining }} {{ sub.daysRemaining === 1 ? 'day' : 'days' }} remaining).
@@ -33,8 +33,8 @@
               <p class="text-danger small mb-0">Expired on {{ sub.termEndsAt | slice: 0 : 10 }}.</p>
             }
           </div>
-          <span class="badge fs-6" [class]="sub.isTrialActive ? 'text-bg-success' : 'text-bg-danger'">
-            {{ sub.isTrialActive ? 'Active' : 'Expired' }}
+          <span class="badge fs-6" [class]="sub.isActive ? 'text-bg-success' : 'text-bg-danger'">
+            {{ sub.isActive ? 'Active' : 'Expired' }}
           </span>
         </div>
         <dl class="row mb-0 mt-4 small">
@@ -191,6 +191,33 @@
             }
           </p>
         </div>
+
+        <!--
+          Phase 49 (phase 46 limitation #7). SMS was the one metered axis with no row here at all,
+          because it is not an allowance against this term -- it is a balance bought and spent down
+          through the ledger phase 18 built. That is still true, and it is the reason the row states
+          a balance rather than drawing a meter; what was wrong was leaving a reader who compares
+          this screen against the price list to conclude SMS is not metered at all.
+
+          Read through the SMS module's own query rather than folded into the subscription DTO, so
+          the Crm.SmsCreditLedger.View boundary stays exactly where phase 18 put it: a role holding
+          Tenancy.Subscription.View without it simply sees no row, the same way the AI-scan meter
+          renders nothing rather than a counter that says nothing (phase 47 Decision H #1).
+        -->
+        @if (smsBalance() !== null) {
+          <div class="mt-4">
+            <div class="d-flex justify-content-between align-items-baseline mb-1">
+              <span class="small fw-semibold text-dark">SMS credits</span>
+              <span class="small text-muted">{{ smsBalance() | number }} remaining</span>
+            </div>
+            <p class="form-text mb-0">
+              A purchased balance, not an allowance for this term: it carries over and is spent one credit
+              per message. See
+              <a [routerLink]="['/organizations', organizationId, 'sms']">SMS</a>
+              for the credit history.
+            </p>
+          </div>
+        }
       </div>
     </div>
 

@@ -135,6 +135,25 @@
                           <span class="badge bg-light text-dark border">
                             <i aria-hidden="true" class="bi bi-tag me-1"></i> {{ org.industry }}
                           </span>
+                          <!--
+                            Phase 49. The reference product answers the equivalent request for an
+                            expired trial with an empty list -- the organization is simply gone, and
+                            the owner is shown first-run onboarding. This product deliberately keeps
+                            the row (Decision A) and says so here instead, so that "read-only" is
+                            something a user reads before opening the organization rather than
+                            something they discover as a 409 four screens in. The text is inside the
+                            badge rather than an icon alone, because a colour is not a message.
+                          -->
+                          @if (org.isExpired) {
+                            <span class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle">
+                              <i aria-hidden="true" class="bi bi-lock-fill me-1"></i> Expired &mdash; read-only
+                            </span>
+                          } @else if (org.termEndsAt) {
+                            <span class="badge bg-light text-dark border">
+                              <i aria-hidden="true" class="bi bi-calendar-check me-1"></i>
+                              Until {{ org.termEndsAt | nepaliDate }}
+                            </span>
+                          }
                         </div>
                       </div>
                     </div>

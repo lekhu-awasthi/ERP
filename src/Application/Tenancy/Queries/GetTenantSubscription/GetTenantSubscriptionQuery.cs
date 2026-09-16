@@ -70,6 +70,14 @@ public sealed record SubscriptionUsageDto(
 /// <param name="PlanId">The catalogue row this tenant is on, or null while on the seeded trial.</param>
 /// <param name="TermEndsAt">The end of the current term, trial or paid -- see
 /// <c>TenantSubscription.TermEndsAt</c> on why the name still says trial.</param>
+/// <param name="IsActive">Whether the current term is still running, i.e. whether
+/// <c>SubscriptionExpiryBehavior</c> lets a document write through.
+///
+/// <para><b>Phase 49 renamed this from <c>IsTrialActive</c></b>, which is phase 43's column rename
+/// finishing its job one layer up: the field has answered "has the term ended" for every tenant
+/// since phase 41 recorded a paid one, and the name said trial. The phase whose entire subject is
+/// what expiry means is the phase that should not have a flag lying about which subscriptions it
+/// describes.</para></param>
 /// <param name="SubscriptionAmount">Phase 41 -- what this tenant is charged, which phase 33 read as
 /// a dead column on two tenants that were both free trials.</param>
 /// <param name="IrdVerified">Phase 41 -- the IRD Billing add-on, shown as the reference product's own
@@ -81,7 +89,7 @@ public sealed record TenantSubscriptionDto(
     DateTimeOffset OriginatedAt,
     DateTimeOffset TermStartsAt,
     DateTimeOffset TermEndsAt,
-    bool IsTrialActive,
+    bool IsActive,
     int DaysRemaining,
     decimal SubscriptionAmount,
     bool IrdVerified,

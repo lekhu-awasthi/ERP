@@ -37,7 +37,7 @@ public class MyOrganizationsQueryHandlerTests
         db.Roles.Add(Role.Create(Role.MemberId, "Member"));
         await db.SaveChangesAsync();
 
-        var handler = new MyOrganizationsQueryHandler(db, new FakeCurrentUserService(currentUserId));
+        var handler = new MyOrganizationsQueryHandler(db, new FakeCurrentUserService(currentUserId), TimeProvider.System);
         var result = await handler.Handle(new MyOrganizationsQuery(), CancellationToken.None);
 
         Assert.Single(result.Organizations);
@@ -51,5 +51,10 @@ public class MyOrganizationsQueryHandlerTests
 
         Assert.Equal("Admin", result.Organizations[0].Role);
         Assert.Equal("Member", result.Invitations[0].Role);
+
+        // Phase 49 -- a tenant with no subscription row is reported live, not expired, which is the
+        // reading SubscriptionExpiryBehavior has always taken of a missing row.
+        Assert.Null(result.Organizations[0].TermEndsAt);
+        Assert.False(result.Organizations[0].IsExpired);
     }
 }

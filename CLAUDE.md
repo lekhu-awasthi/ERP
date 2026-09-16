@@ -80,6 +80,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 46: metered add-on axes — the AI-scan ceiling (20/day, from the audit trail), the allowance year, locations as a record not a ceiling. Before adding a metered axis — `docs/phase-46-status.md`
 - Phase 47: accessibility completion (Sort by on 16 document lists, the nested control removed, per-field errors on 13 forms, the drop list). The NVDA hour is undone. Before sweeping "the N screens that qualify" — `docs/phase-47-status.md`
 - Phase 48: shared display components + record pages (every date *output* through `NepaliDatePipe`, instant-aware; `app-deal-form`/`app-task-form` for create and edit). Before rendering a timestamp, or trusting a carried item's own count — `docs/phase-48-status.md`
+- Phase 49: the expiry decision (we keep an expired tenant and mark it, where the reference product deletes it from the list), `IsActive`, Nepal-anchored term ends, SMS on the Subscription screen. Before copying a behaviour read live, or diverging from one — `docs/phase-49-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -214,6 +215,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A field an aggregate refuses to expose should be **absent** from the request record, not merely unwritten — present-and-ignored reads to a client as accepted (phase-43's `WorkspaceName`).
 - Before calling a tenant-level limit "enforcement", ask who can write it: `Tenancy.Subscription.Manage` sits on the tenant's own Admin, so a quota is a record and a guard, not a control (phase-41).
 - A field dead on two free-trial tenants is one sample, not two; read what the vendor publishes (its price list sells the "dead" fields) before asking for another tenant (phase-41).
+- …and the same about a **behaviour**: two trials are one sample of trial behaviour and zero of paid, so "the reference product deletes an expired tenant" never settles what ours does (phase-49).
+- A divergence you *choose* owes a surface, not a doc paragraph: 17 organizations sat read-only with nothing saying so until the picker said it (phase-49).
 - …and a fact recorded in the scan but not carried into the decision is not yet evidence: "AI scans / day: 20" sat in the price-list appendix for a phase while the roadmap called that axis an invention (phase-46).
 - Zero-means-unmetered is right for an allowance somebody **bought** and exactly wrong for a **cost control**: on the scan axis it is a free trial with uncapped spend on a paid API, so the trial seeds the published ceiling (phase-46).
 - A scaffolded migration default can be *plausible* and still mean the opposite of what is wanted — `DailyAiScanQuota DEFAULT 0` is "unmetered", so the feature would have applied to nobody with the API bill as the only evidence (phase-46).
@@ -284,6 +287,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Angular's `DatePipe` ignores `DatePreferenceService` entirely, so `| date:` renders Gregorian whatever the BS toggle says; phase 23's guard banned date *inputs* and nobody asked the mirror question about date **output** (phase-48).
 - `NepaliDatePipe` takes an instant's **Nepal** day, never `slice(0, 10)` of its UTC form — between 18:15 and 24:00 UTC that names yesterday, which the Transaction List had been doing since phase 26a (phase-48).
 - One calendar gets one pipe: a time is a **mode** on `NepaliDatePipe` (`'datetime'`, `'datetime-seconds'`) rendered from the same shifted instant, never a second pipe (phase-48).
+- A day written `T23:59:59Z` and read back by `slice(0, 10)` agrees with itself and with nothing else; anchor both halves to `+05:45`, and move them together or the date ratchets forward per save (phase-49).
 - A field error must name a **control**: `aria-invalid` is not valid on a `table`, so a line-table message points at the **Add Line button** — the thing that fixes it, and where focus should land (phase-48).
 - The app routes by **path**, not by hash — the reference product's own URLs are hash-based, so a browser pass against `#/organizations/…` bounces to Sign In with the cookie working perfectly; check `location.href` before suspecting the cookie (phase-39).
 - A `.dropdown-menu` inside `.table-responsive` is clipped by the implied `overflow-y`; render it `position: fixed` at coordinates captured on open (phase-22).
@@ -377,27 +381,33 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–48 are complete.** The v1 sequence (0–25), parity (26–34c), consolidation (35–41),
-completion (42–47) and the first continuation phase (48) are all done; each phase's story is in its
-`docs/phase-N-status.md`, and every finished planning entry is archived in `docs/roadmap-history.md`.
+**Phases 0–49 are complete.** The v1 sequence (0–25), parity (26–34c), consolidation (35–41),
+completion (42–47) and the first two continuation phases (48, 49) are all done; each phase's story is
+in its `docs/phase-N-status.md`, and every finished planning entry is archived in
+`docs/roadmap-history.md`.
 
-**Next: phases 49–52 in `docs/roadmap.md`.** Phase 49 is **no longer date-gated**: its expiry read was
-done on 2026-09-16 against a second trial tenant that had already expired, and it **falsified phase
-46's derivation** — on a trial, expiry removes the tenant from the owner's namespace list entirely
-(`/me/namespaces` returns `total: 0`), so there is no degraded mode to gate. Both tenants read were
-trials, so that is zero samples of paid behaviour, and the phase's first decision is what *ours*
-should do rather than what theirs does (`docs/erp-module-scan.md`, the 2026-09-16 entry). Then 50 (measurement-gated indexes and the guards that cross an
-assembly boundary), 51 (**batch and serial tracking** — new scope from the reference product's August
-2026 release), and 52 (a unit on the document line, which is what would make phase 45's secondary
-units mean something). Two items sit outside the sequence with their own start conditions: **an hour
-with NVDA** (needs a person with headphones; phases 40, 47 and 48 built everything derivable and
-recorded plainly that nothing was heard) and **full-text search** (a semantics change, not a
-performance fix). The deferred and dropped lists are in the roadmap and are unchanged.
+**Phase 49 settled what expiry means here, and chose to diverge.** The reference product removes an
+expired *trial* from the owner's namespace list entirely; this product keeps the organization, leaves
+it readable and **marks it** (`OrganizationSummaryDto.IsExpired`, a badge on the picker). The reason
+is in `docs/phase-49-status.md` Decision A and turns on the read being zero samples of paid
+behaviour. Seventeen organizations in the dev database were already read-only with nothing saying so.
 
-Tests at last count: Domain 674, Application.UnitTests 1185, Api.IntegrationTests 30, Angular 554;
+**Next: phases 50–52 in `docs/roadmap.md`.** 50 is **measurement-gated, not date-gated** — its
+`Cheque` indexes need before/after numbers from the 50k dataset in `tools/scale/` before any are
+added, plus the cross-assembly-guard decision (`ListSort` vs `TenantIndexConvention`). Then 51
+(**batch and serial tracking** — new scope from the reference product's August 2026 release; its
+kickoff should carry phase 49's unspent live extras, because the Product Batch / Product Serial No
+reports still need reading from an account holding their permission keys), and 52 (a unit on the
+document line, which is what would make phase 45's secondary units mean something). Two items sit
+outside the sequence with their own start conditions: **an hour with NVDA** (needs a person with
+headphones; phases 40, 47 and 48 built everything derivable and recorded plainly that nothing was
+heard) and **full-text search** (a semantics change, not a performance fix). The deferred and dropped
+lists are in the roadmap and are unchanged.
+
+Tests at last count: Domain 674, Application.UnitTests 1188, Api.IntegrationTests 30, Angular 561;
 `dotnet build` / `dotnet test` / `ng build` / `ng test` all clean, and `ng build` does not warn —
-phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts`, and phase 48
-brought the bundle *down* to 643.39 kB by taking Angular's `DatePipe` out of 19 components.
+phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts`, and the bundle
+sits at 643.39 kB since phase 48 took Angular's `DatePipe` out of 19 components.
 `Api.IntegrationTests` needs Docker Desktop running: without it the Testcontainers-backed tests fail
 in their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like
 regressions and is not (10 of 30 did exactly this in phase 48, and all 30 passed once Docker was

@@ -1095,6 +1095,65 @@ enforced. — `docs/phase-47-status.md`
 
 ---
 
+## Phase 49 — the expiry decision, and phase 46's own surfaces
+
+**Read this before copying a behaviour read live, before diverging from one, before putting an
+existing date on a second screen, or before folding one query's figure into another query's DTO.**
+
+**Before copying a behaviour read live**: a recorded behaviour of the reference product is evidence
+about *the reference product*. The 2026-09-16 A/B is clean and surprising — an expired trial's
+`/me/namespaces` returns `total: 0` with `error:false`, and the portal shows first-run onboarding, so
+a user whose only tenant has expired is presented as a user who never had one — and the temptation on
+reading something that clean is to implement it. What settled it was the **sample**, not taste: both
+tenants were trials, which is one sample of trial behaviour and *zero* of paid, and a vendor retiring
+a free trial's workspace while keeping a lapsed customer's books is entirely ordinary. Phase 41's
+rule (*a field dead on two free-trial tenants is one sample, not two*) generalises past fields to
+behaviours. Three other things decided it against copying: the product's own 409 already promises
+"records can still be viewed, printed and exported" and the vendor's Terms price read-only access at
+25% of the fee, so the end state they *sell* is readable; `AuthorizationBehavior` verifies org
+membership on every single request, so "the membership disappears" means an expired tenant cannot be
+read at all; and a customer whose data silently vanishes is a support decision, not a technical one.
+
+**Before diverging from one**: the divergence owes a **surface**. Deciding not to copy is cheap; what
+is not cheap is that our alternative had never been shown to anyone. The dev database held 139
+organizations and **17 were already expired** — read-only, indefinitely, with nothing anywhere saying
+so until a write returned a 409. The reference product's choice is brutal and unmissable; ours was
+gentle and invisible, which is the worse pair. So `OrganizationSummaryDto` carries `TermEndsAt` and
+`IsExpired`, the picker renders *"Expired — read-only"*, and the dashboard's Switch `<select>` marks
+its option too, because an `<option>` carries no badge and a switcher that dropped a user into a
+read-only tenant unannounced is the same defect in a smaller box. The divergence sentence lives in the
+DTO's doc comment, the Angular model, the template and a test asserting **both** halves — a divergence
+recorded only in a document is one the next reader of the scan will "fix".
+
+**Before putting an existing value on a second screen**: rendering an unchanged value somewhere else,
+through a renderer that is already correct, is an audit. `termEndsAt` had not moved since phase 41,
+and the Subscription screen wrote `${day}T23:59:59Z` and prefilled `slice(0, 10)` — self-consistent,
+and consistent with nothing else, because `NepaliDatePipe` takes an instant's *Nepal* day and
+23:59:59Z is 05:44 the next morning in Kathmandu. Two screens named different days for one term the
+moment the second one existed. **Move the read and the write together**: fixing the prefill alone
+ratchets the term forward one day on every save, on a Save button routinely pressed without editing
+the date, and no test would have caught it. Phase 20e's rule — anything dated for a tenant uses the
+Nepal wall clock — applied to the last tenant-level date that had escaped it. Existing instants are
+untouched, so enforcement does not change; only the displayed day moves, by one, in the tenant's
+favour.
+
+**Before folding one query's figure into another query's DTO**: ask which keys each is behind. The
+obvious way to put the SMS balance on the Subscription screen was `TenantSubscriptionDto`. That query
+is `Tenancy.Subscription.View`, which *every* role holds deliberately — the shell reads it to decide
+which feature-gated nav entries to render — while the balance is `Crm.SmsCreditLedger.View`. Folding
+it in widens one key by the other, quietly, on the one query with the widest audience in the app.
+Reading it through the SMS module's own query instead makes the refusal the server's: a role without
+the key gets a 403 the screen swallows and renders **no row**, which is phase 47's rule (a counter
+that says nothing is worse than no counter) applied to a permission rather than a loading state.
+
+**Before renaming a column and stopping**: phase 43 renamed `TrialEndsAt` → `TermEndsAt` for a stated
+reason — *a column whose name says trial is a standing invitation to reason about it as one* — and
+stopped at the Domain. The DTO flag answering "is this term still running", read by the shell banner
+for every tenant including paid ones, still said `IsTrialActive` six phases later. A rename's reason
+does not stop at an assembly boundary. — `docs/phase-49-status.md`
+
+---
+
 ## Phase index entries as written in CLAUDE.md before the 2026-09-16 trim
 
 The fourteen entries that had grown past one short line, moved verbatim; their shortened forms in CLAUDE.md keep the same "before X" hooks.

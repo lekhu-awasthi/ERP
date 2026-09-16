@@ -111,7 +111,7 @@ public class GeneralSettingsAndSubscriptionTests
 
         var result = await new SetTenantSubscriptionCommandHandler(db, TimeProvider.System).Handle(renewal, CancellationToken.None);
 
-        Assert.True(result.IsTrialActive);
+        Assert.True(result.IsActive);
         Assert.Equal("Standard", result.PlanName);
 
         var behavior = new SubscriptionExpiryBehavior<CreateInvoiceCommand, CreateInvoiceResult>(db);

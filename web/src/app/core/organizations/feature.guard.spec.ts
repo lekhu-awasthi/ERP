@@ -22,7 +22,7 @@ function subscriptionWith(feature: string, isEnabled: boolean) {
     planName: 'Trial',
     originatedAt: '2026-01-01',
     termEndsAt: '2026-02-01',
-    isTrialActive: true,
+    isActive: true,
     daysRemaining: 10,
     irdSyncEnabled: false,
     features: [{ feature, displayName: feature, description: '', isEnabled }],

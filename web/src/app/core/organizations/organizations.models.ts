@@ -44,6 +44,22 @@ export interface OrganizationSummary {
   workspaceName: string;
   industry: string;
   role: string;
+  /**
+   * Phase 49 -- the end of this tenant's subscription term, or null for a tenant with no
+   * subscription row at all (which the server reports as live, not expired).
+   */
+  termEndsAt: string | null;
+  /**
+   * Phase 49 -- whether that term has ended, i.e. whether every document write inside this
+   * organization is currently refused.
+   *
+   * This is where this product's divergence from the reference one is visible. Read live on
+   * 2026-09-16, the reference product drops an expired trial out of this list entirely and shows
+   * the owner its first-run onboarding screen; this product keeps the row and marks it, so a user
+   * learns an organization is read-only before opening it rather than from a 409 four screens in.
+   * See docs/phase-49-status.md Decision A.
+   */
+  isExpired: boolean;
 }
 
 export interface PendingRequest {
@@ -384,7 +400,8 @@ export interface TenantSubscription {
   /** Phase 41 -- the start of the current term, which the transaction quota is counted over. */
   termStartsAt: string;
   termEndsAt: string;
-  isTrialActive: boolean;
+  /** Whether the current term is still running. Called `isTrialActive` until phase 49. */
+  isActive: boolean;
   daysRemaining: number;
   /** What this tenant is charged for the current term -- not necessarily the plan's list price. */
   subscriptionAmount: number;

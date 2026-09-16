@@ -120,7 +120,7 @@ public class TenantFeatureEnforcementTests
             new GetTenantSubscriptionQuery(organization.OrganizationId), CancellationToken.None);
 
         Assert.Equal("Trial", result.PlanName);
-        Assert.True(result.IsTrialActive);
+        Assert.True(result.IsActive);
         Assert.Equal(7, result.Features.Count);
 
         // One row per TenantFeature member, in enum order, so the screen can't silently drop one.

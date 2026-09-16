@@ -63,7 +63,11 @@
               class="form-select form-select-sm"
             >
               @for (org of result.organizations; track org.organizationId) {
-                <option [value]="org.organizationId">{{ org.name }}</option>
+                <!-- Phase 49: an option carries no badge, so the expired state has to be in the
+                     text or a switcher would drop a user into a read-only tenant unannounced. -->
+                <option [value]="org.organizationId">
+                  {{ org.name }}{{ org.isExpired ? ' — expired' : '' }}
+                </option>
               }
             </select>
           </div>

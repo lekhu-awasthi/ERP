@@ -62,7 +62,7 @@ export class SubscriptionNotice {
       return null;
     }
 
-    if (!sub.isTrialActive) {
+    if (!sub.isActive) {
       return {
         kind: 'expired',
         tone: 'alert-danger',

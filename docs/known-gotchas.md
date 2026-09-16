@@ -2973,3 +2973,100 @@ so `fail()`'s focus move lands on the fix rather than on the evidence.
 The general rule: when a validation message is about a *collection*, point it at the control that
 adds to the collection. Pointing at the collection's container is an accessibility gesture; pointing
 at the button is an instruction.
+
+
+## A read of the reference product is evidence about the reference product (phase 49)
+
+On 2026-09-16 an expired trial tenant was read against a live one, one endpoint, control run. The
+result is unambiguous: `GET /api/v1/me/namespaces` returns `{"data":[], "meta_data":{"total":0,…},
+"error":false}` and the portal renders its first-run onboarding modal. **A user whose only tenant has
+expired is presented as a user who has never had one.**
+
+The temptation on reading something that clean is to implement it, and phase 49's whole first decision
+was not to. What settled it was the **sample**, which is phase 41's rule generalised from fields to
+behaviours: both tenants were trials (`subscription_status: "Demo"`, `amount: 0`), so this is one
+sample of *trial* behaviour and **zero** samples of paid behaviour, and a vendor retiring a free
+trial's workspace while keeping a lapsed customer's books is entirely ordinary — the two are different
+products sharing an expiry date field.
+
+Three further things decided it, in the order they carry weight:
+
+- **It contradicts a promise this product already makes.** `SubscriptionExpiryBehavior`'s own 409 says
+  *"Existing records can still be viewed, printed and exported"*, and the vendor's Terms price
+  read-only access at 25% of the subscription fee — so the end state they *sell* is readable. A tenant
+  absent from the list cannot be read at all.
+- **It is architecturally much larger than a guard.** `AuthorizationBehavior` verifies org membership
+  on every single request and is the only mechanism doing so. "The membership disappears" is therefore
+  either a status nothing in the schema models, or a filter in one query that every deep link ignores
+  — a lie the picker tells while the app still works.
+- **It is a product decision with support consequences**, and this codebase models exactly one actor:
+  the Admin who would see the badge is the Admin who can lift it.
+
+The row's `inactive` / `inactive_by_id` / `inactive_at` triple is a plausible mechanism and is
+recorded as **not observed** — the expired row cannot be seen at all, which is the whole point.
+
+## A divergence you choose owes a surface (phase 49)
+
+The corollary, and the part that turned a decision into a phase. Deciding not to copy a behaviour is
+cheap. What is not cheap is that the alternative had never been shown to anyone: the dev database held
+139 organizations accumulated over 49 phases, and **17 of them were already past their term end** —
+read-only, indefinitely, with nothing in the product saying so until a write came back 409.
+
+The reference product's choice is brutal and unmissable. Ours was gentle and invisible, which is the
+worse of the two pairs. So the divergence had to ship with the surface that makes it defensible:
+`OrganizationSummaryDto` carries `TermEndsAt` and `IsExpired`, the picker row renders *"Expired —
+read-only"*, and the dashboard's Switch `<select>` puts *"— expired"* in its option text as well,
+because an `<option>` carries no badge and a switcher that drops a user into a read-only tenant
+unannounced is the same defect in a smaller box.
+
+Two details worth keeping:
+
+- **A tenant with no subscription row is reported live, not expired** — identical to the reading
+  `SubscriptionExpiryBehavior` has always taken of a missing row. A picker that marked a tenant
+  expired while every write succeeded would be worse than saying nothing.
+- **The divergence sentence lives in the code and in a test**, not only in a status doc: the DTO doc
+  comment, the Angular model, the template comment, and `ExpiredTenantVisibilityTests`, which asserts
+  the row is present *and* that the same tenant's writes are refused. A divergence recorded only in a
+  document is one the next person to read the scan will "fix".
+
+## Putting an existing date on a second screen is a date audit (phase 49)
+
+`termEndsAt` had not changed since phase 41. Phase 49 rendered it in one more place, through
+`NepaliDatePipe` — which phase 48 correctly made instant-aware — and that is what exposed it.
+
+The Subscription screen wrote `${chosenDay}T23:59:59Z` and prefilled `termEndsAt.slice(0, 10)`. The
+two halves agreed with each other and with nothing else, because 23:59:59 UTC is **05:44 the next
+morning** in Kathmandu: the moment the same value appeared on the picker, two screens named different
+days for one term.
+
+**Both halves had to move together.** The write becomes `${chosenDay}T23:59:59+05:45` and the prefill
+becomes `instantToNepal(...).date`. Fixing only the read would have pushed the term end forward one
+calendar day on **every save** — silently, on a Save button routinely pressed without editing the
+date, with no test in either suite positioned to see it. Existing instants are untouched, so nothing
+about enforcement moves; only the displayed day shifts, by one, in the tenant's favour, and the first
+re-save writes the Nepal-anchored instant.
+
+Phase 20e's rule — anything scheduled or dated for a tenant uses the Nepal wall clock — reaching the
+last tenant-level date that had escaped it. The general form: a date that is *written* in one
+convention and *read* in another is invisible until a third reader arrives, and the third reader is
+usually a new screen rather than a test.
+
+## A permission boundary is a reason to leave a read where it is (phase 49)
+
+Phase 46 limitation #7 asked for the SMS credit balance on the Subscription screen. The obvious
+implementation is to compute it in `GetTenantSubscriptionQueryHandler` beside the other four usage
+figures, which is exactly where the other four belong.
+
+It is the wrong place, for a reason that has nothing to do with cohesion. `GetTenantSubscriptionQuery`
+is behind `Tenancy.Subscription.View`, which is Admin+**Member** deliberately and for a stated reason:
+the Angular shell reads it to decide which feature-gated nav entries to render, so every signed-in
+role needs it. The balance is behind `Crm.SmsCreditLedger.View`. Folding one into the other widens the
+narrower key by the wider one, quietly, on the query with the largest audience in the app — and a
+custom role holding one without the other is exactly the case phase 14's permission matrix exists to
+allow.
+
+So the screen reads `ListSmsCreditLedgerQuery` itself (page size 1; the balance is computed
+server-side over the whole ledger, never summed over a page — phase 16c's footer-total rule). A role
+without the key gets a 403 the screen swallows and **renders no row at all**, which is phase 47's rule
+— a counter that says nothing is worse than no counter — applied to a permission instead of a loading
+state. The decision stays the server's.

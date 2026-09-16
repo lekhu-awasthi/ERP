@@ -3,10 +3,12 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
+import { CrmService } from '../../../core/crm/crm.service';
 import { SubscriptionPlan, TenantSubscription } from '../../../core/organizations/organizations.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
+import { instantToNepal } from '../../../shared/formatting/nepal-time';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { SubscriptionStore } from '../../../shared/platform/subscription.store';
 
@@ -38,6 +40,7 @@ import { SubscriptionStore } from '../../../shared/platform/subscription.store';
 export class SubscriptionFeaturesPage {
   private readonly route = inject(ActivatedRoute);
   private readonly organizationsService = inject(OrganizationsService);
+  private readonly crmService = inject(CrmService);
   private readonly store = inject(SubscriptionStore);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
@@ -46,6 +49,18 @@ export class SubscriptionFeaturesPage {
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly subscription = signal<TenantSubscription | null>(null);
   protected readonly plans = signal<SubscriptionPlan[]>([]);
+
+  /**
+   * Phase 49 (phase 46 limitation #7) -- the SMS credit balance, or null when it has not been read.
+   *
+   * <p>Null covers two cases on purpose, and the row renders for neither: the read is still in
+   * flight, or it was refused. A role can hold `Tenancy.Subscription.View` -- which every role holds,
+   * because the shell reads it -- without holding `Crm.SmsCreditLedger.View`, and the honest answer
+   * for that role is no row at all rather than a zero it would read as "out of credits". Keeping the
+   * read here rather than folding the balance into the subscription DTO is what makes that the
+   * server's decision instead of this screen's.</p>
+   */
+  protected readonly smsBalance = signal<number | null>(null);
 
   protected readonly enabledCount = computed(
     () => this.subscription()?.features.filter((x) => x.isEnabled).length ?? 0,
@@ -168,15 +183,24 @@ export class SubscriptionFeaturesPage {
     this.errorMessage.set(null);
     this.successMessage.set(null);
 
-    // The date input gives a local calendar day; the API stores an instant, so it is sent as the
-    // end of that day in UTC -- a subscription that "ends on the 30th" is live all through the 30th.
+    // The date input gives a calendar day; the API stores an instant, so it is sent as the end of
+    // that day **on the Nepal wall clock** -- a subscription that "ends on the 30th" is live all
+    // through the 30th in Kathmandu, which is the only clock any of this tenant's users are on.
+    //
+    // Phase 49 changed this from `T23:59:59Z`, and the reason is that phase 49 put the same date on
+    // a second screen. A UTC end-of-day is 05:44 the next morning in Nepal, so `NepaliDatePipe` --
+    // which takes an instant's Nepal day, correctly, since phase 48 -- renders it as the day after
+    // the one this box shows. Two screens naming different days for one term is the defect; the
+    // instant that round-trips through both is the fix. Existing rows are untouched, so nothing
+    // about enforcement changes; their displayed day moves by one, in the tenant's favour, and the
+    // first re-save writes the Nepal-anchored instant.
     // Through the store, not the service: the shell banner reads the same signal, so recording a
     // term updates the warning above this page rather than leaving it saying "trial" (phase 34b's
     // rule -- anything global a screen both shows and changes must reload when it changes).
     this.store
       .save(this.organizationId, {
         planId,
-        endsAt: `${endsAt}T23:59:59Z`,
+        endsAt: `${endsAt}T23:59:59+05:45`,
         subscriptionAmount: this.optionalNumber(this.renewAmount()),
         productQuota: this.optionalNumber(this.renewProductQuota()),
         transactionQuota: this.optionalNumber(this.renewTransactionQuota()),
@@ -224,6 +248,14 @@ export class SubscriptionFeaturesPage {
       error: () => this.plans.set([]),
     });
 
+    // Page size 1: this screen wants the balance, which the query computes over the whole ledger
+    // server-side (phase 18, the phase-16c footer-total rule), never a client-side sum over a page.
+    this.crmService.listSmsCreditLedger(this.organizationId, 1, 1).subscribe({
+      next: (result) => this.smsBalance.set(result.balance),
+      // A 403 here is a role without Crm.SmsCreditLedger.View, and the row simply does not render.
+      error: () => this.smsBalance.set(null),
+    });
+
     // A direct read rather than the store's cached signal: this screen must show usage as of now,
     // and it is the one place where a figure minutes old would be misleading. The save path below
     // still goes through the store, which is what keeps the shell banner in step.
@@ -242,7 +274,9 @@ export class SubscriptionFeaturesPage {
   private applySubscription(result: TenantSubscription): void {
     this.subscription.set(result);
     this.renewPlanId.set(result.planId ?? '');
-    this.renewEndsAt.set(result.termEndsAt.slice(0, 10));
+    // The Nepal day of the stored instant, never `slice(0, 10)` of its UTC form -- phase 48's rule,
+    // and the half of the round trip that makes this box agree with every rendering of the same date.
+    this.renewEndsAt.set(instantToNepal(result.termEndsAt)?.date ?? result.termEndsAt.slice(0, 10));
     this.renewIrdVerified.set(result.irdVerified);
     this.renewAmount.set('');
     this.renewProductQuota.set('');

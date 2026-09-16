@@ -32,7 +32,7 @@ describe('SubscriptionNotice', () => {
     originatedAt: '2026-01-01T00:00:00Z',
     termStartsAt: '2026-01-01T00:00:00Z',
     termEndsAt: '2027-01-01T00:00:00Z',
-    isTrialActive: true,
+    isActive: true,
     daysRemaining: 200,
     subscriptionAmount: 20000,
     irdVerified: false,
@@ -148,7 +148,7 @@ describe('SubscriptionNotice', () => {
   });
 
   it('reports an ended subscription as read-only rather than as expiring', async () => {
-    await render({ isTrialActive: false, daysRemaining: 0 });
+    await render({ isActive: false, daysRemaining: 0 });
 
     expect(bannerText()).toContain('subscription has ended');
     expect(fixture.nativeElement.querySelector('.alert-danger')).not.toBeNull();
@@ -191,7 +191,7 @@ describe('SubscriptionNotice', () => {
   /** An ended subscription outranks everything: nothing else is actionable until it is renewed. */
   it('puts an ended subscription ahead of a spent allowance', async () => {
     await render({
-      isTrialActive: false,
+      isActive: false,
       usage: { transactionsUsed: 5000, transactionQuota: 5000, productsUsed: 0, productQuota: 5000, aiScansUsed: 0, dailyAiScanQuota: 20, locationsUsed: 1, locationQuota: 0 },
     });
 
