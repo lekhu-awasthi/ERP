@@ -222,15 +222,20 @@ public sealed class Invoice
             // re-creates every line to coerce its VAT rate, and a field left off this call is
             // silently dropped by an action that has nothing to do with it (phase 35a: adding a
             // field to many aggregates owes write, read, and every prefill between).
+            //
+            // Phase 52 -- line.UnitId and line.ConversionFactor ride through it for the same
+            // reason, and the factor is the more dangerous of the two: dropping it would reset it
+            // to one, so an export invoice for 2 CTN would quietly start relieving 2 pieces
+            // instead of 24, with the money unchanged and nothing on screen to show for it.
             _lines.Add(InvoiceLine.Create(
                 Id, line.ProductId, line.Quantity, line.Rate, VatRate.ZeroVat, line.DiscountPct, DiscountPct,
-                line.BatchId));
+                line.BatchId, line.UnitId, line.ConversionFactor));
         }
     }
 
     public void AddLine(
         Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct,
-        Guid? batchId = null)
+        Guid? unitId, decimal conversionFactor, Guid? batchId = null)
     {
         EnsureDraft();
 
@@ -247,7 +252,8 @@ public sealed class Invoice
         var effectiveVatRate = IsExport ? VatRate.ZeroVat : vatRate;
 
         _lines.Add(InvoiceLine.Create(
-            Id, productId, quantity, rate, effectiveVatRate, discountPct, DiscountPct, batchId));
+            Id, productId, quantity, rate, effectiveVatRate, discountPct, DiscountPct, batchId, unitId,
+            conversionFactor));
     }
 
     private static void EnsureValidDiscountPct(decimal discountPct)

@@ -28,7 +28,7 @@ public class SalesOrderCustomStatusTests
     public void SetCustomStatus_is_allowed_on_an_approved_sales_order()
     {
         var salesOrder = SalesOrder.Create(Guid.NewGuid(), Guid.NewGuid(), Today(), null, null);
-        salesOrder.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.NoVat, 0);
+        salesOrder.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.NoVat, 0, null, 1m);
         salesOrder.Approve(Guid.NewGuid(), "SO0001");
         var customStatusId = Guid.NewGuid();
 

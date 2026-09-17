@@ -16,8 +16,19 @@ public sealed record GetDebitNoteQuery(Guid OrganizationId, Guid Id)
     public Guid LocationDocumentId => Id;
 }
 
+/// <param name="UnitId">Phase 52 -- the unit this line was entered in, null when it was the
+/// product's own primary unit. Present so a form can round-trip the user's choice: phase 35a's
+/// rule is that adding a field to many aggregates owes write, read and every prefill between,
+/// and a detail DTO that drops it leaves the form unable to show what was saved.</param>
+/// <param name="UnitName">The unit's short name (<c>BTL</c>), for rendering beside the quantity.</param>
+/// <param name="ConversionFactor">How many primary units one of them was worth <b>when this line
+/// was written</b>. Sent so a reader can see the frozen fact rather than infer it from a
+/// catalogue that may since have changed. The converted quantity is deliberately not sent --
+/// it is <c>Quantity x ConversionFactor</c>, and shipping it would put a second quantity on the
+/// wire that can contradict the first.</param>
 public sealed record DebitNoteLineDto(
-    Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal Amount, decimal VatAmount);
+    Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal Amount, decimal VatAmount,
+    Guid? UnitId, string? UnitName, decimal ConversionFactor);
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
 

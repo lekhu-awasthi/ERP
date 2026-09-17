@@ -161,7 +161,7 @@ public sealed class DebitNote
 
     public void AddLine(
         Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct,
-        Guid? batchId = null)
+        Guid? unitId, decimal conversionFactor, Guid? batchId = null)
     {
         EnsureDraft();
 
@@ -173,7 +173,8 @@ public sealed class DebitNote
         EnsureValidDiscountPct(discountPct);
 
         _lines.Add(DebitNoteLine.Create(
-            Id, productId, quantity, rate, vatRate, discountPct, DiscountPct, batchId));
+            Id, productId, quantity, rate, vatRate, discountPct, DiscountPct, batchId, unitId,
+            conversionFactor));
     }
 
     private static void EnsureValidDiscountPct(decimal discountPct)

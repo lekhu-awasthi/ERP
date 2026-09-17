@@ -176,7 +176,7 @@ internal static class PurchasingValidation
     /// <summary>Mirror of Sales.SalesValidation.GetInvoiceRemainingByLineAsync -- see that
     /// method's doc comment for why matching is keyed on the exact (ProductId, Rate, VatRate,
     /// DiscountPct) quadruple a line was actually billed at, not ProductId alone.</summary>
-    public static async Task<Dictionary<(Guid ProductId, decimal Rate, VatRate VatRate, decimal DiscountPct), decimal>>
+    public static async Task<Dictionary<(Guid ProductId, decimal Rate, VatRate VatRate, decimal DiscountPct, Guid? UnitId), decimal>>
         GetPurchaseBillRemainingByLineAsync(
             IAppDbContext db, Guid organizationId, PurchaseBill purchaseBill, CancellationToken cancellationToken)
     {
@@ -185,15 +185,15 @@ internal static class PurchasingValidation
                 && x.ReferrerType == DocumentType.PurchaseBill && x.ReferrerId == purchaseBill.Id
                 && x.Status != DebitNoteStatus.Void)
             .SelectMany(x => x.Lines)
-            .Select(x => new { x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.Quantity })
+            .Select(x => new { x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.UnitId, x.Quantity })
             .ToListAsync(cancellationToken);
 
         var debitedByLine = debitedLines
-            .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct))
+            .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.UnitId))
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
 
         return purchaseBill.Lines
-            .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct))
+            .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.UnitId))
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity) - debitedByLine.GetValueOrDefault(g.Key));
     }
 
@@ -240,7 +240,7 @@ internal static class PurchasingValidation
         var remainingByLine = await GetPurchaseBillRemainingByLineAsync(db, organizationId, purchaseBill, cancellationToken);
 
         var requestedByLine = requestedLines
-            .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct))
+            .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.UnitId))
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
 
         foreach (var (key, requestedQuantity) in requestedByLine)

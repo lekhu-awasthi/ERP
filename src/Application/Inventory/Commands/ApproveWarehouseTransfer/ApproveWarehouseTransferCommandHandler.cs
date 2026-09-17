@@ -58,7 +58,7 @@ public sealed class ApproveWarehouseTransferCommandHandler(
             // shelves is not that, and a transfer out of stock that is not there would create a
             // shortfall in one warehouse and value in another out of nothing.
             var consumption = await stockLedgerService.ConsumeAsync(
-                request.OrganizationId, line.ProductId, warehouseTransfer.FromWarehouseId, line.Quantity,
+                request.OrganizationId, line.ProductId, warehouseTransfer.FromWarehouseId, line.PrimaryQuantity,
                 DocumentType.WarehouseTransfer, warehouseTransfer.Id, warehouseTransfer.Date, cancellationToken,
                 warehouseTransfer.LocationId);
 
@@ -77,8 +77,8 @@ public sealed class ApproveWarehouseTransferCommandHandler(
             foreach (var relief in consumption.Reliefs.Where(x => !x.Shortfall))
             {
                 costCatchUp += await stockLedgerService.IncrementAsync(
-                    request.OrganizationId, line.ProductId, warehouseTransfer.ToWarehouseId, relief.Quantity,
-                    relief.UnitCost, DocumentType.WarehouseTransfer, warehouseTransfer.Id, warehouseTransfer.Date,
+                    request.OrganizationId, line.ProductId, warehouseTransfer.ToWarehouseId,
+                    PrimaryQuantity.AlreadyPrimary(relief.Quantity), relief.UnitCost, DocumentType.WarehouseTransfer, warehouseTransfer.Id, warehouseTransfer.Date,
                     cancellationToken, warehouseTransfer.LocationId, relief.BatchId, relief.SerialNo);
             }
         }

@@ -34,6 +34,8 @@ import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { defaultWarehouseSeed } from '../../../shared/locations/default-warehouse-seed';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
+import { LineUnitControl, LineUnitOption } from '../../../shared/catalog/line-unit-control';
+import { UnitOfMeasurementStore } from '../../../shared/catalog/unit-of-measurement-store';
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
@@ -60,6 +62,14 @@ interface EditableLine {
   manufactureDate: string;
   expiryDate: string;
   serialsText: string;
+
+  /**
+   * Phase 52 -- the unit this line is entered in. Empty means the product's own primary unit,
+   * which is what every line meant before this phase. The conversion factor is deliberately NOT
+   * held here: the server resolves it from the catalogue and freezes it on the line, so a client
+   * cannot claim a conversion the product does not have.
+   */
+  unitId: string;
 }
 
 let nextLineKey = 1;
@@ -70,7 +80,7 @@ let nextLineKey = 1;
  * own lines the way JournalVoucher's is. */
 @Component({
   selector: 'app-invoice-detail-page',
-  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner, FieldErrorMessage, NepaliDatePipe],
+  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner, FieldErrorMessage, NepaliDatePipe, LineUnitControl],
   templateUrl: './invoice-detail-page.html',
 })
 export class InvoiceDetailPage {
@@ -87,8 +97,12 @@ export class InvoiceDetailPage {
   private readonly pendingTemplateStore = inject(PendingTemplateStore);
   private readonly printingService = inject(PrintingService);
   private readonly inboxService = inject(InboxService);
+  private readonly unitStore = inject(UnitOfMeasurementStore);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 52 -- the tenant's units, shared and cached; a Product carries unit ids only. */
+  protected readonly units = this.unitStore.units(this.organizationId);
 
   protected readonly loading = signal(true);
   // Phase 28 (FR-2.5) -- the document's own currency and its rate to the base currency, owned here
@@ -262,6 +276,10 @@ export class InvoiceDetailPage {
                   manufactureDate: ('manufactureDate' in l ? (l.manufactureDate ?? '') : ''),
                   expiryDate: ('expiryDate' in l ? (l.expiryDate ?? '') : ''),
                   serialsText: ('serialNumbers' in l ? (l.serialNumbers ?? []).join(', ') : ''),
+                  // Phase 52 -- read back so the control shows what was saved. Phase 35a's rule is
+                  // that a field added to many aggregates owes write, READ, and every prefill
+                  // between, and the read half is the one no compiler checks.
+                  unitId: ('unitId' in l ? (l.unitId ?? '') : ''),
                 }))
               : [this.newLine()],
           );
@@ -341,6 +359,7 @@ export class InvoiceDetailPage {
             manufactureDate: '',
             expiryDate: '',
             serialsText: '',
+            unitId: ('unitId' in l ? ((l as { unitId?: string | null }).unitId ?? '') : ''),
           }));
 
         if (lines.length > 0) {
@@ -449,6 +468,29 @@ export class InvoiceDetailPage {
   protected onQuantityChange(key: number, event: Event): void {
     const quantity = (event.target as HTMLInputElement).valueAsNumber;
     this.updateLine(key, { quantity: Number.isFinite(quantity) ? quantity : 0 });
+  }
+
+  /**
+   * Phase 52 -- picking a unit sets the Rate from that unit row's own price and nothing else.
+   *
+   * <p>Confirmed live 2026-09-17: choosing `BTL` on a Steel rods line filled Rate with that row's
+   * selling price, and Amount stayed `Qty x Rate` in the entered unit -- 2 BTL at 1,200 is 2,400,
+   * not 28,800. The conversion factor never touches the money; it is applied to the quantity, by
+   * the server, on the way into the stock ledger.</p>
+   */
+  /**
+   * Phase 52 -- the unit's short name for the read-only branch of the Qty cell, resolved the same
+   * way `productLabel` resolves a product's. A line with no unit shows its product's primary,
+   * which is the unit it is actually denominated in.
+   */
+  protected unitLabel(line: EditableLine): string {
+    const product = this.products().find((p) => p.id === line.productId);
+    const unitId = line.unitId || product?.primaryUnitId;
+    return this.units().find((u) => u.id === unitId)?.shortName ?? '';
+  }
+
+  protected onUnitChange(key: number, option: LineUnitOption): void {
+    this.updateLine(key, { unitId: option.unitId, rate: option.sellingPrice });
   }
 
   protected onRateChange(key: number, event: Event): void {
@@ -712,6 +754,9 @@ Approve anyway?`)) {
         // batch", and a product that is not batch-tracked is refused a batch outright, so sending
         // an empty string would be sending a value.
         batchNo: l.batchNo.trim() || null,
+        // Phase 52. Null rather than '' for the primary unit, for the batch's reason one line up:
+        // the server reads null as "the product's own primary unit", and an empty string is a value.
+        unitId: l.unitId || null,
         serialNumbers: this.parseSerials(l.serialsText),
       }));
 
@@ -765,6 +810,7 @@ Approve anyway?`)) {
       manufactureDate: '',
       expiryDate: '',
       serialsText: '',
+      unitId: '',
     };
   }
 
@@ -813,6 +859,10 @@ Approve anyway?`)) {
                 manufactureDate: l.manufactureDate ?? '',
                 expiryDate: l.expiryDate ?? '',
                 serialsText: (l.serialNumbers ?? []).join(', '),
+                // Phase 52 -- the third of this component's three line mappings, and the one the
+                // compiler found rather than the author. Adding a field to a form means the load
+                // path, the conversion-prefill path and the inbox-prefill path, every time.
+                unitId: l.unitId ?? '',
               }))
             : [this.newLine()],
         );

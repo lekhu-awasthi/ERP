@@ -65,7 +65,8 @@ public sealed class VoidDebitNoteCommandHandler(
             foreach (var line in debitNote.Lines.Where(x => x.ConsumedUnitCost is not null))
             {
                 costCatchUp += await stockLedgerService.IncrementAsync(
-                    request.OrganizationId, line.ProductId, warehouseId, line.Quantity, line.ConsumedUnitCost!.Value,
+                    request.OrganizationId, line.ProductId, warehouseId, line.PrimaryQuantity,
+                    line.ConsumedUnitCost!.Value,
                     DocumentType.DebitNote, debitNote.Id, debitNote.Date, cancellationToken, debitNote.LocationId);
             }
         }

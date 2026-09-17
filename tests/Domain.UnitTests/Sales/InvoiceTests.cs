@@ -15,7 +15,7 @@ public class InvoiceTests
     {
         var invoice = Invoice.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Today(), null, null, null);
 
-        invoice.AddLine(Guid.NewGuid(), 10m, 100m, VatRate.ThirteenPercentVat, discountPct: 0);
+        invoice.AddLine(Guid.NewGuid(), 10m, 100m, VatRate.ThirteenPercentVat, discountPct: 0, null, 1m);
 
         var line = Assert.Single(invoice.Lines);
         Assert.Equal(1000m, line.Amount);
@@ -28,7 +28,7 @@ public class InvoiceTests
         var invoice = Invoice.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Today(), null, null, null);
 
         // Qty 10 * Rate 100 = 1000 gross, 10% line discount -> 900 net, VAT 13% of 900 = 117.
-        invoice.AddLine(Guid.NewGuid(), 10m, 100m, VatRate.ThirteenPercentVat, discountPct: 10);
+        invoice.AddLine(Guid.NewGuid(), 10m, 100m, VatRate.ThirteenPercentVat, discountPct: 10, null, 1m);
 
         var line = Assert.Single(invoice.Lines);
         Assert.Equal(900m, line.Amount);
@@ -43,7 +43,7 @@ public class InvoiceTests
         var invoice = Invoice.Create(
             Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Today(), null, null, null, discountPct: 5);
 
-        invoice.AddLine(Guid.NewGuid(), 10m, 1000m, VatRate.ThirteenPercentVat, discountPct: 10);
+        invoice.AddLine(Guid.NewGuid(), 10m, 1000m, VatRate.ThirteenPercentVat, discountPct: 10, null, 1m);
 
         var line = Assert.Single(invoice.Lines);
         Assert.Equal(8550m, line.Amount);
@@ -57,7 +57,7 @@ public class InvoiceTests
         var invoice = Invoice.Create(
             Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Today(), null, null, null, discountPct: 20);
 
-        invoice.AddLine(Guid.NewGuid(), 1m, 500m, VatRate.NoVat, discountPct: 0);
+        invoice.AddLine(Guid.NewGuid(), 1m, 500m, VatRate.NoVat, discountPct: 0, null, 1m);
 
         var line = Assert.Single(invoice.Lines);
         Assert.Equal(400m, line.Amount);
@@ -68,10 +68,10 @@ public class InvoiceTests
     public void UpdateHeader_changing_discount_pct_affects_lines_added_afterward_not_existing_ones()
     {
         var invoice = Invoice.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Today(), null, null, null);
-        invoice.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.NoVat, discountPct: 0);
+        invoice.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.NoVat, discountPct: 0, null, 1m);
 
         invoice.UpdateHeader(invoice.ContactId, invoice.WarehouseId, invoice.Date, invoice.Reference, discountPct: 50);
-        invoice.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.NoVat, discountPct: 0);
+        invoice.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.NoVat, discountPct: 0, null, 1m);
 
         Assert.Equal(100m, invoice.Lines[0].Amount);
         Assert.Equal(50m, invoice.Lines[1].Amount);
@@ -94,7 +94,7 @@ public class InvoiceTests
         var invoice = Invoice.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Today(), null, null, null);
 
         Assert.Throws<InvalidOperationException>(() =>
-            invoice.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.NoVat, discountPct));
+            invoice.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.NoVat, discountPct, null, 1m));
     }
 
     // --- FR-5.8 export sales (Phase 23) --------------------------------------
@@ -110,8 +110,8 @@ public class InvoiceTests
         // The caller asks for 13% and for exempt; both are overridden. On the live reference product
         // the Tax selector is disabled outright once the export box is ticked, so neither choice is
         // even offered -- the aggregate is where that becomes an invariant rather than UI behaviour.
-        invoice.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.ThirteenPercentVat, discountPct: 0);
-        invoice.AddLine(Guid.NewGuid(), 2m, 50m, VatRate.NoVat, discountPct: 0);
+        invoice.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.ThirteenPercentVat, discountPct: 0, null, 1m);
+        invoice.AddLine(Guid.NewGuid(), 2m, 50m, VatRate.NoVat, discountPct: 0, null, 1m);
 
         Assert.All(invoice.Lines, line => Assert.Equal(VatRate.ZeroVat, line.VatRate));
         Assert.Equal(0m, invoice.Lines.Sum(l => l.VatAmount));
@@ -122,7 +122,7 @@ public class InvoiceTests
     public void SetExport_re_rates_lines_that_were_already_added()
     {
         var invoice = Invoice.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Today(), null, null, null);
-        invoice.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.ThirteenPercentVat, discountPct: 0);
+        invoice.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.ThirteenPercentVat, discountPct: 0, null, 1m);
         Assert.Equal(13m, invoice.Lines[0].VatAmount);
 
         // The other ordering -- lines first, flag second. Both have to land in the same place, or a
@@ -139,7 +139,7 @@ public class InvoiceTests
     {
         var invoice = Invoice.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Today(), null, null, null, discountPct: 10);
         var productId = Guid.NewGuid();
-        invoice.AddLine(productId, 3m, 200m, VatRate.ThirteenPercentVat, discountPct: 25);
+        invoice.AddLine(productId, 3m, 200m, VatRate.ThirteenPercentVat, discountPct: 25, null, 1m);
 
         invoice.SetExport(true, "India", null, null);
 
@@ -159,7 +159,7 @@ public class InvoiceTests
             Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Today(), null, null, null,
             discountPct: 0, isExport: true, exportCountry: "India",
             exportDeclarationNo: "EXP-1", exportDeclarationDate: Today());
-        invoice.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.ThirteenPercentVat, discountPct: 0);
+        invoice.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.ThirteenPercentVat, discountPct: 0, null, 1m);
 
         invoice.SetExport(false, "India", "EXP-1", Today());
 

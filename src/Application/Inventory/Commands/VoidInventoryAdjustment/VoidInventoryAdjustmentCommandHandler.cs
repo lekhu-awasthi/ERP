@@ -58,7 +58,8 @@ public sealed class VoidInventoryAdjustmentCommandHandler(
             x => x.Direction == InventoryAdjustmentDirection.Decrease && x.ConsumedUnitCost is not null))
         {
             costCatchUp += await stockLedgerService.IncrementAsync(
-                request.OrganizationId, line.ProductId, inventoryAdjustment.WarehouseId, line.Quantity, line.ConsumedUnitCost!.Value,
+                request.OrganizationId, line.ProductId, inventoryAdjustment.WarehouseId,
+                PrimaryQuantity.AlreadyPrimary(line.Quantity), line.ConsumedUnitCost!.Value,
                 DocumentType.InventoryAdjustment, inventoryAdjustment.Id, inventoryAdjustment.Date, cancellationToken,
                 inventoryAdjustment.LocationId);
         }

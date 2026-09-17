@@ -1,3 +1,4 @@
+using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
@@ -61,9 +62,20 @@ public sealed class UpdateDebitNoteCommandHandler(IAppDbContext db)
             db, request.OrganizationId, DocumentType.DebitNote, request.LocationId,
             cancellationToken));
         debitNote.ClearLines();
-        foreach (var line in request.Lines)
+        // Phase 52 -- the catalogue is read here and never again: ResolveAsync turns the unit
+        // each line names into the factor frozen onto it, so editing (or deleting) the product's
+        // unit row afterwards cannot reach back and change what this document did to stock.
+        var units = await DocumentLineUnitResolver.ResolveAsync(
+            db, request.OrganizationId,
+            [.. request.Lines.Select(x => new DocumentLineUnitResolver.LineUnitInput(x.ProductId, x.UnitId))],
+            cancellationToken);
+
+        for (var i = 0; i < request.Lines.Count; i++)
         {
-            debitNote.AddLine(line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct);
+            var line = request.Lines[i];
+            debitNote.AddLine(
+                line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct,
+                units[i].UnitId, units[i].ConversionFactor);
         }
 
         db.DebitNoteLines.RemoveRange(oldLines);

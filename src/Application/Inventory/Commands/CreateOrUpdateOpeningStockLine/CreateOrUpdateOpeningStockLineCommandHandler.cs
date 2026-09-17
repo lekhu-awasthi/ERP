@@ -82,7 +82,8 @@ public sealed class CreateOrUpdateOpeningStockLineCommandHandler(IAppDbContext d
         }
 
         var costCatchUp = await stockLedger.IncrementAsync(
-            request.OrganizationId, request.ProductId, request.WarehouseId, request.Quantity, request.Rate,
+            request.OrganizationId, request.ProductId, request.WarehouseId,
+            PrimaryQuantity.AlreadyPrimary(request.Quantity), request.Rate,
             DocumentType.OpeningStock, line.Id, organization.AccountingStartDate, cancellationToken,
             line.LocationId);
 

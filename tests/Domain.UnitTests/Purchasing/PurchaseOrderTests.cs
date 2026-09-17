@@ -22,7 +22,7 @@ public class PurchaseOrderTests
     public void SetCustomStatus_is_allowed_on_an_approved_purchase_order()
     {
         var purchaseOrder = PurchaseOrder.Create(Guid.NewGuid(), Guid.NewGuid(), Today(), null);
-        purchaseOrder.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.NoVat, 0);
+        purchaseOrder.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.NoVat, 0, null, 1m);
         purchaseOrder.Approve(Guid.NewGuid(), "PO0001");
         var customStatusId = Guid.NewGuid();
 

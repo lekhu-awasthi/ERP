@@ -12,7 +12,19 @@ public sealed class ListProductsQueryHandler(IAppDbContext db)
 {
     public async Task<PagedResult<Product>> Handle(ListProductsQuery request, CancellationToken cancellationToken)
     {
-        var query = db.Products.Where(x => x.OrganizationId == request.OrganizationId);
+        // Phase 52 -- the unit matrix rides the list, because every document line picker is fed by
+        // this query and the unit control in the Qty cell has to know which units a product offers
+        // the moment the product is chosen. This is what the reference product does too: its own
+        // line-grid picker calls `products-minimized?...&unit=true` and gets `secondary_units[]`
+        // embedded per product (read live 2026-09-17).
+        //
+        // No performance claim is made for this. It is a join over the page rather than over the
+        // table (ToKeyPagedResultAsync pages the keys first), but `listAllProducts` asks for a very
+        // large page, so a tenant with thousands of products pays for it -- phase 34c's rule is that
+        // an index or a plan change owes a measurement, and this phase took none.
+        var query = db.Products
+            .Include(x => x.SecondaryUnits)
+            .Where(x => x.OrganizationId == request.OrganizationId);
 
         if (request.Type is { } type)
         {

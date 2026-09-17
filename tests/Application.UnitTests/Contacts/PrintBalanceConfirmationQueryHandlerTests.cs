@@ -132,7 +132,7 @@ public class PrintBalanceConfirmationQueryHandlerTests
         db.Products.Add(product);
 
         var invoice = Invoice.Create(organization.Id, customer.Id, Guid.NewGuid(), new DateOnly(2026, 8, 1), null, null, null);
-        invoice.AddLine(product.Id, 2, 150, VatRate.NoVat, 0);
+        invoice.AddLine(product.Id, 2, 150, VatRate.NoVat, 0, null, 1m);
         invoice.Approve(Guid.NewGuid(), "INV-001");
         db.Invoices.Add(invoice);
 

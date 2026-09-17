@@ -16,7 +16,7 @@ public sealed class StockLedgerService(IAppDbContext db) : IStockLedgerService
         Guid organizationId,
         Guid productId,
         Guid warehouseId,
-        decimal quantity,
+        PrimaryQuantity primaryQuantity,
         decimal unitCost,
         DocumentType sourceDocumentType,
         Guid sourceDocumentId,
@@ -26,6 +26,8 @@ public sealed class StockLedgerService(IAppDbContext db) : IStockLedgerService
         Guid? batchId = null,
         string? serialNo = null)
     {
+        var quantity = primaryQuantity.Value;
+
         if (quantity < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity cannot be negative.");
@@ -61,7 +63,7 @@ public sealed class StockLedgerService(IAppDbContext db) : IStockLedgerService
         Guid organizationId,
         Guid productId,
         Guid warehouseId,
-        decimal quantity,
+        PrimaryQuantity primaryQuantity,
         DocumentType sourceDocumentType,
         Guid sourceDocumentId,
         DateOnly transactionDate,
@@ -71,6 +73,8 @@ public sealed class StockLedgerService(IAppDbContext db) : IStockLedgerService
         Guid? batchId = null,
         string? serialNo = null)
     {
+        var quantity = primaryQuantity.Value;
+
         if (quantity < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity cannot be negative.");
@@ -191,11 +195,13 @@ public sealed class StockLedgerService(IAppDbContext db) : IStockLedgerService
         Guid organizationId,
         Guid productId,
         Guid warehouseId,
-        decimal quantity,
+        PrimaryQuantity primaryQuantity,
         CancellationToken cancellationToken,
         Guid? batchId = null,
         string? serialNo = null)
     {
+        var quantity = primaryQuantity.Value;
+
         if (quantity <= 0)
         {
             return 0m;

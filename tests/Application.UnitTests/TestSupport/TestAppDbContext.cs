@@ -257,6 +257,21 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         // though the real AlertDefinitionConfiguration already ignores it.
         modelBuilder.Entity<AlertDefinition>().Ignore(x => x.RecipientAddresses);
 
+        // Phase 52 -- Line.PrimaryQuantity is a computed get-only view over Quantity and
+        // ConversionFactor, both stored on the same row. Stated here for the same reason as
+        // RecipientAddresses above: this context applies none of the real IEntityTypeConfiguration
+        // classes, so the Ignore each of the eight line configurations carries does not reach it,
+        // and a phantom column here would be a second quantity able to disagree with the first --
+        // exactly what storing the factor rather than the product was meant to prevent.
+        modelBuilder.Entity<QuotationLine>().Ignore(x => x.PrimaryQuantity);
+        modelBuilder.Entity<SalesOrderLine>().Ignore(x => x.PrimaryQuantity);
+        modelBuilder.Entity<InvoiceLine>().Ignore(x => x.PrimaryQuantity);
+        modelBuilder.Entity<CreditNoteLine>().Ignore(x => x.PrimaryQuantity);
+        modelBuilder.Entity<PurchaseOrderLine>().Ignore(x => x.PrimaryQuantity);
+        modelBuilder.Entity<PurchaseBillLine>().Ignore(x => x.PrimaryQuantity);
+        modelBuilder.Entity<DebitNoteLine>().Ignore(x => x.PrimaryQuantity);
+        modelBuilder.Entity<WarehouseTransferLine>().Ignore(x => x.PrimaryQuantity);
+
         // ApplicableDocumentTypes needs the same delimited-string conversion as the real
         // CustomFieldDefinitionConfiguration (Infrastructure) -- IEntityTypeConfiguration classes
         // aren't applied here (this context has no ApplyConfigurationsFromAssembly call, by

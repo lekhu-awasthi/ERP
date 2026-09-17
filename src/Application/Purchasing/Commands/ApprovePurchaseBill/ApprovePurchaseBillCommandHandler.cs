@@ -153,11 +153,18 @@ public sealed class ApprovePurchaseBillCommandHandler(
             // at the undiscounted Rate while the GL debited Inventory the discounted Amount, so the
             // account and the ledger drifted apart by the discount -- a pre-existing divergence this
             // phase's conservation law does not permit and therefore closes.
+            // Phase 52 -- divided by the PRIMARY quantity, because that is what the layer will
+            // hold. A bill for 2 CTN at 1,200 with a factor of 12 creates 24 units at 100, not 2 at
+            // 1,200 -- which is exactly what the reference product's own movement row reports
+            // (quantity 2 BTL, primary_quantity 24, ValuationRate 100, read live 2026-09-17). The
+            // money is untouched: Amount stays Quantity x Rate in the entered unit.
+            var primaryQuantity = line.PrimaryQuantity.Value;
+
             var unitCost = ExchangeRates.ToBaseUnitCost(
-                (line.Amount + allocated) / line.Quantity, purchaseBill.ExchangeRate);
+                (line.Amount + allocated) / primaryQuantity, purchaseBill.ExchangeRate);
 
             goodsAmountBase += ExchangeRates.ToBase(line.Amount, purchaseBill.ExchangeRate);
-            layerValueCreated += unitCost * line.Quantity;
+            layerValueCreated += unitCost * primaryQuantity;
 
             // Phase 51 -- the receipt carries the line's batch, and splits into one layer per
             // serial when the line names any. This is where a batch comes into existence as stock:
@@ -166,7 +173,7 @@ public sealed class ApprovePurchaseBillCommandHandler(
             // no layers.
             costCatchUp += await LineStockAllocator.IncrementLineAsync(
                 stockLedgerService, request.OrganizationId, line.ProductId, purchaseBill.WarehouseId,
-                line.Quantity, unitCost, line.BatchId,
+                line.PrimaryQuantity, unitCost, line.BatchId,
                 serialsByLine.TryGetValue(line.Id, out var serials) ? serials : [],
                 DocumentType.PurchaseBill, purchaseBill.Id, purchaseBill.Date, cancellationToken,
                 purchaseBill.LocationId);

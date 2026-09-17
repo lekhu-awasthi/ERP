@@ -1,3 +1,4 @@
+using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using MediatR;
@@ -15,6 +16,11 @@ public sealed class GetWarehouseTransferQueryHandler(IAppDbContext db)
             .SingleOrDefaultAsync(x => x.Id == request.Id && x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Warehouse transfer not found.");
 
+        // Phase 52 -- the unit each line names, read back through the one shared reader so the
+        // eight detail queries cannot drift in how they answer the same question.
+        var unitNames = await DocumentLineUnitResolver.LoadUnitNamesAsync(
+            db, request.OrganizationId, warehouseTransfer.Lines.Select(x => x.UnitId), cancellationToken);
+
         return new WarehouseTransferDetailDto(
             warehouseTransfer.Id,
             warehouseTransfer.OrganizationId,
@@ -27,7 +33,9 @@ public sealed class GetWarehouseTransferQueryHandler(IAppDbContext db)
             warehouseTransfer.ApprovedByUserId,
             warehouseTransfer.ApprovedAt,
             warehouseTransfer.CreatedAt,
-            warehouseTransfer.Lines.Select(x => new WarehouseTransferLineDto(x.Id, x.ProductId, x.Quantity)).ToList(),
+            warehouseTransfer.Lines.Select(x => new WarehouseTransferLineDto(
+                x.Id, x.ProductId, x.Quantity,
+                x.UnitId, x.UnitId is null ? null : unitNames.GetValueOrDefault(x.UnitId.Value), x.ConversionFactor)).ToList(),
             warehouseTransfer.LocationId);
     }
 }

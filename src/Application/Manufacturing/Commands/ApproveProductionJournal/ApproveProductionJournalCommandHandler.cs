@@ -121,7 +121,8 @@ public sealed class ApproveProductionJournalCommandHandler(
         foreach (var line in journal.RawMaterials)
         {
             var consumedUnitCost = (await stockLedgerService.ConsumeAsync(
-                request.OrganizationId, line.ProductId, journal.WarehouseId, line.Quantity,
+                request.OrganizationId, line.ProductId, journal.WarehouseId,
+                PrimaryQuantity.AlreadyPrimary(line.Quantity),
                 DocumentType.ProductionJournal, journal.Id, journal.Date, cancellationToken, journal.LocationId,
                 // Phase 37 -- the availability gate above has already applied the tenant's Negative
                 // Item Balance setting and, on Warn, has already been confirmed; anything the layers
@@ -143,14 +144,14 @@ public sealed class ApproveProductionJournalCommandHandler(
         foreach (var byProduct in journal.ByProducts)
         {
             costCatchUp += await stockLedgerService.IncrementAsync(
-                request.OrganizationId, byProduct.ProductId, journal.WarehouseId, byProduct.Quantity,
-                byProduct.AllocatedUnitCost!.Value, DocumentType.ProductionJournal, journal.Id, journal.Date,
+                request.OrganizationId, byProduct.ProductId, journal.WarehouseId,
+                PrimaryQuantity.AlreadyPrimary(byProduct.Quantity), byProduct.AllocatedUnitCost!.Value, DocumentType.ProductionJournal, journal.Id, journal.Date,
                 cancellationToken, journal.LocationId);
         }
 
         costCatchUp += await stockLedgerService.IncrementAsync(
-            request.OrganizationId, journal.ProductId, journal.WarehouseId, journal.OutputQuantity,
-            journal.FinishedGoodsUnitCost!.Value, DocumentType.ProductionJournal, journal.Id, journal.Date,
+            request.OrganizationId, journal.ProductId, journal.WarehouseId,
+            PrimaryQuantity.AlreadyPrimary(journal.OutputQuantity), journal.FinishedGoodsUnitCost!.Value, DocumentType.ProductionJournal, journal.Id, journal.Date,
             cancellationToken, journal.LocationId);
 
         // Step 5 -- the GL, from the values actually created rather than the theoretical roll-up.

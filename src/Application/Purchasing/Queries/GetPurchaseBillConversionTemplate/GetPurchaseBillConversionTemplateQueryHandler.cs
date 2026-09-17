@@ -24,8 +24,11 @@ public sealed class GetPurchaseBillConversionTemplateQueryHandler(IAppDbContext 
         }
 
         var lines = purchaseOrder.Lines
+            // Phase 52 -- see GetInvoiceConversionTemplateQueryHandler for why the unit rides
+            // the prefill rather than being left to the target form's default.
             .Select(x => new PurchaseBillLineInput(
-                x.ProductId, x.Quantity, x.Rate, x.VatRate, ExpenditureClassification.Others, x.DiscountPct))
+                x.ProductId, x.Quantity, x.Rate, x.VatRate, ExpenditureClassification.Others, x.DiscountPct,
+                UnitId: x.UnitId))
             .ToList();
 
         return new PurchaseBillConversionTemplateDto(

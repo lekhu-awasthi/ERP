@@ -69,6 +69,24 @@ public sealed record InboxPrefillDto(
 
 /// <param name="ProductId">Null unless <paramref name="DescriptionRaw"/> matched a Product's Code or
 /// Name exactly. A null here is a line the user must complete by hand.</param>
+///
+/// <remarks>
+/// <b>Phase 52 -- this prefill deliberately carries no unit</b>, and that is a decision rather than
+/// an omission, because phase 35a's rule (a field added to many aggregates owes write, read and
+/// every prefill between) would otherwise make this look forgotten.
+///
+/// <para>The five document-to-document conversion templates carry the unit because their source is
+/// a line in this database that already has one. This prefill's source is a supplier's scanned
+/// paper bill read by an extractor whose schema has no unit field at all, so carrying one would
+/// mean either inventing it or widening what tenant data is sent to a third party for a field the
+/// user can set on the form in one click (phase 22). A prefilled line therefore lands in the
+/// product's primary unit, which is what every line in this codebase meant before this phase.</para>
+///
+/// <para><b>Re-entry condition:</b> if the extraction schema ever gains a unit, this record and
+/// <c>ResolveLinesAsync</c> are where it lands, and it would need the same
+/// <c>DocumentLineUnitResolver</c> validation as a hand-typed one -- an extracted string is not a
+/// unit id.</para>
+/// </remarks>
 public sealed record InboxPrefillLineDto(
     Guid? ProductId,
     string? DescriptionRaw,

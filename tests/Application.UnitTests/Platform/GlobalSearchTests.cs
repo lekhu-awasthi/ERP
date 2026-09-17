@@ -189,7 +189,7 @@ public class GlobalSearchTests
         // A real line, because Approve refuses an empty invoice -- and Approve is what assigns the
         // Code this whole feature searches on. A Draft's code is the DRAFT placeholder, so a draft is
         // unfindable by number in the product too, not merely in this test.
-        invoice.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.NoVat, 0m);
+        invoice.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.NoVat, 0m, null, 1m);
         invoice.Approve(UserId, code);
         return invoice;
     }

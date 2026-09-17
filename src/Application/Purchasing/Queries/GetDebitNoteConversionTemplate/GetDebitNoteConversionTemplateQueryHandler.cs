@@ -28,7 +28,11 @@ public sealed class GetDebitNoteConversionTemplateQueryHandler(IAppDbContext db)
 
         var lines = remainingByLine
             .Where(kv => kv.Value > 0)
-            .Select(kv => new DebitNoteLineInput(kv.Key.ProductId, kv.Value, kv.Key.Rate, kv.Key.VatRate, kv.Key.DiscountPct))
+            // Phase 52 -- see GetCreditNoteConversionTemplateQueryHandler: the unit is part of the
+            // conversion-cap key, so the remaining quantity is denominated in it.
+            .Select(kv => new DebitNoteLineInput(
+                kv.Key.ProductId, kv.Value, kv.Key.Rate, kv.Key.VatRate, kv.Key.DiscountPct,
+                UnitId: kv.Key.UnitId))
             .ToList();
 
         if (lines.Count == 0)

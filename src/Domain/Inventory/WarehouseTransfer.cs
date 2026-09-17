@@ -93,7 +93,7 @@ public sealed class WarehouseTransfer
         Reference = reference;
     }
 
-    public void AddLine(Guid productId, decimal quantity)
+    public void AddLine(Guid productId, decimal quantity, Guid? unitId, decimal conversionFactor)
     {
         EnsureDraft();
 
@@ -102,7 +102,7 @@ public sealed class WarehouseTransfer
             throw new InvalidOperationException("A warehouse transfer line needs a positive Quantity.");
         }
 
-        _lines.Add(WarehouseTransferLine.Create(Id, productId, quantity));
+        _lines.Add(WarehouseTransferLine.Create(Id, productId, quantity, unitId, conversionFactor));
     }
 
     public void ClearLines()

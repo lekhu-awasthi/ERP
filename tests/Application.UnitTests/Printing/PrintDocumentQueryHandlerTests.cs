@@ -30,7 +30,7 @@ public class PrintDocumentQueryHandlerTests
         db.Products.Add(product);
 
         var invoice = Invoice.Create(organizationId, contact.Id, Guid.NewGuid(), new DateOnly(2026, 8, 1), "REF-1", null, null);
-        invoice.AddLine(product.Id, 2, 100, VatRate.NoVat, 0);
+        invoice.AddLine(product.Id, 2, 100, VatRate.NoVat, 0, null, 1m);
         invoice.SetTerms("Payment due within 30 days.");
         db.Invoices.Add(invoice);
 
@@ -73,7 +73,7 @@ public class PrintDocumentQueryHandlerTests
         db.Products.Add(product);
 
         var invoice = Invoice.Create(organizationId, contact.Id, Guid.NewGuid(), new DateOnly(2026, 8, 1), null, null, null);
-        invoice.AddLine(product.Id, 1, 50, VatRate.NoVat, 0);
+        invoice.AddLine(product.Id, 1, 50, VatRate.NoVat, 0, null, 1m);
         db.Invoices.Add(invoice);
 
         await db.SaveChangesAsync(CancellationToken.None);
@@ -163,7 +163,7 @@ public class PrintDocumentQueryHandlerTests
         db.Products.Add(product);
 
         var transfer = WarehouseTransfer.Create(organizationId, fromWarehouse.Id, toWarehouse.Id, new DateOnly(2026, 8, 1), null);
-        transfer.AddLine(product.Id, 7);
+        transfer.AddLine(product.Id, 7, null, 1m);
         db.WarehouseTransfers.Add(transfer);
 
         await db.SaveChangesAsync(CancellationToken.None);

@@ -127,12 +127,15 @@ public sealed class ApproveDebitNoteCommandHandler(
             // the *bill's* rate, because the capitalised figure is a base-currency fact of the bill,
             // not of this note. Empty for a standalone note, which has no capitalised cost to release.
             var allocationByLineKey = sourcePurchaseBill?.Lines
-                .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct))
+                .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.UnitId))
                 .ToDictionary(
                     g => g.Key,
                     g => (
                         Allocated: g.Sum(x => sourcePurchaseBill.AllocatedAdditionalCostFor(x.Id)),
-                        Quantity: g.Sum(x => x.Quantity)));
+                        // Phase 52 -- summed in PRIMARY units so the proportion below is
+                        // unit-agnostic: a bill written in cartons and returned in pieces must
+                        // release the share of the accrual those pieces actually carry.
+                        Quantity: g.Sum(x => x.PrimaryQuantity.Value)));
 
             var releasedAdditionalCost = 0m;
 
@@ -155,22 +158,23 @@ public sealed class ApproveDebitNoteCommandHandler(
             {
                 var consumption = await LineStockAllocator.ConsumeLineAsync(
                     stockLedgerService, request.OrganizationId, line.ProductId, warehouseId,
-                    line.Quantity, line.BatchId,
+                    line.PrimaryQuantity, line.BatchId,
                     serialsByLine.TryGetValue(line.Id, out var serials) ? serials : [],
                     DocumentType.DebitNote, debitNote.Id, debitNote.Date, cancellationToken,
                     debitNote.LocationId);
 
                 var averageUnitCost = consumption.AverageUnitCost;
                 line.RecordConsumedUnitCost(averageUnitCost);
-                relievedInventoryCost += line.Quantity * averageUnitCost;
+                relievedInventoryCost += line.PrimaryQuantity.Value * averageUnitCost;
 
                 if (sourcePurchaseBill is { } purchaseBill
                     && allocationByLineKey!.TryGetValue(
-                        (line.ProductId, line.Rate, line.VatRate, line.DiscountPct), out var source)
+                        (line.ProductId, line.Rate, line.VatRate, line.DiscountPct, line.UnitId), out var source)
                     && source is { Allocated: > 0, Quantity: > 0 })
                 {
                     releasedAdditionalCost += ExchangeRates.ToBase(
-                        source.Allocated * line.Quantity / source.Quantity, purchaseBill.ExchangeRate);
+                        source.Allocated * line.PrimaryQuantity.Value / source.Quantity,
+                        purchaseBill.ExchangeRate);
                 }
             }
 

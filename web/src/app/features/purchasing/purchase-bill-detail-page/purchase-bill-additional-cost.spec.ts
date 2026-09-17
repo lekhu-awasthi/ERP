@@ -81,6 +81,9 @@ describe('PurchaseBillDetailPage — Additional Cost', () => {
           manufactureDate: null,
           expiryDate: null,
           serialNumbers: [],
+          unitId: null,
+          unitName: null,
+          conversionFactor: 1,
         },
         {
           id: 'l-helmet',
@@ -96,6 +99,9 @@ describe('PurchaseBillDetailPage — Additional Cost', () => {
           manufactureDate: null,
           expiryDate: null,
           serialNumbers: [],
+          unitId: null,
+          unitName: null,
+          conversionFactor: 1,
         },
       ],
       glLines: null,
@@ -133,7 +139,11 @@ describe('PurchaseBillDetailPage — Additional Cost', () => {
         provideRouter([]),
         { provide: PurchasingService, useValue: purchasingService },
         { provide: ContactsService, useValue: { listAllContacts: () => of([]) } },
-        { provide: CatalogService, useValue: { listAllProducts: () => of(products) } },
+        // Phase 52 -- listUnitsOfMeasurement is what UnitOfMeasurementStore reads for the unit
+        // control in the Qty cell. Note this double resolves SYNCHRONOUSLY, which is precisely
+        // the case the store's `untracked` exists for: a synchronous source writes the signal
+        // during the first `computed()` that reads it, and that is NG0600 (phase 35a).
+        { provide: CatalogService, useValue: { listAllProducts: () => of(products), listUnitsOfMeasurement: () => of([]) } },
         { provide: AccountingService, useValue: { listAllAccounts: () => of([]) } },
         {
           provide: OrganizationsService,
@@ -253,6 +263,9 @@ describe('PurchaseBillDetailPage — Additional Cost', () => {
             manufactureDate: null,
             expiryDate: null,
             serialNumbers: [],
+          unitId: null,
+          unitName: null,
+          conversionFactor: 1,
           },
         ],
       }),

@@ -55,18 +55,18 @@ public class VariantStockIsolationTests
 
         // A PurchaseBill of 10 Large-Blue ...
         await service.IncrementAsync(
-            OrganizationId, largeBlue.Id, WarehouseId, 10m, 300m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, largeBlue.Id, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 300m, DocumentType.PurchaseBill, Guid.NewGuid(),
             new DateOnly(2026, 1, 1), CancellationToken.None);
 
         // ... and, so the sibling is genuinely in play, a PurchaseBill of 7 Large-Red.
         await service.IncrementAsync(
-            OrganizationId, largeRed.Id, WarehouseId, 7m, 310m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, largeRed.Id, WarehouseId, PrimaryQuantity.AlreadyPrimary(7m), 310m, DocumentType.PurchaseBill, Guid.NewGuid(),
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync();
 
         // An Invoice of 4 Large-Blue.
         await service.ConsumeAsync(
-            OrganizationId, largeBlue.Id, WarehouseId, 4m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, largeBlue.Id, WarehouseId, PrimaryQuantity.AlreadyPrimary(4m), DocumentType.Invoice, Guid.NewGuid(),
             new DateOnly(2026, 1, 5), CancellationToken.None);
         await db.SaveChangesAsync();
 
@@ -97,15 +97,15 @@ public class VariantStockIsolationTests
         await db.SaveChangesAsync();
 
         await service.IncrementAsync(
-            OrganizationId, largeBlue.Id, WarehouseId, 10m, 300m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, largeBlue.Id, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 300m, DocumentType.PurchaseBill, Guid.NewGuid(),
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await service.IncrementAsync(
-            OrganizationId, largeRed.Id, WarehouseId, 7m, 310m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, largeRed.Id, WarehouseId, PrimaryQuantity.AlreadyPrimary(7m), 310m, DocumentType.PurchaseBill, Guid.NewGuid(),
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync();
 
         await service.ConsumeAsync(
-            OrganizationId, largeBlue.Id, WarehouseId, 4m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, largeBlue.Id, WarehouseId, PrimaryQuantity.AlreadyPrimary(4m), DocumentType.Invoice, Guid.NewGuid(),
             new DateOnly(2026, 1, 5), CancellationToken.None);
         await db.SaveChangesAsync();
 
@@ -135,21 +135,21 @@ public class VariantStockIsolationTests
 
         // Two receipts of Large-Blue at different costs.
         await service.IncrementAsync(
-            OrganizationId, largeBlue.Id, WarehouseId, 10m, 100m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, largeBlue.Id, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 100m, DocumentType.PurchaseBill, Guid.NewGuid(),
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await service.IncrementAsync(
-            OrganizationId, largeBlue.Id, WarehouseId, 10m, 200m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, largeBlue.Id, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 200m, DocumentType.PurchaseBill, Guid.NewGuid(),
             new DateOnly(2026, 1, 10), CancellationToken.None);
 
         // A far cheaper sibling layer, older than both, that a product-keyed engine would walk first.
         await service.IncrementAsync(
-            OrganizationId, largeRed.Id, WarehouseId, 100m, 1m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, largeRed.Id, WarehouseId, PrimaryQuantity.AlreadyPrimary(100m), 1m, DocumentType.PurchaseBill, Guid.NewGuid(),
             new DateOnly(2025, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync();
 
         // Issue 15 Large-Blue: 10 @ 100 + 5 @ 200 = 2000 over 15 = 133.333...
         var averageCost = (await service.ConsumeAsync(
-            OrganizationId, largeBlue.Id, WarehouseId, 15m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, largeBlue.Id, WarehouseId, PrimaryQuantity.AlreadyPrimary(15m), DocumentType.Invoice, Guid.NewGuid(),
             new DateOnly(2026, 2, 1), CancellationToken.None)).AverageUnitCost;
         await db.SaveChangesAsync();
 
@@ -172,13 +172,13 @@ public class VariantStockIsolationTests
         await db.SaveChangesAsync();
 
         await service.IncrementAsync(
-            OrganizationId, largeRed.Id, WarehouseId, 50m, 10m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, largeRed.Id, WarehouseId, PrimaryQuantity.AlreadyPrimary(50m), 10m, DocumentType.PurchaseBill, Guid.NewGuid(),
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync();
 
         await Assert.ThrowsAsync<Application.Common.Exceptions.ConflictException>(
             () => service.ConsumeAsync(
-                OrganizationId, largeBlue.Id, WarehouseId, 1m, DocumentType.Invoice, Guid.NewGuid(),
+                OrganizationId, largeBlue.Id, WarehouseId, PrimaryQuantity.AlreadyPrimary(1m), DocumentType.Invoice, Guid.NewGuid(),
                 new DateOnly(2026, 1, 5), CancellationToken.None));
     }
 }

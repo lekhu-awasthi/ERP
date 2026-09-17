@@ -1,3 +1,4 @@
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Catalog;
 
 namespace ErpApp.Domain.Purchasing;
@@ -41,6 +42,19 @@ public sealed class DebitNoteLine
     public Guid? BatchId { get; private set; }
 
 
+    /// <summary>Phase 52 -- the unit this line was <b>entered</b> in (null means the product's own
+    /// primary unit) and how many primary units one of them is worth, frozen when the line was
+    /// written. See <c>InvoiceLine</c> for the full reasoning and <see cref="UnitConversion"/> for
+    /// the live evidence behind freezing the factor rather than re-reading it.</summary>
+    public Guid? UnitId { get; private set; }
+
+    /// <inheritdoc cref="UnitId"/>
+    public decimal ConversionFactor { get; private set; }
+
+    /// <summary>This line's quantity in the product's primary unit -- the only quantity the stock
+    /// ledger and the GL accept.</summary>
+    public PrimaryQuantity PrimaryQuantity => PrimaryQuantity.FromEntered(Quantity, ConversionFactor);
+
     private DebitNoteLine()
     {
     }
@@ -49,7 +63,8 @@ public sealed class DebitNoteLine
     /// and header DiscountPct.</summary>
     internal static DebitNoteLine Create(
         Guid debitNoteId, Guid productId, decimal quantity, decimal rate, VatRate vatRate,
-        decimal discountPct, decimal headerDiscountPct, Guid? batchId)
+        decimal discountPct, decimal headerDiscountPct, Guid? batchId, Guid? unitId,
+        decimal conversionFactor)
     {
         var grossAmount = quantity * rate;
         var netAfterLineDiscount = grossAmount * (1 - discountPct / 100m);
@@ -60,6 +75,8 @@ public sealed class DebitNoteLine
             Id = Guid.NewGuid(),
             DebitNoteId = debitNoteId,
             ProductId = productId,
+            UnitId = unitId,
+            ConversionFactor = UnitConversion.Validate(conversionFactor),
             Quantity = quantity,
             Rate = rate,
             VatRate = vatRate,

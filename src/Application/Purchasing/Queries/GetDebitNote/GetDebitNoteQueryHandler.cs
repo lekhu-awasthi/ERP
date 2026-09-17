@@ -1,3 +1,4 @@
+using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
@@ -35,6 +36,11 @@ public sealed class GetDebitNoteQueryHandler(IAppDbContext db) : IRequestHandler
                     .Select(x => new PostedGlLineDto(x.Id, x.AccountId, x.Debit, x.Credit)).ToList();
         }
 
+        // Phase 52 -- the unit each line names, read back through the one shared reader so the
+        // eight detail queries cannot drift in how they answer the same question.
+        var unitNames = await DocumentLineUnitResolver.LoadUnitNamesAsync(
+            db, request.OrganizationId, debitNote.Lines.Select(x => x.UnitId), cancellationToken);
+
         return new DebitNoteDetailDto(
             debitNote.Id,
             debitNote.OrganizationId,
@@ -52,7 +58,8 @@ public sealed class GetDebitNoteQueryHandler(IAppDbContext db) : IRequestHandler
             debitNote.ReferrerId,
             debitNote.DiscountPct,
             debitNote.Lines.Select(x => new DebitNoteLineDto(
-                x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount)).ToList(),
+                x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount,
+                x.UnitId, x.UnitId is null ? null : unitNames.GetValueOrDefault(x.UnitId.Value), x.ConversionFactor)).ToList(),
             glLines,
             debitNote.CurrencyCode,
             debitNote.ExchangeRate,

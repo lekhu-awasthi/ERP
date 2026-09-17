@@ -3322,3 +3322,59 @@ stock and a narrowed consume against it had therefore left a shortfall.
 practical rule: when adding a parameter to a widely-called method, either make the call sites fail to
 compile (change the return type, or make the parameter required at the call sites that must supply
 it), or enumerate them by hand and write down the list — never rely on having remembered.
+
+
+## A unit on a document line (phase 52)
+
+**The catalogue governs the future and never the past.** A line stores the unit it was entered in and
+the factor that applied **when it was written**, and the stock ledger receives
+`Quantity × ConversionFactor` in the product's primary unit. Editing the product's conversion rate
+afterwards changes what the *next* document does and nothing about an approved one. This is not a
+design preference — it is what the reference product does, established by experiment on 2026-09-17:
+an approved bill for `2 BTL` at a rate of 12 held `primary_quantity 24` and `ValuationRate 100`
+through the rate being changed to 6 and through the unit row being **deleted outright**, while the
+same product's on-hand display re-expressed live from `0.167 BTL` to `0.333 BTL`. The effect of a
+conversion is document history; only the display re-expression is a view of the catalogue.
+
+**The line names the unit lookup, not the product's secondary-unit row.** That one choice is what
+makes a document survive its own catalogue. The reference product allows deleting a secondary-unit
+row that an approved document references — with a plain "Are you sure?", no guard — and the document
+still renders its unit, because it never pointed at that row.
+
+**The money is not converted.** Choosing a secondary unit prefills the line's Rate from that unit
+row's own selling or purchase price, and `Amount = Quantity × Rate` in the *entered* unit. A
+secondary unit is two independent things at once — a price-book row and a stock conversion — and
+they do not interact. The FIFO layer's unit cost is then `Amount / primary quantity`, which is how
+`2 CTN @ 1200` becomes 24 units at 100 rather than 2 at 1200.
+
+**A conversion factor below one is ordinary.** The reference tenant has a product whose primary unit
+is `bag` and whose secondary `NOS` converts at **0.02**. A `factor >= 1` validation would reject real
+data.
+
+**A dimension you add to a line has to fit in the cell you add it to.** Putting the unit select
+inside the Qty cell crushed the number input, because the column was sized for a number alone. The
+column widened from 100–110 px to 190 px and the input got a `min-width` floor; the check that
+settles it is typing a realistic value (`1234.56`) and comparing `scrollWidth` to `clientWidth`.
+
+**A scripted template sweep covers exactly the shape its pattern names.** A pattern matching the
+editable `<input>` will not touch the `@else` branch that renders the same value read-only, so a
+field can appear on every draft and on no approved document. Ask the mirror question of any template
+sweep: *what does this cell render when it is not editable?*
+
+## Choosing where the compiler stops (phase 52, refining phase 51)
+
+Phase 51 recorded that *a sweep driven by the compiler stops exactly where the compiler stops*.
+Phase 52's refinement is that **where it stops is a design decision**, not a fact to work around.
+
+Making the stock ledger's quantity parameter a distinct type — `PrimaryQuantity`, a
+`readonly record struct` with no implicit conversion from `decimal` and no public constructor —
+turned "remember to convert" into a compile error at all 17 call sites, and the enforcement outlives
+the phase: a later phase adding a ledger-touching document cannot reintroduce the bug. It caught
+three defects no test saw (`VoidInvoice` and `VoidDebitNote` restocking the entered quantity;
+`ApprovePurchaseBill` dividing a layer's unit cost by it). Required parameters would have caught the
+first two and none of the arithmetic, because the arithmetic does not go through the signature.
+
+The converse is the trap. **An optional field ends the sweep**, in any language: `unitId` is optional
+on the request records, so every form's save path compiled while 7 of 8 dropped it silently. When a
+field must be supplied, make it required or enumerate the call sites by hand — and check, because
+"the build is green" says nothing about an optional parameter.

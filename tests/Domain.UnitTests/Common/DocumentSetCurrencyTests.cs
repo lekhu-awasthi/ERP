@@ -46,7 +46,7 @@ public class DocumentSetCurrencyTests
         // The amounts are already posted to the general ledger at the old rate, so a later change
         // would silently invalidate the posting.
         var invoice = NewInvoice();
-        invoice.AddLine(Guid.NewGuid(), 1m, 100m, Domain.Catalog.VatRate.NoVat, discountPct: 0);
+        invoice.AddLine(Guid.NewGuid(), 1m, 100m, Domain.Catalog.VatRate.NoVat, discountPct: 0, null, 1m);
         invoice.Approve(Guid.NewGuid(), "INV-1");
 
         Assert.Throws<InvalidOperationException>(() => invoice.SetCurrency("USD", 133m));

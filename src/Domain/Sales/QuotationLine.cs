@@ -1,3 +1,4 @@
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Catalog;
 
 namespace ErpApp.Domain.Sales;
@@ -21,6 +22,19 @@ public sealed class QuotationLine
     public decimal Amount { get; private set; }
     public decimal VatAmount { get; private set; }
 
+    /// <summary>Phase 52 -- the unit this line was <b>entered</b> in (null means the product's own
+    /// primary unit) and how many primary units one of them is worth, frozen when the line was
+    /// written. See <c>InvoiceLine</c> for the full reasoning and <see cref="UnitConversion"/> for
+    /// the live evidence behind freezing the factor rather than re-reading it.</summary>
+    public Guid? UnitId { get; private set; }
+
+    /// <inheritdoc cref="UnitId"/>
+    public decimal ConversionFactor { get; private set; }
+
+    /// <summary>This line's quantity in the product's primary unit -- the only quantity the stock
+    /// ledger and the GL accept.</summary>
+    public PrimaryQuantity PrimaryQuantity => PrimaryQuantity.FromEntered(Quantity, ConversionFactor);
+
     private QuotationLine()
     {
     }
@@ -29,7 +43,7 @@ public sealed class QuotationLine
     /// header DiscountPct.</summary>
     internal static QuotationLine Create(
         Guid quotationId, Guid productId, decimal quantity, decimal rate, VatRate vatRate,
-        decimal discountPct, decimal headerDiscountPct)
+        decimal discountPct, decimal headerDiscountPct, Guid? unitId, decimal conversionFactor)
     {
         var grossAmount = quantity * rate;
         var netAfterLineDiscount = grossAmount * (1 - discountPct / 100m);
@@ -40,6 +54,8 @@ public sealed class QuotationLine
             Id = Guid.NewGuid(),
             QuotationId = quotationId,
             ProductId = productId,
+            UnitId = unitId,
+            ConversionFactor = UnitConversion.Validate(conversionFactor),
             Quantity = quantity,
             Rate = rate,
             VatRate = vatRate,

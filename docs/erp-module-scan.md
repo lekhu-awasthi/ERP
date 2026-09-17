@@ -1319,3 +1319,134 @@ samples of paid behaviour.
 So the finding is: **on a trial, expiry removes the tenant from the owner's namespace list.** Any
 sentence about paid tenants is unevidenced, and the price list (read 2026-09-14, above) is the only
 other source this project has.
+
+## Confirm-live pass on the unit-on-the-line question (2026-09-17, Moonbeam UAT, read + four deliberate writes)
+
+Taken for roadmap phase 52, whose first decision is **what an approved document does when the
+product's conversion rate is later edited**. The roadmap recorded units as "not specified by a live
+read today"; this pass specifies them. Four writes were made deliberately and every one was reverted
+— they are listed at the bottom.
+
+### 1. The control exists, and it lives inside the Qty cell
+
+The line grid's columns are unchanged from the 2026-09-16 read —
+`S.N. | Product / service | Qty | Item Batch | Rate | Discount | Tax | Amount` — because **the unit
+is not a column**. It renders *inside* the Qty cell, right of the number input:
+
+- Product with **only its primary unit** (`MC D`, P0606): a plain
+  `<div style="color: rgba(0,0,0,0.25); cursor: not-allowed">BOR</div>` — a **disabled label**, zero
+  `.ant-select` in the cell.
+- Product with a **secondary unit** (`Steel rods`, P0590 — primary `PIS`, secondary `BTL` at rate
+  12): a real `.ant-select` whose options are **`BTL` and `PIS`** — the whole matrix, primary
+  included.
+
+This is phase 44's *parent and its modifier* shape again: a control that looked absent on the first
+product was present and disabled.
+
+### 2. The conversion factor never touches the money
+
+Selecting `BTL` on a Sales line set **Rate = 1**, which is that unit row's own `selling_price`; on a
+Purchase line it set **Rate = 1** from its `purchase_price`, replacing the 95,000 the picker had
+prefilled from recent history. In both directions **Amount = Qty x Rate in the *entered* unit** —
+the factor is not applied to the money at all. Confirmed against existing data too: voided invoice
+`0012` carries `2000 BTL @ 300 -> 570,000`.
+
+So a secondary unit is **two independent things at once**: a price book row, and a stock conversion.
+The line uses the first to prefill Rate and the second to convert quantity, and they do not interact.
+
+### 3. `secondary_units[]` is the whole matrix, primary included
+
+Every product returns at least one row, flagged `is_primary: true` at `conversion_rate: 1`. This is
+the payload-side mirror of phase 45's observation that the reference product materialises the
+primary unit as row 0 while this codebase keeps it on `Product.PrimaryUnitId`. Of 592 products on
+this tenant, **5** carry more than that one row.
+
+`measurement_unit` also carries an **`accepts_fraction`** boolean this codebase does not model.
+Conversion rates are **not** constrained to be >= 1: `Maida 50 kg` has primary `bag` and a secondary
+`NOS` at **0.02**.
+
+### 4. The unit is on **eight** line types, not on the priced ones
+
+Every one of these returns `measurement_unit_id` + an embedded `measurement_unit` on its line:
+
+`quotations`, `sales-orders`, `invoices`, `credit-notes`, `purchase-orders`, `purchase-bills`,
+`debit-notes` — **and `warehouse-transfers`**, which is not a priced document at all.
+
+So the rule is not "lines that carry a price". It is **every line that names a product and a
+quantity**. (`opening-stocks`, `inventory-adjustments`, `production-journals` and `bill-of-materials`
+were all empty on this tenant — 404 on the list's first row — so they are unread, not excluded.)
+
+Two of them additionally carry a **stored primary-unit quantity**: `invoices` (`PrimaryQuantity`, a
+Go field with no json tag, so it always serialises 0 and its value is unreadable here) and
+`warehouse-transfers` (`primary_quantity`).
+
+### 5. Stock is held in the primary unit, and the display converts live
+
+`Steel rods` reads **`2 PIS`** with `Opening 0 / In 2 / Out 0`. The product Overview carries a
+**`Unit:` selector** — new to this pass — offering the same matrix. Switching it to `BTL` re-renders
+the same stock as **`0.167 BTL`** (2 / 12). Recent Transactions does **not** re-express: it keeps
+each row in the unit that row was entered in. The **Inventory Ledger report has no unit column at
+all**, so its Qty means the primary unit implicitly.
+
+### 6. The decisive experiment — the factor is applied on the way in, and then frozen
+
+A Purchase Bill `UOM-TEST-52` was created and approved for `Steel rods`, **2 BTL @ 1200 = 2,400**,
+into Kathmandu. The resulting stock movement:
+
+```
+code           quantity  unit  rate   total   primary_quantity  primary_in_quantity  ValuationRate
+UOM-TEST-52       2      BTL   1200    2400          24                  24                100
+PB0062/83-84      2      PIS  95000  206959.5         2                   2              91575
+```
+
+So `2 BTL` became **24** in the ledger, at a unit cost of **100** (= 1200 / 12 = 2400 / 24). The
+movement row keeps **both** representations: the entered quantity with its unit, and the converted
+`primary_quantity`.
+
+Then the conversion rate was changed. Two things were learned at once:
+
+- **There is no edit.** The Secondary Unit tab's `Action` column holds a **delete icon only**, and
+  the primary row has no action at all. Changing a rate means deleting the row and re-adding it.
+  (Phase 45 read this column as `Action` and built both Update and Delete; the live product offers
+  only Delete. Our Update is a deliberate improvement, not a match.)
+- **The delete is not guarded.** The `BTL` row was deleted with a plain "Are you sure?" while an
+  **approved** Purchase Bill referenced it. The vendor does not refuse it.
+
+After deleting `BTL` entirely, and again after re-adding it at rate **6**:
+
+```
+bill line     2 BTL @ 1200 = 2400      unchanged
+movement      primary_quantity 24, primary_in 24, ValuationRate 100      unchanged
+Overview in BTL    0.333 BTL   <- was 0.167 BTL over the same 2 PIS
+```
+
+**That is the answer.** The line's converted quantity is **stored** and survives both a rate change
+and the deletion of the row the rate lived on; a live lookup would have said 12. The only thing that
+moves is the **display** re-expression, which is recomputed from the product's current matrix.
+
+The bill also keeps its unit through all of it, because the line stores `measurement_unit_id` — the
+**UOM lookup's** id (`49eb5aa2-…` for BTL), not the product's secondary-unit row id. Deleting and
+re-adding the product's row mints a new row id and the document never notices.
+
+### The four writes, and their reversal
+
+1. Created + approved Purchase Bill `UOM-TEST-52` (2 BTL @ 1200, Kathmandu, supplier `001`).
+2. Deleted `Steel rods`' `BTL` secondary-unit row (rate 12).
+3. Re-added `BTL` at rate **6**, selling 1, purchase 1 — the experiment.
+4. Deleted that and re-added `BTL` at rate **12**, selling 1, purchase 1 — the original values.
+
+Then the bill was **voided** with the reason *"UOM research test document - reverting"*. Verified
+afterwards: the product's matrix reads `BTL 12 / 1 / 1` and `PIS 1 / 0 / 0` exactly as before, and
+the only movement left is the pre-existing `PB0062/83-84` at `2 PIS`. A voided document leaves **no**
+movement row at all, which also explains why invoice `0012` (Void) never appeared in the ledger.
+
+Residue on the tenant: one voided Purchase Bill, with its reason recorded.
+
+### What this falsifies
+
+- The roadmap's `100BTL` phrasing is a **paraphrase**; that string appears nowhere in this document.
+  What the scan actually recorded is `Qty+unit` on the Invoice detail panel (line 131), `Qty 1 cyl`
+  in the hands-on pass (lines 411, 425), and `unit` on the `QuotationLine`/`InvoiceLine` data model
+  (lines 125, 132).
+- Phase 45's reading of the Secondary Unit tab's `Action` column as edit-and-delete. It is
+  delete-only.

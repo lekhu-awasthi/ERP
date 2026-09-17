@@ -89,12 +89,20 @@ public sealed class UpdatePurchaseBillCommandHandler(IAppDbContext db)
                 x.ProductId, x.Quantity, x.BatchNo, x.ManufactureDate, x.ExpiryDate, x.SerialNumbers)).ToList(),
             isReceipt: true, cancellationToken);
 
+        // Phase 52 -- the catalogue is read here and never again: ResolveAsync turns the unit
+        // each line names into the factor frozen onto it, so editing (or deleting) the product's
+        // unit row afterwards cannot reach back and change what this document did to stock.
+        var units = await DocumentLineUnitResolver.ResolveAsync(
+            db, request.OrganizationId,
+            [.. request.Lines.Select(x => new DocumentLineUnitResolver.LineUnitInput(x.ProductId, x.UnitId))],
+            cancellationToken);
+
         for (var i = 0; i < request.Lines.Count; i++)
         {
             var line = request.Lines[i];
             purchaseBill.AddLine(
                 line.ProductId, line.Quantity, line.Rate, line.VatRate, line.ExpenditureClassification,
-                line.DiscountPct, allocations[i]);
+                line.DiscountPct, units[i].UnitId, units[i].ConversionFactor, allocations[i]);
         }
 
         await DocumentLineAllocationWriter.ReplaceSerialsAsync(

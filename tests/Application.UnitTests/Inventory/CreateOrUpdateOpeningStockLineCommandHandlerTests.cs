@@ -1,3 +1,4 @@
+using ErpApp.Domain.Common;
 using ErpApp.Application.Catalog.Commands.CreateProduct;
 using ErpApp.Application.Catalog.Commands.CreateProductCategory;
 using ErpApp.Application.Catalog.Commands.CreateUnitOfMeasurement;
@@ -56,7 +57,7 @@ public class CreateOrUpdateOpeningStockLineCommandHandlerTests
         await handler.Handle(
             new CreateOrUpdateOpeningStockLineCommand(organizationId, productId, warehouseId, 50m, 20m), CancellationToken.None);
         await stockLedger.ConsumeAsync(
-            organizationId, productId, warehouseId, 10m, Domain.Common.DocumentType.Invoice, Guid.NewGuid(),
+            organizationId, productId, warehouseId, PrimaryQuantity.AlreadyPrimary(10m), Domain.Common.DocumentType.Invoice, Guid.NewGuid(),
             new DateOnly(2026, 6, 1), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 

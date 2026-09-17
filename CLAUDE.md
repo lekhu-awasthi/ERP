@@ -83,6 +83,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 49: the expiry decision (we keep an expired tenant and mark it, where the reference product deletes it from the list), `IsActive`, Nepal-anchored term ends, SMS on the Subscription screen. Before copying a behaviour read live, or diverging from one — `docs/phase-49-status.md`
 - Phase 50: measured indexes (`Cheque`'s date index + key-paging), the convention's declaration mechanism, `tests/Infrastructure.UnitTests`. Before adding an index, or writing a cross-assembly invariant test — `docs/phase-50-status.md`
 - Phase 51: batch and serial tracking — both are keys on the FIFO layer, neither carries a quantity. Before adding a dimension to the stock ledger, or sweeping a change through optional parameters — `docs/phase-51-status.md`
+- Phase 52: a unit on the document line (the line stores the unit **and the factor**, frozen; the ledger stays primary-unit). Before letting a catalogue value reach a posted document, or choosing where a sweep's compiler stops — `docs/phase-52-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -188,6 +189,10 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `decimal` has a signed zero: `-0m` keeps its sign bit and surfaces as `-0` / `-0.00` once cast to `double` for a spreadsheet cell. Accumulate a magnitude only when the value is strictly non-zero — no test catches this, because `-0m == 0m` (phase-26c bug #1).
 
 **GL posting, documents and domain invariants**
+- A line stores the unit it was entered in **and the factor that applied when it was written**; editing the product's conversion rate governs the next document and never an approved one — confirmed live, including through the unit row being deleted outright (phase-52).
+- The line names the **unit lookup**, never the product's secondary-unit row, which is what lets a document survive its own catalogue (phase-52).
+- A unit converts the **quantity** and never the money: Amount stays `Quantity × Rate` in the entered unit, and the FIFO layer's unit cost is `Amount / primary quantity` (phase-52).
+- A conversion factor **below one** is ordinary (a live product has `bag` → `NOS` at 0.02), so a `factor >= 1` validation rejects real data (phase-52).
 - A dimension that is a `GROUP BY` over the one quantity cannot drift from it; a dimension with its own quantity column is phase 37's two-of-three-views failure waiting to happen. `ProductBatch` stores no quantity (phase-51).
 - A serial is a FIFO layer of **quantity one**, so specific identification and FIFO are the same walk with a different selector — and the report's *Status* filter is `QuantityRemaining`, not a modelled lifecycle (phase-51).
 - A serialised issue is refused whatever the Negative Item Balance setting says: naming a unit that was never received is a typo, not an oversell (phase-51).
@@ -339,6 +344,10 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 **Testing and manual E2E**
 - An E2E that ends by moving its own user onto a restricted role leaves the browser pass looking at a broken app — lookups 403 and unrelated fields render as em dashes; restore the role, or prove the 403 last against a throwaway user (phase-51).
 - A sweep driven by the compiler stops exactly where the compiler stops: changing `ConsumeAsync`'s **return type** enumerated all five consume sites, while adding **optional parameters** to `IncrementAsync` enumerated none — and the one increment site that needed them shipped un-swept past every green test (phase-51).
+- …and **where it stops is a design choice**: making the ledger's quantity a distinct type (`PrimaryQuantity`, no implicit `decimal`) enumerated 17 call sites and caught two Voids restocking the *entered* quantity (phase-52).
+- An **optional** field ends a sweep in any language: `unitId` is optional on the line records, so every save path compiled while 7 of 8 Angular forms silently dropped it (phase-52).
+- A scripted template sweep covers exactly the shape its pattern names — matching the editable `<input>` left the `@else` branch bare, so seven approved documents rendered a quantity with no unit (phase-52).
+- A control added to an existing cell has to fit in it: the unit select crushed the Qty input to a few pixels, and the author saw it, mis-read it and moved on — the user reported it (phase-52).
 - A vendor's always-pass dummy credential (Turnstile `1x000…AA`) accepts any input; proving the negative path needs the always-fail one (`2x000…AA`) swapped in (phase-20g).
 - A 403 proves the key only beside a 200 from the same user on the same organization in the same run; log in before `accept-invitation` or the membership stays `Invited` (phase-41).
 - Two implementations of one rule in two languages are pinned to a shared table both suites read (`rich-text-cases.json`, the `bs-date` table), never to each other (phase-39, phase-26b).
@@ -397,49 +406,57 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–51 are complete.** The v1 sequence (0–25), parity (26–34c), consolidation (35–41),
-completion (42–47) and the continuation phases (48–51) are all done; each phase's story is in its
+**Phases 0–52 are complete.** The v1 sequence (0–25), parity (26–34c), consolidation (35–41),
+completion (42–47) and the continuation phases (48–52) are all done; each phase's story is in its
 `docs/phase-N-status.md`, and every finished planning entry is archived in `docs/roadmap-history.md`.
 
-**Phase 51 added the first new *feature* since 47, and its modelling question had one answer.** A
-batch and a serial are both **keys on the FIFO layer**, and neither carries a quantity of its own:
-`ProductBatch` is an identity row with no `Quantity` column, so a batch's on-hand is a `GROUP BY`
-over the layers carrying its id; a serial is a layer of **quantity one**, which makes specific
-identification the ordinary FIFO walk with one more predicate, and makes the reports' *Status*
-filter (`In Stock` / `Issued`) nothing but `QuantityRemaining`. Proven in SQL on a fresh
-organization: `FifoLayers = InventoryAccount = MovementHistory = 2780.0000`, and
-`Total 17 = SumOfBatches 16 + UnBatched 1`. The control is on the Invoice and Purchase Bill line
-grids, which is where the 2026-09-16 read put it; everywhere else either derives the allocation
-(Credit Note, Debit Note, Warehouse Transfer) or **refuses** a tracked product with a named 409
-(Opening Stock, Inventory Adjustment, Production Journal — `StockTrackingRules.RefusedPaths`, each
-with its reason and re-entry condition). **The two new reports' column sets were never read** — the
-vendor gates them behind keys its demo Admin lacks, and this phase invoked the phase-8f rule
-explicitly rather than silently.
+**Phase 52 put a unit on the document line, and the live read answered its central question rather
+than the codebase reasoning it out.** A line stores the unit it was **entered** in and the
+**conversion factor that applied when it was written**; `PrimaryQuantity` is derived
+(`Quantity × ConversionFactor`) and is never a column, because a third column would be a second
+quantity able to contradict the other two. Editing the product's rate afterwards governs the *next*
+document and nothing about an approved one — established by experiment on the reference tenant, where
+an approved bill for `2 BTL` held its `24` primary units and `ValuationRate 100` through the rate
+changing to 6 **and** through the unit row being deleted outright, while the same product's on-hand
+display re-expressed live. The money is untouched: a secondary unit prefills the Rate from its own
+price and `Amount = Quantity × Rate` in the entered unit. Eight line types carry a unit (including
+Warehouse Transfer, which carries no price — so the rule is *every line naming a product and a
+quantity*); four are deferred **unread**, because the reference tenant had none of those documents.
+No new permission keys. Proven on a fresh organization:
+`FifoLayers = InventoryAccount = MovementHistory = 6000.00` and `EnteredTimesFactor 48 = LedgerQuantityIn 48`.
 
-**Next: phase 52 in `docs/roadmap.md`** — a unit on the document line, which is what would make
-phase 45's secondary units mean something. Its first decision is what an approved document, a return
-and a conversion do when the product's conversion rate is later edited (a stored factor versus a live
-lookup, the same choice phase 37's cost catch-up made). Phase 51 left that dimension cheaper to add:
-the four line types already carry an allocation, and `LineStockAllocator` is the one place a line's
-worth of stock is moved. Three items sit outside the sequence with their own start conditions: **an
-hour with NVDA** (needs a person with headphones), **full-text search** (a semantics change, not a
-performance fix), and **the two traceability reports' real columns** (needs an account holding
-`Reports.ProductBatch.View`'s vendor equivalent). The deferred and dropped lists are in the roadmap
-and are unchanged.
+**The phase's method is worth more than its feature.** Making the stock ledger's quantity a distinct
+type (`PrimaryQuantity`, no implicit conversion from `decimal`) chose *where the compiler stops*:
+it enumerated 17 ledger call sites and 16 handlers, and caught three bugs no test saw — `VoidInvoice`
+and `VoidDebitNote` restocking the **entered** quantity, and `ApprovePurchaseBill` dividing a FIFO
+layer's unit cost by it. The converse bit on the client: `unitId` is *optional* on the request
+records, so every save path compiled while **7 of 8** Angular forms silently dropped it.
 
-Tests at last count: Domain **688**, Application.UnitTests **1212**, Infrastructure.UnitTests **12**,
-Api.IntegrationTests 30, Angular **576**. `dotnet build` / `dotnet test` / `ng build` / `ng test` all
+**Next: the sequence is empty — phase 53 is a re-planning phase.** `docs/roadmap.md` has no entry
+after 52, so the next session should re-read the reference product and rebuild the forward plan; the
+2026-09-16 read found genuinely new scope, so "the catalogue is static" has already been falsified
+once. Three items sit outside the sequence with their own start conditions: **an hour with NVDA**
+(needs a person with headphones), **full-text search** (a semantics change, not a performance fix),
+and **the two traceability reports' real columns** (needs an account holding
+`Reports.ProductBatch.View`'s vendor equivalent). Phase 52 adds a fourth: **the four line types that
+carry no unit** (Opening Stock, Inventory Adjustment, Production Journal, BOM) were unread rather
+than excluded, and BOM has a real open question about how an entered unit interacts with its
+`Qty/Unit` ratio. The deferred and dropped lists are in the roadmap and are unchanged.
+
+Tests at last count: Domain **703**, Application.UnitTests **1266**, Infrastructure.UnitTests **12**,
+Api.IntegrationTests 30, Angular **585**. `dotnet build` / `dotnet test` / `ng build` / `ng test` all
 clean, and `ng build` does not warn — phase 42's measured 680 kB initial-bundle budget is pinned by
 `build-budget.spec.ts`, and the bundle sits at **643.68 kB**. `Api.IntegrationTests` needs Docker
 Desktop running: without it the Testcontainers-backed tests fail in their constructors with
 `DockerEndpointAuthConfig` before any assertion, which reads like regressions and is not; it also
-fails nondeterministically under machine load and passes on re-run (phase 36/37). `tsc --noEmit` does
+fails nondeterministically under machine load and passes on re-run (phase 36/37) — the Angular suite
+did exactly that once in phase 52, crashing a worker and passing on the re-run. `tsc --noEmit` does
 not cover `web/src/app`; `ng build` is the check (phase-28), and `ng test` must be run from `web/`
 (phase-35a) on **Node 24** (`nvm use 24.11.0` — v16 dies with `availableParallelism is not a
 function`). When the subject is one screen's plan, the number to trust is `tools/scale/`, not the
-wall clock (phase-50); phase 51 took **no** performance measurement and claims none, but it did add
-an index to `StockLedgerEntry`, so a later phase touching stock performance should re-measure the
-FIFO walk.
+wall clock (phase-50). **Two unmeasured plan changes are outstanding**: phase 51's index on
+`StockLedgerEntry`, and phase 52's `.Include(SecondaryUnits)` on `ListProductsQueryHandler`, which
+`listAllProducts` hits with a very large page.
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

@@ -81,7 +81,8 @@ public sealed class ApproveInventoryAdjustmentCommandHandler(
             if (line.Direction == InventoryAdjustmentDirection.Increase)
             {
                 costCatchUp += await stockLedgerService.IncrementAsync(
-                    request.OrganizationId, line.ProductId, inventoryAdjustment.WarehouseId, line.Quantity, line.UnitCost,
+                    request.OrganizationId, line.ProductId, inventoryAdjustment.WarehouseId,
+                    PrimaryQuantity.AlreadyPrimary(line.Quantity), line.UnitCost,
                     DocumentType.InventoryAdjustment, inventoryAdjustment.Id, inventoryAdjustment.Date, cancellationToken,
                     inventoryAdjustment.LocationId);
                 increaseAmount += line.Quantity * line.UnitCost;
@@ -89,7 +90,8 @@ public sealed class ApproveInventoryAdjustmentCommandHandler(
             else
             {
                 var averageUnitCost = (await stockLedgerService.ConsumeAsync(
-                    request.OrganizationId, line.ProductId, inventoryAdjustment.WarehouseId, line.Quantity,
+                    request.OrganizationId, line.ProductId, inventoryAdjustment.WarehouseId,
+                    PrimaryQuantity.AlreadyPrimary(line.Quantity),
                     DocumentType.InventoryAdjustment, inventoryAdjustment.Id, inventoryAdjustment.Date, cancellationToken,
                     inventoryAdjustment.LocationId)).AverageUnitCost;
                 line.RecordConsumedUnitCost(averageUnitCost);

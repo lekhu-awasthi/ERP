@@ -114,7 +114,7 @@ internal static class ExportTestSeed
         var invoice = Invoice.Create(
             organization.Id, customer.Id, warehouse.Id, new DateOnly(2026, 8, 21), $"REF-{marker}-INV",
             null, null);
-        invoice.AddLine(product.Id, 3m, 100m, VatRate.ThirteenPercentVat, 0m);
+        invoice.AddLine(product.Id, 3m, 100m, VatRate.ThirteenPercentVat, 0m, null, 1m);
         db.Invoices.Add(invoice);
 
         var supplier = Contact.Create(
@@ -125,7 +125,7 @@ internal static class ExportTestSeed
         var bill = PurchaseBill.Create(
             organization.Id, supplier.Id, warehouse.Id, new DateOnly(2026, 8, 22), $"REF-{marker}-PB",
             null, false, null, null, null, null, 0m, null, null);
-        bill.AddLine(product.Id, 5m, 80m, VatRate.ThirteenPercentVat, ExpenditureClassification.Others, 0m);
+        bill.AddLine(product.Id, 5m, 80m, VatRate.ThirteenPercentVat, ExpenditureClassification.Others, 0m, null, 1m);
         db.PurchaseBills.Add(bill);
 
         db.Payments.Add(Payment.Create(

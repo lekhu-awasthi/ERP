@@ -17,6 +17,12 @@ export interface PostedGlLineDto {
 export interface WarehouseTransferLineInput {
   productId: string;
   quantity: number;
+  /**
+   * Phase 52 -- the unit this line is entered in. Omit (or null) for the product's own primary
+   * unit, which is what every line meant before this phase. The conversion factor is never sent:
+   * the server resolves it from the catalogue once and freezes it on the line.
+   */
+  unitId?: string | null;
 }
 
 export interface WarehouseTransfer {
@@ -36,6 +42,12 @@ export interface WarehouseTransfer {
 
 export interface WarehouseTransferLineDto extends WarehouseTransferLineInput {
   id: string;
+  /** Phase 52 -- the unit this line was entered in, its short name for display, and the factor
+   *  frozen when the line was written. The converted quantity is deliberately absent: it is
+   *  `quantity * conversionFactor`, and sending it too would put a second quantity on the wire. */
+  unitId: string | null;
+  unitName: string | null;
+  conversionFactor: number;
 }
 
 export interface WarehouseTransferDetail extends WarehouseTransfer {

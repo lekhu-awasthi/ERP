@@ -68,7 +68,8 @@ public sealed class VoidProductionJournalCommandHandler(
         foreach (var line in journal.RawMaterials.Where(x => x.ConsumedUnitCost is not null))
         {
             costCatchUp += await stockLedgerService.IncrementAsync(
-                request.OrganizationId, line.ProductId, journal.WarehouseId, line.Quantity, line.ConsumedUnitCost!.Value,
+                request.OrganizationId, line.ProductId, journal.WarehouseId,
+                PrimaryQuantity.AlreadyPrimary(line.Quantity), line.ConsumedUnitCost!.Value,
                 DocumentType.ProductionJournal, journal.Id, journal.Date, cancellationToken, journal.LocationId);
         }
 

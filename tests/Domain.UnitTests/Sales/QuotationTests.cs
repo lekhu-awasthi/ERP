@@ -24,7 +24,7 @@ public class QuotationTests
     public void SetCustomStatus_is_allowed_on_an_approved_quotation()
     {
         var quotation = Quotation.Create(Guid.NewGuid(), Guid.NewGuid(), Today(), null, null);
-        quotation.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.NoVat, 0);
+        quotation.AddLine(Guid.NewGuid(), 1m, 100m, VatRate.NoVat, 0, null, 1m);
         quotation.Approve(Guid.NewGuid(), "Q0001");
         var customStatusId = Guid.NewGuid();
 

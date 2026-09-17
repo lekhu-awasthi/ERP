@@ -62,7 +62,7 @@ public static class LineStockAllocator
         Guid organizationId,
         Guid productId,
         Guid warehouseId,
-        decimal quantity,
+        PrimaryQuantity quantity,
         Guid? batchId,
         IReadOnlyCollection<string> serialNumbers,
         DocumentType sourceDocumentType,
@@ -88,7 +88,8 @@ public static class LineStockAllocator
         foreach (var serialNo in serialNumbers)
         {
             var one = await ledger.ConsumeAsync(
-                organizationId, productId, warehouseId, 1m, sourceDocumentType, sourceDocumentId,
+                organizationId, productId, warehouseId, PrimaryQuantity.AlreadyPrimary(1m),
+                sourceDocumentType, sourceDocumentId,
                 transactionDate, cancellationToken, locationId, allowNegative: false, batchId, serialNo);
 
             reliefs.AddRange(one.Reliefs);
@@ -108,7 +109,7 @@ public static class LineStockAllocator
         Guid organizationId,
         Guid productId,
         Guid warehouseId,
-        decimal quantity,
+        PrimaryQuantity quantity,
         decimal unitCost,
         Guid? batchId,
         IReadOnlyCollection<string> serialNumbers,
@@ -130,8 +131,9 @@ public static class LineStockAllocator
         foreach (var serialNo in serialNumbers)
         {
             catchUp += await ledger.IncrementAsync(
-                organizationId, productId, warehouseId, 1m, unitCost, sourceDocumentType,
-                sourceDocumentId, transactionDate, cancellationToken, locationId, batchId, serialNo);
+                organizationId, productId, warehouseId, PrimaryQuantity.AlreadyPrimary(1m), unitCost,
+                sourceDocumentType, sourceDocumentId, transactionDate, cancellationToken, locationId,
+                batchId, serialNo);
         }
 
         return catchUp;

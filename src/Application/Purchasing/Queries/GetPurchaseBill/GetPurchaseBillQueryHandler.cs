@@ -47,6 +47,11 @@ public sealed class GetPurchaseBillQueryHandler(IAppDbContext db) : IRequestHand
                     .Select(x => new PostedGlLineDto(x.Id, x.AccountId, x.Debit, x.Credit)).ToList();
         }
 
+        // Phase 52 -- the unit each line names, read back through the one shared reader so the
+        // eight detail queries cannot drift in how they answer the same question.
+        var unitNames = await DocumentLineUnitResolver.LoadUnitNamesAsync(
+            db, request.OrganizationId, purchaseBill.Lines.Select(x => x.UnitId), cancellationToken);
+
         return new PurchaseBillDetailDto(
             purchaseBill.Id,
             purchaseBill.OrganizationId,
@@ -77,7 +82,8 @@ public sealed class GetPurchaseBillQueryHandler(IAppDbContext db) : IRequestHand
                 x.BatchId is null ? null : batches.GetValueOrDefault(x.BatchId.Value)?.BatchNo,
                 x.BatchId is null ? null : batches.GetValueOrDefault(x.BatchId.Value)?.ManufactureDate,
                 x.BatchId is null ? null : batches.GetValueOrDefault(x.BatchId.Value)?.ExpiryDate,
-                serials.TryGetValue(x.Id, out var lineSerials) ? lineSerials : [])).ToList(),
+                serials.TryGetValue(x.Id, out var lineSerials) ? lineSerials : [],
+                x.UnitId, x.UnitId is null ? null : unitNames.GetValueOrDefault(x.UnitId.Value), x.ConversionFactor)).ToList(),
             glLines,
             purchaseBill.CurrencyCode,
             purchaseBill.ExchangeRate,

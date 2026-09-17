@@ -1,3 +1,4 @@
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Inventory;
 using Microsoft.EntityFrameworkCore;
@@ -16,5 +17,25 @@ public sealed class WarehouseTransferLineConfiguration : IEntityTypeConfiguratio
         builder.Property(x => x.Quantity).HasPrecision(18, 4).IsRequired();
 
         builder.HasOne<Product>().WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
+        // Phase 52 -- the unit this line was entered in, and the factor frozen with it.
+        //
+        // Restrict, for ProductBatch's reason one level up: deleting the unit lookup a document
+        // line names would rewrite an approved document's history. Note this does NOT restrict
+        // deleting the product's own secondary-unit row -- the reference product allows exactly
+        // that (confirmed live 2026-09-17, with an approved bill referencing it), and nothing here
+        // breaks when it happens, because the line names the unit lookup and carries its own
+        // factor.
+        builder.Property(x => x.ConversionFactor)
+            .HasPrecision(18, UnitConversion.FactorScale)
+            .HasDefaultValue(UnitConversion.PrimaryFactor)
+            .IsRequired();
+
+        builder.HasOne<UnitOfMeasurement>().WithMany().HasForeignKey(x => x.UnitId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Derived from Quantity and ConversionFactor, both on this row -- a column would be a
+        // second quantity able to contradict them (phase 51's ProductBatch argument).
+        builder.Ignore(x => x.PrimaryQuantity);
+
     }
 }

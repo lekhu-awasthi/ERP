@@ -78,7 +78,8 @@ public sealed class VoidInvoiceCommandHandler(IAppDbContext db, ICurrentUserServ
             // a *later* document's shortfall is the one still outstanding, which is exactly when it
             // should.
             costCatchUp += await stockLedgerService.IncrementAsync(
-                request.OrganizationId, line.ProductId, invoice.WarehouseId, line.Quantity, line.CogsUnitCost!.Value,
+                request.OrganizationId, line.ProductId, invoice.WarehouseId, line.PrimaryQuantity,
+                line.CogsUnitCost!.Value,
                 DocumentType.Invoice, invoice.Id, invoice.Date, cancellationToken, invoice.LocationId);
         }
 

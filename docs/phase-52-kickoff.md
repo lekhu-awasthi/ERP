@@ -1,7 +1,7 @@
 # Phase 52 kickoff — A unit on the document line
 
-Phase 51 is complete and uncommitted (a ready commit message is in the session hand-off). Start
-here; do not continue its thread.
+Phase 51 is complete and committed (`0654a71b`, with its browser-pass docs following in
+`e7c45d9`). Start here; do not continue its thread.
 
 ---
 
@@ -23,7 +23,9 @@ already carries one — but read its warning about *which* half is cheaper (the 
   change after a document was approved under it.**
 - **`docs/phase-51-status.md`** (TL;DR + Decisions D, E and the "bug only the E2E could find"
   section) — the line-allocation shape you are about to extend, why the control sits where it does,
-  and the sweep lesson that will bite this phase in exactly the same place.
+  and the sweep lesson that will bite this phase in exactly the same place. Its *browser pass*
+  section is short and worth the read: both corrections it produced were the author's rather than
+  the code's, and one of them is the E2E-script trap named in the exit bar below.
 - `docs/phase-37-status.md` (TL;DR, then Grep "catch-up") — the **stored-versus-live** choice, made
   once already. A shortfall is issued at an assumed cost and corrected at the real one, and the
   correction has to reach three views. A conversion factor is the same shape of question with a
@@ -127,7 +129,9 @@ third seam, ask first whether it belongs in one of those two.
   to end: a receipt in a secondary unit, an issue in another, and the primary-unit quantity in the
   three views agreeing. Then **edit the conversion rate** and re-read all three — that is the test
   the first decision exists for, and it is the one no handler test can express. Plus one 403 naming
-  the exact key beside a 200 from the same user in the same run. Verify via `sqlcmd`.
+  the exact key beside a 200 from the same user in the same run. Verify via `sqlcmd`. **Restore the
+  user's role before any browser pass** — phase 51's script ended on a two-key custom role, and the
+  app then read as broken in ways that had nothing to do with the phase.
 - Any performance claim backed by a number from `tools/scale/` with the statistics state stated.
   Note that phase 51 added an index to `StockLedgerEntry` and took **no** measurement — if this
   phase goes near the FIFO walk's performance, it inherits the re-measurement (phase 34c's rule).

@@ -28,7 +28,9 @@ import { DocumentLocationPicker } from '../../../shared/locations/document-locat
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
-import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { LineUnitControl, LineUnitOption } from '../../../shared/catalog/line-unit-control';
+import { UnitOfMeasurementStore } from '../../../shared/catalog/unit-of-measurement-store';
 
 interface EditableLine {
   key: number;
@@ -37,6 +39,13 @@ interface EditableLine {
   rate: number;
   vatRate: VatRate;
   discountPct: number;
+
+  /**
+   * Phase 52 -- the unit this line is entered in. Empty means the product's own primary unit.
+   * The conversion factor is not held here: the server resolves it from the catalogue and
+   * freezes it on the line, so a client cannot claim a conversion the product does not have.
+   */
+  unitId: string;
 }
 
 let nextLineKey = 1;
@@ -49,7 +58,7 @@ let nextLineKey = 1;
  * so a full reversal nets Accounts Payable and TDS Payable back to zero. */
 @Component({
   selector: 'app-debit-note-detail-page',
-  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner, FieldErrorMessage, NepaliDatePipe],
+  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner, FieldErrorMessage, NepaliDatePipe, LineUnitControl],
   templateUrl: './debit-note-detail-page.html',
 })
 export class DebitNoteDetailPage {
@@ -69,6 +78,9 @@ export class DebitNoteDetailPage {
   private readonly pendingTemplateStore = inject(PendingTemplateStore);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 52 -- the tenant's units, shared and cached; a Product carries unit ids only. */
+  protected readonly units = inject(UnitOfMeasurementStore).units(this.organizationId);
 
   protected readonly loading = signal(true);
   // Phase 28 (FR-2.5) -- the document's own currency and its rate to the base currency, owned here
@@ -183,7 +195,9 @@ export class DebitNoteDetailPage {
           this.isLinkedToSource.set(true);
           this.discountPct.set(template.discountPct);
           this.lines.set(
-            template.lines.length > 0 ? template.lines.map((l) => ({ key: nextLineKey++, ...l })) : [this.newLine()],
+            template.lines.length > 0
+              ? template.lines.map((l) => ({ key: nextLineKey++, ...l, unitId: l.unitId ?? '' }))
+              : [this.newLine()],
           );
         } else {
           this.contactId.set('');
@@ -365,7 +379,18 @@ export class DebitNoteDetailPage {
   private toLineInputs(): DebitNoteLineInput[] | null {
     const lines = this.lines()
       .filter((l) => l.productId && l.quantity > 0)
-      .map((l) => ({ productId: l.productId, quantity: l.quantity, rate: l.rate, vatRate: l.vatRate, discountPct: l.discountPct }));
+      // Phase 52 -- null rather than '' for the primary unit: the server reads null as "the
+      // product's own primary unit", and an empty string is a value. This field is OPTIONAL on
+      // the request record, so a form that forgot it would compile, pass every test, and save a
+      // carton line as pieces -- which is phase 51's un-swept-increment bug in TypeScript.
+      .map((l) => ({
+        productId: l.productId,
+        quantity: l.quantity,
+        rate: l.rate,
+        vatRate: l.vatRate,
+        discountPct: l.discountPct,
+        unitId: l.unitId || null,
+      }));
 
     if (lines.length === 0) {
       this.fieldError.fail('debit-note-detail-page-add-line', 'Add at least one line with a Product and a Quantity.');
@@ -375,12 +400,29 @@ export class DebitNoteDetailPage {
     return lines;
   }
 
+  /**
+   * Phase 52 -- picking a unit sets the Rate from that unit row's own price and nothing else.
+   * Confirmed live 2026-09-17: Amount stays `Qty x Rate` in the entered unit, so the factor
+   * never touches the money -- it is applied to the quantity, by the server, on the way into
+   * the stock ledger.
+   */
+  protected onUnitChange(key: number, option: LineUnitOption): void {
+    this.updateLine(key, { unitId: option.unitId, rate: option.purchasePrice });
+  }
+
+  /** Phase 52 -- the unit's short name for the read-only branch of the Qty cell. */
+  protected unitLabel(line: EditableLine): string {
+    const product = this.products().find((p) => p.id === line.productId);
+    const unitId = line.unitId || product?.primaryUnitId;
+    return this.units().find((u) => u.id === unitId)?.shortName ?? '';
+  }
+
   private updateLine(key: number, patch: Partial<Omit<EditableLine, 'key'>>): void {
     this.lines.update((lines) => lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   }
 
   private newLine(): EditableLine {
-    return { key: nextLineKey++, productId: '', quantity: 1, rate: 0, vatRate: 'NoVat', discountPct: 0 };
+    return { unitId: '',  key: nextLineKey++, productId: '', quantity: 1, rate: 0, vatRate: 'NoVat', discountPct: 0};
   }
 
   private today(): string {
@@ -416,6 +458,9 @@ export class DebitNoteDetailPage {
                 rate: l.rate,
                 vatRate: l.vatRate,
                 discountPct: l.discountPct,
+                // Phase 52 -- read back, not only written: phase 35a's rule is write, READ, and
+                // every prefill between, and the read half is the one no compiler checks.
+                unitId: l.unitId ?? '',
               }))
             : [this.newLine()],
         );

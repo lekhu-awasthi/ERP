@@ -24,7 +24,12 @@ public sealed class GetInvoiceConversionTemplateQueryHandler(IAppDbContext db)
         }
 
         var lines = quotation.Lines
-            .Select(x => new InvoiceLineInput(x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct))
+            // Phase 52 -- the source line's unit rides the prefill. Phase 35a's rule is that
+            // adding a field to many aggregates owes write, read and *every prefill between*, and
+            // a template that drops it converts a Quotation for 2 cartons into an Invoice for 2
+            // pieces, with the money unchanged and nothing on screen to show for it.
+            .Select(x => new InvoiceLineInput(
+                x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, UnitId: x.UnitId))
             .ToList();
 
         return new InvoiceConversionTemplateDto(

@@ -26,12 +26,12 @@ public class StockLedgerServiceTests
         var service = new StockLedgerService(db);
 
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 10m, 5m, DocumentType.PurchaseBill, SourceDocumentId,
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 5m, DocumentType.PurchaseBill, SourceDocumentId,
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
         var averageCost = (await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 10m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), DocumentType.Invoice, Guid.NewGuid(),
             new DateOnly(2026, 1, 5), CancellationToken.None)).AverageUnitCost;
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -47,12 +47,12 @@ public class StockLedgerServiceTests
         var service = new StockLedgerService(db);
 
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 10m, 5m, DocumentType.PurchaseBill, SourceDocumentId,
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 5m, DocumentType.PurchaseBill, SourceDocumentId,
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
         var averageCost = (await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 4m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(4m), DocumentType.Invoice, Guid.NewGuid(),
             new DateOnly(2026, 1, 5), CancellationToken.None)).AverageUnitCost;
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -70,17 +70,17 @@ public class StockLedgerServiceTests
 
         // Older layer first: 5 units @ 10, then 5 units @ 20.
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 5m, 10m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(5m), 10m, DocumentType.PurchaseBill, Guid.NewGuid(),
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 5m, 20m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(5m), 20m, DocumentType.PurchaseBill, Guid.NewGuid(),
             new DateOnly(2026, 1, 10), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
         // Consuming 8 should take all 5 of the older (cheaper) layer, then 3 of the newer one:
         // (5*10 + 3*20) / 8 = 13.75.
         var averageCost = (await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 8m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(8m), DocumentType.Invoice, Guid.NewGuid(),
             new DateOnly(2026, 1, 15), CancellationToken.None)).AverageUnitCost;
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -100,15 +100,15 @@ public class StockLedgerServiceTests
         // Insert the newer-dated layer first, older-dated layer second -- FIFO must still consume
         // the older-dated layer first regardless of row-creation order.
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 5m, 99m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(5m), 99m, DocumentType.PurchaseBill, Guid.NewGuid(),
             new DateOnly(2026, 2, 1), CancellationToken.None);
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 5m, 1m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(5m), 1m, DocumentType.PurchaseBill, Guid.NewGuid(),
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
         var averageCost = (await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 5m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(5m), DocumentType.Invoice, Guid.NewGuid(),
             new DateOnly(2026, 3, 1), CancellationToken.None)).AverageUnitCost;
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -122,12 +122,12 @@ public class StockLedgerServiceTests
         var service = new StockLedgerService(db);
 
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 5m, 10m, DocumentType.PurchaseBill, SourceDocumentId,
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(5m), 10m, DocumentType.PurchaseBill, SourceDocumentId,
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
         await Assert.ThrowsAsync<ConflictException>(() => service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 6m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(6m), DocumentType.Invoice, Guid.NewGuid(),
             new DateOnly(2026, 1, 5), CancellationToken.None));
 
         var layer = await db.StockLedgerEntries.SingleAsync();
@@ -141,12 +141,12 @@ public class StockLedgerServiceTests
         var service = new StockLedgerService(db);
 
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 5m, 10m, DocumentType.PurchaseBill, SourceDocumentId,
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(5m), 10m, DocumentType.PurchaseBill, SourceDocumentId,
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
         var averageCost = (await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 0m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(0m), DocumentType.Invoice, Guid.NewGuid(),
             new DateOnly(2026, 1, 5), CancellationToken.None)).AverageUnitCost;
 
         Assert.Equal(0m, averageCost);
@@ -161,7 +161,7 @@ public class StockLedgerServiceTests
         var service = new StockLedgerService(db);
 
         await Assert.ThrowsAsync<ConflictException>(() => service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 1m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(1m), DocumentType.Invoice, Guid.NewGuid(),
             new DateOnly(2026, 1, 5), CancellationToken.None));
     }
 
@@ -172,7 +172,7 @@ public class StockLedgerServiceTests
         var service = new StockLedgerService(db);
 
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 0m, 10m, DocumentType.PurchaseBill, SourceDocumentId,
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(0m), 10m, DocumentType.PurchaseBill, SourceDocumentId,
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -187,14 +187,14 @@ public class StockLedgerServiceTests
         var otherWarehouseId = Guid.NewGuid();
 
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 5m, 10m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(5m), 10m, DocumentType.PurchaseBill, Guid.NewGuid(),
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 3m, 12m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(3m), 12m, DocumentType.PurchaseBill, Guid.NewGuid(),
             new DateOnly(2026, 1, 2), CancellationToken.None);
         // A layer in a different warehouse must not count toward this warehouse's availability.
         await service.IncrementAsync(
-            OrganizationId, ProductId, otherWarehouseId, 100m, 1m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, otherWarehouseId, PrimaryQuantity.AlreadyPrimary(100m), 1m, DocumentType.PurchaseBill, Guid.NewGuid(),
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -221,11 +221,11 @@ public class StockLedgerServiceTests
         var service = new StockLedgerService(db);
 
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 5m, 10m, DocumentType.PurchaseBill, SourceDocumentId,
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(5m), 10m, DocumentType.PurchaseBill, SourceDocumentId,
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
-        var estimate = await service.PreviewConsumptionCostAsync(OrganizationId, ProductId, WarehouseId, 3m, CancellationToken.None);
+        var estimate = await service.PreviewConsumptionCostAsync(OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(3m), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
         Assert.Equal(10m, estimate);
@@ -240,11 +240,11 @@ public class StockLedgerServiceTests
         var service = new StockLedgerService(db);
 
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 2m, 10m, DocumentType.PurchaseBill, SourceDocumentId,
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(2m), 10m, DocumentType.PurchaseBill, SourceDocumentId,
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
-        var estimate = await service.PreviewConsumptionCostAsync(OrganizationId, ProductId, WarehouseId, 10m, CancellationToken.None);
+        var estimate = await service.PreviewConsumptionCostAsync(OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), CancellationToken.None);
 
         Assert.Equal(10m, estimate);
     }
@@ -255,7 +255,7 @@ public class StockLedgerServiceTests
         var db = TestAppDbContext.Create();
         var service = new StockLedgerService(db);
 
-        var estimate = await service.PreviewConsumptionCostAsync(OrganizationId, ProductId, WarehouseId, 5m, CancellationToken.None);
+        var estimate = await service.PreviewConsumptionCostAsync(OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(5m), CancellationToken.None);
 
         Assert.Equal(0m, estimate);
     }
@@ -270,7 +270,7 @@ public class StockLedgerServiceTests
         var service = new StockLedgerService(db);
 
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 10m, 5m, DocumentType.PurchaseBill, SourceDocumentId,
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 5m, DocumentType.PurchaseBill, SourceDocumentId,
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -293,11 +293,11 @@ public class StockLedgerServiceTests
         var service = new StockLedgerService(db);
 
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 10m, 5m, DocumentType.PurchaseBill, SourceDocumentId,
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 5m, DocumentType.PurchaseBill, SourceDocumentId,
             new DateOnly(2026, 1, 1), CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
         await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 4m, DocumentType.Invoice, Guid.NewGuid(), new DateOnly(2026, 1, 5),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(4m), DocumentType.Invoice, Guid.NewGuid(), new DateOnly(2026, 1, 5),
             CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 

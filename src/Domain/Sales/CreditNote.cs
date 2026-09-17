@@ -115,7 +115,7 @@ public sealed class CreditNote
 
     public void AddLine(
         Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct,
-        Guid? batchId = null)
+        Guid? unitId, decimal conversionFactor, Guid? batchId = null)
     {
         EnsureDraft();
 
@@ -127,7 +127,8 @@ public sealed class CreditNote
         EnsureValidDiscountPct(discountPct);
 
         _lines.Add(CreditNoteLine.Create(
-            Id, productId, quantity, rate, vatRate, discountPct, DiscountPct, batchId));
+            Id, productId, quantity, rate, vatRate, discountPct, DiscountPct, batchId, unitId,
+            conversionFactor));
     }
 
     private static void EnsureValidDiscountPct(decimal discountPct)

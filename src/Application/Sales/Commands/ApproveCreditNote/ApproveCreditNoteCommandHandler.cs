@@ -102,9 +102,12 @@ public sealed class ApproveCreditNoteCommandHandler(
                 }
 
                 costCatchUp += await stockLedgerService.IncrementAsync(
-                    request.OrganizationId, line.ProductId, sourceInvoice.WarehouseId, line.Quantity, unitCost,
+                    request.OrganizationId, line.ProductId, sourceInvoice.WarehouseId, line.PrimaryQuantity, unitCost,
                     DocumentType.CreditNote, creditNote.Id, creditNote.Date, cancellationToken, creditNote.LocationId);
-                totalCogsReversal += line.Quantity * unitCost;
+                // Phase 52 -- the COGS reversal is priced per PRIMARY unit, because unitCost came
+                // off a FIFO layer and a layer is always denominated in primary units. Multiplying
+                // by the entered quantity would credit COGS for 2 cartons at the cost of one piece.
+                totalCogsReversal += line.PrimaryQuantity.Value * unitCost;
             }
         }
 

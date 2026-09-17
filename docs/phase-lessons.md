@@ -1221,3 +1221,58 @@ column sets have never been read, because the vendor gates them behind keys its 
 hold. Decision A says so in the status doc, in both query doc comments, in both Angular page doc
 comments and in the models file — five places, because the constraint is inherited by anyone who
 later compares these screens to the reference product and wonders why they differ.
+
+## Phase 52 — a unit on the document line
+
+*Before putting a second dimension on a line, before letting a catalogue value reach a posted
+document, or before adding a parameter to a widely-called method — read this.*
+
+**The phase's question had a live answer, and asking was the whole difference.** The kickoff framed
+it as *a stored factor versus a live lookup*. The reference product does neither: it stores the
+**result**. The experiment that settled it was four writes on the reference tenant — approve a bill
+for `2 BTL` of a product whose Carton-to-Piece rate is 12, watch `primary_quantity 24` and
+`ValuationRate 100` appear, then change the rate to 6 and re-read everything. Nothing moved. A live
+lookup would have said 12. Phase 51 invoked the phase-8f derive-instead rule for its reports; this
+phase asked first and got an answer, which is the order CLAUDE.md prescribes and which is cheap when
+the tenant is already open.
+
+**Store the factor, derive the quantity — and know why that diverges.** Two values frozen on one row
+give the same immutability as the vendor's stored product, for one fewer column, and without a
+second quantity that `Quantity` and the factor can contradict. That is phase 51's `ProductBatch`
+argument and phase 37's two-of-three-views failure, reapplied. The line names the **unit lookup**,
+never the product's secondary-unit row, which is why a document survives having that row deleted
+underneath it — as one was, live, while an approved bill referenced it.
+
+**The money and the quantity are independent, and a phase that conflates them is wrong twice.**
+Choosing a secondary unit sets the line's Rate from that unit row's own price; Amount stays
+`Quantity × Rate` in the entered unit. `2 BTL @ 1200` is 2,400, never 28,800. The factor reaches the
+quantity, on the way into the stock ledger, and nothing else. Any code multiplying an amount by a
+conversion factor is a bug.
+
+**You can choose where the compiler stops.** Phase 51's lesson was that *a sweep driven by the
+compiler stops exactly where the compiler stops*. The refinement is that this is a design choice:
+making the ledger's quantity a distinct type (`PrimaryQuantity`, no implicit conversion from
+`decimal`) forced the compiler to enumerate 17 call sites and then 16 handlers, and caught three real
+bugs no test saw — two Voids restocking the *entered* quantity, and a FIFO unit cost divided by it.
+Required parameters alone would have caught the first group and none of the arithmetic. The same
+trick worked in TypeScript: a required `EditableLine` field made `ng build` list eleven line
+mappings, where the author had found seven.
+
+**And it stops on the other side too.** `unitId` is *optional* on the request records, so the **save**
+path compiled perfectly while 7 of 8 forms silently dropped it. Optionality is where a sweep ends,
+in either language; when a field must be supplied, either make it required or write the list down.
+
+**A scripted sweep covers exactly the shape its pattern names.** The wiring script matched the
+draft `<input>` and never the `@else` branch beside it, so seven approved documents rendered a bare
+quantity with no unit. The browser pass found it. The mirror question to ask a template sweep is:
+*what renders when this control is not editable?*
+
+**A control added to a cell has to fit in it.** The Qty column was 100–110 px and now holds a number
+input *and* a select; the input was crushed to a few pixels. The author saw the symptom during the
+pass, mis-read it as a bad click and moved on — the **user** reported it. The screenshot was ground
+truth (phase 34b) and looking at it harder was the whole fix.
+
+**An E2E that restricts its own user may not be able to restore it.** Phase 51's lesson was to
+restore the role before the browser pass. The sharper version: a custom role without
+`Tenancy.Role.Manage` cannot move its own membership back, so the restore is a 403 and the only way
+out is `UPDATE tenancy.OrganizationMemberships`. Prefer a throwaway user, or expect to reach for SQL.

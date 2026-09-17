@@ -84,7 +84,7 @@ public class VoidProductionJournalCommandHandlerTests
 
         // Something else takes 4 of the 10 finished units -- a sale, in real life.
         await ledger.ConsumeAsync(
-            seed.OrganizationId, seed.FinishedProductId, seed.WarehouseId, 4m,
+            seed.OrganizationId, seed.FinishedProductId, seed.WarehouseId, PrimaryQuantity.AlreadyPrimary(4m),
             DocumentType.Invoice, Guid.NewGuid(), RunDay, CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 

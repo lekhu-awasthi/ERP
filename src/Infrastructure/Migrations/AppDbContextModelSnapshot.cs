@@ -2980,6 +2980,12 @@ namespace ErpApp.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal>("ConversionFactor")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)")
+                        .HasDefaultValue(1m);
+
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uniqueidentifier");
 
@@ -2987,12 +2993,17 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<Guid?>("UnitId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("WarehouseTransferId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ProductId");
+
+                    b.HasIndex("UnitId");
 
                     b.HasIndex("WarehouseTransferId");
 
@@ -3810,6 +3821,12 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<decimal>("ConversionFactor")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)")
+                        .HasDefaultValue(1m);
+
                     b.Property<Guid>("DebitNoteId")
                         .HasColumnType("uniqueidentifier");
 
@@ -3828,6 +3845,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<Guid?>("UnitId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("VatAmount")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -3844,6 +3864,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("DebitNoteId");
 
                     b.HasIndex("ProductId");
+
+                    b.HasIndex("UnitId");
 
                     b.ToTable("DebitNoteLines", "purchasing");
                 });
@@ -4273,6 +4295,12 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid?>("BatchId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal>("ConversionFactor")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)")
+                        .HasDefaultValue(1m);
+
                     b.Property<decimal>("DiscountPct")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -4296,6 +4324,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<Guid?>("UnitId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("VatAmount")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -4312,6 +4343,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("ProductId");
 
                     b.HasIndex("PurchaseBillId");
+
+                    b.HasIndex("UnitId");
 
                     b.ToTable("PurchaseBillLines", "purchasing");
                 });
@@ -4420,6 +4453,12 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<decimal>("ConversionFactor")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)")
+                        .HasDefaultValue(1m);
+
                     b.Property<decimal>("DiscountPct")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -4438,6 +4477,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<Guid?>("UnitId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("VatAmount")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -4452,6 +4494,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("ProductId");
 
                     b.HasIndex("PurchaseOrderId");
+
+                    b.HasIndex("UnitId");
 
                     b.ToTable("PurchaseOrderLines", "purchasing");
                 });
@@ -4565,6 +4609,12 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid?>("BatchId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal>("ConversionFactor")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)")
+                        .HasDefaultValue(1m);
+
                     b.Property<Guid>("CreditNoteId")
                         .HasColumnType("uniqueidentifier");
 
@@ -4583,6 +4633,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<Guid?>("UnitId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("VatAmount")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -4599,6 +4652,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("CreditNoteId");
 
                     b.HasIndex("ProductId");
+
+                    b.HasIndex("UnitId");
 
                     b.ToTable("CreditNoteLines", "sales");
                 });
@@ -4738,6 +4793,12 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<decimal>("ConversionFactor")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)")
+                        .HasDefaultValue(1m);
+
                     b.Property<decimal>("DiscountPct")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -4756,6 +4817,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<Guid?>("UnitId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("VatAmount")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -4772,6 +4836,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("InvoiceId");
 
                     b.HasIndex("ProductId");
+
+                    b.HasIndex("UnitId");
 
                     b.ToTable("InvoiceLines", "sales");
                 });
@@ -4959,6 +5025,12 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<decimal>("ConversionFactor")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)")
+                        .HasDefaultValue(1m);
+
                     b.Property<decimal>("DiscountPct")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -4977,6 +5049,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<Guid?>("UnitId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("VatAmount")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -4991,6 +5066,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("ProductId");
 
                     b.HasIndex("QuotationId");
+
+                    b.HasIndex("UnitId");
 
                     b.ToTable("QuotationLines", "sales");
                 });
@@ -5100,6 +5177,12 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<decimal>("ConversionFactor")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)")
+                        .HasDefaultValue(1m);
+
                     b.Property<decimal>("DiscountPct")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -5118,6 +5201,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid>("SalesOrderId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("UnitId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("VatAmount")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -5132,6 +5218,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("ProductId");
 
                     b.HasIndex("SalesOrderId");
+
+                    b.HasIndex("UnitId");
 
                     b.ToTable("SalesOrderLines", "sales");
                 });
@@ -9741,6 +9829,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("ErpApp.Domain.Catalog.UnitOfMeasurement", null)
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Inventory.WarehouseTransfer", null)
                         .WithMany("Lines")
                         .HasForeignKey("WarehouseTransferId")
@@ -10018,6 +10111,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Catalog.UnitOfMeasurement", null)
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Purchasing.Expense", b =>
@@ -10132,6 +10230,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("PurchaseBillId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Catalog.UnitOfMeasurement", null)
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Purchasing.PurchaseOrder", b =>
@@ -10166,6 +10269,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("PurchaseOrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Catalog.UnitOfMeasurement", null)
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Sales.CreditNote", b =>
@@ -10200,6 +10308,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Catalog.UnitOfMeasurement", null)
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Sales.Invoice", b =>
@@ -10240,6 +10353,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Catalog.UnitOfMeasurement", null)
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Sales.Quotation", b =>
@@ -10274,6 +10392,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("QuotationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Catalog.UnitOfMeasurement", null)
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Sales.SalesOrder", b =>
@@ -10303,6 +10426,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("SalesOrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Catalog.UnitOfMeasurement", null)
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Tenancy.OrganizationMembership", b =>

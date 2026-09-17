@@ -44,6 +44,8 @@ import { locationAwareProducts } from '../../../shared/catalog/location-aware-pr
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { LineUnitControl, LineUnitOption } from '../../../shared/catalog/line-unit-control';
+import { UnitOfMeasurementStore } from '../../../shared/catalog/unit-of-measurement-store';
 
 interface EditableLine {
   key: number;
@@ -62,6 +64,13 @@ interface EditableLine {
   manufactureDate: string;
   expiryDate: string;
   serialsText: string;
+
+  /**
+   * Phase 52 -- the unit this line is entered in. Empty means the product's own primary unit.
+   * The conversion factor is not held here: the server resolves it from the catalogue and
+   * freezes it on the line, so a client cannot claim a conversion the product does not have.
+   */
+  unitId: string;
 }
 
 /** Phase 29 (FR-6.15). One editable Additional Cost row. `productId` empty string is the live
@@ -85,7 +94,7 @@ let nextAdditionalCostKey = 1;
  * "Convert to Credit Note". */
 @Component({
   selector: 'app-purchase-bill-detail-page',
-  imports: [RouterLink, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner, FieldErrorMessage, NepaliDatePipe],
+  imports: [RouterLink, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, CustomFieldsEditor, CurrencyRateFields, DocumentLocationPicker, StatusBanner, FieldErrorMessage, NepaliDatePipe, LineUnitControl],
   templateUrl: './purchase-bill-detail-page.html',
 })
 export class PurchaseBillDetailPage {
@@ -107,6 +116,9 @@ export class PurchaseBillDetailPage {
   private readonly inboxService = inject(InboxService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 52 -- the tenant's units, shared and cached; a Product carries unit ids only. */
+  protected readonly units = inject(UnitOfMeasurementStore).units(this.organizationId);
 
   protected readonly loading = signal(true);
   // Phase 28 (FR-2.5) -- the document's own currency and its rate to the base currency, owned here
@@ -346,6 +358,7 @@ export class PurchaseBillDetailPage {
                   manufactureDate: ('manufactureDate' in l ? (l.manufactureDate ?? '') : ''),
                   expiryDate: ('expiryDate' in l ? (l.expiryDate ?? '') : ''),
                   serialsText: ('serialNumbers' in l ? (l.serialNumbers ?? []).join(', ') : ''),
+                  unitId: ('unitId' in l ? ((l as { unitId?: string | null }).unitId ?? '') : ''),
                 }))
               : [this.newLine()],
           );
@@ -669,6 +682,12 @@ export class PurchaseBillDetailPage {
         manufactureDate: '',
         expiryDate: '',
         serialsText: '',
+        // Phase 52 -- the product's primary unit, deliberately. The five document-to-document
+        // conversion templates carry the source line's unit because their source is a line in
+        // this database; an AI-extracted supplier bill has no unit field in its schema at all, so
+        // carrying one would mean inventing it. The user can change it in one click. The server
+        // records the same decision on InboxPrefillLineDto.
+        unitId: '',
       }));
 
     if (lines.length > 0) {
@@ -746,6 +765,8 @@ export class PurchaseBillDetailPage {
         // Phase 51. Null rather than '' -- the server reads a blank as "no batch", and a product
         // that is not batch-tracked is refused one outright, so '' would be sending a value.
         batchNo: l.batchNo.trim() || null,
+        // Phase 52 -- null means the product's own primary unit; an empty string is a value.
+        unitId: l.unitId || null,
         manufactureDate: l.manufactureDate || null,
         expiryDate: l.expiryDate || null,
         serialNumbers: this.parseSerials(l.serialsText),
@@ -780,12 +801,29 @@ export class PurchaseBillDetailPage {
       .filter((s) => s.length > 0);
   }
 
+  /**
+   * Phase 52 -- picking a unit sets the Rate from that unit row's own price and nothing else.
+   * Confirmed live 2026-09-17: Amount stays `Qty x Rate` in the entered unit, so the factor
+   * never touches the money -- it is applied to the quantity, by the server, on the way into
+   * the stock ledger.
+   */
+  protected onUnitChange(key: number, option: LineUnitOption): void {
+    this.updateLine(key, { unitId: option.unitId, rate: option.purchasePrice });
+  }
+
+  /** Phase 52 -- the unit's short name for the read-only branch of the Qty cell. */
+  protected unitLabel(line: EditableLine): string {
+    const product = this.products().find((p) => p.id === line.productId);
+    const unitId = line.unitId || product?.primaryUnitId;
+    return this.units().find((u) => u.id === unitId)?.shortName ?? '';
+  }
+
   private updateLine(key: number, patch: Partial<Omit<EditableLine, 'key'>>): void {
     this.lines.update((lines) => lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   }
 
   private newLine(): EditableLine {
-    return {
+    return { unitId: '', 
       key: nextLineKey++,
       productId: '',
       quantity: 1,
@@ -797,7 +835,7 @@ export class PurchaseBillDetailPage {
       manufactureDate: '',
       expiryDate: '',
       serialsText: '',
-    };
+};
   }
 
   private today(): string {
@@ -1015,6 +1053,7 @@ export class PurchaseBillDetailPage {
                 vatRate: l.vatRate,
                 expenditureClassification: l.expenditureClassification,
                 discountPct: l.discountPct,
+                unitId: l.unitId ?? '',
                 // Phase 51 -- read back, not only written. Phase 35a found 14 of 15 detail reads
                 // dropping a field the write path stored, which makes the field invisible on the
                 // form and unrecoverable on the next save.

@@ -56,7 +56,8 @@ public sealed class VoidWarehouseTransferCommandHandler(
         foreach (var layer in destinationLayers)
         {
             costCatchUp += await stockLedgerService.IncrementAsync(
-                request.OrganizationId, layer.ProductId, warehouseTransfer.FromWarehouseId, layer.QuantityIn, layer.UnitCost,
+                request.OrganizationId, layer.ProductId, warehouseTransfer.FromWarehouseId,
+                PrimaryQuantity.AlreadyPrimary(layer.QuantityIn), layer.UnitCost,
                 DocumentType.WarehouseTransfer, warehouseTransfer.Id, warehouseTransfer.Date, cancellationToken,
                 warehouseTransfer.LocationId);
         }

@@ -41,6 +41,12 @@ export interface QuotationLineInput {
   rate: number;
   vatRate: VatRate;
   discountPct: number;
+  /**
+   * Phase 52 -- the unit this line is entered in. Omit (or null) for the product's own primary
+   * unit, which is what every line meant before this phase. The conversion factor is never sent:
+   * the server resolves it from the catalogue once and freezes it on the line.
+   */
+  unitId?: string | null;
 }
 
 export interface Quotation {
@@ -66,6 +72,12 @@ export interface QuotationLineDto extends QuotationLineInput {
   id: string;
   amount: number;
   vatAmount: number;
+  /** Phase 52 -- the unit this line was entered in, its short name for display, and the factor
+   *  frozen when the line was written. The converted quantity is deliberately absent: it is
+   *  `quantity * conversionFactor`, and sending it too would put a second quantity on the wire. */
+  unitId: string | null;
+  unitName: string | null;
+  conversionFactor: number;
 }
 
 export interface QuotationDetail extends Quotation {
@@ -135,6 +147,12 @@ export interface InvoiceLineInput {
   expiryDate?: string | null;
   /** Phase 51 -- one per physical unit: exactly `quantity` of them when the product is serialised. */
   serialNumbers?: string[] | null;
+  /**
+   * Phase 52 -- the unit this line is entered in. Omit (or null) for the product's own primary
+   * unit, which is what every line meant before this phase. The conversion factor is never sent:
+   * the server resolves it from the catalogue once and freezes it on the line.
+   */
+  unitId?: string | null;
 }
 
 export interface Invoice {
@@ -180,6 +198,12 @@ export interface InvoiceLineDto extends InvoiceLineInput {
   expiryDate: string | null;
   /** Phase 51 -- always present, empty for a line of a product that is not serial-tracked. */
   serialNumbers: string[];
+  /** Phase 52 -- the unit this line was entered in, its short name for display, and the factor
+   *  frozen when the line was written. The converted quantity is deliberately absent: it is
+   *  `quantity * conversionFactor`, and sending it too would put a second quantity on the wire. */
+  unitId: string | null;
+  unitName: string | null;
+  conversionFactor: number;
 }
 
 export interface PostedGlLineDto {
@@ -280,6 +304,12 @@ export interface SalesOrderLineInput {
   rate: number;
   vatRate: VatRate;
   discountPct: number;
+  /**
+   * Phase 52 -- the unit this line is entered in. Omit (or null) for the product's own primary
+   * unit, which is what every line meant before this phase. The conversion factor is never sent:
+   * the server resolves it from the catalogue once and freezes it on the line.
+   */
+  unitId?: string | null;
 }
 
 export interface SalesOrder {
@@ -307,6 +337,12 @@ export interface SalesOrderLineDto extends SalesOrderLineInput {
   id: string;
   amount: number;
   vatAmount: number;
+  /** Phase 52 -- the unit this line was entered in, its short name for display, and the factor
+   *  frozen when the line was written. The converted quantity is deliberately absent: it is
+   *  `quantity * conversionFactor`, and sending it too would put a second quantity on the wire. */
+  unitId: string | null;
+  unitName: string | null;
+  conversionFactor: number;
 }
 
 export interface SalesOrderDetail extends SalesOrder {
@@ -366,6 +402,12 @@ export interface CreditNoteLineInput {
   rate: number;
   vatRate: VatRate;
   discountPct: number;
+  /**
+   * Phase 52 -- the unit this line is entered in. Omit (or null) for the product's own primary
+   * unit, which is what every line meant before this phase. The conversion factor is never sent:
+   * the server resolves it from the catalogue once and freezes it on the line.
+   */
+  unitId?: string | null;
 }
 
 export interface CreditNote {
@@ -391,6 +433,12 @@ export interface CreditNoteLineDto extends CreditNoteLineInput {
   id: string;
   amount: number;
   vatAmount: number;
+  /** Phase 52 -- the unit this line was entered in, its short name for display, and the factor
+   *  frozen when the line was written. The converted quantity is deliberately absent: it is
+   *  `quantity * conversionFactor`, and sending it too would put a second quantity on the wire. */
+  unitId: string | null;
+  unitName: string | null;
+  conversionFactor: number;
 }
 
 export interface CreditNoteDetail extends CreditNote {

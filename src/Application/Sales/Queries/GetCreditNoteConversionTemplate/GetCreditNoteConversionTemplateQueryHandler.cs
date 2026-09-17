@@ -28,7 +28,12 @@ public sealed class GetCreditNoteConversionTemplateQueryHandler(IAppDbContext db
 
         var lines = remainingByLine
             .Where(kv => kv.Value > 0)
-            .Select(kv => new CreditNoteLineInput(kv.Key.ProductId, kv.Value, kv.Key.Rate, kv.Key.VatRate, kv.Key.DiscountPct))
+            // Phase 52 -- the unit is part of the conversion-cap key now, so kv.Key carries it and
+            // the remaining quantity is denominated in it. Without it the cap would add cartons to
+            // pieces and credit a quantity in neither.
+            .Select(kv => new CreditNoteLineInput(
+                kv.Key.ProductId, kv.Value, kv.Key.Rate, kv.Key.VatRate, kv.Key.DiscountPct,
+                UnitId: kv.Key.UnitId))
             .ToList();
 
         if (lines.Count == 0)

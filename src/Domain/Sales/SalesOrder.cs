@@ -120,7 +120,9 @@ public sealed class SalesOrder
         DiscountPct = discountPct;
     }
 
-    public void AddLine(Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct)
+    public void AddLine(
+        Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct,
+        Guid? unitId, decimal conversionFactor)
     {
         EnsureDraft();
 
@@ -131,7 +133,8 @@ public sealed class SalesOrder
 
         EnsureValidDiscountPct(discountPct);
 
-        _lines.Add(SalesOrderLine.Create(Id, productId, quantity, rate, vatRate, discountPct, DiscountPct));
+        _lines.Add(SalesOrderLine.Create(
+            Id, productId, quantity, rate, vatRate, discountPct, DiscountPct, unitId, conversionFactor));
     }
 
     private static void EnsureValidDiscountPct(decimal discountPct)

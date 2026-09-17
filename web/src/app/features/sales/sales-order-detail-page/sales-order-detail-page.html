@@ -165,7 +165,7 @@
             <thead>
               <tr class="text-muted small">
                 <th scope="col" style="min-width: 240px;">Product</th>
-                <th scope="col" style="width: 110px;" class="text-end">Qty</th>
+                <th scope="col" style="width: 190px;" class="text-end">Qty</th>
                 <th scope="col" style="width: 130px;" class="text-end">Rate</th>
                 <th scope="col" style="width: 110px;" class="text-end">Discount %</th>
                 <th scope="col" style="width: 150px;">VAT</th>
@@ -192,16 +192,28 @@
                   </td>
                   <td class="text-end">
                     @if (isDraft()) {
-                      <input aria-label="Qty"
-                        type="number"
-                        class="form-control form-control-sm text-end"
-                        min="0"
-                        step="0.01"
-                        [value]="line.quantity || ''"
-                        (input)="onQuantityChange(line.key, $event)"
-                      />
+                      <!-- Phase 52 -- the unit sits INSIDE the Qty cell, right of the number, which is
+                           where the 2026-09-17 read found it: no column of its own. -->
+                      <div class="d-flex align-items-center justify-content-end gap-1">
+                        <input aria-label="Qty"
+                          style="min-width: 5rem;"
+                          type="number"
+                          class="form-control form-control-sm text-end"
+                          min="0"
+                          step="0.01"
+                          [value]="line.quantity || ''"
+                          (input)="onQuantityChange(line.key, $event)"
+                        />
+                        <app-line-unit
+                          [products]="products()"
+                          [units]="units()"
+                          [productId]="line.productId"
+                          [unitId]="line.unitId"
+                          (unitChange)="onUnitChange(line.key, $event)"
+                        />
+                      </div>
                     } @else {
-                      {{ line.quantity }}
+                      {{ line.quantity }} {{ unitLabel(line) }}
                     }
                   </td>
                   <td class="text-end">
@@ -269,7 +281,7 @@
                 <td class="text-end fw-semibold">
                   Discount %
                   @if (isDraft()) {
-                    <input aria-label="Qty"
+                    <input aria-label="Discount %"
                       type="number"
                       class="form-control form-control-sm text-end d-inline-block ms-2"
                       style="width: 80px;"

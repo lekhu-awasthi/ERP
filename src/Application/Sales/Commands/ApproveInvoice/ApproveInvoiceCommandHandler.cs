@@ -137,7 +137,7 @@ public sealed class ApproveInvoiceCommandHandler(
             // neither takes exactly the path it took before this phase.
             var consumption = await LineStockAllocator.ConsumeLineAsync(
                 stockLedgerService, request.OrganizationId, line.ProductId, invoice.WarehouseId,
-                line.Quantity, line.BatchId,
+                line.PrimaryQuantity, line.BatchId,
                 serialsByLine.TryGetValue(line.Id, out var serials) ? serials : [],
                 DocumentType.Invoice, invoice.Id, invoice.Date, cancellationToken, invoice.LocationId,
                 // Phase 37 -- the Negative Item Balance setting made real. The gate above has
@@ -148,7 +148,10 @@ public sealed class ApproveInvoiceCommandHandler(
                 allowNegative: true);
 
             line.RecordCogsUnitCost(consumption.AverageUnitCost);
-            totalCogs += line.Quantity * consumption.AverageUnitCost;
+            // Phase 52 -- COGS is priced per PRIMARY unit: AverageUnitCost came off FIFO layers,
+            // which are always denominated in primary units. A line entered in cartons would
+            // otherwise be costed as though it had shipped cartons' worth of pieces.
+            totalCogs += line.PrimaryQuantity.Value * consumption.AverageUnitCost;
         }
 
         if (totalCogs > 0)

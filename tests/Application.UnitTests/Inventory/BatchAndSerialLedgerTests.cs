@@ -44,15 +44,15 @@ public class BatchAndSerialLedgerTests
 
         // Batch A is older AND cheaper, so an unnarrowed FIFO walk would take it first.
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 10m, 5m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 5m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day1, CancellationToken.None, batchId: BatchA);
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 10m, 8m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 8m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day2, CancellationToken.None, batchId: BatchB);
         await db.SaveChangesAsync(CancellationToken.None);
 
         var consumption = await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 4m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(4m), DocumentType.Invoice, Guid.NewGuid(),
             Day3, CancellationToken.None, batchId: BatchB);
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -71,17 +71,17 @@ public class BatchAndSerialLedgerTests
         var service = new StockLedgerService(db);
 
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 10m, 5m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 5m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day1, CancellationToken.None, batchId: BatchA);
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 10m, 8m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 8m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day2, CancellationToken.None, batchId: BatchB);
         await db.SaveChangesAsync(CancellationToken.None);
 
         // Leaving the batch blank on an issue is legal and is what makes the seven document types
         // the read never showed a control on keep working.
         var consumption = await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 14m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(14m), DocumentType.Invoice, Guid.NewGuid(),
             Day3, CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -101,16 +101,16 @@ public class BatchAndSerialLedgerTests
         var service = new StockLedgerService(db);
 
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 10m, 5m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 5m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day1, CancellationToken.None, batchId: BatchA);
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 10m, 8m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 8m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day2, CancellationToken.None, batchId: BatchB);
         await db.SaveChangesAsync(CancellationToken.None);
 
         var invoiceId = Guid.NewGuid();
         await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 14m, DocumentType.Invoice, invoiceId,
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(14m), DocumentType.Invoice, invoiceId,
             Day3, CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -135,16 +135,16 @@ public class BatchAndSerialLedgerTests
         // Two layers, no batch anywhere -- the pre-phase-51 world, which must be bit-for-bit
         // unchanged or this phase is not additive.
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 10m, 5m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 5m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day1, CancellationToken.None);
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 10m, 8m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 8m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day2, CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
         var invoiceId = Guid.NewGuid();
         await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 14m, DocumentType.Invoice, invoiceId,
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(14m), DocumentType.Invoice, invoiceId,
             Day3, CancellationToken.None);
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -165,12 +165,12 @@ public class BatchAndSerialLedgerTests
         var service = new StockLedgerService(db);
 
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 4m, 5m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(4m), 5m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day1, CancellationToken.None, batchId: BatchA);
         await db.SaveChangesAsync(CancellationToken.None);
 
         await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 10m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), DocumentType.Invoice, Guid.NewGuid(),
             Day2, CancellationToken.None, allowNegative: true, batchId: BatchA);
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -189,7 +189,7 @@ public class BatchAndSerialLedgerTests
 
         // Units that were never received belong to no batch, because no receipt created one.
         await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 3m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(3m), DocumentType.Invoice, Guid.NewGuid(),
             Day2, CancellationToken.None, allowNegative: true);
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -205,16 +205,16 @@ public class BatchAndSerialLedgerTests
 
         // Two debts: one against batch A, one against no batch at all.
         await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 5m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(5m), DocumentType.Invoice, Guid.NewGuid(),
             Day1, CancellationToken.None, allowNegative: true, batchId: BatchA);
         await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 5m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(5m), DocumentType.Invoice, Guid.NewGuid(),
             Day1, CancellationToken.None, allowNegative: true);
         await db.SaveChangesAsync(CancellationToken.None);
 
         // A receipt of batch A, big enough for one debt and not both.
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 5m, 7m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(5m), 7m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day2, CancellationToken.None, batchId: BatchA);
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -235,12 +235,12 @@ public class BatchAndSerialLedgerTests
         // carries a batch, so without it an un-batched debt could never be repaid by anything and
         // the product's on-hand would be understated forever.
         await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 4m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(4m), DocumentType.Invoice, Guid.NewGuid(),
             Day1, CancellationToken.None, allowNegative: true);
         await db.SaveChangesAsync(CancellationToken.None);
 
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 4m, 6m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(4m), 6m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day2, CancellationToken.None, batchId: BatchA);
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -255,12 +255,12 @@ public class BatchAndSerialLedgerTests
         var service = new StockLedgerService(db);
 
         await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 4m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(4m), DocumentType.Invoice, Guid.NewGuid(),
             Day1, CancellationToken.None, allowNegative: true, batchId: BatchA);
         await db.SaveChangesAsync(CancellationToken.None);
 
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 4m, 6m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(4m), 6m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day2, CancellationToken.None, batchId: BatchB);
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -281,15 +281,15 @@ public class BatchAndSerialLedgerTests
 
         // A1 is older and cheaper; FIFO would take it. Specific identification must not.
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 1m, 100m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(1m), 100m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day1, CancellationToken.None, serialNo: "A1");
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 1m, 250m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(1m), 250m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day2, CancellationToken.None, serialNo: "J9");
         await db.SaveChangesAsync(CancellationToken.None);
 
         var consumption = await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 1m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(1m), DocumentType.Invoice, Guid.NewGuid(),
             Day3, CancellationToken.None, serialNo: "J9");
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -309,7 +309,7 @@ public class BatchAndSerialLedgerTests
         // allowNegative: true is the tenant saying "let me sell what I have not booked in".
         // Naming a physical unit that was never received is not that; it is a typo.
         var ex = await Assert.ThrowsAsync<ConflictException>(() => service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 1m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(1m), DocumentType.Invoice, Guid.NewGuid(),
             Day2, CancellationToken.None, allowNegative: true, serialNo: "NOPE"));
 
         Assert.Contains("NOPE", ex.Message, StringComparison.Ordinal);
@@ -325,7 +325,7 @@ public class BatchAndSerialLedgerTests
         // The invariant that makes "a serial is a layer of quantity one" true rather than a
         // convention every caller has to remember.
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 2m, 100m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(2m), 100m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day1, CancellationToken.None, serialNo: "A1"));
     }
 
@@ -336,15 +336,15 @@ public class BatchAndSerialLedgerTests
         var service = new StockLedgerService(db);
 
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 1m, 100m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(1m), 100m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day1, CancellationToken.None, serialNo: "A1");
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 1m, 100m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(1m), 100m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day1, CancellationToken.None, serialNo: "A2");
         await db.SaveChangesAsync(CancellationToken.None);
 
         await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 1m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(1m), DocumentType.Invoice, Guid.NewGuid(),
             Day2, CancellationToken.None, serialNo: "A1");
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -365,7 +365,7 @@ public class BatchAndSerialLedgerTests
 
         var billId = Guid.NewGuid();
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 1m, 100m, DocumentType.PurchaseBill, billId,
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(1m), 100m, DocumentType.PurchaseBill, billId,
             Day1, CancellationToken.None, batchId: BatchA, serialNo: "A1");
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -389,23 +389,23 @@ public class BatchAndSerialLedgerTests
         var service = new StockLedgerService(db);
 
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 10m, 5m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 5m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day1, CancellationToken.None, batchId: BatchA);
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 10m, 8m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 8m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day2, CancellationToken.None, batchId: BatchB);
         await db.SaveChangesAsync(CancellationToken.None);
 
         var transferId = Guid.NewGuid();
         var consumption = await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 14m, DocumentType.WarehouseTransfer, transferId,
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(14m), DocumentType.WarehouseTransfer, transferId,
             Day3, CancellationToken.None);
 
         // What ApproveWarehouseTransferCommandHandler now does, relief by relief.
         foreach (var relief in consumption.Reliefs.Where(x => !x.Shortfall))
         {
             await service.IncrementAsync(
-                OrganizationId, ProductId, OtherWarehouseId, relief.Quantity, relief.UnitCost,
+                OrganizationId, ProductId, OtherWarehouseId, PrimaryQuantity.AlreadyPrimary(relief.Quantity), relief.UnitCost,
                 DocumentType.WarehouseTransfer, transferId, Day3, CancellationToken.None,
                 batchId: relief.BatchId, serialNo: relief.SerialNo);
         }
@@ -438,16 +438,16 @@ public class BatchAndSerialLedgerTests
         // The conservation law itself, stated as a property rather than as an arithmetic example:
         // the batch is a GROUP BY over the one quantity, so grouping can never lose or invent any.
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 10m, 5m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(10m), 5m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day1, CancellationToken.None, batchId: BatchA);
         await service.IncrementAsync(
-            OrganizationId, ProductId, WarehouseId, 7m, 8m, DocumentType.PurchaseBill, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(7m), 8m, DocumentType.PurchaseBill, Guid.NewGuid(),
             Day2, CancellationToken.None, batchId: BatchB);
         await db.SaveChangesAsync(CancellationToken.None);
 
         // ... an oversell against no batch, leaving an un-batched negative layer ...
         await service.ConsumeAsync(
-            OrganizationId, ProductId, WarehouseId, 20m, DocumentType.Invoice, Guid.NewGuid(),
+            OrganizationId, ProductId, WarehouseId, PrimaryQuantity.AlreadyPrimary(20m), DocumentType.Invoice, Guid.NewGuid(),
             Day3, CancellationToken.None, allowNegative: true);
         await db.SaveChangesAsync(CancellationToken.None);
 

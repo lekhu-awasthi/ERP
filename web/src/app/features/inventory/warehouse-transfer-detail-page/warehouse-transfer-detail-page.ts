@@ -17,12 +17,21 @@ import { DocumentLocationPicker } from '../../../shared/locations/document-locat
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
-import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { LineUnitControl, LineUnitOption } from '../../../shared/catalog/line-unit-control';
+import { UnitOfMeasurementStore } from '../../../shared/catalog/unit-of-measurement-store';
 
 interface EditableLine {
   key: number;
   productId: string;
   quantity: number;
+
+  /**
+   * Phase 52 -- the unit this line is entered in. Empty means the product's own primary unit.
+   * The conversion factor is not held here: the server resolves it from the catalogue and
+   * freezes it on the line, so a client cannot claim a conversion the product does not have.
+   */
+  unitId: string;
 }
 
 let nextLineKey = 1;
@@ -32,7 +41,7 @@ let nextLineKey = 1;
  * or GL Transactions section here, unlike every other transactional detail page. */
 @Component({
   selector: 'app-warehouse-transfer-detail-page',
-  imports: [RouterLink, BsDateInput, DocumentTabs, ReportingTagsEditor, DocumentLocationPicker, StatusBanner, FieldErrorMessage, NepaliDatePipe],
+  imports: [RouterLink, BsDateInput, DocumentTabs, ReportingTagsEditor, DocumentLocationPicker, StatusBanner, FieldErrorMessage, NepaliDatePipe, LineUnitControl],
   templateUrl: './warehouse-transfer-detail-page.html',
 })
 export class WarehouseTransferDetailPage {
@@ -44,6 +53,9 @@ export class WarehouseTransferDetailPage {
   private readonly organizationsService = inject(OrganizationsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  /** Phase 52 -- the tenant's units, shared and cached; a Product carries unit ids only. */
+  protected readonly units = inject(UnitOfMeasurementStore).units(this.organizationId);
 
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
@@ -238,7 +250,11 @@ export class WarehouseTransferDetailPage {
   private toLineInputs(): WarehouseTransferLineInput[] | null {
     const lines = this.lines()
       .filter((l) => l.productId && l.quantity > 0)
-      .map((l) => ({ productId: l.productId, quantity: l.quantity }));
+      // Phase 52 -- null rather than '' for the primary unit: the server reads null as "the
+      // product's own primary unit", and an empty string is a value. This field is OPTIONAL on
+      // the request record, so a form that forgot it would compile, pass every test, and save a
+      // carton line as pieces -- which is phase 51's un-swept-increment bug in TypeScript.
+      .map((l) => ({ productId: l.productId, quantity: l.quantity, unitId: l.unitId || null }));
 
     if (lines.length === 0) {
       this.fieldError.fail('warehouse-transfer-detail-page-add-line', 'Add at least one line with a Product and a Quantity.');
@@ -248,12 +264,29 @@ export class WarehouseTransferDetailPage {
     return lines;
   }
 
+  /**
+   * Phase 52 -- a Warehouse Transfer line carries a unit and no price, which is why this
+   * phase's rule is *every line naming a product and a quantity* rather than *every priced
+   * line*: a list sampled from the sales and purchase forms would have missed this one
+   * (phase 30). So there is nothing to prefill -- only the unit changes.
+   */
+  protected onUnitChange(key: number, option: LineUnitOption): void {
+    this.updateLine(key, { unitId: option.unitId });
+  }
+
+  /** Phase 52 -- the unit's short name for the read-only branch of the Qty cell. */
+  protected unitLabel(line: EditableLine): string {
+    const product = this.products().find((p) => p.id === line.productId);
+    const unitId = line.unitId || product?.primaryUnitId;
+    return this.units().find((u) => u.id === unitId)?.shortName ?? '';
+  }
+
   private updateLine(key: number, patch: Partial<Omit<EditableLine, 'key'>>): void {
     this.lines.update((lines) => lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   }
 
   private newLine(): EditableLine {
-    return { key: nextLineKey++, productId: '', quantity: 1 };
+    return { unitId: '',  key: nextLineKey++, productId: '', quantity: 1};
   }
 
   private today(): string {
@@ -272,7 +305,12 @@ export class WarehouseTransferDetailPage {
         this.locationId.set(doc.locationId ?? '');
         this.lines.set(
           doc.lines.length > 0
-            ? doc.lines.map((l) => ({ key: nextLineKey++, productId: l.productId, quantity: l.quantity }))
+            ? doc.lines.map((l) => ({
+                key: nextLineKey++,
+                productId: l.productId,
+                quantity: l.quantity,
+                unitId: l.unitId ?? '',
+              }))
             : [this.newLine()],
         );
         this.loading.set(false);

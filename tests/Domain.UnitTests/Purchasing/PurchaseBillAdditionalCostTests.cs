@@ -59,7 +59,7 @@ public class PurchaseBillAdditionalCostTests
         var productId = Guid.NewGuid();
         for (var i = 0; i < 3; i++)
         {
-            bill.AddLine(productId, 1m, 100m, VatRate.NoVat, ExpenditureClassification.Others, 0m);
+            bill.AddLine(productId, 1m, 100m, VatRate.NoVat, ExpenditureClassification.Others, 0m, null, 1m);
         }
 
         bill.AddAdditionalCost(Guid.NewGuid(), null, AdditionalCostMethod.Value, 100m);
@@ -96,8 +96,8 @@ public class PurchaseBillAdditionalCostTests
         var bill = NewBill();
         var goodsProductId = Guid.NewGuid();
         var serviceProductId = Guid.NewGuid();
-        bill.AddLine(goodsProductId, 2m, 100m, VatRate.NoVat, ExpenditureClassification.Others, 0m);
-        bill.AddLine(serviceProductId, 1m, 900m, VatRate.NoVat, ExpenditureClassification.Others, 0m);
+        bill.AddLine(goodsProductId, 2m, 100m, VatRate.NoVat, ExpenditureClassification.Others, 0m, null, 1m);
+        bill.AddLine(serviceProductId, 1m, 900m, VatRate.NoVat, ExpenditureClassification.Others, 0m, null, 1m);
         bill.AddAdditionalCost(Guid.NewGuid(), null, AdditionalCostMethod.Value, 50m);
 
         bill.AllocateAdditionalCosts(new HashSet<Guid> { goodsProductId });
@@ -112,8 +112,8 @@ public class PurchaseBillAdditionalCostTests
         var bill = NewBill();
         var goodsProductId = Guid.NewGuid();
         var serviceProductId = Guid.NewGuid();
-        bill.AddLine(goodsProductId, 2m, 100m, VatRate.NoVat, ExpenditureClassification.Others, 0m);
-        bill.AddLine(serviceProductId, 1m, 900m, VatRate.NoVat, ExpenditureClassification.Others, 0m);
+        bill.AddLine(goodsProductId, 2m, 100m, VatRate.NoVat, ExpenditureClassification.Others, 0m, null, 1m);
+        bill.AddLine(serviceProductId, 1m, 900m, VatRate.NoVat, ExpenditureClassification.Others, 0m, null, 1m);
         bill.AddAdditionalCost(Guid.NewGuid(), serviceProductId, AdditionalCostMethod.Value, 50m);
 
         Assert.Throws<InvalidOperationException>(
@@ -125,7 +125,7 @@ public class PurchaseBillAdditionalCostTests
     {
         var bill = NewBill();
         var serviceProductId = Guid.NewGuid();
-        bill.AddLine(serviceProductId, 1m, 900m, VatRate.NoVat, ExpenditureClassification.Others, 0m);
+        bill.AddLine(serviceProductId, 1m, 900m, VatRate.NoVat, ExpenditureClassification.Others, 0m, null, 1m);
         bill.AddAdditionalCost(Guid.NewGuid(), null, AdditionalCostMethod.Value, 50m);
 
         Assert.Throws<InvalidOperationException>(() => bill.AllocateAdditionalCosts(new HashSet<Guid>()));
@@ -172,8 +172,8 @@ public class PurchaseBillAdditionalCostTests
         var bill = NewBill();
         var productA = Guid.NewGuid();
         var productB = Guid.NewGuid();
-        bill.AddLine(productA, quantityA, rateA, VatRate.NoVat, ExpenditureClassification.Others, 0m);
-        bill.AddLine(productB, quantityB, rateB, VatRate.NoVat, ExpenditureClassification.Others, 0m);
+        bill.AddLine(productA, quantityA, rateA, VatRate.NoVat, ExpenditureClassification.Others, 0m, null, 1m);
+        bill.AddLine(productB, quantityB, rateB, VatRate.NoVat, ExpenditureClassification.Others, 0m, null, 1m);
 
         return (bill, [productA, productB]);
     }
