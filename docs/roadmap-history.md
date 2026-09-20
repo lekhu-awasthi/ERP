@@ -1405,3 +1405,143 @@ short orientation (what is done, what is next, test counts) — the phase's own 
 `docs/phase-N-status.md`, never here. Gotchas stay one line here (under ~220 characters); the
 narrative goes in `docs/known-gotchas.md`.
 
+
+---
+
+# Continuation phases (48–52) — planning detail
+
+Moved verbatim out of `docs/roadmap.md` on 2026-09-20 (phase 53) so the roadmap stays a short
+index, following the 2026-09-02, 2026-09-14 and 2026-09-15 precedents. The authoritative record of
+what shipped is each `docs/phase-N-status.md`.
+
+## Continuation phases (48–52) — from the carried items of phases 42–47, plus one live read (planned 2026-09-16)
+
+**Method.** Every "Carried items / Known limitations / Follow-ups" section from `phase-42` through
+`phase-47` was read, and each open item placed where it is cheapest to close beside its neighbours;
+every bullet below traces to a numbered item in a status doc. Then the reference product was read
+live, because its login banner advertises an August 2026 release and the last catalogue diff was
+2026-09-02. **That read found genuinely new scope** — see phase 51 — so this sequence is not only a
+backlog. The two items that cannot be scheduled by a session are kept out of the sequence rather than
+padded into it. The 2026-09-15 "What remains" statement this replaces is in `docs/roadmap-history.md`.
+
+**Ordering rule.** The visible defect first (48), then the phase with a date on it (49), then the
+work a measurement has to authorise (50), then the two that add a dimension to every document line
+(51, 52) — traceability before units, because traceability is fully specified by the live read today
+and units are not.
+
+### 48. The shared display components and the record pages
+- **`activity-panel.html` renders comment timestamps as raw ISO strings** (`2026-09-14T14:00:21.099…`)
+  on **17 hosts** — the Contact tab since phase 18, every document tab since 27a, both record pages
+  since 43. Phase-23's rule is that a date a user reads goes through `NepaliDatePipe`, and this is the
+  one place in the app that breaks it (43 #6). The decision is the format (BS date alone, or date and
+  time); changing a 17-host component at the end of a phase is why 43 declined to do it itself.
+- **Neither record detail page has an edit form** (43 #4): editing a Deal or a Task still happens
+  through the inline form on its list, where it has been since phases 15 and 13, while the live pages
+  have a left-rail edit. **`MARK AS DONE` is missing from the Task detail page** (43 #7) — reachable
+  from the list, so a convenience rather than an unreachable field.
+- **Phase 44 added four screens and no Angular tests** (44 #6). Its doc calls that a gap, not a claim.
+- **The Attributes Used editor is a flat checkbox list** of every option of every tenant attribute,
+  with no per-attribute *Select all* and no filter (45 #1, 47 #3). Tolerable at the reference tenant's
+  16 attributes; the first tenant with 60 will feel it.
+- **Two messages per document form are still banner-only** (47 #4) — the line-table one and Purchase
+  Bill's import trio — because neither names one control. The honest improvement is a message that
+  points at the *table*, which needs a target element the table does not have yet.
+
+### 49. The expiry read, and phase 46's own surfaces — **complete**, see `docs/phase-49-status.md`
+**No longer date-gated — the read was done on 2026-09-16**, a week early, because a *second* trial
+tenant (`abcagro`, 15 days) had already expired. Full write-up in `docs/erp-module-scan.md`, "An
+**expired** trial tenant, read against a live one". Cadehi still expires **22-09-2026** (the server's
+own `expiry_date`, not a banner), so a confirming second sample is available from that date and is
+worth taking — but nothing waits on it.
+- **What the read found** (46 #2, 47 #7, 31 #5). On a trial, expiry **removes the tenant from the
+  owner's namespace list**, server-side: `GET /api/v1/me/namespaces` returns `total: 0`, `data: []`,
+  `error:false` — an ordinary successful empty result — and the portal then renders its *first-run
+  onboarding modal*. A user whose only tenant has expired is presented as a user who has never had
+  one. **This falsifies phase 46's derivation rather than refining it:** 46 reasoned that expiry gates
+  *master-data creation* behind a third marker while settings and renewal stay open, and there is no
+  degraded mode at all — there is no tenant to be in.
+- **The scope limit is load-bearing and belongs in the phase's first decision.** Both tenants read
+  were trials (`subscription_status: "Demo"`, `amount: 0`). This is one sample of *trial* behaviour
+  and **zero** samples of paid behaviour (phase 41's rule). A vendor retiring a free trial's workspace
+  while keeping a lapsed customer's data is entirely ordinary, and the two are different products.
+- **So the phase's real question is not "what does expiry do" but "what should ours do".** Matching
+  the reference product is a much larger change than a guard — this codebase has no concept of a
+  membership disappearing, and `AuthorizationBehavior` verifies org membership on every request — and
+  it is a **product** decision, not a technical one: a tenant whose data silently vanishes at trial
+  end is a choice with support and trust consequences. Decide it explicitly, with the evidence
+  attached and the trial/paid distinction named, rather than by reflex in either direction. Keeping
+  phase 46's narrower guard and *recording why we diverge* is a legitimate outcome.
+- **A hypothesis to test, not to assume:** the live namespace row carries `inactive` /
+  `inactive_by_id` / `inactive_at`, so expiry plausibly sets that triple and the list filters on it.
+  Consistent with the schema, **not observed** — the expired row cannot be seen at all.
+- **While logged in, two cheap extras**, both already named as re-entry conditions: flip Cadehi's
+  *Mode of Inventory Tracking* to **Physical Movement** and read the Delivery Note / GRN screens the
+  deferred list has been waiting on (the user's call, since it is a config write on their tenant); and
+  re-read the **Product Batch / Product Serial No** reports from an account that holds their
+  permission keys, since the 2026-09-16 pass got `permission denied` on both and phase 51 needs their
+  columns.
+- **Then close phase 46's UI gaps**, which need no read: nothing surfaces the AI-scan allowance where
+  scanning happens, so the first a user knows of the ceiling is a 409 (46 #5 — the reference product
+  shows nothing either, which is why it was not built, and it is ours to improve); `LocationQuota` can
+  silently go stale as locations are added (46 #6); SMS has no usage row on the Subscription screen
+  though its ledger balance is on the SMS Overview tab (46 #7).
+
+### 50. Measured indexes, and the guards that cross an assembly boundary — **complete**, see `docs/phase-50-status.md`
+- **`Cheque` has no leading-tenant date index and its list already orders by an unindexed column**
+  (47 #2). `TenantIndexConvention.BusinessDateNames` matches by *name*, and `ChequeDate` is not on it.
+  The fix is two index adds and one migration; the reason it was not done is phase 34c's rule that a
+  measurement comes first, because an index added for one path changes the plan for every other path
+  on the same table. **Run `tools/scale/` before and after** — and, while the convention is open, ask
+  what else its name list is missing, since phase 47's lesson is that a convention matching by name is
+  a list, and a list becomes a wrong list.
+- **`ListSort`'s correspondence to `TenantIndexConvention` is asserted by nothing** (40, 47 #6):
+  `Application.UnitTests` references Application only, and the convention lives in Infrastructure.
+  Both sides carry the sentence and neither carries a test. Decide where such a test belongs — an
+  Infrastructure test project, or `Api.IntegrationTests` against the built model — and, having decided
+  once, the answer applies to every future cross-assembly invariant.
+- **`role="toolbar"`'s roving tabindex still has one consumer** (40 #6, 47 #5). Extract it only if a
+  second toolbar appears in this phase's work; otherwise re-record it, which is the honest outcome.
+
+### 51. Batch and serial tracking — **complete**, see `docs/phase-51-status.md`
+**The reference product shipped the traceability its banner had been claiming, and the 2026-09-10 pass
+correctly found none of it.** The full shape read on 2026-09-16 is in `docs/erp-module-scan.md` under
+"The August 2026 release"; in summary: two new `Product` toggles (**Batch Tracking**, **Serial Number
+Tracking**) beside Track Inventory; an **`Item Batch`** column on both the Invoice and the Purchase
+Bill line grid, so a batch is created on receipt and consumed on issue through one control; **Batch**
+and **Serial Number** tabs on product detail (batch no / manufacture date / expiry date / quantity
+per warehouse; serial no / warehouse / created-at); and the reports catalogue at **52**, with a
+Product Batch Report and a Product Serial No Report.
+- **The modelling question to settle first, before any line changes:** a batch is a *second dimension
+  on a FIFO layer* (a quantity per product per warehouse per batch, carrying two dates), while a
+  serial is *a row per physical unit*. Phase 37's shortfall layer and phase 7's `StockLedgerEntry` are
+  what both have to fit into, and phase 29's landed cost already rides on the layer's unit cost.
+  Decide whether a batch keys the layer or hangs off it — and whether a serial is a layer of quantity
+  one or its own aggregate — with the phase-25 conservation law as the acceptance test.
+- **Both flags are per product and default off**, so this is additive: a tenant that never turns them
+  on sees no new control, which is the same shape as `TrackInventory` and the phase-20f feature gates.
+- **Two reports are still unread.** The demo Admin got `permission denied` on both (the vendor gates
+  them behind new keys), and **phase 49 did not obtain an account that holds them** — its own live
+  extras went untaken, because they need the user at a browser and nothing in 49 waited on them. So
+  this is now *this* phase's read to take, or its decision to design from the two product tabs and
+  record that the column sets were never read — the phase-8f rule.
+- The *Status* filter on the serial report implies a serial has a lifecycle the tab's three columns do
+  not show; treat that as a question for the read, not an invention.
+- Expect the tenant-defined **Custom Fields** named Batch NO / Lot / Expiry to become a migration
+  question for real tenants once a native feature exists beside them.
+
+### 52. A unit on the document line — **done** (see the index table and `phase-52-status.md`)
+**The phase that makes phase 45 mean something.** A secondary unit is priced catalog metadata today
+and *nothing consumes it*: no document line stores a unit, so a conversion rate converts nothing
+(45 #2). Closing it is a change to every line-bearing aggregate — the line stores the unit it was
+entered in and the factor applied, quantities reach the stock ledger and the GL in the primary unit,
+and every report showing a quantity has to say which unit it means.
+- It follows 51 deliberately: both add a dimension to the same line, 51's is specified by a live read
+  today and this one is not, and the second change is cheaper on a line that already carries one.
+- Settle **what an approved document, a return and a conversion do when the product's conversion rate
+  is later edited** before touching a line; a stored factor versus a live lookup is the same choice
+  phase 37's cost catch-up made, and the scan records `100BTL` on a Moonbeam invoice line as the
+  display shape to match.
+- Multi-UOM × variants (45) already gives a variant its own unit matrix, so the parent/variant rule is
+  settled; this phase consumes it rather than re-deciding it.
+
+---

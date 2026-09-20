@@ -1276,3 +1276,49 @@ truth (phase 34b) and looking at it harder was the whole fix.
 restore the role before the browser pass. The sharper version: a custom role without
 `Tenancy.Role.Manage` cannot move its own membership back, so the restore is a 403 and the only way
 out is `UPDATE tenancy.OrganizationMemberships`. Prefer a throwaway user, or expect to reach for SQL.
+
+---
+
+## Phase 53 — re-planning, read before scoping anything from the reference product's UI
+
+**Read this before a re-planning phase, before scoping a feature you found as a route, or before
+another screen-by-screen confirm-live pass.** Full doc: `docs/phase-53-status.md`.
+
+**A screen-by-screen read cannot answer "what else is there".** Every confirm-live pass in
+`docs/erp-module-scan.md` before this one had that shape, and it surprised two phases running — 51
+found batch and serial tracking the 2026-09-10 pass had missed entirely, 52 found a `Unit:` selector
+no scan had recorded. Phase 30's rule ("a list sampled from a few screens becomes a wrong list, find
+the *rule*") applies to the product as a whole, not just to a feature within it.
+
+**The vendor's permission keys are its own enumeration of every gated feature.** They sit as string
+literals in its React bundle, because the client gates its own controls on them: 166 keys, shaped
+`<feature>-<view|add|edit|approve|void|full-access|export>`, extracted with one regex over
+`static/js/main.*.chunk.js` + `13.*.chunk.js`. That is a complete feature census with no page loads,
+and it is checkable in **both** directions — a feature with no key is not a feature.
+
+**A route is not a feature.** `/sales/recurring-invoices` renders real Approved/Draft list chrome with
+`+ ADD NEW`, and a session planning from a route list would have scoped a phase around it. Its
+endpoint 404s on *both* vendor builds, and no `recurring-invoice-*` key exists among the 166. Record
+such a thing as *read and absent*, with the evidence, so no future session re-opens it — phase 47's
+Decision G shape.
+
+**The census is a lower bound, not a proof.** It reads the vendor's *client*; a server feature the
+client does not gate would be invisible to it. Which is why Recurring Invoices was checked against the
+live API **as well as** against the key list — two independent negatives, not one.
+
+**An empty grid settles nothing when the control lives in a cell.** Phase 52 established that the
+vendor renders the unit control *inside* the Qty cell rather than as a column. So reading an add
+form's column headers on an empty document — which is what a tenant with no data lets you do — proves
+only that the header has no column. The Production Order add form shows a bare `Product | Quantity`
+while its approved documents demonstrably carry `measurement_unit_id`. **Read a row-present form, or
+read the payload of an approved document; do not conclude from a header.**
+
+**A deferral can get stronger.** Re-confirming the deferred list is what a re-planning phase is for,
+and two entries improved: Delivery Note / GRN turned out to carry ten permission keys (the feature is
+fully built behind the `InventoryTrackingMode` flag, so the seam is parked against something real),
+and the Daraz marketplace integration is live on both tenants — which is precisely the third-party
+storefront the PRD excludes, confirming the non-goal rather than reopening it.
+
+**A three-phase forward plan can be the honest answer.** Parity turned out to be near-complete, so
+the plan is three phases. Padding it would be inventing work; the roadmap's own method says items a
+session cannot schedule stay *out* of the sequence rather than get folded into it.

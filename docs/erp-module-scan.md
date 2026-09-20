@@ -1450,3 +1450,111 @@ Residue on the tenant: one voided Purchase Bill, with its reason recorded.
   (lines 125, 132).
 - Phase 45's reading of the Secondary Unit tab's `Action` column as edit-and-delete. It is
   delete-only.
+
+---
+
+## Re-planning read (2026-09-20, phase 53) — a feature census from the vendor's own permission keys
+
+Read-only, both tenants, no writes. Cadehi (`cadehi.tigg.app`, API `api-v2.tigg.app`, 2 days left on
+its trial) and Moonbeam (`moonbeamtradingandsuppliers.tigg.dev`, API `api-v2.tigg.dev`). The user was
+already logged in on both; no credentials were entered.
+
+**The method is the finding.** Earlier passes read screens one at a time and were therefore blind to
+whatever was not opened — phase 30's "a list sampled from a few screens becomes a wrong list". This
+pass instead extracted the vendor's **whole permission-key catalogue** out of its own JS bundle
+(`static/js/main.*.chunk.js` + `13.*.chunk.js`, 7.3 MB), which is the vendor's own enumeration of
+every gated feature. 166 keys, `<feature>-<view|add|edit|approve|void|full-access|export>`. Where a
+key exists the feature exists; where none exists, it does not — which settled a route that looked
+like new scope and is not.
+
+### The document-type census, against ours
+
+Vendor document types with `*-add`/`*-approve` keys: `quotation`, `sales-order`, **`delivery-note`**,
+`invoice`, `credit-note`, `customer-receipt`, `purchase-order`, **`goods-received-note`**,
+`purchase-bill`, `debit-note`, `supplier-payment`, `expenses`, `journal-voucher`, `cash-transfer`,
+`quick-payment`, `quick-receipt`, `warehouse-transfer`, `inventory-adjustment`, `production-order`,
+`production-journal`, `cheque-register`, `opening-balance`.
+
+**We have every one except Delivery Note and Goods Received Note**, which are deliberately deferred
+behind `TenantSettings.InventoryTrackingMode` and remain so — both tenants still read
+`inventoryTrackingMode: "Accounting Movement"` in `localStorage`, and their full key sets
+(`delivery-note-view/add/edit/approve/void`, likewise GRN) confirm the seam is real, not aspirational.
+
+### Bank Reconciliation — the one substantial feature we do not have
+
+Route `/accounting/recon`, plus `/config/import-statement`. The bundle names the endpoints:
+
+```
+/bank-statements-matched      /bank-reconciliations        /bank-reconciliations/:id
+/fetch-statements             /bank-statements-delete      /balance-history/:id
+/reconciliation-report?account_id=<id>                     bank-reconciliation-export
+```
+
+The matcher's own state names its shape: `selectedTxnBank` / `selectedTxnTigg`, collected as
+`bs_ids` + `tx_ids` and POSTed together to `bank-reconciliations`, with the feed filtered on
+`reconciled: false`. So it is a **two-pane N:M matcher** — imported bank-statement lines on one side,
+the app's own cash/bank transactions on the other — producing a reconciliation record, a
+`reconciled` flag, a reconciliation report and an export. `/config/import-statement` renders
+`POST ENTRIES` over a `Total rows / Valid / Errors` counter, i.e. the statement importer that feeds it.
+
+It carries **no keys of its own** beyond `bank-reconciliation-export`; it rides `bank-view` /
+`bank-edit` / `bank-full-access`.
+
+**Not read, and why.** `/accounting/recon` entered directly fetches `cash-and-bank-accounts/undefined`
+and renders `404 account not found` — it takes its account from router state pushed by the Bank
+Accounts page, not from a query parameter (`?account_id=`, `?id=`, `?bank_account_id=`, `/:id` and
+`?account=` were all tried and all 404). Moonbeam has **no** cash-and-bank accounts at all; Cadehi has
+exactly one and it is `type: "Cash"`, not a bank. **Start condition for the read: a tenant holding a
+Bank-type cash-and-bank account, reached through the Bank Accounts list rather than by URL.**
+
+### Recurring Invoices is a ghost — read, and absent
+
+`/sales/recurring-invoices` is a real client route that renders a real Approved/Draft list chrome with
+`+ ADD NEW`. It calls `recurring-invoices?limit=20` and the server answers **404 Not Found** — on
+`api-v2.tigg.dev` *and* `api-v2.tigg.app`, i.e. both builds — and the screen renders `404 Not Found`
+in place of the grid. **No `recurring-invoice-*` permission key exists** in the 166. Recorded here so
+no future session promotes it from a route list: a route is not a feature, and the key catalogue is
+the check.
+
+### Phase 52's four deferred line types, now with evidence
+
+Phase 52 deferred Opening Stock, Inventory Adjustment, Production Journal and BOM **unread**, because
+the reference tenant held none of those documents. Moonbeam holds four Production Orders. What the
+read gives:
+
+| Type | Evidence | Carries a unit? |
+|---|---|---|
+| **Production Order** | live payload of approved `PRO0014` | **Yes** — `raw_materials[].measurement_unit_id` per line, **and `fg_measurement_unit_id` on the header** for the finished good |
+| **Production Journal** | `/inventory/manufacturing/add`, grid `Product \| Quantity \| Rate \| Amount` | header shows none — but see the caveat |
+| **Inventory Adjustment** | `/inventory/inventory-adjustment/add`, grid `Product \| Quantity \| Type \| RATE \| Amount` | header shows none — same caveat |
+| **Opening Stock** | Opening Balances → **Product** tab, grid `NAME \| CATEGORY \| QUANTITY \| RATE \| AMOUNT` | **No** — a flat per-product grid, primary unit only |
+
+**The caveat is load-bearing and is phase 52's own finding turned against this read.** The vendor
+renders the unit control *inside the Qty cell*, not as a column, so an **empty** grid cannot settle
+the question — the Production Order add form shows a bare `Product | Quantity` header too, while its
+approved documents demonstrably carry `measurement_unit_id`. Only Opening Stock is settled by its
+grid, because it is not a line grid at all: it is one row per product with no cell to hide a control
+in. The other three need one row-present read each.
+
+**The header unit is new shape.** `fg_measurement_unit_id` sits on the Production Order *header*, not
+on a line — phase 52's rule was *every line naming a product and a quantity*, and a finished good
+named on the header is the first thing that rule does not reach.
+
+**BOM's `Qty/Unit` column is not in this build.** `/inventory/bom/add` renders
+`Raw Material (Input): Product | Quantity` with no second ratio column, on both tenants. The roadmap's
+recorded open question — "its Raw Materials table has `Qty` **and** `Qty/Unit`" — describes something
+this pass could not find. Treat it as unconfirmed rather than settled: the BOM list is empty on both
+tenants, so no saved BOM was available to read, and a column may render only with a row present.
+
+### Re-confirmations, taken in passing
+
+- **The reports catalogue is 51 on Cadehi** and every entry has a counterpart in
+  `web/src/app/features/reports/`. No new reports since phase 51's read. The two traceability reports
+  do not appear on Cadehi at all — consistent with them being permission-gated rather than removed.
+- **The Daraz marketplace integration is live**, not aspirational: both tenants call
+  `general-settings/daraz/access-token` on every page load, and the product payload still carries
+  `marketplace_skus: []` and `sku_id`. The PRD non-goal stands; the seam is confirmed real.
+- The product payload carries `batch_tracking_enabled` / `serial_no_tracking_enabled` (phase 51),
+  `service_charge_applicable` and `print_profile_id` (both dropped in phase 47, unchanged).
+- `/config/import-statement` on Moonbeam rendered a **Delivery Note** column filter row under its own
+  heading — stale state from a sibling import-mapping screen, noted as a vendor defect, not a finding.

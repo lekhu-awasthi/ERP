@@ -84,6 +84,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 50: measured indexes (`Cheque`'s date index + key-paging), the convention's declaration mechanism, `tests/Infrastructure.UnitTests`. Before adding an index, or writing a cross-assembly invariant test — `docs/phase-50-status.md`
 - Phase 51: batch and serial tracking — both are keys on the FIFO layer, neither carries a quantity. Before adding a dimension to the stock ledger, or sweeping a change through optional parameters — `docs/phase-51-status.md`
 - Phase 52: a unit on the document line (the line stores the unit **and the factor**, frozen; the ledger stays primary-unit). Before letting a catalogue value reach a posted document, or choosing where a sweep's compiler stops — `docs/phase-52-status.md`
+- Phase 53: re-planning by permission-key census (166 keys from the vendor's bundle; 20 of 22 document types ours, bank reconciliation the only gap). Before scoping a feature from a route, or planning a phase from a screen-by-screen read — `docs/phase-53-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -403,60 +404,54 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 - A `sed -i` over a glob rewrites every matched file and flips CRLF to LF on Windows even where the pattern never fires; restrict the file list (phase-30).
 - When a generator script emits Angular templates through `str.format`, interpolation braces need escaping in the *format string* but not in a substituted value — `{{{{ x }}}}` in a value ships literally and fails as NG5002 (phase-26b).
 - A benchmark against an empty tenant looks fast (20 ms p95, all 200); a harness must assert its target is populated before timing it (phase-34c).
+- A route is not a feature: the vendor ships `/sales/recurring-invoices` with full list chrome over an endpoint that 404s and a key that does not exist. Census its **permission keys**, not its screens (phase-53).
 
 ## Current status
 
-**Phases 0–52 are complete.** The v1 sequence (0–25), parity (26–34c), consolidation (35–41),
+**Phases 0–53 are complete.** The v1 sequence (0–25), parity (26–34c), consolidation (35–41),
 completion (42–47) and the continuation phases (48–52) are all done; each phase's story is in its
 `docs/phase-N-status.md`, and every finished planning entry is archived in `docs/roadmap-history.md`.
 
-**Phase 52 put a unit on the document line, and the live read answered its central question rather
-than the codebase reasoning it out.** A line stores the unit it was **entered** in and the
-**conversion factor that applied when it was written**; `PrimaryQuantity` is derived
-(`Quantity × ConversionFactor`) and is never a column, because a third column would be a second
-quantity able to contradict the other two. Editing the product's rate afterwards governs the *next*
-document and nothing about an approved one — established by experiment on the reference tenant, where
-an approved bill for `2 BTL` held its `24` primary units and `ValuationRate 100` through the rate
-changing to 6 **and** through the unit row being deleted outright, while the same product's on-hand
-display re-expressed live. The money is untouched: a secondary unit prefills the Rate from its own
-price and `Amount = Quantity × Rate` in the entered unit. Eight line types carry a unit (including
-Warehouse Transfer, which carries no price — so the rule is *every line naming a product and a
-quantity*); four are deferred **unread**, because the reference tenant had none of those documents.
-No new permission keys. Proven on a fresh organization:
-`FifoLayers = InventoryAccount = MovementHistory = 6000.00` and `EnteredTimesFactor 48 = LedgerQuantityIn 48`.
+**Phase 53 was a re-planning phase, not a feature phase — the plan had ended at 52.** No code was
+written. Its method is the part worth keeping: every earlier confirm-live pass read the reference
+product *screen by screen*, so each one was blind to whatever it did not open — and that had already
+surprised two phases running (51's traceability, 52's `Unit:` selector). This pass instead extracted
+the vendor's **entire permission-key catalogue** from its own JS bundle: **166 keys**, its own
+enumeration of every gated feature, checkable in both directions.
 
-**The phase's method is worth more than its feature.** Making the stock ledger's quantity a distinct
-type (`PrimaryQuantity`, no implicit conversion from `decimal`) chose *where the compiler stops*:
-it enumerated 17 ledger call sites and 16 handlers, and caught three bugs no test saw — `VoidInvoice`
-and `VoidDebitNote` restocking the **entered** quantity, and `ApprovePurchaseBill` dividing a FIFO
-layer's unit cost by it. The converse bit on the client: `unitId` is *optional* on the request
-records, so every save path compiled while **7 of 8** Angular forms silently dropped it.
+**The result is a negative one and it is the valuable one.** We hold **20 of the vendor's 22 document
+types** — the two missing are Delivery Note and Goods Received Note, the deliberate
+`InventoryTrackingMode` deferral, whose ten keys prove that seam is parked against something real —
+and a counterpart to **all 51** of its reports. **Bank reconciliation is the only substantial feature
+we lack.** The census paid for itself twice more: **Recurring Invoices is a route, not a feature**
+(real client screen, `404` from both builds, no key among the 166 — a route is not a feature, and the
+key catalogue is the check), and phase 52's four **unread** line types finally have evidence — an
+approved Production Order carries `measurement_unit_id` per raw-material line *and*
+`fg_measurement_unit_id` on the **header**, which is the first thing phase 52's "every line naming a
+product and a quantity" rule does not reach.
 
-**Next: the sequence is empty — phase 53 is a re-planning phase.** `docs/roadmap.md` has no entry
-after 52, so the next session should re-read the reference product and rebuild the forward plan; the
-2026-09-16 read found genuinely new scope, so "the catalogue is static" has already been falsified
-once. Three items sit outside the sequence with their own start conditions: **an hour with NVDA**
-(needs a person with headphones), **full-text search** (a semantics change, not a performance fix),
-and **the two traceability reports' real columns** (needs an account holding
-`Reports.ProductBatch.View`'s vendor equivalent). Phase 52 adds a fourth: **the four line types that
-carry no unit** (Opening Stock, Inventory Adjustment, Production Journal, BOM) were unread rather
-than excluded, and BOM has a real open question about how an entered unit interacts with its
-`Qty/Unit` ratio. The deferred and dropped lists are in the roadmap and are unchanged.
+**Next: phases 54–56**, in `docs/roadmap.md` under **Forward plan (54–56)**. 54 closes phase 52's four
+line types (evidence in hand; three still need one row-present read each, because the vendor hides the
+unit control *inside the Qty cell* — so an empty grid proves nothing) and pays the **two outstanding
+measurement debts**, phase 51's `StockLedgerEntry` index and phase 52's `.Include(SecondaryUnits)` on
+`ListProductsQueryHandler`, by phase 34c's rule that whoever next touches the area re-measures. 55 is
+the bank-statement importer (whose real question is what phase 38's machinery does when a row resolves
+into **no command**), 56 the two-pane N:M reconciliation matcher — **56's live read has a start
+condition**: a tenant holding a **Bank**-type account, since the screen takes its account from router
+state and neither tenant has one. The three standing "outside the sequence" items (the NVDA hour,
+the two traceability reports' real columns, full-text search) keep their start conditions unchanged.
 
-Tests at last count: Domain **703**, Application.UnitTests **1266**, Infrastructure.UnitTests **12**,
-Api.IntegrationTests 30, Angular **585**. `dotnet build` / `dotnet test` / `ng build` / `ng test` all
-clean, and `ng build` does not warn — phase 42's measured 680 kB initial-bundle budget is pinned by
-`build-budget.spec.ts`, and the bundle sits at **643.68 kB**. `Api.IntegrationTests` needs Docker
-Desktop running: without it the Testcontainers-backed tests fail in their constructors with
-`DockerEndpointAuthConfig` before any assertion, which reads like regressions and is not; it also
-fails nondeterministically under machine load and passes on re-run (phase 36/37) — the Angular suite
-did exactly that once in phase 52, crashing a worker and passing on the re-run. `tsc --noEmit` does
-not cover `web/src/app`; `ng build` is the check (phase-28), and `ng test` must be run from `web/`
-(phase-35a) on **Node 24** (`nvm use 24.11.0` — v16 dies with `availableParallelism is not a
-function`). When the subject is one screen's plan, the number to trust is `tools/scale/`, not the
-wall clock (phase-50). **Two unmeasured plan changes are outstanding**: phase 51's index on
-`StockLedgerEntry`, and phase 52's `.Include(SecondaryUnits)` on `ListProductsQueryHandler`, which
-`listAllProducts` hits with a very large page.
+Tests at last count (unchanged — phase 53 touched no source): Domain **703**, Application.UnitTests
+**1266**, Infrastructure.UnitTests **12**, Api.IntegrationTests 30, Angular **585**. `dotnet build` /
+`dotnet test` / `ng build` / `ng test` all clean, and `ng build` does not warn — phase 42's measured
+680 kB initial-bundle budget is pinned by `build-budget.spec.ts`, and the bundle sits at **643.68 kB**.
+`Api.IntegrationTests` needs Docker Desktop running: without it the Testcontainers-backed tests fail in
+their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like regressions
+and is not; it also fails nondeterministically under machine load and passes on re-run (phase 36/37) —
+the Angular suite did exactly that once in phase 52. `tsc --noEmit` does not cover `web/src/app`;
+`ng build` is the check (phase-28), and `ng test` must be run from `web/` (phase-35a) on **Node 24**
+(`nvm use 24.11.0` — v16 dies with `availableParallelism is not a function`). When the subject is one
+screen's plan, the number to trust is `tools/scale/`, not the wall clock (phase-50).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–50)
+## Completed phases (0–53)
 
 Detail lives in each phase's own status doc — this table is the index, not the history.
 
@@ -72,18 +72,17 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 40 | The human WCAG pass (keyboard census, one focus ring, `app-status-banner`'s always-present live region) + 34b's list-chrome leftovers | `phase-40-status.md` |
 | 41 | Subscription and plan model: the seeded `SubscriptionPlan` catalogue, commercial terms on `TenantSubscription`, quota enforcement on both axes (`SubscriptionQuotaBehavior`), the shell subscription banner | `phase-41-status.md` |
 | 42 | Performance follow-through: `ToKeyPagedResultAsync` on 16 list handlers (keyset retired, not deferred), Detail General Ledger paged by row with the account boundary disclosed, the period-length id lists removed from five readers, the quota count's covering columns, a measured bundle budget | `phase-42-status.md` |
-| 48 | The shared display components and the record pages: every date the app **outputs** routed through `NepaliDatePipe` — 23 uses of Angular's `DatePipe` across 19 templates plus 4 raw ISO strings, where the roadmap had named 4 — and the pipe made instant-aware, so a timestamp's day is its **Nepal** day rather than its UTC one (`transaction-list-page` had been dating late-evening approvals to the previous day since phase 26a); `app-deal-form`/`app-task-form` serving create *and* edit, because phase 43 recorded editing as happening on the list and that form is create-only — nothing in the app had ever called `updateDeal` or `updateTask`; `MARK AS DONE` on the Task detail page; the line-table message pointed at the **Add Line button** rather than the table (`aria-invalid` is not a supported state of the table role); the Attributes Used filter and per-attribute Select all; phase 44's four screens given the specs its own doc called a gap | `phase-48-status.md` |
-| 49 | The expiry decision, and phase 46's own surfaces. The 2026-09-16 read found that the reference product removes an expired **trial** from the owner's namespace list entirely (`total: 0`, then first-run onboarding); this phase **declined to match it** — one sample of trial behaviour, zero of paid, and a membership that disappears would make an expired tenant unreadable, contradicting the read-only promise the 409 already makes. The organization stays, stays readable, and is **marked**: `OrganizationSummaryDto` gains `TermEndsAt`/`IsExpired`, the picker renders *Expired — read-only* and the switcher marks its option (17 of the dev database's 139 organizations turned out to be silently read-only). Plus `IsTrialActive` → `IsActive` (phase 43's rename finishing one layer up), a term end anchored to the end of its **Nepal** day in both directions rather than `T23:59:59Z` read back by `slice(0, 10)`, and the SMS balance row on the Subscription screen read through the SMS module's own query so `Crm.SmsCreditLedger.View` stays where phase 18 put it. `LocationQuota` staleness upheld as declined; the AI-scan surface was already built in 47 | `phase-49-status.md` |
-| 44 | Report semantics, read live first: the last four statutory reports folded to base currency, Reporting Tags corrected to OR-within/AND-across, Inventory Master's Warehouse Transfer + Opening Stock, Display Warehouse in Column, `sales-summary`'s Group Wise location, System Audit's stamped location, the billing-location backfill command; plus the Billing Location filter both statutory registers accepted and never applied | `phase-44-status.md` |
-| 43 | Aggregate completions: `UpdateOrganizationCommand` (8 editable fields, 3 refused by name), Deal/WorkTask as record parents with detail pages, `TrialStartsAt`/`TrialEndsAt` → `OriginatedAt`/`TermEndsAt`, `DebitNote.WarehouseId` so a standalone Goods return consumes FIFO, the Sales Register folded to base currency, Quick Payment/Receipt's currency control; product-to-location enforcement retired on live evidence | `phase-43-status.md` |
-| 46 | Metered add-on axes, where the roadmap premise that each axis is "a reader plus a ceiling" was wrong for two of three: the **AI-scan** ceiling (20/day on every tier and term length, sold by no add-on, per Nepal-local day, counted from the append-only `Audit` rows because a re-scan overwrites the document timestamp); **billing locations** as a purchased *record* that refuses nothing, on live evidence that the reference product caps them nowhere; **SMS** declared already-metered by phase 18's credit ledger; the transaction window corrected from the term to the allowance **year**; the entitlement mismatch surfaced and compared server-side; master-data creation gated past expiry | `phase-46-status.md` |
-| 45 | Multi-UOM × variants settled by live read — a variant **owns** its unit matrix, and phase 24's identity decision meant no schema change; a variant parent refused one (the sweep-guard exemption retired); `UpdateSecondaryUnitCommand`/`DeleteSecondaryUnitCommand` plus the primary-unit and duplicate-unit refusals; the `ProductAttributePool` importer (a ninth upload type whose rows add to a set its command replaces); `ListSmsLogsQuery`'s search term; the landed-cost drawer's replace semantics and the dry-run-in-a-transaction question decided and pinned | `phase-45-status.md` |
-| 47 | Accessibility completion: `Sort by` swept to all 16 document lists (the derived number, not the roadmap's 18) with a guard whose behavioural half drives every handler through both orderings; the four grids' `<select>`-inside-`<a>` removed rather than defended, with a whole-app nesting guard derived from which components render a control; per-field `aria-invalid`/`aria-describedby` plus focus movement on 13 document forms; the lookup/server search parity table pinned against real SQL Server; the drop list decided item by item; the AI-scan allowance shown where scanning happens. **The NVDA hour is still not done** — no screen reader is available in this environment, and it was not simulated | `phase-47-status.md` |
-| 50 | Measured indexes, and the guards that cross an assembly boundary. Gated on `tools/scale/`, which had to be extended first — the `Cheques` table held **five rows in the whole database**, so the harness gained `seed-cheques.sql` (50,000 cheques on Draft payments, which owe no GL) and a second data-presence assertion. `Cheque` gets `(OrganizationId, ChequeDate DESC)` and `ListChequesQueryHandler` moves to `ToKeyPagedResultAsync`: first page 2,001 logical reads / 168.6 ms CPU → 1,082 / 29.5, last page 4,422 / 680.0 → 1,289 / 40.9, date range 2,606 / 49.4 → 577 / 13.7, a non-matching search 430,084 / 2,258 → 3,957 / 865 (phase 42's count-of-zero short-circuit, which is what made the index shippable at all). **Three configurations were measured and refused**, one of them this phase's own idea: a covering search index (0.03%), a `UNION` rewrite (no better), and tenant predicates on the three joined tables — correct in idiom, better for search, and 39× worse on the Received tab, found only by re-measuring the untouched paths. The convention's name list now fails the model build rather than classifying a stray date as master data (the mirror question found **three** missed dates, two of them correct only by luck of a hand-written composite), and `tests/Infrastructure.UnitTests` settles where a cross-assembly invariant lives — `ListSort`'s correspondence to `TenantIndexConvention` is finally asserted, after its first version passed the injected regression | `phase-50-status.md` |
-| 51 | Batch and serial tracking — the first new *feature* since 47, and its modelling question had one answer: **a batch and a serial are both keys on the FIFO layer, and neither carries a quantity of its own.** `ProductBatch` has no `Quantity` column, so a batch's on-hand is a `GROUP BY` over the layers carrying its id — phase 37's two-of-three-views drift made impossible rather than guarded against. A serial is a layer of **quantity one**, which makes specific identification the ordinary FIFO walk with one more predicate, gives the unit its cost for free, and turns the report catalogue's *Status* filter — which the kickoff warned against inventing a lifecycle for — into `QuantityRemaining` being 1 or 0. Proven in SQL on a fresh organization: `FifoLayers = InventoryAccount = MovementHistory = 2780.0000`, `Total 17 = SumOfBatches 16 + UnBatched 1`, zero serialised layers not of size one, an issue naming BATCH999 taking 130 while the older cheaper BATCH123 stayed whole, and J9 issued while the older A1 stayed in stock. The control is on the Invoice and Purchase Bill grids (where the read put it); everywhere else **derives** (Credit Note, Debit Note, and Warehouse Transfer, which now rebuilds its destination relief by relief instead of collapsing two batches and two costs into one averaged layer) or **refuses** with a named 409 (Opening Stock, Inventory Adjustment, Production Journal — each with its reason and re-entry condition, guard-tested in both directions). **The two reports' column sets were never read** — the vendor gates them behind keys its demo Admin lacks, and the phase-8f rule was invoked explicitly rather than silently. One bug reached only the E2E: `IncrementAsync` gained *optional* parameters, so nothing failed to compile, and the one increment site that needed them shipped un-swept past 1,900 green tests — *a sweep driven by the compiler stops exactly where the compiler stops* | `phase-51-status.md` |
-| 52 | A unit on the document line — the phase that makes phase 45's secondary units mean something. **The live read answered the central question rather than the codebase reasoning it out** (2026-09-17, four writes, all reverted): the reference product applies the factor on the way in and then freezes it. A bill approved for `2 BTL` at a Carton-to-Piece rate of 12 held `primary_quantity 24` and `ValuationRate 100` through the rate being changed to 6 **and** through the unit row being deleted outright, while the same product's on-hand display re-expressed live from `0.167 BTL` to `0.333 BTL`. So a line stores `UnitId` (the unit **lookup**, never the product's secondary-unit row — which is what lets a document survive its own catalogue) and `ConversionFactor`; `PrimaryQuantity` is derived and never a column, because a third column is a second quantity able to contradict the other two. **The money is untouched** — a secondary unit prefills the Rate from its own price and `Amount = Quantity × Rate` in the entered unit, so the FIFO layer's unit cost is `Amount / primary quantity`. Eight line types carry it including **Warehouse Transfer, which carries no price**, so the rule is *every line naming a product and a quantity*; four are deferred **unread** rather than excluded. The conversion-cap key gains the unit or a return would add cartons to pieces. No new permission keys, no importer. Proven on a fresh organization: `FifoLayers = InventoryAccount = MovementHistory = 6000.00`, `EnteredTimesFactor 48 = LedgerQuantityIn 48`, and every number unchanged after the rate edit while a new bill took the new factor. **The method outweighs the feature**: making the ledger's quantity a distinct type chose *where the compiler stops*, enumerating 17 call sites and catching two Voids restocking the **entered** quantity and a FIFO unit cost divided by it — while the optional client field ended the sweep on the other side, where 7 of 8 forms compiled without sending it. The browser pass caught two more, both the author's: a read-only branch a scripted sweep never matched, and a Qty input the new control had crushed — which the **user** reported | `phase-52-status.md` |
-
----
+| 43 | Aggregate completions: `UpdateOrganizationCommand` (8 editable fields, 3 refused by name), Deal/WorkTask as record parents with detail pages, `TrialStartsAt`/`TrialEndsAt` → `OriginatedAt`/`TermEndsAt`, `DebitNote.WarehouseId`; product-to-location enforcement retired on live evidence | `phase-43-status.md` |
+| 44 | Report semantics read live first: four statutory reports folded to base currency, Reporting Tags corrected to OR-within/AND-across, Display Warehouse in Column, System Audit's stamped location, the billing-location backfill — plus the location filter both registers accepted and never applied | `phase-44-status.md` |
+| 45 | Multi-UOM × variants: a variant **owns** its unit matrix and a variant parent is refused one, `Update`/`DeleteSecondaryUnitCommand`, the `ProductAttributePool` importer (a ninth upload type), the landed-cost drawer's replace semantics | `phase-45-status.md` |
+| 46 | Metered add-on axes: the AI-scan ceiling (20/day, counted from the append-only `Audit` rows), billing locations as a purchased **record** that caps nothing, SMS declared already-metered by phase 18's ledger, the transaction window corrected from the term to the allowance **year** | `phase-46-status.md` |
+| 47 | Accessibility completion: `Sort by` on all 16 document lists, the `<select>`-inside-`<a>` nesting removed app-wide with a derived guard, per-field `aria-invalid`/`aria-describedby` on 13 forms, the lookup/server search parity table, the drop list decided item by item. **The NVDA hour is still not done** | `phase-47-status.md` |
+| 48 | Shared display components and the record pages: every date the app **outputs** through `NepaliDatePipe` (23 `DatePipe` uses across 19 templates, where the roadmap named 4), and the pipe made instant-aware so a timestamp's day is its **Nepal** day; `app-deal-form`/`app-task-form` serving create *and* edit | `phase-48-status.md` |
+| 49 | The expiry decision: the reference product removes an expired **trial** from the namespace list and this phase **declined to match it** (one sample of trial behaviour, zero of paid) — the organization stays, stays readable and is **marked** (`TermEndsAt`/`IsExpired`, *Expired — read-only*; 17 of 139 dev organizations were silently read-only). Plus `IsTrialActive` → `IsActive` and term ends anchored to the Nepal day | `phase-49-status.md` |
+| 50 | Measured indexes: `Cheque` gains `(OrganizationId, ChequeDate DESC)` + `ToKeyPagedResultAsync` (non-matching search 430,084 logical reads → 3,957), **three configurations measured and refused** including the phase's own idea, and `tests/Infrastructure.UnitTests` settling where a cross-assembly invariant lives | `phase-50-status.md` |
+| 51 | Batch and serial tracking: **both are keys on the FIFO layer and neither carries a quantity** — `ProductBatch` has no `Quantity` column, a serial is a layer of quantity one. Control on the Invoice and Purchase Bill grids; everywhere else derives or refuses with a named 409. The two reports' columns were never read (phase-8f rule, invoked explicitly) | `phase-51-status.md` |
+| 52 | A unit on the document line: it stores `UnitId` (the unit **lookup**, never the product's row) and `ConversionFactor`, frozen at Create/Update, with `PrimaryQuantity` derived and never a column. The money is untouched. 8 line types carry it — *every line naming a product and a quantity* — and 4 are deferred **unread** | `phase-52-status.md` |
+| 53 | **A re-planning phase, not a feature phase.** Instead of reading screens one at a time it censused the vendor's **whole permission-key catalogue** from its own JS bundle — 166 keys. Result: we hold **20 of its 22 document types** and all 51 reports, so **bank reconciliation is the only substantial gap**; Recurring Invoices is a route with no server and no key; phase 52's four unread line types now have evidence. No code | `phase-53-status.md` |
 
 ---
 
@@ -110,139 +109,127 @@ summaries. **Phase 47 was the last planned phase.** What follows replaces the fo
 
 ---
 
-## Continuation phases (48–52) — from the carried items of phases 42–47, plus one live read (planned 2026-09-16)
+## Continuation phases (48–52) — complete
 
-**Method.** Every "Carried items / Known limitations / Follow-ups" section from `phase-42` through
-`phase-47` was read, and each open item placed where it is cheapest to close beside its neighbours;
-every bullet below traces to a numbered item in a status doc. Then the reference product was read
-live, because its login banner advertises an August 2026 release and the last catalogue diff was
-2026-09-02. **That read found genuinely new scope** — see phase 51 — so this sequence is not only a
-backlog. The two items that cannot be scheduled by a session are kept out of the sequence rather than
-padded into it. The 2026-09-15 "What remains" statement this replaces is in `docs/roadmap-history.md`.
-
-**Ordering rule.** The visible defect first (48), then the phase with a date on it (49), then the
-work a measurement has to authorise (50), then the two that add a dimension to every document line
-(51, 52) — traceability before units, because traceability is fully specified by the live read today
-and units are not.
-
-### 48. The shared display components and the record pages
-- **`activity-panel.html` renders comment timestamps as raw ISO strings** (`2026-09-14T14:00:21.099…`)
-  on **17 hosts** — the Contact tab since phase 18, every document tab since 27a, both record pages
-  since 43. Phase-23's rule is that a date a user reads goes through `NepaliDatePipe`, and this is the
-  one place in the app that breaks it (43 #6). The decision is the format (BS date alone, or date and
-  time); changing a 17-host component at the end of a phase is why 43 declined to do it itself.
-- **Neither record detail page has an edit form** (43 #4): editing a Deal or a Task still happens
-  through the inline form on its list, where it has been since phases 15 and 13, while the live pages
-  have a left-rail edit. **`MARK AS DONE` is missing from the Task detail page** (43 #7) — reachable
-  from the list, so a convenience rather than an unreachable field.
-- **Phase 44 added four screens and no Angular tests** (44 #6). Its doc calls that a gap, not a claim.
-- **The Attributes Used editor is a flat checkbox list** of every option of every tenant attribute,
-  with no per-attribute *Select all* and no filter (45 #1, 47 #3). Tolerable at the reference tenant's
-  16 attributes; the first tenant with 60 will feel it.
-- **Two messages per document form are still banner-only** (47 #4) — the line-table one and Purchase
-  Bill's import trio — because neither names one control. The honest improvement is a message that
-  points at the *table*, which needs a target element the table does not have yet.
-
-### 49. The expiry read, and phase 46's own surfaces — **complete**, see `docs/phase-49-status.md`
-**No longer date-gated — the read was done on 2026-09-16**, a week early, because a *second* trial
-tenant (`abcagro`, 15 days) had already expired. Full write-up in `docs/erp-module-scan.md`, "An
-**expired** trial tenant, read against a live one". Cadehi still expires **22-09-2026** (the server's
-own `expiry_date`, not a banner), so a confirming second sample is available from that date and is
-worth taking — but nothing waits on it.
-- **What the read found** (46 #2, 47 #7, 31 #5). On a trial, expiry **removes the tenant from the
-  owner's namespace list**, server-side: `GET /api/v1/me/namespaces` returns `total: 0`, `data: []`,
-  `error:false` — an ordinary successful empty result — and the portal then renders its *first-run
-  onboarding modal*. A user whose only tenant has expired is presented as a user who has never had
-  one. **This falsifies phase 46's derivation rather than refining it:** 46 reasoned that expiry gates
-  *master-data creation* behind a third marker while settings and renewal stay open, and there is no
-  degraded mode at all — there is no tenant to be in.
-- **The scope limit is load-bearing and belongs in the phase's first decision.** Both tenants read
-  were trials (`subscription_status: "Demo"`, `amount: 0`). This is one sample of *trial* behaviour
-  and **zero** samples of paid behaviour (phase 41's rule). A vendor retiring a free trial's workspace
-  while keeping a lapsed customer's data is entirely ordinary, and the two are different products.
-- **So the phase's real question is not "what does expiry do" but "what should ours do".** Matching
-  the reference product is a much larger change than a guard — this codebase has no concept of a
-  membership disappearing, and `AuthorizationBehavior` verifies org membership on every request — and
-  it is a **product** decision, not a technical one: a tenant whose data silently vanishes at trial
-  end is a choice with support and trust consequences. Decide it explicitly, with the evidence
-  attached and the trial/paid distinction named, rather than by reflex in either direction. Keeping
-  phase 46's narrower guard and *recording why we diverge* is a legitimate outcome.
-- **A hypothesis to test, not to assume:** the live namespace row carries `inactive` /
-  `inactive_by_id` / `inactive_at`, so expiry plausibly sets that triple and the list filters on it.
-  Consistent with the schema, **not observed** — the expired row cannot be seen at all.
-- **While logged in, two cheap extras**, both already named as re-entry conditions: flip Cadehi's
-  *Mode of Inventory Tracking* to **Physical Movement** and read the Delivery Note / GRN screens the
-  deferred list has been waiting on (the user's call, since it is a config write on their tenant); and
-  re-read the **Product Batch / Product Serial No** reports from an account that holds their
-  permission keys, since the 2026-09-16 pass got `permission denied` on both and phase 51 needs their
-  columns.
-- **Then close phase 46's UI gaps**, which need no read: nothing surfaces the AI-scan allowance where
-  scanning happens, so the first a user knows of the ceiling is a 409 (46 #5 — the reference product
-  shows nothing either, which is why it was not built, and it is ours to improve); `LocationQuota` can
-  silently go stale as locations are added (46 #6); SMS has no usage row on the Subscription screen
-  though its ledger balance is on the SMS Overview tab (46 #7).
-
-### 50. Measured indexes, and the guards that cross an assembly boundary — **complete**, see `docs/phase-50-status.md`
-- **`Cheque` has no leading-tenant date index and its list already orders by an unindexed column**
-  (47 #2). `TenantIndexConvention.BusinessDateNames` matches by *name*, and `ChequeDate` is not on it.
-  The fix is two index adds and one migration; the reason it was not done is phase 34c's rule that a
-  measurement comes first, because an index added for one path changes the plan for every other path
-  on the same table. **Run `tools/scale/` before and after** — and, while the convention is open, ask
-  what else its name list is missing, since phase 47's lesson is that a convention matching by name is
-  a list, and a list becomes a wrong list.
-- **`ListSort`'s correspondence to `TenantIndexConvention` is asserted by nothing** (40, 47 #6):
-  `Application.UnitTests` references Application only, and the convention lives in Infrastructure.
-  Both sides carry the sentence and neither carries a test. Decide where such a test belongs — an
-  Infrastructure test project, or `Api.IntegrationTests` against the built model — and, having decided
-  once, the answer applies to every future cross-assembly invariant.
-- **`role="toolbar"`'s roving tabindex still has one consumer** (40 #6, 47 #5). Extract it only if a
-  second toolbar appears in this phase's work; otherwise re-record it, which is the honest outcome.
-
-### 51. Batch and serial tracking — **complete**, see `docs/phase-51-status.md`
-**The reference product shipped the traceability its banner had been claiming, and the 2026-09-10 pass
-correctly found none of it.** The full shape read on 2026-09-16 is in `docs/erp-module-scan.md` under
-"The August 2026 release"; in summary: two new `Product` toggles (**Batch Tracking**, **Serial Number
-Tracking**) beside Track Inventory; an **`Item Batch`** column on both the Invoice and the Purchase
-Bill line grid, so a batch is created on receipt and consumed on issue through one control; **Batch**
-and **Serial Number** tabs on product detail (batch no / manufacture date / expiry date / quantity
-per warehouse; serial no / warehouse / created-at); and the reports catalogue at **52**, with a
-Product Batch Report and a Product Serial No Report.
-- **The modelling question to settle first, before any line changes:** a batch is a *second dimension
-  on a FIFO layer* (a quantity per product per warehouse per batch, carrying two dates), while a
-  serial is *a row per physical unit*. Phase 37's shortfall layer and phase 7's `StockLedgerEntry` are
-  what both have to fit into, and phase 29's landed cost already rides on the layer's unit cost.
-  Decide whether a batch keys the layer or hangs off it — and whether a serial is a layer of quantity
-  one or its own aggregate — with the phase-25 conservation law as the acceptance test.
-- **Both flags are per product and default off**, so this is additive: a tenant that never turns them
-  on sees no new control, which is the same shape as `TrackInventory` and the phase-20f feature gates.
-- **Two reports are still unread.** The demo Admin got `permission denied` on both (the vendor gates
-  them behind new keys), and **phase 49 did not obtain an account that holds them** — its own live
-  extras went untaken, because they need the user at a browser and nothing in 49 waited on them. So
-  this is now *this* phase's read to take, or its decision to design from the two product tabs and
-  record that the column sets were never read — the phase-8f rule.
-- The *Status* filter on the serial report implies a serial has a lifecycle the tab's three columns do
-  not show; treat that as a question for the read, not an invention.
-- Expect the tenant-defined **Custom Fields** named Batch NO / Lot / Expiry to become a migration
-  question for real tenants once a native feature exists beside them.
-
-### 52. A unit on the document line — **done** (see the index table and `phase-52-status.md`)
-**The phase that makes phase 45 mean something.** A secondary unit is priced catalog metadata today
-and *nothing consumes it*: no document line stores a unit, so a conversion rate converts nothing
-(45 #2). Closing it is a change to every line-bearing aggregate — the line stores the unit it was
-entered in and the factor applied, quantities reach the stock ledger and the GL in the primary unit,
-and every report showing a quantity has to say which unit it means.
-- It follows 51 deliberately: both add a dimension to the same line, 51's is specified by a live read
-  today and this one is not, and the second change is cheaper on a line that already carries one.
-- Settle **what an approved document, a return and a conversion do when the product's conversion rate
-  is later edited** before touching a line; a stored factor versus a live lookup is the same choice
-  phase 37's cost catch-up made, and the scan records `100BTL` on a Moonbeam invoice line as the
-  display shape to match.
-- Multi-UOM × variants (45) already gives a variant its own unit matrix, so the parent/variant rule is
-  settled; this phase consumes it rather than re-deciding it.
+Planned 2026-09-16 from the carried items of phases 42–47 plus a live read that found genuinely new
+scope (batch and serial tracking, which became phase 51) — so the sequence was never only a backlog.
+Every entry is done. The planning entries moved verbatim to `docs/roadmap-history.md` on 2026-09-20;
+the outcomes are in each `docs/phase-N-status.md`, and the index table above carries the one-liners.
 
 ---
 
-## Outside the sequence — two items a session cannot schedule
+## Forward plan (54–56) — planned 2026-09-20 in phase 53
+
+**Method.** Phase 53 was a re-planning phase, not a feature phase: it re-read the reference product
+and rebuilt this section, because the plan ended at 52. Earlier passes read screens one at a time and
+were blind to whatever was not opened, so this one extracted the vendor's **whole permission-key
+catalogue** from its own JS bundle — 166 keys, its own enumeration of every gated feature. The full
+read is `docs/erp-module-scan.md`, "Re-planning read (2026-09-20, phase 53)". Three things came out
+of it: one substantial feature we do not have, one route that looked like scope and is not, and
+enough evidence to close the carried item phase 52 deferred **unread**.
+
+**The census result, stated plainly.** Of the vendor's 22 document types we have **20**. The two we
+lack — Delivery Note and Goods Received Note — are the deliberate `InventoryTrackingMode` deferral
+below, and their key sets confirm that seam is real rather than aspirational. **The reports catalogue
+is 51 and we hold a counterpart to every entry.** This codebase is at feature parity except for bank
+reconciliation. That is why the forward plan is three phases and not ten: padding it would be
+inventing work, and the roadmap's own method says the items a session cannot schedule stay out of the
+sequence rather than get folded into it.
+
+**Ordering rule.** The phase whose evidence is already in hand first (54), because it closes a named
+carried item and owes nothing to a read that has not happened. Then the new feature, split at the
+point where each half is independently demonstrable (55, then 56) — a matcher with nothing to match
+against is not runnable, so the statement lines come first.
+
+### 54. The four line types phase 52 deferred, and the two measurement debts
+Phase 52 deferred Opening Stock, Inventory Adjustment, Production Journal and BOM **unread** —
+asserted in the negative, so a later phase has to delete a line and re-read the reason. This is that
+phase, and the 2026-09-20 read supplies most of the reason.
+
+- **Production Order/Journal carries a unit, and in a shape phase 52's rule does not reach.** The
+  live payload of an approved Production Order holds `measurement_unit_id` on every `raw_materials[]`
+  line **and `fg_measurement_unit_id` on the header**, for the finished good. Phase 52's rule was
+  *every line naming a product and a quantity*; a finished good named on the **header** is the first
+  thing that rule does not cover, and whether the header unit is the same mechanism or a different
+  one is this phase's first decision.
+- **Opening Stock is settled: no unit.** Opening Balances → Product is `NAME | CATEGORY | QUANTITY |
+  RATE | AMOUNT`, one row per product with no line grid — the only one of the four an empty screen
+  can settle, because there is no cell for a control to hide in.
+- **Inventory Adjustment and BOM need one row-present read each, and the caveat is phase 52's own
+  finding turned against this read.** The vendor renders the unit control *inside the Qty cell*, not
+  as a column, so an empty grid proves nothing — the Production Order add form shows a bare
+  `Product | Quantity` header too, while its approved documents demonstrably carry a unit. **Start
+  condition:** none beyond a browser — add one line to each form and read the cell. Do not conclude
+  from the header.
+- **BOM's `Qty/Unit` is now unconfirmed rather than open.** The roadmap recorded its Raw Materials
+  table as having `Qty` **and** `Qty/Unit`; `/inventory/bom/add` renders neither column on either
+  tenant, and both BOM lists are empty so no saved BOM was readable. Settle it in the same
+  row-present read, and if it genuinely does not exist, delete the question rather than carry it.
+- **This phase owns the two outstanding measurement debts**, by phase 34c's own rule that an
+  unmeasured plan change is re-measured by whoever next touches that area — and this phase touches
+  both areas. Phase 51's index on `StockLedgerEntry` (the FIFO walk is the other path on that table),
+  and phase 52's `.Include(x => x.SecondaryUnits)` on `ListProductsQueryHandler`, which
+  `listAllProducts` hits with a very large page on every document form this phase adds a control to.
+  `tools/scale/` is the harness; the number is logical reads and CPU from `sys.dm_exec_query_stats`,
+  never the wall clock.
+
+### 55. Bank statement import
+The feeder for 56, and independently demonstrable: import a statement, see its lines, see what was
+rejected. `/config/import-statement` renders `POST ENTRIES` over a `Total rows / Valid / Errors`
+counter — phase 38's dry-run shape, already built here.
+
+- **The design question is what phase 38's machinery does when there is no command.** Phase 38's rule
+  is that an importer resolves a row into the command it *would* send (`PlanAsync` → `ImportRowPlan`)
+  and only then sends it, so the dry run and the real run share every line of resolution. A bank
+  statement line resolves into **no command** — it is a raw row awaiting a match, and its only
+  destination is a table. Decide whether that is a tenth `ImportTemplateDefinition` with a degenerate
+  plan or a different mechanism, and record the reasoning; phase 38 already has the precedent that a
+  template generated from the document in front of you is neither.
+- `fetch-statements` in the vendor's bundle implies a bank **feed** as well as a file upload. **Out of
+  scope and named as such** — a feed needs a vendor-side integration this codebase has no actor for,
+  the same gap as the deferred vendor-side actor below.
+- **Reuse, do not re-derive:** the date-column format list (`ImportRowReader.GetOptionalDate`, phase
+  21c — day-first before month-first, never a bare `TryParse`) and the row ledger that makes a
+  crashed import resumable and lets a validate pass claim only the rows it rejects.
+
+### 56. Bank reconciliation
+Route `/accounting/recon`, the one substantial feature the census found we lack. The vendor's own
+endpoint names give the shape: `/bank-statements-matched`, `/bank-reconciliations` (POST),
+`/bank-reconciliations/:id`, `/balance-history/:id`, `/reconciliation-report?account_id=`, and
+`bank-reconciliation-export`.
+
+- **It is a two-pane N:M matcher.** The client's state names both sides — `selectedTxnBank` (imported
+  statement lines) against `selectedTxnTigg` (the app's own cash/bank transactions) — collected as
+  `bs_ids` + `tx_ids` and posted together, each feed filtered on `reconciled: false`. So a
+  reconciliation is its own record joining *many* statement lines to *many* transactions, not a flag
+  on either side; a `reconciled` marker falls out of it rather than being the model.
+- **It carries no permission keys of its own** beyond the export — it rides `bank-view` / `bank-edit`
+  / `bank-full-access`. Derive ours the same way (and phase 32b's per-location scope applies, since a
+  bank account is location-scoped) rather than minting a new family by reflex.
+- **Confirm live before coding — and this one has a real start condition.** Entered by URL the screen
+  fetches `cash-and-bank-accounts/undefined` and renders `404 account not found`: it takes its account
+  from router state pushed by the Bank Accounts page, and five query-parameter spellings were tried
+  and all 404'd. **Moonbeam has no cash-and-bank accounts at all, and Cadehi has exactly one and it is
+  `type: "Cash"`.** So the read needs **a tenant holding a Bank-type account**, reached through the
+  Bank Accounts list. Phase 32's lesson is that a second tenant existed and four written scope
+  decisions were wrong — ask before falling back to the phase-8f derive-instead rule.
+- The reconciliation report and its export come last; phase 26a's rule applies, since a report joining
+  back to the document must show the same date field it filters on.
+
+### Read, and absent — recorded so no future session re-opens it
+
+**Recurring Invoices is not a feature.** `/sales/recurring-invoices` is a real client route rendering
+real Approved/Draft list chrome with `+ ADD NEW`; it calls `recurring-invoices?limit=20`, and the
+server answers **404 on both builds** (`api-v2.tigg.app` and `api-v2.tigg.dev`) while the screen
+renders `404 Not Found` in place of the grid. **No `recurring-invoice-*` key exists among the 166.**
+A route is not a feature, and the vendor's own key catalogue is the check.
+
+---
+
+## Outside the sequence — three items a session cannot schedule
+
+Re-confirmed 2026-09-20. Phase 52 had added a fourth (its four unread line types); the 2026-09-20 read
+supplied their evidence, so that item is now **phase 54** and has left this list.
 
 **An hour with NVDA**, on Windows, over the live regions, the rich-text toolbar's roving tabindex, the
 three phase-46 subscription panels and phase 47's field-level errors. Phases 40 and 47 both built
@@ -265,17 +252,23 @@ zero is now a complete answer — but a term matching many rows still costs what
 42 was explicit that the remedy is a *semantics* change, not a performance fix, and so not something
 to do because it is next. **Start condition:** a tenant complaining about search latency, or a product
 decision about what "search" should mean.
+
+---
+
 ## Deferred beyond this roadmap (post-v1 — seams kept, no phases planned)
 
-Explicit decisions (2026-08-18, revised 2026-09-02, 2026-09-10, 2026-09-14, 2026-09-15 and
-2026-09-16), not omissions:
+Explicit decisions (2026-08-18, revised 2026-09-02, 2026-09-10, 2026-09-14, 2026-09-15, 2026-09-16 and
+**re-confirmed 2026-09-20**), not omissions. The 2026-09-20 permission-key census touched two of them and
+strengthened both: the DN/GRN and marketplace seams are demonstrably real in the vendor, not aspirational.
 
 - **Delivery Note / Goods Received Note (physical-movement inventory).** `TenantSettings.InventoryTrackingMode`
   is the seam. Cadehi's General page offers *Physical Movement*; with Accounting Movement selected no
-  DO/GRN appears anywhere. **Re-entry:** the user flips that setting on the Cadehi trial tenant and
-  the screens are read — phase 49 is the session that is already logging in, so it is the cheapest
-  chance to do it; then it is a phase of its own (FIFO consumption moves from Invoice/Bill Approve to
-  DO/GRN Approve under a handler-level gate, plus a goods-received-not-billed default account).
+  DO/GRN appears anywhere, and both tenants still read `inventoryTrackingMode: "Accounting Movement"`.
+  **The 2026-09-20 census confirms the feature is fully built behind that flag** — the vendor carries
+  `delivery-note-view/add/edit/approve/void` and the same five for GRN, so these are the only two of
+  its 22 document types we lack. **Re-entry:** the user flips that setting on a tenant and the screens
+  are read; then it is a phase of its own (FIFO consumption moves from Invoice/Bill Approve to DO/GRN
+  Approve under a handler-level gate, plus a goods-received-not-billed default account).
 - **A vendor-side actor** (41 Decision G): every subscription ceiling is self-liftable until an actor
   outside `OrganizationId` exists. A console, a support role, or an API key — a phase of its own.
   Phase 46 confirmed this live on all three metered axes, and phase 47's `LocationQuota` decision
@@ -286,7 +279,10 @@ Explicit decisions (2026-08-18, revised 2026-09-02, 2026-09-10, 2026-09-14, 2026
   column; the role carries the scope.
 - **Multi-level BOM explosion** (25): the live Planning report states "Multiple Level: No".
 - **E-commerce / marketplace SKUs** (`marketplace_skus`, `sku_id` on the product JSON; the vendor's
-  August 2026 release notes name "e-commerce sales"): a public storefront is a PRD non-goal.
+  August 2026 release notes name "e-commerce sales"): a public storefront is a PRD non-goal. The
+  2026-09-20 read found the integration is **live, not aspirational** — both tenants call
+  `general-settings/daraz/access-token` on every page load — which strengthens the deferral rather
+  than reopening it: it is a named third-party marketplace, i.e. exactly the storefront the PRD excludes.
 - **POS Retail / POS Restaurant** front-ends (PRD non-goal): Phase 32 models the location *types*
   so a POS phase is additive later.
 - **IRD e-filing integration** (Annex 5's Sync-with-IRD columns): aspirational until committed; the
