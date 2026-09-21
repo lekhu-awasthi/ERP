@@ -57,9 +57,15 @@ public sealed class VoidInventoryAdjustmentCommandHandler(
         foreach (var line in inventoryAdjustment.Lines.Where(
             x => x.Direction == InventoryAdjustmentDirection.Decrease && x.ConsumedUnitCost is not null))
         {
+            // Phase 54 -- the PRIMARY quantity, not the entered one. ConsumedUnitCost was
+            // recorded per primary unit at Approve, so restocking `line.Quantity` of a line entered
+            // in cartons would put back a twelfth of what left and value it at the per-piece cost.
+            // This is precisely the pair of bugs phase 52's distinct PrimaryQuantity type caught in
+            // VoidInvoice and VoidDebitNote; making AddLine's new parameters required is what made
+            // the compiler walk back through here.
             costCatchUp += await stockLedgerService.IncrementAsync(
                 request.OrganizationId, line.ProductId, inventoryAdjustment.WarehouseId,
-                PrimaryQuantity.AlreadyPrimary(line.Quantity), line.ConsumedUnitCost!.Value,
+                line.PrimaryQuantity, line.ConsumedUnitCost!.Value,
                 DocumentType.InventoryAdjustment, inventoryAdjustment.Id, inventoryAdjustment.Date, cancellationToken,
                 inventoryAdjustment.LocationId);
         }

@@ -18,10 +18,14 @@ public sealed class ListProductsQueryHandler(IAppDbContext db)
         // line-grid picker calls `products-minimized?...&unit=true` and gets `secondary_units[]`
         // embedded per product (read live 2026-09-17).
         //
-        // No performance claim is made for this. It is a join over the page rather than over the
-        // table (ToKeyPagedResultAsync pages the keys first), but `listAllProducts` asks for a very
-        // large page, so a tenant with thousands of products pays for it -- phase 34c's rule is that
-        // an index or a plan change owes a measurement, and this phase took none.
+        // Phase 54 measured it, and corrected the premise above while doing so. `listAllProducts`
+        // does NOT ask for a very large page: MAX_PAGE_SIZE is 200, so the join is over 200 rows,
+        // not over the 20,001 a big tenant holds. On the phase-34c dataset with 20,000 secondary
+        // units seeded, the Include costs +377 logical reads (+6.8%) on the 200-row picker page and
+        // +336 on the 50-row grid page -- the same ~350 for four times the child rows, i.e. the cost
+        // of a seek into the child table rather than a per-row lookup. Both search paths are
+        // unchanged at 452. Kept: it buys the thing the unit control cannot work without, and the
+        // alternative is a round trip per line. Numbers and method: tools/scale/comparison-phase54.md.
         var query = db.Products
             .Include(x => x.SecondaryUnits)
             .Where(x => x.OrganizationId == request.OrganizationId);

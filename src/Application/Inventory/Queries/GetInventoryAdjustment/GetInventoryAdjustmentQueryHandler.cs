@@ -1,6 +1,7 @@
 using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Inventory.Stock;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Inventory;
 using MediatR;
@@ -17,6 +18,11 @@ public sealed class GetInventoryAdjustmentQueryHandler(IAppDbContext db)
             .Include(x => x.Lines)
             .SingleOrDefaultAsync(x => x.Id == request.Id && x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Inventory adjustment not found.");
+
+        // Phase 54 -- read back through the one shared method so this query cannot drift from the
+        // other eight in how it names a unit.
+        var unitNames = await DocumentLineUnitResolver.LoadUnitNamesAsync(
+            db, request.OrganizationId, inventoryAdjustment.Lines.Select(x => x.UnitId), cancellationToken);
 
         IReadOnlyList<PostedGlLineDto>? glLines = null;
 
@@ -48,7 +54,10 @@ public sealed class GetInventoryAdjustmentQueryHandler(IAppDbContext db)
             inventoryAdjustment.ApprovedAt,
             inventoryAdjustment.CreatedAt,
             inventoryAdjustment.Lines
-                .Select(x => new InventoryAdjustmentLineDto(x.Id, x.ProductId, x.Direction, x.Quantity, x.UnitCost))
+                .Select(x => new InventoryAdjustmentLineDto(
+                    x.Id, x.ProductId, x.Direction, x.Quantity, x.UnitCost,
+                    x.UnitId, x.UnitId is null ? null : unitNames.GetValueOrDefault(x.UnitId.Value),
+                    x.ConversionFactor))
                 .ToList(),
             glLines,
             inventoryAdjustment.LocationId);

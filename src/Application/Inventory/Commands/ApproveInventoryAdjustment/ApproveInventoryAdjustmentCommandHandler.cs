@@ -78,24 +78,52 @@ public sealed class ApproveInventoryAdjustmentCommandHandler(
 
         foreach (var line in inventoryAdjustment.Lines)
         {
+            // Phase 54 -- the line's quantity is what the user typed, in the unit they chose; the
+            // ledger only speaks the product's primary unit. Both branches convert once, through
+            // the factor frozen on the line, and never read the catalogue.
+            var primaryQuantity = line.PrimaryQuantity;
+
             if (line.Direction == InventoryAdjustmentDirection.Increase)
             {
+                // Phase 52's law: a unit converts the QUANTITY and never the money. Amount stays
+                // Quantity x UnitCost in the entered unit, so the layer's unit cost is
+                // Amount / primary quantity -- 2 CT at 1,200 with a factor of 12 is 24 units at
+                // 100, which is what the reference product's own movement row reports. Rounded
+                // once, at the scale the UnitCost column actually holds.
+                var amount = line.Quantity * line.UnitCost;
+                var layerUnitCost = primaryQuantity.IsZero
+                    ? 0m
+                    : Math.Round(
+                        amount / primaryQuantity.Value,
+                        ExchangeRates.UnitCostScale,
+                        MidpointRounding.AwayFromZero);
+
                 costCatchUp += await stockLedgerService.IncrementAsync(
                     request.OrganizationId, line.ProductId, inventoryAdjustment.WarehouseId,
-                    PrimaryQuantity.AlreadyPrimary(line.Quantity), line.UnitCost,
+                    primaryQuantity, layerUnitCost,
                     DocumentType.InventoryAdjustment, inventoryAdjustment.Id, inventoryAdjustment.Date, cancellationToken,
                     inventoryAdjustment.LocationId);
-                increaseAmount += line.Quantity * line.UnitCost;
+
+                // What the layers actually received, not what the user typed. Without a unit the
+                // two are identical; with one they differ by the rounding residue of the division
+                // above, and the GL has to debit Inventory the figure the ledger holds or the
+                // account and the layers drift apart -- phase 29's rule, and the reason phase 37
+                // asserts all three views rather than any two.
+                increaseAmount += layerUnitCost * primaryQuantity.Value;
             }
             else
             {
                 var averageUnitCost = (await stockLedgerService.ConsumeAsync(
                     request.OrganizationId, line.ProductId, inventoryAdjustment.WarehouseId,
-                    PrimaryQuantity.AlreadyPrimary(line.Quantity),
+                    primaryQuantity,
                     DocumentType.InventoryAdjustment, inventoryAdjustment.Id, inventoryAdjustment.Date, cancellationToken,
                     inventoryAdjustment.LocationId)).AverageUnitCost;
+
+                // ConsumedUnitCost is per PRIMARY unit, because that is what the FIFO layers this
+                // walk consumed were priced in -- which is what lets the Void below restock at it
+                // without converting a second time (ExchangeRates' never-convert-twice rule).
                 line.RecordConsumedUnitCost(averageUnitCost);
-                decreaseAmount += line.Quantity * averageUnitCost;
+                decreaseAmount += primaryQuantity.Value * averageUnitCost;
             }
         }
 

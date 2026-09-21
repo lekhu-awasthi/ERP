@@ -1,3 +1,5 @@
+using ErpApp.Domain.Common;
+
 namespace ErpApp.Domain.Inventory;
 
 /// <summary>
@@ -17,6 +19,29 @@ public sealed class InventoryAdjustmentLine
     public decimal Quantity { get; private set; }
     public decimal UnitCost { get; private set; }
 
+    /// <summary>Phase 54 -- the unit this line was <b>entered</b> in (null means the product's own
+    /// primary unit) and how many primary units one of them is worth, frozen when the line was
+    /// written. See <c>InvoiceLine</c> for the full reasoning and <see cref="UnitConversion"/> for
+    /// the live evidence behind freezing the factor rather than re-reading it.
+    ///
+    /// <para>Phase 52 deferred this type <b>unread</b>, because the reference tenant held no
+    /// inventory adjustments. The 2026-09-20 row-present read settled it: with one line on the grid
+    /// the vendor's Qty cell renders the unit control, and for a product carrying secondary units it
+    /// is a real select listing the whole matrix -- markup identical, attribute for attribute, to
+    /// the Invoice grid's. So this is the same mechanism as the other eight, not a new one. The
+    /// three manufacturing types read in the same pass are <b>not</b>: see
+    /// <c>UnitSweepGuardTests.UnitlessLineTypes</c>.</para></summary>
+    public Guid? UnitId { get; private set; }
+
+    /// <inheritdoc cref="UnitId"/>
+    public decimal ConversionFactor { get; private set; }
+
+    /// <summary>This line's quantity in the product's primary unit -- the only quantity the stock
+    /// ledger and the GL accept. Derived, never stored: a column would be a second quantity able to
+    /// contradict <see cref="Quantity"/> and <see cref="ConversionFactor"/> (phase 51's
+    /// <c>ProductBatch</c> argument, phase 37's two-of-three-views failure).</summary>
+    public PrimaryQuantity PrimaryQuantity => PrimaryQuantity.FromEntered(Quantity, ConversionFactor);
+
     /// <summary>Null until ApproveInventoryAdjustmentCommandHandler actually consumes FIFO stock
     /// for a Direction=Decrease line (an Increase line never gets one -- its cost is the
     /// user-entered UnitCost above). Set once, from IStockLedgerService.ConsumeAsync's actual
@@ -29,7 +54,13 @@ public sealed class InventoryAdjustmentLine
     }
 
     internal static InventoryAdjustmentLine Create(
-        Guid inventoryAdjustmentId, Guid productId, InventoryAdjustmentDirection direction, decimal quantity, decimal unitCost)
+        Guid inventoryAdjustmentId,
+        Guid productId,
+        InventoryAdjustmentDirection direction,
+        decimal quantity,
+        decimal unitCost,
+        Guid? unitId,
+        decimal conversionFactor)
     {
         return new InventoryAdjustmentLine
         {
@@ -37,6 +68,8 @@ public sealed class InventoryAdjustmentLine
             InventoryAdjustmentId = inventoryAdjustmentId,
             ProductId = productId,
             Direction = direction,
+            UnitId = unitId,
+            ConversionFactor = UnitConversion.Validate(conversionFactor),
             Quantity = quantity,
             UnitCost = direction == InventoryAdjustmentDirection.Increase ? unitCost : 0,
         };

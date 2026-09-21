@@ -22,8 +22,17 @@ public sealed record GetInventoryAdjustmentQuery(Guid OrganizationId, Guid Id)
     public IReadOnlyCollection<TenantFeature> RequiredFeatures => [TenantFeature.TrackInventory];
 }
 
+/// <param name="UnitId">Phase 54 -- the unit this line was entered in, null when it was the
+/// product's own primary unit. Carried back deliberately: phase 35a found 14 of 15 detail DTOs
+/// dropping a field the aggregate had, after which the form posted its own default over the
+/// stored value on every edit.</param>
+/// <param name="UnitName">The unit's short name (<c>CT</c>), for rendering beside the quantity.</param>
+/// <param name="ConversionFactor">The factor frozen on the line, so a reader can show what the
+/// entered quantity came to in primary units without re-reading the catalogue -- which would give
+/// a different answer once the product's unit row is edited.</param>
 public sealed record InventoryAdjustmentLineDto(
-    Guid Id, Guid ProductId, InventoryAdjustmentDirection Direction, decimal Quantity, decimal UnitCost);
+    Guid Id, Guid ProductId, InventoryAdjustmentDirection Direction, decimal Quantity, decimal UnitCost,
+    Guid? UnitId, string? UnitName, decimal ConversionFactor);
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
 

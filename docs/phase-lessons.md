@@ -1322,3 +1322,63 @@ storefront the PRD excludes, confirming the non-goal rather than reopening it.
 **A three-phase forward plan can be the honest answer.** Parity turned out to be near-complete, so
 the plan is three phases. Padding it would be inventing work; the roadmap's own method says items a
 session cannot schedule stay *out* of the sequence rather than get folded into it.
+
+---
+
+## Phase 54 — the four deferred line types, and paying a measurement debt
+
+**Read this before concluding anything from a screen you could only open empty, before modelling a
+field you found in someone else's payload, or before re-measuring an index somebody else added.**
+Full doc: `docs/phase-54-status.md`.
+
+**A disabled control and a display element look identical until something is choosable.** Phase 52
+found the vendor's unit control lives *inside* the Qty cell; phase 53 therefore refused to conclude
+from an empty grid. Phase 54 added a row to each form — and that was still not enough, because for a
+product carrying only its primary unit the vendor renders the control as a greyed `cursor:
+not-allowed` label, which on screen is exactly what a plain display element looks like. The reading
+only became decisive beside a product with **something to choose**: then Inventory Adjustment shows a
+real select listing the whole matrix, and the three manufacturing grids still show a bare `<div>`.
+**The general rule: when a control's disabled state is its empty state, a screen with no data cannot
+tell you whether the control exists.**
+
+**A field in the vendor's payload is not necessarily a feature.** An approved Production Order
+carries `measurement_unit_id` per raw-material line *and* `fg_measurement_unit_id` on the header, and
+phase 53 reasonably called the header one "phase 54's first and hardest decision". It is not a
+decision: the Output Quantity field renders static suffix text, for every product, including a
+multi-unit one. The vendor stores the product's primary unit id and never lets a user choose it.
+Modelling that would be a stored field no user could ever set to a second value — phase 43's
+present-and-ignored shape. **Ask what writes the field, not just what holds it.**
+
+**A refusal asserted in both directions needs its premise asserted too.**
+`UnitSweepGuardTests.UnitlessOutputHeaders` checks that the three manufacturing headers really do
+name a product and an output quantity — the shape phase 52's "every line naming a product and a
+quantity" rule could not reach — as well as that none carries a unit. Without the premise half, a
+rename would make the test vacuous and it would keep passing.
+
+**The same bug, the third time, in the third Void.** Phase 52's distinct `PrimaryQuantity` type
+caught `VoidInvoice` and `VoidDebitNote` restocking the *entered* quantity.
+`VoidInventoryAdjustmentCommandHandler` did it too, and nothing but making `AddLine`'s new parameters
+**required** made the compiler walk back through it. Optional parameters end a sweep in any language
+— that is phase 51's lesson — and in TypeScript an *optional property* ends it immediately, which is
+why the client half now has `line-unit-sweep-guard.spec.ts` asserting that each of the nine forms
+renders the control, names the unit in its **read-only** branch, and puts `unitId` on the wire.
+
+**Paying a measurement debt means measuring the paths you did not touch.** Phase 34c's rule is that
+an index added for one path changes the plan for every other path on the table. Phase 51's filtered
+serial index makes its own path **64× cheaper** (5 reads against 319) and leaves the ordinary FIFO
+walk, the availability sum and the shortfall scan at **319 to the read** — which is the good answer,
+and only a comparison could say so. Phase 52's `.Include(SecondaryUnits)` costs **+377 reads
+(+6.8 %)**, and measuring it falsified its own comment's premise: `listAllProducts` does not ask for
+"a very large page", `MAX_PAGE_SIZE` is 200. **A recorded reason is not evidence until something
+checks it.**
+
+**A fixture can be right and its plan still be wrong.** The seed's first form joined 200,000 rows to
+2,000 products on `p.k = n.i % total` — an unseekable predicate, so SQL Server looped the product
+side per row and had written 224 pages after ten CPU-minutes. Materialising the modulo into an
+indexed column made the same insert take seven seconds. Phase 50's lesson in another key: the number
+to look at is the plan, not the row count.
+
+**A greedy `.*` between two anchors picks the last match, not the first.** The probe parsed 0 logical
+reads from every `SET STATISTICS IO` line, because the line also contains `lob logical reads 0` and
+`.*logical reads \([0-9]*\)` matched that one. Anchor on what precedes the number you want. Same
+family as the lazy-`.*?`-spanning-instances gotcha from phase 34a.

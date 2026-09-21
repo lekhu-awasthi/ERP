@@ -1558,3 +1558,114 @@ tenants, so no saved BOM was available to read, and a column may render only wit
   `service_charge_applicable` and `print_profile_id` (both dropped in phase 47, unchanged).
 - `/config/import-statement` on Moonbeam rendered a **Delivery Note** column filter row under its own
   heading — stale state from a sibling import-mapping screen, noted as a vendor defect, not a finding.
+
+---
+
+## Row-present read (2026-09-20, phase 54) — the four line types phase 52 deferred, settled
+
+Cadehi (`cadehi.tigg.app`, 2 days left on its trial) and Moonbeam
+(`moonbeamtradingandsuppliers.tigg.dev`). The user was already logged in on both; no credentials were
+entered. **This pass included four deliberate writes and reverted them** (phase 52's precedent),
+because the question could not be answered read-only — see "The write, and why" below.
+
+**The question.** Phase 52 deferred Opening Stock, Inventory Adjustment, Production Journal and Bill
+of Materials **unread**. Phase 53's census read the headers of three of those grids and found no unit
+column — and correctly refused to conclude anything from it, because phase 52's own finding is that
+**the vendor renders the unit control inside the Qty cell, not as a column**. An empty grid proves
+nothing. So this pass added one line to each form and read the cell.
+
+### The result
+
+| Type | Route | Line unit | Header (finished good) unit |
+|---|---|---|---|
+| **Invoice** (the baseline, phase 52) | `/sales/invoice` → Add | **control** | — |
+| **Inventory Adjustment** | `/inventory/inventory-adjustment/add` | **control** | — |
+| **Bill of Materials** | `/inventory/bom/add` | display only | display only |
+| **Production Order** | `/inventory/production/add` | display only | display only |
+| **Production Journal** | `/inventory/manufacturing/add` | display only | display only |
+| **Opening Stock** | Opening Balances → Product | none (no line grid) | — |
+
+**The evidence is markup, compared byte for byte on one tenant with one product.** With a
+primary-only product (`Momo large`, primary `plate`/`PLT`) the Invoice grid's Qty cell renders
+
+```html
+<span class="ant-input-group ant-input-group-compact">
+  … <input placeholder="Qty" …>
+  <div style="color: rgba(0, 0, 0, 0.25); cursor: not-allowed; margin-left: 6px;">PLT</div>
+</span>
+```
+
+and the **Inventory Adjustment** grid renders the identical element — same style string, same parent,
+same `cursor: not-allowed`. That is phase 52's recorded disabled-label rendering: a control that is
+*disabled*, not absent.
+
+The three manufacturing grids render, in the same cell position,
+
+```html
+<span class="ant-input-group ant-input-group-compact"> … <input placeholder="Qty" …> </span>
+<div>PLT</div>
+```
+
+— a bare `<div>` **outside** the input group, `cursor: auto`, no `ant-select` anywhere in the cell.
+
+### The write, and why
+
+Every product on Cadehi carries only its primary unit, and the one multi-unit product on Moonbeam
+(`Lucky Glass with Batch and serial no`) has had its second unit row deleted — by phase 52's own
+reverted-write experiment, which deleted a BTL row to prove the freeze. Moonbeam's account also
+cannot open Inventory Adjustment or Production Journal at all (*"Sorry, you are not authorized to
+access this page"*), and its Warehouse Transfer reports *Multiple Warehouse is Disabled*. So on
+neither tenant could a *disabled label* be told apart from a *display element* by reading alone.
+
+A secondary unit (`Carton`, rate 12, selling 1800) was therefore added to Cadehi's `Momo large`, all
+four forms were re-read, and the row was deleted again. With that product:
+
+- **Inventory Adjustment**: `cell.querySelector('.ant-select')` is **non-null**, and opening it lists
+  `PLT` and `CT` — the whole matrix including the primary, exactly phase 52's Invoice shape.
+- **Bill of Materials / Production Order / Production Journal**: `.ant-select` is **null**; the cell
+  still renders `<div>PLT</div>`. Same product, same tenant, same session, minutes apart.
+
+No document was saved on any tenant; every form was abandoned without Save. The secondary unit was
+deleted afterwards and `Momo large` was confirmed back to `plate 1 100 0`.
+
+### `fg_measurement_unit_id` is not a unit mechanism
+
+Phase 53 found `fg_measurement_unit_id` on the header of an approved Production Order and flagged
+"is the header unit the same mechanism?" as phase 54's **first decision**. The read dissolves the
+question. On all three manufacturing forms the header's Output Quantity renders
+
+```html
+<span class="ant-input-affix-wrapper …">
+  <input type="number" …><span class="ant-input-suffix">PLT</span>
+</span>
+```
+
+— static suffix text holding the chosen product's primary unit short name. It stays static text when
+the finished good is the multi-unit product: tested across **all eight** of Moonbeam's BOM-selectable
+products (`BOR`, `BOR`, `CTN`, `ec`, `PIS`, `NOS`, `No`, `2hr` — each the product's own primary) and
+again on Cadehi with `Momo large` after the Carton row was added. There is nothing to choose, so
+`fg_measurement_unit_id` is **the product's primary unit id, stored by the vendor and never chosen by
+a user**.
+
+### BOM's `Qty/Unit` does not exist — the question is deleted, not carried
+
+The roadmap recorded BOM's Raw Materials table as carrying `Qty` **and** `Qty/Unit`, and phase 52's
+Decision E called the interaction between an entered unit and that ratio "a real open question".
+Phase 53 downgraded it to *unconfirmed* because both BOM lists were empty and a column might render
+only with a row present.
+
+With a row present, on both tenants, the Raw Material (Input) header reads exactly
+`Product | Quantity` and the row has exactly three cells (product, quantity, remove). There is no
+second ratio column. Per the phase-54 kickoff's own instruction, the question is **deleted** rather
+than carried forward.
+
+### Also seen in passing
+
+- The Production Journal / Production Order / BOM **raw-material picker excludes the finished good**
+  it is producing (and, on Cadehi, `salad`), which is why a read has to set the header product to
+  something other than the product under test.
+- Production Order's route is `#/inventory/production/add`, not `#/inventory/production-order/add`
+  — the latter redirects to the Products list.
+- Moonbeam's `Lucky Glass with Batch and serial no` now shows a Secondary Unit table of one row,
+  `CTN 1 500 500` — i.e. its primary, materialised as row 0, which is the payload-side shape phase 52
+  recorded and phase 45 predicted.

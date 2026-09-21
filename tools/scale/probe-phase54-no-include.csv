@@ -1,0 +1,9 @@
+path,statements_or_scans,logical_reads,cpu_ms,elapsed_ms
+products.picker200,3,5524,86.6,244.2
+products.grid50,3,443,8.8,8.8
+products.search.hit,1,452,231.2,231.7
+products.search.miss,1,452,172.0,172.0
+stock.walk,1,319,0,1
+stock.walk.serial,1,5,0,1
+stock.available,1,319,15,3
+stock.shortfalls,1,319,0,1

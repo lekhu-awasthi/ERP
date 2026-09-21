@@ -1,6 +1,7 @@
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Inventory.Stock;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Inventory;
 using MediatR;
@@ -35,11 +36,21 @@ public sealed class UpdateInventoryAdjustmentCommandHandler(IAppDbContext db)
         // Clear+re-Add gotcha this whole codebase has followed since Phase 4).
         var oldLines = inventoryAdjustment.Lines.ToList();
 
+        // Phase 54 -- re-resolved on every edit, so a draft re-saved after the product's unit
+        // matrix changed picks up the new factor, while an approved document never can.
+        var units = await DocumentLineUnitResolver.ResolveAsync(
+            db, request.OrganizationId,
+            [.. request.Lines.Select(x => new DocumentLineUnitResolver.LineUnitInput(x.ProductId, x.UnitId))],
+            cancellationToken);
+
         inventoryAdjustment.UpdateHeader(request.WarehouseId, request.Date, request.Reference);
         inventoryAdjustment.ClearLines();
-        foreach (var line in request.Lines)
+        for (var i = 0; i < request.Lines.Count; i++)
         {
-            inventoryAdjustment.AddLine(line.ProductId, line.Direction, line.Quantity, line.UnitCost);
+            var line = request.Lines[i];
+            inventoryAdjustment.AddLine(
+                line.ProductId, line.Direction, line.Quantity, line.UnitCost,
+                units[i].UnitId, units[i].ConversionFactor);
         }
 
         db.InventoryAdjustmentLines.RemoveRange(oldLines);

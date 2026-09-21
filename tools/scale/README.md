@@ -42,6 +42,12 @@ bash tools/scale/summarise.sh before after after2
 
 # 6. When the subject is ONE screen, this is the number to trust (phase 50).
 bash tools/scale/probe-cheque-io.sh <label>
+
+# 7. Phase 54's two debts: stock layers and product secondary units, which the 34c seed has none of
+#    (its products are Service-typed on purpose). Writes no documents, no GL, no movements.
+sqlcmd -S <server> -d ErpApp -E -C -i tools/scale/seed-phase54.sql \
+  -v OrgId="<guid>" NumLayers=200000 NumLayerProducts=2000 NumSecondaryUnits=20000
+bash tools/scale/probe-phase54-io.sh <label>
 ```
 
 ## Three things that will bite

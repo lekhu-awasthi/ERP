@@ -271,6 +271,7 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<PurchaseBillLine>().Ignore(x => x.PrimaryQuantity);
         modelBuilder.Entity<DebitNoteLine>().Ignore(x => x.PrimaryQuantity);
         modelBuilder.Entity<WarehouseTransferLine>().Ignore(x => x.PrimaryQuantity);
+        modelBuilder.Entity<InventoryAdjustmentLine>().Ignore(x => x.PrimaryQuantity);
 
         // ApplicableDocumentTypes needs the same delimited-string conversion as the real
         // CustomFieldDefinitionConfiguration (Infrastructure) -- IEntityTypeConfiguration classes

@@ -1,3 +1,5 @@
+using ErpApp.Domain.Common;
+
 namespace ErpApp.Domain.Inventory;
 
 /// <summary>
@@ -77,7 +79,22 @@ public sealed class InventoryAdjustment
         Reference = reference;
     }
 
-    public void AddLine(Guid productId, InventoryAdjustmentDirection direction, decimal quantity, decimal unitCost)
+    /// <summary>
+    /// Phase 54 -- <paramref name="unitId"/> and <paramref name="conversionFactor"/> are
+    /// <b>required</b> parameters rather than optional ones, deliberately. Phase 51's lesson is
+    /// that a sweep driven by the compiler stops exactly where the compiler stops, and phase 52's
+    /// refinement is that you choose where that is: optional parameters here would let both
+    /// Create/Update handlers keep compiling while writing a factor of zero into every line, which
+    /// is the shape <c>IncrementAsync</c> shipped un-swept in phase 51. Callers resolve the pair
+    /// through <c>DocumentLineUnitResolver</c> and never read the catalogue themselves.
+    /// </summary>
+    public void AddLine(
+        Guid productId,
+        InventoryAdjustmentDirection direction,
+        decimal quantity,
+        decimal unitCost,
+        Guid? unitId,
+        decimal conversionFactor)
     {
         EnsureDraft();
 
@@ -91,7 +108,8 @@ public sealed class InventoryAdjustment
             throw new InvalidOperationException("An Increase line's Unit Cost cannot be negative.");
         }
 
-        _lines.Add(InventoryAdjustmentLine.Create(Id, productId, direction, quantity, unitCost));
+        _lines.Add(InventoryAdjustmentLine.Create(
+            Id, productId, direction, quantity, unitCost, unitId, conversionFactor));
     }
 
     public void ClearLines()

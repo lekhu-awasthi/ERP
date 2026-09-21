@@ -3378,3 +3378,109 @@ The converse is the trap. **An optional field ends the sweep**, in any language:
 on the request records, so every form's save path compiled while 7 of 8 dropped it silently. When a
 field must be supplied, make it required or enumerate the call sites by hand — and check, because
 "the build is green" says nothing about an optional parameter.
+
+---
+
+## When a control's disabled state is its empty state (phase 54)
+
+Phase 52 established that the reference product renders a line's unit control **inside the Qty
+cell**, not as a column. Phase 53 correctly refused to conclude from an empty grid because of it,
+and named "add one row and read the cell" as phase 54's first step.
+
+That step is necessary and it is **not sufficient**. For a product carrying only its primary unit
+the vendor renders the control as a greyed, `cursor: not-allowed` **label**. On screen that is
+indistinguishable from a plain display element — same position, same size, same grey. The two are
+distinguishable only in markup:
+
+```html
+<!-- Invoice and Inventory Adjustment: a DISABLED control, inside the input group -->
+<span class="ant-input-group ant-input-group-compact">
+  … <input placeholder="Qty">
+  <div style="color: rgba(0, 0, 0, 0.25); cursor: not-allowed; margin-left: 6px;">PLT</div>
+</span>
+
+<!-- BOM, Production Order, Production Journal: a DISPLAY element, outside it -->
+<span class="ant-input-group ant-input-group-compact"> … <input placeholder="Qty"> </span>
+<div>PLT</div>
+```
+
+…and even that is an inference until a product exists that has **something to choose**, at which
+point the first becomes an `ant-select` listing the whole matrix and the second does not change at
+all.
+
+**The rule.** When a control's disabled state looks like its absence, a tenant with no data cannot
+tell you whether the control exists. Get a row *and* a value worth choosing — and if neither tenant
+has one, that is a reason to ask about a deliberate reverted write (phase 52's precedent), not a
+reason to guess.
+
+## A field in someone else's payload is not a feature (phase 54)
+
+An approved Production Order carries `measurement_unit_id` on every raw-material line **and**
+`fg_measurement_unit_id` on the header, for the finished good. Phase 53 found it and reasonably
+called "is the header unit the same mechanism?" phase 54's first and hardest decision, since phase
+52's rule was *every line naming a product and a quantity* and a header is the first thing that rule
+does not reach.
+
+The forms settle it: Output Quantity renders `<span class="ant-input-suffix">PLT</span>` — static
+text holding the chosen product's primary unit — on all three manufacturing forms, for every
+product, including one carrying a secondary unit. The vendor **stores** the primary unit id and
+never lets anyone choose it.
+
+Modelling that here would be a `UnitId`/`ConversionFactor` pair no user could ever set to a second
+value: phase 43's *present-and-ignored* shape, which that phase deleted from a request record for
+exactly this reason.
+
+**The rule.** Ask what **writes** a field, not just what holds it. A stored value with no input is a
+denormalisation of something else, and copying it gives you the column without the feature.
+
+## Paying a measurement debt: measure what you did not touch (phase 54)
+
+Phase 34c's rule is that an index added for one path changes the plan for every other path on the
+table, and whoever next touches the area re-measures. Phase 54 owed two.
+
+**Phase 51's filtered unique index on `StockLedgerEntry`** — `(OrganizationId, ProductId, SerialNo)`
+filtered on `SerialNo IS NOT NULL AND QuantityRemaining > 0`. Its own path (a serialised issue) costs
+**5 logical reads with it and 319 without** — 64× — and the three paths it did not target (the
+ordinary FIFO walk, the availability sum, the shortfall scan) read **319 either way, to the read**.
+That is the answer the rule asks for, and only a comparison could give it: phase 50's own refusal
+came from the same comparison going the other way, where an index that fixed one path took a sibling
+tab from 2,143 reads to 83,308.
+
+**Phase 52's `.Include(x => x.SecondaryUnits)`** costs **+377 reads (+6.8 %)** on the 200-row picker
+page and **+336** on the 50-row grid page — roughly the same for four times the child rows, i.e. the
+shape of a seek into the child table. Both search paths are unchanged.
+
+**And measuring it falsified its own comment.** The phase-52 note said `listAllProducts` "asks for a
+very large page, so a tenant with thousands of products pays for it". `MAX_PAGE_SIZE` is **200**. A
+recorded reason is not evidence until something checks it — which is phase 46's lesson about the
+AI-scan ceiling sitting in an appendix for a phase, in another key.
+
+Method, fixture and numbers: `tools/scale/comparison-phase54.md`.
+
+## A seed can be right and its plan still be wrong (phase 54)
+
+The phase-54 scale fixture's first form joined 200,000 generated rows to 2,000 products on
+`p.k = n.i % @Products`. A modulo in the `ON` clause is not seekable, so SQL Server loops the product
+side once per row: it burned **ten CPU-minutes and had written 224 pages** before it was killed, with
+no error, no wait type and nothing blocking it. Materialising the modulo into an indexed column of
+the numbers table made the identical insert take **seven seconds**.
+
+Phase 50's lesson in another key: the number to look at is the **plan**, not the row count. And a
+seed that has not finished after ten minutes is a bug report, not a slow machine.
+
+## A greedy `.*` picks the last match (phase 54)
+
+A probe parsing `SET STATISTICS IO` reported **0 logical reads on every path** while the queries were
+plainly running. The pattern was `s/.*Table 'X'.*logical reads \([0-9]*\),.*/\1/p`, and the output
+line reads:
+
+```
+Table 'StockLedgerEntries'. Scan count 1, logical reads 319, physical reads 0, …, lob logical reads 0, …
+```
+
+The greedy `.*` runs to the **last** `logical reads N,` in the line, which is `lob logical reads 0`.
+Anchoring on what precedes the number — `Scan count [0-9]*, logical reads \([0-9]*\)` — fixes it.
+Same family as phase 34a's lazy-`.*?`-spanning-the-instances-between-two-anchors.
+
+The tell was that the scan count parsed correctly while the reads did not: when one field of a line
+parses and its neighbour returns a constant, suspect the pattern, not the data.

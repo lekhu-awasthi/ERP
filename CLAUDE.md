@@ -85,6 +85,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 51: batch and serial tracking — both are keys on the FIFO layer, neither carries a quantity. Before adding a dimension to the stock ledger, or sweeping a change through optional parameters — `docs/phase-51-status.md`
 - Phase 52: a unit on the document line (the line stores the unit **and the factor**, frozen; the ledger stays primary-unit). Before letting a catalogue value reach a posted document, or choosing where a sweep's compiler stops — `docs/phase-52-status.md`
 - Phase 53: re-planning by permission-key census (166 keys from the vendor's bundle; 20 of 22 document types ours, bank reconciliation the only gap). Before scoping a feature from a route, or planning a phase from a screen-by-screen read — `docs/phase-53-status.md`
+- Phase 54: phase 52's four deferred line types settled (Inventory Adjustment carries a unit; the three manufacturing types carry a display, not an input), and both measurement debts paid. Before concluding from a screen you could only open empty, or modelling a field from someone else's payload — `docs/phase-54-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -168,6 +169,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - …but it recognises a business date by **name** (`Date`, `PostedAt`), so `Cheque.ChequeDate` is invisible to it and the Cheque Register has always ordered by an unindexed column (phase-47).
 - Asking the mirror question found **three** such dates, and the two stock tables were right only by luck of a hand-written composite; not classifying now fails the model build (phase-50).
 - An index added for one path changes the plan for every other path on the table (list 10× faster, no-match search 1.8× slower); re-measure the paths you did not touch (phase-34c).
+- …and the answer can be clean: phase 51's serial index is 64× on its own path (5 reads vs 319) and **319 to the read** on the three it did not target (phase-54).
 - …including a change *you* reasoned into: tenant predicates on a join's other three tables fixed the search path and took a sibling tab from 2,143 logical reads to 83,308 (phase-50).
 - A list that searches a **joined** column (only `ListChequesQuery` does) cannot be indexed out of it — the OR spans two tables, so the row is formed before the term is evaluated; a covering index bought 0.03% (phase-50).
 - A materialised id list handed back to SQL becomes an `OPENJSON` parameter as long as the list; a report that loads its period then re-queries children by `ids.Contains` is linear in the period, not in the page. `JournalReportQueryHandler` is the shape that is not (phase-34c).
@@ -185,12 +187,16 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `stopPropagation()` on a control inside an `<a routerLink>` *causes* navigation — it suppresses the listener that would have called `preventDefault()`. Click needs both; mousedown needs neither (phase-45).
 - Guard the add and the edit, never the **delete**: a product given secondary units and promoted to a variant parent afterwards would otherwise hold rows that are invisible and unremovable (phase-45).
 - A sweep-guard allow-list reason can be the argument for the opposite conclusion: "a secondary unit on a variant parent reconciles against nothing" is why a parent must be *refused* one (phase-45).
+- When a control's **disabled** state looks like its absence, a tenant with no data cannot tell you whether the control exists; get a row *and* a value worth choosing (phase-54).
+- A field in the vendor's payload is not a feature: ask what **writes** it. `fg_measurement_unit_id` is the product's primary unit, stored and never chosen (phase-54, phase-43's present-and-ignored shape).
 - A **record** parent (Contact, Deal, WorkTask) is a `DocumentType` member that is *not* transactional; that one property is what routes it to its own keys with no special-casing (phase-43).
 - A filter over a tree of tenant-defined groups must match on group **id**, never group name — names are not unique across a chart of accounts (phase-26a bug #1).
 - `decimal` has a signed zero: `-0m` keeps its sign bit and surfaces as `-0` / `-0.00` once cast to `double` for a spreadsheet cell. Accumulate a magnitude only when the value is strictly non-zero — no test catches this, because `-0m == 0m` (phase-26c bug #1).
 
 **GL posting, documents and domain invariants**
 - A line stores the unit it was entered in **and the factor that applied when it was written**; editing the product's conversion rate governs the next document and never an approved one — confirmed live, including through the unit row being deleted outright (phase-52).
+- Nine line types carry a unit, not eight: Inventory Adjustment does, and BOM / Production Order / Production Journal render a **display element** where the others render a disabled control (phase-54).
+- A cost-bearing line's layer cost is `Amount / primary quantity`, and the GL debits what the **ledger** received, not the Amount typed — without a unit they are equal, with one they differ by the rounding residue (phase-54).
 - The line names the **unit lookup**, never the product's secondary-unit row, which is what lets a document survive its own catalogue (phase-52).
 - A unit converts the **quantity** and never the money: Amount stays `Quantity × Rate` in the entered unit, and the FIFO layer's unit cost is `Amount / primary quantity` (phase-52).
 - A conversion factor **below one** is ordinary (a live product has `bag` → `NOS` at 0.02), so a `factor >= 1` validation rejects real data (phase-52).
@@ -371,6 +377,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A guard asserting a rule's concrete *consequences* is not a guard on the rule: the ListSort test checked two indexes exist and passed the injected third ordering. Drive it from the thing that can change (phase-50).
 - A cross-assembly invariant decidable from types and model metadata belongs in a unit-test project referencing both, never `Api.IntegrationTests` — a guard inside a Docker-gated failure is not read (phase-50).
 - Wall time on a working machine cannot settle one screen's plan (two identical passes moved a report 4×); read logical reads and CPU from `sys.dm_exec_query_stats` (`tools/scale/probe-cheque-io.sh`, phase-50).
+- …but an ad-hoc `sqlcmd` batch is cached as a plan **stub** with no `query_stats` row, so that DMV reports zero for it; use `SET STATISTICS IO` there (phase-54).
+- A recorded reason is not evidence until something checks it: measuring phase 52's `Include` falsified its own comment's premise (`MAX_PAGE_SIZE` is 200, not "a very large page") (phase-54).
 - A uniform sweep is worth more than its subject: asking one question of every paginated list found two queries with **no validator at all** and one whose search term had reached a `LIKE` uncapped since phase 25 (phase-34b).
 - A bash helper that both **prints and returns** is a trap under `$( )` — it returns the printed line too; fourteen malformed ids became a `PUT` storing nulls that surfaced as a 409 three steps later. Have it set a global (phase-34b, same family as a function whose assignment a subshell discards).
 - Map one enum onto another **by name** (`Enum.TryParse`), never by ordinal, and add a test asserting every member has a counterpart — an ordinal cast compiles, works today, and silently reports the wrong value the first time a member is inserted (phase-26a).
@@ -395,6 +403,8 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 - A scripted insert *before* a method lands between it and its doc comment; the unit to anchor on is the comment plus the declaration (phase-47, phase-35a's rule in mirror).
 - One sweep can span two newline conventions — three of 42 files were LF in a CRLF repo; detect per file, and let the asserted anchor count abort rather than rewrite three files invisibly (phase-47).
 - A lazy `.*?` between two anchors spans the instances between them; exclude the closing marker (`((?:(?!</label>).)*?)`) and derive the expected count a second way (phase-34a).
+- …and a **greedy** `.*` picks the last match: `.*logical reads \([0-9]*\)` reads `lob logical reads 0`. Anchor on what precedes the number (phase-54).
+- A modulo in a join's `ON` clause is unseekable — a 200k-row seed looped the other side per row for ten CPU-minutes; materialise the key into an indexed column (phase-54).
 - A positional derivation (column index → header text) is *confidently wrong* where the position lies — a `colspan` cell, a cell with its own label. A wrong accessible name is worse than none; audit for the shapes the first pass cannot see (phase-34a).
 - In the browser pane the **screenshot is ground truth**: after a viewport resize, `getComputedStyle`/`getBoundingClientRect` can lag the rendering (a drawer measured on-screen while the screenshot showed it tucked away). Reload after emulating a viewport (phase-34b).
 - …and the same lag makes `getComputedStyle` inside a `focusin` handler report `outline: none` on every control, which reads as an app-wide 2.4.7 failure that does not exist. Measure after a real key event, and look at the picture (phase-40).
@@ -408,49 +418,53 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0–53 are complete.** The v1 sequence (0–25), parity (26–34c), consolidation (35–41),
-completion (42–47) and the continuation phases (48–52) are all done; each phase's story is in its
+**Phases 0-54 are complete.** The v1 sequence (0-25), parity (26-34c), consolidation (35-41),
+completion (42-47) and the continuation phases (48-54) are all done; each phase's story is in its
 `docs/phase-N-status.md`, and every finished planning entry is archived in `docs/roadmap-history.md`.
 
-**Phase 53 was a re-planning phase, not a feature phase — the plan had ended at 52.** No code was
-written. Its method is the part worth keeping: every earlier confirm-live pass read the reference
-product *screen by screen*, so each one was blind to whatever it did not open — and that had already
-surprised two phases running (51's traceability, 52's `Unit:` selector). This pass instead extracted
-the vendor's **entire permission-key catalogue** from its own JS bundle: **166 keys**, its own
-enumeration of every gated feature, checkable in both directions.
+**Phase 54 closed phase 52's four deferred line types, and the answer split them three-to-one.**
+**Inventory Adjustment carries a unit** and now uses the same mechanism as phase 52's eight
+(`UnitId` + `ConversionFactor` frozen at Create/Update, `PrimaryQuantity` derived). **Bill of
+Materials, Production Order and Production Journal do not** — their Qty cell holds a *display
+element*, not a disabled control, and it stays one for a product carrying a secondary unit. Opening
+Stock has no line grid at all. Every refusal is now a **reading**, asserted in both directions in
+`UnitSweepGuardTests`, rather than the deferral phase 52 could only write.
 
-**The result is a negative one and it is the valuable one.** We hold **20 of the vendor's 22 document
-types** — the two missing are Delivery Note and Goods Received Note, the deliberate
-`InventoryTrackingMode` deferral, whose ten keys prove that seam is parked against something real —
-and a counterpart to **all 51** of its reports. **Bank reconciliation is the only substantial feature
-we lack.** The census paid for itself twice more: **Recurring Invoices is a route, not a feature**
-(real client screen, `404` from both builds, no key among the 166 — a route is not a feature, and the
-key catalogue is the check), and phase 52's four **unread** line types finally have evidence — an
-approved Production Order carries `measurement_unit_id` per raw-material line *and*
-`fg_measurement_unit_id` on the **header**, which is the first thing phase 52's "every line naming a
-product and a quantity" rule does not reach.
+**The kickoff's first decision dissolved when the screen was opened.** Phase 53 found
+`fg_measurement_unit_id` on an approved Production Order's *header* and called it phase 54's hardest
+question. The field is the product's primary unit id, stored by the vendor and never chosen by a
+user — Output Quantity renders static suffix text on all three forms, for every product. Modelling it
+would be phase 43's present-and-ignored shape. **BOM's `Qty/Unit` does not exist in this build**, so
+that question is deleted rather than carried. The method is the part worth keeping: an *empty* grid
+proves nothing when the control lives in a cell (phase 53 knew that), and a *row-present* grid still
+proves nothing when the control's disabled state looks exactly like a display element — it took a
+product with something to choose, which meant one deliberate, reverted write on the reference tenant.
 
-**Next: phases 54–56**, in `docs/roadmap.md` under **Forward plan (54–56)**. 54 closes phase 52's four
-line types (evidence in hand; three still need one row-present read each, because the vendor hides the
-unit control *inside the Qty cell* — so an empty grid proves nothing) and pays the **two outstanding
-measurement debts**, phase 51's `StockLedgerEntry` index and phase 52's `.Include(SecondaryUnits)` on
-`ListProductsQueryHandler`, by phase 34c's rule that whoever next touches the area re-measures. 55 is
-the bank-statement importer (whose real question is what phase 38's machinery does when a row resolves
-into **no command**), 56 the two-pane N:M reconciliation matcher — **56's live read has a start
-condition**: a tenant holding a **Bank**-type account, since the screen takes its account from router
-state and neither tenant has one. The three standing "outside the sequence" items (the NVDA hour,
-the two traceability reports' real columns, full-text search) keep their start conditions unchanged.
+**Both outstanding measurement debts are paid, with numbers** (`tools/scale/comparison-phase54.md`).
+Phase 51's filtered serial index is **64x** on its own path (5 logical reads against 319) and leaves
+the three paths it did not target at **319 to the read** — the clean answer phase 34c's rule asks
+for. Phase 52's `.Include(SecondaryUnits)` costs **+377 reads (+6.8%)** on the 200-row picker page,
+and measuring it falsified its own comment: `MAX_PAGE_SIZE` is 200, not "a very large page". Both are
+kept. `tools/scale/seed-phase54.sql` adds the stock layers and secondary units the 34c dataset
+deliberately lacks; it writes no documents, so that tenant must not be used for a conservation claim.
 
-Tests at last count (unchanged — phase 53 touched no source): Domain **703**, Application.UnitTests
-**1266**, Infrastructure.UnitTests **12**, Api.IntegrationTests 30, Angular **585**. `dotnet build` /
-`dotnet test` / `ng build` / `ng test` all clean, and `ng build` does not warn — phase 42's measured
-680 kB initial-bundle budget is pinned by `build-budget.spec.ts`, and the bundle sits at **643.68 kB**.
-`Api.IntegrationTests` needs Docker Desktop running: without it the Testcontainers-backed tests fail in
-their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like regressions
-and is not; it also fails nondeterministically under machine load and passes on re-run (phase 36/37) —
-the Angular suite did exactly that once in phase 52. `tsc --noEmit` does not cover `web/src/app`;
-`ng build` is the check (phase-28), and `ng test` must be run from `web/` (phase-35a) on **Node 24**
-(`nvm use 24.11.0` — v16 dies with `availableParallelism is not a function`). When the subject is one
+**Next: phases 55-56**, in `docs/roadmap.md` under **Forward plan (55-56)**. 55 is the bank-statement
+importer (whose real question is what phase 38's machinery does when a row resolves into **no
+command**), 56 the two-pane N:M reconciliation matcher - **56's live read has a start condition**: a
+tenant holding a **Bank**-type account, since the screen takes its account from router state and
+neither tenant has one. The three standing "outside the sequence" items (the NVDA hour, the two
+traceability reports' real columns, full-text search) keep their start conditions unchanged.
+
+Tests: Domain **703**, Application.UnitTests **1286** (+20), Infrastructure.UnitTests **12**,
+Api.IntegrationTests 30, Angular **591** (+6). `dotnet build` / `dotnet test` / `ng build` / `ng test`
+all clean, and `ng build` does not warn - phase 42's measured 680 kB initial-bundle budget is pinned
+by `build-budget.spec.ts`, and the bundle sits at **643.68 kB**. `Api.IntegrationTests` needs Docker
+Desktop running: without it the Testcontainers-backed tests fail in their constructors with
+`DockerEndpointAuthConfig` before any assertion, which reads like regressions and is not; it also
+fails nondeterministically under machine load and passes on re-run (phase 36/37) - the Angular suite
+did exactly that once in phase 52. `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
+check (phase-28), and `ng test` must be run from `web/` (phase-35a) on **Node 24**
+(`nvm use 24.11.0` - v16 dies with `availableParallelism is not a function`). When the subject is one
 screen's plan, the number to trust is `tools/scale/`, not the wall clock (phase-50).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,

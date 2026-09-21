@@ -5,6 +5,7 @@ using ErpApp.Application.Sales;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Purchasing;
+using ErpApp.Domain.Manufacturing;
 using ErpApp.Domain.Sales;
 
 namespace ErpApp.Application.UnitTests.Inventory;
@@ -29,17 +30,28 @@ namespace ErpApp.Application.UnitTests.Inventory;
 /// type, and a guard asserting a rule's consequences is not a guard on the rule. These are the
 /// eight line types the 2026-09-17 live read found carrying <c>measurement_unit_id</c> — including
 /// Warehouse Transfer, which carries no price and which a list sampled from the sales and purchase
-/// forms would have missed (phase 30).</para>
+/// forms would have missed (phase 30) -- plus the ninth the 2026-09-20 read added.</para>
+///
+/// <para><b>Phase 54 closed the four types phase 52 deferred unread, and the answer split them
+/// three-to-one.</b> Phase 52's caveat was that the vendor renders the unit control <i>inside the
+/// Qty cell</i>, so an empty grid proves nothing; phase 54 therefore added one line to each form and
+/// read the cell. Inventory Adjustment renders the control -- and for a product carrying a secondary
+/// unit it is a real select offering the whole matrix, markup identical attribute-for-attribute to
+/// the Invoice grid's. Bill of Materials, Production Order and Production Journal render a plain
+/// display element holding the product's primary unit, outside the input group, with no select for
+/// the <b>same multi-unit product on the same tenant in the same session</b>. The refusals below are
+/// therefore <i>read and refused</i>, not deferred.</para>
 /// </summary>
 public class UnitSweepGuardTests
 {
-    /// <summary>The eight aggregates whose lines carry a unit. Quotation, Sales Order, Invoice,
-    /// Credit Note, Purchase Order, Purchase Bill, Debit Note — and Warehouse Transfer.</summary>
+    /// <summary>The nine aggregates whose lines carry a unit. Quotation, Sales Order, Invoice,
+    /// Credit Note, Purchase Order, Purchase Bill, Debit Note, Warehouse Transfer -- and, from phase
+    /// 54's row-present read, Inventory Adjustment.</summary>
     public static TheoryData<Type> LineEntities =>
     [
         typeof(QuotationLine), typeof(SalesOrderLine), typeof(InvoiceLine), typeof(CreditNoteLine),
         typeof(PurchaseOrderLine), typeof(PurchaseBillLine), typeof(DebitNoteLine),
-        typeof(WarehouseTransferLine),
+        typeof(WarehouseTransferLine), typeof(InventoryAdjustmentLine),
     ];
 
     /// <summary>The request records a client sends one of those lines on.</summary>
@@ -48,22 +60,74 @@ public class UnitSweepGuardTests
         typeof(QuotationLineInput), typeof(SalesOrderLineInput), typeof(InvoiceLineInput),
         typeof(CreditNoteLineInput), typeof(PurchaseOrderLineInput), typeof(PurchaseBillLineInput),
         typeof(DebitNoteLineInput), typeof(WarehouseTransferLineInput),
+        typeof(InventoryAdjustmentLineInput),
     ];
 
     /// <summary>
-    /// The line types that carry <b>no</b> unit, restated here with the reason, so that a future
-    /// phase adding one to them has to delete a line from this list and think about it rather than
-    /// discovering the gap from a report. Opening Stock, Inventory Adjustment and the Production
-    /// Journal's three collections were all <b>unread</b> on 2026-09-17 — that tenant had none of
-    /// those documents, so the list endpoint 404'd on its first row — which makes this a deferral
-    /// on the phase-8f rule, not a finding.
+    /// The line types that name a product and a quantity and carry <b>no</b> unit, restated here
+    /// with the reason, so that a future phase adding one to them has to delete a line from this
+    /// list and think about it rather than discovering the gap from a report.
+    ///
+    /// <para>Every reason below is now a <b>reading</b> rather than a deferral. Phase 52 could only
+    /// say "unread"; phase 54 added a line to each form on a tenant holding a product with a
+    /// secondary unit, and watched what the Qty cell did.</para>
     /// </summary>
     public static TheoryData<string, string> UnitlessLineTypes => new()
     {
-        { "OpeningStockLine", "unread: the reference tenant had no opening stock to read" },
-        { "InventoryAdjustmentLine", "unread: the reference tenant had no inventory adjustments" },
-        { "ProductionJournalRawMaterialLine", "unread: the reference tenant had no production journals" },
+        {
+            "OpeningStockLine",
+            "read 2026-09-20: Opening Balances -> Product is a flat per-product grid "
+            + "(NAME | CATEGORY | QUANTITY | RATE | AMOUNT) with no line grid at all, so there is no "
+            + "cell for a control to hide in -- the only one of the four an empty screen could settle"
+        },
+        {
+            "BomRawMaterialLine",
+            "read 2026-09-20 with a row present: /inventory/bom/add renders the unit as a plain "
+            + "display element outside the Qty input group, with no select for a product carrying a "
+            + "secondary unit -- it shows the product's primary unit, it does not accept one"
+        },
+        {
+            "BomByProductLine",
+            "read 2026-09-20: same grid component as the raw-material rows above, same plain display element"
+        },
+        {
+            "ProductionOrderRawMaterialLine",
+            "read 2026-09-20 with a row present: /inventory/production/add renders the same plain "
+            + "display element. The approved PRO0014 payload's measurement_unit_id is therefore the "
+            + "product's primary unit id -- stored by the vendor, never chosen by a user"
+        },
+        {
+            "ProductionOrderByProductLine",
+            "read 2026-09-20: same grid component, same plain display element"
+        },
+        {
+            "ProductionJournalRawMaterialLine",
+            "read 2026-09-20 with a row present: /inventory/manufacturing/add renders the same plain "
+            + "display element for the same multi-unit product that yields a select on Inventory Adjustment"
+        },
+        {
+            "ProductionJournalByProductLine",
+            "read 2026-09-20: same grid component, same plain display element"
+        },
     };
+
+    /// <summary>
+    /// The three <b>headers</b> that name a finished good and an output quantity -- the shape phase
+    /// 52's rule ("every line naming a product and a quantity") does not reach, and which phase 53
+    /// flagged as phase 54's first decision because the vendor's approved Production Order payload
+    /// carries <c>fg_measurement_unit_id</c> on the header.
+    ///
+    /// <para><b>The decision is that it is not a unit mechanism at all.</b> Read live 2026-09-20 on
+    /// all three forms: Output Quantity renders an <c>ant-input-suffix</c> -- static text -- holding
+    /// the chosen product's primary unit short name, and it stays static text when the finished good
+    /// is a product carrying a secondary unit. There is nothing to choose, so there is nothing to
+    /// freeze; a UnitId/ConversionFactor pair here would be a stored field no user could ever set to
+    /// a second value, which is phase 43's present-and-ignored shape.</para>
+    /// </summary>
+    public static TheoryData<string> UnitlessOutputHeaders =>
+    [
+        "BillOfMaterials", "ProductionOrder", "ProductionJournal",
+    ];
 
     [Theory]
     [MemberData(nameof(LineEntities))]
@@ -134,7 +198,7 @@ public class UnitSweepGuardTests
 
     [Theory]
     [MemberData(nameof(UnitlessLineTypes))]
-    public void The_deferred_line_types_still_carry_no_unit(string typeName, string reason)
+    public void The_refused_line_types_still_carry_no_unit(string typeName, string reason)
     {
         // Asserted in the *negative* direction on purpose (phase 46: an exclusion has to say what it
         // is excluding and why, and be asserted to still exist). If a later phase gives one of these
@@ -143,8 +207,29 @@ public class UnitSweepGuardTests
         var type = typeof(StockLedgerEntry).Assembly.GetTypes()
             .SingleOrDefault(t => t.Name == typeName);
 
-        Assert.True(type is not null, $"{typeName} no longer exists; the deferral ({reason}) needs re-reading.");
+        Assert.True(type is not null, $"{typeName} no longer exists; the refusal ({reason}) needs re-reading.");
         Assert.Null(type!.GetProperty("UnitId"));
+    }
+
+    [Theory]
+    [MemberData(nameof(UnitlessOutputHeaders))]
+    public void A_finished_good_header_names_a_product_and_a_quantity_and_still_carries_no_unit(string typeName)
+    {
+        var type = typeof(StockLedgerEntry).Assembly.GetTypes().SingleOrDefault(t => t.Name == typeName);
+
+        Assert.True(type is not null, $"{typeName} no longer exists; the 2026-09-20 reading needs re-taking.");
+
+        // Asserted in both directions, phase 30's rule: the *premise* -- that this header really does
+        // name a product and a quantity, and so really is the shape phase 52's rule could not reach --
+        // as well as the conclusion. Without the first half a rename would make this test vacuous and
+        // it would keep passing.
+        Assert.NotNull(type!.GetProperty("ProductId"));
+        Assert.NotNull(type.GetProperty("OutputQuantity"));
+
+        foreach (var name in new[] { "OutputUnitId", "UnitId", "FinishedGoodUnitId", "OutputConversionFactor" })
+        {
+            Assert.Null(type.GetProperty(name));
+        }
     }
 
     [Fact]

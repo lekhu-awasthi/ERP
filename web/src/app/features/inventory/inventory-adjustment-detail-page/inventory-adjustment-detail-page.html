@@ -134,7 +134,7 @@
               <tr class="text-muted small">
                 <th scope="col" style="min-width: 220px;">Product</th>
                 <th scope="col" style="width: 130px;">Direction</th>
-                <th scope="col" style="width: 110px;" class="text-end">Quantity</th>
+                <th scope="col" style="width: 190px;" class="text-end">Quantity</th>
                 <th scope="col" style="width: 130px;" class="text-end">Unit Cost</th>
                 <th scope="col" style="width: 120px;" class="text-end">Amount</th>
                 @if (isDraft()) {
@@ -170,16 +170,30 @@
                   </td>
                   <td class="text-end">
                     @if (isDraft()) {
-                      <input aria-label="Quantity"
-                        type="number"
-                        class="form-control form-control-sm text-end"
-                        min="0"
-                        step="0.01"
-                        [value]="line.quantity || ''"
-                        (input)="onQuantityChange(line.key, $event)"
-                      />
+                      <!-- Phase 54 -- the unit sits INSIDE the Qty cell, right of the number, which
+                           is where the 2026-09-20 row-present read found it on this very form: no
+                           column of its own, and a real select once the product has a secondary
+                           unit. -->
+                      <div class="d-flex align-items-center justify-content-end gap-1">
+                        <input aria-label="Quantity"
+                          style="min-width: 5rem;"
+                          type="number"
+                          class="form-control form-control-sm text-end"
+                          min="0"
+                          step="0.01"
+                          [value]="line.quantity || ''"
+                          (input)="onQuantityChange(line.key, $event)"
+                        />
+                        <app-line-unit
+                          [products]="products()"
+                          [units]="units()"
+                          [productId]="line.productId"
+                          [unitId]="line.unitId"
+                          (unitChange)="onUnitChange(line.key, $event)"
+                        />
+                      </div>
                     } @else {
-                      {{ line.quantity }}
+                      {{ line.quantity }} {{ unitLabel(line) }}
                     }
                   </td>
                   <td class="text-end">

@@ -26,6 +26,8 @@ import { locationAwareProducts } from '../../../shared/catalog/location-aware-pr
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { LineUnitControl, LineUnitOption } from '../../../shared/catalog/line-unit-control';
+import { UnitOfMeasurementStore } from '../../../shared/catalog/unit-of-measurement-store';
 
 interface EditableLine {
   key: number;
@@ -33,6 +35,8 @@ interface EditableLine {
   direction: InventoryAdjustmentDirection;
   quantity: number;
   unitCost: number;
+  /** Phase 54 -- the unit the quantity is entered in; '' means the product's own primary unit. */
+  unitId: string;
 }
 
 let nextLineKey = 1;
@@ -44,7 +48,7 @@ let nextLineKey = 1;
  * section once Approved, same as every GL-posting document type. */
 @Component({
   selector: 'app-inventory-adjustment-detail-page',
-  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, DocumentLocationPicker, StatusBanner, FieldErrorMessage, NepaliDatePipe],
+  imports: [RouterLink, AmountPipe, BsDateInput, DocumentTabs, ReportingTagsEditor, DocumentLocationPicker, StatusBanner, FieldErrorMessage, NepaliDatePipe, LineUnitControl],
   templateUrl: './inventory-adjustment-detail-page.html',
 })
 export class InventoryAdjustmentDetailPage {
@@ -71,6 +75,9 @@ export class InventoryAdjustmentDetailPage {
   protected readonly fieldError = new FieldError(this.errorMessage);
   protected readonly inventoryAdjustment = signal<InventoryAdjustmentDetail | null>(null);
   protected readonly products = signal<Product[]>([]);
+
+  /** Phase 54 -- the tenant's units, shared and cached; a Product carries unit ids only. */
+  protected readonly units = inject(UnitOfMeasurementStore).units(this.organizationId);
   protected readonly warehouses = signal<Warehouse[]>([]);
   protected readonly accounts = signal<Account[]>([]);
   protected readonly isNew = signal(false);
@@ -174,6 +181,44 @@ export class InventoryAdjustmentDetailPage {
     this.updateLine(key, { unitCost: Number.isFinite(unitCost) ? unitCost : 0 });
   }
 
+  /**
+   * Phase 54 -- choosing a unit sets the line's unit and, on an Increase line, prefills the Unit
+   * Cost from that unit row's own purchase price, which is what the reference product does with a
+   * cost-bearing line. Nothing is multiplied: a unit converts the quantity and never the money, so
+   * Amount stays Quantity x Unit Cost in the entered unit and the FIFO layer's per-primary-unit
+   * cost falls out of Amount / primary quantity at Approve.
+   *
+   * <p>A Decrease line has no cost of its own to prefill -- its real cost is whatever FIFO layers
+   * the Approve walk actually consumes -- so only the unit changes there.</p>
+   */
+  protected onUnitChange(key: number, option: LineUnitOption): void {
+    const line = this.lines().find((l) => l.key === key);
+
+    this.lines.update((lines) =>
+      lines.map((l) =>
+        l.key === key
+          ? {
+              ...l,
+              unitId: option.unitId,
+              unitCost:
+                line?.direction === 'Increase' && option.purchasePrice > 0
+                  ? option.purchasePrice
+                  : l.unitCost,
+            }
+          : l,
+      ),
+    );
+  }
+
+  /** Phase 54 -- the unit's short name for the read-only branch of the Qty cell. Phase 52 shipped
+   * a scripted sweep that matched only the editable `<input>`, leaving seven approved documents
+   * rendering a quantity with no unit; this page's read-only branch is written with the control. */
+  protected unitLabel(line: EditableLine): string {
+    const product = this.products().find((p) => p.id === line.productId);
+    const unitId = line.unitId || product?.primaryUnitId;
+    return this.units().find((u) => u.id === unitId)?.shortName ?? '';
+  }
+
   protected addLine(): void {
     this.lines.update((lines) => [...lines, this.newLine()]);
   }
@@ -267,7 +312,17 @@ export class InventoryAdjustmentDetailPage {
   private toLineInputs(): InventoryAdjustmentLineInput[] | null {
     const lines = this.lines()
       .filter((l) => l.productId && l.quantity > 0)
-      .map((l) => ({ productId: l.productId, direction: l.direction, quantity: l.quantity, unitCost: l.unitCost }));
+      // Phase 54 -- null rather than '' for the primary unit: the server reads null as "the
+      // product's own primary unit", and an empty string is a value. This field is OPTIONAL on
+      // the request record, so a form that forgot it would compile, pass every test, and save a
+      // carton line as pieces -- which is what 7 of 8 forms did in phase 52.
+      .map((l) => ({
+        productId: l.productId,
+        direction: l.direction,
+        quantity: l.quantity,
+        unitCost: l.unitCost,
+        unitId: l.unitId || null,
+      }));
 
     if (lines.length === 0) {
       this.fieldError.fail('inventory-adjustment-detail-page-add-line', 'Add at least one line with a Product and a Quantity.');
@@ -282,7 +337,7 @@ export class InventoryAdjustmentDetailPage {
   }
 
   private newLine(): EditableLine {
-    return { key: nextLineKey++, productId: '', direction: 'Increase', quantity: 1, unitCost: 0 };
+    return { key: nextLineKey++, productId: '', direction: 'Increase', quantity: 1, unitCost: 0, unitId: '' };
   }
 
   private today(): string {
@@ -306,6 +361,7 @@ export class InventoryAdjustmentDetailPage {
                 direction: l.direction,
                 quantity: l.quantity,
                 unitCost: l.unitCost,
+                unitId: l.unitId ?? '',
               }))
             : [this.newLine()],
         );

@@ -1,4 +1,4 @@
-# Build Roadmap — Phases & Task Breakdown
+﻿# Build Roadmap — Phases & Task Breakdown
 
 Companion to `architecture-spec.md` (what to build) and `product-requirements.md` (why). This doc says *in what order*, broken down small enough to actually pick up and work. The reference product is a live Tigg UAT tenant; when a screen's shape is unconfirmed, it is read live through the Browser pane before building (the user logs in themselves — credentials are never entered by the agent and never committed to this repo; see `phase-8f-status.md` for the established workflow).
 
@@ -83,6 +83,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 51 | Batch and serial tracking: **both are keys on the FIFO layer and neither carries a quantity** — `ProductBatch` has no `Quantity` column, a serial is a layer of quantity one. Control on the Invoice and Purchase Bill grids; everywhere else derives or refuses with a named 409. The two reports' columns were never read (phase-8f rule, invoked explicitly) | `phase-51-status.md` |
 | 52 | A unit on the document line: it stores `UnitId` (the unit **lookup**, never the product's row) and `ConversionFactor`, frozen at Create/Update, with `PrimaryQuantity` derived and never a column. The money is untouched. 8 line types carry it — *every line naming a product and a quantity* — and 4 are deferred **unread** | `phase-52-status.md` |
 | 53 | **A re-planning phase, not a feature phase.** Instead of reading screens one at a time it censused the vendor's **whole permission-key catalogue** from its own JS bundle — 166 keys. Result: we hold **20 of its 22 document types** and all 51 reports, so **bank reconciliation is the only substantial gap**; Recurring Invoices is a route with no server and no key; phase 52's four unread line types now have evidence. No code | `phase-53-status.md` |
+| 54 | Phase 52's four deferred line types, settled by a **row-present** read: Inventory Adjustment carries a unit (a real select, markup identical to the Invoice grid's), Bill of Materials / Production Order / Production Journal carry a **display element** and no input, Opening Stock has no line grid. `fg_measurement_unit_id` is the product's primary unit stored and never chosen, so the header is **not a unit mechanism**; BOM's `Qty/Unit` does not exist and the question is deleted. Both outstanding **measurement debts paid** with numbers | `phase-54-status.md` |
 
 ---
 
@@ -116,9 +117,9 @@ scope (batch and serial tracking, which became phase 51) — so the sequence was
 Every entry is done. The planning entries moved verbatim to `docs/roadmap-history.md` on 2026-09-20;
 the outcomes are in each `docs/phase-N-status.md`, and the index table above carries the one-liners.
 
----
+ n m m---
 
-## Forward plan (54–56) — planned 2026-09-20 in phase 53
+## Forward plan (55–56) — planned 2026-09-20 in phase 53; **54 is done**
 
 **Method.** Phase 53 was a re-planning phase, not a feature phase: it re-read the reference product
 and rebuilt this section, because the plan ended at 52. Earlier passes read screens one at a time and
@@ -136,42 +137,11 @@ reconciliation. That is why the forward plan is three phases and not ten: paddin
 inventing work, and the roadmap's own method says the items a session cannot schedule stay out of the
 sequence rather than get folded into it.
 
-**Ordering rule.** The phase whose evidence is already in hand first (54), because it closes a named
-carried item and owes nothing to a read that has not happened. Then the new feature, split at the
-point where each half is independently demonstrable (55, then 56) — a matcher with nothing to match
-against is not runnable, so the statement lines come first.
-
-### 54. The four line types phase 52 deferred, and the two measurement debts
-Phase 52 deferred Opening Stock, Inventory Adjustment, Production Journal and BOM **unread** —
-asserted in the negative, so a later phase has to delete a line and re-read the reason. This is that
-phase, and the 2026-09-20 read supplies most of the reason.
-
-- **Production Order/Journal carries a unit, and in a shape phase 52's rule does not reach.** The
-  live payload of an approved Production Order holds `measurement_unit_id` on every `raw_materials[]`
-  line **and `fg_measurement_unit_id` on the header**, for the finished good. Phase 52's rule was
-  *every line naming a product and a quantity*; a finished good named on the **header** is the first
-  thing that rule does not cover, and whether the header unit is the same mechanism or a different
-  one is this phase's first decision.
-- **Opening Stock is settled: no unit.** Opening Balances → Product is `NAME | CATEGORY | QUANTITY |
-  RATE | AMOUNT`, one row per product with no line grid — the only one of the four an empty screen
-  can settle, because there is no cell for a control to hide in.
-- **Inventory Adjustment and BOM need one row-present read each, and the caveat is phase 52's own
-  finding turned against this read.** The vendor renders the unit control *inside the Qty cell*, not
-  as a column, so an empty grid proves nothing — the Production Order add form shows a bare
-  `Product | Quantity` header too, while its approved documents demonstrably carry a unit. **Start
-  condition:** none beyond a browser — add one line to each form and read the cell. Do not conclude
-  from the header.
-- **BOM's `Qty/Unit` is now unconfirmed rather than open.** The roadmap recorded its Raw Materials
-  table as having `Qty` **and** `Qty/Unit`; `/inventory/bom/add` renders neither column on either
-  tenant, and both BOM lists are empty so no saved BOM was readable. Settle it in the same
-  row-present read, and if it genuinely does not exist, delete the question rather than carry it.
-- **This phase owns the two outstanding measurement debts**, by phase 34c's own rule that an
-  unmeasured plan change is re-measured by whoever next touches that area — and this phase touches
-  both areas. Phase 51's index on `StockLedgerEntry` (the FIFO walk is the other path on that table),
-  and phase 52's `.Include(x => x.SecondaryUnits)` on `ListProductsQueryHandler`, which
-  `listAllProducts` hits with a very large page on every document form this phase adds a control to.
-  `tools/scale/` is the harness; the number is logical reads and CPU from `sys.dm_exec_query_stats`,
-  never the wall clock.
+**Ordering rule.** The phase whose evidence was already in hand went first (54 — it closed a named
+carried item and owed nothing to a read that had not happened; it is complete, see
+`docs/phase-54-status.md`). Then the new feature, split at the point where each half is
+independently demonstrable (55, then 56) — a matcher with nothing to match against is not runnable,
+so the statement lines come first.
 
 ### 55. Bank statement import
 The feeder for 56, and independently demonstrable: import a statement, see its lines, see what was
