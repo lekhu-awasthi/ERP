@@ -108,12 +108,19 @@ public class ListSortIndexCorrespondenceTests(ModelFixture fixture)
     {
         var queries = SortableDocumentListQueries().ToList();
 
-        // Sixteen document lists, fifteen of which offer an ordering: phase 47's sweep, which it
-        // describes as "fifteen queries over sixteen screens" because ListPaymentsQuery backs both
-        // the customer and the supplier payment list. The sixteenth query is ListChequesQuery, and
-        // its absence here is SortSweepGuardTests.Exempt -- see
+        // Sixteen, as of phase 55. Fifteen came from phase 47's sweep, which describes itself as
+        // "fifteen queries over sixteen screens" because ListPaymentsQuery backs both the customer
+        // and the supplier payment list; the one query it excludes is ListChequesQuery, whose
+        // absence here is SortSweepGuardTests.Exempt -- see
         // The_cheque_exemptions_index_half_has_been_measured_away for what phase 50 changed about it.
-        Assert.Equal(15, queries.Count);
+        //
+        // The sixteenth is phase 55's ListBankStatementLinesQuery. It is the first *parent-scoped*
+        // list to reach this sweep -- a statement belongs to one bank account -- and it is in
+        // rather than exempt because the test above proves its two orderings are index-backed:
+        // BankStatementLine carries Date, so TenantIndexConvention derives both
+        // (OrganizationId, Date) and (OrganizationId, CreatedAt DESC) for it with no hand-written
+        // index at all.
+        Assert.Equal(16, queries.Count);
         Assert.All(queries, q => Assert.NotNull(EntityFor(q)));
     }
 

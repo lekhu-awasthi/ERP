@@ -324,7 +324,8 @@ public sealed class ImportJobProcessor(
             .GetServices<IEntityImporter>()
             .Single(i => i.EntityType == importer.EntityType);
 
-        var context = ImportRowContext.ForValidation(job.OrganizationId, job.Mode, pendingKeys);
+        var context = ImportRowContext.ForValidation(
+            job.OrganizationId, job.Mode, pendingKeys, job.Id, job.BankAccountId);
 
         // A dry run that died half-way is resumed, not restarted: the rows it already rejected are
         // in the ledger, and re-claiming one would collide with the unique index that makes the
@@ -502,7 +503,7 @@ public sealed class ImportJobProcessor(
             // already ordered the file, so every in-file parent is genuinely in the database by now
             // and resolves exactly like one that was always there. See ImportRowContext.
             var plan = await importer.PlanAsync(
-                ImportRowContext.ForApply(job.OrganizationId, job.Mode),
+                ImportRowContext.ForApply(job.OrganizationId, job.Mode, job.Id, job.BankAccountId),
                 new ImportRowReader(columnIndexes, dataRow),
                 cancellationToken);
 

@@ -197,6 +197,7 @@ public static class DependencyInjection
         services.AddScoped<IEntityImporter, ContactPersonnelImporter>();
         services.AddScoped<IEntityImporter, ProductVariantImporter>();
         services.AddScoped<IEntityImporter, ProductAttributePoolImporter>();
+        services.AddScoped<IEntityImporter, BankStatementImporter>();
 
         // Phase 21c (Migrated tax-register import, FR-2.10) -- two more importers on the same seam,
         // which is the whole of what Decision C costs. There is no new job table, no new processor,

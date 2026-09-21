@@ -1325,6 +1325,61 @@ session cannot schedule stay *out* of the sequence rather than get folded into i
 
 ---
 
+## Phase 55 — bank statement import, and a premise that did not survive the screen
+
+**Read this before scoping a phase from a screen an earlier pass only glanced at, before deciding
+an importer does not fit the import machinery, or before exempting a new screen from a sweep
+guard.** Full doc: `docs/phase-55-status.md`.
+
+**A glance records a screen's furniture, not its subject.** Phase 53 opened
+`/config/import-statement`, saw `POST ENTRIES` over a `Total rows / Valid / Errors` counter, and
+recorded it as the bank statement importer with "a stale Delivery Note column filter row leaking in
+from a sibling screen". All three readings were wrong: it is a **generic CSV staging editor** whose
+hardcoded column sets are Delivery Note / GRN / Inventory Adjustment, the Delivery Note row is its
+*default* column set (the route takes `?collection=`), and the counter is an **ant radio group**,
+i.e. a filter. "Statement" there means statement of rows. **What settled it was the client's
+endpoint map, not another look at the screen** — phase 53's own rule that a route is not a feature,
+applied one level down: a *screen* is not a feature either, and the call it makes is the check.
+
+**"It resolves into no command" is not a reason to leave the import machinery.** The kickoff's
+central question was whether a raw row whose only destination is a table belongs on phase 38's
+`PlanAsync`. Phase 21c had already answered it: `MigratedSalesRegisterEntry` is exactly that shape
+and has had an ordinary create command since. `ImportRowPlan` asks that a command *exist before it
+is sent* — the mechanism that makes the dry run and the apply pass share one resolution — and asks
+nothing about what it then does. Phase 38's landed-cost precedent for the other answer turns on
+something specific: its template is generated from the document in front of you, nothing is written,
+and there is nothing to resume.
+
+**Per-run context is not per-row data.** A bank statement row does not name its own account, so the
+account rides `ImportJob`, required for one entity type and refused for the other nine. A field
+meaningful to one of ten members is a smell paid for with a rule asserted in **both** directions and
+driven from the enum — the refusing half is the one that rots, because an account silently accepted
+and ignored on a Product import reads to a client as accepted (phase 43).
+
+**Two columns of which exactly one may be non-zero is redundant state guarded by a rule.** The
+vendor stores `dr_amount`/`cr_amount`; `StatementAmount` stores one signed decimal, because
+`ProductBatch` (51) and `PrimaryQuantity` (52) already ruled twice against a second column able to
+contradict the first. Diverge from the schema, match the behaviour, record it.
+
+**A value type cannot close its own `default(T)` hole.** C# hands every caller `default(T)` however
+private the constructor is, and a default `StatementAmount` is a zero — which the EF value converter
+rejected on the way *out* of the database, so the symptom was a list that would not load rather than
+a bad write. The aggregate has to check it. It was found because a sweep guard builds entities by
+reflection, which is a thing no hand-written test does.
+
+**Teach the guard rather than exempt the screen.** `ListBankStatementLinesQuery` is the first
+*parent-scoped* list to reach `SortSweepGuardTests`, and it broke the harness twice (a required
+parent id defaulted to `Guid.Empty`, and a handler that takes `(db)` rather than `(db, currentUser)`).
+An exemption on a brand-new screen is how a seam stays empty for six phases (39, 40, 50 each said
+so); teaching it is also what found the `default(T)` hole.
+
+**An index nobody measured is not added, and the re-entry condition is written down.** The
+convention's two derived indexes back both orderings. The obvious third — account-leading — is left
+out with the condition that would justify it stated in the configuration, because "obviously better"
+is the claim phases 34c and 50 say not to ship — `docs/phase-55-status.md`
+
+---
+
 ## Phase 54 — the four deferred line types, and paying a measurement debt
 
 **Read this before concluding anything from a screen you could only open empty, before modelling a

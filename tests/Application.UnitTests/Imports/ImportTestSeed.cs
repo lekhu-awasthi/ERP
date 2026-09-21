@@ -93,7 +93,8 @@ internal static class ImportTestSeed
         ImportMode mode,
         DateTimeOffset now,
         IFileStorage fileStorage,
-        bool reviewBeforeApply = false)
+        bool reviewBeforeApply = false,
+        Guid? bankAccountId = null)
     {
         using var placeholder = new MemoryStream([0x50, 0x4B]);
         var storageKey = await fileStorage.SaveAsync(placeholder, "upload.xlsx");
@@ -102,7 +103,7 @@ internal static class ImportTestSeed
         // one pass; the review tests opt in explicitly.
         var job = ImportJob.Create(
             tenant.OrganizationId, entityType, mode, storageKey, "upload.xlsx", tenant.AdminUserId, now,
-            reviewBeforeApply);
+            bankAccountId, reviewBeforeApply);
 
         db.ImportJobs.Add(job);
         await db.SaveChangesAsync();

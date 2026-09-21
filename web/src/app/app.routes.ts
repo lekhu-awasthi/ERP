@@ -301,6 +301,18 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    // Phase 55 -- one account's imported bank statement. The account is in the path, exactly as
+    // the reference product has it (/accounting/bank-accounts/:id/bank-statement), and not in
+    // router state: phase 53 found its own /accounting/recon takes the account from state pushed
+    // by the previous screen, which means the screen cannot be linked to, bookmarked or reloaded.
+    path: 'organizations/:id/accounting/bank-accounts/:accountId/statement',
+    loadComponent: () =>
+      import('./features/accounting/bank-statement-page/bank-statement-page').then(
+        (m) => m.BankStatementPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/accounting/cheque-register',
     loadComponent: () =>
       import('./features/accounting/cheque-register-page/cheque-register-page').then((m) => m.ChequeRegisterPage),

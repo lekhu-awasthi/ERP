@@ -5,6 +5,7 @@ using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Application.UnitTests.TestSupport;
+using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -120,9 +121,11 @@ public class SortSweepGuardTests
                 continue;
             }
 
+            var parentId = Guid.NewGuid();
+
             foreach (var allowed in ListSort.DocumentOrderings.Append(null))
             {
-                var query = Activate(type, Guid.NewGuid(), allowed);
+                var query = Activate(type, Guid.NewGuid(), allowed, parentId);
 
                 if (query is not null && !validator.Validate(new ValidationContext<object>(query)).IsValid)
                 {
@@ -130,7 +133,7 @@ public class SortSweepGuardTests
                 }
             }
 
-            var unknown = Activate(type, Guid.NewGuid(), "customer");
+            var unknown = Activate(type, Guid.NewGuid(), "customer", parentId);
 
             if (unknown is not null && validator.Validate(new ValidationContext<object>(unknown)).IsValid)
             {
@@ -164,13 +167,18 @@ public class SortSweepGuardTests
             // Created first but dated later; created second but dated earlier. The two orderings
             // therefore have to return opposite orders, and a handler that ignores `Sort` returns
             // the same order twice.
-            var older = Seed(db, entityType, organizationId, Later, DateTimeOffset.UtcNow.AddMinutes(-5));
-            var newer = Seed(db, entityType, organizationId, Earlier, DateTimeOffset.UtcNow.AddMinutes(-4));
+            // One parent for both rows, so a parent-scoped list returns both of them and the two
+            // orderings are comparable (phase 55's ListBankStatementLinesQuery is the first).
+            var parentName = ParentScopedIdFor(queryType);
+            var parentId = Guid.NewGuid();
+
+            var older = Seed(db, entityType, organizationId, Later, DateTimeOffset.UtcNow.AddMinutes(-5), parentName, parentId);
+            var newer = Seed(db, entityType, organizationId, Earlier, DateTimeOffset.UtcNow.AddMinutes(-4), parentName, parentId);
             await db.SaveChangesAsync(CancellationToken.None);
 
-            var byDefault = await RunAsync(queryType, db, organizationId, null);
-            var byNewest = await RunAsync(queryType, db, organizationId, ListSort.Newest);
-            var byDate = await RunAsync(queryType, db, organizationId, ListSort.DocumentDate);
+            var byDefault = await RunAsync(queryType, db, organizationId, null, parentId);
+            var byNewest = await RunAsync(queryType, db, organizationId, ListSort.Newest, parentId);
+            var byDate = await RunAsync(queryType, db, organizationId, ListSort.DocumentDate, parentId);
 
             if (!byNewest.SequenceEqual([IdOf(newer), IdOf(older)]))
             {
@@ -232,14 +240,37 @@ public class SortSweepGuardTests
     /// stamps the <c>CreatedAt</c> the test needs, which is the one value a factory takes from the
     /// clock and no caller can pass.
     /// </summary>
-    private static object Seed(IAppDbContext db, Type entityType, Guid organizationId, DateOnly date, DateTimeOffset createdAt)
+    private static object Seed(
+        IAppDbContext db,
+        Type entityType,
+        Guid organizationId,
+        DateOnly date,
+        DateTimeOffset createdAt,
+        string? parentName = null,
+        Guid parentId = default)
     {
         var factory = entityType.GetMethods(BindingFlags.Public | BindingFlags.Static)
             .Where(m => m.Name == "Create" && m.ReturnType == entityType)
             .OrderBy(m => m.GetParameters().Length)
             .First();
 
-        var entity = factory.Invoke(null, factory.GetParameters().Select(p => Argument(p, organizationId, date)).ToArray())!;
+        var entity = factory.Invoke(
+            null,
+            factory.GetParameters()
+                .Select(p => Argument(p, organizationId, date, parentName, parentId))
+                .ToArray())!;
+
+        // A parent-scoped list's handler checks its parent exists and 404s otherwise, so the row
+        // alone is not enough. Today the only parent is a cash-and-bank Account (phase 55); the
+        // case is named rather than generalised, exactly like the Product one below, because a
+        // guess at "any Guid ending in AccountId" would seed rows nothing asked for.
+        if (parentName == "BankAccountId" && !db.Accounts.Local.Any(a => a.Id == parentId))
+        {
+            var account = Account.Create(
+                organizationId, "BC0001", "Nabil Bank", AccountRootType.Asset, Guid.NewGuid(), AccountKind.Bank);
+            typeof(Account).GetProperty("Id")!.GetSetMethod(nonPublic: true)!.Invoke(account, [parentId]);
+            db.Accounts.Add(account);
+        }
 
         entityType.GetProperty("CreatedAt")!.GetSetMethod(nonPublic: true)!.Invoke(entity, [createdAt]);
 
@@ -266,7 +297,8 @@ public class SortSweepGuardTests
 
     private static Guid IdOf(object entity) => (Guid)entity.GetType().GetProperty("Id")!.GetValue(entity)!;
 
-    private static async Task<IReadOnlyList<Guid>> RunAsync(Type queryType, IAppDbContext db, Guid organizationId, string? sort)
+    private static async Task<IReadOnlyList<Guid>> RunAsync(
+        Type queryType, IAppDbContext db, Guid organizationId, string? sort, Guid parentId)
     {
         var responseType = queryType.GetInterfaces()
             .First(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(MediatR.IRequest<>))
@@ -276,9 +308,16 @@ public class SortSweepGuardTests
             .First(t => t is { IsClass: true, IsAbstract: false }
                 && typeof(MediatR.IRequestHandler<,>).MakeGenericType(queryType, responseType).IsAssignableFrom(t));
 
-        var handler = Activator.CreateInstance(handlerType, db, new FakeCurrentUserService(Guid.NewGuid()))!;
+        // Most of these handlers take (db, currentUser) because they apply phase 32b's per-location
+        // permission scope. One does not: a bank account carries no LocationId, so
+        // ListBankStatementLinesQueryHandler has nothing to scope and takes (db) alone. The guard
+        // asks the constructor rather than assuming, so a handler's dependencies are free to change.
+        var handler = handlerType.GetConstructors().Single().GetParameters().Length == 1
+            ? Activator.CreateInstance(handlerType, db)!
+            : Activator.CreateInstance(handlerType, db, new FakeCurrentUserService(Guid.NewGuid()))!;
+
         var task = (Task)handlerType.GetMethod("Handle")!
-            .Invoke(handler, [Activate(queryType, organizationId, sort), CancellationToken.None])!;
+            .Invoke(handler, [Activate(queryType, organizationId, sort, parentId), CancellationToken.None])!;
 
         await task;
 
@@ -295,8 +334,20 @@ public class SortSweepGuardTests
             .Select(t => (IValidator?)Activator.CreateInstance(t))
             .FirstOrDefault();
 
-    /// <summary>Builds a query with this organization and this ordering, and defaults for the rest.</summary>
-    private static object? Activate(Type queryType, Guid organizationId, string? sort)
+    /// <summary>
+    /// Builds a query with this organization and this ordering, and defaults for the rest.
+    ///
+    /// <para><b><paramref name="parentId"/> is what makes a parent-scoped list testable here.</b>
+    /// Most of these lists stand alone, so every constructor parameter beyond the organization has
+    /// a sensible default. <c>ListBankStatementLinesQuery</c> (phase 55) does not: a statement
+    /// belongs to one bank account and the account is required, so defaulting it to
+    /// <c>Guid.Empty</c> made the validator reject the query for a reason that had nothing to do
+    /// with the ordering -- and this guard read that as "rejects 'newest'". Any required
+    /// non-nullable <c>Guid</c> other than the organization gets the parent id, which
+    /// <see cref="ParentScopedIdFor"/> also hands to the seeder so the rows and the query agree
+    /// about which parent they mean.</para>
+    /// </summary>
+    private static object? Activate(Type queryType, Guid organizationId, string? sort, Guid parentId)
     {
         var constructor = queryType.GetConstructors().OrderByDescending(c => c.GetParameters().Length).First();
 
@@ -307,11 +358,13 @@ public class SortSweepGuardTests
                 nameof(ISortableQuery.Sort) => sort,
                 "Page" => 1,
                 "PageSize" => (object)PagingDefaults.DefaultPageSize,
-                _ => p.HasDefaultValue
-                    ? p.DefaultValue
-                    : p.ParameterType.IsValueType
-                        ? Activator.CreateInstance(p.ParameterType)
-                        : null,
+                _ => p is { HasDefaultValue: false, ParameterType: { } pt } && pt == typeof(Guid)
+                    ? parentId
+                    : p.HasDefaultValue
+                        ? p.DefaultValue
+                        : p.ParameterType.IsValueType
+                            ? Activator.CreateInstance(p.ParameterType)
+                            : null,
             })
             .ToArray();
 
@@ -319,15 +372,39 @@ public class SortSweepGuardTests
     }
 
     /// <summary>
+    /// The name of the one required parent this query is scoped to, or null when it stands alone.
+    /// Matched by <b>name</b> between the query's constructor and the aggregate's <c>Create</c>
+    /// factory, which is how the seeded rows end up under the parent the query will ask for.
+    /// </summary>
+    private static string? ParentScopedIdFor(Type queryType) =>
+        queryType.GetConstructors()
+            .OrderByDescending(c => c.GetParameters().Length)
+            .First()
+            .GetParameters()
+            .Where(p => p is { HasDefaultValue: false })
+            .Where(p => p.ParameterType == typeof(Guid))
+            .Select(p => p.Name)
+            .FirstOrDefault(n => n != nameof(IOrganizationScoped.OrganizationId));
+
+    /// <summary>
     /// Fills one factory parameter. The two decimals that are refused at zero are named rather than
     /// defaulted, so a factory that grows a third validated amount fails here loudly instead of
     /// being quietly fed a value it rejects.
     /// </summary>
-    private static object? Argument(ParameterInfo parameter, Guid organizationId, DateOnly date)
+    private static object? Argument(
+        ParameterInfo parameter, Guid organizationId, DateOnly date, string? parentName, Guid parentId)
     {
         if (parameter.Name == "organizationId")
         {
             return organizationId;
+        }
+
+        // The factory parameter the query's required parent id names, matched case-insensitively
+        // (a query says BankAccountId and a factory says bankAccountId). Without this the Guid
+        // branch below would give every seeded row a different parent and the list would be empty.
+        if (parentName is not null && string.Equals(parameter.Name, parentName, StringComparison.OrdinalIgnoreCase))
+        {
+            return parentId;
         }
 
         if (parameter.ParameterType == typeof(DateOnly))
@@ -341,6 +418,13 @@ public class SortSweepGuardTests
             // Amount; every other decimal on these factories is a discount or a TDS amount, where
             // zero is the ordinary value.
             return parameter.Name is "outputQuantity" or "amount" ? 1m : 0m;
+        }
+
+        // A bank statement line refuses a zero amount, and default(StatementAmount) is one --
+        // the same shape as the two decimals named above, in a value type.
+        if (parameter.ParameterType == typeof(StatementAmount))
+        {
+            return StatementAmount.Deposit(1m);
         }
 
         if (parameter.ParameterType == typeof(Guid))

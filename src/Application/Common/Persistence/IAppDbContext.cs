@@ -85,6 +85,9 @@ public interface IAppDbContext
     DbSet<Payment> Payments { get; }
     DbSet<PaymentAllocation> PaymentAllocations { get; }
     DbSet<Cheque> Cheques { get; }
+
+    /// <summary>Phase 55 -- imported bank statement lines, the feeder for reconciliation.</summary>
+    DbSet<BankStatementLine> BankStatementLines { get; }
     DbSet<TdsType> TdsTypes { get; }
     DbSet<PurchaseOrder> PurchaseOrders { get; }
     DbSet<PurchaseOrderLine> PurchaseOrderLines { get; }

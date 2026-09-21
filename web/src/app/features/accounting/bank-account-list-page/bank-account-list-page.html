@@ -126,6 +126,17 @@
                   <span class="text-muted small d-block">{{ item.accountNumber }}</span>
                 }
                 <div class="fw-bold" [class.text-danger]="item.balance < 0">{{ item.balance | number: '1.2-2' }}</div>
+                <!-- Phase 55 -- the only door to this account's imported bank statement. A route
+                     with no link is an unreachable screen (phase 34b), and the card is where the
+                     reference product puts it too: its statement screen is reached through the
+                     Bank Accounts list, never by URL. A link rather than a stretched-link over the
+                     whole card, because the card is not itself navigable. -->
+                <a
+                  class="small fw-semibold text-decoration-none"
+                  [routerLink]="['/organizations', organizationId, 'accounting', 'bank-accounts', item.id, 'statement']"
+                >
+                  Statement <i aria-hidden="true" class="bi bi-chevron-right"></i>
+                </a>
               </div>
             </div>
           </div>

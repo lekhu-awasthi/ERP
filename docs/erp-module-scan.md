@@ -1500,12 +1500,17 @@ the app's own cash/bank transactions on the other — producing a reconciliation
 It carries **no keys of its own** beyond `bank-reconciliation-export`; it rides `bank-view` /
 `bank-edit` / `bank-full-access`.
 
-**Not read, and why.** `/accounting/recon` entered directly fetches `cash-and-bank-accounts/undefined`
+**Not read, and why** *(superseded 2026-09-21 by the phase-55 appendix below —
+this start condition was wrong)*. `/accounting/recon` entered directly fetches `cash-and-bank-accounts/undefined`
 and renders `404 account not found` — it takes its account from router state pushed by the Bank
 Accounts page, not from a query parameter (`?account_id=`, `?id=`, `?bank_account_id=`, `/:id` and
 `?account=` were all tried and all 404). Moonbeam has **no** cash-and-bank accounts at all; Cadehi has
 exactly one and it is `type: "Cash"`, not a bank. **Start condition for the read: a tenant holding a
 Bank-type cash-and-bank account, reached through the Bank Accounts list rather than by URL.**
+
+> **The start condition was wrong.** `/accounting/recon` is one entry point, not the feature. The
+> module registers **six** routes under the account, all taking the id from the **URL**, and the
+> two-pane matcher renders fully on Cadehi's existing Cash account. See the phase-55 appendix.
 
 ### Recurring Invoices is a ghost — read, and absent
 
@@ -1557,7 +1562,9 @@ tenants, so no saved BOM was available to read, and a column may render only wit
 - The product payload carries `batch_tracking_enabled` / `serial_no_tracking_enabled` (phase 51),
   `service_charge_applicable` and `print_profile_id` (both dropped in phase 47, unchanged).
 - `/config/import-statement` on Moonbeam rendered a **Delivery Note** column filter row under its own
-  heading — stale state from a sibling import-mapping screen, noted as a vendor defect, not a finding.
+  heading — read at the time as stale state from a sibling import-mapping screen and noted as a
+  vendor defect. **It is neither** (phase 55): it is that screen's *default* column set, and the
+  screen is not the bank statement importer at all. See the phase-55 appendix.
 
 ---
 
@@ -1669,3 +1676,130 @@ than carried forward.
 - Moonbeam's `Lucky Glass with Batch and serial no` now shows a Secondary Unit table of one row,
   `CTN 1 500 500` — i.e. its primary, materialised as row 0, which is the payload-side shape phase 52
   recorded and phase 45 predicted.
+
+---
+
+## Bank statement import, read in full (2026-09-21, phase 55)
+
+Cadehi (`cadehi.tigg.app`). The user was already logged in; no credentials were entered. **No write
+of any kind was made to the reference tenant** — the statement upload endpoint's first leg is a
+validate that returns parsed rows without persisting, and the delete semantics came out of the
+bundle rather than out of a trial deletion.
+
+### `/config/import-statement` is not the bank statement importer
+
+Phase 53's read recorded it as one, on the strength of `POST ENTRIES` over a
+`Total rows / Valid / Errors` counter. Three corrections:
+
+- Its column sets are **constants in `14.*.chunk.js`**, and there are three:
+  `DeliveryNote`, `GoodsReceivedNote`, `WarehouseAdjustment` ("Inventory Adjustment"), each with a
+  `mappingRoute` under its own module.
+- The route takes **`?id=<importId>&collection=<type>`**, reached from a "Recent imports" drawer.
+  With no `collection` it renders the first entry, which is why a Delivery Note filter row appears
+  on a screen called Import Statement — **the default, not stale state, and identical on both
+  tenants**.
+- The counter is an **`ant-radio-group`**: `[{all,"Total rows"},{valid,"Valid"},{error,"Errors"}]`,
+  a *filter* over the staged rows, beside a free-text search. A row's validity is
+  `Array.isArray(r.errors) && r.errors.some(e => Object.keys(e).length > 0)`.
+
+The pipeline it belongs to: upload → parse client-side with ExcelJS (`xlsx|xlsm|xlsb|xls|xlam`) →
+**a column-mapping step** at `/config/import-export/csv-mapping` → this editable staging grid (cells
+are writable, with "Apply to all rows in this group" and inline create on the network-selects) →
+POST ENTRIES. Statuses: `Pending` / `In Progress` / `Mapped` / `Completed` / `Failed`.
+**Read and out of scope**: two of its three types are the `InventoryTrackingMode` deferral, and this
+codebase has no document importer at all.
+
+### The module's real routes
+
+```
+/accounting/bank-accounts/:id            /accounting/bank-accounts/:id/import
+/accounting/bank-accounts/:id/bank-statement   /accounting/bank-accounts/:id/book-statement
+/accounting/bank-accounts/:id/manual-reconcile /accounting/bank-accounts/:id/matched
+/accounting/recon                        <-- the one that takes its account from router state
+```
+
+**All six take the account from the URL.** `/accounting/recon` is the exception, not the rule, so
+phase 53's "start condition: a tenant holding a Bank-type account" was wrong: both
+`/…/:id/import` and `/…/:id/manual-reconcile` render fully on Cadehi's existing **Cash** account,
+the matcher's right-hand pane already populated from the tenant's own transactions and its header
+reading `No txn selected | RECONCILE | No txn selected`.
+
+### Import Statement, in full
+
+Gated on **`bank-edit`** (`<Permission permission="bank-edit">` in its own JSX). Two legs:
+
+1. `POST /import-bank-statement`, multipart `{file, account_id}` → `{statements, errors}`. **Writes
+   nothing.**
+2. `POST /bank-statements` `{account_id, statements}` → commits. Confirm Upload is disabled at zero
+   valid rows, errors never block a partial commit, and the user may delete individual **valid**
+   rows in the review first — so the apply is "what you kept".
+
+Step 1 renders "Validating Transactions": *N transactions validated* (expandable: Date |
+Description | Amount | a delete button) and *N transactions have errors* (expandable, one column,
+the error rendered as a **string**). Step 2 is "Upload successful".
+
+**Two templates**, both downloaded and their XML read. Headers in row 1 starting at **column B**:
+
+| File | Columns | Convention |
+| --- | --- | --- |
+| `bank_statement_sample1.xlsx` "Single Amount Column" | Date, Amount, Description | *"Deposit Amount: Positive Amount / Withdrawal Amount: Negative Amount"* |
+| `bank_statement_sample2.xlsx` "Two Amount Column" | Date, Deposit, Withdrawal, Description | one column per direction |
+
+Both: *"Do not change Column Header and their position"*, *"Date Format: Only AD Dates are
+accepted"*.
+
+**The row**: `{date ("dd-mm-yyyy"), description, description1..3, dr_amount, cr_amount, batch_code,
+posting_date, account_id, transaction_id, reconciliation_id, account_suggestions,
+is_suggestion_completed}`. **No balance, no reference, no cheque number.**
+
+**The validation contract**, from twelve probe files posted to the live validate endpoint:
+
+| Probe | Result |
+| --- | --- |
+| clean, both templates | 200, `errors: null` |
+| text date — ISO, `dd-mm-yyyy`, `dd/mm/yyyy` | all `Row [N]: invalid date` — **only a real Excel date cell parses** |
+| missing date | `Row [N]: invalid date` |
+| no amount | `Row [N]: both deposit and withdrawal cannot be zero` |
+| both amounts | `Row [N]: amount must be either deposit or withdrawal` |
+| missing description | accepted |
+| **negative deposit** | **accepted verbatim as `dr_amount: -40`** — a defect |
+| renamed header ("Txn Date") | accepted — columns match by **position**; header text is ignored |
+| reordered columns | every row `invalid date` |
+| no header row | 0 rows, no error — row 1 is always discarded |
+| empty file | 0 rows, no error, 200 |
+| duplicate rows | both accepted, silently |
+| extra column ("Balance") | ignored |
+
+`errors` is a flat array of `Row [N]: message` strings; a rejected row is **dropped** from
+`statements`, so the two sets are disjoint.
+
+### The statement list, and deletion
+
+Columns: Date (`DATE_RANGE`, sortable), Description, Amount (`dr_amount - cr_amount`,
+`AMOUNT_RANGE`, rendered with the account's currency symbol and a `debit`/`credit` class), and
+**Status** — `filter_options: [{true, "Reconciled"}, {false, "Pending"}]`, rendered off whether
+`reconciliation_id` is set and listing the matched documents from `reconciliation_data`
+(`{source, source_type, source_id, code}`). The list query sends
+`date_$gte`, `date_$lte` and **`show_suggestions: true`**.
+
+Deletion is `POST /bank-statements-delete` with `{account_id, action: "delete", statements: [ids]}`,
+wired to both a row action and a bulk selection action, each behind a confirm dialog. **By row id,
+never by `batch_code`.**
+
+### The bank feed is a separate mechanism — out of scope, now against evidence
+
+The reconciliation endpoint map carries `validate-account`, `validate-otp` and `disconnect-bank`
+beside `fetch-statements`, and `fetch_statements` posts
+`{account_id, account_number, bank_name, from_date, to_date}`. The cash-and-bank account payload
+carries `bank_connected: "not_connected"` and `rapid_connected: false`. So the feed is a per-account
+bank connection with an OTP handshake — a vendor-side integration this codebase has no actor for.
+
+### Noticed, not investigated
+
+- **`is_bank_user`** on the user payload swaps the entire shell for a different one.
+- `BankStatement` is a first-class entry in the client's collection registry
+  (`{collection: "BankStatement", apiURL: "/bank-statements", displayText: "Bank Statement"}`),
+  alongside the document types.
+- `GET /bank-reconciliations` and `GET /reconciliations` both 404 while `/bank-statements` and
+  `/bank-statements-matched` answer 200 — consistent with the first two being POST-only, and
+  **not** the Recurring Invoices ghost shape, since the keys and the screens both exist.

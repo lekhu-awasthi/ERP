@@ -19,16 +19,38 @@ namespace ErpApp.Application.Imports;
 /// returning <see cref="ImportRowPlan.Provisional"/> -- a plan that deliberately cannot be
 /// executed, so the distinction can never be lost by a later caller sending one.</para>
 /// </summary>
-public sealed record ImportRowContext(Guid OrganizationId, ImportMode Mode, IReadOnlySet<string> PendingKeys)
+/// <param name="ImportJobId">The run itself, so a row can record which upload produced it. Phase 55
+/// is the first importer whose rows want that: a bank statement has no natural key, so a file
+/// uploaded twice cannot be detected, and the answer is to make the whole upload one thing to
+/// delete rather than to invent a key that is not there.</param>
+/// <param name="BankAccountId">The cash-and-bank account a <c>BankStatement</c> run imports into,
+/// and null for every other entity type -- see <c>ImportJob.BankAccountId</c> for why a statement
+/// row's account is per-run context rather than a column repeated on every row.</param>
+public sealed record ImportRowContext(
+    Guid OrganizationId,
+    ImportMode Mode,
+    IReadOnlySet<string> PendingKeys,
+    Guid ImportJobId,
+    Guid? BankAccountId)
 {
     /// <summary>The apply pass: no keys are pending, because the sequencer already created them.</summary>
-    public static ImportRowContext ForApply(Guid organizationId, ImportMode mode) =>
-        new(organizationId, mode, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+    public static ImportRowContext ForApply(
+        Guid organizationId, ImportMode mode, Guid importJobId, Guid? bankAccountId) =>
+        new(organizationId, mode, new HashSet<string>(StringComparer.OrdinalIgnoreCase), importJobId, bankAccountId);
 
     /// <summary>The dry run: <paramref name="pendingKeys"/> is every key this file would create.</summary>
     public static ImportRowContext ForValidation(
-        Guid organizationId, ImportMode mode, IEnumerable<string> pendingKeys) =>
-        new(organizationId, mode, new HashSet<string>(pendingKeys, StringComparer.OrdinalIgnoreCase));
+        Guid organizationId,
+        ImportMode mode,
+        IEnumerable<string> pendingKeys,
+        Guid importJobId,
+        Guid? bankAccountId) =>
+        new(
+            organizationId,
+            mode,
+            new HashSet<string>(pendingKeys, StringComparer.OrdinalIgnoreCase),
+            importJobId,
+            bankAccountId);
 
     /// <summary>True when this file creates <paramref name="key"/> itself and has not done so yet.</summary>
     public bool WillCreate(string key) => PendingKeys.Contains(key);

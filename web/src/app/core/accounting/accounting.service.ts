@@ -16,6 +16,7 @@ import {
   VoidJournalVoucherResult,
   BalanceSheetDto,
   BankAccountDto,
+  BankStatementLineDto,
   CashFlowSummaryDto,
   CashTransfer,
   CashTransferDetail,
@@ -265,6 +266,46 @@ export class AccountingService {
       withCredentials: true,
       params,
     });
+  }
+
+  /**
+   * Phase 55 -- one account's imported statement. The account is in the route rather than in a
+   * filter: a statement without an account is meaningless, and the reference product offers no
+   * all-accounts view of one either.
+   */
+  listBankStatementLines(
+    organizationId: string,
+    bankAccountId: string,
+    page = 1,
+    pageSize = 50,
+    options?: ListQueryOptions,
+  ): Observable<PagedResult<BankStatementLineDto>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
+    return this.http.get<PagedResult<BankStatementLineDto>>(
+      `${this.baseUrl(organizationId)}/bank-accounts/${bankAccountId}/statement-lines`,
+      { withCredentials: true, params },
+    );
+  }
+
+  /**
+   * A POST rather than a DELETE because the body carries a list of ids, which is the reference
+   * product's own shape (`/bank-statements-delete`). Exactly one of `lineIds` and `importJobId` is
+   * supplied -- the second is "undo that upload", which is the answer to a file imported twice
+   * (a bank statement has no natural key, so nothing could have refused the second one).
+   */
+  deleteBankStatementLines(
+    organizationId: string,
+    bankAccountId: string,
+    selector: { lineIds: readonly string[] } | { importJobId: string },
+  ): Observable<{ deletedCount: number }> {
+    return this.http.post<{ deletedCount: number }>(
+      `${this.baseUrl(organizationId)}/bank-accounts/${bankAccountId}/statement-lines/delete`,
+      'lineIds' in selector
+        ? { lineIds: selector.lineIds, importJobId: null }
+        : { lineIds: null, importJobId: selector.importJobId },
+      { withCredentials: true },
+    );
   }
 
   listAccountOpeningBalances(

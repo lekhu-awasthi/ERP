@@ -96,7 +96,8 @@ public class ImportJobTests
         "storage-key",
         "products.xlsx",
         Guid.NewGuid(),
-        Now);
+        Now,
+        bankAccountId: null);
 }
 
 public class ImportJobRowTests

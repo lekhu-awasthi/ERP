@@ -992,4 +992,37 @@ public static class PermissionKeys
     // There is deliberately no administrative key for reading another user's tray -- nothing in the
     // product needs it, and adding one would make a private setting a reporting surface.
     public const string UserPreferenceManage = "Platform.UserPreference.Manage";
+
+    // Phase 55 (bank statement import) -- derived, not defaulted, and the derivation starts from
+    // what the reference product does: bank reconciliation carries no keys of its own beyond
+    // bank-reconciliation-export and rides bank-view / bank-edit / bank-full-access, with the
+    // Import Statement screen gated on bank-edit specifically (read live off its own JSX,
+    // 2026-09-21). So the shape is a View/Manage pair, not the View/Create/Edit/Approve/Void shape
+    // of a document -- a statement line has no lifecycle to gate.
+    //
+    // It is NOT folded into BankAccountView. That key is on the bank-account list and its live
+    // balances; a statement line is a different body of data with a different sensitivity, and a
+    // tenant that wants a bookkeeper reconciling without seeing every account's balance (or the
+    // reverse) cannot express that if the two share a key. Nor does the import ride AccountManage
+    // the way creating a bank account does: AccountManage is "may edit the chart of accounts",
+    // which is emphatically not the same permission as "may load this month's bank statement".
+    //
+    // Both are Admin+Member, at the same bar as ChequeView/ChequeManage (phase 17), and for the
+    // reason recorded there: this is routine daily-use working data, not a flat per-transaction
+    // register. The Admin-only argument this file applies to registers exposing PAN and contact
+    // identity does not reach here -- a statement line carries the bank's own narration about the
+    // tenant's own account, no counterparty identity the tenant does not already hold, and a
+    // Member who cannot open it cannot do the bookkeeping the feature exists for.
+    //
+    // Neither key can be granted per location, and that is not an omission: Account carries no
+    // LocationId in this codebase, so a cash-and-bank account is not location-scoped and phase
+    // 32b's per-location scope has nothing to bind to. (The phase-55 kickoff asserted the
+    // opposite; it is wrong, and the check is one grep.)
+    //
+    // Importing also requires ImportJobManage, because it goes through the ordinary ImportJob
+    // pipeline -- and the two are genuinely both needed: ImportJobManage to enqueue a run, and
+    // BankStatementManage re-checked per row by AuthorizationBehavior as the runner sends each
+    // create command under the initiating user's identity (phase 21a).
+    public const string BankStatementView = "Accounting.BankStatement.View";
+    public const string BankStatementManage = "Accounting.BankStatement.Manage";
 }

@@ -9,7 +9,10 @@ import {
   ExportJobSummary,
 } from '../../../core/exports/export.models';
 import { ExportService } from '../../../core/exports/export.service';
+import { AccountingService } from '../../../core/accounting/accounting.service';
+import { BankAccountDto } from '../../../core/accounting/accounting.models';
 import {
+  ACCOUNT_SCOPED_ENTITY_TYPES,
   CREATE_ONLY_ENTITY_TYPES,
   ImportEntityType,
   ImportJobRow,
@@ -61,6 +64,7 @@ export class ImportPage implements OnDestroy {
   private static readonly PollIntervalMs = 2000;
 
   private readonly route = inject(ActivatedRoute);
+  private readonly accountingService = inject(AccountingService);
   private readonly importService = inject(ImportService);
   private readonly exportService = inject(ExportService);
 
@@ -111,6 +115,10 @@ export class ImportPage implements OnDestroy {
     { value: 'AccountGroup', label: 'Account Group' },
     { value: 'ProductAttributePool', label: 'Product Attributes Used' },
     { value: 'ProductVariant', label: 'Product Variant' },
+    // Phase 55. Last in the list because it is the only one that needs a second choice made
+    // before the file means anything, and because its own door is the bank account's Statement
+    // screen -- this entry is what that button lands on.
+    { value: 'BankStatement', label: 'Bank Statement' },
   ];
 
   /**
@@ -142,11 +150,56 @@ export class ImportPage implements OnDestroy {
 
   protected readonly confirmingJobId = signal<string | null>(null);
 
+  /**
+   * Phase 55 -- the cash-and-bank account a Bank Statement upload belongs to.
+   *
+   * Empty for every other upload type, and the service omits the parameter when it is empty: the
+   * server refuses an account on any other type, which is the half of the rule that would rot
+   * otherwise (a silently-accepted-and-ignored account is phase 43's shape).
+   */
+  protected readonly bankAccountId = signal('');
+  protected readonly bankAccounts = signal<BankAccountDto[]>([]);
+
+  protected readonly needsBankAccount = computed(() =>
+    ACCOUNT_SCOPED_ENTITY_TYPES.includes(this.entityType()),
+  );
+
   private selectedFile: File | null = null;
   private pollHandle: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
+    // Phase 55 -- the Statement screen's Import button lands here with both choices already made,
+    // so the user does not re-pick the account they were already looking at. Read from the
+    // snapshot because this route is entered afresh each time; there is no in-place navigation
+    // between two different preselections.
+    const query = this.route.snapshot.queryParamMap;
+    const requestedType = query.get('entityType');
+
+    if (requestedType && this.entityTypes.some((option) => option.value === requestedType)) {
+      this.entityType.set(requestedType as ImportEntityType);
+
+      if (this.isCreateOnly(this.entityType())) {
+        this.mode.set('CreateNew');
+      }
+    }
+
+    if (this.needsBankAccount()) {
+      this.bankAccountId.set(query.get('bankAccountId') ?? '');
+    }
+
+    this.loadBankAccounts();
     this.load();
+  }
+
+  /**
+   * Loaded once rather than when Bank Statement is chosen: the list is small, the request is
+   * cheap, and a select that populates asynchronously *after* the user has picked its type is the
+   * kind of flicker a `computed()` over a lazily-created signal turns into NG0600 (phase 35a).
+   */
+  private loadBankAccounts(): void {
+    this.accountingService.listBankAccounts(this.organizationId, true, 1, 200).subscribe({
+      next: (result) => this.bankAccounts.set(result.items),
+    });
   }
 
   ngOnDestroy(): void {
@@ -155,6 +208,16 @@ export class ImportPage implements OnDestroy {
 
   protected onEntityTypeChange(value: string): void {
     this.entityType.set(value as ImportEntityType);
+
+    // Switching away clears the account rather than leaving it set and unsent: the two would then
+    // disagree about what this screen is about to do, and the one the user can see would be wrong.
+    if (!this.needsBankAccount()) {
+      this.bankAccountId.set('');
+    }
+  }
+
+  protected onBankAccountChange(value: string): void {
+    this.bankAccountId.set(value);
   }
 
   protected onModeChange(value: string): void {
@@ -214,6 +277,13 @@ export class ImportPage implements OnDestroy {
       return;
     }
 
+    // Caught here as well as by the server, because the server's 400 would arrive after the file
+    // has been read and uploaded -- a slow way to be told about a select two inches away.
+    if (this.needsBankAccount() && !this.bankAccountId()) {
+      this.errorMessage.set('Choose the bank account this statement belongs to.');
+      return;
+    }
+
     this.uploading.set(true);
     this.errorMessage.set(null);
 
@@ -224,6 +294,7 @@ export class ImportPage implements OnDestroy {
         this.mode(),
         this.selectedFile,
         this.reviewBeforeApply(),
+        this.needsBankAccount() ? this.bankAccountId() : null,
       )
       .subscribe({
         next: () => {

@@ -63,6 +63,34 @@
         </div>
       </div>
 
+      <!-- Phase 55 -- a bank statement row does not name its own account, so the account is the
+           one piece of context an import run carries outside its rows. Rendered only for the
+           upload type that needs it; the server refuses it on every other type. -->
+      @if (needsBankAccount()) {
+        <div class="row g-3 align-items-end mt-1">
+          <div class="col-12 col-md-4">
+            <label class="form-label small fw-semibold" for="bankAccountId">Bank account</label>
+            <!-- [selected] per option, never [value] on the select -- CLAUDE.md's select gotcha. -->
+            <select
+              id="bankAccountId"
+              class="form-select"
+              (change)="onBankAccountChange($any($event.target).value)"
+            >
+              <option value="" [selected]="bankAccountId() === ''">Choose an account…</option>
+              @for (account of bankAccounts(); track account.id) {
+                <option [value]="account.id" [selected]="account.id === bankAccountId()">
+                  {{ account.name }}{{ account.accountNumber ? ' · ' + account.accountNumber : '' }}
+                </option>
+              }
+            </select>
+            <div class="form-text">
+              Every row in the file is imported against this account. Nothing is posted to the
+              General Ledger.
+            </div>
+          </div>
+        </div>
+      }
+
       <hr class="my-4" />
 
       <h6 class="fw-bold text-dark mb-3">Upload your file</h6>

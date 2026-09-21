@@ -128,6 +128,8 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
 
     public DbSet<Cheque> Cheques => Set<Cheque>();
 
+    public DbSet<BankStatementLine> BankStatementLines => Set<BankStatementLine>();
+
     public DbSet<TdsType> TdsTypes => Set<TdsType>();
 
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
@@ -272,6 +274,15 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<DebitNoteLine>().Ignore(x => x.PrimaryQuantity);
         modelBuilder.Entity<WarehouseTransferLine>().Ignore(x => x.PrimaryQuantity);
         modelBuilder.Entity<InventoryAdjustmentLine>().Ignore(x => x.PrimaryQuantity);
+
+        // Phase 55 -- BankStatementLine.Amount is a StatementAmount, which the real
+        // BankStatementLineConfiguration converts to one signed decimal. Restated here for the
+        // same reason as everything else in this method: without it EF sees a struct with several
+        // get-only properties and maps it as a complex type, so the model builds and every
+        // assertion about an amount reads a column that is not the one production writes.
+        modelBuilder.Entity<BankStatementLine>()
+            .Property(x => x.Amount)
+            .HasConversion(v => v.Signed, v => StatementAmount.FromSigned(v));
 
         // ApplicableDocumentTypes needs the same delimited-string conversion as the real
         // CustomFieldDefinitionConfiguration (Infrastructure) -- IEntityTypeConfiguration classes

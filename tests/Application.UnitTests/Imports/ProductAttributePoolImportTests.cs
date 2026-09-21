@@ -213,7 +213,7 @@ public class ProductAttributePoolImportTests
     {
         var command = new ErpApp.Application.Imports.Commands.CreateImportJob.CreateImportJobCommand(
             Guid.NewGuid(), ImportEntityType.ProductAttributePool, ImportMode.UpdateExisting,
-            "pool.xlsx", 1024, Stream.Null);
+            "pool.xlsx", 1024, Stream.Null, BankAccountId: null);
 
         var result = new ErpApp.Application.Imports.Commands.CreateImportJob.CreateImportJobCommandValidator()
             .Validate(command);

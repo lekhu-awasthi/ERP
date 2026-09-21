@@ -3484,3 +3484,82 @@ Same family as phase 34a's lazy-`.*?`-spanning-the-instances-between-two-anchors
 
 The tell was that the scan count parsed correctly while the reads did not: when one field of a line
 parses and its neighbour returns a constant, suspect the pattern, not the data.
+
+## Phase 55 — bank statement import
+
+### A screen glanced at is a screen mis-recorded
+
+Phase 53 opened `/config/import-statement`, saw `POST ENTRIES` over a
+`Total rows / Valid / Errors` counter, and wrote it down as the reference product's bank statement
+importer with "a stale Delivery Note column filter row leaking in from a sibling screen". Every
+part of that was wrong. The screen is a **generic CSV staging editor**; its three column sets are
+hardcoded constants for Delivery Note, Goods Received Note and Inventory Adjustment; the route takes
+`?id=&collection=` and renders the first set when no `collection` is given, so the Delivery Note row
+is the *default* rather than stale state; and the counter is an `ant-radio-group`, i.e. a filter.
+"Statement" there means *statement of rows*.
+
+What settled it was not another look at the screen but the client's **endpoint map** — phase 53's
+own "a route is not a feature" applied one level down. A screen is not a feature either; the call it
+makes is the check.
+
+### "It resolves into no command" is not a reason to leave the import machinery
+
+The kickoff's central design question was what phase 38's `PlanAsync` does when a row resolves into
+no command — a raw row whose only destination is a table. Phase 21c had already answered it:
+`MigratedSalesRegisterEntry` is exactly that shape and has had an ordinary create command since.
+`ImportRowPlan` requires that a command **exist before it is sent**, which is the mechanism making
+the dry run and the apply pass share one resolution; it requires nothing about what the command then
+does. Phase 38's landed-cost precedent for the other answer turns on something specific and absent
+here: its template is generated from the document in front of you, nothing is written, and there is
+nothing to resume.
+
+### Per-run context is not per-row data
+
+A bank statement row does not name its own account, so `ImportJob` carries a nullable
+`BankAccountId` — required for one entity type and refused for the other nine. A column per row
+would store one value 5,000 times and admit a file whose rows disagree. A field meaningful to one of
+ten enum members is a smell paid for with a rule asserted in **both** directions and driven from the
+enum, because the *refusing* half is what rots: an account silently accepted and ignored on a
+Product import reads to a client as accepted (phase 43).
+
+### Two columns of which exactly one may be non-zero is redundant state guarded by a rule
+
+The vendor stores `dr_amount` and `cr_amount` and enforces that one is zero. `StatementAmount`
+stores one signed decimal, because `ProductBatch` (51) and `PrimaryQuantity` (52) already ruled
+twice against a second column able to contradict the first. Diverge from the schema, match the
+behaviour exactly, and record it — phase 52's trade.
+
+### A value type cannot close its own `default(T)` hole
+
+C# hands every caller `default(T)` however private the constructor is, and a default
+`StatementAmount` is a zero — which the EF value converter rejected on the way **out** of the
+database, so the symptom was *a list that would not load* rather than a bad write. Only the
+aggregate can refuse it. It surfaced because a sweep guard builds entities by reflection, which no
+hand-written test does.
+
+### Teach the guard rather than exempt the new screen
+
+`ListBankStatementLinesQuery` is the first *parent-scoped* list to reach `SortSweepGuardTests`, and
+it broke the harness twice: a required parent id defaulted to `Guid.Empty` (so the validator
+rejected the query and the guard read that as "rejects 'newest'"), and the harness assumed every
+handler takes `(db, currentUser)`. An exemption on a brand-new screen is how a seam stays empty for
+six phases — phases 39, 40 and 50 each said so in a different key. Teaching it is also what found
+the `default(T)` hole.
+
+### An index nobody measured is not added, but the condition that would justify it is written down
+
+`TenantIndexConvention` derives `(OrganizationId, Date)` and `(OrganizationId, CreatedAt DESC)` from
+the `Date` property alone, which is what makes both of `ISortableQuery`'s orderings index-backed.
+The obvious third — account-leading, since the list is only ever read one account at a time — is
+left out, because phase 34c's rule is that an index is added against a number and changes the plan
+for every other path, and phase 50 restated it after a reasoned-about index took a sibling tab from
+2,143 logical reads to 83,308. The re-entry condition lives in the configuration: a tenant with
+several accounts and enough history for the first page to cost more than the count.
+
+### A bank statement has no natural key, so the answer to a duplicate upload is an undo
+
+Two identical ATM withdrawals on one day are two real lines, so any uniqueness rule wide enough to
+catch a doubled file also rejects genuine data — phase 52's "a factor below one is ordinary" in
+another key. The reference product accepts duplicates silently and keeps a `batch_code` it never
+offers as a delete unit. Every line here carries the `ImportJobId` that created it instead, so the
+mistake is one action to take back.

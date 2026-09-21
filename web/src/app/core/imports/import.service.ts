@@ -22,22 +22,35 @@ import {
 export class ImportService {
   private readonly http = inject(HttpClient);
 
+  /**
+   * @param bankAccountId Phase 55 -- required for 'BankStatement' and refused for every other
+   * type. A statement row does not name its own account, so the account is context for the run.
+   */
   createImportJob(
     organizationId: string,
     entityType: ImportEntityType,
     mode: ImportMode,
     file: File,
     reviewBeforeApply = true,
+    bankAccountId: string | null = null,
   ): Observable<ImportJobSummary> {
     const form = new FormData();
     form.append('file', file);
 
     // entityType, mode and reviewBeforeApply ride the query string, not the form body: the endpoint
     // binds a single IFormFile plus route/query parameters, which is what makes ASP.NET Core treat
-    // it as a multipart endpoint at all.
+    // it as a multipart endpoint at all. bankAccountId is a simple type and binds the same way --
+    // it is an *array* parameter that would silently arrive null from a query string (phase 38).
+    const params: Record<string, string> = {
+      entityType,
+      mode,
+      reviewBeforeApply: String(reviewBeforeApply),
+    };
+    if (bankAccountId) params['bankAccountId'] = bankAccountId;
+
     return this.http.post<ImportJobSummary>(`${this.baseUrl(organizationId)}/import-jobs`, form, {
       withCredentials: true,
-      params: { entityType, mode, reviewBeforeApply: String(reviewBeforeApply) },
+      params,
     });
   }
 

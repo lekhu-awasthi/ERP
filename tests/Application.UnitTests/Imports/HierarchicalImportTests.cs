@@ -229,7 +229,7 @@ public class HierarchicalImportTests
     public void Update_mode_is_rejected_for_the_create_only_types(ImportEntityType entityType)
     {
         var command = new ErpApp.Application.Imports.Commands.CreateImportJob.CreateImportJobCommand(
-            Guid.NewGuid(), entityType, ImportMode.UpdateExisting, "rows.xlsx", 1024, Stream.Null);
+            Guid.NewGuid(), entityType, ImportMode.UpdateExisting, "rows.xlsx", 1024, Stream.Null, BankAccountId: null);
 
         var result = new ErpApp.Application.Imports.Commands.CreateImportJob.CreateImportJobCommandValidator()
             .Validate(command);

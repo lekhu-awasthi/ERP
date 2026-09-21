@@ -2,6 +2,7 @@ using ErpApp.Api.Reports;
 using ErpApp.Application.Accounting.Commands.ApproveCashTransfer;
 using ErpApp.Application.Accounting.Commands.ApproveJournalVoucher;
 using ErpApp.Application.Accounting.Commands.CreateAccount;
+using ErpApp.Application.Accounting.Commands.DeleteBankStatementLines;
 using ErpApp.Application.Accounting.Commands.CreateAccountGroup;
 using ErpApp.Application.Accounting.Commands.CreateCashTransfer;
 using ErpApp.Application.Accounting.Commands.CreateJournalVoucher;
@@ -24,6 +25,7 @@ using ErpApp.Application.Accounting.Queries.IncomeStatement;
 using ErpApp.Application.Accounting.Queries.JournalReport;
 using ErpApp.Application.Accounting.Queries.ListAccounts;
 using ErpApp.Application.Accounting.Queries.ListBankAccounts;
+using ErpApp.Application.Accounting.Queries.ListBankStatementLines;
 using ErpApp.Application.Accounting.Queries.ListCashTransfers;
 using ErpApp.Application.Accounting.Queries.ListJournalVouchers;
 using ErpApp.Application.Accounting.Queries.ListOpeningBalanceLines;
@@ -141,7 +143,45 @@ public static class AccountingEndpoints
                 ct);
             return Results.Ok(result);
         });
+
+        // Phase 55 -- the imported statement, always under its own account. The reference product
+        // reaches this only as /accounting/bank-accounts/:id/bank-statement and offers no
+        // all-accounts view; the route says the same thing, so a caller cannot ask a question the
+        // screen has no answer for.
+        group.MapGet("/bank-accounts/{bankAccountId:guid}/statement-lines", async (
+            Guid organizationId, Guid bankAccountId, int? page, int? pageSize, string? search,
+            DateOnly? fromDate, DateOnly? toDate, string? sort, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListBankStatementLinesQuery(
+                    organizationId, bankAccountId, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize,
+                    search, fromDate, toDate, sort),
+                ct);
+            return Results.Ok(result);
+        });
+
+        // A POST, not a DELETE, for the same reason the reference product's own
+        // /bank-statements-delete is one: the body carries a list of ids, and a DELETE with a body
+        // is a shape proxies and clients disagree about. It is not an array on a query string --
+        // phase 38's bug is that a Minimal API binds an array parameter from the *body* on a POST,
+        // so an id list belongs in a request record where the binding is unambiguous.
+        group.MapPost("/bank-accounts/{bankAccountId:guid}/statement-lines/delete", async (
+            Guid organizationId, Guid bankAccountId, DeleteStatementLinesRequest request,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new DeleteBankStatementLinesCommand(
+                    organizationId, bankAccountId, request.LineIds, request.ImportJobId),
+                ct);
+            return Results.Ok(result);
+        });
     }
+
+    /// <param name="LineIds">The rows to remove. Exactly one of this and
+    /// <paramref name="ImportJobId"/> is supplied -- the validator says so.</param>
+    /// <param name="ImportJobId">Undo a whole upload, which is the answer to a file imported twice
+    /// (a bank statement has no natural key, so nothing could have refused the second upload).</param>
+    private sealed record DeleteStatementLinesRequest(IReadOnlyList<Guid>? LineIds, Guid? ImportJobId);
 
     private static void MapJournalVoucherEndpoints(RouteGroupBuilder group)
     {

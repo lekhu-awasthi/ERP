@@ -36,6 +36,10 @@ public sealed record CreateImportJobCommand(
     string FileName,
     long FileSizeBytes,
     Stream Content,
+    // Phase 55 -- the cash-and-bank account a BankStatement run imports into, and null for every
+    // other type. Required (not trailing-optional) for the reason ImportJob.Create's parameter is:
+    // an optional parameter ends a sweep, and this one has to reach every caller.
+    Guid? BankAccountId,
     bool ReviewBeforeApply = true)
     : IRequest<ImportJobSummary>, IRequirePermission, IOrganizationScoped
 {

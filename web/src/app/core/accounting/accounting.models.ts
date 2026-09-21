@@ -111,6 +111,32 @@ export interface BankAccountDto {
   balance: number;
 }
 
+// --- Phase 55: Bank statement lines ---
+
+/**
+ * One imported bank statement line.
+ *
+ * `deposit` and `withdrawal` are the display pair the grid renders, and exactly one of them is
+ * ever non-zero; `signedAmount` is the single value the server actually stores (positive into the
+ * account, negative out). The server sends all three because the alternative is for every screen
+ * to re-derive the direction, which is the sign bug `StatementAmount` exists to prevent.
+ *
+ * There is deliberately no `status` field. The reference product's Reconciled/Pending filter
+ * renders off whether the line has a reconciliation, which phase 56 adds along with the
+ * reconciliation itself.
+ */
+export interface BankStatementLineDto {
+  id: string;
+  date: string;
+  description: string | null;
+  deposit: number;
+  withdrawal: number;
+  signedAmount: number;
+  /** The upload that produced this line, so a whole import can be undone in one action. */
+  importJobId: string | null;
+  createdAt: string;
+}
+
 // --- Phase 17: Opening Balances (Account tab) ---
 
 export interface AccountOpeningBalanceDto {

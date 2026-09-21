@@ -738,6 +738,14 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminProductSerialReportViewId = Guid.Parse("00000000-0000-0000-0002-0000000001c5");
     private static readonly Guid MemberProductSerialReportViewId = Guid.Parse("00000000-0000-0000-0002-0000000001c6");
 
+    // Phase 55 -- the bank statement import. Both Admin+Member; the derivation is recorded on the
+    // constants in PermissionKeys.cs, where the reasoning belongs. Continuing from 01c6, the
+    // highest id in the whole file.
+    private static readonly Guid AdminBankStatementViewId = Guid.Parse("00000000-0000-0000-0002-0000000001c7");
+    private static readonly Guid MemberBankStatementViewId = Guid.Parse("00000000-0000-0000-0002-0000000001c8");
+    private static readonly Guid AdminBankStatementManageId = Guid.Parse("00000000-0000-0000-0002-0000000001c9");
+    private static readonly Guid MemberBankStatementManageId = Guid.Parse("00000000-0000-0000-0002-0000000001ca");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1305,6 +1313,10 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminProductBatchReportViewId, Role.AdminId, PermissionKeys.ProductBatchReportView, true),
             RolePermission.Create(MemberProductBatchReportViewId, Role.MemberId, PermissionKeys.ProductBatchReportView, true),
             RolePermission.Create(AdminProductSerialReportViewId, Role.AdminId, PermissionKeys.ProductSerialReportView, true),
-            RolePermission.Create(MemberProductSerialReportViewId, Role.MemberId, PermissionKeys.ProductSerialReportView, true));
+            RolePermission.Create(MemberProductSerialReportViewId, Role.MemberId, PermissionKeys.ProductSerialReportView, true),
+            RolePermission.Create(AdminBankStatementViewId, Role.AdminId, PermissionKeys.BankStatementView, true),
+            RolePermission.Create(MemberBankStatementViewId, Role.MemberId, PermissionKeys.BankStatementView, true),
+            RolePermission.Create(AdminBankStatementManageId, Role.AdminId, PermissionKeys.BankStatementManage, true),
+            RolePermission.Create(MemberBankStatementManageId, Role.MemberId, PermissionKeys.BankStatementManage, true));
     }
 }

@@ -31,6 +31,12 @@ public sealed class ImportJobConfiguration : IEntityTypeConfiguration<ImportJob>
         // hand-written backfill while phase 31's DueDate did.)
         builder.Property(x => x.ReviewBeforeApply).HasDefaultValue(false).IsRequired();
 
+        // Phase 55 -- nullable, and null for every entity type but BankStatement. No foreign key
+        // to Account: CreateImportJobCommandHandler checks the account exists and is a cash or
+        // bank account before the run starts, and a cascade from the chart of accounts into a
+        // finished job's audit trail would delete the record of what was imported.
+        builder.Property(x => x.BankAccountId);
+
         // Note what is NOT here: a rowversion / concurrency token. One was tried and removed --
         // see ImportJob.HeartbeatAt's remarks for the cancel-versus-progress conflict it caused and
         // why ImportJobRow's unique index is the real guarantee.

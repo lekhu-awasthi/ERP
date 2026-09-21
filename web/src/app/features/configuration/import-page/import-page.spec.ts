@@ -73,7 +73,15 @@ describe('ImportPage (export half)', () => {
         { provide: ImportService, useValue: new ImportServiceStub() },
         {
           provide: ActivatedRoute,
-          useValue: { snapshot: { paramMap: { get: () => organizationId } } },
+          // queryParamMap is part of the real ActivatedRoute and the page reads it (phase 55's
+          // preselection), so the double carries it rather than the page defending against a
+          // stub that is missing half of what it doubles.
+          useValue: {
+            snapshot: {
+              paramMap: { get: () => organizationId },
+              queryParamMap: { get: () => null },
+            },
+          },
         },
       ],
     });

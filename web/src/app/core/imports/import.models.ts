@@ -27,7 +27,13 @@ export type ImportEntityType =
   | 'ProductVariant'
   // Phase 45 -- a product's "Attributes Used" pool, one row per (product, attribute, option). Also
   // not in the reference product's list; it is what makes 'ProductVariant' usable in bulk.
-  | 'ProductAttributePool';
+  | 'ProductAttributePool'
+  // Phase 55 -- one bank statement line per row, imported against one cash-and-bank account. Not
+  // in the reference product's Upload Type dropdown either: it puts statement import on the bank
+  // account itself, and so does this app (the Statement screen's Import button lands here with the
+  // type and the account already chosen). It rides the same ImportJob because the job is the same
+  // job -- phase 21c's reasoning for the migrated registers, a second time.
+  | 'BankStatement';
 
 /** The two upload types the Migration screen owns; the Import / Export screen owns the other three. */
 export const MIGRATION_ENTITY_TYPES: readonly ImportEntityType[] = [
@@ -35,6 +41,15 @@ export const MIGRATION_ENTITY_TYPES: readonly ImportEntityType[] = [
   'MigratedPurchaseRegister',
 ];
 
+/**
+ * The upload types the Import / Export screen owns -- its history list filters to these, so a type
+ * left out is a type whose uploads that screen does not show.
+ *
+ * Phase 55's 'BankStatement' is in the list even though its natural home is the bank account,
+ * because the Import screen is where the upload, the dry-run review and the per-row results
+ * actually happen: the Statement screen's Import button routes here with the type and the account
+ * already chosen. One implementation, two doors, and the doors agree.
+ */
 export const MASTER_DATA_ENTITY_TYPES: readonly ImportEntityType[] = [
   'Product',
   'Customer',
@@ -45,6 +60,7 @@ export const MASTER_DATA_ENTITY_TYPES: readonly ImportEntityType[] = [
   'ContactPersonnel',
   'ProductAttributePool',
   'ProductVariant',
+  'BankStatement',
 ];
 
 /**
@@ -60,7 +76,18 @@ export const CREATE_ONLY_ENTITY_TYPES: readonly ImportEntityType[] = [
   'AccountGroup',
   'ProductVariant',
   'ProductAttributePool',
+  // Phase 55 -- a statement line has no business key to update by. See its aggregate.
+  'BankStatement',
 ];
+
+/**
+ * Phase 55 -- the upload types that need a bank account chosen alongside the file.
+ *
+ * A list of one, written as a list because the server's rule is a list of one and both sides
+ * should be able to grow together; `BankStatementImportSweepGuardTests` asserts the server half in
+ * both directions.
+ */
+export const ACCOUNT_SCOPED_ENTITY_TYPES: readonly ImportEntityType[] = ['BankStatement'];
 
 export type ImportMode = 'CreateNew' | 'UpdateExisting';
 

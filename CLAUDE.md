@@ -86,6 +86,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 52: a unit on the document line (the line stores the unit **and the factor**, frozen; the ledger stays primary-unit). Before letting a catalogue value reach a posted document, or choosing where a sweep's compiler stops — `docs/phase-52-status.md`
 - Phase 53: re-planning by permission-key census (166 keys from the vendor's bundle; 20 of 22 document types ours, bank reconciliation the only gap). Before scoping a feature from a route, or planning a phase from a screen-by-screen read — `docs/phase-53-status.md`
 - Phase 54: phase 52's four deferred line types settled (Inventory Adjustment carries a unit; the three manufacturing types carry a display, not an input), and both measurement debts paid. Before concluding from a screen you could only open empty, or modelling a field from someone else's payload — `docs/phase-54-status.md`
+- Phase 55: bank statement import (a tenth `ImportEntityType`, one signed `StatementAmount`, the account as per-run context on `ImportJob`). Before scoping a phase from a screen an earlier pass only glanced at, or exempting a new screen from a sweep guard — `docs/phase-55-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -184,6 +185,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A store-side aggregate (`GroupBy...Count()`) must run after the `SaveChangesAsync` that persists what it counts; tracked-but-unsaved rows are invisible to it (phase-21a).
 - A Domain factory/mutator can stay `internal` only while its sole caller is in the Domain assembly (phase-7 bug #1).
 - Never name a Domain type after a common BCL word (`Task` → `WorkTask`) (phase-13).
+- A value type cannot refuse its own `default(T)` — C# hands every caller one whatever the constructor's accessibility — so the **aggregate** must; a default `StatementAmount` failed in the EF converter on *read*, i.e. as a list that would not load (phase-55).
+- Two columns of which exactly one may be non-zero is redundant state guarded by a rule: store the signed value (`StatementAmount`), as `ProductBatch` and `PrimaryQuantity` already ruled twice (phase-55).
 - `stopPropagation()` on a control inside an `<a routerLink>` *causes* navigation — it suppresses the listener that would have called `preventDefault()`. Click needs both; mousedown needs neither (phase-45).
 - Guard the add and the edit, never the **delete**: a product given secondary units and promoted to a variant parent afterwards would otherwise hold rows that are invisible and unremovable (phase-45).
 - A sweep-guard allow-list reason can be the argument for the opposite conclusion: "a secondary unit on a variant parent reconciles against nothing" is why a parent must be *refused* one (phase-45).
@@ -260,6 +263,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A dry run writes nothing, so a hierarchical importer's ordinary name lookup cannot see a parent a later row creates; pass the in-file key set down, or the review reports correct files as broken (phase-38's `ImportRowContext.PendingKeys`).
 - An importer whose row *adds* to a set its command replaces wholesale re-reads and sends the union per row; the dry run plans each row from the same start, which is right — it checks rows, not totals (phase-45).
 - A template generated **from the document in front of you** (the landed-cost grid: one column per tenant cost term, one row per bill line) is neither an `ImportTemplateDefinition` nor an `ImportJob` — nothing is written and there is nothing to resume (phase-38).
+- …but "the row resolves into no command" is **not** that case: phase 21c's lifecycle-free register row has an ordinary create command, and `ImportRowPlan` only asks that the command exist before it is sent (phase-55).
+- Context for the **run** is not data on the row: a statement row names no account, so `ImportJob.BankAccountId` is required for one entity type and refused for the other nine — the refusing half is the one that rots (phase-55).
+- A bank statement has no natural key (two identical ATM withdrawals in a day are two real rows), so a duplicate upload cannot be refused; carry the `ImportJobId` on each row and make the whole upload one undo (phase-55).
 
 **Background jobs**
 - A singleton `BackgroundService` cannot inject scoped services; take `IServiceScopeFactory`, read options via `IOptionsMonitor`, and never let a tick's exception escape `ExecuteAsync` (`AlertSchedulerHostedService`).
@@ -361,6 +367,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - …and the half with a database runs against **SQL Server**, not InMemory: `search-cases.json`'s subject is case-insensitivity, which is the collation's and not the expression's (phase-47).
 - A source-scanning guard cannot tell a comment from markup — five templates failed the nesting check on their own explanatory comments. Strip comments once, and assert both that they are gone and that nothing else is (phase-47).
 - Derive the N in "sweep the N screens that qualify": the roadmap's 18 document lists were 16 screens over 15 queries, and the single exemption was an index gap nobody had noticed (phase-47).
+- When a new screen breaks a sweep guard's harness, teach the harness rather than exempt the screen — an exemption on a *brand-new* screen is how a seam stays empty for six phases, and teaching it is what found phase 55's `default(T)` hole (phase-55).
 - A guard whose predicate names a **type** silently stops covering anything solved before that type existed: `SearchSweepGuardTests` recognised only `PagedResult<T>`, so the two list queries that predate it were invisible — and were exactly the two the phase had to fix (phase-39).
 - …and a predicate naming a **file extension** does the same: `a11y-sweep-guard`'s glob missed five inline-`template:` components for six phases. Widening it found nothing wrong, which is the honest result and not the same as never having looked (phase-40).
 - A guard that accepts two spellings on one side must accept both on the other: it recognised `[for]` and `[attr.for]` on a label but only `[id]` on a control, so a control naming itself `[attr.id]` read as unnamed (phase-40).
@@ -415,55 +422,59 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 - When a generator script emits Angular templates through `str.format`, interpolation braces need escaping in the *format string* but not in a substituted value — `{{{{ x }}}}` in a value ships literally and fails as NG5002 (phase-26b).
 - A benchmark against an empty tenant looks fast (20 ms p95, all 200); a harness must assert its target is populated before timing it (phase-34c).
 - A route is not a feature: the vendor ships `/sales/recurring-invoices` with full list chrome over an endpoint that 404s and a key that does not exist. Census its **permission keys**, not its screens (phase-53).
+- …and a **screen is not a feature either**: `/config/import-statement` is a generic CSV grid whose Delivery Note columns are its *default*, not stale state. Read the client's endpoint map, not the furniture (phase-55).
+- One screen 404ing does not make a feature unreachable: `/accounting/recon` takes its account from router state, while the six real routes take it from the URL — so phase 56's recorded start condition never existed (phase-55).
 
 ## Current status
 
-**Phases 0-54 are complete.** The v1 sequence (0-25), parity (26-34c), consolidation (35-41),
-completion (42-47) and the continuation phases (48-54) are all done; each phase's story is in its
+**Phases 0-55 are complete.** The v1 sequence (0-25), parity (26-34c), consolidation (35-41),
+completion (42-47) and the continuation phases (48-55) are all done; each phase's story is in its
 `docs/phase-N-status.md`, and every finished planning entry is archived in `docs/roadmap-history.md`.
 
-**Phase 54 closed phase 52's four deferred line types, and the answer split them three-to-one.**
-**Inventory Adjustment carries a unit** and now uses the same mechanism as phase 52's eight
-(`UnitId` + `ConversionFactor` frozen at Create/Update, `PrimaryQuantity` derived). **Bill of
-Materials, Production Order and Production Journal do not** — their Qty cell holds a *display
-element*, not a disabled control, and it stays one for a product carrying a secondary unit. Opening
-Stock has no line grid at all. Every refusal is now a **reading**, asserted in both directions in
-`UnitSweepGuardTests`, rather than the deferral phase 52 could only write.
+**Phase 55 shipped bank statement import, and its first act was to falsify its own premise.** The
+kickoff and the roadmap both named `/config/import-statement` as the reference product's statement
+importer. It is a **generic CSV staging editor** whose three hardcoded column sets are Delivery
+Note, Goods Received Note and Inventory Adjustment - "statement" there means *statement of rows* -
+and the Delivery Note filter row phase 53 recorded as "stale state" is its *default* column set.
+The real screen is `/accounting/bank-accounts/:id/import`, now read in full and probed with twelve
+files; the whole read is the phase-55 appendix in `docs/erp-module-scan.md`.
 
-**The kickoff's first decision dissolved when the screen was opened.** Phase 53 found
-`fg_measurement_unit_id` on an approved Production Order's *header* and called it phase 54's hardest
-question. The field is the product's primary unit id, stored by the vendor and never chosen by a
-user — Output Quantity renders static suffix text on all three forms, for every product. Modelling it
-would be phase 43's present-and-ignored shape. **BOM's `Qty/Unit` does not exist in this build**, so
-that question is deleted rather than carried. The method is the part worth keeping: an *empty* grid
-proves nothing when the control lives in a cell (phase 53 knew that), and a *row-present* grid still
-proves nothing when the control's disabled state looks exactly like a display element — it took a
-product with something to choose, which meant one deliberate, reverted write on the reference tenant.
+**Six decisions.** It is an **ordinary importer** - the kickoff's "a statement row resolves into no
+command" doubt does not survive phase 21c, whose lifecycle-free register row has had a create
+command since. The amount is **one signed `StatementAmount`**, not the vendor's `dr_amount`/
+`cr_amount` pair. **Status is derived and has no column**; phase 56 adds the foreign key it derives
+from. Deletion is **by row id plus an undo-this-import** the vendor does not offer, because a bank
+statement has no natural key and a duplicate upload cannot be refused. Two Admin+Member keys
+(`Accounting.BankStatement.View`/`.Manage`), derived from the `bank-edit` the vendor gates the
+screen on. **One template**, not the vendor's two.
 
-**Both outstanding measurement debts are paid, with numbers** (`tools/scale/comparison-phase54.md`).
-Phase 51's filtered serial index is **64x** on its own path (5 logical reads against 319) and leaves
-the three paths it did not target at **319 to the read** — the clean answer phase 34c's rule asks
-for. Phase 52's `.Include(SecondaryUnits)` costs **+377 reads (+6.8%)** on the 200-row picker page,
-and measuring it falsified its own comment: `MAX_PAGE_SIZE` is 200, not "a very large page". Both are
-kept. `tools/scale/seed-phase54.sql` adds the stock layers and secondary units the 34c dataset
-deliberately lacks; it writes no documents, so that tenant must not be used for a conservation claim.
+**The one new thing in the machinery**: a statement row does not name its own account, so the
+account is context for the **run** - `ImportJob.BankAccountId`, required for this type and refused
+for the other nine, asserted both ways and confirmed across the whole database (22 jobs of the
+other nine types, none naming an account). Two vendor defects were found by probing and
+deliberately not reproduced: its parser matches columns by **position** and ignores header text,
+and it stores a **negative Deposit** verbatim.
 
-**Next: phases 55-56**, in `docs/roadmap.md` under **Forward plan (55-56)**. 55 is the bank-statement
-importer (whose real question is what phase 38's machinery does when a row resolves into **no
-command**), 56 the two-pane N:M reconciliation matcher - **56's live read has a start condition**: a
-tenant holding a **Bank**-type account, since the screen takes its account from router state and
-neither tenant has one. The three standing "outside the sequence" items (the NVDA hour, the two
+**Phase 56 is unblocked, and the roadmap's reason for thinking otherwise was wrong.**
+`/accounting/recon` takes its account from router state, but the six real screens are
+`/accounting/bank-accounts/:id/{import,bank-statement,book-statement,manual-reconcile,matched}` and
+take it from the **URL**; the two-pane matcher renders fully on Cadehi's existing **Cash** account.
+No Bank-type account is needed. Also corrected: a bank account is **not** location-scoped here
+(`Account` has no `LocationId`), so phase 32b does not apply to these keys.
+
+**Next: phase 56**, in `docs/roadmap.md` under **Forward plan (56)** - the two-pane N:M
+reconciliation matcher. The three standing "outside the sequence" items (the NVDA hour, the two
 traceability reports' real columns, full-text search) keep their start conditions unchanged.
 
-Tests: Domain **703**, Application.UnitTests **1286** (+20), Infrastructure.UnitTests **12**,
-Api.IntegrationTests 30, Angular **591** (+6). `dotnet build` / `dotnet test` / `ng build` / `ng test`
-all clean, and `ng build` does not warn - phase 42's measured 680 kB initial-bundle budget is pinned
-by `build-budget.spec.ts`, and the bundle sits at **643.68 kB**. `Api.IntegrationTests` needs Docker
-Desktop running: without it the Testcontainers-backed tests fail in their constructors with
-`DockerEndpointAuthConfig` before any assertion, which reads like regressions and is not; it also
-fails nondeterministically under machine load and passes on re-run (phase 36/37) - the Angular suite
-did exactly that once in phase 52. `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
-check (phase-28), and `ng test` must be run from `web/` (phase-35a) on **Node 24**
+Tests: Domain **722** (+19), Application.UnitTests **1320** (+34), Infrastructure.UnitTests 12,
+Api.IntegrationTests 30, Angular **605** (+14). `dotnet build` / `dotnet test` / `ng build` /
+`ng test` all clean, and `ng build` does not warn - phase 42's measured 680 kB initial-bundle budget
+is pinned by `build-budget.spec.ts`, and the bundle sits at **643.85 kB**. `Api.IntegrationTests`
+needs Docker Desktop running: without it the Testcontainers-backed tests fail in their constructors
+with `DockerEndpointAuthConfig` before any assertion, which reads like regressions and is not; it
+also fails nondeterministically under machine load and passes on re-run (phase 36/37) - the Angular
+suite did exactly that once in phase 52. `tsc --noEmit` does not cover `web/src/app`; `ng build` is
+the check (phase-28), and `ng test` must be run from `web/` (phase-35a) on **Node 24**
 (`nvm use 24.11.0` - v16 dies with `availableParallelism is not a function`). When the subject is one
 screen's plan, the number to trust is `tools/scale/`, not the wall clock (phase-50).
 

@@ -27,6 +27,11 @@ public sealed class CreateImportJobCommandValidator : AbstractValidator<CreateIm
         ImportEntityType.AccountGroup,
         ImportEntityType.ProductVariant,
         ImportEntityType.ProductAttributePool,
+
+        // Phase 55: a bank statement line has no business key to update *by* -- no document
+        // number, no code, nothing a second file could name a row with. See
+        // BankStatementLineConfiguration for why it has no natural key at all.
+        ImportEntityType.BankStatement,
     ];
 
     public CreateImportJobCommandValidator()
@@ -54,5 +59,21 @@ public sealed class CreateImportJobCommandValidator : AbstractValidator<CreateIm
             .Equal(ImportMode.CreateNew)
             .When(x => CreateOnlyEntityTypes.Contains(x.EntityType))
             .WithMessage("This upload type can only create records, not update them. Choose Create New Records.");
+
+        // Phase 55 -- the one piece of per-run context any import type carries, required for the
+        // one type that needs it and refused for the other nine. Both directions matter: without
+        // the first the importer throws mid-run on a file the user cannot fix, and without the
+        // second an account silently attached to a Product import would read as accepted, which
+        // is phase 43's present-and-ignored shape. Asserted in both directions in
+        // BankStatementImportSweepGuardTests.
+        RuleFor(x => x.BankAccountId)
+            .NotNull()
+            .When(x => x.EntityType == ImportEntityType.BankStatement)
+            .WithMessage("Choose the bank account this statement belongs to.");
+
+        RuleFor(x => x.BankAccountId)
+            .Null()
+            .When(x => x.EntityType != ImportEntityType.BankStatement)
+            .WithMessage("Only a bank statement import names a bank account.");
     }
 }

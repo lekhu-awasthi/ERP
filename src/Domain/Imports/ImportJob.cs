@@ -118,6 +118,27 @@ public sealed class ImportJob
     /// whether a claim is the validate pass or the apply pass.</summary>
     public DateTimeOffset? ReviewConfirmedAt { get; private set; }
 
+    /// <summary>
+    /// Phase 55 -- the cash-and-bank <c>Account</c> a <see cref="ImportEntityType.BankStatement"/>
+    /// run imports into. Null for every other entity type.
+    ///
+    /// <para><b>Why a job carries this at all.</b> Every other importer's rows are
+    /// self-describing: a Product row names its own category, a Contact row its own group. A bank
+    /// statement row is <i>not</i> -- "01-09-2026, 1500, salary" says nothing about which account
+    /// received it, and the reference product accordingly takes the account from the route and
+    /// posts it beside the file (<c>account_id</c> on the multipart body, read live). So the
+    /// account is context for the run, not data on the row, and putting it in a column per row
+    /// would be storing one value 5,000 times and inviting a file whose rows disagree.</para>
+    ///
+    /// <para>A field meaningful to one of ten enum members is a smell, and the alternative -- a
+    /// second job table -- is the shape phase 21c already rejected when it put the two migrated
+    /// registers on this aggregate rather than beside it, for the same reason: the job, its row
+    /// ledger, its runner, its cancel, its heartbeat and its retention are all the same job. The
+    /// smell is paid for with a validator that requires this for BankStatement and refuses it for
+    /// everything else, asserted in both directions.</para>
+    /// </summary>
+    public Guid? BankAccountId { get; private set; }
+
     private ImportJob()
     {
     }
@@ -130,6 +151,12 @@ public sealed class ImportJob
         string fileName,
         Guid initiatedByUserId,
         DateTimeOffset now,
+        // Required, not optional-with-a-null-default, and deliberately so: an optional parameter
+        // ends a sweep in any language (phase 51), and phase 54 needed AddLine's new parameters to
+        // be required before the compiler would walk back through the third Void that had the bug.
+        // Making this required is what enumerates every place a job is created and forces each to
+        // say whether it has an account.
+        Guid? bankAccountId,
         bool reviewBeforeApply = false)
     {
         return new ImportJob
@@ -144,6 +171,7 @@ public sealed class ImportJob
             Status = ImportJobStatus.Queued,
             CreatedAt = now,
             ReviewBeforeApply = reviewBeforeApply,
+            BankAccountId = bankAccountId,
         };
     }
 

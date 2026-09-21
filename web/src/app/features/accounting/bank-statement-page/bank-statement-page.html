@@ -1,0 +1,137 @@
+<div class="container py-5" style="max-width: 900px;">
+  <app-list-chrome
+    [heading]="account() ? account()!.name + ' — Statement' : 'Bank Statement'"
+    description="What the bank says happened on this account. Importing a statement posts nothing to the General Ledger."
+    icon="bank"
+    [totalCount]="totalCount()"
+    [loading]="loading()"
+    [dateScoped]="true"
+    searchPlaceholder="Search the bank's narration…"
+    [sortOptions]="sortOptions"
+    [sort]="filter.sort()"
+    (sortChange)="onSort($event)"
+    (searchChange)="onSearch($event)"
+  >
+    <div listActions class="d-flex align-items-center gap-2 flex-wrap">
+      <a
+        class="btn btn-outline-secondary btn-sm"
+        [routerLink]="['/organizations', organizationId, 'accounting', 'bank-accounts']"
+      >
+        <i aria-hidden="true" class="bi bi-arrow-left"></i> Bank Accounts
+      </a>
+      <button type="button" class="btn btn-success btn-sm fw-bold" (click)="importStatement()">
+        <i aria-hidden="true" class="bi bi-upload"></i> Import Statement
+      </button>
+    </div>
+  </app-list-chrome>
+
+  <app-status-banner [message]="errorMessage()" />
+  <app-status-banner [message]="statusMessage()" tone="success" />
+
+  @if (selectedIds().length > 0) {
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <span class="small text-muted">{{ selectedIds().length }} selected</span>
+      <button
+        type="button"
+        class="btn btn-outline-danger btn-sm"
+        [disabled]="deleting()"
+        (click)="deleteSelected()"
+      >
+        <i aria-hidden="true" class="bi bi-trash"></i> Delete selected
+      </button>
+    </div>
+  }
+
+  @if (!loading() && importsOnPage().length > 0) {
+    <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+      <span class="small text-muted">Uploaded this page:</span>
+      @for (jobId of importsOnPage(); track jobId; let i = $index) {
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm"
+          [disabled]="deleting()"
+          (click)="undoImport(jobId)"
+        >
+          <i aria-hidden="true" class="bi bi-arrow-counterclockwise"></i> Undo import {{ i + 1 }}
+        </button>
+      }
+    </div>
+  }
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading statement lines...</p>
+        </div>
+      } @else if (items().length === 0) {
+        <div class="text-center py-5">
+          <div class="bg-light d-inline-flex p-4 rounded-circle mb-3 text-muted">
+            <i aria-hidden="true" class="bi bi-bank fs-1"></i>
+          </div>
+          <h5 class="fw-bold text-dark">No Statement Lines Yet</h5>
+          <p class="text-muted small mb-0">Click "Import Statement" to upload this account's bank statement.</p>
+        </div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <caption class="visually-hidden">Imported bank statement lines for this account</caption>
+            <thead>
+              <tr>
+                <th scope="col" style="width: 2.5rem;">
+                  <input
+                    id="statement-select-all"
+                    class="form-check-input"
+                    type="checkbox"
+                    [checked]="selectedIds().length === items().length"
+                    (change)="toggleAll($any($event.target).checked)"
+                  />
+                  <label class="visually-hidden" for="statement-select-all">Select every line on this page</label>
+                </th>
+                <th scope="col">Date</th>
+                <th scope="col">Description</th>
+                <th scope="col" class="text-end">Deposit</th>
+                <th scope="col" class="text-end">Withdrawal</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of items(); track item.id) {
+                <tr>
+                  <td>
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      [id]="'statement-line-' + item.id"
+                      [checked]="isSelected(item.id)"
+                      (change)="toggleSelected(item.id, $any($event.target).checked)"
+                    />
+                    <label class="visually-hidden" [attr.for]="'statement-line-' + item.id">
+                      Select the line dated {{ item.date | nepaliDate }}
+                    </label>
+                  </td>
+                  <td class="text-nowrap">{{ item.date | nepaliDate }}</td>
+                  <td>{{ item.description || '—' }}</td>
+                  <td class="text-end text-success">
+                    {{ item.deposit > 0 ? (item.deposit | amount) : '' }}
+                  </td>
+                  <td class="text-end text-danger">
+                    {{ item.withdrawal > 0 ? (item.withdrawal | amount) : '' }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      <app-pagination-control
+        [page]="page()"
+        [pageSize]="pageSize()"
+        [totalCount]="totalCount()"
+        (pageChange)="onPageChange($event)"
+        (pageSizeChange)="onPageSizeChange($event)"
+      />
+    </div>
+  </div>
+</div>

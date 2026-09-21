@@ -122,6 +122,45 @@ namespace ErpApp.Infrastructure.Migrations
                     b.ToTable("AccountGroups", "accounting");
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Accounting.BankStatementLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("BankAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid?>("ImportJobId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "CreatedAt")
+                        .IsDescending(false, true);
+
+                    b.HasIndex("OrganizationId", "Date");
+
+                    b.ToTable("BankStatementLines", "accounting");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Accounting.CashTransfer", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2448,6 +2487,9 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset?>("ArtifactPurgedAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("BankAccountId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("CancellationRequested")
                         .HasColumnType("bit");
@@ -8689,6 +8731,34 @@ namespace ErpApp.Infrastructure.Migrations
                             Id = new Guid("00000000-0000-0000-0002-0000000001c6"),
                             IsGranted = true,
                             PermissionKey = "Reports.ProductSerial.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001c7"),
+                            IsGranted = true,
+                            PermissionKey = "Accounting.BankStatement.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001c8"),
+                            IsGranted = true,
+                            PermissionKey = "Accounting.BankStatement.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001c9"),
+                            IsGranted = true,
+                            PermissionKey = "Accounting.BankStatement.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001ca"),
+                            IsGranted = true,
+                            PermissionKey = "Accounting.BankStatement.Manage",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });

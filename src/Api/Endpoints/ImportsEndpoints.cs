@@ -41,6 +41,12 @@ public static class ImportsEndpoints
             ImportEntityType entityType,
             ImportMode mode,
             bool? reviewBeforeApply,
+            // Phase 55 -- the cash-and-bank account a BankStatement upload belongs to. A simple
+            // type on a multipart POST binds from the query string without help (it is arrays
+            // that bind from the body, phase 38's bug), so this needs no [FromQuery] -- but the
+            // Api record carrying it at all is the load-bearing part: an optional parameter on a
+            // command reaches nothing unless the Api's own binding carries it (phase-27b's Terms).
+            Guid? bankAccountId,
             IFormFile file,
             ISender sender,
             CancellationToken ct) =>
@@ -54,6 +60,7 @@ public static class ImportsEndpoints
                     file.FileName,
                     file.Length,
                     stream,
+                    bankAccountId,
                     // Phase 38: defaults to true here, not merely on the command's own parameter --
                     // an optional parameter on a command reaches nothing unless the Api's own
                     // binding carries it (phase-27b's Terms), and a missing query string must mean

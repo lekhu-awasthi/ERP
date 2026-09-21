@@ -314,7 +314,7 @@ public class MigratedRegisterImportTests
     {
         using var content = new MemoryStream([0x50, 0x4B]);
         var command = new CreateImportJobCommand(
-            Guid.NewGuid(), entityType, ImportMode.UpdateExisting, "history.xlsx", 1024, content);
+            Guid.NewGuid(), entityType, ImportMode.UpdateExisting, "history.xlsx", 1024, content, BankAccountId: null);
 
         var result = new CreateImportJobCommandValidator().Validate(command);
 
@@ -327,7 +327,7 @@ public class MigratedRegisterImportTests
     {
         using var content = new MemoryStream([0x50, 0x4B]);
         var command = new CreateImportJobCommand(
-            Guid.NewGuid(), ImportEntityType.MigratedSalesRegister, ImportMode.CreateNew, "history.xlsx", 1024, content);
+            Guid.NewGuid(), ImportEntityType.MigratedSalesRegister, ImportMode.CreateNew, "history.xlsx", 1024, content, BankAccountId: null);
 
         Assert.True(new CreateImportJobCommandValidator().Validate(command).IsValid);
     }

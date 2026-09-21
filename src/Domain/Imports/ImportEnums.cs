@@ -85,6 +85,27 @@ public enum ImportEntityType
     /// absent, and a row adds rather than replaces so an import can never strand a variant by
     /// removing the option it is built from.</para></summary>
     ProductAttributePool,
+
+    /// <summary>Phase 55 -- one bank statement line per row, imported against one cash-and-bank
+    /// Account (the feeder for phase 56's reconciliation matcher).
+    ///
+    /// <para><b>This is the member the phase's design question was about.</b> The kickoff framed a
+    /// statement line as resolving into <i>no command</i> -- a raw row whose only destination is a
+    /// table -- and therefore as possibly not belonging here at all. Phase 21c had already
+    /// answered it: <see cref="MigratedSalesRegister"/> is a lifecycle-free row whose only
+    /// destination is a table and a report, and it is an ordinary member with an ordinary create
+    /// command. Nothing about <c>PlanAsync</c> requires the command to post, number, or approve
+    /// anything; it requires there to <i>be</i> a command, and there is one. See
+    /// docs/phase-55-status.md, Decision A.</para>
+    ///
+    /// <para><b>The one thing that is genuinely new</b> is that a statement row is meaningless
+    /// without knowing which bank account it belongs to, and that is per-<i>run</i> context rather
+    /// than per-row data. It lives on <c>ImportJob.BankAccountId</c>, which this type requires and
+    /// every other type must leave null.</para>
+    ///
+    /// <para>Create-only: a statement line has no business key to update by, because a bank
+    /// statement has no natural key at all (see BankStatementLineConfiguration).</para></summary>
+    BankStatement,
 }
 
 /// <summary>
