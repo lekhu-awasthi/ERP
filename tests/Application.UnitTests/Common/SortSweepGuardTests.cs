@@ -69,6 +69,29 @@ public class SortSweepGuardTests
                 + "is now the only reason -- phase 50 added (OrganizationId, ChequeDate) on a "
                 + "measurement, so the aggregate no longer lacks the index the rule requires. See "
                 + "ListSortIndexCorrespondenceTests.The_cheque_exemptions_index_half_has_been_measured_away.",
+
+            // Phase 56. This one is NOT "the harness was awkward" -- phase 55's own lesson is that
+            // an exemption on a brand-new screen is how a seam stays empty for six phases, and it
+            // taught this harness rather than exempt itself. The difference here is that the
+            // premise of the rule is false for this subject rather than inconvenient.
+            //
+            // The rule (ISortableQuery) is that an ordering may be offered exactly where an index
+            // leads on (OrganizationId, <that column>), which for a document means two columns:
+            // CreatedAt and its own business date. A GL posting has exactly ONE date --
+            // GlJournalEntry.PostedAt -- because phase 26a decided the entry stores no copy of its
+            // document's business date, and there is no CreatedAt beside it. So a Sort by menu here
+            // would be a control with nothing to choose between, which is the outcome the rule
+            // exists to prevent rather than an exception to it. (The reference product's control on
+            // these panes is a direction toggle, Recent First / Oldest First -- a different control
+            // this codebase does not have anywhere.)
+            //
+            // The premise is asserted independently, so this reason cannot quietly stop being true:
+            // ListSortIndexCorrespondenceTests.A_gl_posting_has_exactly_one_date fails if anyone
+            // adds a second date to GlJournalEntry, at which point this exemption should go.
+            ["ListBookTransactionsQuery"] =
+                "A GL posting has exactly one date (GlJournalEntry.PostedAt -- phase 26a), so there "
+                + "is nothing for a Sort by menu to choose between. The premise is pinned by "
+                + "ListSortIndexCorrespondenceTests.A_gl_posting_has_exactly_one_date.",
         };
 
     [Fact]

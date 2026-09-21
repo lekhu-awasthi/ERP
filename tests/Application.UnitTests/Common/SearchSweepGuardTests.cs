@@ -81,6 +81,19 @@ public class SearchSweepGuardTests
         ["ListSmsTemplatesQuery"] =
             "A tenant's own SMS templates, bounded by how many it has written -- the same reason "
             + "ListOrganizationMembersQuery is exempt.",
+
+        // Phase 56. The rule's own exempt case -- a panel already scoped to a single parent row --
+        // plus a second reason that is really a cost: the one field a user would search here is the
+        // source document's number, and that is exactly the field GlJournalEntry deliberately does
+        // not carry (phase 26a). Matching it would mean a thirteen-way join evaluated before the
+        // page is formed, which is phase 50's ListChequesQuery finding (a list that searches a
+        // joined column cannot be indexed out of it) with twelve more tables.
+        // RE-ENTRY CONDITION: a phase that denormalises the source document's code onto the entry,
+        // at which point the term costs nothing.
+        ["ListBookTransactionsQuery"] =
+            "The book side of one bank account, already scoped to that account and a date range. "
+            + "The only field worth searching is the document number, which GlJournalEntry does not "
+            + "store (phase 26a) -- see the query's doc comment for the re-entry condition.",
     };
 
     [Fact]
@@ -151,19 +164,42 @@ public class SearchSweepGuardTests
             + string.Join("\n  ", unbounded));
     }
 
+    /// <summary>
+    /// The two interfaces are near-inseparable: a date range exists to scope a list someone is
+    /// browsing, and phase 34b gave every such list a search box. A query declaring only
+    /// <see cref="IDateRangeFilteredQuery"/> is usually a filter with no chrome to drive it.
+    ///
+    /// <para><b>Phase 56 falsified the "always" half, and this now honours
+    /// <see cref="Exempt"/> rather than asserting a coupling with no exit.</b> As written, the
+    /// coupling was not a rule anybody could fail for a reason — it was a fact about the fifteen
+    /// lists that existed when it was written, stated as a law. <c>ListBookTransactionsQuery</c> is
+    /// a genuine counter-example: it is date-ranged, it is browsed, and the one field worth
+    /// searching on it is a document number that <c>GlJournalEntry</c> deliberately does not store
+    /// (phase 26a). Teaching the guard is what phase 55's own lesson prescribes — an exemption on a
+    /// brand-new screen is how a seam stays empty, but a guard whose predicate has been shown false
+    /// should learn rather than acquire a special case with no reason attached.</para>
+    ///
+    /// <para>The force is unchanged: a date-ranged list still has to <i>either</i> take a term
+    /// <i>or</i> appear in <see cref="Exempt"/> with a reason, and
+    /// <see cref="Every_exemption_names_a_query_that_still_exists"/> keeps those reasons from
+    /// rotting.</para>
+    /// </summary>
     [Fact]
-    public void Every_date_range_query_is_also_searchable_and_carries_a_business_date()
+    public void Every_date_range_query_is_also_searchable_or_states_why_not()
     {
-        // The two interfaces are not independent: the range exists to scope a list someone is
-        // browsing, and every such list is one this phase also gave a search box. A query that
-        // declared only IDateRangeFilteredQuery would be a filter with no chrome to drive it.
         var rangedOnly = PaginatedListQueries()
             .Where(t => typeof(IDateRangeFilteredQuery).IsAssignableFrom(t))
             .Where(t => !typeof(ISearchableQuery).IsAssignableFrom(t))
+            .Where(t => !Exempt.ContainsKey(t.Name))
             .Select(t => t.Name)
             .ToList();
 
-        Assert.True(rangedOnly.Count == 0, "Date-ranged but not searchable: " + string.Join(", ", rangedOnly));
+        Assert.True(
+            rangedOnly.Count == 0,
+            "Date-ranged but not searchable, and giving no reason. A list someone browses by date is "
+            + "one they will want to search; either implement ISearchableQuery or add the query to "
+            + "SearchSweepGuardTests.Exempt with the reason:\n  "
+            + string.Join("\n  ", rangedOnly));
     }
 
     private static IEnumerable<Type> PaginatedListQueries() =>

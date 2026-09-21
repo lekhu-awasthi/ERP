@@ -65,6 +65,12 @@ public class BankStatementLineTests
     /// This fails the moment one is added, which is the point -- adding one is a decision that
     /// should have to delete a test and read its reason (phase 45's rule about a refusal asserted
     /// in the negative).
+    ///
+    /// <para><b>Phase 56 strengthened this rather than relaxing it.</b> The phase that was always
+    /// going to be tempted to add a Status column arrived, and did not: it added
+    /// <c>ReconciliationId</c>, and the list's Status filter renders off whether that key is set.
+    /// So the assertion now says both halves at once -- the derived-from key is present, and the
+    /// stored status still is not.</para>
     /// </summary>
     [Fact]
     public void A_statement_line_has_no_lifecycle_of_its_own()
@@ -80,11 +86,45 @@ public class BankStatementLineTests
         Assert.DoesNotContain("ApprovedAt", properties);
         Assert.DoesNotContain("VoidedAt", properties);
 
+        // Phase 56: Status is *derived* from this, and there is no second column beside it saying
+        // the same thing -- which is the shape phases 51 and 52 both ruled for.
+        Assert.Contains("ReconciliationId", properties);
+        Assert.DoesNotContain("IsReconciled", properties);
+        Assert.DoesNotContain("ReconciledAt", properties);
+
         // The premise half, so a rename cannot make the assertions above vacuously true
         // (phase 54's UnitlessOutputHeaders lesson).
         Assert.Contains("Amount", properties);
         Assert.Contains("Date", properties);
         Assert.Contains("BankAccountId", properties);
+    }
+
+    [Fact]
+    public void Reconciling_a_line_twice_is_refused()
+    {
+        var line = NewLine("ATM");
+        var first = Guid.NewGuid();
+
+        line.Reconcile(first);
+        Assert.Equal(first, line.ReconciliationId);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => line.Reconcile(Guid.NewGuid()));
+        Assert.Contains(first.ToString(), ex.Message);
+        Assert.Equal(first, line.ReconciliationId);
+    }
+
+    /// <summary>
+    /// Releasing is idempotent on purpose: undoing a reconciliation walks both of its sides, and
+    /// neither side is the authority on what the other still holds.
+    /// </summary>
+    [Fact]
+    public void Releasing_an_unreconciled_line_is_not_an_error()
+    {
+        var line = NewLine("ATM");
+
+        line.ReleaseFromReconciliation();
+
+        Assert.Null(line.ReconciliationId);
     }
 
     /// <summary>

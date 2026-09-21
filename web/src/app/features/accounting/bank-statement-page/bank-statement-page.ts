@@ -25,9 +25,10 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
  * per-row results all live on the Import / Export screen already, so this page's Import button
  * routes there with the upload type and this account preselected. One implementation, two doors.</p>
  *
- * <p>There is no Status column yet. The reference product's Reconciled/Pending filter renders off
- * whether a line has a reconciliation, and phase 56 adds that alongside the aggregate it points
- * at -- a column showing "Pending" for every row forever would be furniture, not information.</p>
+ * <p><b>Phase 56 added the Status column and its filter.</b> Both render off whether a line carries
+ * a `reconciliationId`, which is how the reference product does it -- its filter has exactly two
+ * options and there is no stored status anywhere. A reconciled row links through to the
+ * reconciliation it belongs to, which is the only way into that record from a list.</p>
  */
 @Component({
   selector: 'app-bank-statement-page',
@@ -62,6 +63,20 @@ export class BankStatementPage {
    * user would not be able to tell why.
    */
   protected readonly selectedIds = signal<readonly string[]>([]);
+
+  /**
+   * Phase 56 -- the Reconciled/Pending filter. `null` is All, which the reference product's own
+   * filter also offers by clearing it. Tracked in its own signal rather than derived from a control
+   * because the app is zoneless and a `computed()` over a plain control value caches forever
+   * (phase 17).
+   */
+  protected readonly statusFilter = signal<boolean | null>(null);
+
+  protected readonly statusTabs: readonly { readonly label: string; readonly value: boolean | null }[] = [
+    { label: 'All', value: null },
+    { label: 'Pending', value: false },
+    { label: 'Reconciled', value: true },
+  ];
 
   constructor() {
     this.loadAccount();
@@ -105,6 +120,14 @@ export class BankStatementPage {
    */
   protected undoImport(importJobId: string): void {
     this.runDelete({ importJobId }, 'That import was removed from this statement.');
+  }
+
+  protected selectStatus(value: boolean | null): void {
+    this.statusFilter.set(value);
+    // Every sibling filter handler on this page sets the page back to 1, and a narrowing filter
+    // applied on page 3 otherwise reads as "no data" (phase 35b).
+    this.page.set(1);
+    this.load();
   }
 
   protected onSearch(term: string): void {
@@ -184,7 +207,7 @@ export class BankStatementPage {
         this.bankAccountId,
         this.page(),
         this.pageSize(),
-        this.filter.options(),
+        { ...this.filter.options(), reconciled: this.statusFilter() ?? undefined },
       )
       .subscribe({
         next: (result) => {

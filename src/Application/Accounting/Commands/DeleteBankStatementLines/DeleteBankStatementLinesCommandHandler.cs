@@ -41,6 +41,25 @@ public sealed class DeleteBankStatementLinesCommandHandler(IAppDbContext db)
             throw new NotFoundException("No matching bank statement lines were found.");
         }
 
+        // Phase 56, and the guard phase 55 could only describe because the table did not exist yet.
+        //
+        // The reference product does NOT do this: it deleted a reconciled line without complaint
+        // (probed live, 2026-09-21). Its cascade is at least correct -- the matched book rows were
+        // released -- but it leaves the reconciliation itself alive holding two empty lists, so its
+        // tenants accumulate shells. We refuse instead, for a reason its behaviour makes plain: the
+        // undo here is "undo this import", one click over a whole file, and letting that silently
+        // dissolve reconciliations somebody made afterwards is the kind of invisible side effect
+        // this codebase rules against. The user unreconciles first, which is one extra step and is
+        // the step where they see what they are undoing.
+        var reconciled = lines.Where(x => x.ReconciliationId is not null).ToList();
+
+        if (reconciled.Count > 0)
+        {
+            throw new ConflictException(
+                $"{reconciled.Count} of these bank statement lines have been reconciled and cannot "
+                + "be deleted. Unreconcile them first.");
+        }
+
         db.BankStatementLines.RemoveRange(lines);
         await db.SaveChangesAsync(cancellationToken);
 

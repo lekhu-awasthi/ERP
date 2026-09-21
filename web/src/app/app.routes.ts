@@ -313,6 +313,45 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    // Phase 56 -- this tenant's own side of the same account. The reference product calls it
+    // "Book Statement" and reaches it as /accounting/bank-accounts/:id/book-statement.
+    path: 'organizations/:id/accounting/bank-accounts/:accountId/book-statement',
+    loadComponent: () =>
+      import('./features/accounting/book-statement-page/book-statement-page').then(
+        (m) => m.BookStatementPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    // The two-pane matcher (.../manual-reconcile in the reference product). The account is in the
+    // path for the reason phase 53 recorded about its own /accounting/recon: a screen that takes
+    // its subject from router state cannot be linked to, bookmarked or reloaded.
+    path: 'organizations/:id/accounting/bank-accounts/:accountId/reconcile',
+    loadComponent: () =>
+      import('./features/accounting/bank-reconcile-page/bank-reconcile-page').then(
+        (m) => m.BankReconcilePage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/accounting/bank-accounts/:accountId/reconciliation-report',
+    loadComponent: () =>
+      import(
+        './features/accounting/bank-reconciliation-report-page/bank-reconciliation-report-page'
+      ).then((m) => m.BankReconciliationReportPage),
+    canActivate: [authGuard],
+  },
+  {
+    // One reconciliation, reached from a Status badge on either list. A page rather than the
+    // reference product's drawer, so the link in that badge goes somewhere.
+    path: 'organizations/:id/accounting/bank-accounts/:accountId/reconciliations/:reconciliationId',
+    loadComponent: () =>
+      import(
+        './features/accounting/bank-reconciliation-detail-page/bank-reconciliation-detail-page'
+      ).then((m) => m.BankReconciliationDetailPage),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/accounting/cheque-register',
     loadComponent: () =>
       import('./features/accounting/cheque-register-page/cheque-register-page').then((m) => m.ChequeRegisterPage),

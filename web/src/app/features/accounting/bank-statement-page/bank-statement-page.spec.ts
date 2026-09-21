@@ -14,8 +14,8 @@ import { BankStatementPage } from './bank-statement-page';
  *
  * <p>The assertions that matter here are about what the screen is allowed to <i>offer</i>: the
  * deposit/withdrawal split rendered from the server's pair rather than re-derived from a sign, the
- * two deletes and which selector each sends, and the absence of a Status column that phase 56 has
- * not yet earned.</p>
+ * two deletes and which selector each sends, and -- from phase 56 -- the Status column and its
+ * filter, both of which render off the reconciliation key rather than off a stored status.</p>
  */
 describe('BankStatementPage', () => {
   const organizationId = '11111111-1111-1111-1111-111111111111';
@@ -30,6 +30,7 @@ describe('BankStatementPage', () => {
       withdrawal: 0,
       signedAmount: 1500,
       importJobId: 'job-1',
+      reconciliationId: null,
       createdAt: '2026-09-21T04:00:00Z',
       ...overrides,
     };
@@ -108,12 +109,15 @@ describe('BankStatementPage', () => {
   });
 
   /**
-   * Phase 56 adds the reconciliation and the Reconciled/Pending filter together. Until then a
-   * Status column would read "Pending" on every row forever, which is furniture rather than
-   * information -- asserted so the omission is a decision somebody has to delete.
+   * Phase 56 added the Status column. It is *derived*: there is no stored status anywhere, and this
+   * asserts both halves -- an unreconciled line reads Pending, a reconciled one reads Reconciled and
+   * links to the reconciliation, which is the only way into that record from a list.
    */
-  it('shows no Status column, because nothing can be reconciled yet', () => {
-    const { element } = page([line()]);
+  it('renders Status from the reconciliation key, not from a stored status', () => {
+    const { element } = page([
+      line({ id: 'a', reconciliationId: null }),
+      line({ id: 'b', reconciliationId: 'recon-1' }),
+    ]);
 
     // The first header holds the select-all box and its visually-hidden label, so it is dropped
     // rather than asserted as empty -- the claim is about the data columns.
@@ -121,7 +125,51 @@ describe('BankStatementPage', () => {
       .slice(1)
       .map((h) => h.textContent?.trim() ?? '');
 
-    expect(headers).toEqual(['Date', 'Description', 'Deposit', 'Withdrawal']);
+    expect(headers).toEqual(['Date', 'Description', 'Deposit', 'Withdrawal', 'Status']);
+
+    const rows = element().querySelectorAll('tbody tr');
+    const statusCell = (row: Element) => [...row.querySelectorAll('td')].slice(-1)[0];
+
+    expect(statusCell(rows[0]).textContent?.trim()).toBe('Pending');
+    expect(statusCell(rows[1]).textContent?.trim()).toBe('Reconciled');
+
+    // ...and the reconciled one is a way in, not just a label.
+    const link = statusCell(rows[1]).querySelector('a');
+    expect(link?.getAttribute('href')).toContain('/reconciliations/recon-1');
+  });
+
+  /**
+   * The filter sends the same key the column renders off. Asserted as what reaches the service --
+   * a filter a screen displays but does not apply is worse than no filter (phase 34b).
+   */
+  it('sends the Status filter to the server', () => {
+    const { element, fixture, service } = page([line()]);
+
+    const tab = [...element().querySelectorAll<HTMLButtonElement>('button')].find(
+      (b) => b.textContent?.trim() === 'Reconciled',
+    );
+    tab!.click();
+    fixture.detectChanges();
+
+    expect(service.lastListOptions?.reconciled).toBe(true);
+
+    const pending = [...element().querySelectorAll<HTMLButtonElement>('button')].find(
+      (b) => b.textContent?.trim() === 'Pending',
+    );
+    pending!.click();
+    fixture.detectChanges();
+
+    expect(service.lastListOptions?.reconciled).toBe(false);
+
+    // "All" sends nothing at all -- a `reconciled=` with no value binds as false server-side and
+    // would silently hide every matched line.
+    const all = [...element().querySelectorAll<HTMLButtonElement>('button')].find(
+      (b) => b.textContent?.trim() === 'All',
+    );
+    all!.click();
+    fixture.detectChanges();
+
+    expect(service.lastListOptions?.reconciled).toBeUndefined();
   });
 
   it('deletes the ticked lines by id', () => {
@@ -201,7 +249,17 @@ class AccountingServiceStub {
     return of({ items: [account], page: 1, pageSize: 200, totalCount: 1 });
   }
 
-  listBankStatementLines(): Observable<PagedResult<BankStatementLineDto>> {
+  /** What the page last asked for, so a filter can be asserted as what reaches the server. */
+  lastListOptions: { reconciled?: boolean } | undefined;
+
+  listBankStatementLines(
+    _organizationId?: string,
+    _bankAccountId?: string,
+    _page?: number,
+    _pageSize?: number,
+    options?: { reconciled?: boolean },
+  ): Observable<PagedResult<BankStatementLineDto>> {
+    this.lastListOptions = options;
     return of({ items: this.lines, page: 1, pageSize: 50, totalCount: this.lines.length });
   }
 

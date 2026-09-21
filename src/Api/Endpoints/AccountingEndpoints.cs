@@ -2,6 +2,8 @@ using ErpApp.Api.Reports;
 using ErpApp.Application.Accounting.Commands.ApproveCashTransfer;
 using ErpApp.Application.Accounting.Commands.ApproveJournalVoucher;
 using ErpApp.Application.Accounting.Commands.CreateAccount;
+using ErpApp.Application.Accounting.Commands.CreateBankReconciliation;
+using ErpApp.Application.Accounting.Commands.DeleteBankReconciliation;
 using ErpApp.Application.Accounting.Commands.DeleteBankStatementLines;
 using ErpApp.Application.Accounting.Commands.CreateAccountGroup;
 using ErpApp.Application.Accounting.Commands.CreateCashTransfer;
@@ -25,7 +27,10 @@ using ErpApp.Application.Accounting.Queries.IncomeStatement;
 using ErpApp.Application.Accounting.Queries.JournalReport;
 using ErpApp.Application.Accounting.Queries.ListAccounts;
 using ErpApp.Application.Accounting.Queries.ListBankAccounts;
+using ErpApp.Application.Accounting.Queries.BankReconciliationReport;
+using ErpApp.Application.Accounting.Queries.GetBankReconciliation;
 using ErpApp.Application.Accounting.Queries.ListBankStatementLines;
+using ErpApp.Application.Accounting.Queries.ListBookTransactions;
 using ErpApp.Application.Accounting.Queries.ListCashTransfers;
 using ErpApp.Application.Accounting.Queries.ListJournalVouchers;
 using ErpApp.Application.Accounting.Queries.ListOpeningBalanceLines;
@@ -150,12 +155,13 @@ public static class AccountingEndpoints
         // screen has no answer for.
         group.MapGet("/bank-accounts/{bankAccountId:guid}/statement-lines", async (
             Guid organizationId, Guid bankAccountId, int? page, int? pageSize, string? search,
-            DateOnly? fromDate, DateOnly? toDate, string? sort, ISender sender, CancellationToken ct) =>
+            DateOnly? fromDate, DateOnly? toDate, string? sort, bool? reconciled,
+            ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new ListBankStatementLinesQuery(
                     organizationId, bankAccountId, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize,
-                    search, fromDate, toDate, sort),
+                    search, fromDate, toDate, sort, reconciled),
                 ct);
             return Results.Ok(result);
         });
@@ -175,7 +181,74 @@ public static class AccountingEndpoints
                 ct);
             return Results.Ok(result);
         });
+
+        // Phase 56 -- this tenant's own side of the same account, which backs both the Book
+        // Statement screen (reconciled = null) and the matcher's right-hand pane (false). The
+        // reference product uses its one /gl-transactions endpoint for both in exactly this way.
+        group.MapGet("/bank-accounts/{bankAccountId:guid}/book-transactions", async (
+            Guid organizationId, Guid bankAccountId, bool? reconciled, int? page, int? pageSize,
+            DateOnly? fromDate, DateOnly? toDate, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListBookTransactionsQuery(
+                    organizationId, bankAccountId, reconciled, page ?? 1,
+                    pageSize ?? PagingDefaults.DefaultPageSize, fromDate, toDate),
+                ct);
+            return Results.Ok(result);
+        });
+
+        // RECONCILE. A POST carrying two id lists, in a request record rather than on the query
+        // string -- phase 38's binding bug, and the same reason the statement delete is a POST.
+        group.MapPost("/bank-accounts/{bankAccountId:guid}/reconciliations", async (
+            Guid organizationId, Guid bankAccountId, CreateReconciliationRequest request,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new CreateBankReconciliationCommand(
+                    organizationId, bankAccountId, request.StatementLineIds, request.GlLineIds),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/bank-accounts/{bankAccountId:guid}/reconciliations/{reconciliationId:guid}", async (
+            Guid organizationId, Guid bankAccountId, Guid reconciliationId,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new GetBankReconciliationQuery(organizationId, bankAccountId, reconciliationId), ct);
+            return Results.Ok(result);
+        });
+
+        // Unreconcile. A real DELETE, because the id is in the route and there is no body -- unlike
+        // the statement delete, which carries a list.
+        group.MapDelete("/bank-accounts/{bankAccountId:guid}/reconciliations/{reconciliationId:guid}", async (
+            Guid organizationId, Guid bankAccountId, Guid reconciliationId,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new DeleteBankReconciliationCommand(organizationId, bankAccountId, reconciliationId), ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/bank-accounts/{bankAccountId:guid}/reconciliation-report", async (
+            Guid organizationId, Guid bankAccountId, DateOnly? asOfDate,
+            int? unrecognizedPage, int? unrecognizedPageSize, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new BankReconciliationReportQuery(
+                    organizationId, bankAccountId, asOfDate,
+                    unrecognizedPage ?? 1, unrecognizedPageSize ?? 15),
+                ct);
+            return Results.Ok(result);
+        });
     }
+
+    /// <param name="StatementLineIds">The bank side -- the reference product's <c>bs_ids</c>.</param>
+    /// <param name="GlLineIds">This tenant's side -- its <c>tx_ids</c>. GlLine ids, not document
+    /// ids; see BankBookTransactionReader for why the line is the unit.</param>
+    private sealed record CreateReconciliationRequest(
+        IReadOnlyList<Guid> StatementLineIds,
+        IReadOnlyList<Guid> GlLineIds);
 
     /// <param name="LineIds">The rows to remove. Exactly one of this and
     /// <paramref name="ImportJobId"/> is supplied -- the validator says so.</param>

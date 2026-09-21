@@ -19,6 +19,11 @@ public sealed class BankStatementLineConfiguration : IEntityTypeConfiguration<Ba
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.ImportJobId);
 
+        // Phase 56 -- the Status column's source. Nullable, un-indexed and unconstrained, for the
+        // reasons GlLineConfiguration spells out at length: every read is already narrowed to one
+        // BankAccountId, and the release path is explicit rather than a cascade.
+        builder.Property(x => x.ReconciliationId);
+
         // One signed column, because StatementAmount is one signed value -- see that type for why
         // this diverges from the reference product's dr_amount/cr_amount pair. FromSigned is the
         // converter's other half and is the only place a raw signed decimal may become an amount.

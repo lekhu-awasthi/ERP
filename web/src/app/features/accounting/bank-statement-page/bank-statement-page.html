@@ -28,6 +28,23 @@
   <app-status-banner [message]="errorMessage()" />
   <app-status-banner [message]="statusMessage()" tone="success" />
 
+  <!-- Phase 56 -- the reference product's own two-option filter, plus All. Status is not stored:
+       these read off whether a line carries a reconciliation. -->
+  <div class="btn-group mb-4" role="group" aria-label="Filter by reconciliation status">
+    @for (tab of statusTabs; track tab.label) {
+      <button
+        type="button"
+        class="btn btn-sm"
+        [class.btn-primary]="statusFilter() === tab.value"
+        [class.btn-outline-primary]="statusFilter() !== tab.value"
+        [attr.aria-pressed]="statusFilter() === tab.value"
+        (click)="selectStatus(tab.value)"
+      >
+        {{ tab.label }}
+      </button>
+    }
+  </div>
+
   @if (selectedIds().length > 0) {
     <div class="d-flex align-items-center gap-3 mb-3">
       <span class="small text-muted">{{ selectedIds().length }} selected</span>
@@ -93,6 +110,7 @@
                 <th scope="col">Description</th>
                 <th scope="col" class="text-end">Deposit</th>
                 <th scope="col" class="text-end">Withdrawal</th>
+                <th scope="col">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -117,6 +135,26 @@
                   </td>
                   <td class="text-end text-danger">
                     {{ item.withdrawal > 0 ? (item.withdrawal | amount) : '' }}
+                  </td>
+                  <td>
+                    @if (item.reconciliationId) {
+                      <a
+                        class="badge text-bg-success text-decoration-none"
+                        [routerLink]="[
+                          '/organizations',
+                          organizationId,
+                          'accounting',
+                          'bank-accounts',
+                          bankAccountId,
+                          'reconciliations',
+                          item.reconciliationId
+                        ]"
+                      >
+                        Reconciled
+                      </a>
+                    } @else {
+                      <span class="badge text-bg-secondary">Pending</span>
+                    }
                   </td>
                 </tr>
               }

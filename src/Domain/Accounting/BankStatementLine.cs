@@ -33,9 +33,10 @@ namespace ErpApp.Domain.Accounting;
 /// Pending -- and renders them off whether <c>reconciliation_id</c> is set (read live, 2026-09-21).
 /// That is a nullable foreign key with a filter over it, not a modelled lifecycle, which is phase
 /// 51's ruling about the serial report's Status filter arriving at the same answer a second time.
-/// <b>Phase 56 adds that foreign key</b>, along with the reconciliation aggregate it points at and
-/// the Status column on the list; this phase ships neither, because a nullable column pointing at a
-/// table that does not exist is the present-and-ignored shape phase 43 ruled against.</para>
+/// <b>Phase 56 added that foreign key</b> (<see cref="ReconciliationId"/>) along with the
+/// <see cref="BankReconciliation"/> it points at and the Status filter on the list. Phase 55 shipped
+/// neither, because a nullable column pointing at a table that does not exist is the
+/// present-and-ignored shape phase 43 ruled against.</para>
 ///
 /// <para><b>The line carries no currency and no conversion rate.</b> <see cref="Account"/> has no
 /// currency of its own in this codebase -- phase 28 put multi-currency on documents, not on the
@@ -86,6 +87,18 @@ public sealed class BankStatementLine
     /// </summary>
     public Guid? ImportJobId { get; private set; }
 
+    /// <summary>
+    /// Phase 56 — the <see cref="BankReconciliation"/> this line was matched into, or null. The
+    /// seam phase 55 marked and deliberately left unbuilt, now filled.
+    ///
+    /// <para>This <b>is</b> the list's Status column: the reference product's filter has exactly two
+    /// options, Reconciled and Pending, and renders them off whether <c>reconciliation_id</c> is
+    /// set (read live, 2026-09-21). There is still no status property here, and phase 55's reasoning
+    /// is why — a nullable foreign key with a filter over it is not a lifecycle, and inventing one
+    /// would be phase 51's serial-report mistake in a second place.</para>
+    /// </summary>
+    public Guid? ReconciliationId { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     private BankStatementLine()
@@ -135,4 +148,29 @@ public sealed class BankStatementLine
             CreatedAt = now,
         };
     }
+
+    /// <summary>
+    /// Phase 56 — marks this line as matched into <paramref name="reconciliationId"/>. See
+    /// <c>GlLine.Reconcile</c>, which carries the same rule for the same reason: refusing a line
+    /// that already holds one is what makes "at most one reconciliation" an invariant.
+    /// </summary>
+    public void Reconcile(Guid reconciliationId)
+    {
+        if (reconciliationId == Guid.Empty)
+        {
+            throw new ArgumentException("A reconciliation id is required.", nameof(reconciliationId));
+        }
+
+        if (ReconciliationId is { } existing)
+        {
+            throw new InvalidOperationException(
+                $"This bank statement line is already reconciled (reconciliation {existing}).");
+        }
+
+        ReconciliationId = reconciliationId;
+    }
+
+    /// <summary>Phase 56 — releases this line back to the unreconciled side. Idempotent, for
+    /// <c>GlLine.ReleaseFromReconciliation</c>'s reason.</summary>
+    public void ReleaseFromReconciliation() => ReconciliationId = null;
 }

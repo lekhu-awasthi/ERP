@@ -15,8 +15,8 @@ namespace ErpApp.Application.Accounting.Queries.ListBankStatementLines;
 ///
 /// <para>Filters are the reference product's own, read off its column definitions: a DATE_RANGE on
 /// Date, an AMOUNT_RANGE on Amount, and a text search. <b>Its fourth filter, Status
-/// (Reconciled/Pending), is deliberately absent</b> -- it renders off <c>reconciliation_id</c>, and
-/// phase 56 adds that column, the aggregate behind it and this filter together.</para>
+/// (Reconciled/Pending), arrived in phase 56</b> together with the column it renders off and the
+/// aggregate behind it -- see <see cref="Reconciled"/>.</para>
 /// </summary>
 public sealed record ListBankStatementLinesQuery(
     Guid OrganizationId,
@@ -26,7 +26,8 @@ public sealed record ListBankStatementLinesQuery(
     string? Search = null,
     DateOnly? FromDate = null,
     DateOnly? ToDate = null,
-    string? Sort = null)
+    string? Sort = null,
+    bool? Reconciled = null)
     : IRequest<PagedResult<BankStatementLineListItem>>,
       IRequirePermission,
       IOrganizationScoped,
@@ -42,6 +43,10 @@ public sealed record ListBankStatementLinesQuery(
 /// value is one signed <c>StatementAmount</c>.</param>
 /// <param name="ImportJobId">Which upload produced this line, so the list can offer "undo that
 /// import" and the user can tell two uploads apart.</param>
+/// <param name="ReconciliationId">Phase 56 -- <b>this is the Status column</b>. Non-null renders
+/// "Reconciled" and null renders "Pending", which is exactly how the reference product does it. The
+/// id itself travels rather than a boolean, because the row is also the way into the reconciliation
+/// it belongs to.</param>
 public sealed record BankStatementLineListItem(
     Guid Id,
     DateOnly Date,
@@ -50,4 +55,5 @@ public sealed record BankStatementLineListItem(
     decimal Withdrawal,
     decimal SignedAmount,
     Guid? ImportJobId,
+    Guid? ReconciliationId,
     DateTimeOffset CreatedAt);

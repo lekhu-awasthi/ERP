@@ -131,12 +131,36 @@
                      reference product puts it too: its statement screen is reached through the
                      Bank Accounts list, never by URL. A link rather than a stretched-link over the
                      whole card, because the card is not itself navigable. -->
-                <a
-                  class="small fw-semibold text-decoration-none"
-                  [routerLink]="['/organizations', organizationId, 'accounting', 'bank-accounts', item.id, 'statement']"
-                >
-                  Statement <i aria-hidden="true" class="bi bi-chevron-right"></i>
-                </a>
+                <div class="d-flex flex-wrap gap-3 mt-1">
+                  <a
+                    class="small fw-semibold text-decoration-none"
+                    [routerLink]="['/organizations', organizationId, 'accounting', 'bank-accounts', item.id, 'statement']"
+                  >
+                    Statement <i aria-hidden="true" class="bi bi-chevron-right"></i>
+                  </a>
+                  <!-- Phase 56 -- the other two doors this account now has. A route with no link is
+                       an unreachable screen (phase 34b), and the reconciliation report is reached
+                       from the matcher as well, so Reconcile is the one that has to be here. -->
+                  <a
+                    class="small fw-semibold text-decoration-none"
+                    [routerLink]="['/organizations', organizationId, 'accounting', 'bank-accounts', item.id, 'reconcile']"
+                  >
+                    Reconcile <i aria-hidden="true" class="bi bi-chevron-right"></i>
+                  </a>
+                  <a
+                    class="small fw-semibold text-decoration-none"
+                    [routerLink]="[
+                      '/organizations',
+                      organizationId,
+                      'accounting',
+                      'bank-accounts',
+                      item.id,
+                      'book-statement'
+                    ]"
+                  >
+                    Book <i aria-hidden="true" class="bi bi-chevron-right"></i>
+                  </a>
+                </div>
               </div>
             </div>
           </div>

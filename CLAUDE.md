@@ -87,6 +87,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 53: re-planning by permission-key census (166 keys from the vendor's bundle; 20 of 22 document types ours, bank reconciliation the only gap). Before scoping a feature from a route, or planning a phase from a screen-by-screen read — `docs/phase-53-status.md`
 - Phase 54: phase 52's four deferred line types settled (Inventory Adjustment carries a unit; the three manufacturing types carry a display, not an input), and both measurement debts paid. Before concluding from a screen you could only open empty, or modelling a field from someone else's payload — `docs/phase-54-status.md`
 - Phase 55: bank statement import (a tenth `ImportEntityType`, one signed `StatementAmount`, the account as per-run context on `ImportJob`). Before scoping a phase from a screen an earlier pass only glanced at, or exempting a new screen from a sweep guard — `docs/phase-55-status.md`
+- Phase 56: bank reconciliation (the two-pane N:M matcher; a reconciliation joins `GlLine`s, membership is a nullable key on each side, and it posts nothing). Before deciding what a cross-record match joins to, or exposing an `IQueryable` from a shared reader — `docs/phase-56-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -165,6 +166,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - …but that generalises only to a captured **bool**: `collection == null || collection.Contains(x)` is funcletized to a constant and folded away, and returns 200 on SQL Server. Compose anyway; don't call an instance of it broken without running it (phase-35a, correcting phase-33).
 - A shared matcher cannot live inside a LINQ predicate: a **static call** is untranslatable and so is `Contains(term, StringComparison)` — and InMemory evaluates both in C#, so every handler test passes while all 25 endpoints 500 (phase-34b, phase-25's captured-`Func` through another door).
 - Same door, third time: a store-side `Sum` over an already-projected record is untranslatable, InMemory evaluates it, and only an E2E sees the 500. Project after `Skip`/`Take` (phase-42).
+- …and a fourth: `OrderBy` over a projected record is untranslatable too. Stop a shared reader handing back `IQueryable` at all — order on the entities' columns, project after `ToListAsync` (phase-56).
 - Single-argument `Contains` is case-**insensitive** on SQL Server (collation) and case-**sensitive** on InMemory; a handler test must search with the stored casing or it pins a behaviour production lacks (phase-34b).
 - Every tenant-scoped table needs an index leading on `OrganizationId`; `TenantIndexConvention` derives them and throws at model build for an entity it cannot classify (phase-34c).
 - …but it recognises a business date by **name** (`Date`, `PostedAt`), so `Cheque.ChequeDate` is invisible to it and the Cheque Register has always ordered by an unindexed column (phase-47).
@@ -427,55 +429,61 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0-55 are complete.** The v1 sequence (0-25), parity (26-34c), consolidation (35-41),
-completion (42-47) and the continuation phases (48-55) are all done; each phase's story is in its
-`docs/phase-N-status.md`, and every finished planning entry is archived in `docs/roadmap-history.md`.
+**Phases 0-56 are complete, and the forward plan is empty.** The v1 sequence (0-25), parity (26-34c),
+consolidation (35-41), completion (42-47) and the continuation phases (48-56) are all done; each
+phase's story is in its `docs/phase-N-status.md`, and every finished planning entry is archived in
+`docs/roadmap-history.md`.
 
-**Phase 55 shipped bank statement import, and its first act was to falsify its own premise.** The
-kickoff and the roadmap both named `/config/import-statement` as the reference product's statement
-importer. It is a **generic CSV staging editor** whose three hardcoded column sets are Delivery
-Note, Goods Received Note and Inventory Adjustment - "statement" there means *statement of rows* -
-and the Delivery Note filter row phase 53 recorded as "stale state" is its *default* column set.
-The real screen is `/accounting/bank-accounts/:id/import`, now read in full and probed with twelve
-files; the whole read is the phase-55 appendix in `docs/erp-module-scan.md`.
+**Phase 56 shipped bank reconciliation**, closing the one substantial gap phase 53's permission-key
+census found. The two-pane N:M matcher, the Book Statement list, the reconciliation detail page with
+Unreconcile, the Reconciliation Report, and the Status column and Reconciled/Pending filter phase 55
+deferred. The whole module was read live on Cadehi first, including three statement lines committed
+and then deleted with the user's permission — the phase-52/54 precedent — because an empty pane
+cannot say what a populated one does.
 
-**Six decisions.** It is an **ordinary importer** - the kickoff's "a statement row resolves into no
-command" doubt does not survive phase 21c, whose lifecycle-free register row has had a create
-command since. The amount is **one signed `StatementAmount`**, not the vendor's `dr_amount`/
-`cr_amount` pair. **Status is derived and has no column**; phase 56 adds the foreign key it derives
-from. Deletion is **by row id plus an undo-this-import** the vendor does not offer, because a bank
-statement has no natural key and a duplicate upload cannot be refused. Two Admin+Member keys
-(`Accounting.BankStatement.View`/`.Manage`), derived from the `bank-edit` the vendor gates the
-screen on. **One template**, not the vendor's two.
+**The live read settled six things inference could not.** The right-hand pane is `/gl-transactions`,
+i.e. **GL rows**, not the document-level `/transactions` phase 55 recorded as the other candidate,
+which none of the six screens calls. N:M is real (1:2 and 2:2 both driven live, one
+`reconciliation_id` on all four rows). The gate is **sum equality enforced by the server** — 678
+against 113 answered `400 "transactions cannot be reconciled"`. Unreconcile is a DELETE that releases
+both sides. `/bank-statements-matched` is the auto-match **suggestion** queue, not the reconciled
+list. And "Select account" on the account Overview is **Quick Approve**, a whole separate feature
+that turns a statement line into a Payment or Receipt — recorded and excluded.
 
-**The one new thing in the machinery**: a statement row does not name its own account, so the
-account is context for the **run** - `ImportJob.BankAccountId`, required for this type and refused
-for the other nine, asserted both ways and confirmed across the whole database (22 jobs of the
-other nine types, none naming an account). Two vendor defects were found by probing and
-deliberately not reproduced: its parser matches columns by **position** and ignores header text,
-and it stores a **negative Deposit** verbatim.
+**Six decisions.** A reconciliation joins **`GlLine`s**, because only a line is one movement of money
+(and the cost — the screens can show only the posting date, phase 26a — is named rather than
+discovered). Membership is a **nullable key on each side**, not a link table, because a key cannot
+hold the illegal state. It **posts nothing**, proven in SQL before and after a match. **No new
+permission keys**: reconciling rides phase 55's `.Manage`, reading rides `.View`, and there is no
+"report Export" key anywhere to follow. A **reconciled statement line cannot be deleted** (409), a
+deliberate divergence. The report is **one as-of date**, with each side cutting off on its own date
+field because they are two records kept by two different people.
 
-**Phase 56 is unblocked, and the roadmap's reason for thinking otherwise was wrong.**
-`/accounting/recon` takes its account from router state, but the six real screens are
-`/accounting/bank-accounts/:id/{import,bank-statement,book-statement,manual-reconcile,matched}` and
-take it from the **URL**; the two-pane matcher renders fully on Cadehi's existing **Cash** account.
-No Bank-type account is needed. Also corrected: a bank account is **not** location-scoped here
-(`Account` has no `LocationId`), so phase 32b does not apply to these keys.
+**The phase's own bug is the one worth remembering.** The shared reader first exposed
+`IQueryable<BookMovement>` and handlers ordered over it: every InMemory test passed and SQL Server
+returned **500**, because EF cannot translate `OrderBy(x => new BookMovement(…).PostedAt)`. That is
+the fourth trip through the door phases 25, 34b and 42 each found. The fix is structural — the reader
+hands back answers, never a query — and `BankBookTransactionReaderShapeTests` pins that shape in a
+suite that runs without Docker. Separately, `SearchSweepGuardTests` asserted a coupling with no
+exemption path that this phase falsified; it now honours `Exempt`.
 
-**Next: phase 56**, in `docs/roadmap.md` under **Forward plan (56)** - the two-pane N:M
-reconciliation matcher. The three standing "outside the sequence" items (the NVDA hour, the two
-traceability reports' real columns, full-text search) keep their start conditions unchanged.
+**Next: nothing is scheduled, and that is the honest statement.** `docs/roadmap.md`'s forward plan is
+empty because the census that produced it is exhausted. What remains is the three standing "outside
+the sequence" items (the NVDA hour, the two traceability reports' real columns, full-text search),
+unchanged, plus phase 56's five carried items — of which **Quick Approve** and the **auto-match
+suggestion engine** are each worth a phase if wanted. The next phase should be planned the way 53
+planned these: from a fresh read, against evidence.
 
-Tests: Domain **722** (+19), Application.UnitTests **1320** (+34), Infrastructure.UnitTests 12,
-Api.IntegrationTests 30, Angular **605** (+14). `dotnet build` / `dotnet test` / `ng build` /
-`ng test` all clean, and `ng build` does not warn - phase 42's measured 680 kB initial-bundle budget
-is pinned by `build-budget.spec.ts`, and the bundle sits at **643.85 kB**. `Api.IntegrationTests`
+Tests: Domain **738** (+16), Application.UnitTests **1343** (+23), Infrastructure.UnitTests **13**
+(+1), Api.IntegrationTests 30, Angular **613** (+8). `dotnet build` / `dotnet test` / `ng build` /
+`ng test` all clean, and `ng build` does not warn — phase 42's measured 680 kB initial-bundle budget
+is pinned by `build-budget.spec.ts`, and the bundle sits at **644.64 kB**. `Api.IntegrationTests`
 needs Docker Desktop running: without it the Testcontainers-backed tests fail in their constructors
 with `DockerEndpointAuthConfig` before any assertion, which reads like regressions and is not; it
-also fails nondeterministically under machine load and passes on re-run (phase 36/37) - the Angular
+also fails nondeterministically under machine load and passes on re-run (phase 36/37) — the Angular
 suite did exactly that once in phase 52. `tsc --noEmit` does not cover `web/src/app`; `ng build` is
 the check (phase-28), and `ng test` must be run from `web/` (phase-35a) on **Node 24**
-(`nvm use 24.11.0` - v16 dies with `availableParallelism is not a function`). When the subject is one
+(`nvm use 24.11.0` — v16 dies with `availableParallelism is not a function`). When the subject is one
 screen's plan, the number to trust is `tools/scale/`, not the wall clock (phase-50).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,

@@ -1803,3 +1803,172 @@ bank connection with an OTP handshake — a vendor-side integration this codebas
 - `GET /bank-reconciliations` and `GET /reconciliations` both 404 while `/bank-statements` and
   `/bank-statements-matched` answer 200 — consistent with the first two being POST-only, and
   **not** the Recurring Invoices ghost shape, since the keys and the screens both exist.
+
+## Bank reconciliation, read in full (2026-09-21, phase 56)
+
+Cadehi (`cadehi.tigg.app`), Cash In Hand (`759b81d2-…af5c`), the user logged in; no credentials were
+entered. **Three statement lines were deliberately committed and then deleted** — the
+phase-52/54 precedent, authorised by the user before the write. The tenant ends the pass with **0
+statement lines and both Invoices unreconciled**, i.e. exactly as it was found. The only residue is
+two empty reconciliation shells, which is the vendor's own behaviour (see the defects below) and is
+invisible on every screen.
+
+The API base is `https://api-v2.tigg.app/api/v1/erp`, with a `Namespace` header and a `namespace`
+query parameter both carrying the tenant slug.
+
+### The right-hand pane is `/gl-transactions`, and so is Book Statement
+
+Phase 55 recorded two candidate feeds and left the choice to this pass. The matcher calls:
+
+```
+GET /gl-transactions?account_id=<id>&reconciled=false&status=Approved
+                    &matched_statement_id=&reconciliation_id=&sorts=-date&with-corresponding=true
+GET /bank-statements?account_id=<id>&reconciled=false&status=Approved
+                    &matched_transaction_id=&reconciliation_id=&sorts=-date
+```
+
+`/transactions` (the document-level feed) is **not used by any of the six screens**.
+`/…/book-statement` calls the *same* `gl-transactions` endpoint without the `reconciled` filter and
+renders `DATE | TXN TYPE | DESCRIPTION | TXN NO | AMOUNT | Find Match`.
+
+A `gl-transaction` row, verbatim:
+
+```json
+{"id":"a9f9b222-…","source_type":"Invoice","source_id":"ef0199fd-…",
+ "account_id":"759b81d2-…","amount":678,"amount_type":"DR",
+ "npr_amount":678,"dr_amount":678,"cr_amount":0,"dr_npr_amount":678,"cr_npr_amount":0,
+ "note":"LESS SPICY","reference_no":"SO0002/1002/83-84","code":"INV0002/1002/83-84",
+ "status":"Approved","corresponding_account":{…"name":"Cash Customer","code":"CUS0001"…},
+ "reconciliation_id":null,"date":"16-09-2026","due_date":"16-09-2026","location_id":"f07348b6-…",
+ "currency_code":"NPR","conversion_rate":1,"year_ad":2026,"year_bs":2083,"month_ad":9,"month_bs":5,
+ "account":{…the bank account, with its currency…},"channel":"POS","approved_at":"2026-09-16T21:39:45+05:45"}
+```
+
+**It is one GL line against the bank account**, carrying its source document's `code`,
+`reference_no` and **business `date`** — the vendor denormalises onto its GL row what
+`GlJournalEntry` here deliberately does not store (phase 26a).
+
+### RECONCILE: the sums must be equal, and the server says so
+
+The client's own gate, verbatim from `18.*.chunk.js`:
+
+```js
+this.isReconcileAllowed = () => {
+  let e = this.getSelectedBankTotal(), t = this.getSelectedTiggTotal();
+  return !(e != t || 0 == e && 0 == this.state.selectedTxnBank.length
+                  || 0 == t && 0 == this.state.selectedTxnTigg.length)
+}
+```
+
+i.e. **the two selected sums must be equal, with at least one row selected on each side**. Both
+totals are signed (`dr_amount > 0 ? += dr : -= cr`); the Tigg side folds to `dr_npr_amount` when the
+account's currency is NPR.
+
+**This is not a UI convenience — it is enforced at the endpoint.** Probed live:
+
+| Probe | Result |
+| --- | --- |
+| `bs_ids:[678]`, `tx_ids:[113]` — unequal | **`400 {"message":"transactions cannot be reconciled"}`** |
+| `bs_ids:[791]`, `tx_ids:[678,113]` — **1:2** | `200 "bank statement reconciliation successful"` |
+| `bs_ids:[678,113]`, `tx_ids:[678,113]` — **2:2** | `200`, **one** `reconciliation_id` on all four rows |
+
+So N:M is real, not aspirational, and the invariant is sum equality.
+
+### What a reconciliation is
+
+`POST /bank-reconciliations {account_id, bs_ids[], tx_ids[]}`, and
+`GET /bank-reconciliations/:id` returns:
+
+```json
+{"bank_transactions":[…statement lines…], "book_transactions":[…gl rows…],
+ "reconciled_at":"2026-09-21T21:04:55+05:45", "reconciled_by":{…user…}}
+```
+
+The parent record carries **only who and when**; membership is a nullable `reconciliation_id` **on
+both sides** — not a join table. The statement line also gains `reconciled_at` (a unix stamp).
+A row therefore belongs to at most one reconciliation.
+
+`POST /bank-reconciliations` is multi-verb: no `action` reconciles; `action:"approve"` with
+`bs_ids`/`tx_ids` or `all:true` approves suggestions; `action:"un-match"` with `statements` or
+`all:true` rejects them.
+
+**Unreconcile is `DELETE /bank-reconciliations/:id`** (`"bank statement unreconciled successfully"`),
+and it releases **both** sides — confirmed by re-reading both feeds afterwards. The whole
+reconciliation is the unit; there is no un-match of one row from a group.
+
+### `/bank-statements-matched` is the suggestion queue, not the reconciled list
+
+It returned **`total: 0` while a reconciliation existed**, and again after it was deleted. Its screen
+(`/…/matched`) renders "Reconcile Selected", "Reconcile All" and "Go to Manual Reconciliation", and
+redirects to the matcher when the list is empty. So it is the **auto-match suggestion** surface that
+`account_suggestions` / `is_suggestion_completed` / `show_suggestions=true` belong to. On this tenant
+every row came back `account_suggestions: null, is_suggestion_completed: true`.
+
+The *reconciled* pairs are reached from the reconciliation detail drawer, which shows the two lists,
+"Reconciled by <name>", "on <date>" and a red **Unreconcile**.
+
+### The report, and the account Overview
+
+`GET /reconciliation-report?account_id=<id>&date=<dd-mm-yyyy>` returns six scalars:
+
+```json
+{"bank_total":1582,"book_total":791,
+ "bank_total_unreconciled":791,"count_bank_unreconciled":2,
+ "book_total_unreconciled":0,"count_book_unreconciled":0,"bank_total_rapid":0}
+```
+
+The **Reconciliation Report** tab renders them as a four-row statement as of **one date** (not a
+range), with an **Export Report** control:
+
+```
+Balance In TIGG App        As of 21-09-2026   NPR 791
+Balance in Cash In Hand    As of 21-09-2026   NPR 1,582
+Difference                                    NPR -791     <- highlighted red
+> Unrecognized Transaction in Tigg App        NPR 0        <- expandable, paged
+> Unrecognized Transaction in Bank            NPR 791      <- Date | Description | Amount
+```
+
+The two expandable sections are the unreconciled feeds with `time_stamp_$lte=<date>`.
+
+The account's **Overview** tab is the same numbers as a dashboard: *Balance in Bank Account* +
+"Reconcile N transactions" + View Statement; *Balance in Tigg* + View Transaction / View Ledger;
+*Difference / Unreconciled Amount* + Go to Reconciliation; a **Balance History** chart
+(`GET /balance-history/:id` → `[{day, tigg_balance, bank_balance}]`, last 30 days); a Deposit vs
+Withdrawal card; and *Recent Unmatched Bank Transaction*.
+
+### "Select account" is Quick Approve — a separate feature, recorded and excluded
+
+On the Overview's unmatched table each row carries an account picker and a green tick. It is not part
+of matching: it **creates a document from the statement line**, routed by the chosen account's type
+(`handleQuickApprove`):
+
+| Selected account type | Direction | Executor |
+| --- | --- | --- |
+| `customer` | deposit | Customer Payment (`bank_account_id` = the statement's account) |
+| anything else | deposit | Quick Receipt |
+| `supplier` | withdrawal | Supplier Payment |
+| anything else | withdrawal | Quick Payment |
+
+with a payload of `{reconcillation: true, note: <description>, amount, code: "DRAFT", contact_id,
+statement_id, items:[{account_id, amount}]}` — so `statement_id` ties the new document back to the
+line it came from. This codebase has all four of those documents already (phase 17), so it is a real
+future phase rather than a gap; **it is out of phase 56's scope, decided rather than inherited.**
+
+### Two vendor defects, found by probing
+
+1. **A reconciled statement line can be deleted.** `POST /bank-statements-delete` accepted a line
+   carrying a `reconciliation_id` and removed it. The cascade is at least correct — both book rows
+   came back `reconciliation_id: null` — but it leaves the reconciliation row itself alive with
+   `bank_transactions: []` and `book_transactions: []`.
+2. **`DELETE /bank-reconciliations/:id` leaves the same shell**: afterwards the id still answers 200
+   with two empty lists and `reconciled_at: "0001-01-01T00:00:00Z"`.
+
+So the vendor accumulates empty reconciliation rows. Neither is reproduced here.
+
+### Corrections to earlier entries
+
+- Phase 55's carried item #3 said the two candidate feeds were `/transactions` (document-level) and
+  `/gl-transactions`. **The matcher uses `/gl-transactions` only**, and `/transactions` is used by
+  nothing in this module.
+- Phase 53's endpoint list named `/reconciliations`; the live client never calls it. The real POST
+  is `/bank-reconciliations`.

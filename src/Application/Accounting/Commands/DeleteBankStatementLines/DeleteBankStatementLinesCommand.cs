@@ -22,9 +22,10 @@ namespace ErpApp.Application.Accounting.Commands.DeleteBankStatementLines;
 /// the line carries the run that created it. The reference product keeps a <c>batch_code</c> on
 /// its rows for the same purpose but never offers it as a delete unit; this does.</para>
 ///
-/// <para>Exactly one of <see cref="LineIds"/> and <see cref="ImportJobId"/> is supplied. Deleting
-/// lines reconciled in phase 56 will have to be refused there; today nothing can be reconciled, and
-/// a guard against a table that does not exist would be untestable.</para>
+/// <para>Exactly one of <see cref="LineIds"/> and <see cref="ImportJobId"/> is supplied.
+/// <b>Phase 56 added the guard this paragraph promised</b>: a reconciled line is refused with a 409
+/// naming the count, which diverges from the reference product (it deletes one happily) for the
+/// reason recorded on the handler.</para>
 /// </summary>
 public sealed record DeleteBankStatementLinesCommand(
     Guid OrganizationId,

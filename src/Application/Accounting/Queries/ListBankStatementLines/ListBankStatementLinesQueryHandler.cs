@@ -44,6 +44,16 @@ public sealed class ListBankStatementLinesQueryHandler(IAppDbContext db)
             query = query.Where(x => x.Date <= toDate);
         }
 
+        // Phase 56 -- the Status filter, as its own composed Where for the usual reason: an
+        // expression tree does not short-circuit, so folding the null check into one predicate
+        // hands EF the unrestricted branch to translate (phase 33/35a).
+        if (request.Reconciled is { } reconciled)
+        {
+            query = reconciled
+                ? query.Where(x => x.ReconciliationId != null)
+                : query.Where(x => x.ReconciliationId == null);
+        }
+
         // The two orderings this table is indexed for, both built by TenantIndexConvention:
         // (OrganizationId, CreatedAt DESC) and (OrganizationId, Date). Anything else would sort the
         // whole filtered set, which the pager would hide (34c).
@@ -73,6 +83,7 @@ public sealed class ListBankStatementLinesQueryHandler(IAppDbContext db)
                 x.Amount.WithdrawalAmount,
                 x.Amount.Signed,
                 x.ImportJobId,
+                x.ReconciliationId,
                 x.CreatedAt))],
             page.Page,
             page.PageSize,

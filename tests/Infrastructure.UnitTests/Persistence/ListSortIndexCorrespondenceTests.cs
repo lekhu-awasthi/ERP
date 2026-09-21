@@ -155,6 +155,51 @@ public class ListSortIndexCorrespondenceTests(ModelFixture fixture)
     }
 
     /// <summary>
+    /// Phase 56 — the premise under the <c>ListBookTransactionsQuery</c> exemption, asserted rather
+    /// than asserted-about.
+    ///
+    /// <para>That exemption's reason is not "the screen is a pane" but <b>"the subject has one
+    /// date"</b>: a GL posting is timestamped once, at Approve, and phase 26a decided the entry
+    /// stores no copy of its document's business date. A <c>Sort by</c> menu therefore has nothing
+    /// to choose between, which is the outcome <see cref="ISortableQuery"/>'s rule exists to
+    /// produce rather than an exception to it.</para>
+    ///
+    /// <para>Phase 54's lesson is that a refusal asserted in the negative needs its premise asserted
+    /// too, or a change elsewhere makes the refusal vacuous and it keeps passing. If somebody gives
+    /// <c>GlJournalEntry</c> a business date — which is exactly what the reference product's GL row
+    /// has, so it is a plausible future phase — this fails, and the right response is to delete the
+    /// exemption and give the screen its menu, not to relax this.</para>
+    /// </summary>
+    [Fact]
+    public void A_gl_posting_has_exactly_one_date()
+    {
+        var entry = fixture.Entity("GlJournalEntry");
+
+        var dates = entry.GetProperties()
+            .Where(p => p.ClrType == typeof(DateOnly)
+                        || p.ClrType == typeof(DateTimeOffset)
+                        || p.ClrType == typeof(DateTime))
+            .Select(p => p.Name)
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToList();
+
+        Assert.True(
+            dates is ["PostedAt"],
+            "SortSweepGuardTests exempts ListBookTransactionsQuery from the Sort by sweep because a "
+            + "GL posting has exactly one date to order by. GlJournalEntry now carries: "
+            + string.Join(", ", dates)
+            + ". If a business date has been added, that exemption is no longer true -- give the "
+            + "Book Statement screen its Sort by menu and the table the index it needs.");
+
+        // The other half of the same premise: there is no CreatedAt either, so ListSort.Newest has
+        // nothing to order by on this subject even though every document list uses it.
+        Assert.False(
+            ModelFixture.HasIndexLeadingOn(entry, "CreatedAt"),
+            "GlJournalEntry has acquired a CreatedAt index, which means it has acquired a CreatedAt. "
+            + "ListSort.Newest would then be offerable on the book feed.");
+    }
+
+    /// <summary>
     /// A document list that offers an ordering, derived exactly as
     /// <c>SortSweepGuardTests.DocumentListQueries</c> derives its own set — phase 34b's rule that an
     /// aggregate with a business date is a document — and then narrowed to the ones that implement

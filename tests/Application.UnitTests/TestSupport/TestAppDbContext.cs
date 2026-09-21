@@ -130,6 +130,8 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
 
     public DbSet<BankStatementLine> BankStatementLines => Set<BankStatementLine>();
 
+    public DbSet<BankReconciliation> BankReconciliations => Set<BankReconciliation>();
+
     public DbSet<TdsType> TdsTypes => Set<TdsType>();
 
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();

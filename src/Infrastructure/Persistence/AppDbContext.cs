@@ -80,6 +80,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<Cheque> Cheques => Set<Cheque>();
 
     public DbSet<BankStatementLine> BankStatementLines => Set<BankStatementLine>();
+
+    public DbSet<BankReconciliation> BankReconciliations => Set<BankReconciliation>();
     public DbSet<TdsType> TdsTypes => Set<TdsType>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();

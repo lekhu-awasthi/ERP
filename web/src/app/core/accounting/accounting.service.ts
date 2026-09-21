@@ -16,7 +16,11 @@ import {
   VoidJournalVoucherResult,
   BalanceSheetDto,
   BankAccountDto,
+  BankReconciliationDetailDto,
+  BankReconciliationReportDto,
   BankStatementLineDto,
+  BookTransactionDto,
+  CreateBankReconciliationResult,
   CashFlowSummaryDto,
   CashTransfer,
   CashTransferDetail,
@@ -278,10 +282,13 @@ export class AccountingService {
     bankAccountId: string,
     page = 1,
     pageSize = 50,
-    options?: ListQueryOptions,
+    options?: ListQueryOptions & { reconciled?: boolean },
   ): Observable<PagedResult<BankStatementLineDto>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
     applyListOptions(params, options);
+    // Phase 56 -- the Status filter. Omitted entirely for "All": a `reconciled=` with no value
+    // would bind as false server-side and silently hide every matched line.
+    if (options?.reconciled !== undefined) params['reconciled'] = String(options.reconciled);
     return this.http.get<PagedResult<BankStatementLineDto>>(
       `${this.baseUrl(organizationId)}/bank-accounts/${bankAccountId}/statement-lines`,
       { withCredentials: true, params },
@@ -305,6 +312,80 @@ export class AccountingService {
         ? { lineIds: selector.lineIds, importJobId: null }
         : { lineIds: null, importJobId: selector.importJobId },
       { withCredentials: true },
+    );
+  }
+
+  /**
+   * Phase 56 -- this tenant's own side of the same account. Backs both the Book Statement screen
+   * (`reconciled` omitted) and the matcher's right-hand pane (`false`), which is how the reference
+   * product uses its one `/gl-transactions` endpoint for both.
+   */
+  listBookTransactions(
+    organizationId: string,
+    bankAccountId: string,
+    page = 1,
+    pageSize = 50,
+    options?: ListQueryOptions & { reconciled?: boolean },
+  ): Observable<PagedResult<BookTransactionDto>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
+    if (options?.reconciled !== undefined) params['reconciled'] = String(options.reconciled);
+    return this.http.get<PagedResult<BookTransactionDto>>(
+      `${this.baseUrl(organizationId)}/bank-accounts/${bankAccountId}/book-transactions`,
+      { withCredentials: true, params },
+    );
+  }
+
+  /** RECONCILE. The two id lists travel in the body, never on the query string (phase 38). */
+  createBankReconciliation(
+    organizationId: string,
+    bankAccountId: string,
+    statementLineIds: readonly string[],
+    glLineIds: readonly string[],
+  ): Observable<CreateBankReconciliationResult> {
+    return this.http.post<CreateBankReconciliationResult>(
+      `${this.baseUrl(organizationId)}/bank-accounts/${bankAccountId}/reconciliations`,
+      { statementLineIds, glLineIds },
+      { withCredentials: true },
+    );
+  }
+
+  getBankReconciliation(
+    organizationId: string,
+    bankAccountId: string,
+    reconciliationId: string,
+  ): Observable<BankReconciliationDetailDto> {
+    return this.http.get<BankReconciliationDetailDto>(
+      `${this.baseUrl(organizationId)}/bank-accounts/${bankAccountId}/reconciliations/${reconciliationId}`,
+      { withCredentials: true },
+    );
+  }
+
+  /** Unreconcile -- the whole reconciliation, releasing both sides. */
+  deleteBankReconciliation(
+    organizationId: string,
+    bankAccountId: string,
+    reconciliationId: string,
+  ): Observable<{ releasedStatementLineCount: number; releasedBookTransactionCount: number }> {
+    return this.http.delete<{
+      releasedStatementLineCount: number;
+      releasedBookTransactionCount: number;
+    }>(
+      `${this.baseUrl(organizationId)}/bank-accounts/${bankAccountId}/reconciliations/${reconciliationId}`,
+      { withCredentials: true },
+    );
+  }
+
+  getBankReconciliationReport(
+    organizationId: string,
+    bankAccountId: string,
+    asOfDate?: string | null,
+  ): Observable<BankReconciliationReportDto> {
+    const params: Record<string, string> = {};
+    if (asOfDate) params['asOfDate'] = asOfDate;
+    return this.http.get<BankReconciliationReportDto>(
+      `${this.baseUrl(organizationId)}/bank-accounts/${bankAccountId}/reconciliation-report`,
+      { withCredentials: true, params },
     );
   }
 

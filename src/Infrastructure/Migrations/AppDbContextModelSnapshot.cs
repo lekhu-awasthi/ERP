@@ -122,6 +122,31 @@ namespace ErpApp.Infrastructure.Migrations
                     b.ToTable("AccountGroups", "accounting");
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Accounting.BankReconciliation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BankAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ReconciledAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("ReconciledByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "BankAccountId");
+
+                    b.ToTable("BankReconciliations", "accounting");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Accounting.BankStatementLine", b =>
                 {
                     b.Property<Guid>("Id")
@@ -149,6 +174,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ReconciliationId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
@@ -320,6 +348,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("decimal(18,4)");
 
                     b.Property<Guid>("GlJournalEntryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ReconciliationId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");

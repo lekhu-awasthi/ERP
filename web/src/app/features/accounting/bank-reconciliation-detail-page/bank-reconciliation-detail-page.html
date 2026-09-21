@@ -1,0 +1,139 @@
+<div class="container py-5" style="max-width: 1000px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="bg-success bg-gradient text-white p-2.5 rounded-3">
+            <i aria-hidden="true" class="bi bi-check2-all fs-4 d-flex"></i>
+          </div>
+          <div>
+            <h1 class="h3 fw-bold mb-0 text-dark">Reconciliation</h1>
+            @if (detail(); as d) {
+              <p class="text-muted small mb-0">
+                {{ d.reconciledAmount | amount }} matched
+                @if (d.reconciledByName) {
+                  · Reconciled by {{ d.reconciledByName }}
+                }
+                · {{ d.reconciledAt | nepaliDate: 'datetime' }}
+              </p>
+            }
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <a
+            class="btn btn-outline-secondary btn-sm"
+            [routerLink]="[
+              '/organizations',
+              organizationId,
+              'accounting',
+              'bank-accounts',
+              bankAccountId,
+              'reconcile'
+            ]"
+          >
+            <i aria-hidden="true" class="bi bi-arrow-left"></i> Reconcile
+          </a>
+          @if (detail()) {
+            <button
+              type="button"
+              class="btn btn-outline-danger btn-sm"
+              [disabled]="unreconciling()"
+              (click)="unreconcile()"
+            >
+              <i aria-hidden="true" class="bi bi-arrow-counterclockwise"></i> Unreconcile
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <app-status-banner [message]="errorMessage()" />
+
+  @if (loading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary mb-3" role="status"></div>
+      <p class="text-muted mb-0">Loading this reconciliation...</p>
+    </div>
+  } @else if (detail(); as d) {
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body p-4">
+            <h2 class="h5 fw-bold text-dark mb-3">
+              <i aria-hidden="true" class="bi bi-bank"></i> Bank statement
+            </h2>
+            <div class="table-responsive">
+              <table class="table align-middle mb-0">
+                <caption class="visually-hidden">The bank statement lines in this reconciliation</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Date</th>
+                    <th scope="col">Description</th>
+                    <th scope="col" class="text-end">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of d.statementLines; track row.id) {
+                    <tr>
+                      <td class="text-nowrap">{{ row.date | nepaliDate }}</td>
+                      <td>{{ row.description || '—' }}</td>
+                      <td
+                        class="text-end text-nowrap"
+                        [class.text-success]="row.signedAmount > 0"
+                        [class.text-danger]="row.signedAmount < 0"
+                      >
+                        {{ row.signedAmount | amount }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body p-4">
+            <h2 class="h5 fw-bold text-dark mb-3">
+              <i aria-hidden="true" class="bi bi-journal-text"></i> Your books
+            </h2>
+            <div class="table-responsive">
+              <table class="table align-middle mb-0">
+                <caption class="visually-hidden">The postings in this reconciliation</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Posted</th>
+                    <th scope="col">Transaction</th>
+                    <th scope="col" class="text-end">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of d.bookTransactions; track row.id) {
+                    <tr>
+                      <td class="text-nowrap">{{ row.date | nepaliDate }}</td>
+                      <td>
+                        <span class="fw-semibold">{{ row.documentCode || '—' }}</span>
+                        <span class="d-block small text-muted">{{ row.documentType }}</span>
+                      </td>
+                      <td
+                        class="text-end text-nowrap"
+                        [class.text-success]="row.signedAmount > 0"
+                        [class.text-danger]="row.signedAmount < 0"
+                      >
+                        {{ row.signedAmount | amount }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

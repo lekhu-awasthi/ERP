@@ -1437,3 +1437,72 @@ to look at is the plan, not the row count.
 reads from every `SET STATISTICS IO` line, because the line also contains `lob logical reads 0` and
 `.*logical reads \([0-9]*\)` matched that one. Anchor on what precedes the number you want. Same
 family as the lazy-`.*?`-spanning-instances gotcha from phase 34a.
+
+---
+
+## Phase 56 — bank reconciliation, and the fourth trip through one door
+
+**Read this before deciding what a cross-record match joins to, before exposing an `IQueryable` from
+a shared reader, or before adding an exemption to a sweep guard whose claim you have just
+falsified.** Full doc: `docs/phase-56-status.md`.
+
+**The unit of a match is the unit of the movement.** A bank statement line corresponds to *one
+movement of money into or out of one account*, and the only thing in this codebase that is one such
+movement is a `GlLine`. A document is too coarse in both directions — phase 36 established that one
+document can post more than one entry, and a document may touch the bank account twice or not at all
+— and an entry is too coarse one level down. The reference product independently reads GL rows
+(`/gl-transactions`), which is a check on the reasoning rather than the reasoning.
+
+**Naming what a decision costs is part of making it.** Joining `GlLine` means the screens can show
+only the **posting** date, because `GlJournalEntry` deliberately stores no copy of its document's
+business date (phase 26a). That is not a new divergence — three existing GL reports already do it —
+and the remedy is the same one phase 26a used: label the column *Posted*, and filter on the field you
+show. A decision whose cost is written down at the time is a trade; the same decision with the cost
+discovered later is a bug.
+
+**Prefer the model that cannot hold the illegal state.** Membership is a nullable key on each side
+rather than a link table, because a key cannot express a row belonging to two reconciliations while a
+link table can and would then need a rule to forbid it. `ProductBatch` storing no quantity (51) and
+`PrimaryQuantity` never being a column (52) are the same choice, and so is the aggregate carrying no
+amount: a stored total could disagree with the sum of what it joins.
+
+**A mutable column on an append-only fact row is allowed, if you can say what stays immutable.**
+`GlLine.ReconciliationId` is fine because what makes the row append-only is its *money* — Debit,
+Credit and AccountId stay write-once and a correction is a new entry. The annotation is not about the
+posting. The tell that it is genuinely different: a reversal **does not** inherit it, where it does
+inherit `LocationId`.
+
+**The same door, a fourth time — and this time the remedy was structural.** A reader exposing
+`IQueryable<BookMovement>`, ordered over by three handlers, passes every InMemory test and returns
+**500** on SQL Server: EF cannot translate `OrderBy(x => new BookMovement(…).PostedAt)`. Phase 25
+found this with a captured `Func`, phase 34b with a static call, phase 42 with a `Sum` over an
+already-projected record. Rewriting the three call sites would have fixed the instance; making the
+reader hand back *answers* and never a query removes the shape. **A guard on the structure
+(`BankBookTransactionReaderShapeTests`) runs without Docker; the E2E that found it does not run at
+all in CI.**
+
+**A guard whose claim is falsified should learn, not acquire a special case.**
+`SearchSweepGuardTests` asserted, with no exemption path, that every date-ranged list is searchable.
+That was a fact about the fifteen lists alive when it was written, stated as a law; this phase's
+book-transaction feed is a genuine counter-example. It now honours `Exempt`, keeping all of its force
+(a reason is still required) while dropping a claim that is not true. This is phase 55's
+teach-the-guard lesson with the subject changed from the harness to the *predicate*.
+
+**An exemption resting on a fact needs that fact asserted separately.** `ListBookTransactionsQuery`
+is exempt from the Sort sweep because a GL posting has exactly one date — so a *Sort by* menu would
+have nothing to choose between, which is the outcome the rule exists to produce rather than an
+exception to it. `A_gl_posting_has_exactly_one_date` fails the moment somebody gives
+`GlJournalEntry` a business date, which is a plausible future phase. Without it the exemption would
+outlive its reason (phase 54).
+
+**Prove "it posts nothing" with the ledger, not with a sentence.** The E2E reads
+`GlJournalEntries`, `GlLines`, `SumDebit`, `SumCredit` and the account balance before and after a
+match and shows them identical, beside a report whose *unreconciled* figures move and whose
+*balances* do not. That is the feature's whole claim in one frame, and it is the shape phase 37's
+three-views rule asks for.
+
+**A deliberate write to the reference tenant is how several questions get answered at once.** Three
+statement lines, committed with the user's permission and deleted afterwards, settled N:M (a 1:2 and
+a 2:2), the server-side sum gate (a 400 on 678-against-113), the unreconcile verb, the cascade on
+deleting a reconciled line, and what `/bank-statements-matched` actually is — none of which an empty
+pane could have shown. Phase 54's lesson, applied to a screen rather than a control.

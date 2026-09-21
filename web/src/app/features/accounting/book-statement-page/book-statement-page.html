@@ -1,0 +1,132 @@
+<div class="container py-5" style="max-width: 1000px;">
+  <app-list-chrome
+    [heading]="account() ? account()!.name + ' — Book Statement' : 'Book Statement'"
+    description="What your own documents say happened on this account, posting by posting."
+    icon="journal-text"
+    [totalCount]="totalCount()"
+    [loading]="loading()"
+    [dateScoped]="true"
+    [searchable]="false"
+  >
+    <div listActions class="d-flex align-items-center gap-2 flex-wrap">
+      <a
+        class="btn btn-outline-secondary btn-sm"
+        [routerLink]="['/organizations', organizationId, 'accounting', 'bank-accounts']"
+      >
+        <i aria-hidden="true" class="bi bi-arrow-left"></i> Bank Accounts
+      </a>
+      <a
+        class="btn btn-outline-secondary btn-sm"
+        [routerLink]="[
+          '/organizations',
+          organizationId,
+          'accounting',
+          'bank-accounts',
+          bankAccountId,
+          'statement'
+        ]"
+      >
+        <i aria-hidden="true" class="bi bi-bank"></i> Bank Statement
+      </a>
+      <a
+        class="btn btn-primary btn-sm fw-bold"
+        [routerLink]="[
+          '/organizations',
+          organizationId,
+          'accounting',
+          'bank-accounts',
+          bankAccountId,
+          'reconcile'
+        ]"
+      >
+        <i aria-hidden="true" class="bi bi-arrow-left-right"></i> Reconcile
+      </a>
+    </div>
+  </app-list-chrome>
+
+  <app-status-banner [message]="errorMessage()" />
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading transactions...</p>
+        </div>
+      } @else if (items().length === 0) {
+        <div class="text-center py-5">
+          <div class="bg-light d-inline-flex p-4 rounded-circle mb-3 text-muted">
+            <i aria-hidden="true" class="bi bi-journal-text fs-1"></i>
+          </div>
+          <h5 class="fw-bold text-dark">No Transactions Yet</h5>
+          <p class="text-muted small mb-0">
+            Nothing has been posted against this account in the selected period.
+          </p>
+        </div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <caption class="visually-hidden">Postings against this account</caption>
+            <thead>
+              <tr>
+                <!-- Posted, because that is the date this list filters on and a GL posting has no
+                     other (phase 26a's same-date-field rule). -->
+                <th scope="col">Posted</th>
+                <th scope="col">Type</th>
+                <th scope="col">Description</th>
+                <th scope="col">Txn No.</th>
+                <th scope="col" class="text-end">Amount</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of items(); track item.id) {
+                <tr>
+                  <td class="text-nowrap">{{ item.date | nepaliDate }}</td>
+                  <td>{{ item.documentType }}</td>
+                  <td>{{ item.description || '—' }}</td>
+                  <td>{{ item.documentCode || '—' }}</td>
+                  <td
+                    class="text-end text-nowrap"
+                    [class.text-success]="item.signedAmount > 0"
+                    [class.text-danger]="item.signedAmount < 0"
+                  >
+                    {{ item.signedAmount | amount }}
+                  </td>
+                  <td>
+                    @if (item.reconciliationId) {
+                      <a
+                        class="badge text-bg-success text-decoration-none"
+                        [routerLink]="[
+                          '/organizations',
+                          organizationId,
+                          'accounting',
+                          'bank-accounts',
+                          bankAccountId,
+                          'reconciliations',
+                          item.reconciliationId
+                        ]"
+                      >
+                        Reconciled
+                      </a>
+                    } @else {
+                      <span class="badge text-bg-secondary">Pending</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      <app-pagination-control
+        [page]="page()"
+        [pageSize]="pageSize()"
+        [totalCount]="totalCount()"
+        (pageChange)="onPageChange($event)"
+        (pageSizeChange)="onPageSizeChange($event)"
+      />
+    </div>
+  </div>
+</div>

@@ -3563,3 +3563,54 @@ catch a doubled file also rejects genuine data — phase 52's "a factor below on
 another key. The reference product accepts duplicates silently and keeps a `batch_code` it never
 offers as a delete unit. Every line here carries the `ImportJobId` that created it instead, so the
 mistake is one action to take back.
+
+## `OrderBy` over a projected record, and stopping the family at the shape (phase 56)
+
+The **fourth** appearance, after phase 25's captured `Func`, phase 34b's static matcher, phase 38's
+set operation after a client projection and phase 42's `Sum` above. Same symptom every time: a green
+unit-test suite and a 500 that only the manual E2E sees.
+
+Phase 56's `BankBookTransactionReader` joined `GlLine` to `GlJournalEntry` and projected the pair
+into a `BookMovement` record as the join's result selector, handing callers an
+`IQueryable<BookMovement>`. Three handlers then ordered, counted and paged over it:
+
+```csharp
+// the reader
+.Join(entries, l => l.GlJournalEntryId, e => e.Id,
+      (line, entry) => new BookMovement(line.Id, …, entry.PostedAt, …));
+
+// a handler
+.OrderByDescending(x => x.PostedAt).ThenBy(x => x.GlLineId).Skip(…).Take(…)   // 500
+```
+
+EF would have to construct the record client-side to read `.PostedAt` as an ordering key, so it
+throws:
+
+```
+The LINQ expression '… .OrderByDescending(ti => new BookMovement(…).PostedAt)' could not be translated.
+```
+
+InMemory evaluates the whole expression in C#, so every handler test passed.
+
+**What is different about the fix.** Phase 42's remedy was a rule — *project after `Skip`/`Take`* —
+which fixes the instance and leaves the shape available to the next caller. Phase 56 removed the
+shape instead: the reader exposes **no `IQueryable` at all**. It answers `CountAsync`, `SumAsync`,
+`PageAsync`, `ForReconciliationAsync` and `DescribeAsync`, orders and pages on the entities' own
+columns, and projects only after `ToListAsync`. There is nothing left for a caller to compose
+wrongly.
+
+Two details in that fix are load-bearing and neither is obvious:
+
+- the joined pair is a **class with two entity-typed properties**, not a positional record. EF sees
+  through `x.Entry.PostedAt` as a column; a record's constructor in an *intermediate* operator is
+  exactly what it cannot translate. (As the final `Select`, a record is fine — which is why the
+  original code looked reasonable.)
+- the projection into `BookMovement` happens in C#, after the page has been fetched into an
+  anonymous type. That keeps `BookMovement` as the module's shared row shape without ever asking the
+  provider to build one.
+
+**And the guard is on the structure, not the symptom** (phase 50's rule).
+`BankBookTransactionReaderShapeTests` asserts that no public member of the reader returns an
+`IQueryable`, with a premise half asserting the reader still has the five methods it is supposed to
+— so the check cannot go vacuous. It runs in `Application.UnitTests`, which needs no Docker, where
+the E2E that found the bug does not run in CI at all.

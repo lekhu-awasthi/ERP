@@ -134,7 +134,83 @@ export interface BankStatementLineDto {
   signedAmount: number;
   /** The upload that produced this line, so a whole import can be undone in one action. */
   importJobId: string | null;
+  /**
+   * Phase 56 -- *this is the Status column*. Non-null renders "Reconciled" and null renders
+   * "Pending", which is exactly how the reference product does it: its filter has two options and
+   * they render off whether `reconciliation_id` is set. The id itself travels rather than a boolean
+   * because the row is also the way into the reconciliation it belongs to.
+   */
+  reconciliationId: string | null;
   createdAt: string;
+}
+
+// --- Phase 56: bank reconciliation ---
+
+/**
+ * One of this tenant's own movements through a cash-and-bank account: a GL posting against it,
+ * carrying the source document it came from.
+ *
+ * `date` is the **posting** date and every template labels it so. `GlJournalEntry` stores no copy of
+ * its document's business date (phase 26a), which the reference product's own GL row does -- see
+ * `BankBookTransactionReader` for the whole trade.
+ */
+export interface BookTransactionDto {
+  /** A GlLine id, not a document id -- the line is the unit of one movement of money. */
+  id: string;
+  date: string;
+  postedAt: string;
+  documentType: string;
+  documentId: string;
+  documentCode: string | null;
+  reference: string | null;
+  /** The other accounts the same journal entry touched. */
+  description: string | null;
+  debit: number;
+  credit: number;
+  /** Money into the account is positive. */
+  signedAmount: number;
+  reconciliationId: string | null;
+}
+
+export interface CreateBankReconciliationResult {
+  id: string;
+  reconciledAmount: number;
+  statementLineCount: number;
+  bookTransactionCount: number;
+}
+
+export interface BankReconciliationDetailDto {
+  id: string;
+  bankAccountId: string;
+  reconciledAt: string;
+  reconciledByUserId: string;
+  reconciledByName: string | null;
+  reconciledAmount: number;
+  statementLines: BankStatementLineDto[];
+  bookTransactions: BookTransactionDto[];
+}
+
+/**
+ * The Reconciliation Report tab: four figures as of one date, plus the two lists that explain the
+ * difference. Read live from the reference product on 2026-09-21.
+ */
+export interface BankReconciliationReportDto {
+  bankAccountId: string;
+  accountCode: string;
+  accountName: string;
+  asOfDate: string;
+  /** "Balance In TIGG App" -- what this tenant's own documents say. */
+  bookBalance: number;
+  /** "Balance in <account>" -- what the imported statement says. */
+  bankBalance: number;
+  /** Bank less book. Zero is the state the feature exists to reach. */
+  difference: number;
+  unreconciledBookTotal: number;
+  unreconciledBookCount: number;
+  unreconciledBankTotal: number;
+  unreconciledBankCount: number;
+  unreconciledBookTransactions: BookTransactionDto[];
+  unreconciledStatementLines: BankStatementLineDto[];
 }
 
 // --- Phase 17: Opening Balances (Account tab) ---
