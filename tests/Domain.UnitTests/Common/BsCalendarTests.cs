@@ -297,4 +297,23 @@ public class BsCalendarTests
         Assert.Equal(BsCalendar.LastYear - 1, supported[^1]);
         Assert.All(supported, y => Assert.NotNull(BsCalendar.FiscalYearMonths(y)));
     }
+
+    /// <summary>BS month lengths vary by year, so the same day number is real in one year and
+    /// not in the next -- which is the case a Gregorian-shaped validator gets wrong.</summary>
+    [Theory]
+    [InlineData(2081, 2, 32, true)]   // Jestha 2081 has 32 days
+    [InlineData(2082, 2, 32, false)]  // Jestha 2082 has only 31
+    [InlineData(2082, 2, 31, true)]   // ...so this is its last real day
+    [InlineData(2083, 1, 0, false)]   // day zero is not a day
+    [InlineData(2083, 13, 1, false)]  // there is no month 13
+    [InlineData(1999, 1, 1, false)]   // before the table starts
+    [InlineData(2093, 1, 1, false)]   // after it ends
+    [InlineData(2000, 1, 1, true)]    // the table's first day
+    [InlineData(2092, 12, 31, true)]   // the table's last day
+    [InlineData(2092, 12, 32, false)]  // one past it -- no such day
+    [InlineData(2092, 12, 30, true)]   // an ordinary day inside the month
+    public void IsValid_knows_each_years_own_month_lengths(int year, int month, int day, bool expected)
+    {
+        Assert.Equal(expected, BsCalendar.IsValid(new BsDate(year, month, day)));
+    }
 }
