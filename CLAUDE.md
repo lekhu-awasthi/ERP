@@ -88,6 +88,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 54: phase 52's four deferred line types settled (Inventory Adjustment carries a unit; the three manufacturing types carry a display, not an input), and both measurement debts paid. Before concluding from a screen you could only open empty, or modelling a field from someone else's payload — `docs/phase-54-status.md`
 - Phase 55: bank statement import (a tenth `ImportEntityType`, one signed `StatementAmount`, the account as per-run context on `ImportJob`). Before scoping a phase from a screen an earlier pass only glanced at, or exempting a new screen from a sweep guard — `docs/phase-55-status.md`
 - Phase 56: bank reconciliation (the two-pane N:M matcher; a reconciliation joins `GlLine`s, membership is a nullable key on each side, and it posts nothing). Before deciding what a cross-record match joins to, or exposing an `IQueryable` from a shared reader — `docs/phase-56-status.md`
+- Phase 57: the bank module finished (Quick Approve, the report's `.xlsx`, the balance chart) + phase 53's census re-run. Before paying an index debt, re-running a census, or choosing a calendar for a derived series — `docs/phase-57-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -172,6 +173,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - …but it recognises a business date by **name** (`Date`, `PostedAt`), so `Cheque.ChequeDate` is invisible to it and the Cheque Register has always ordered by an unindexed column (phase-47).
 - Asking the mirror question found **three** such dates, and the two stock tables were right only by luck of a hand-written composite; not classifying now fails the model build (phase-50).
 - An index added for one path changes the plan for every other path on the table (list 10× faster, no-match search 1.8× slower); re-measure the paths you did not touch (phase-34c).
+- …unless the new index is a **superset** of the one it replaces: covering `IX_GlLines_AccountId` improved all five measured paths, so it replaces that index rather than joining it (phase-57).
+- A recorded suspect column is a hypothesis: phase 56's debt named `ReconciliationId`, worth **one** logical read, while covering `AccountId` took the pane 153,470 → 553 (phase-57).
 - …and the answer can be clean: phase 51's serial index is 64× on its own path (5 reads vs 319) and **319 to the read** on the three it did not target (phase-54).
 - …including a change *you* reasoned into: tenant predicates on a join's other three tables fixed the search path and took a sibling tab from 2,143 logical reads to 83,308 (phase-50).
 - A list that searches a **joined** column (only `ListChequesQuery` does) cannot be indexed out of it — the OR spans two tables, so the row is formed before the term is evaluated; a covering index bought 0.03% (phase-50).
@@ -211,6 +214,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A shortfall carries **whatever key the request named** — the batch when one was named and came up short, none when the walk was unnarrowed; and a receipt fills same-batch debts first, then un-batched ones, or an un-batched debt on a tracked product is unrepayable forever (phase-51).
 - A "reverse of X" posting rule can balance its own entry while leaving a paired control account (AP net of TDS) permanently off; trace the net effect on every account across original + reversal (phase-6 bug #3).
 - Reversals mirror the original entry's own posted lines via `GlJournalEntry.PostReversalOf` (a second entry, never a mutation); never re-derive a reversal from the posting rule (phase-16a).
+- A document with a GL line matched into a bank reconciliation cannot be voided (409): one check in `SourceDocumentGlEntries.ReverseOutstandingAsync` covers all fifteen reversal sites (phase-57).
 - "One GL entry per Approved document" is a habit, not an invariant; reverse the outstanding net of every entry via `SourceDocumentGlEntries`, never `SingleAsync` (phase-36).
 - A settlement folds to base at the rate of **what it settles** (each allocation at its target's rate, the remainder at its own), or a fully settled invoice keeps a residual balance equal to the realised forex (phase-36).
 - `ReferrerType`/`ReferrerId` enforce nothing — a conversion needs `MarkConverted`, quantity/rate caps net of prior reversals, and contact/TDS consistency checks in the Create handler (phase-6 bug #4).
@@ -251,6 +255,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A non-nullable column on a populated table needs a hand-written backfill unless the default is already true of the existing rows (`ValueAdjustment` needed none) (phase-31, phase-37).
 - A permission that depends on the requested value as well as the loaded row is the `AttachmentAccess` pattern; the E2E must show 404 on a missing row and 403 on a real one (phase-31's cheque bounce).
 - Never weaken a Domain invariant so a test can reach a state only time produces; reach through EF's change tracker (phase-31's expired `TenantSubscription`).
+- …and read **past** it when the claim is about the stored row: a void handler mutates before it reverses, so a refusal leaves the tracked entity dirty and the database clean (phase-57).
 - When NULL in a unique-indexed column is an at-most-one sentinel, the unfiltered index is the enforcement and EF's automatic `IS NOT NULL` filter destroys it; `HasFilter(null)` is load-bearing (phase-32's numbering counter).
 - When a tenant setting selects among sets of document types, the schema owes the widest set, or flipping the setting is a lie until later columns ship (phase-32's `LocationScopeMode`).
 - Once missing one per-handler re-check is an open door, the check moves into `AuthorizationBehavior` (not a sixth behavior; a nested `ISender.Send` corrupts a scoped context) behind marker interfaces and a build-failing sweep guard (phase-32b).
@@ -273,6 +278,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A singleton `BackgroundService` cannot inject scoped services; take `IServiceScopeFactory`, read options via `IOptionsMonitor`, and never let a tick's exception escape `ExecuteAsync` (`AlertSchedulerHostedService`).
 - No `IsRowVersion()` token on a row a job writes repeatedly if a user can also write it — a cancel wedged a running import; the unique index on the occurrence key is the real correctness mechanism (phase-21a Decision C, bug 1).
 - A job that writes must reuse the Create/Update commands under the initiating user's identity via scoped `IJobActingUser` (an `HttpContext` always wins), which re-checks permissions per row for free (phase-21a).
+- Same for a handler that creates a document from another record: nested `ISender.Send` **derives** the permission answer (the target's own keys), and the cost is two saves, not one transaction (phase-57).
 - Do-exactly-once means write and commit the claim row under a unique index before the external side effect; InMemory does not enforce unique indexes, so verify the race against SQL Server (phase-20e Decision C).
 - Any feature that writes a blob needs its deletion story decided with it; reuse `IQueuedJobProcessor.SweepAsync` + `JobArtifactRetention.Period`, and delete the blob before stamping the row (phase-21b Decision E).
 - A job that produces a file builds it into a buffer, then commits storage key and terminal status in one `SaveChangesAsync`; UIs gate Download on `HasArtifact`, never on `Status == Completed` (phase-21b).
@@ -316,6 +322,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Bootstrap's JavaScript is not loaded anywhere (`angular.json` has no `scripts`), so `data-bs-toggle` does nothing; drive menus from a signal (phase-22).
 - Angular's `DatePipe` ignores `DatePreferenceService` entirely, so `| date:` renders Gregorian whatever the BS toggle says; phase 23's guard banned date *inputs* and nobody asked the mirror question about date **output** (phase-48).
 - `NepaliDatePipe` takes an instant's **Nepal** day, never `slice(0, 10)` of its UTC form — between 18:15 and 24:00 UTC that names yesterday, which the Transaction List had been doing since phase 26a (phase-48).
+- …but a **derived series** follows the calendar of the figure it must agree with: the balance chart is UTC-day like `GlDateBoundary`, or it contradicts the report printed above it (phase-57).
 - One calendar gets one pipe: a time is a **mode** on `NepaliDatePipe` (`'datetime'`, `'datetime-seconds'`) rendered from the same shifted instant, never a second pipe (phase-48).
 - A day written `T23:59:59Z` and read back by `slice(0, 10)` agrees with itself and with nothing else; anchor both halves to `+05:45`, and move them together or the date ratchets forward per save (phase-49).
 - A field error must name a **control**: `aria-invalid` is not valid on a `table`, so a line-table message points at the **Add Line button** — the thing that fixes it, and where focus should land (phase-48).
@@ -405,7 +412,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 **Tooling and shell**
 - `nvm use` from a shell that cannot create the symlink deletes `C:\nvm4w\nodejs` and reports success; recreate it with `cmd /c 'mklink /J "C:\nvm4w\nodejs" "%LOCALAPPDATA%\nvm\v24.11.0"'`.
-- A `cat > file <<'EOF'` heredoc in the Bash tool is silently truncated or mis-parsed well below the ~8 KB figure; use the Write tool, or write a small patch script and run it (phase-26a). It also **eats backslash escapes** even when the delimiter is quoted, so a `
+- A `cat > file <<'EOF'` heredoc in the Bash tool is silently truncated or mis-parsed well below the ~8 KB figure (any heredoc, `python -` included); use the Write tool, or write a small patch script and run it (phase-26a, phase-57). It also **eats backslash escapes** even when the delimiter is quoted, so a `
 ` or `	` inside an embedded script arrives as a literal newline or tab — a syntax error if you are lucky and a corrupted path if you are not (phase-39).
 - A script inserting an import after "the last `
 import ` line" lands *inside* a multi-line `import { … }` block; anchor on the statement's closing line (phase-35a).
@@ -424,65 +431,68 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 - When a generator script emits Angular templates through `str.format`, interpolation braces need escaping in the *format string* but not in a substituted value — `{{{{ x }}}}` in a value ships literally and fails as NG5002 (phase-26b).
 - A benchmark against an empty tenant looks fast (20 ms p95, all 200); a harness must assert its target is populated before timing it (phase-34c).
 - A route is not a feature: the vendor ships `/sales/recurring-invoices` with full list chrome over an endpoint that 404s and a key that does not exist. Census its **permission keys**, not its screens (phase-53).
+- A census is evidence only when it **reproduces to the row**: 162 against phase 53's 166 was four `-alter` keys the stricter regex did not list, on a byte-identical bundle (phase-57).
+- A feature gated on a flag the tenant lacks is invisible to a screen pass and plain in the bundle; a diff landing inside an existing deferral is what that deferral **owes**, not new scope (phase-57).
 - …and a **screen is not a feature either**: `/config/import-statement` is a generic CSV grid whose Delivery Note columns are its *default*, not stale state. Read the client's endpoint map, not the furniture (phase-55).
 - One screen 404ing does not make a feature unreachable: `/accounting/recon` takes its account from router state, while the six real routes take it from the URL — so phase 56's recorded start condition never existed (phase-55).
+- A flag that swaps the whole shell is a different product until chased: `is_bank_user` is fourteen **report** routes and its own sign-in, with no path to the module it was noticed beside (phase-57).
+- A vendor's N-way routing table collapses when its vocabulary is not yours: four executors keyed on `account_type` are two documents here, because a customer is not an Account (phase-57).
 
 ## Current status
 
-**Phases 0-56 are complete, and the forward plan is empty.** The v1 sequence (0-25), parity (26-34c),
-consolidation (35-41), completion (42-47) and the continuation phases (48-56) are all done; each
-phase's story is in its `docs/phase-N-status.md`, and every finished planning entry is archived in
-`docs/roadmap-history.md`.
+**Phases 0-57 are complete, and the forward plan is empty.** The v1 sequence (0-25), parity (26-34c),
+consolidation (35-41), completion (42-47) and the continuation and bank-module phases (48-57) are all
+done; each phase's story is in its `docs/phase-N-status.md`, and every finished planning entry is
+archived in `docs/roadmap-history.md`.
 
-**Phase 56 shipped bank reconciliation**, closing the one substantial gap phase 53's permission-key
-census found. The two-pane N:M matcher, the Book Statement list, the reconciliation detail page with
-Unreconcile, the Reconciliation Report, and the Status column and Reconciled/Pending filter phase 55
-deferred. The whole module was read live on Cadehi first, including three statement lines committed
-and then deleted with the user's permission — the phase-52/54 precedent — because an empty pane
-cannot say what a populated one does.
+**Phase 57 finished the bank module.** Quick Approve turns one unmatched statement line into this
+tenant's own document and reconciles the two in a single action; the Reconciliation Report gained its
+`.xlsx`; and the 30-day Balance History chart went on that report rather than on an account Overview
+this app does not have. All four routing branches were driven live and proved in SQL.
 
-**The live read settled six things inference could not.** The right-hand pane is `/gl-transactions`,
-i.e. **GL rows**, not the document-level `/transactions` phase 55 recorded as the other candidate,
-which none of the six screens calls. N:M is real (1:2 and 2:2 both driven live, one
-`reconciliation_id` on all four rows). The gate is **sum equality enforced by the server** — 678
-against 113 answered `400 "transactions cannot be reconciled"`. Unreconcile is a DELETE that releases
-both sides. `/bank-statements-matched` is the auto-match **suggestion** queue, not the reconciled
-list. And "Select account" on the account Overview is **Quick Approve**, a whole separate feature
-that turns a statement line into a Payment or Receipt — recorded and excluded.
+**Two translations are the phase's substance.** The vendor's **four** executors are **two** documents
+here — its picker is one list of ledger accounts in a chart where a customer *is* an account, so a
+Contact becomes a `Payment` whose direction is the line's own and an Account becomes a two-line
+`JournalVoucher` (phase 17's Decision #7 had already written down why). And reusing the Create and
+Approve commands through `ISender` **derives** the permission answer rather than defaulting it: the
+nested sends run `AuthorizationBehavior`, so Quick Approve needs the target document's own keys on
+top of `Accounting.BankStatement.Manage`. **No new permission key**, for the second phase running.
 
-**Six decisions.** A reconciliation joins **`GlLine`s**, because only a line is one movement of money
-(and the cost — the screens can show only the posting date, phase 26a — is named rather than
-discovered). Membership is a **nullable key on each side**, not a link table, because a key cannot
-hold the illegal state. It **posts nothing**, proven in SQL before and after a match. **No new
-permission keys**: reconciling rides phase 55's `.Manage`, reading rides `.View`, and there is no
-"report Export" key anywhere to follow. A **reconciled statement line cannot be deleted** (409), a
-deliberate divergence. The report is **one as-of date**, with each side cutting off on its own date
-field because they are two records kept by two different people.
+**It auto-reconciles through phase 56's own mechanism**, extracted into `BankReconciliationWriter` so
+the two paths cannot diverge — which also closes the delete door for free, since a reconciled line
+already refuses deletion. The **void** door was open and not by this feature's doing: any document
+with a reconciled GL line could be voided since phase 56, so the refusal went into
+`SourceDocumentGlEntries.ReverseOutstandingAsync`, the single path all fifteen reversals take.
 
-**The phase's own bug is the one worth remembering.** The shared reader first exposed
-`IQueryable<BookMovement>` and handlers ordered over it: every InMemory test passed and SQL Server
-returned **500**, because EF cannot translate `OrderBy(x => new BookMovement(…).PostedAt)`. That is
-the fourth trip through the door phases 25, 34b and 42 each found. The fix is structural — the reader
-hands back answers, never a query — and `BankBookTransactionReaderShapeTests` pins that shape in a
-suite that runs without Docker. Separately, `SearchSweepGuardTests` asserted a coupling with no
-exemption path that this phase falsified; it now honours `Exempt`.
+**The census re-run reproduced phase 53's 166 keys exactly** (162 plus the four `-alter` ones, on a
+byte-identical bundle), so the catalogue has not moved. Its one report diff, the **Inventory Variance
+Report**, opens live as *"Inventory Tracking and Physical Inventory Tracking Not Enabled"* — the seam
+Delivery Note and GRN are already deferred behind, so it joined that deferral rather than the
+sequence. **`is_bank_user`** turned out to be a read-only lender's report shell: fourteen report
+routes, its own sign-in, no path to the reconciliation module. Closed.
 
-**Next: nothing is scheduled, and that is the honest statement.** `docs/roadmap.md`'s forward plan is
-empty because the census that produced it is exhausted. What remains is the three standing "outside
-the sequence" items (the NVDA hour, the two traceability reports' real columns, full-text search),
-unchanged, plus phase 56's five carried items — of which **Quick Approve** and the **auto-match
-suggestion engine** are each worth a phase if wanted. The next phase should be planned the way 53
-planned these: from a fresh read, against evidence.
+**The measurement is the part worth remembering.** Phase 56 owed a number for an index on
+`ReconciliationId`. Measured on `tools/scale`'s 50k dataset, that column in the key is worth **one**
+logical read — while making the index **covering on `AccountId`** takes the matcher's pane from
+**153,470 logical reads to 553**, and takes the Book Statement and the report's own balance with it,
+both of which predate the reconciliation module. The index ships keyed on `AccountId` and *replaces*
+EF's automatic FK index. Paying a debt can mean finding it was booked against the wrong account.
 
-Tests: Domain **738** (+16), Application.UnitTests **1343** (+23), Infrastructure.UnitTests **13**
-(+1), Api.IntegrationTests 30, Angular **613** (+8). `dotnet build` / `dotnet test` / `ng build` /
-`ng test` all clean, and `ng build` does not warn — phase 42's measured 680 kB initial-bundle budget
-is pinned by `build-budget.spec.ts`, and the bundle sits at **644.64 kB**. `Api.IntegrationTests`
-needs Docker Desktop running: without it the Testcontainers-backed tests fail in their constructors
-with `DockerEndpointAuthConfig` before any assertion, which reads like regressions and is not; it
-also fails nondeterministically under machine load and passes on re-run (phase 36/37) — the Angular
-suite did exactly that once in phase 52. `tsc --noEmit` does not cover `web/src/app`; `ng build` is
-the check (phase-28), and `ng test` must be run from `web/` (phase-35a) on **Node 24**
+**Next: nothing is scheduled, and that is the honest statement.** What remains is the three standing
+"outside the sequence" items (the NVDA hour, the two traceability reports' real columns, full-text
+search) plus **the auto-match suggestion engine** — a phase if wanted, but a *product decision* first,
+because the vendor returns `account_suggestions: null` on every row and its rule cannot be copied.
+Plan the next phase the way 53 planned 54-57: from a fresh read, against evidence.
+
+Tests: Domain 738, Application.UnitTests **1356** (+13), Infrastructure.UnitTests 13,
+Api.IntegrationTests 30, Angular **619** (+6). `dotnet build` / `dotnet test` / `ng build` / `ng test`
+all clean, and `ng build` does not warn — phase 42's measured 680 kB initial-bundle budget is pinned
+by `build-budget.spec.ts`, and the bundle sits at **644.77 kB**. `Api.IntegrationTests` needs Docker
+Desktop running: without it the Testcontainers-backed tests fail in their constructors with
+`DockerEndpointAuthConfig` before any assertion, which reads like regressions and is not; it also
+fails nondeterministically under machine load and passes on re-run (phase 36/37) — the Angular suite
+did exactly that once in phase 52. `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
+check (phase-28), and `ng test` must be run from `web/` (phase-35a) on **Node 24**
 (`nvm use 24.11.0` — v16 dies with `availableParallelism is not a function`). When the subject is one
 screen's plan, the number to trust is `tools/scale/`, not the wall clock (phase-50).
 

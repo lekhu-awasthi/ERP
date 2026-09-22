@@ -17,7 +17,10 @@ import {
   BalanceSheetDto,
   BankAccountDto,
   BankReconciliationDetailDto,
+  BankBalanceHistoryDto,
   BankReconciliationReportDto,
+  QuickApproveResult,
+  QuickApproveTarget,
   BankStatementLineDto,
   BookTransactionDto,
   CreateBankReconciliationResult,
@@ -386,6 +389,59 @@ export class AccountingService {
     return this.http.get<BankReconciliationReportDto>(
       `${this.baseUrl(organizationId)}/bank-accounts/${bankAccountId}/reconciliation-report`,
       { withCredentials: true, params },
+    );
+  }
+
+  /**
+   * Phase 57 -- the .xlsx of the same report. It asks the server for the whole of both unreconciled
+   * lists rather than the screen's page of 15; the sheet states each section's real count beside its
+   * rows, so a truncated export says so in the artifact (phase 21b).
+   */
+  exportBankReconciliationReport(
+    organizationId: string,
+    bankAccountId: string,
+    asOfDate?: string | null,
+  ): Observable<Blob> {
+    const params: Record<string, string> = {};
+    if (asOfDate) params['asOfDate'] = asOfDate;
+    return this.http.get(
+      `${this.baseUrl(organizationId)}/bank-accounts/${bankAccountId}/reconciliation-report/export`,
+      { withCredentials: true, params, responseType: 'blob' },
+    );
+  }
+
+  /** Phase 57 -- the two balances per day, for the Balance History chart. */
+  getBankBalanceHistory(
+    organizationId: string,
+    bankAccountId: string,
+    asOfDate?: string | null,
+    days?: number,
+  ): Observable<BankBalanceHistoryDto> {
+    const params: Record<string, string> = {};
+    if (asOfDate) params['asOfDate'] = asOfDate;
+    if (days) params['days'] = String(days);
+    return this.http.get<BankBalanceHistoryDto>(
+      `${this.baseUrl(organizationId)}/bank-accounts/${bankAccountId}/balance-history`,
+      { withCredentials: true, params },
+    );
+  }
+
+  /**
+   * Phase 57 -- QUICK APPROVE. Turns one unmatched statement line into a document and reconciles the
+   * two in a single call. A POST under the line, because that is the resource whose state changes.
+   */
+  quickApproveStatementLine(
+    organizationId: string,
+    bankAccountId: string,
+    statementLineId: string,
+    target: QuickApproveTarget,
+    targetId: string,
+    locationId?: string | null,
+  ): Observable<QuickApproveResult> {
+    return this.http.post<QuickApproveResult>(
+      `${this.baseUrl(organizationId)}/bank-accounts/${bankAccountId}/statement-lines/${statementLineId}/quick-approve`,
+      { target, targetId, locationId: locationId ?? null },
+      { withCredentials: true },
     );
   }
 

@@ -213,6 +213,42 @@ export interface BankReconciliationReportDto {
   unreconciledStatementLines: BankStatementLineDto[];
 }
 
+/**
+ * Phase 57 -- what the row's picker selected. Two members, not the reference product's four
+ * executors: its picker is one list of ledger accounts in a chart where a customer *is* an account,
+ * and this codebase separates the two. See QuickApproveBankStatementLineCommand.
+ */
+export type QuickApproveTarget = 'Contact' | 'Account';
+
+export interface QuickApproveResult {
+  statementLineId: string;
+  /** 'Payment' for a contact, 'JournalVoucher' for a ledger account. */
+  documentType: string;
+  documentId: string;
+  documentCode: string;
+  /** Always set -- Quick Approve reconciles what it creates, or it would leave the matcher holding
+   * a statement line next to the very document it produced. */
+  reconciliationId: string;
+  amount: number;
+}
+
+/** Phase 57 -- one day of the Balance History chart. */
+export interface BankBalanceHistoryPoint {
+  day: string;
+  bookBalance: number;
+  bankBalance: number;
+  difference: number;
+}
+
+export interface BankBalanceHistoryDto {
+  bankAccountId: string;
+  accountCode: string;
+  accountName: string;
+  fromDate: string;
+  asOfDate: string;
+  points: BankBalanceHistoryPoint[];
+}
+
 // --- Phase 17: Opening Balances (Account tab) ---
 
 export interface AccountOpeningBalanceDto {

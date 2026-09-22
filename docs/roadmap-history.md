@@ -1545,3 +1545,118 @@ and every report showing a quantity has to say which unit it means.
   settled; this phase consumes it rather than re-deciding it.
 
 ---
+
+---
+
+## Bank-module phases (54–57) — from phase 53's permission-key census (planned 2026-09-20)
+
+Archived 2026-09-21, when phase 57 closed the last of them. **This is the phase-53 census result of
+record.** Phase 57 re-ran the same regex over a byte-identical bundle on 2026-09-21 and reproduced
+it: 166 keys (162 plus the four `-alter` ones), the same 22 document types, the same 51 reports. Its
+one report-catalogue diff — the Inventory Variance Report — turned out to sit behind *Physical*
+Inventory Tracking, so it joined the Delivery Note / GRN deferral rather than the sequence.
+
+### Forward plan (56), as planned — planned 2026-09-20 in phase 53; **54, 55 and 56 are all done**
+
+**Method.** Phase 53 was a re-planning phase, not a feature phase: it re-read the reference product
+and rebuilt this section, because the plan ended at 52. Earlier passes read screens one at a time and
+were blind to whatever was not opened, so this one extracted the vendor's **whole permission-key
+catalogue** from its own JS bundle — 166 keys, its own enumeration of every gated feature. The full
+read is `docs/erp-module-scan.md`, "Re-planning read (2026-09-20, phase 53)". Three things came out
+of it: one substantial feature we do not have, one route that looked like scope and is not, and
+enough evidence to close the carried item phase 52 deferred **unread**.
+
+**The census result, stated plainly.** Of the vendor's 22 document types we have **20**. The two we
+lack — Delivery Note and Goods Received Note — are the deliberate `InventoryTrackingMode` deferral
+below, and their key sets confirm that seam is real rather than aspirational. **The reports catalogue
+is 51 and we hold a counterpart to every entry.** This codebase is at feature parity except for bank
+reconciliation. That is why the forward plan is three phases and not ten: padding it would be
+inventing work, and the roadmap's own method says the items a session cannot schedule stay out of the
+sequence rather than get folded into it.
+
+**Ordering rule.** The phase whose evidence was already in hand went first (54 — it closed a named
+carried item and owed nothing to a read that had not happened). Then the new feature, split at the
+point where each half is independently demonstrable (55, then 56) — a matcher with nothing to match
+against is not runnable, so the statement lines came first. Both 54 and 55 are complete; see
+`docs/phase-54-status.md` and `docs/phase-55-status.md`.
+
+### 55. Bank statement import — **done**, and it corrected this section
+
+See `docs/phase-55-status.md`. Two things written here were wrong and are corrected below rather
+than quietly deleted:
+
+- **`/config/import-statement` is not the bank statement importer.** It is a generic CSV staging
+  editor whose hardcoded column sets are Delivery Note, Goods Received Note and Inventory
+  Adjustment — "statement" means *statement of rows* — reached as
+  `?id=<importId>&collection=<type>` from a Recent imports drawer, behind a column-mapping step.
+  The real screen is `/accounting/bank-accounts/:id/import`. **Read and out of scope**, recorded
+  so no future session re-opens it: two of its three types are the `InventoryTrackingMode`
+  deferral, and this codebase has no document importer at all.
+- **"A bank statement line resolves into no command" was the entry's central claim, and it is
+  false.** Phase 21c's `MigratedSalesRegisterEntry` is the same shape — a lifecycle-free row whose
+  only destination is a table and a report — and has had an ordinary create command since. It
+  shipped as a tenth `ImportEntityType`.
+
+`fetch-statements` **is** confirmed out of scope, now against something observed: the feed is a
+per-account connection with an OTP handshake (`validate-account`, `validate-otp`,
+`disconnect-bank`), and the account payload carries `bank_connected` / `rapid_connected` to match.
+
+### 56. Bank reconciliation — **done**, and it corrected this section too
+
+See `docs/phase-56-status.md`. The read settled every open question below, and three of the bullets
+were wrong or incomplete rather than merely unconfirmed:
+
+- **The right-hand pane is `/gl-transactions` only.** The bullet below offered two candidates;
+  `/transactions` is called by **none** of the module's six screens. A reconciliation therefore
+  joins **`GlLine`** rows, not documents — which costs the screens the document's business date
+  (`GlJournalEntry` stores none, phase 26a) and is why every column here is labelled *Posted*.
+- **N:M is real, and the gate is sum equality enforced by the server.** 1:2 and 2:2 were both driven
+  live, both sharing one `reconciliation_id`; 678 against 113 answered
+  `400 "transactions cannot be reconciled"`. That rule is now a Domain invariant.
+- **`/bank-statements-matched` is not the reconciled list** — it stayed empty while a reconciliation
+  existed. It is the auto-match **suggestion** queue, and it is out of scope with the reason
+  recorded.
+- **No new permission keys**: reconciling rides phase 55's `Accounting.BankStatement.Manage`,
+  reading rides `.View`. The vendor's one reconciliation-specific key is on the *export*, and this
+  codebase gates an export by the report it exports.
+
+Shipped: the two-pane matcher, the Book Statement list, the reconciliation detail page with
+Unreconcile, the Reconciliation Report, and the Status column and Reconciled/Pending filter phase 55
+left marked. Carried: the report's `.xlsx` export, **Quick Approve** (a statement line becomes a
+Customer/Supplier Payment or a Quick Receipt/Payment — all four documents already exist here), the
+suggestion engine, and the balance-history chart.
+
+The original entry, for the record:
+
+- **It is a two-pane N:M matcher.** The client's state names both sides — `selectedTxnBank` (imported
+  statement lines) against `selectedTxnTigg` (the app's own cash/bank transactions) — collected as
+  `bs_ids` + `tx_ids` and posted together, each feed filtered on `reconciled: false`. So a
+  reconciliation is its own record joining *many* statement lines to *many* transactions, not a flag
+  on either side; a `reconciled` marker falls out of it rather than being the model.
+- **It carries no permission keys of its own** beyond the export — it rides `bank-view` / `bank-edit`
+  / `bank-full-access`. Derive ours the same way rather than minting a new family by reflex.
+- **The start condition recorded here was wrong, and phase 55 removed it.** `/accounting/recon`
+  does take its account from router state and does 404 by URL — but that is one entry point, not
+  the feature. The six real screens are
+  `/accounting/bank-accounts/:id/{import, bank-statement, book-statement, manual-reconcile,
+  matched}` and take the account from the **URL**. The two-pane matcher renders fully on Cadehi's
+  existing **Cash** account, right-hand pane already populated, header reading
+  `No txn selected | RECONCILE | No txn selected`. **No Bank-type account is needed.** (Phase 53's
+  own lesson, one level down: a screen that 404s is not a feature that is unreachable — read the
+  routes the client registers.)
+- **Its permission keys do not need a location scope, and the claim below that they do is wrong.**
+  `Account` carries no `LocationId` in this codebase, so phase 32b has nothing to bind to. Phase 55
+  shipped `Accounting.BankStatement.View`/`.Manage`, both Admin+Member; 56 should decide whether the
+  reconciliation itself earns a third key or rides those.
+- **Two things phase 55 read and did not scope**, for 56 to decide explicitly rather than inherit:
+  the right-hand pane's two feeds are `/transactions` (document-level) and `/gl-transactions`, and
+  the statement row carries `account_suggestions` / `is_suggestion_completed` with a
+  `show_suggestions=true` list parameter — an **auto-match suggestion engine**.
+- **What 56 adds to phase 55's aggregate**: `BankStatementLine.ReconciliationId` (nullable), the
+  Status column and its Reconciled/Pending filter, and the index that filter needs. The list query,
+  the DTO and the Angular page all carry the seam marked.
+- The reconciliation report and its export come last; phase 26a's rule applies, since a report joining
+  back to the document must show the same date field it filters on.
+
+---
+

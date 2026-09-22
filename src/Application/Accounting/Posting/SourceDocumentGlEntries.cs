@@ -1,3 +1,4 @@
+using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Common;
@@ -47,10 +48,14 @@ internal static class SourceDocumentGlEntries
     /// nothing, or when everything it posted is already reversed -- so calling it twice is a no-op
     /// the second time rather than a double reversal.
     /// </summary>
+    /// <exception cref="ConflictException">Any line being reversed is part of a bank reconciliation
+    /// -- see <see cref="EnsureNotReconciled"/>.</exception>
     public static async Task<IReadOnlyList<GlJournalEntry>> ReverseOutstandingAsync(
         IAppDbContext db, DocumentType sourceDocumentType, Guid sourceDocumentId, CancellationToken cancellationToken)
     {
         var entries = await LoadAsync(db, sourceDocumentType, sourceDocumentId, cancellationToken);
+
+        EnsureNotReconciled(entries);
 
         var reversals = BuildReversals(entries);
 
@@ -60,6 +65,43 @@ internal static class SourceDocumentGlEntries
         }
 
         return reversals;
+    }
+
+    /// <summary>
+    /// Phase 57 — refuses to reverse a document any of whose GL lines has been matched into a
+    /// <c>BankReconciliation</c>.
+    ///
+    /// <para><b>Why it is here and not in thirteen void handlers.</b> This method is the single
+    /// place every reversal in the product goes through — fifteen call sites, thirteen of them a
+    /// Void — so one check covers every document type that can touch a bank account, including the
+    /// ones nobody thinks of as bank documents (an Invoice settled straight to the bank posts a line
+    /// there, and that line is reconcilable). A per-handler copy would be thirteen chances to miss
+    /// one, which is phase 32b's argument for moving a re-check into the shared path.</para>
+    ///
+    /// <para><b>Refusing rather than cascading is phase 56's own choice, applied to the mirror
+    /// case.</b> Phase 56 refuses to delete a reconciled statement <i>line</i> (a 409) because the
+    /// reference product's two defects both leave an empty reconciliation shell alive. Voiding the
+    /// document behind a reconciled book line is the same hole from the other side: the reversal
+    /// leaves the original line in place, still carrying its <c>ReconciliationId</c>, so a
+    /// reconciliation would go on asserting agreement between a bank line and a movement that has
+    /// been backed out. Unreconcile is one click and releases both sides, so the user is never
+    /// stuck — they are told which order to do it in.</para>
+    ///
+    /// <para>Already-reversed entries are excluded, because a document whose postings are all
+    /// reversed has nothing outstanding to protect and calling this twice must stay a no-op.</para>
+    /// </summary>
+    public static void EnsureNotReconciled(IReadOnlyList<GlJournalEntry> entries)
+    {
+        var reconciled = BuildReversals(entries).Count == 0
+            ? 0
+            : entries.SelectMany(x => x.Lines).Count(x => x.ReconciliationId is not null);
+
+        if (reconciled > 0)
+        {
+            throw new ConflictException(
+                $"This document has {reconciled} transaction(s) matched into a bank reconciliation. "
+                + "Unreconcile it on the bank account first, then void the document.");
+        }
     }
 
     /// <summary>The pure half, so the netting is testable without a DbContext.</summary>

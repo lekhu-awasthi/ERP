@@ -38,6 +38,15 @@
           >
             <i aria-hidden="true" class="bi bi-arrow-left-right"></i> Reconcile
           </a>
+          <button
+            type="button"
+            class="btn btn-outline-primary btn-sm"
+            [disabled]="exporting()"
+            (click)="exportReport()"
+          >
+            <i aria-hidden="true" class="bi bi-file-earmark-spreadsheet"></i>
+            {{ exporting() ? 'Exporting…' : 'Export' }}
+          </button>
         </div>
       </div>
 
@@ -93,6 +102,63 @@
             </tr>
           </tbody>
         </table>
+
+        <!-- Phase 57 -- Balance History. The picture is aria-hidden and the numbers are also a
+             visually-hidden table below it: a line chart cannot be read out, and an aria-label
+             summarising it would put a summary where the sighted reader gets data (phase 40). -->
+        @if (points().length > 0) {
+          <section class="border rounded p-3 mb-4" aria-labelledby="balance-history-heading">
+            <div class="d-flex justify-content-between align-items-baseline mb-2">
+              <h2 id="balance-history-heading" class="h6 fw-bold mb-0 text-dark">Balance history</h2>
+              <span class="small text-muted">
+                {{ history()!.fromDate | nepaliDate }} – {{ history()!.asOfDate | nepaliDate }}
+              </span>
+            </div>
+
+            <div class="d-flex gap-3 small mb-2">
+              <span><span class="d-inline-block rounded-circle me-1" style="width: .6rem; height: .6rem; background: #0a58ca;"></span>Your books</span>
+              <span><span class="d-inline-block rounded-circle me-1" style="width: .6rem; height: .6rem; background: #198754;"></span>{{ r.accountName }}</span>
+            </div>
+
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              [attr.viewBox]="'0 0 ' + chartWidth + ' ' + chartHeight"
+              preserveAspectRatio="none"
+              style="width: 100%; height: 10rem;"
+            >
+              <polyline [attr.points]="bookPath()" fill="none" stroke="#0a58ca" stroke-width="0.6" vector-effect="non-scaling-stroke" />
+              <polyline [attr.points]="bankPath()" fill="none" stroke="#198754" stroke-width="0.6" vector-effect="non-scaling-stroke" />
+            </svg>
+
+            <div class="d-flex justify-content-between small text-muted">
+              <span>{{ chartMin() | amount }}</span>
+              <span>{{ chartMax() | amount }}</span>
+            </div>
+
+            <table class="visually-hidden">
+              <caption>{{ chartSummary() }}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Day</th>
+                  <th scope="col">Balance in your books</th>
+                  <th scope="col">Balance in {{ r.accountName }}</th>
+                  <th scope="col">Difference</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (point of points(); track point.day) {
+                  <tr>
+                    <td>{{ point.day | nepaliDate }}</td>
+                    <td>{{ point.bookBalance | amount }}</td>
+                    <td>{{ point.bankBalance | amount }}</td>
+                    <td>{{ point.difference | amount }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        }
 
         <!-- Unrecognised in the books -->
         <div class="border rounded mb-3">

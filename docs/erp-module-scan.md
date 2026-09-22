@@ -1972,3 +1972,105 @@ So the vendor accumulates empty reconciliation rows. Neither is reproduced here.
   nothing in this module.
 - Phase 53's endpoint list named `/reconciliations`; the live client never calls it. The real POST
   is `/bank-reconciliations`.
+
+---
+
+## Census re-run (2026-09-21, phase 57) — the catalogue reproduced, and two unreads chased
+
+Read-only. Cadehi (`cadehi.tigg.app`), one day left on its trial; the user's session was already in
+the pane and no credentials were entered. Almost all of it is a **bundle** read rather than a screen
+read, which is phase 53's method and the reason it is cheap to repeat.
+
+### The permission-key catalogue is unchanged since 2026-09-20
+
+`main.8851053d.chunk.js` + `13.63dbc988.chunk.js`, **7,288,492 bytes** — the same 7.3 MB phase 53
+measured. A strict regex over quoted `<feature>-<view|add|edit|approve|void|full-access|export>`
+literals returns **162**. The four `-alter` keys make up phase 53's 166:
+
+```
+contact-alter   account-alter   bank-alter   product-alter
+```
+
+(There are three `-delete` keys outside both counts — `attachments-delete`, `document-delete`,
+`download-delete` — all features we hold.)
+
+No new document types. No `recurring-invoice-*` key, so phase 53's ghost stays a ghost. The bank
+module still carries only `bank-reconciliation-export` of its own and still rides
+`bank-view` / `bank-edit` / `bank-full-access`.
+
+**Two vocabularies, and they do not join by name.** The role editor renders a tree of 158 names
+(`gl-materialised-view`, `sales-materialized-view`, `void-invoice-list`, `tds-report-advance`,
+`new-sales-register`, the four allocation reports, the two balance confirmations …). The router and
+the report list use `report-`-prefixed ids for the same things. Comparing the tree's names against
+our screens would have produced five or six phantom gaps; compared where both sides are typed — the
+bundle's own `{id, url, name}` report array — the catalogue is **51 entries**, which is exactly what
+phase 53 counted from the menu.
+
+### The report catalogue: 51 entries, 50 of them ours
+
+Reproduced from the bundle rather than from a screen, so it does not depend on which entries a
+tenant's flags render. Every entry has a counterpart in `web/src/app/features/reports/` **except
+one**:
+
+| | |
+|---|---|
+| **Inventory Variance Report** | `report-inventory-variance`, `/reports/new/inventory-variance` |
+
+Opened live, it refuses:
+
+> **Inventory Tracking and Physical Inventory Tracking Not Enabled**
+> You haven't subscribed to the Inventory Tracking and Physical Inventory Tracking Not Enabled.
+> Please enable it.
+
+So it sits behind `TenantSettings.InventoryTrackingMode = Physical Movement` — the same seam Delivery
+Note and Goods Received Note are deferred behind, and the reason a screen-based pass never saw it.
+**It belongs to that deferral, not to a new phase**, and the roadmap entry now names it alongside the
+two document types.
+
+(We remain a superset elsewhere: the two migrated registers and the two traceability reports have no
+counterpart on Cadehi.)
+
+### `is_bank_user` — a different product, not a second surface over reconciliation
+
+Noticed in phase 55, carried through 56, chased here. From `main.*.chunk.js`, the shell's router is a
+ternary on `auth.user?.is_bank_user`, and the **true** branch is a `Switch` containing only:
+
+```
+/reports/new/bank-view          /reports/new/profit-loss        /reports/new/balance-sheet
+/reports/new/cash-flow          /reports/new/customer-receivable /reports/new/customer-ageing
+/reports/new/invoice-ageing     /reports/new/sales-summary      /reports/new/supplier-ageing
+/reports/new/inventory-summary  /reports/new/net-trading-assets /reports/new/exceptional-report
+/reports/new/ratio-analysis-report                              /reports/new/report-inventory-ageing
+```
+
+plus `<Redirect from="*" to="/reports/new/bank-view" />`. Sign-in has its own executor,
+`validate_login_bank_user` (a `validate_login` POST on the auth domain), which replaces history with
+`/reports/new/bank-view`; the content header suppresses its title for such a user; and a helper
+`is_bank_user` sits beside a ten-entry report menu (Income Statement, Balance Sheet, Cash Flow
+Summary, Sales Summary, Receivable Age, Payable Age, Inventory Ageing, Net Trading Assets, Exception
+Report, Ratio Analysis).
+
+**It is a read-only lender/analyst window on a tenant's financial reports.** It cannot reach the
+reconciliation module at all. Out of scope, and no carried item.
+
+### Quick Approve — the picker, read from the module's own chunk
+
+Phase 56 recorded the routing table from `handleQuickApprove`. This pass read the control beside it
+(`18.36b54dd2.chunk.js`), which is what settles how the feature translates:
+
+- the picker is **one searchable list of ledger accounts**:
+  `GET /accounts-minimized?limit=20&show_suggested=true&transaction_type=DR|CR&search_phrase=…`,
+  with a 300 ms debounce, merging the row's own `account_suggestions` in front of the search results
+  and **filtering out the statement's own account** (`filter(a => a.id !== bankId)`);
+- the chosen entry's id is sent as **`contact_id`** *and* as `items:[{account_id, amount}]` — the same
+  id in both, which is only coherent in a chart where a customer *is* an account;
+- direction comes from `dr_amount - cr_amount > 0`, and the amount sent is the non-zero side;
+- the executors' toasts say *"…approved successfully"*: it creates **and approves** in one click;
+- when `is_billing_location_enabled`, or the currency is not NPR, it does **not** fire — it opens a
+  `paymentModal` instead, i.e. it declines the one-click path exactly when the document needs input
+  the row cannot supply.
+
+That last point is the vendor's own answer to the question "what if the document needs more than the
+line knows", and it is why this codebase's version takes an optional `locationId` rather than
+inventing one.
+

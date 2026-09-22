@@ -146,6 +146,38 @@ public sealed class BankBookTransactionReader(IAppDbContext db)
     }
 
     /// <summary>
+    /// Phase 57 — the net movement per day over the filter's window, for the Balance History chart.
+    ///
+    /// <para><b>Bucketed in memory, deliberately.</b> The group key is the posting instant's day,
+    /// and the only forms of that expression the store could translate would either pin the chart to
+    /// the server's calendar in a way <c>GlDateBoundary</c> does not, or be untranslatable outright —
+    /// this reader's own doc comment records what a projection EF cannot see through costs here.
+    /// Two columns and a timestamp come back, one row per movement, and the bucketing is a
+    /// <c>GroupBy</c> in C#.</para>
+    ///
+    /// <para><b>The cost is in the window, not the history</b>, which is the point: the balance
+    /// <i>before</i> the window is one store-side <see cref="SumAsync"/>, so this loads only the
+    /// movements the chart actually draws. That is the inverse of the trap phase 42 named on the
+    /// Detail General Ledger, where the opening balance made a one-month report slower than a
+    /// three-year one.</para>
+    /// </summary>
+    public async Task<IReadOnlyList<DailyBookMovement>> DailyNetAsync(
+        BookMovementFilter filter, CancellationToken cancellationToken)
+    {
+        var rows = await Filtered(filter)
+            .Select(x => new { x.Entry.PostedAt, x.Line.Debit, x.Line.Credit })
+            .ToListAsync(cancellationToken);
+
+        return
+        [
+            .. rows
+                .GroupBy(x => DateOnly.FromDateTime(x.PostedAt.UtcDateTime))
+                .Select(g => new DailyBookMovement(g.Key, g.Sum(x => x.Debit - x.Credit)))
+                .OrderBy(x => x.Day),
+        ];
+    }
+
+    /// <summary>
     /// Turns a page of movements into rows a screen can render: the source document's code and
     /// reference, and the contra accounts the money came from or went to.
     ///
@@ -291,6 +323,15 @@ public sealed record BookMovementFilter(
     bool? Reconciled = null,
     DateOnly? FromDate = null,
     DateOnly? ToDate = null);
+
+/// <summary>
+/// Phase 57 — one day's net movement through the account, signed the account's way. The
+/// <see cref="Day"/> is the <b>UTC</b> day of the posting instant, matching what
+/// <c>GlDateBoundary</c> filters on and what <see cref="BookTransactionDto.Date"/> shows; see
+/// <c>BankBalanceHistoryQuery</c> for why the chart follows the ledger's calendar rather than
+/// Kathmandu's.
+/// </summary>
+public sealed record DailyBookMovement(DateOnly Day, decimal Signed);
 
 /// <summary>
 /// One GL posting against the bank account, materialised. Built only after <c>ToListAsync</c> — see

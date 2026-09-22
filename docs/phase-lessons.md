@@ -1506,3 +1506,79 @@ statement lines, committed with the user's permission and deleted afterwards, se
 a 2:2), the server-side sum gate (a 400 on 678-against-113), the unreconcile verb, the cascade on
 deleting a reconciled line, and what `/bank-statements-matched` actually is — none of which an empty
 pane could have shown. Phase 54's lesson, applied to a screen rather than a control.
+
+---
+
+## Phase 57 — finishing the bank module, and an index debt that was about the wrong column
+
+**Read before:** adding an index, re-running the permission-key census, wiring a feature that creates
+a document from somebody else's record, or deciding which calendar a derived series uses.
+
+**A census is evidence only when it reproduces to the row.** Re-running phase 53's regex returned
+**162** keys against its recorded 166, on a byte-identical bundle. The gap is the four `-alter` keys,
+which 53's pattern counted and this one did not — and reconciling the two counts is the check. A
+re-run that lands "about the same" has measured nothing; the number either reproduces or names what
+changed.
+
+**A feature gated on a flag the tenant lacks is invisible to a screen pass and plain in the bundle.**
+The vendor's report catalogue is 51 entries and 50 are ours. The fifty-first, **Inventory Variance**,
+refuses with *"Inventory Tracking and Physical Inventory Tracking Not Enabled"* — i.e. it belongs to
+the `InventoryTrackingMode = Physical Movement` seam the roadmap already defers Delivery Note and GRN
+behind. **A diff that lands inside an existing deferral is not new scope; it is something that
+deferral owes**, and the entry has to say so or the next session scopes the phase from the document
+types alone.
+
+**A flag that swaps the whole shell is a different product until proven otherwise.** `is_bank_user`
+replaces the vendor's router with fourteen report routes and a catch-all redirect, and signs in
+through its own executor. It is a read-only lender's window on financial reports, with no path to the
+module it was noticed beside. Two paragraphs, no carried item — which is what chasing a noticed thing
+looks like when the answer is "not ours".
+
+**A vendor's N-way routing table collapses when its vocabulary is not yours.** Quick Approve's four
+executors exist because the reference product's chart makes a customer a ledger account, so it can
+route on `account_type`. This codebase separates Contact from Account, so the same feature is two
+documents: a Contact becomes a `Payment` whose direction is the line's own, an Account becomes a
+`JournalVoucher`. **Copy the rule, not the branch count** — and phase 17's Decision #7 had already
+written down the divergence that makes it two.
+
+**Reusing the commands through `ISender` answers the permission question rather than posing it.**
+Nested sends run `AuthorizationBehavior`, so Quick Approve requires the target document's own Create
+and Approve keys by construction, on top of its own `.Manage`. No key was minted, for the second
+phase running. (The "nested `ISender.Send` corrupts a scoped context" note is the reason phase 32b
+did not *introduce* such a context; the behavior is stateless, so nesting is safe — and the real cost
+is that two sends are two saves, which is stated rather than hidden.)
+
+**A feature that creates a document from a record should finish the join it opened.** The created
+document posts to the same bank account, so without an auto-reconciliation the matcher would offer
+the new GL line beside the very statement line it came from. Writing it through the *existing*
+mechanism rather than beside it is what keeps the sum rule one rule — and it gets phase 56's
+"a reconciled line cannot be deleted" for free, which is an argument for auto-reconciling rather than
+a cost of it.
+
+**The door a new feature must not open is usually already open somewhere else.** The kickoff asked
+what happens when a quick-approved line's document is voided. The honest answer was that *any*
+document with a reconciled GL line could be voided since phase 56 — an Invoice settled straight to
+the bank posts one. So the refusal went into `SourceDocumentGlEntries.ReverseOutstandingAsync`, the
+single path all fifteen reversals take, and covers every document type at once rather than the two
+this phase creates.
+
+**A derived series must follow the calendar of the figure it has to agree with.** The plan said the
+balance chart's day should be a Nepal day. `GlDateBoundary` has cut every GL report on the **UTC**
+day since phase 8a, so a Kathmandu-anchored chart would put up to a day's movements on the wrong side
+of the line and disagree with the number printed above it. **A chart that contradicts its own report
+is worse than a chart on the wrong calendar** — and the instruction being in the plan is not a reason
+to follow it once the ledger has been read.
+
+**The column a phase writes down as the suspect is a hypothesis.** Phase 56 owed a number for an
+index on `ReconciliationId`. Measured: `ReconciliationId` in the key is worth **one** logical read,
+while making the index **covering on `AccountId`** takes the matcher's pane from **153,470 logical
+reads to 553** — and takes the Book Statement and the report's own balance with it, both of which
+predate the reconciliation module entirely. EF's automatic foreign-key index is one narrow column,
+and with a quarter of the table on one account the optimizer preferred a full scan to fifty thousand
+key lookups. **Paying a debt can mean discovering it was booked against the wrong account.**
+
+**An index that is a superset of the one it replaces is the case where phase 34c's warning comes out
+the other way.** Every path measured improved, including the two not targeted, because the new index
+can serve everything the old one could. That is why it *replaces* `IX_GlLines_AccountId` instead of
+joining it — same index count, nothing extra to maintain on an append-only table — and why the
+INCLUDE list carries a comment naming what would silently break it.

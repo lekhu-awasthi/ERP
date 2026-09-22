@@ -5,6 +5,7 @@ using ErpApp.Application.Accounting.Commands.CreateAccount;
 using ErpApp.Application.Accounting.Commands.CreateBankReconciliation;
 using ErpApp.Application.Accounting.Commands.DeleteBankReconciliation;
 using ErpApp.Application.Accounting.Commands.DeleteBankStatementLines;
+using ErpApp.Application.Accounting.Commands.QuickApproveBankStatementLine;
 using ErpApp.Application.Accounting.Commands.CreateAccountGroup;
 using ErpApp.Application.Accounting.Commands.CreateCashTransfer;
 using ErpApp.Application.Accounting.Commands.CreateJournalVoucher;
@@ -27,6 +28,7 @@ using ErpApp.Application.Accounting.Queries.IncomeStatement;
 using ErpApp.Application.Accounting.Queries.JournalReport;
 using ErpApp.Application.Accounting.Queries.ListAccounts;
 using ErpApp.Application.Accounting.Queries.ListBankAccounts;
+using ErpApp.Application.Accounting.Queries.BankBalanceHistory;
 using ErpApp.Application.Accounting.Queries.BankReconciliationReport;
 using ErpApp.Application.Accounting.Queries.GetBankReconciliation;
 using ErpApp.Application.Accounting.Queries.ListBankStatementLines;
@@ -241,7 +243,55 @@ public static class AccountingEndpoints
                 ct);
             return Results.Ok(result);
         });
+
+        // Phase 57 -- the vendor's bank-reconciliation-export. It asks for the whole of both
+        // unreconciled lists rather than the screen's page of 15: an export of one page would be a
+        // lie, and the cap is disclosed in the sheet beside each section's real count (phase 21b).
+        group.MapGet("/bank-accounts/{bankAccountId:guid}/reconciliation-report/export", async (
+            Guid organizationId, Guid bankAccountId, DateOnly? asOfDate,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new BankReconciliationReportQuery(
+                    organizationId, bankAccountId, asOfDate, 1,
+                    BankReconciliationReportQuery.MaxUnrecognizedPageSize),
+                ct);
+            return ReportSpreadsheetExporter.ExportBankReconciliationReport(result);
+        });
+
+        // Phase 57 -- the Balance History chart's series. The reference product's
+        // /balance-history/:id, which returns the last 30 days.
+        group.MapGet("/bank-accounts/{bankAccountId:guid}/balance-history", async (
+            Guid organizationId, Guid bankAccountId, DateOnly? asOfDate, int? days,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new BankBalanceHistoryQuery(
+                    organizationId, bankAccountId, asOfDate, days ?? BankBalanceHistoryQuery.DefaultDays),
+                ct);
+            return Results.Ok(result);
+        });
+
+        // QUICK APPROVE -- turn one unmatched statement line into a document and match the two.
+        // A POST under the line it acts on, because that is the resource whose state changes; the
+        // document it creates is a consequence, and the response names it.
+        group.MapPost("/bank-accounts/{bankAccountId:guid}/statement-lines/{statementLineId:guid}/quick-approve", async (
+            Guid organizationId, Guid bankAccountId, Guid statementLineId,
+            QuickApproveRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new QuickApproveBankStatementLineCommand(
+                    organizationId, bankAccountId, statementLineId,
+                    request.Target, request.TargetId, request.LocationId),
+                ct);
+            return Results.Ok(result);
+        });
     }
+
+    /// <param name="Target">Contact or Account -- see QuickApproveBankStatementLineCommand for why
+    /// the vendor's four-way routing table is two-way here.</param>
+    private sealed record QuickApproveRequest(
+        QuickApproveTarget Target, Guid TargetId, Guid? LocationId);
 
     /// <param name="StatementLineIds">The bank side -- the reference product's <c>bs_ids</c>.</param>
     /// <param name="GlLineIds">This tenant's side -- its <c>tx_ids</c>. GlLine ids, not document

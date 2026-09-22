@@ -1,0 +1,96 @@
+Phase 57: finishing the bank module, and an index debt booked against the wrong column
+
+The census re-run reproduced phase 53's 166 keys exactly -- 162 strict matches plus the four
+`-alter` keys its stricter pattern did not list, on a byte-identical 7,288,492-byte bundle. No new
+document types, no new bank keys, still no `recurring-invoice-*`. The vendor's report catalogue is
+51 entries, reproduced from the bundle's own {id, url, name} array rather than from a menu, and 50
+have a counterpart here. The one that does not, the Inventory Variance Report, opens live as
+"Inventory Tracking and Physical Inventory Tracking Not Enabled" -- the seam Delivery Note and GRN
+are already deferred behind, so it joins that deferral rather than the sequence. A diff landing
+inside an existing deferral is not new scope; it is something that deferral owes, and the roadmap
+entry now names all three so a future session does not scope the phase from the document types
+alone. `is_bank_user`, noticed in 55 and carried through 56, is chased and closed: the flag replaces
+the client's entire router with fourteen report routes and a catch-all redirect to
+/reports/new/bank-view, reached through its own validate_login_bank_user sign-in. A read-only
+lender's window on financial reports, with no path to the module it was noticed beside.
+
+Quick Approve turns one unmatched statement line into this tenant's own document and reconciles the
+two in a single action. The vendor's four executors are two documents here, and the reason is
+structural: its picker is one searchable list of ledger accounts in a chart where a customer IS an
+account, so it routes on account_type; this codebase separates Contact from Account, and phase 17's
+Decision #7 had already declined to port its generic multi-line-accounts document because
+JournalVoucher is that document here. So a Contact becomes a Payment whose direction is the line's
+own, and an Account becomes a two-line JournalVoucher. The contact's type is not re-checked --
+PaymentValidation already requires a Customer for Received and a Supplier for Paid, and a second
+copy of that rule could only drift from it.
+
+Reusing the Create and Approve commands through ISender derives the permission answer instead of
+defaulting it: the nested sends run AuthorizationBehavior, so Quick Approve requires the target
+document's own Create and Approve keys on top of Accounting.BankStatement.Manage. No new permission
+key, for the second phase running. The cost is that two sends are two saves rather than one
+transaction, which is stated rather than hidden.
+
+It auto-reconciles, which is what makes it more than a shortcut -- the created document posts to the
+same bank account, so the matcher would otherwise offer its GL line beside the very statement line
+it came from. It writes through phase 56's own mechanism: the already-reconciled refusal, the sum
+rule and the mutation of both sides moved into BankReconciliationWriter, which both callers now use.
+There is no back-reference column, because the reconciliation IS the back-reference -- the line
+points at it, its book side is this document's GL line, and that line's entry carries
+SourceDocumentType/SourceDocumentId. A second column saying the same thing is a value that can
+disagree with the first.
+
+The third door to an empty reconciliation is shut, and it was not one this feature opened: any
+document with a GL line matched into a reconciliation could be voided since phase 56, and an Invoice
+settled straight to the bank posts such a line. So the refusal went into
+SourceDocumentGlEntries.ReverseOutstandingAsync -- the single path all fifteen reversals take,
+thirteen of them a Void -- rather than into the two handlers this phase touches.
+
+The reconciliation report gained its .xlsx, and the query its own stated ceiling
+(MaxUnrecognizedPageSize = 5000) because an export of one screen's page of 15 would be a lie; each
+section prints its real count beside the rows actually written, so a truncated export says so in the
+artifact. The 30-day Balance History chart went on that report rather than on an account Overview
+this app does not have, and its day is the UTC day, not the Nepal day the plan asked for:
+GlDateBoundary has cut every GL report on the UTC day since phase 8a, and a chart that contradicts
+the figure printed above it is worse than a chart on the wrong calendar.
+
+Phase 56's index debt is paid, and the number says it was booked against the wrong column. Measured
+on tools/scale's 50k dataset (210,006 GlLines, the busiest account holding 50,001, UPDATE STATISTICS
+WITH FULLSCAN before every pass, logical reads from SET STATISTICS IO, every statement lifted from
+the API's own log): ReconciliationId in the key is worth ONE logical read, while making the index
+covering on AccountId takes the matcher's pane from 153,470 logical reads to 553 -- and takes the
+Book Statement and the report's own balance figure with it, both of which predate the reconciliation
+module entirely. EF's automatic foreign-key index is one narrow column, and with a quarter of the
+table on a single account the optimizer preferred a full scan to fifty thousand key lookups. The
+index ships keyed on AccountId and replaces that FK index rather than joining it: same index count,
+nothing extra to maintain on an append-only table. Every path measured improves and none regresses,
+including the two not targeted -- phase 34c's warning coming out the other way, because this index is
+a superset of the one it replaces. BankStatementLine.ReconciliationId stays unindexed, refused with
+a re-entry condition rather than omitted.
+
+Proved on a fresh organization: all four routing branches driven, each posting exactly what its rule
+says (Dr bank / Cr AR, Dr AP / Cr bank, Dr bank / Cr Interest Income, Dr Bank Charges / Cr bank),
+every entry balancing, every reconciliation 1:1 with bank total equal to book total, and the one
+line left pending carrying the whole 200.00 difference the report shows. Three refusals fire: 409 on
+quick-approving a reconciled line, 409 on deleting it, 409 on voiding its document. 403 naming
+Accounting.BankStatement.Manage from a custom role holding only .View, beside a 200 from that same
+user and a 404-as-Admin control against the same nonexistent id. The browser pass drove the whole
+thing through the UI on Node 24.
+
+One migration, and it touches no data: drop and recreate IX_GlLines_AccountId with an INCLUDE list.
+This phase adds no schema.
+
+Two bugs worth the line they cost. The export asked for 5,000 rows from a query capped at 200 -- a
+400 no handler test could see, because none goes through ValidationBehavior. And the void guard's
+first test asserted the tracked instance rather than the stored row: every void handler marks its
+aggregate Void() before reversing, so the refusal leaves the entity dirty and the database clean.
+
+Domain 738, Application.UnitTests 1356 (+13), Infrastructure.UnitTests 13, Api.IntegrationTests 30,
+Angular 619 (+6). dotnet build / dotnet test / ng build / ng test all clean; ng build does not warn
+and the bundle is 644.77 kB against the 680 kB budget.
+
+After this the sequence is empty again, and phase-58-kickoff.md says so plainly rather than inventing
+a phase: what remains is the three standing "outside the sequence" items plus the auto-match
+suggestion engine, which needs a product decision first because the vendor returns
+account_suggestions: null on every row and its rule cannot be copied.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>

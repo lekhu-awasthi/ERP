@@ -55,6 +55,15 @@ public sealed record BankReconciliationReportQuery(
     int UnrecognizedPageSize = 15)
     : IRequest<BankReconciliationReportDto>, IRequirePermission, IOrganizationScoped
 {
+    /// <summary>
+    /// Phase 57 -- the largest page either unreconciled section will serve, and the size the .xlsx
+    /// export asks for. Higher than the app's usual 200 because an export of one screen's page
+    /// would be a lie, and stated rather than unbounded because ClosedXML materialises every cell
+    /// of every sheet before a byte is written (phase 21b). The sheet prints each section's real
+    /// count beside its rows, so a truncated export says so in the artifact.
+    /// </summary>
+    public const int MaxUnrecognizedPageSize = 5000;
+
     public string PermissionKey => PermissionKeys.BankStatementView;
 }
 

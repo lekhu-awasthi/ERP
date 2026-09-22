@@ -3614,3 +3614,141 @@ Two details in that fix are load-bearing and neither is obvious:
 `IQueryable`, with a premise half asserting the reader still has the five methods it is supposed to
 — so the check cannot go vacuous. It runs in `Application.UnitTests`, which needs no Docker, where
 the E2E that found the bug does not run in CI at all.
+
+---
+
+## The index debt was booked against the wrong column (phase 57)
+
+Phase 56 shipped bank reconciliation without indexing `GlLine.ReconciliationId`, and wrote the
+re-entry condition into `GlLineConfiguration` so the next phase to touch the area would owe a number
+(phase 34c's rule). Phase 57 measured it on `tools/scale`'s 50k dataset — 210,006 `GlLines`, the
+busiest account holding 50,001 of them, `UPDATE STATISTICS ... WITH FULLSCAN` before every pass,
+logical reads from `SET STATISTICS IO`:
+
+| `GlLines` logical reads | before | `(AccountId, ReconciliationId)` INCLUDE | `(AccountId)` INCLUDE |
+|---|---:|---:|---:|
+| the matcher's right-hand pane, page 1 | **153,470** | 554 | **553** |
+| Book Statement *(not targeted)* | 153,470 | 554 | 553 |
+| the report's own balance *(not targeted)* | 153,470 | 554 | 553 |
+| Trial Balance, whole tenant *(not targeted)* | 10,758 | 6,923 | 6,906 |
+
+**`ReconciliationId` in the key is worth one logical read.** The entire 277× is the index being
+*covering* on `AccountId`: EF's automatic foreign-key index is a single narrow column, and with a
+quarter of the table matching one account the optimizer preferred a full scan of `GlLines` to fifty
+thousand key lookups. The same 153,470 reads were already being paid by the Book Statement and by the
+report's balance figure, both of which predate the reconciliation module — so the pane was never slow
+for the reason that was written down.
+
+Two things generalise:
+
+1. **A recorded suspect column is a hypothesis, and the measurement is entitled to answer a different
+   question than the one the debt asked.** The value of writing the debt down was that somebody
+   measured *the area*; it was not that the guess was right.
+2. **This is the case where phase 34c's warning comes out the other way.** An index added for one
+   path usually changes the plan for every other path on the table, and phase 50 refused one because
+   it took a sibling tab from 2,143 reads to 83,308. Here every untargeted path improved — because
+   the new index is a *superset* of the one it replaces (same leading key, plus an INCLUDE list), so
+   nothing lost a plan it had. That is also why it **replaces** `IX_GlLines_AccountId` rather than
+   joining it: same index count, nothing extra to maintain on an append-only table that every
+   document approval writes to.
+
+The INCLUDE list is exactly what `BankBookTransactionReader` projects plus what the GL reports sum,
+and it carries a comment saying so — a column added to that projection without being added here loses
+the covering property silently, and takes the 277× with it.
+
+`BankStatementLine.ReconciliationId` is still unindexed, and that is a refusal with a number behind
+it rather than an omission: the statement table is one account's imported lines, three orders of
+magnitude smaller than `GlLines` on the same tenant, and the scale dataset seeds none at all.
+**Re-entry:** a tenant whose statement history makes the Pending filter slow, measured the same way.
+
+## A census is evidence only when it reproduces to the row (phase 57)
+
+Re-running phase 53's permission-key regex over a byte-identical bundle (7,288,492 bytes) returned
+**162** keys against the recorded **166**. The difference is four `-alter` keys — `contact-alter`,
+`account-alter`, `bank-alter`, `product-alter` — which 53's pattern counted and the stricter one did
+not list. Reconciling the two counts *is* the check: a re-run that lands "about the same" has
+measured nothing, because a catalogue that moved by four and a pattern that differs by four look
+identical from the outside.
+
+The same pass found the vendor keeps its permission keys in **two vocabularies** — the role editor's
+tree says `gl-materialised-view` where the route table says `report-gl-materialised-view` — which is
+phase 46's rule about two lists that cannot be joined by display name, met in a second place. They
+are compared where both sides are typed: the bundle's own `{id, url, name}` report list, which
+reproduces the "51 reports" count without depending on which menu entries a tenant's flags happen to
+render.
+
+## A feature gated on a flag the tenant lacks is invisible to a screen pass (phase 57)
+
+The bundle's report catalogue is 51 entries and 50 have a counterpart here. The fifty-first,
+**Inventory Variance Report**, opens on the live tenant as *"Inventory Tracking and Physical
+Inventory Tracking Not Enabled"* — i.e. it sits behind `TenantSettings.InventoryTrackingMode =
+Physical Movement`, the seam Delivery Note and Goods Received Note are already deferred behind.
+
+**A diff that lands inside an existing deferral is not new scope; it is something that deferral
+owes.** The roadmap entry now names all three, because a future session scoping that phase from the
+two document types alone would ship it without the report. And this is the clearest case yet for
+phase 53's method: a report gated on a flag is absent from every menu read and plainly present in the
+vendor's own enumeration.
+
+## A flag that swaps the whole shell is a different product until proven otherwise (phase 57)
+
+`is_bank_user` was noticed in phase 55 and carried through 56 as "it swaps the entire shell". Chased:
+the client's router is a ternary on it, and the true branch is a `Switch` of **fourteen report
+routes** with a catch-all `Redirect from:"*" to:"/reports/new/bank-view"`, reached through its own
+`validate_login_bank_user` executor. It is a read-only lender's or analyst's window on ten financial
+reports of somebody else's tenant, with no route to the module it was noticed beside.
+
+Two paragraphs, no carried item. That is what chasing a noticed thing looks like when the answer is
+"not ours" — and phase 53's rule is that a thing noticed and not chased is not yet evidence either
+way.
+
+## A vendor's N-way routing table collapses when its vocabulary is not yours (phase 57)
+
+Quick Approve's four executors (Customer Payment / Quick Receipt / Supplier Payment / Quick Payment,
+routed on the selected account's `type`) exist because the reference product's chart of accounts
+makes a customer *a ledger account*. This codebase separates Contact from Account — phase 17's
+Decision #7 declined to port the vendor's generic multi-line-accounts document precisely because
+`JournalVoucher` already is that document here — so the same feature is **two** documents: a Contact
+becomes a `Payment` whose direction is the statement line's own, an Account becomes a two-line
+`JournalVoucher`.
+
+Copy the *rule*, not the branch count. And the contact's type is not re-checked in the new handler:
+`PaymentValidation` already requires a Customer for Received and a Supplier for Paid, so a mismatch
+is a 404 from the command that owns the rule, and a second copy could only drift from it.
+
+## A derived series follows the calendar of the figure it must agree with (phase 57)
+
+The balance-history chart was planned as a series of **Nepal** days. It ships on **UTC** days,
+because `GlDateBoundary` has cut every GL report in this codebase on the UTC day since phase 8a and
+`BankBookTransactionReader` projects `DateOnly.FromDateTime(PostedAt.UtcDateTime)` to match. A
+Kathmandu-anchored chart would put up to one day's movements on the wrong side of the line and
+disagree with the figure printed directly above it.
+
+**A chart that contradicts its own report is worse than a chart on the wrong calendar.** Only "what is
+today" uses `NepalTime` — as the report already does — and every rendered label still goes through
+`NepaliDatePipe` (phase 48). The instruction being written in the phase plan is not a reason to follow
+it once the ledger has been read.
+
+## The door a new feature must not open is usually already open elsewhere (phase 57)
+
+Phase 57's plan asked what happens when a quick-approved statement line's document is later voided —
+the third route to the empty-reconciliation state phase 56 recorded as a vendor defect. The honest
+answer was that the door was not this feature's: **any** document with a GL line matched into a
+reconciliation could be voided since phase 56, and an Invoice settled straight to the bank posts such
+a line.
+
+So the refusal went into `SourceDocumentGlEntries.ReverseOutstandingAsync` — the single path all
+fifteen reversals take, thirteen of them a Void — rather than into the two handlers this phase
+touches. One check, every document type, and no chance of a fourteenth void being written without it
+(phase 32b's argument for moving a re-check into the shared path).
+
+It **refuses** rather than cascading, mirroring phase 56's "a reconciled statement line cannot be
+deleted"; Unreconcile releases both sides in one click, so the user is told the order rather than
+blocked. The guard excludes already-reversed entries, so a second void stays the no-op it is designed
+to be.
+
+**One test trap comes with it:** every void handler marks its aggregate `Void()` *before* reversing,
+so when the refusal throws the tracked entity is already dirty while nothing is persisted — the
+handler's single `SaveChangesAsync` is never reached. A test asserting the document is still Approved
+must read past the change tracker (`AsNoTracking()`), or it fails on a claim that is true of the
+database and false of the tracker.

@@ -2,7 +2,14 @@ import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AccountingService } from '../../../core/accounting/accounting.service';
-import { BankAccountDto, BankStatementLineDto } from '../../../core/accounting/accounting.models';
+import { ContactsService } from '../../../core/contacts/contacts.service';
+import { Contact } from '../../../core/contacts/contacts.models';
+import {
+  Account,
+  BankAccountDto,
+  BankStatementLineDto,
+  QuickApproveTarget,
+} from '../../../core/accounting/accounting.models';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { DateRangeService } from '../../../shared/platform/date-range.service';
@@ -29,6 +36,11 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
  * a `reconciliationId`, which is how the reference product does it -- its filter has exactly two
  * options and there is no stored status anywhere. A reconciled row links through to the
  * reconciliation it belongs to, which is the only way into that record from a list.</p>
+ *
+ * <p><b>Phase 57 added Quick Approve</b>, the reference product's green tick: a Pending row can be
+ * turned into this tenant's own document and matched against itself in one action. It expands into
+ * a row of its own rather than crowding three controls into the Status cell -- phase 52's lesson
+ * about a control added to a cell that could not hold it.</p>
  */
 @Component({
   selector: 'app-bank-statement-page',
@@ -39,6 +51,7 @@ export class BankStatementPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly accountingService = inject(AccountingService);
+  private readonly contactsService = inject(ContactsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
   protected readonly bankAccountId = this.route.snapshot.paramMap.get('accountId')!;
@@ -78,10 +91,129 @@ export class BankStatementPage {
     { label: 'Reconciled', value: true },
   ];
 
+  /**
+   * Phase 57 -- which row's Quick Approve form is open, or null. One at a time: the form is a real
+   * row in the table, and two open at once would separate a row from its own controls.
+   */
+  protected readonly quickApproveFor = signal<string | null>(null);
+  protected readonly quickApproving = signal(false);
+  protected readonly quickApproveTarget = signal<QuickApproveTarget>('Contact');
+  protected readonly quickApproveTargetId = signal<string>('');
+  protected readonly quickApproveError = signal<string | null>(null);
+
+  /** The two things the picker offers, which are what the reference product's one account list
+   * conflates -- see QuickApproveBankStatementLineCommand for why they are separate here. */
+  protected readonly contacts = signal<Contact[]>([]);
+  protected readonly accounts = signal<Account[]>([]);
+  protected readonly targetsLoading = signal(false);
+
   constructor() {
     this.loadAccount();
     this.load();
   }
+
+  /**
+   * Opens the form under one row, and loads the two pick lists the first time it is needed rather
+   * than on every page load: most visits to this screen never quick-approve anything.
+   */
+  protected openQuickApprove(item: BankStatementLineDto): void {
+    this.quickApproveFor.set(item.id);
+    this.quickApproveError.set(null);
+    this.quickApproveTargetId.set('');
+    // A deposit is money received and a withdrawal money paid, so a contact is the likelier target
+    // either way; the user changes it in one click when the line is a bank charge.
+    this.quickApproveTarget.set('Contact');
+    this.loadQuickApproveTargets();
+  }
+
+  protected closeQuickApprove(): void {
+    this.quickApproveFor.set(null);
+    this.quickApproveError.set(null);
+  }
+
+  protected selectQuickApproveTarget(target: QuickApproveTarget): void {
+    this.quickApproveTarget.set(target);
+    // The chosen id belongs to the list that is no longer showing, so it is cleared rather than
+    // carried across -- sending a contact id as an account id would be a 404 naming the wrong thing.
+    this.quickApproveTargetId.set('');
+  }
+
+  protected onQuickApproveTargetId(value: string): void {
+    this.quickApproveTargetId.set(value);
+  }
+
+  /** A deposit becomes a receipt, a withdrawal a payment. Shown so the row says what it will do
+   * before it does it. */
+  protected quickApproveVerb(item: BankStatementLineDto): string {
+    if (this.quickApproveTarget() === 'Account') {
+      return item.deposit > 0 ? 'Journal Voucher (debit this bank account)' : 'Journal Voucher (credit this bank account)';
+    }
+
+    return item.deposit > 0 ? 'Customer Payment (received)' : 'Supplier Payment (paid)';
+  }
+
+  protected submitQuickApprove(item: BankStatementLineDto): void {
+    const targetId = this.quickApproveTargetId();
+
+    if (!targetId) {
+      this.quickApproveError.set('Select the customer, supplier or account this transaction belongs to.');
+      return;
+    }
+
+    this.quickApproving.set(true);
+    this.quickApproveError.set(null);
+    this.statusMessage.set(null);
+
+    this.accountingService
+      .quickApproveStatementLine(
+        this.organizationId,
+        this.bankAccountId,
+        item.id,
+        this.quickApproveTarget(),
+        targetId,
+      )
+      .subscribe({
+        next: (result) => {
+          this.quickApproving.set(false);
+          this.quickApproveFor.set(null);
+          this.statusMessage.set(
+            `${result.documentCode} created and reconciled against this statement line.`,
+          );
+          this.load();
+        },
+        error: (err: unknown) => {
+          this.quickApproving.set(false);
+          this.quickApproveError.set(
+            extractErrorMessage(err) ?? 'Could not approve that statement line.',
+          );
+        },
+      });
+  }
+
+  private loadQuickApproveTargets(): void {
+    if (this.contacts().length > 0 || this.accounts().length > 0 || this.targetsLoading()) {
+      return;
+    }
+
+    this.targetsLoading.set(true);
+
+    this.contactsService.listAllContacts(this.organizationId).subscribe({
+      next: (items) => this.contacts.set(items),
+      error: () => this.targetsLoading.set(false),
+    });
+
+    this.accountingService.listAllAccounts(this.organizationId).subscribe({
+      next: (items) => {
+        // The statement's own account is never a sensible other side -- it would be a journal
+        // voucher from the bank account to itself. The reference product filters it out of its own
+        // picker in exactly the same way (`filter(a => a.id !== bankId)`).
+        this.accounts.set(items.filter((x) => x.id !== this.bankAccountId));
+        this.targetsLoading.set(false);
+      },
+      error: () => this.targetsLoading.set(false),
+    });
+  }
+
 
   protected isSelected(id: string): boolean {
     return this.selectedIds().includes(id);

@@ -111,6 +111,7 @@
                 <th scope="col" class="text-end">Deposit</th>
                 <th scope="col" class="text-end">Withdrawal</th>
                 <th scope="col">Status</th>
+                <th scope="col" class="text-end">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -156,7 +157,113 @@
                       <span class="badge text-bg-secondary">Pending</span>
                     }
                   </td>
+                  <td class="text-end">
+                    @if (!item.reconciliationId) {
+                      <button
+                        type="button"
+                        class="btn btn-outline-success btn-sm"
+                        [attr.aria-expanded]="quickApproveFor() === item.id"
+                        [attr.aria-controls]="'quick-approve-' + item.id"
+                        (click)="quickApproveFor() === item.id ? closeQuickApprove() : openQuickApprove(item)"
+                      >
+                        <i aria-hidden="true" class="bi bi-check2-circle"></i> Quick Approve
+                      </button>
+                    }
+                  </td>
                 </tr>
+
+                <!-- Phase 57 -- the form gets a row of its own rather than three controls squeezed
+                     into a cell (phase 52). Nothing sets aria-expanded for free here: Bootstrap's
+                     JavaScript is not loaded anywhere in this app, so the button above sets it
+                     itself (phase 34a). -->
+                @if (quickApproveFor() === item.id) {
+                  <tr [id]="'quick-approve-' + item.id" class="bg-light">
+                    <td colspan="7">
+                      <div class="p-3">
+                        <p class="small text-muted mb-3">
+                          This creates <strong>{{ quickApproveVerb(item) }}</strong> for
+                          {{ (item.deposit > 0 ? item.deposit : item.withdrawal) | amount }} and matches it
+                          against this statement line.
+                        </p>
+
+                        <div class="row g-3 align-items-end">
+                          <div class="col-md-4">
+                            <label class="form-label small fw-semibold" [attr.for]="'quick-kind-' + item.id">
+                              Match against
+                            </label>
+                            <select
+                              class="form-select form-select-sm"
+                              [id]="'quick-kind-' + item.id"
+                              (change)="selectQuickApproveTarget($any($event.target).value)"
+                            >
+                              <option value="Contact" [selected]="quickApproveTarget() === 'Contact'">
+                                Customer or supplier
+                              </option>
+                              <option value="Account" [selected]="quickApproveTarget() === 'Account'">
+                                Ledger account
+                              </option>
+                            </select>
+                          </div>
+
+                          <div class="col-md-5">
+                            <label class="form-label small fw-semibold" [attr.for]="'quick-target-' + item.id">
+                              {{ quickApproveTarget() === 'Contact' ? (item.deposit > 0 ? 'Customer' : 'Supplier') : 'Account' }}
+                            </label>
+                            <select
+                              class="form-select form-select-sm"
+                              [id]="'quick-target-' + item.id"
+                              [attr.aria-invalid]="quickApproveError() ? 'true' : null"
+                              [attr.aria-describedby]="quickApproveError() ? 'quick-error-' + item.id : null"
+                              (change)="onQuickApproveTargetId($any($event.target).value)"
+                            >
+                              <option value="" [selected]="quickApproveTargetId() === ''">
+                                {{ targetsLoading() ? 'Loading…' : 'Select…' }}
+                              </option>
+                              @if (quickApproveTarget() === 'Contact') {
+                                @for (contact of contacts(); track contact.id) {
+                                  <option [value]="contact.id" [selected]="quickApproveTargetId() === contact.id">
+                                    {{ contact.name }} ({{ contact.type }})
+                                  </option>
+                                }
+                              } @else {
+                                @for (account of accounts(); track account.id) {
+                                  <option [value]="account.id" [selected]="quickApproveTargetId() === account.id">
+                                    {{ account.code }} — {{ account.name }}
+                                  </option>
+                                }
+                              }
+                            </select>
+                          </div>
+
+                          <div class="col-md-3 d-flex gap-2">
+                            <button
+                              type="button"
+                              class="btn btn-success btn-sm"
+                              [disabled]="quickApproving()"
+                              (click)="submitQuickApprove(item)"
+                            >
+                              {{ quickApproving() ? 'Approving…' : 'Approve' }}
+                            </button>
+                            <button
+                              type="button"
+                              class="btn btn-outline-secondary btn-sm"
+                              [disabled]="quickApproving()"
+                              (click)="closeQuickApprove()"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+
+                        @if (quickApproveError()) {
+                          <p [id]="'quick-error-' + item.id" class="text-danger small mb-0 mt-2">
+                            {{ quickApproveError() }}
+                          </p>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
               }
             </tbody>
           </table>

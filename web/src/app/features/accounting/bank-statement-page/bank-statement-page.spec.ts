@@ -5,6 +5,7 @@ import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 import { Observable, of } from 'rxjs';
 
 import { AccountingService } from '../../../core/accounting/accounting.service';
+import { ContactsService } from '../../../core/contacts/contacts.service';
 import { BankAccountDto, BankStatementLineDto } from '../../../core/accounting/accounting.models';
 import { PagedResult } from '../../../core/common/paged-result';
 import { BankStatementPage } from './bank-statement-page';
@@ -51,6 +52,7 @@ describe('BankStatementPage', () => {
         provideHttpClientTesting(),
         provideRouter([]),
         { provide: AccountingService, useValue: service },
+        { provide: ContactsService, useValue: new ContactsServiceStub() },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -125,10 +127,11 @@ describe('BankStatementPage', () => {
       .slice(1)
       .map((h) => h.textContent?.trim() ?? '');
 
-    expect(headers).toEqual(['Date', 'Description', 'Deposit', 'Withdrawal', 'Status']);
+    expect(headers).toEqual(['Date', 'Description', 'Deposit', 'Withdrawal', 'Status', 'Action']);
 
     const rows = element().querySelectorAll('tbody tr');
-    const statusCell = (row: Element) => [...row.querySelectorAll('td')].slice(-1)[0];
+    // Phase 57 appended an Action column, so Status is no longer the last cell.
+    const statusCell = (row: Element) => [...row.querySelectorAll('td')][5];
 
     expect(statusCell(rows[0]).textContent?.trim()).toBe('Pending');
     expect(statusCell(rows[1]).textContent?.trim()).toBe('Reconciled');
@@ -227,6 +230,137 @@ describe('BankStatementPage', () => {
     expect(text()).toContain('No Statement Lines Yet');
     expect(text()).toContain('Import Statement');
   });
+
+  /**
+   * Phase 57 -- Quick Approve is offered on a Pending row and withheld from a Reconciled one. The
+   * second half is the one worth asserting: a line already matched has nothing left to approve and
+   * the server answers 409, so offering the control would be a button whose only outcome is an
+   * error message.
+   */
+  it('offers Quick Approve on a pending line and not on a reconciled one', () => {
+    const { element } = page([
+      line({ id: 'a', reconciliationId: null }),
+      line({ id: 'b', reconciliationId: 'recon-1' }),
+    ]);
+
+    const rows = element().querySelectorAll('tbody tr');
+    const actionCell = (row: Element) => [...row.querySelectorAll('td')][6];
+
+    expect(actionCell(rows[0]).querySelector('button')).not.toBeNull();
+    expect(actionCell(rows[1]).querySelector('button')).toBeNull();
+  });
+
+  /**
+   * The form says which document it is about to create before it creates it, and the sentence
+   * changes with both the direction and the chosen kind -- this codebase's whole routing table,
+   * rendered.
+   */
+  it('names the document the tick will create, by direction and by target kind', () => {
+    const { element, fixture, text } = page([
+      line({ id: 'a', deposit: 1500, withdrawal: 0, signedAmount: 1500 }),
+    ]);
+
+    quickApproveButton(element())!.click();
+    fixture.detectChanges();
+
+    expect(text()).toContain('Customer Payment (received)');
+
+    const kind = element().querySelector<HTMLSelectElement>('#quick-kind-a')!;
+    kind.value = 'Account';
+    kind.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    expect(text()).toContain('Journal Voucher (debit this bank account)');
+  });
+
+  /**
+   * The statement's own account is never a sensible other side of its own journal voucher, and the
+   * reference product filters it out of the same picker in the same way.
+   */
+  it('keeps the statement account out of its own Quick Approve picker', () => {
+    const { element, fixture } = page([line({ id: 'a' })]);
+
+    quickApproveButton(element())!.click();
+    fixture.detectChanges();
+
+    const kind = element().querySelector<HTMLSelectElement>('#quick-kind-a')!;
+    kind.value = 'Account';
+    kind.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    const options = [...element().querySelectorAll<HTMLOptionElement>('#quick-target-a option')].map(
+      (o) => o.value,
+    );
+
+    expect(options).not.toContain(bankAccountId);
+    expect(options).toContain('acct-fees');
+  });
+
+  it('sends the chosen kind and id, and reports the document it created', () => {
+    const { element, fixture, service, text } = page([line({ id: 'a' })]);
+
+    quickApproveButton(element())!.click();
+    fixture.detectChanges();
+
+    const target = element().querySelector<HTMLSelectElement>('#quick-target-a')!;
+    target.value = 'contact-1';
+    target.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    clickApprove(element());
+    fixture.detectChanges();
+
+    expect(service.quickApprovals).toEqual([
+      { statementLineId: 'a', target: 'Contact', targetId: 'contact-1' },
+    ]);
+
+    expect(text()).toContain('JV0007 created and reconciled');
+  });
+
+  /**
+   * Nothing is sent until something is chosen, and the message names the control rather than saying
+   * the request failed (phase 48).
+   */
+  it('refuses to submit with no target chosen, and says which control to fix', () => {
+    const { element, fixture, service, text } = page([line({ id: 'a' })]);
+
+    quickApproveButton(element())!.click();
+    fixture.detectChanges();
+
+    clickApprove(element());
+    fixture.detectChanges();
+
+    expect(service.quickApprovals).toEqual([]);
+    expect(text()).toContain('Select the customer, supplier or account');
+    expect(element().querySelector('#quick-target-a')?.getAttribute('aria-invalid')).toBe('true');
+  });
+
+  /**
+   * Bootstrap's JavaScript is not loaded anywhere in this app, so nothing sets aria-expanded for
+   * free (phase 34a).
+   */
+  it('sets aria-expanded on the Quick Approve toggle itself', () => {
+    const { element, fixture } = page([line({ id: 'a' })]);
+
+    expect(quickApproveButton(element())!.getAttribute('aria-expanded')).toBe('false');
+
+    quickApproveButton(element())!.click();
+    fixture.detectChanges();
+
+    expect(quickApproveButton(element())!.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  function quickApproveButton(element: HTMLElement): HTMLButtonElement | undefined {
+    return [...element.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
+      b.textContent?.includes('Quick Approve'),
+    );
+  }
+
+  function clickApprove(element: HTMLElement): void {
+    [...element.querySelectorAll<HTMLButtonElement>('button')]
+      .filter((b) => b.textContent?.trim() === 'Approve')
+      .forEach((b) => b.click());
+  }
 });
 
 class AccountingServiceStub {
@@ -270,5 +404,38 @@ class AccountingServiceStub {
   ): Observable<{ deletedCount: number }> {
     this.deletions.push(selector);
     return of({ deletedCount: 1 });
+  }
+
+  /**
+   * Phase 57 -- the ledger accounts the Quick Approve picker offers. It deliberately includes the
+   * statement's own bank account, so a test can assert the page filters it out rather than relying
+   * on a fixture that could not have contained it.
+   */
+  listAllAccounts(): Observable<never> {
+    return of([
+      { id: '22222222-2222-2222-2222-222222222222', code: 'BC0001', name: 'Nabil Bank' },
+      { id: 'acct-fees', code: 'EX0004', name: 'Bank Charges' },
+    ]) as unknown as Observable<never>;
+  }
+
+  readonly quickApprovals: unknown[] = [];
+
+  quickApproveStatementLine(
+    _organizationId: string,
+    _bankAccountId: string,
+    statementLineId: string,
+    target: string,
+    targetId: string,
+  ): Observable<never> {
+    this.quickApprovals.push({ statementLineId, target, targetId });
+    return of({ documentCode: 'JV0007' }) as unknown as Observable<never>;
+  }
+}
+
+class ContactsServiceStub {
+  listAllContacts(): Observable<never> {
+    return of([
+      { id: 'contact-1', name: 'Cash Customer', type: 'Customer' },
+    ]) as unknown as Observable<never>;
   }
 }
