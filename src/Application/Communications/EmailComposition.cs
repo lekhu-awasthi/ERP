@@ -89,6 +89,10 @@ public static class EmailComposition
                 await db.CreditNotes.AnyAsync(x => x.Id == parentId && x.OrganizationId == organizationId, ct),
             DocumentType.PurchaseOrder =>
                 await db.PurchaseOrders.AnyAsync(x => x.Id == parentId && x.OrganizationId == organizationId, ct),
+            DocumentType.DeliveryNote =>
+                await db.DeliveryNotes.AnyAsync(x => x.Id == parentId && x.OrganizationId == organizationId, ct),
+            DocumentType.GoodsReceivedNote =>
+                await db.GoodsReceivedNotes.AnyAsync(x => x.Id == parentId && x.OrganizationId == organizationId, ct),
 
             // A Payment's existence was already proven by ResolveContextAsync, which had to read the
             // row to learn its direction.

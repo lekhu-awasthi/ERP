@@ -87,6 +87,10 @@ public static class DocumentLocationReader
                 .Select(x => new LocationBox(x.LocationId)).SingleOrDefaultAsync(cancellationToken),
             DocumentType.ProductionJournal => await db.ProductionJournals.Where(x => x.Id == documentId)
                 .Select(x => new LocationBox(x.LocationId)).SingleOrDefaultAsync(cancellationToken),
+            DocumentType.DeliveryNote => await db.DeliveryNotes.Where(x => x.Id == documentId)
+                .Select(x => new LocationBox(x.LocationId)).SingleOrDefaultAsync(cancellationToken),
+            DocumentType.GoodsReceivedNote => await db.GoodsReceivedNotes.Where(x => x.Id == documentId)
+                .Select(x => new LocationBox(x.LocationId)).SingleOrDefaultAsync(cancellationToken),
             _ => null,
         };
     }

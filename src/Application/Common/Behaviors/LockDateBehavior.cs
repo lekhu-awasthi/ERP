@@ -93,6 +93,10 @@ public sealed class LockDateBehavior<TRequest, TResponse>(IAppDbContext db) : IP
                 .Where(x => x.Id == documentId).Select(x => (DateOnly?)x.Date).SingleOrDefaultAsync(cancellationToken),
             DocumentType.ProductionJournal => await db.ProductionJournals
                 .Where(x => x.Id == documentId).Select(x => (DateOnly?)x.Date).SingleOrDefaultAsync(cancellationToken),
+            DocumentType.DeliveryNote => await db.DeliveryNotes
+                .Where(x => x.Id == documentId).Select(x => (DateOnly?)x.Date).SingleOrDefaultAsync(cancellationToken),
+            DocumentType.GoodsReceivedNote => await db.GoodsReceivedNotes
+                .Where(x => x.Id == documentId).Select(x => (DateOnly?)x.Date).SingleOrDefaultAsync(cancellationToken),
             _ => null,
         };
     }

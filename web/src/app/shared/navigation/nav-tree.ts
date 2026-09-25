@@ -135,6 +135,8 @@ export const REPORT_CATEGORIES: Readonly<Record<string, string>> = {
   'inventory-ledger': 'Inventory',
   'inventory-master': 'Inventory',
   'product-profitability': 'Inventory',
+  // Phase 58 -- the live catalogue files it between Product Profitability and Inventory Master.
+  'inventory-variance': 'Inventory',
   // Phase 51 -- the reference product files both under Inventory Report, which is where its own
   // catalogue puts them (read 2026-09-16, 50 -> 52 entries).
   'product-batch': 'Inventory',

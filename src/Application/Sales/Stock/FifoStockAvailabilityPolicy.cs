@@ -62,11 +62,36 @@ public sealed class FifoStockAvailabilityPolicy(IAppDbContext db, IStockLedgerSe
             }
         }
 
-        if (!hasShortfall)
+        return hasShortfall
+            ? await VerdictForShortfallAsync(organizationId, cancellationToken)
+            : StockAvailabilityStatus.Ok;
+    }
+
+    public async Task<StockAvailabilityStatus> CheckPhysicalRequirementsAsync(
+        Guid organizationId,
+        Guid warehouseId,
+        IReadOnlyCollection<StockRequirement> requirements,
+        CancellationToken cancellationToken)
+    {
+        if (requirements.Count == 0)
         {
             return StockAvailabilityStatus.Ok;
         }
 
+        var onHand = await PhysicalStockReader.GetOnHandAsync(
+            db, organizationId, warehouseId, [.. requirements.Select(x => x.ProductId)], cancellationToken);
+
+        var hasShortfall = requirements.Any(r => r.Quantity > onHand.GetValueOrDefault(r.ProductId));
+
+        return hasShortfall
+            ? await VerdictForShortfallAsync(organizationId, cancellationToken)
+            : StockAvailabilityStatus.Ok;
+    }
+
+    /// <summary>The single read of NegativeStockBalanceAction, shared by both ledgers.</summary>
+    private async Task<StockAvailabilityStatus> VerdictForShortfallAsync(
+        Guid organizationId, CancellationToken cancellationToken)
+    {
         var settings = await db.TenantSettings.SingleOrDefaultAsync(
             x => x.OrganizationId == organizationId, cancellationToken)
             ?? throw new NotFoundException("Tenant settings not found.");

@@ -83,6 +83,13 @@ public sealed class SalesOrder
     /// even after that template is edited or deleted.</summary>
     public string? Terms { get; private set; }
 
+    /// <summary>Phase 58 -- when a Delivery Note was created against this order, or null. The
+    /// mirror of <c>PurchaseOrder.ReceivedAt</c>: the reference product keeps a
+    /// <c>delivered_quantity</c> and an <c>invoiced_quantity</c> on every SO line, independently.</summary>
+    public DateTimeOffset? DeliveredAt { get; private set; }
+
+    public bool IsDelivered => DeliveredAt is not null;
+
     public IReadOnlyList<SalesOrderLine> Lines => _lines;
 
     private SalesOrder()
@@ -166,9 +173,32 @@ public sealed class SalesOrder
         Code = code;
     }
 
+    /// <summary>Phase 58 -- records that a Delivery Note was raised against this order; one order,
+    /// one delivery note, the mirror of <c>PurchaseOrder.MarkReceived</c>.</summary>
+    public void MarkDelivered()
+    {
+        if (Status != SalesOrderStatus.Approved)
+        {
+            throw new InvalidOperationException("Only an Approved sales order can be delivered.");
+        }
+
+        if (IsDelivered)
+        {
+            throw new InvalidOperationException("This sales order has already been delivered on a Delivery Note.");
+        }
+
+        DeliveredAt = DateTimeOffset.UtcNow;
+    }
+
     public void Void(Guid voidedByUserId)
     {
         EnsureApproved();
+
+        if (IsDelivered)
+        {
+            throw new InvalidOperationException("A delivered sales order cannot be voided.");
+        }
+
         Status = SalesOrderStatus.Void;
         VoidedByUserId = voidedByUserId;
         VoidedAt = DateTimeOffset.UtcNow;

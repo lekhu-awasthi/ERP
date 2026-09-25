@@ -56,4 +56,8 @@ public sealed record PurchaseOrderDetailDto(
     // projecting a DTO silently drops a field the aggregate has, and the form would then post the
     // picker's default over a stored location on every edit. Fourteen instances of phase-32's own
     // carried gotcha.
-    Guid? LocationId);
+    Guid? LocationId,
+    // Phase 58 -- when a Goods Received Note was raised against this order, so the detail page can
+    // stop offering Convert to Goods Received Note. Trailing and defaulted; a new field owes its
+    // read path (phase 35a).
+    DateTimeOffset? ReceivedAt = null);

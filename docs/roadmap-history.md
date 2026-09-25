@@ -1660,3 +1660,59 @@ The original entry, for the record:
 
 ---
 
+---
+
+## Physical-movement phase (58) — promoted from the deferral (planned 2026-09-22)
+
+Moved here verbatim from `roadmap.md` on 2026-09-25, when phase 58 closed. **Its structural bullet is wrong** and is kept as written: the live read (2026-09-24) found two stock ledgers, no FIFO move and no GL posting, so the GRNI account was never built. See `phase-58-status.md`.
+
+## Forward plan (58) — planned 2026-09-22, by promoting a deferral rather than by a census
+
+Phase 57 closed the bank module, and with it the last item the phase-53 census produced; that census
+was re-run on 2026-09-21 against a byte-identical bundle and reproduced exactly (166 keys, 22
+document types, 51 reports). So **this entry is not a census finding** — it is the oldest deferral on
+the list being promoted, on 2026-09-22, because its start condition is the only one a user can meet
+cheaply and because it is the last real parity gap.
+
+**Delivery Note and Goods Received Note are the only two of the vendor's 22 document types we do not
+have.** Everything else on the deferred list below stays deferred.
+
+### 58. Physical-movement inventory — Delivery Note, GRN, and the Inventory Variance Report
+
+**The start condition is met by the user, not by the session, and it is two actions:** sign in to a
+reachable tenant (both were signed out on 2026-09-22; Moonbeam's sign-in page renders, Cadehi's trial
+was due to expire that day and its state is unconfirmed), and **flip
+`TenantSettings.InventoryTrackingMode` to *Physical Movement*** on it. That is a config write on the
+user's own tenant, so it is theirs to make. Until both are done this phase cannot start — the screens
+have never been opened and `erp-module-scan.md` has never held their shape.
+
+- **Scope it from three things, not two.** Phase 57's catalogue diff was the **Inventory Variance
+  Report** (`/reports/new/inventory-variance`), which opens live as *"Inventory Tracking **and
+  Physical Inventory Tracking** Not Enabled"* — the same flag. It is part of this feature, not a
+  neighbour of it, and scoping from the two document types alone would ship the phase incomplete.
+  Read all three in the same pass, plus whatever else the flag reveals — a setting that gates two
+  documents and a report may gate more, and the census cannot see behind a flag the tenant lacks.
+- **The structural change is where FIFO consumption happens.** Today Invoice Approve consumes and
+  Purchase Bill Approve receives. Under physical movement that moves to **Delivery Note Approve** and
+  **GRN Approve**, behind a handler-level gate on the setting — so both modes must work, on the same
+  code, chosen per tenant. This is the first tenant setting that changes *when* the stock ledger is
+  written, and phase 37's conservation law is the acceptance test, not a nicety.
+- **A goods-received-not-billed account** is the new tenant default (the GRN receives stock before a
+  bill exists, so the credit has to go somewhere). Phase 29's rule applies: when a phase adds a
+  tenant-default GL account, grep `web/` for the field name before calling it done — phases 25 and 28
+  each shipped accounts that reached the API and no screen, so they could not be configured at all.
+- **Ask what the documents do to everything already swept onto all 15 types** before building:
+  location (35a), custom fields/status/reporting tags (27a), print (27b), currency (28), units (52),
+  batch/serial (51), comments and attachments (18/27a). Two new `DocumentType` members is the phase-27a
+  sweep question, and the answer is a list derived from a rule, not sampled from two forms (phase 30).
+- **Conversion and lifecycle:** Sales Order → Delivery Note → Invoice, and Purchase Order → GRN →
+  Purchase Bill are the chains the vendor's five-key sets imply. Phase 6's rule is that
+  `ReferrerType`/`ReferrerId` enforce nothing — a conversion needs `MarkConverted`, quantity caps net
+  of prior reversals, and consistency checks in the Create handler. Void owes the mirror of whatever
+  Approve did to stock (phase 43).
+
+**After 58 the sequence is empty again** unless the flag reveals more. What remains is the auto-match
+suggestion engine (a *product decision* first — the vendor returns `account_suggestions: null` on
+every row, so its rule would be invented, not copied), the three items below under *Outside the
+sequence*, and the vendor-side actor. Plan the phase after this one the way 53 planned 54–57: from a
+fresh read, against evidence.

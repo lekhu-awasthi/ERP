@@ -185,6 +185,8 @@ public sealed class GlobalSearchQueryHandler(IAppDbContext db, ICurrentUserServi
             DocumentType.InventoryAdjustment => ByCodeAsync<InventoryAdjustment>(organizationId, term, allowedLocations, perCollection, cancellationToken),
             DocumentType.ProductionOrder => ByCodeAsync<ProductionOrder>(organizationId, term, allowedLocations, perCollection, cancellationToken),
             DocumentType.ProductionJournal => ByCodeAsync<ProductionJournal>(organizationId, term, allowedLocations, perCollection, cancellationToken),
+            DocumentType.DeliveryNote => ByCodeAsync<DeliveryNote>(organizationId, term, allowedLocations, perCollection, cancellationToken),
+            DocumentType.GoodsReceivedNote => ByCodeAsync<GoodsReceivedNote>(organizationId, term, allowedLocations, perCollection, cancellationToken),
 
             // Unreachable: the caller iterates DocumentMechanisms.Transactional, and the guard test
             // pins that this switch covers it exactly.

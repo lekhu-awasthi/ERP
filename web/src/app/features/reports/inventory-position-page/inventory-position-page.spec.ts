@@ -48,6 +48,7 @@ describe('InventoryPositionPage', () => {
           // Deliberately larger than the single row: these are the full-set totals.
           totalQuantity: 940,
           totalAmount: 8750,
+          mode: 'AccountingMovement',
           ...report,
         }),
       exportInventoryPosition: (): Observable<Blob> => of(new Blob()),
@@ -169,6 +170,40 @@ describe('InventoryPositionPage', () => {
 
       expect(columnBox(element).checked, 'unticking the parent must clear the modifier').toBe(false);
       expect(columnBox(element).disabled).toBe(true);
+    });
+  });
+
+  /**
+   * Phase 58. The physical ledger carries no cost, so its rows arrive with rate and amount zero;
+   * printing them would read as stock worth nothing. The columns go, and the select shows the
+   * ledger the server says it read -- not the one the screen assumed.
+   */
+  describe('the Mode of Inventory Tracking (phase 58)', () => {
+    function headers(element: HTMLElement): string[] {
+      return Array.from(element.querySelectorAll('thead th')).map((h) => h.textContent?.trim() ?? '');
+    }
+
+    it('shows Rate and Amount on the accounting ledger', () => {
+      const { element } = page();
+
+      expect(headers(element)).toContain('Rate');
+      expect(headers(element)).toContain('Amount');
+    });
+
+    it('hides Rate and Amount on the physical ledger, and the total amount with them', () => {
+      const { element, text } = page({ mode: 'PhysicalMovement', items: [row({ rate: 0, amount: 0 })] });
+
+      expect(headers(element)).not.toContain('Rate');
+      expect(headers(element)).not.toContain('Amount');
+      expect(text()).not.toContain('8,750.00');
+      expect(text()).toContain('940.000');
+    });
+
+    it('selects the mode the server answered with', () => {
+      const { element } = page({ mode: 'PhysicalMovement' });
+
+      const select = element.querySelector<HTMLSelectElement>('#inventory-position-page-mode')!;
+      expect(select.value).toBe('PhysicalMovement');
     });
   });
 

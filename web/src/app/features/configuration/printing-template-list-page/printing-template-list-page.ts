@@ -14,6 +14,8 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
 const PRINTABLE_DOCUMENT_TYPES: DocumentType[] = [
   'Quotation', 'SalesOrder', 'Invoice', 'CreditNote', 'PurchaseOrder', 'PurchaseBill', 'Expense', 'DebitNote', 'Payment',
   'JournalVoucher', 'CashTransfer', 'WarehouseTransfer', 'InventoryAdjustment', 'ProductionOrder', 'ProductionJournal',
+  // Phase 58 -- both listed on the live Printing Templates page.
+  'DeliveryNote', 'GoodsReceivedNote',
 ];
 
 /**

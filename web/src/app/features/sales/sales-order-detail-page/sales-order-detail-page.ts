@@ -26,6 +26,7 @@ import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error'
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { LineUnitControl, LineUnitOption } from '../../../shared/catalog/line-unit-control';
 import { UnitOfMeasurementStore } from '../../../shared/catalog/unit-of-measurement-store';
+import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
 
 interface EditableLine {
   key: number;
@@ -370,6 +371,31 @@ export class SalesOrderDetailPage {
       error: (err: unknown) => {
         this.voiding.set(false);
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not void sales order. Please try again.');
+      },
+    });
+  }
+
+  /**
+   * Phase 58 -- Convert to Delivery Note, the order's primary action live once a tenant runs
+   * Physical Movement, and the Sales Order's first conversion in this codebase. An order is
+   * delivered once; the server refuses a second note and a void of a delivered order.
+   */
+  private readonly pendingTemplateStore = inject(PendingTemplateStore);
+  protected readonly delivering = signal(false);
+
+  protected convertToDeliveryNote(): void {
+    this.delivering.set(true);
+    this.errorMessage.set(null);
+
+    this.salesService.getDeliveryNoteConversionTemplate(this.organizationId, this.routeSalesOrderId).subscribe({
+      next: (template) => {
+        this.delivering.set(false);
+        this.pendingTemplateStore.setDeliveryNoteTemplate(template);
+        this.router.navigate(['/organizations', this.organizationId, 'sales', 'delivery-notes', 'new']);
+      },
+      error: (err: unknown) => {
+        this.delivering.set(false);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not convert sales order to delivery note.');
       },
     });
   }

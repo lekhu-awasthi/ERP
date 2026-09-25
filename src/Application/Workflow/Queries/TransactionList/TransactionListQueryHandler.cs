@@ -142,6 +142,40 @@ public sealed class TransactionListQueryHandler(IAppDbContext db, ICurrentUserSe
                 x.ApprovedByUserId, x.ApprovedAt, x.CreatedAt, x.ContactId, null, 0m, null)));
         }
 
+        // Phase 58 -- the physical-movement pair, listed as the orders are: documents with a number
+        // and a lifecycle, whether or not they post.
+        if (Wants(DocumentType.DeliveryNote))
+        {
+            var statuses = TypeStatuses<DeliveryNoteStatus>(request.Statuses);
+            var query = db.DeliveryNotes.Where(x => x.OrganizationId == organizationId);
+            if (statuses is not null) query = query.Where(x => statuses.Contains(x.Status));
+            if (from is { } f) query = query.Where(x => x.Date >= f);
+            if (to is { } t) query = query.Where(x => x.Date <= t);
+            query = query.AtLocations(request.LocationId, reportLocations);
+            var items = await query
+                .Select(x => new { x.Id, x.Code, x.Date, x.Reference, x.Status, x.ApprovedByUserId, x.ApprovedAt, x.CreatedAt, x.ContactId })
+                .ToListAsync(cancellationToken);
+            candidates.AddRange(items.Select(x => new Candidate(
+                x.Date, DocumentType.DeliveryNote, x.Id, x.Code, x.Reference, ListStatus(x.Status),
+                x.ApprovedByUserId, x.ApprovedAt, x.CreatedAt, x.ContactId, null, 0m, null)));
+        }
+
+        if (Wants(DocumentType.GoodsReceivedNote))
+        {
+            var statuses = TypeStatuses<GoodsReceivedNoteStatus>(request.Statuses);
+            var query = db.GoodsReceivedNotes.Where(x => x.OrganizationId == organizationId);
+            if (statuses is not null) query = query.Where(x => statuses.Contains(x.Status));
+            if (from is { } f) query = query.Where(x => x.Date >= f);
+            if (to is { } t) query = query.Where(x => x.Date <= t);
+            query = query.AtLocations(request.LocationId, reportLocations);
+            var items = await query
+                .Select(x => new { x.Id, x.Code, x.Date, x.Reference, x.Status, x.ApprovedByUserId, x.ApprovedAt, x.CreatedAt, x.ContactId })
+                .ToListAsync(cancellationToken);
+            candidates.AddRange(items.Select(x => new Candidate(
+                x.Date, DocumentType.GoodsReceivedNote, x.Id, x.Code, x.Reference, ListStatus(x.Status),
+                x.ApprovedByUserId, x.ApprovedAt, x.CreatedAt, x.ContactId, null, 0m, null)));
+        }
+
         if (Wants(DocumentType.PurchaseBill))
         {
             var statuses = TypeStatuses<PurchaseBillStatus>(request.Statuses);
@@ -349,6 +383,18 @@ public sealed class TransactionListQueryHandler(IAppDbContext db, ICurrentUserSe
         if (purchaseOrderIds.Count > 0)
         {
             await SumAsync(db.PurchaseOrderLines.Where(l => purchaseOrderIds.Contains(l.PurchaseOrderId)), l => l.PurchaseOrderId, l => l.Amount + l.VatAmount);
+        }
+
+        var deliveryNoteIds = IdsOf(DocumentType.DeliveryNote);
+        if (deliveryNoteIds.Count > 0)
+        {
+            await SumAsync(db.DeliveryNoteLines.Where(l => deliveryNoteIds.Contains(l.DeliveryNoteId)), l => l.DeliveryNoteId, l => l.Amount + l.VatAmount);
+        }
+
+        var goodsReceivedNoteIds = IdsOf(DocumentType.GoodsReceivedNote);
+        if (goodsReceivedNoteIds.Count > 0)
+        {
+            await SumAsync(db.GoodsReceivedNoteLines.Where(l => goodsReceivedNoteIds.Contains(l.GoodsReceivedNoteId)), l => l.GoodsReceivedNoteId, l => l.Amount + l.VatAmount);
         }
 
         var purchaseBillIds = IdsOf(DocumentType.PurchaseBill);

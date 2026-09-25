@@ -17,7 +17,10 @@ export type EmailTemplateContext =
   | 'CustomerPayment'
   | 'SupplierPayment'
   | 'PurchaseOrder'
-  | 'BalanceConfirmation';
+  | 'BalanceConfirmation'
+  // Phase 58 -- both offered first in the live Template Type picker under Physical Movement.
+  | 'DeliveryNote'
+  | 'GoodsReceivedNote';
 
 export type EmailSendStatus = 'Queued' | 'Sending' | 'Sent' | 'Failed';
 

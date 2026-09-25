@@ -1,0 +1,146 @@
+import { Component, inject, signal } from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+
+import { extractErrorMessage } from '../../../core/auth/api-error';
+import { PurchasingService } from '../../../core/purchasing/purchasing.service';
+import { GoodsReceivedNote, GoodsReceivedNoteStatus } from '../../../core/purchasing/purchasing.models';
+import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
+import { PaginationControl } from '../../../shared/pagination/pagination-control';
+import { CustomStatusPicker } from '../../../shared/custom-status/custom-status-picker';
+import { ConfigurationService } from '../../../core/configuration/configuration.service';
+import { CustomStatus } from '../../../core/configuration/configuration.models';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { ListChrome, documentSortOptions } from '../../../shared/pagination/list-chrome';
+import { ListFilter } from '../../../shared/pagination/list-query-options';
+import { DateRangeService } from '../../../shared/platform/date-range.service';
+import { LocationName } from '../../../shared/locations/location-name';
+import { StatusBanner } from '../../../shared/a11y/status-banner';
+
+type StatusFilter = GoodsReceivedNoteStatus | 'All';
+
+/** Phase 58 -- the Goods Received Note list, the Purchase Order list's chrome exactly, with the Stage
+ * column's custom-status picker (the live GRN's four seeded statuses). */
+@Component({
+  selector: 'app-goods-received-note-list-page',
+  imports: [RouterLink, PaginationControl, CustomStatusPicker, NepaliDatePipe, ListChrome, LocationName, StatusBanner],
+  templateUrl: './goods-received-note-list-page.html',
+})
+export class GoodsReceivedNoteListPage {
+  private readonly route = inject(ActivatedRoute);
+  private readonly purchasingService = inject(PurchasingService);
+
+  private readonly configurationService = inject(ConfigurationService);
+
+  /** Phase 34b -- the screen's search term plus the shell's global date range. */
+  protected readonly filter = new ListFilter(inject(DateRangeService), () => this.reloadForDateRange());
+
+  protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  protected readonly loading = signal(true);
+  protected readonly errorMessage = signal<string | null>(null);
+  protected readonly items = signal<GoodsReceivedNote[]>([]);
+  protected readonly statusFilter = signal<StatusFilter>('All');
+
+  /** Phase 27a: the tenant's pipeline for this document type, loaded once. Filtered to
+   * active definitions of this type only -- an inactive status is refused server-side. */
+  protected readonly customStatusOptions = signal<CustomStatus[]>([]);
+
+  protected readonly page = signal(1);
+  protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
+  protected readonly totalCount = signal(0);
+
+  protected readonly statuses: StatusFilter[] = ['All', 'Draft', 'Approved'];
+
+  constructor() {
+    this.load();
+    this.configurationService.listCustomStatuses(this.organizationId).subscribe({
+      next: (all) => this.customStatusOptions.set(all.filter((c) => c.isActive && c.documentType === 'GoodsReceivedNote')),
+    });
+  }
+
+  /** The picker saves itself; this only keeps the in-memory row in step so the control
+   * does not snap back to its old value before the next reload. */
+  protected onCustomStatusChange(itemId: string, customStatusId: string | null): void {
+    this.items.update((items) => items.map((item) => (item.id === itemId ? { ...item, customStatusId } : item)));
+  }
+
+  protected selectStatus(status: StatusFilter): void {
+    this.statusFilter.set(status);
+    this.page.set(1);
+    this.load();
+  }
+
+  protected onPageChange(page: number): void {
+    this.page.set(page);
+    this.load();
+  }
+
+  protected onPageSizeChange(pageSize: number): void {
+    this.pageSize.set(pageSize);
+    this.page.set(1);
+    this.load();
+  }
+
+  private load(): void {
+    this.loading.set(true);
+    const status = this.statusFilter();
+    this.purchasingService
+      .listGoodsReceivedNotes(this.organizationId, status === 'All' ? undefined : status, this.page(), this.pageSize(), this.filter.options())
+      .subscribe({
+        next: (result) => {
+          this.items.set(result.items);
+          this.totalCount.set(result.totalCount);
+          this.loading.set(false);
+        },
+        error: (err: unknown) => {
+          this.loading.set(false);
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load goods received notes.');
+        },
+      });
+  }
+  /**
+   * Phase 35a -- the chrome's Billing Location filter. Resets to page 1 for the same reason the
+   * search box does: page 4 of a set the filter has just shrunk reads as "this branch has nothing".
+   */
+  protected onLocation(locationId: string): void {
+    this.filter.location.set(locationId);
+    this.page.set(1);
+    this.load();
+  }
+
+  /**
+   * Phase 47 -- the chrome's `Sort by`, swept from the invoice list phase 40 proved the seam with.
+   * Two options because two is how many orderings `TenantIndexConvention` indexes this document
+   * for; see `documentSortOptions`.
+   */
+  protected readonly sortOptions = documentSortOptions('Received date');
+
+  /** Resets to page 1 like every other filter on this page -- see `onSearch`. */
+  protected onSort(sort: string): void {
+    this.filter.sort.set(sort);
+    this.page.set(1);
+    this.load();
+  }
+
+  /**
+   * Phase 34b -- the shared list chrome's search box. Resets to page 1, because staying on page 4
+   * of a result set the filter has just shrunk to one page shows an empty list and reads as
+   * "search found nothing".
+   */
+  protected onSearch(term: string): void {
+    this.filter.search.set(term);
+    this.page.set(1);
+    this.load();
+  }
+
+  /**
+   * Phase 34b -- the shell's global date range changed under an open list. Reload from page 1: the
+   * window that produced the current page no longer applies, and the chrome is already showing the
+   * new one.
+   */
+  private reloadForDateRange(): void {
+    this.page.set(1);
+    this.load();
+  }
+
+}

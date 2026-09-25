@@ -56,6 +56,8 @@ public class LocationReadPathSweepGuardTests
             [DocumentType.InventoryAdjustment] = "InventoryAdjustment",
             [DocumentType.ProductionOrder] = "ProductionOrder",
             [DocumentType.ProductionJournal] = "ProductionJournal",
+            [DocumentType.DeliveryNote] = "DeliveryNote",
+            [DocumentType.GoodsReceivedNote] = "GoodsReceivedNote",
         };
 
     /// <summary>
@@ -175,7 +177,8 @@ public class LocationReadPathSweepGuardTests
             .OrderBy(t => t.Name, StringComparer.Ordinal)
             .ToList();
 
-        Assert.Equal(5, templates.Count);
+        // Seven since phase 58: Purchase Order -> Goods Received Note and Sales Order -> Delivery Note.
+        Assert.Equal(7, templates.Count);
 
         foreach (var template in templates)
         {

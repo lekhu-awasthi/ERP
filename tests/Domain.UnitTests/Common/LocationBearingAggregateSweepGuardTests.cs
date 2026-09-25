@@ -39,6 +39,8 @@ public class LocationBearingAggregateSweepGuardTests
         [DocumentType.ProductionJournal] = typeof(Domain.Manufacturing.ProductionJournal),
         [DocumentType.OpeningBalance] = typeof(Domain.Accounting.OpeningBalanceLine),
         [DocumentType.OpeningStock] = typeof(Domain.Inventory.OpeningStockLine),
+        [DocumentType.DeliveryNote] = typeof(Domain.Sales.DeliveryNote),
+        [DocumentType.GoodsReceivedNote] = typeof(Domain.Purchasing.GoodsReceivedNote),
     };
 
     public static TheoryData<Type> LocationBearingAggregates => [.. Aggregates.Values];

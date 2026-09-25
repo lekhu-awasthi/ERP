@@ -6,6 +6,12 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { PagedResult } from '../common/paged-result';
 import {
+  DeliveryNote,
+  DeliveryNoteConversionTemplate,
+  DeliveryNoteDetail,
+  DeliveryNoteRequest,
+  DeliveryNoteResult,
+  DeliveryNoteStatus,
   AnnexFiveReportDto,
   ApproveCreditNoteResult,
   ApproveInvoiceResult,
@@ -408,5 +414,59 @@ export class SalesService {
       params,
       responseType: 'blob',
     });
+  }
+
+  // --- Delivery Note (phase 58) ---
+
+  listDeliveryNotes(
+    organizationId: string, status?: DeliveryNoteStatus, page = 1, pageSize = 50,
+    options?: ListQueryOptions,
+  ): Observable<PagedResult<DeliveryNote>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
+    if (status) params['status'] = status;
+    return this.http.get<PagedResult<DeliveryNote>>(`${this.baseUrl(organizationId)}/delivery-notes`, {
+      withCredentials: true,
+      params,
+    });
+  }
+
+  getDeliveryNote(organizationId: string, id: string): Observable<DeliveryNoteDetail> {
+    return this.http.get<DeliveryNoteDetail>(`${this.baseUrl(organizationId)}/delivery-notes/${id}`, { withCredentials: true });
+  }
+
+  createDeliveryNote(organizationId: string, request: DeliveryNoteRequest): Observable<DeliveryNoteResult> {
+    return this.http.post<DeliveryNoteResult>(`${this.baseUrl(organizationId)}/delivery-notes`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updateDeliveryNote(organizationId: string, id: string, request: DeliveryNoteRequest): Observable<DeliveryNoteResult> {
+    return this.http.put<DeliveryNoteResult>(`${this.baseUrl(organizationId)}/delivery-notes/${id}`, request, {
+      withCredentials: true,
+    });
+  }
+
+  /** The Invoice's Warn-and-continue shape: a short physical ledger answers 422 with a confirmable
+   * warning, and the same call with `overrideWarning` goes through. */
+  approveDeliveryNote(organizationId: string, id: string, overrideWarning = false): Observable<DeliveryNoteResult> {
+    return this.http.post<DeliveryNoteResult>(
+      `${this.baseUrl(organizationId)}/delivery-notes/${id}/approve`,
+      { overrideWarning },
+      { withCredentials: true },
+    );
+  }
+
+  voidDeliveryNote(organizationId: string, id: string): Observable<DeliveryNoteResult> {
+    return this.http.post<DeliveryNoteResult>(`${this.baseUrl(organizationId)}/delivery-notes/${id}/void`, null, {
+      withCredentials: true,
+    });
+  }
+
+  getDeliveryNoteConversionTemplate(organizationId: string, salesOrderId: string): Observable<DeliveryNoteConversionTemplate> {
+    return this.http.get<DeliveryNoteConversionTemplate>(
+      `${this.baseUrl(organizationId)}/sales-orders/${salesOrderId}/delivery-note-conversion-template`,
+      { withCredentials: true },
+    );
   }
 }

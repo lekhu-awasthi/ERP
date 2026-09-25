@@ -1,7 +1,11 @@
 import { Injectable, signal } from '@angular/core';
 
-import { CreditNoteConversionTemplate, InvoiceConversionTemplate } from './sales.models';
-import { DebitNoteConversionTemplate, PurchaseBillConversionTemplate } from '../purchasing/purchasing.models';
+import { CreditNoteConversionTemplate, DeliveryNoteConversionTemplate, InvoiceConversionTemplate } from './sales.models';
+import {
+  DebitNoteConversionTemplate,
+  GoodsReceivedNoteConversionTemplate,
+  PurchaseBillConversionTemplate,
+} from '../purchasing/purchasing.models';
 
 /**
  * architecture-spec.md §3.3's "Convert to X" flow needs to hand a server-computed pre-fill from
@@ -56,6 +60,30 @@ export class PendingTemplateStore {
   takeDebitNoteTemplate(): DebitNoteConversionTemplate | null {
     const template = this.debitNoteTemplateSignal();
     this.debitNoteTemplateSignal.set(null);
+    return template;
+  }
+
+  // Phase 58 -- Purchase Order -> Goods Received Note and Sales Order -> Delivery Note.
+  private readonly goodsReceivedNoteTemplateSignal = signal<GoodsReceivedNoteConversionTemplate | null>(null);
+  private readonly deliveryNoteTemplateSignal = signal<DeliveryNoteConversionTemplate | null>(null);
+
+  setGoodsReceivedNoteTemplate(template: GoodsReceivedNoteConversionTemplate): void {
+    this.goodsReceivedNoteTemplateSignal.set(template);
+  }
+
+  takeGoodsReceivedNoteTemplate(): GoodsReceivedNoteConversionTemplate | null {
+    const template = this.goodsReceivedNoteTemplateSignal();
+    this.goodsReceivedNoteTemplateSignal.set(null);
+    return template;
+  }
+
+  setDeliveryNoteTemplate(template: DeliveryNoteConversionTemplate): void {
+    this.deliveryNoteTemplateSignal.set(template);
+  }
+
+  takeDeliveryNoteTemplate(): DeliveryNoteConversionTemplate | null {
+    const template = this.deliveryNoteTemplateSignal();
+    this.deliveryNoteTemplateSignal.set(null);
     return template;
   }
 }

@@ -746,6 +746,31 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminBankStatementManageId = Guid.Parse("00000000-0000-0000-0002-0000000001c9");
     private static readonly Guid MemberBankStatementManageId = Guid.Parse("00000000-0000-0000-0002-0000000001ca");
 
+    // Phase 58 -- Delivery Note, Goods Received Note and the Inventory Variance Report. All
+    // Admin+Member; the derivation is on the constants in PermissionKeys.cs. Continuing from 01ca.
+    private static readonly Guid AdminDeliveryNoteViewId = Guid.Parse("00000000-0000-0000-0002-0000000001cb");
+    private static readonly Guid MemberDeliveryNoteViewId = Guid.Parse("00000000-0000-0000-0002-0000000001cc");
+    private static readonly Guid AdminDeliveryNoteCreateId = Guid.Parse("00000000-0000-0000-0002-0000000001cd");
+    private static readonly Guid MemberDeliveryNoteCreateId = Guid.Parse("00000000-0000-0000-0002-0000000001ce");
+    private static readonly Guid AdminDeliveryNoteEditId = Guid.Parse("00000000-0000-0000-0002-0000000001cf");
+    private static readonly Guid MemberDeliveryNoteEditId = Guid.Parse("00000000-0000-0000-0002-0000000001d0");
+    private static readonly Guid AdminDeliveryNoteApproveId = Guid.Parse("00000000-0000-0000-0002-0000000001d1");
+    private static readonly Guid MemberDeliveryNoteApproveId = Guid.Parse("00000000-0000-0000-0002-0000000001d2");
+    private static readonly Guid AdminDeliveryNoteVoidId = Guid.Parse("00000000-0000-0000-0002-0000000001d3");
+    private static readonly Guid MemberDeliveryNoteVoidId = Guid.Parse("00000000-0000-0000-0002-0000000001d4");
+    private static readonly Guid AdminGoodsReceivedNoteViewId = Guid.Parse("00000000-0000-0000-0002-0000000001d5");
+    private static readonly Guid MemberGoodsReceivedNoteViewId = Guid.Parse("00000000-0000-0000-0002-0000000001d6");
+    private static readonly Guid AdminGoodsReceivedNoteCreateId = Guid.Parse("00000000-0000-0000-0002-0000000001d7");
+    private static readonly Guid MemberGoodsReceivedNoteCreateId = Guid.Parse("00000000-0000-0000-0002-0000000001d8");
+    private static readonly Guid AdminGoodsReceivedNoteEditId = Guid.Parse("00000000-0000-0000-0002-0000000001d9");
+    private static readonly Guid MemberGoodsReceivedNoteEditId = Guid.Parse("00000000-0000-0000-0002-0000000001da");
+    private static readonly Guid AdminGoodsReceivedNoteApproveId = Guid.Parse("00000000-0000-0000-0002-0000000001db");
+    private static readonly Guid MemberGoodsReceivedNoteApproveId = Guid.Parse("00000000-0000-0000-0002-0000000001dc");
+    private static readonly Guid AdminGoodsReceivedNoteVoidId = Guid.Parse("00000000-0000-0000-0002-0000000001dd");
+    private static readonly Guid MemberGoodsReceivedNoteVoidId = Guid.Parse("00000000-0000-0000-0002-0000000001de");
+    private static readonly Guid AdminInventoryVarianceViewId = Guid.Parse("00000000-0000-0000-0002-0000000001df");
+    private static readonly Guid MemberInventoryVarianceViewId = Guid.Parse("00000000-0000-0000-0002-0000000001e0");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1317,6 +1342,28 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminBankStatementViewId, Role.AdminId, PermissionKeys.BankStatementView, true),
             RolePermission.Create(MemberBankStatementViewId, Role.MemberId, PermissionKeys.BankStatementView, true),
             RolePermission.Create(AdminBankStatementManageId, Role.AdminId, PermissionKeys.BankStatementManage, true),
-            RolePermission.Create(MemberBankStatementManageId, Role.MemberId, PermissionKeys.BankStatementManage, true));
+            RolePermission.Create(MemberBankStatementManageId, Role.MemberId, PermissionKeys.BankStatementManage, true),
+            RolePermission.Create(AdminDeliveryNoteViewId, Role.AdminId, PermissionKeys.DeliveryNoteView, true),
+            RolePermission.Create(MemberDeliveryNoteViewId, Role.MemberId, PermissionKeys.DeliveryNoteView, true),
+            RolePermission.Create(AdminDeliveryNoteCreateId, Role.AdminId, PermissionKeys.DeliveryNoteCreate, true),
+            RolePermission.Create(MemberDeliveryNoteCreateId, Role.MemberId, PermissionKeys.DeliveryNoteCreate, true),
+            RolePermission.Create(AdminDeliveryNoteEditId, Role.AdminId, PermissionKeys.DeliveryNoteEdit, true),
+            RolePermission.Create(MemberDeliveryNoteEditId, Role.MemberId, PermissionKeys.DeliveryNoteEdit, true),
+            RolePermission.Create(AdminDeliveryNoteApproveId, Role.AdminId, PermissionKeys.DeliveryNoteApprove, true),
+            RolePermission.Create(MemberDeliveryNoteApproveId, Role.MemberId, PermissionKeys.DeliveryNoteApprove, true),
+            RolePermission.Create(AdminDeliveryNoteVoidId, Role.AdminId, PermissionKeys.DeliveryNoteVoid, true),
+            RolePermission.Create(MemberDeliveryNoteVoidId, Role.MemberId, PermissionKeys.DeliveryNoteVoid, true),
+            RolePermission.Create(AdminGoodsReceivedNoteViewId, Role.AdminId, PermissionKeys.GoodsReceivedNoteView, true),
+            RolePermission.Create(MemberGoodsReceivedNoteViewId, Role.MemberId, PermissionKeys.GoodsReceivedNoteView, true),
+            RolePermission.Create(AdminGoodsReceivedNoteCreateId, Role.AdminId, PermissionKeys.GoodsReceivedNoteCreate, true),
+            RolePermission.Create(MemberGoodsReceivedNoteCreateId, Role.MemberId, PermissionKeys.GoodsReceivedNoteCreate, true),
+            RolePermission.Create(AdminGoodsReceivedNoteEditId, Role.AdminId, PermissionKeys.GoodsReceivedNoteEdit, true),
+            RolePermission.Create(MemberGoodsReceivedNoteEditId, Role.MemberId, PermissionKeys.GoodsReceivedNoteEdit, true),
+            RolePermission.Create(AdminGoodsReceivedNoteApproveId, Role.AdminId, PermissionKeys.GoodsReceivedNoteApprove, true),
+            RolePermission.Create(MemberGoodsReceivedNoteApproveId, Role.MemberId, PermissionKeys.GoodsReceivedNoteApprove, true),
+            RolePermission.Create(AdminGoodsReceivedNoteVoidId, Role.AdminId, PermissionKeys.GoodsReceivedNoteVoid, true),
+            RolePermission.Create(MemberGoodsReceivedNoteVoidId, Role.MemberId, PermissionKeys.GoodsReceivedNoteVoid, true),
+            RolePermission.Create(AdminInventoryVarianceViewId, Role.AdminId, PermissionKeys.InventoryVarianceView, true),
+            RolePermission.Create(MemberInventoryVarianceViewId, Role.MemberId, PermissionKeys.InventoryVarianceView, true));
     }
 }

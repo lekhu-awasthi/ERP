@@ -72,6 +72,17 @@
             <option value="NegativeOnly" [selected]="balanceFilter() === 'NegativeOnly'">Negative Balance Only</option>
           </select>
         </div>
+        <!-- Phase 58 -- the live drawer's Mode of Inventory Tracking (Hamro Samaan 2026-09-24).
+             It picks which of the two ledgers the balance is read from; it changes nothing
+             about the tenant's setting, which only chooses this select's default. Three columns,
+             not two: at two the label wraps and the value truncates. -->
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold" for="inventory-position-page-mode">Mode of Inventory Tracking</label>
+          <select id="inventory-position-page-mode" class="form-select" (change)="onModeChange($event)">
+            <option value="PhysicalMovement" [selected]="reportMode() === 'PhysicalMovement'">Physical Movement</option>
+            <option value="AccountingMovement" [selected]="reportMode() === 'AccountingMovement'">Accounting Movement</option>
+          </select>
+        </div>
         <div class="col-12 col-sm-6 col-lg-2">
           <app-report-location-filter
             [organizationId]="organizationId"
@@ -151,8 +162,10 @@
                 }
                 <th scope="col" class="text-end">Qty</th>
                 <th scope="col">UOM</th>
-                <th scope="col" class="text-end">Rate</th>
-                <th scope="col" class="text-end">Amount</th>
+                @if (!physical()) {
+                  <th scope="col" class="text-end">Rate</th>
+                  <th scope="col" class="text-end">Amount</th>
+                }
               </tr>
             </thead>
             <tbody>
@@ -171,8 +184,10 @@
                   }
                   <td class="text-end" [class.text-danger]="row.quantity < 0">{{ (row.quantity | amount: 3) }}</td>
                   <td>{{ row.unit || '—' }}</td>
-                  <td class="text-end">{{ row.quantity > 0 ? (row.rate | amount: 3) : '—' }}</td>
-                  <td class="text-end fw-bold">{{ row.quantity > 0 ? (row.amount | amount) : '—' }}</td>
+                  @if (!physical()) {
+                    <td class="text-end">{{ row.quantity > 0 ? (row.rate | amount: 3) : '—' }}</td>
+                    <td class="text-end fw-bold">{{ row.quantity > 0 ? (row.amount | amount) : '—' }}</td>
+                  }
                 </tr>
               }
             </tbody>
@@ -186,8 +201,12 @@
                 -->
                 <td [attr.colspan]="(groupByWarehouse() ? 3 : 2) + warehouseColumns().length">Total</td>
                 <td class="text-end">{{ (totalQuantity() | amount: 3) }}</td>
-                <td colspan="2"></td>
-                <td class="text-end">{{ (totalAmount() | amount) }}</td>
+                @if (physical()) {
+                  <td></td>
+                } @else {
+                  <td colspan="2"></td>
+                  <td class="text-end">{{ (totalAmount() | amount) }}</td>
+                }
               </tr>
             </tfoot>
           </table>

@@ -41,4 +41,8 @@ public enum AttachmentParentType
     // them exactly as it does for Contact, and ParentPermissions resolves them to their own keys.
     Deal,
     WorkTask,
+
+    // Phase 58 -- the two physical-movement documents, appended so no persisted ordinal moves.
+    DeliveryNote,
+    GoodsReceivedNote,
 }

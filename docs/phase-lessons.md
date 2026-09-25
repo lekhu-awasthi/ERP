@@ -1582,3 +1582,40 @@ the other way.** Every path measured improved, including the two not targeted, b
 can serve everything the old one could. That is why it *replaces* `IX_GlLines_AccountId` instead of
 joining it — same index count, nothing extra to maintain on an append-only table — and why the
 INCLUDE list carries a comment naming what would silently break it.
+
+## Phase 58 — physical-movement inventory, and a second ledger that moves nothing
+
+Read `docs/phase-58-status.md` before touching Delivery Note, GRN, the Inventory Variance Report,
+`InventoryTrackingMode`, or anything that asks "how much stock is there".
+
+**A setting that seems to change behaviour may only change a default.** The plan said Physical
+Movement moves FIFO consumption to DN/GRN Approve and needs a goods-received-not-billed account. The
+first live write showed the vendor keeps **two stock ledgers at all times** and the setting only
+picks which one the inventory screens read. Nothing moved, nothing posted, and the GRNI account had
+nothing to clear. **Write one document on the live tenant before designing around a setting**: an
+hour of reading screens had not told the planning pass what one GRN and one Trial Balance did.
+
+**A second view of a fact should be derived, not copied.** The physical ledger is a new append-only
+table for the two documents that only it records, *plus* the existing `StockMovements` rows of the
+four shared types. It is not a copy of them, because two stores for one fact is phase 37's
+two-of-three-views drift waiting to happen. The cost is one extra grouped query. The benefit is that
+switching the setting needs no backfill, since history is already in both ledgers.
+`StockBooks` classifies every `DocumentType` and a guard makes the next member choose.
+
+**Each rule is per ledger; the verdict is shared.** A DN checks the physical balance and an Invoice
+the accounting one, both through the one `NegativeStockBalanceAction` read. A receipt's Void is
+refused once its goods have left, which is the rule the accounting ledger already applies to a
+consumed bill layer. Here the vendor is looser (−3 at rate 0), and the divergence is argued, not
+inherited.
+
+**An index declared for a path may never be chosen by it.** The first scaffold's
+`(Org, Product, Warehouse, Date)` index lost to the `ProductId` FK index plus key lookups, at 318
+reads either way. Covering it took the path to 5. A probe that wraps the real query in `COUNT(*)`
+measures a different query: the optimiser drops the unread columns (1,839 against a real 4,584).
+Materialise it. And **a count of zero rows in an accounting view is evidence**: DN/GRN rows in
+`GlJournalEntries`, `StockMovements` and `StockLedgerEntries` were asserted 0, not assumed.
+
+**On a tenant seeded with Opening Stock the three-view law reads layers = movements = GL + opening.**
+Opening Stock posts no GL entry (phase 37 §7). The E2E's first check omitted the term and failed by
+a constant 1,000 at every checkpoint, which is itself the proof that nothing in between moved the
+relation.

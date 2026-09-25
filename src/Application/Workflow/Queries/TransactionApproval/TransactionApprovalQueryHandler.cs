@@ -93,6 +93,29 @@ public sealed class TransactionApprovalQueryHandler(IAppDbContext db, ICurrentUs
                 DocumentType.PurchaseBill, x.Id, x.Code, x.Date, x.CreatedAt, x.ContactId, null, x.Reference, null)));
         }
 
+        // Phase 58 -- the physical-movement pair, on the queue's own rule: every Draft of a type the
+        // caller can approve. The reference product approves both through the same
+        // transactions/approve endpoint every other document uses.
+        if (grantedKeys.Contains(PermissionKeys.DeliveryNoteApprove))
+        {
+            var items = await db.DeliveryNotes
+                .Where(x => x.OrganizationId == request.OrganizationId && x.Status == DeliveryNoteStatus.Draft)
+                .Select(x => new { x.Id, x.Code, x.Date, x.CreatedAt, x.ContactId, x.Reference })
+                .ToListAsync(cancellationToken);
+            rows.AddRange(items.Select(x => new TransactionApprovalRowDto(
+                DocumentType.DeliveryNote, x.Id, x.Code, x.Date, x.CreatedAt, x.ContactId, null, x.Reference, null)));
+        }
+
+        if (grantedKeys.Contains(PermissionKeys.GoodsReceivedNoteApprove))
+        {
+            var items = await db.GoodsReceivedNotes
+                .Where(x => x.OrganizationId == request.OrganizationId && x.Status == GoodsReceivedNoteStatus.Draft)
+                .Select(x => new { x.Id, x.Code, x.Date, x.CreatedAt, x.ContactId, x.Reference })
+                .ToListAsync(cancellationToken);
+            rows.AddRange(items.Select(x => new TransactionApprovalRowDto(
+                DocumentType.GoodsReceivedNote, x.Id, x.Code, x.Date, x.CreatedAt, x.ContactId, null, x.Reference, null)));
+        }
+
         if (grantedKeys.Contains(PermissionKeys.ExpenseApprove))
         {
             // Expense has no plain Reference field -- SupplierInvoiceReference is its closest

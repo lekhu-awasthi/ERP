@@ -157,11 +157,14 @@ public class LocationScopeSweepGuardTests
     /// location because its Sales group carries Customer Payment and its Purchase group Supplier
     /// Payment separately, where this codebase has a single Payment type -- so the numbers differ for
     /// a reason that is recorded rather than fudged.
+    ///
+    /// <para>Seventeen transactional types since phase 58 added Delivery Note and Goods Received Note,
+    /// each with the five-key document row the live role editor gives them.</para>
     /// </summary>
     [Fact]
     public void The_scopable_key_count_is_the_transaction_matrix()
     {
-        Assert.Equal((15 * 5) + 2, LocationScopedPermissions.ScopableKeys.Count);
+        Assert.Equal((17 * 5) + 2, LocationScopedPermissions.ScopableKeys.Count);
     }
 
     /// <summary>

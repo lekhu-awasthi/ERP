@@ -130,7 +130,9 @@ public class DocumentMechanismSweepGuardTests
         Assert.DoesNotContain(DocumentType.WarehouseTransfer, DocumentMechanisms.CustomFields);
         Assert.DoesNotContain(DocumentType.InventoryAdjustment, DocumentMechanisms.CustomFields);
 
-        Assert.Equal(13, DocumentMechanisms.CustomFields.Count);
+        // Fifteen since phase 58: Delivery Note and Goods Received Note each render a section on the
+        // live Custom Fields page once the tenant runs Physical Movement (2026-09-24).
+        Assert.Equal(15, DocumentMechanisms.CustomFields.Count);
 
         foreach (var documentType in DocumentMechanisms.CustomFields)
         {
@@ -406,8 +408,9 @@ public class DocumentMechanismSweepGuardTests
     /// forms: five carry the block, three do not. If a later phase widens this list it must have
     /// re-read the real screen, not reasoned from symmetry.</summary>
     [Fact]
-    public void Terms_and_conditions_is_the_five_confirmed_types_and_not_the_three_confirmed_absent()
+    public void Terms_and_conditions_is_the_six_confirmed_types_and_not_the_four_confirmed_absent()
     {
+        // Phase 58: Delivery Note carries the block live, Goods Received Note does not.
         Assert.Equal(
             new[]
             {
@@ -416,10 +419,15 @@ public class DocumentMechanismSweepGuardTests
                 DocumentType.Invoice,
                 DocumentType.CreditNote,
                 DocumentType.PurchaseOrder,
+                DocumentType.DeliveryNote,
             }.OrderBy(x => x).ToList(),
             DocumentMechanisms.TermsAndConditions.OrderBy(x => x).ToList());
 
-        foreach (var absent in new[] { DocumentType.PurchaseBill, DocumentType.Expense, DocumentType.DebitNote })
+        foreach (var absent in new[]
+                 {
+                     DocumentType.PurchaseBill, DocumentType.Expense, DocumentType.DebitNote,
+                     DocumentType.GoodsReceivedNote,
+                 })
         {
             Assert.DoesNotContain(absent, DocumentMechanisms.TermsAndConditions);
         }
@@ -489,8 +497,10 @@ public class DocumentMechanismSweepGuardTests
     /// <summary>The six confirmed live, and the four confirmed absent. See
     /// docs/phase-30-status.md Step 1.2 for the probe, one real approved document per type.</summary>
     [Fact]
-    public void Emailable_is_the_six_confirmed_types_and_not_the_four_confirmed_absent()
+    public void Emailable_is_the_eight_confirmed_types_and_not_the_four_confirmed_absent()
     {
+        // Phase 58: the live Template Type picker offers Delivery Note and Goods Received Note, and
+        // both detail pages carry Send Email -- the rule, applied, not a sample widened.
         Assert.Equal(
             new[]
             {
@@ -500,6 +510,8 @@ public class DocumentMechanismSweepGuardTests
                 DocumentType.CreditNote,
                 DocumentType.Payment,
                 DocumentType.PurchaseOrder,
+                DocumentType.DeliveryNote,
+                DocumentType.GoodsReceivedNote,
             }.OrderBy(x => x).ToList(),
             DocumentMechanisms.Emailable.OrderBy(x => x).ToList());
 

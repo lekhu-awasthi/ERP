@@ -91,14 +91,18 @@ describe('CustomStatusListPage', () => {
     return Array.from(el().querySelectorAll('h6')).map((h) => h.textContent?.trim() ?? '');
   }
 
-  it('offers only the four document types whose list grid renders a picker', async () => {
+  it('offers only the six document types whose list grid renders a picker', async () => {
+    // Phase 58 added Delivery Note and GRN; the same six are CUSTOM_STATUS_PAGES in
+    // document-mechanism-sweep-guard.spec.ts, and DocumentMechanisms.CustomStatus on the server.
     await render([]);
 
     const options = Array.from(
       el().querySelectorAll<HTMLOptionElement>('#custom-status-list-page-document-type option'),
     ).map((o) => o.textContent?.trim());
 
-    expect(options).toEqual(['Quotation', 'Sales Order', 'Purchase Order', 'Production Order']);
+    expect(options).toEqual([
+      'Quotation', 'Sales Order', 'Purchase Order', 'Production Order', 'Delivery Note', 'Goods Received Note',
+    ]);
   });
 
   it('groups each status under the document type it is scoped to', async () => {

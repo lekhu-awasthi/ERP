@@ -24,10 +24,12 @@ const EMPTY_REPORT: PagedResult<TransactionListRowDto> = {
   totalCount: 0,
 };
 
-/** The thirteen ApprovableTransaction types, the same set the approval queue names. */
+/** The ApprovableTransaction types, the same set the approval queue names -- fifteen since phase 58
+ * added the Delivery Note and the Goods Received Note. */
 const DOCUMENT_TYPES: TransactionApprovalDocumentType[] = [
-  'Quotation', 'SalesOrder', 'Invoice', 'CreditNote', 'PurchaseOrder', 'PurchaseBill', 'Expense',
-  'DebitNote', 'JournalVoucher', 'CashTransfer', 'WarehouseTransfer', 'InventoryAdjustment', 'Payment',
+  'Quotation', 'SalesOrder', 'DeliveryNote', 'Invoice', 'CreditNote', 'PurchaseOrder', 'GoodsReceivedNote',
+  'PurchaseBill', 'Expense', 'DebitNote', 'JournalVoucher', 'CashTransfer', 'WarehouseTransfer',
+  'InventoryAdjustment', 'Payment',
 ];
 
 const STATUSES: TransactionListStatus[] = ['Draft', 'Approved', 'Void', 'Converted'];
@@ -216,6 +218,10 @@ export class TransactionListPage {
         return ['/organizations', org, 'inventory', 'warehouse-transfers', row.documentId];
       case 'InventoryAdjustment':
         return ['/organizations', org, 'inventory', 'inventory-adjustments', row.documentId];
+      case 'DeliveryNote':
+        return ['/organizations', org, 'sales', 'delivery-notes', row.documentId];
+      case 'GoodsReceivedNote':
+        return ['/organizations', org, 'purchasing', 'goods-received-notes', row.documentId];
       case 'Payment':
         return row.direction === 'Paid'
           ? ['/organizations', org, 'purchasing', 'supplier-payments', row.documentId]

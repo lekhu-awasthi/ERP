@@ -21,7 +21,9 @@ export type SearchDocumentType =
   | 'WarehouseTransfer'
   | 'InventoryAdjustment'
   | 'ProductionOrder'
-  | 'ProductionJournal';
+  | 'ProductionJournal'
+  | 'DeliveryNote'
+  | 'GoodsReceivedNote';
 
 /**
  * One stored row the search matched. Carries what the thing is, never where it lives — the route

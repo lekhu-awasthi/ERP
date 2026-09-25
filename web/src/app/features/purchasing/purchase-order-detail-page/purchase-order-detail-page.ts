@@ -357,6 +357,31 @@ export class PurchaseOrderDetailPage {
     });
   }
 
+  /**
+   * Phase 58 -- Convert to Goods Received Note, the order's primary action live once a tenant runs
+   * Physical Movement. Independent of Convert to Bill: an order is received once and billed once, in
+   * either order, so this stays offered on a Converted order and Convert to Bill stays offered on a
+   * received one.
+   */
+  protected readonly receiving = signal(false);
+
+  protected convertToGoodsReceivedNote(): void {
+    this.receiving.set(true);
+    this.errorMessage.set(null);
+
+    this.purchasingService.getGoodsReceivedNoteConversionTemplate(this.organizationId, this.routePurchaseOrderId).subscribe({
+      next: (template) => {
+        this.receiving.set(false);
+        this.pendingTemplateStore.setGoodsReceivedNoteTemplate(template);
+        this.router.navigate(['/organizations', this.organizationId, 'purchasing', 'goods-received-notes', 'new']);
+      },
+      error: (err: unknown) => {
+        this.receiving.set(false);
+        this.errorMessage.set(extractErrorMessage(err) ?? 'Could not convert purchase order to goods received note.');
+      },
+    });
+  }
+
   protected vatPercent(vatRate: VatRate): number {
     return vatRate === 'ThirteenPercentVat' ? 0.13 : 0;
   }

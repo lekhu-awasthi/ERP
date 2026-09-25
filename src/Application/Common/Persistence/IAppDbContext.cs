@@ -82,6 +82,12 @@ public interface IAppDbContext
     DbSet<SalesOrderLine> SalesOrderLines { get; }
     DbSet<CreditNote> CreditNotes { get; }
     DbSet<CreditNoteLine> CreditNoteLines { get; }
+
+    /// <summary>Phase 58 -- the sales side of the physical stock ledger.</summary>
+    DbSet<DeliveryNote> DeliveryNotes { get; }
+
+    /// <summary>Exposed for phase-4 bug #1's remedy: an Update replaces the lines through the set.</summary>
+    DbSet<DeliveryNoteLine> DeliveryNoteLines { get; }
     DbSet<Payment> Payments { get; }
     DbSet<PaymentAllocation> PaymentAllocations { get; }
     DbSet<Cheque> Cheques { get; }
@@ -93,6 +99,13 @@ public interface IAppDbContext
     DbSet<TdsType> TdsTypes { get; }
     DbSet<PurchaseOrder> PurchaseOrders { get; }
     DbSet<PurchaseOrderLine> PurchaseOrderLines { get; }
+
+    /// <summary>Phase 58 -- the purchase side of the physical stock ledger.</summary>
+    DbSet<GoodsReceivedNote> GoodsReceivedNotes { get; }
+
+    /// <inheritdoc cref="DeliveryNoteLines"/>
+    DbSet<GoodsReceivedNoteLine> GoodsReceivedNoteLines { get; }
+
     DbSet<PurchaseBill> PurchaseBills { get; }
     DbSet<PurchaseBillLine> PurchaseBillLines { get; }
 
@@ -108,6 +121,12 @@ public interface IAppDbContext
     DbSet<DebitNoteLine> DebitNoteLines { get; }
     DbSet<StockLedgerEntry> StockLedgerEntries { get; }
     DbSet<StockMovement> StockMovements { get; }
+
+    /// <summary>Phase 58 -- the rows only a Delivery Note or a GRN writes. The physical ledger's
+    /// balance is these plus the <c>StockBooks.Shared</c> types' <see cref="StockMovements"/>; read it
+    /// through <c>PhysicalStockReader</c>, never directly.</summary>
+    DbSet<PhysicalStockMovement> PhysicalStockMovements { get; }
+
     DbSet<DocumentLineSerial> DocumentLineSerials { get; }
     DbSet<WarehouseTransfer> WarehouseTransfers { get; }
     DbSet<WarehouseTransferLine> WarehouseTransferLines { get; }

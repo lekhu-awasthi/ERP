@@ -63,6 +63,20 @@ public sealed class SetCustomStatusCommandHandler(IAppDbContext db) : IRequestHa
                 productionOrder.SetCustomStatus(request.CustomStatusId);
                 break;
 
+            case DocumentType.DeliveryNote:
+                var deliveryNote = await db.DeliveryNotes.SingleOrDefaultAsync(
+                    x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, cancellationToken)
+                    ?? throw new NotFoundException("Delivery note not found.");
+                deliveryNote.SetCustomStatus(request.CustomStatusId);
+                break;
+
+            case DocumentType.GoodsReceivedNote:
+                var goodsReceivedNote = await db.GoodsReceivedNotes.SingleOrDefaultAsync(
+                    x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, cancellationToken)
+                    ?? throw new NotFoundException("Goods received note not found.");
+                goodsReceivedNote.SetCustomStatus(request.CustomStatusId);
+                break;
+
             default:
                 throw new ArgumentOutOfRangeException(
                     nameof(request.DocumentType),

@@ -1,0 +1,10 @@
+200000 rows on the tenant; probe product 181C365C-A187-4C83-8600-00055DBCE622, document FAFFE255-B9CF-4077-A4E9-0000C72F1700
+
+variant                                            A report  B availability   C void
+shipped: covering product index + source index         6651               5        9
+product index without INCLUDE (first scaffold)         6651             318        9
+no source index                                        6651               5     6651
+no product index                                       6651             318        9
+neither index                                          6651             318     6651
+
+shipped indexes restored

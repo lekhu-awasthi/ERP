@@ -155,6 +155,11 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<StockLedgerEntry> StockLedgerEntries => Set<StockLedgerEntry>();
 
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<PhysicalStockMovement> PhysicalStockMovements => Set<PhysicalStockMovement>();
+    public DbSet<DeliveryNote> DeliveryNotes => Set<DeliveryNote>();
+    public DbSet<DeliveryNoteLine> DeliveryNoteLines => Set<DeliveryNoteLine>();
+    public DbSet<GoodsReceivedNote> GoodsReceivedNotes => Set<GoodsReceivedNote>();
+    public DbSet<GoodsReceivedNoteLine> GoodsReceivedNoteLines => Set<GoodsReceivedNoteLine>();
     public DbSet<DocumentLineSerial> DocumentLineSerials => Set<DocumentLineSerial>();
 
     public DbSet<WarehouseTransfer> WarehouseTransfers => Set<WarehouseTransfer>();
@@ -254,6 +259,8 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<Expense>().Ignore(x => x.RowVersion);
         modelBuilder.Entity<Expense>().Ignore(x => x.GrandTotal);
         modelBuilder.Entity<DebitNote>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<DeliveryNote>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<GoodsReceivedNote>().Ignore(x => x.RowVersion);
 
         // AlertDefinition.RecipientAddresses is a computed get-only view over the stored
         // comma-separated Recipients string. EF Core 8+ maps IEnumerable<string> properties as
@@ -276,6 +283,8 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<DebitNoteLine>().Ignore(x => x.PrimaryQuantity);
         modelBuilder.Entity<WarehouseTransferLine>().Ignore(x => x.PrimaryQuantity);
         modelBuilder.Entity<InventoryAdjustmentLine>().Ignore(x => x.PrimaryQuantity);
+        modelBuilder.Entity<DeliveryNoteLine>().Ignore(x => x.PrimaryQuantity);
+        modelBuilder.Entity<GoodsReceivedNoteLine>().Ignore(x => x.PrimaryQuantity);
 
         // Phase 55 -- BankStatementLine.Amount is a StatementAmount, which the real
         // BankStatementLineConfiguration converts to one signed decimal. Restated here for the
@@ -404,6 +413,18 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<PurchaseBill>().HasMany(x => x.Lines).WithOne().HasForeignKey("PurchaseBillId");
         modelBuilder.Entity<PurchaseBill>()
             .Metadata.FindNavigation(nameof(PurchaseBill.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        // Phase 58 -- the two physical-movement documents, restated for the same reason.
+        modelBuilder.Entity<GoodsReceivedNote>().HasMany(x => x.Lines).WithOne()
+            .HasForeignKey(nameof(GoodsReceivedNoteLine.GoodsReceivedNoteId));
+        modelBuilder.Entity<GoodsReceivedNote>()
+            .Metadata.FindNavigation(nameof(GoodsReceivedNote.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+        modelBuilder.Entity<DeliveryNote>().HasMany(x => x.Lines).WithOne()
+            .HasForeignKey(nameof(DeliveryNoteLine.DeliveryNoteId));
+        modelBuilder.Entity<DeliveryNote>()
+            .Metadata.FindNavigation(nameof(DeliveryNote.Lines))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
 
         // Phase 29 -- this context has no ApplyConfigurationsFromAssembly, so every encapsulated

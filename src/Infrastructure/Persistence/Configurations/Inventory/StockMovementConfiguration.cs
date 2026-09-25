@@ -46,6 +46,15 @@ public sealed class StockMovementConfiguration : IEntityTypeConfiguration<StockM
 
         // InventoryLedgerQuery's own query shape: every movement for one (org, product,
         // warehouse), chronological.
-        builder.HasIndex(x => new { x.OrganizationId, x.ProductId, x.WarehouseId, x.TransactionDate });
+        //
+        // Phase 58 made it covering. The physical ledger's balance sums this table for the four
+        // shared types (StockBooks.Shared) beside its own, on every Delivery Note Approve and GRN
+        // Void. Measured on tools/scale's 200,000 accounting movements (seed-phase58.sql, run-probe-
+        // phase58-shared.py), logical reads: that sum 319 -> 5 (535 against the seed-fragmented
+        // original); one product's history, this index's original reader, 304 -> 305; the
+        // tenant-wide shared load 7,495 either way. A superset of the index it replaces, so it
+        // replaces it (phase 57's covering AccountId).
+        builder.HasIndex(x => new { x.OrganizationId, x.ProductId, x.WarehouseId, x.TransactionDate })
+            .IncludeProperties(x => new { x.Direction, x.Quantity, x.SourceDocumentType });
     }
 }

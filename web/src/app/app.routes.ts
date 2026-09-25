@@ -463,6 +463,23 @@ export const routes: Routes = [
       import('./features/sales/sales-order-detail-page/sales-order-detail-page').then((m) => m.SalesOrderDetailPage),
     canActivate: [authGuard],
   },
+  // Phase 58 -- the Delivery Note, between Sales Orders and Invoice exactly where the live nav puts
+  // it. Always routed and always in the nav, whatever the tenant's Mode of Inventory Tracking: the
+  // reference product hides the entry in Accounting mode (and still serves the route), but this
+  // shell has never gated a nav entry on a setting, and the physical ledger is meaningful in both
+  // modes. See docs/phase-58-status.md, Decision F.
+  {
+    path: 'organizations/:id/sales/delivery-notes',
+    loadComponent: () =>
+      import('./features/sales/delivery-note-list-page/delivery-note-list-page').then((m) => m.DeliveryNoteListPage),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/sales/delivery-notes/:deliveryNoteId',
+    loadComponent: () =>
+      import('./features/sales/delivery-note-detail-page/delivery-note-detail-page').then((m) => m.DeliveryNoteDetailPage),
+    canActivate: [authGuard],
+  },
   {
     path: 'organizations/:id/sales/invoices',
     loadComponent: () =>
@@ -540,6 +557,24 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/purchasing/purchase-order-detail-page/purchase-order-detail-page').then(
         (m) => m.PurchaseOrderDetailPage,
+      ),
+    canActivate: [authGuard],
+  },
+  // Phase 58 -- the Goods Received Note, between Purchase Order and Purchase Bills as the live nav
+  // orders it. Same always-routed decision as the Delivery Note above.
+  {
+    path: 'organizations/:id/purchasing/goods-received-notes',
+    loadComponent: () =>
+      import('./features/purchasing/goods-received-note-list-page/goods-received-note-list-page').then(
+        (m) => m.GoodsReceivedNoteListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'organizations/:id/purchasing/goods-received-notes/:goodsReceivedNoteId',
+    loadComponent: () =>
+      import('./features/purchasing/goods-received-note-detail-page/goods-received-note-detail-page').then(
+        (m) => m.GoodsReceivedNoteDetailPage,
       ),
     canActivate: [authGuard],
   },
@@ -1035,6 +1070,14 @@ export const routes: Routes = [
     path: 'organizations/:id/reports/inventory-position',
     loadComponent: () =>
       import('./features/reports/inventory-position-page/inventory-position-page').then((m) => m.InventoryPositionPage),
+    canActivate: [authGuard],
+  },
+  {
+    // Phase 58 -- Book (accounting ledger) against Actual (physical ledger). Opens in both modes;
+    // the reference product refuses an Accounting tenant (docs/phase-58-status.md, Decision F).
+    path: 'organizations/:id/reports/inventory-variance',
+    loadComponent: () =>
+      import('./features/reports/inventory-variance-page/inventory-variance-page').then((m) => m.InventoryVariancePage),
     canActivate: [authGuard],
   },
   {

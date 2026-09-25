@@ -6,6 +6,12 @@ import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
 import {
+  GoodsReceivedNote,
+  GoodsReceivedNoteConversionTemplate,
+  GoodsReceivedNoteDetail,
+  GoodsReceivedNoteRequest,
+  GoodsReceivedNoteResult,
+  GoodsReceivedNoteStatus,
   AdditionalCostGridResult,
   AnnexThirteenReportDto,
   ApproveDebitNoteResult,
@@ -442,5 +448,61 @@ export class PurchasingService {
       params,
       responseType: 'blob',
     });
+  }
+
+  // --- Goods Received Note (phase 58) ---
+
+  listGoodsReceivedNotes(
+    organizationId: string, status?: GoodsReceivedNoteStatus, page = 1, pageSize = 50,
+    options?: ListQueryOptions,
+  ): Observable<PagedResult<GoodsReceivedNote>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    applyListOptions(params, options);
+    if (status) params['status'] = status;
+    return this.http.get<PagedResult<GoodsReceivedNote>>(`${this.baseUrl(organizationId)}/goods-received-notes`, {
+      withCredentials: true,
+      params,
+    });
+  }
+
+  getGoodsReceivedNote(organizationId: string, id: string): Observable<GoodsReceivedNoteDetail> {
+    return this.http.get<GoodsReceivedNoteDetail>(`${this.baseUrl(organizationId)}/goods-received-notes/${id}`, {
+      withCredentials: true,
+    });
+  }
+
+  createGoodsReceivedNote(organizationId: string, request: GoodsReceivedNoteRequest): Observable<GoodsReceivedNoteResult> {
+    return this.http.post<GoodsReceivedNoteResult>(`${this.baseUrl(organizationId)}/goods-received-notes`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updateGoodsReceivedNote(
+    organizationId: string, id: string, request: GoodsReceivedNoteRequest,
+  ): Observable<GoodsReceivedNoteResult> {
+    return this.http.put<GoodsReceivedNoteResult>(`${this.baseUrl(organizationId)}/goods-received-notes/${id}`, request, {
+      withCredentials: true,
+    });
+  }
+
+  approveGoodsReceivedNote(organizationId: string, id: string): Observable<GoodsReceivedNoteResult> {
+    return this.http.post<GoodsReceivedNoteResult>(`${this.baseUrl(organizationId)}/goods-received-notes/${id}/approve`, null, {
+      withCredentials: true,
+    });
+  }
+
+  voidGoodsReceivedNote(organizationId: string, id: string): Observable<GoodsReceivedNoteResult> {
+    return this.http.post<GoodsReceivedNoteResult>(`${this.baseUrl(organizationId)}/goods-received-notes/${id}/void`, null, {
+      withCredentials: true,
+    });
+  }
+
+  getGoodsReceivedNoteConversionTemplate(
+    organizationId: string, purchaseOrderId: string,
+  ): Observable<GoodsReceivedNoteConversionTemplate> {
+    return this.http.get<GoodsReceivedNoteConversionTemplate>(
+      `${this.baseUrl(organizationId)}/purchase-orders/${purchaseOrderId}/goods-received-note-conversion-template`,
+      { withCredentials: true },
+    );
   }
 }

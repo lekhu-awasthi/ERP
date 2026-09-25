@@ -10,6 +10,8 @@ import {
   InventoryMasterReportDto,
   InventoryMovementReportDto,
   InventoryPositionReportDto,
+  InventoryTrackingMode,
+  InventoryVarianceReportDto,
   NetTradingAssetsDto,
   ProductBatchReportDto,
   ProductSerialReportDto,
@@ -46,6 +48,7 @@ export class CatalogueReportsService {
     groupByWarehouse = false,
     tagOptionIds: string[] = [],
     displayWarehouseInColumn = false,
+    mode: InventoryTrackingMode | null = null,
   ): Observable<InventoryPositionReportDto> {
     const params: Record<string, string | string[]> = {
       ...this.stockParams(fromDate, toDate, categoryId, productId, warehouseId, balanceFilter, page, pageSize, locationId ?? null),
@@ -53,6 +56,8 @@ export class CatalogueReportsService {
       displayWarehouseInColumn: String(displayWarehouseInColumn),
     };
     if (tagOptionIds.length > 0) params['tagOptionIds'] = tagOptionIds;
+    // Phase 58 -- absent means "the tenant's own mode", which the response names in `mode`.
+    if (mode) params['mode'] = mode;
 
     return this.http.get<InventoryPositionReportDto>(
       `${this.baseUrl(organizationId)}/reports/inventory-position`,
@@ -66,6 +71,7 @@ export class CatalogueReportsService {
     full: boolean, page: number, pageSize: number, locationId?: string,
     groupByWarehouse = false, tagOptionIds: string[] = [],
     displayWarehouseInColumn = false,
+    mode: InventoryTrackingMode | null = null,
   ): Observable<Blob> {
     const params: Record<string, string | string[]> = {
       ...this.stockParams(fromDate, toDate, categoryId, productId, warehouseId, balanceFilter, page, pageSize, locationId ?? null),
@@ -73,11 +79,47 @@ export class CatalogueReportsService {
       displayWarehouseInColumn: String(displayWarehouseInColumn),
     };
     if (tagOptionIds.length > 0) params['tagOptionIds'] = tagOptionIds;
+    if (mode) params['mode'] = mode;
     if (locationId) params['locationId'] = locationId;
     params['full'] = String(full);
     return this.http.get(`${this.baseUrl(organizationId)}/reports/inventory-position/export`, {
       withCredentials: true, params, responseType: 'blob',
     });
+  }
+
+  /** Phase 58 -- Book (the accounting ledger) against Actual (the physical one) as at a date.
+   *  An as-of date where the live screen has a range: both columns are balances, and a balance has
+   *  a date, not a period (docs/phase-58-status.md, Decision K). */
+  getInventoryVariance(
+    organizationId: string, asOfDate: string, categoryId: string | null, productId: string | null,
+    page = 1, pageSize = 50, locationId?: string,
+  ): Observable<InventoryVarianceReportDto> {
+    return this.http.get<InventoryVarianceReportDto>(
+      `${this.baseUrl(organizationId)}/reports/inventory-variance`,
+      { withCredentials: true, params: this.varianceParams(asOfDate, categoryId, productId, page, pageSize, locationId ?? null) },
+    );
+  }
+
+  exportInventoryVariance(
+    organizationId: string, asOfDate: string, categoryId: string | null, productId: string | null,
+    full: boolean, page: number, pageSize: number, locationId?: string,
+  ): Observable<Blob> {
+    const params = this.varianceParams(asOfDate, categoryId, productId, page, pageSize, locationId ?? null);
+    params['full'] = String(full);
+    return this.http.get(`${this.baseUrl(organizationId)}/reports/inventory-variance/export`, {
+      withCredentials: true, params, responseType: 'blob',
+    });
+  }
+
+  private varianceParams(
+    asOfDate: string, categoryId: string | null, productId: string | null,
+    page: number, pageSize: number, locationId: string | null,
+  ): Record<string, string> {
+    const params: Record<string, string> = { asOfDate, page: String(page), pageSize: String(pageSize) };
+    if (categoryId) params['categoryId'] = categoryId;
+    if (productId) params['productId'] = productId;
+    if (locationId) params['locationId'] = locationId;
+    return params;
   }
 
   getInventoryMovement(

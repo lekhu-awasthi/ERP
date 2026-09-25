@@ -53,7 +53,12 @@ public sealed record InventoryPositionReportQuery(
     // until Group by Warehouse is ticked, and ticking both turns the per-warehouse split from extra
     // rows into extra columns -- one quantity column per warehouse, inserted after Category, with
     // Qty becoming the signed total across them and Rate/Amount staying single.
-    bool DisplayWarehouseInColumn = false)
+    bool DisplayWarehouseInColumn = false,
+    // Phase 58 -- the "Mode of Inventory Tracking" filter the live report grows once a tenant runs
+    // Physical Movement (2026-09-24): which ledger the balances are read from. Null is the tenant's
+    // own mode, which is the live default. Physical is quantity-only: Rate and Amount come back zero,
+    // and the screen hides them (see StockFactReader.LoadPhysicalMovementsAsync).
+    InventoryTrackingMode? Mode = null)
     : IRequest<InventoryPositionReportDto>, IRequirePermission, IOrganizationScoped, IRequireFeature, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.InventoryPositionView;
@@ -116,4 +121,7 @@ public sealed record InventoryPositionReportDto(
     /// shows all four of Moonbeam's columns and leaves the empty cells blank, and a column set that
     /// changed shape with the data would make two runs of one report incomparable.</para>
     /// </summary>
-    IReadOnlyList<string>? WarehouseColumns = null);
+    IReadOnlyList<string>? WarehouseColumns = null,
+    /// <summary>Phase 58 -- the ledger these figures were read from, resolved from the request or the
+    /// tenant's own setting, so a client never has to guess which one a default run used.</summary>
+    InventoryTrackingMode Mode = InventoryTrackingMode.AccountingMovement);

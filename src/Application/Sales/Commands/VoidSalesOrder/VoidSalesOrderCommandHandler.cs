@@ -23,6 +23,13 @@ public sealed class VoidSalesOrderCommandHandler(IAppDbContext db, ICurrentUserS
             throw new ConflictException("Only an Approved sales order can be voided.");
         }
 
+        // Phase 58 -- a delivered order has a live dependent, its Delivery Note.
+        if (salesOrder.IsDelivered)
+        {
+            throw new ConflictException(
+                "Cannot void this sales order -- goods have been delivered against it on a Delivery Note.");
+        }
+
         salesOrder.Void(currentUser.UserId);
 
         await db.SaveChangesAsync(cancellationToken);

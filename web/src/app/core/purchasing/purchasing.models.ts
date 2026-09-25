@@ -73,6 +73,82 @@ export interface PurchaseOrderDetail extends PurchaseOrder {
   currencyCode: string;
   exchangeRate: number;
   lines: PurchaseOrderLineDto[];
+  /** Phase 58 -- when a Goods Received Note was raised against this order. Independent of the
+   * Converted status: receiving and billing are separate, so a received order can still be billed. */
+  receivedAt?: string | null;
+}
+
+// --- Goods Received Note (phase 58) ---
+
+export type GoodsReceivedNoteStatus = 'Draft' | 'Approved' | 'Void';
+
+/** Same shape as a Purchase Order line, phase 52's optional unit included. */
+export type GoodsReceivedNoteLineInput = PurchaseOrderLineInput;
+
+export interface GoodsReceivedNote {
+  id: string;
+  organizationId: string;
+  contactId: string;
+  warehouseId: string;
+  code: string;
+  date: string;
+  reference: string | null;
+  trackingNo: string | null;
+  status: GoodsReceivedNoteStatus;
+  approvedByUserId: string | null;
+  approvedAt: string | null;
+  createdAt: string;
+  discountPct: number;
+  customStatusId: string | null;
+  referrerType: DocumentType | null;
+  referrerId: string | null;
+  currencyCode: string;
+  exchangeRate: number;
+  locationId: string | null;
+}
+
+export type GoodsReceivedNoteLineDto = PurchaseOrderLineDto;
+
+export interface GoodsReceivedNoteDetail extends GoodsReceivedNote {
+  voidedAt: string | null;
+  /** The Purchase Order's number, when the note was received against one. */
+  referrerCode: string | null;
+  lines: GoodsReceivedNoteLineDto[];
+}
+
+export interface GoodsReceivedNoteRequest {
+  contactId: string;
+  warehouseId: string;
+  date: string;
+  reference: string | null;
+  trackingNo: string | null;
+  lines: GoodsReceivedNoteLineInput[];
+  discountPct: number;
+  referrerType?: DocumentType | null;
+  referrerId?: string | null;
+  currencyCode?: string | null;
+  exchangeRate?: number | null;
+  locationId?: string | null;
+}
+
+export interface GoodsReceivedNoteResult {
+  id: string;
+  code: string;
+  status: GoodsReceivedNoteStatus;
+}
+
+/** The prefill "Convert to Goods Received Note" hands to the new-GRN form. */
+export interface GoodsReceivedNoteConversionTemplate {
+  contactId: string;
+  date: string;
+  reference: string | null;
+  referrerType: DocumentType;
+  referrerId: string;
+  discountPct: number;
+  lines: GoodsReceivedNoteLineInput[];
+  currencyCode: string;
+  exchangeRate: number;
+  locationId: string | null;
 }
 
 export interface PurchaseOrderRequest {

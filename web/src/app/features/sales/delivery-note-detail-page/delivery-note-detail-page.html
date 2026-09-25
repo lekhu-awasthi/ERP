@@ -1,0 +1,416 @@
+<div class="container py-5" style="max-width: 1100px;">
+  <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+    <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'sales', 'delivery-notes']">
+      <i aria-hidden="true" class="bi bi-arrow-left"></i> Delivery Notes
+    </a>
+    <h1 class="h4 fw-bold mb-0 text-dark">{{ isNew() ? 'New Delivery Note' : (note()?.code ?? 'Delivery Note') }}</h1>
+    <!-- Phase 35a -- the billing location picker in the document header; its default warehouse
+         seeds the Warehouse below once (see defaultWarehouseSeed). -->
+    <app-document-location-picker
+      [organizationId]="organizationId"
+      documentType="DeliveryNote"
+      [disabled]="!isDraft()"
+      [(locationId)]="locationId"
+      (defaultWarehouseId)="warehouseSeed.offer($event)"
+    />
+    @if (note(); as n) {
+      @if (n.status === 'Approved') {
+        <span class="badge bg-success-subtle text-success-emphasis">Approved</span>
+      } @else if (n.status === 'Void') {
+        <span class="badge bg-secondary-subtle text-secondary-emphasis">Void</span>
+      } @else {
+        <span class="badge bg-warning-subtle text-warning-emphasis">Draft</span>
+      }
+    }
+    @if (note()?.status === 'Approved') {
+      <button type="button" class="btn btn-outline-secondary btn-sm fw-bold ms-auto" [disabled]="printing()" (click)="print()">
+        @if (printing()) {
+          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        } @else {
+          <i aria-hidden="true" class="bi bi-printer"></i> Print
+        }
+      </button>
+      <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" (click)="emailDialog.show()">
+        <i aria-hidden="true" class="bi bi-envelope"></i> Send Email
+      </button>
+      <button type="button" class="btn btn-outline-danger btn-sm fw-bold" [disabled]="voiding()" (click)="voidNote()">
+        @if (voiding()) {
+          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        } @else {
+          <i aria-hidden="true" class="bi bi-x-circle"></i> Void
+        }
+      </button>
+    }
+  </div>
+
+  <!-- Phase 27a: the Tasks / Documents / Activity tabs every transactional detail page carries. -->
+  <app-document-tabs
+    #docTabs
+    [organizationId]="organizationId"
+    documentType="DeliveryNote"
+    [documentId]="isNew() ? null : routeNoteId"
+  />
+
+  @if (docTabs.isOverview()) {
+    @if (!isNew()) {
+      <app-reporting-tags-editor [organizationId]="organizationId" documentType="DeliveryNote" [documentId]="routeNoteId" />
+    }
+
+    <app-custom-fields-editor
+      [organizationId]="organizationId"
+      documentType="DeliveryNote"
+      [documentId]="isNew() ? null : routeNoteId"
+    />
+
+  <app-status-banner [message]="errorMessage()" />
+
+  @if (loading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary mb-3" role="status"></div>
+      <p class="text-muted mb-0">Loading delivery note...</p>
+    </div>
+  } @else {
+    <div class="alert alert-light border small mb-4" role="note">
+      <i aria-hidden="true" class="bi bi-box-seam"></i>
+      A delivery note moves the <strong>physical</strong> stock only. It posts nothing to the
+      accounts and takes no cost of sales; the invoice for these goods does that.
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <div class="row g-3">
+          <div class="col-12 col-sm-6">
+            <label class="form-label small fw-semibold" for="delivery-note-detail-page-customer">Customer *</label>
+            <select id="delivery-note-detail-page-customer"
+              [class.is-invalid]="fieldError.is('delivery-note-detail-page-customer')"
+              [attr.aria-invalid]="fieldError.invalid('delivery-note-detail-page-customer')"
+              [attr.aria-describedby]="fieldError.describedBy('delivery-note-detail-page-customer')"
+              class="form-select"
+              (change)="contactId.set($any($event.target).value)"
+              [disabled]="customerLocked()"
+            >
+              <option value="" disabled [selected]="!contactId()">Select a customer</option>
+              @for (customer of customers(); track customer.id) {
+                <option [value]="customer.id" [selected]="customer.id === contactId()">{{ customer.code }} — {{ customer.name }}</option>
+              }
+            </select>
+            <app-field-error [state]="fieldError" control="delivery-note-detail-page-customer" />
+          </div>
+          <div class="col-12 col-sm-6">
+            <label class="form-label small fw-semibold" for="delivery-note-detail-page-warehouse">Warehouse *</label>
+            <select id="delivery-note-detail-page-warehouse"
+              [class.is-invalid]="fieldError.is('delivery-note-detail-page-warehouse')"
+              [attr.aria-invalid]="fieldError.invalid('delivery-note-detail-page-warehouse')"
+              [attr.aria-describedby]="fieldError.describedBy('delivery-note-detail-page-warehouse')"
+              class="form-select"
+              (change)="warehouseId.set($any($event.target).value)"
+              [disabled]="!isDraft()"
+            >
+              <option value="" disabled [selected]="!warehouseId()">Select a warehouse</option>
+              @for (warehouse of warehouses(); track warehouse.id) {
+                <option [value]="warehouse.id" [selected]="warehouse.id === warehouseId()">{{ warehouse.name }}</option>
+              }
+            </select>
+            <app-field-error [state]="fieldError" control="delivery-note-detail-page-warehouse" />
+          </div>
+          <div class="col-6 col-sm-3">
+            <label class="form-label small fw-semibold" for="delivery-note-detail-page-date">Delivery Note Date</label>
+            <app-bs-date-input [inputId]="'delivery-note-detail-page-date'"
+              [inputClass]="'form-control'"
+              [value]="date()"
+              (valueChange)="date.set($event)"
+              [disabled]="!isDraft()"
+            />
+          </div>
+          <div class="col-6 col-sm-3">
+            <label class="form-label small fw-semibold" for="delivery-note-detail-page-expected">Expected Delivery Date *</label>
+            <app-bs-date-input [inputId]="'delivery-note-detail-page-expected'"
+              [inputClass]="'form-control'"
+              [value]="expectedDeliveryDate()"
+              (valueChange)="expectedDeliveryDate.set($event)"
+              [disabled]="!isDraft()"
+            />
+          </div>
+          <div class="col-6 col-sm-3">
+            <label class="form-label small fw-semibold" for="delivery-note-detail-page-tracking">Tracking No</label>
+            <input id="delivery-note-detail-page-tracking"
+              type="text"
+              class="form-control"
+              maxlength="100"
+              [value]="trackingNo()"
+              (input)="trackingNo.set($any($event.target).value)"
+              [disabled]="!isDraft()"
+            />
+          </div>
+          <div class="col-6 col-sm-3">
+            <label class="form-label small fw-semibold" for="delivery-note-detail-page-reference">Reference</label>
+            <input id="delivery-note-detail-page-reference"
+              type="text"
+              class="form-control"
+              maxlength="200"
+              [value]="reference()"
+              (input)="reference.set($any($event.target).value)"
+              [disabled]="!isDraft()"
+            />
+          </div>
+          <div class="col-12">
+            <label class="form-label small fw-semibold" for="delivery-note-detail-page-shipping">Shipping Address</label>
+            <input id="delivery-note-detail-page-shipping"
+              type="text"
+              class="form-control"
+              maxlength="500"
+              [value]="shippingAddress()"
+              (input)="shippingAddress.set($any($event.target).value)"
+              [disabled]="!isDraft()"
+            />
+          </div>
+          @if (note()?.referrerId; as salesOrderId) {
+            <div class="col-12 small">
+              Delivers Sales Order
+              <a [routerLink]="['/organizations', organizationId, 'sales', 'sales-orders', salesOrderId]">{{ note()?.referrerCode ?? 'the order' }}</a>
+            </div>
+          }
+          <div class="col-12">
+            <app-currency-rate-fields
+              [organizationId]="organizationId"
+              [(currencyCode)]="currencyCode"
+              [(exchangeRate)]="exchangeRate"
+              [disabled]="!isDraft()"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 fw-bold text-dark mb-0">Lines</h2>
+          @if (isDraft()) {
+            <button
+              type="button"
+              class="btn btn-outline-primary btn-sm"
+              id="delivery-note-detail-page-add-line"
+              [class.is-invalid]="fieldError.is('delivery-note-detail-page-add-line')"
+              [attr.aria-invalid]="fieldError.invalid('delivery-note-detail-page-add-line')"
+              [attr.aria-describedby]="fieldError.describedBy('delivery-note-detail-page-add-line')"
+              (click)="addLine()"
+            >
+              <i aria-hidden="true" class="bi bi-plus-lg"></i> Add Line
+            </button>
+          }
+        </div>
+        <app-field-error [state]="fieldError" control="delivery-note-detail-page-add-line" />
+
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr class="text-muted small">
+                <th scope="col" style="min-width: 240px;">Product</th>
+                <th scope="col" style="width: 190px;" class="text-end">Qty</th>
+                <th scope="col" style="width: 130px;" class="text-end">Rate</th>
+                <th scope="col" style="width: 110px;" class="text-end">Discount %</th>
+                <th scope="col" style="width: 150px;">VAT</th>
+                <th scope="col" style="width: 120px;" class="text-end">Amount</th>
+                @if (isDraft()) {
+                  <th scope="col" style="width: 48px;"></th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of lines(); track line.key) {
+                <tr>
+                  <td>
+                    @if (isDraft()) {
+                      <select aria-label="Product" class="form-select form-select-sm" (change)="onProductChange(line.key, $event)">
+                        <option value="" disabled [selected]="!line.productId">Select a product</option>
+                        @for (product of products(); track product.id) {
+                          <option [value]="product.id" [selected]="product.id === line.productId">{{ product.code }} — {{ product.name }}</option>
+                        }
+                      </select>
+                    } @else {
+                      {{ productLabel(line.productId) }}
+                    }
+                  </td>
+                  <td class="text-end">
+                    @if (isDraft()) {
+                      <div class="d-flex align-items-center justify-content-end gap-1">
+                        <input aria-label="Qty"
+                          style="min-width: 5rem;"
+                          type="number"
+                          class="form-control form-control-sm text-end"
+                          min="0"
+                          step="0.01"
+                          [value]="line.quantity || ''"
+                          (input)="onQuantityChange(line.key, $event)"
+                        />
+                        <app-line-unit
+                          [products]="products()"
+                          [units]="units()"
+                          [productId]="line.productId"
+                          [unitId]="line.unitId"
+                          (unitChange)="onUnitChange(line.key, $event)"
+                        />
+                      </div>
+                    } @else {
+                      {{ line.quantity }} {{ unitLabel(line) }}
+                    }
+                  </td>
+                  <td class="text-end">
+                    @if (isDraft()) {
+                      <input aria-label="Rate"
+                        type="number"
+                        class="form-control form-control-sm text-end"
+                        min="0"
+                        step="0.01"
+                        [value]="line.rate || ''"
+                        (input)="onRateChange(line.key, $event)"
+                      />
+                    } @else {
+                      {{ (line.rate | amount) }}
+                    }
+                  </td>
+                  <td class="text-end">
+                    @if (isDraft()) {
+                      <input aria-label="Discount %"
+                        type="number"
+                        class="form-control form-control-sm text-end"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        [value]="line.discountPct || ''"
+                        (input)="onDiscountPctChange(line.key, $event)"
+                      />
+                    } @else {
+                      {{ (line.discountPct | amount) }}
+                    }
+                  </td>
+                  <td>
+                    @if (isDraft()) {
+                      <select aria-label="VAT" class="form-select form-select-sm" (change)="onVatRateChange(line.key, $event)">
+                        @for (rate of vatRates; track rate) {
+                          <option [value]="rate" [selected]="rate === line.vatRate">{{ rate }}</option>
+                        }
+                      </select>
+                    } @else {
+                      {{ line.vatRate }}
+                    }
+                  </td>
+                  <td class="text-end">{{ ((line.quantity * line.rate * (1 - line.discountPct / 100)) | amount) }}</td>
+                  @if (isDraft()) {
+                    <td>
+                      <button aria-label="Remove line" type="button" class="btn btn-outline-danger btn-sm" (click)="removeLine(line.key)">
+                        <i aria-hidden="true" class="bi bi-trash"></i>
+                      </button>
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="4"></td>
+                <td class="text-end fw-semibold">Sub Total</td>
+                <td class="text-end fw-bold">{{ (subTotal() | amount) }}</td>
+                @if (isDraft()) {
+                  <td></td>
+                }
+              </tr>
+              <tr>
+                <td colspan="4"></td>
+                <td class="text-end fw-semibold">
+                  Discount %
+                  @if (isDraft()) {
+                    <input aria-label="Document discount %"
+                      type="number"
+                      class="form-control form-control-sm text-end d-inline-block ms-2"
+                      style="width: 80px;"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      [value]="discountPct() || ''"
+                      (input)="onHeaderDiscountPctChange($event)"
+                    />
+                  }
+                </td>
+                <td class="text-end fw-bold">({{ (discountAmount() | amount) }})</td>
+                @if (isDraft()) {
+                  <td></td>
+                }
+              </tr>
+              <tr>
+                <td colspan="4"></td>
+                <td class="text-end fw-semibold">Non-Taxable Total</td>
+                <td class="text-end fw-bold">{{ (nonTaxableTotal() | amount) }}</td>
+                @if (isDraft()) {
+                  <td></td>
+                }
+              </tr>
+              <tr>
+                <td colspan="4"></td>
+                <td class="text-end fw-semibold">Taxable Total</td>
+                <td class="text-end fw-bold">{{ (taxableTotal() | amount) }}</td>
+                @if (isDraft()) {
+                  <td></td>
+                }
+              </tr>
+              <tr>
+                <td colspan="4"></td>
+                <td class="text-end fw-semibold">VAT</td>
+                <td class="text-end fw-bold">{{ (vatTotal() | amount) }}</td>
+                @if (isDraft()) {
+                  <td></td>
+                }
+              </tr>
+              <tr>
+                <td colspan="4"></td>
+                <td class="text-end fw-bold">Grand Total</td>
+                <td class="text-end fw-bold text-primary">{{ (grandTotal() | amount) }}</td>
+                @if (isDraft()) {
+                  <td></td>
+                }
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- Phase 27b: the "+ Add Terms and Conditions" block -- live on the Delivery Note form. -->
+        <app-terms-editor [organizationId]="organizationId" [(terms)]="terms" [disabled]="!isDraft()" />
+
+        @if (isDraft()) {
+          <div class="d-flex gap-2 mt-3">
+            <button type="button" class="btn btn-primary fw-bold" [disabled]="saving()" (click)="saveDraft()">
+              @if (saving()) {
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              } @else {
+                <i aria-hidden="true" class="bi bi-save"></i> Save Draft
+              }
+            </button>
+            @if (!isNew()) {
+              <button type="button" class="btn btn-success fw-bold" [disabled]="!canApprove() || approving()" (click)="approve()">
+                @if (approving()) {
+                  <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                } @else {
+                  <i aria-hidden="true" class="bi bi-check2-circle"></i> Approve
+                }
+              </button>
+            }
+          </div>
+          @if (isNew()) {
+            <p class="text-muted small mt-2 mb-0">Save as Draft first, then Approve.</p>
+          }
+        }
+      </div>
+    </div>
+  }
+  }
+</div>
+
+<!-- Phase 30 -- Send Email, on the rule that it exists wherever an email template can be scoped:
+     the live Template Type picker offers Delivery Note. -->
+<app-send-email-dialog
+  #emailDialog
+  [organizationId]="organizationId"
+  documentType="DeliveryNote"
+  [parentId]="routeNoteId"
+/>

@@ -105,6 +105,8 @@ public static class EmailMergeFields
         EmailTemplateContext.CustomerPayment => "Customer Payment",
         EmailTemplateContext.SupplierPayment => "Supplier Payment",
         EmailTemplateContext.PurchaseOrder => "Purchase Order",
+        EmailTemplateContext.DeliveryNote => "Delivery Note",
+        EmailTemplateContext.GoodsReceivedNote => "Goods Received Note",
         EmailTemplateContext.BalanceConfirmation => "Balance Confirmation",
         _ => "General",
     };

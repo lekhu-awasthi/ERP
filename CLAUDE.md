@@ -89,6 +89,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 55: bank statement import (a tenth `ImportEntityType`, one signed `StatementAmount`, the account as per-run context on `ImportJob`). Before scoping a phase from a screen an earlier pass only glanced at, or exempting a new screen from a sweep guard — `docs/phase-55-status.md`
 - Phase 56: bank reconciliation (the two-pane N:M matcher; a reconciliation joins `GlLine`s, membership is a nullable key on each side, and it posts nothing). Before deciding what a cross-record match joins to, or exposing an `IQueryable` from a shared reader — `docs/phase-56-status.md`
 - Phase 57: the bank module finished (Quick Approve, the report's `.xlsx`, the balance chart) + phase 53's census re-run. Before paying an index debt, re-running a census, or choosing a calendar for a derived series — `docs/phase-57-status.md`
+- Phase 58: physical-movement inventory (Delivery Note, GRN, Inventory Variance): a second, derived, quantity-only stock ledger; the setting picks a default, never a behaviour. Before touching `InventoryTrackingMode`, a stock balance, or a covering index — `docs/phase-58-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -189,6 +190,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - EF refuses a set operation *after a client projection*, so `Concat`-ing two `select new SomeRecord(...)` queries throws at run time on SQL Server as well as InMemory; concatenate while both halves are still anonymous and build the record from the materialised page (phase-38).
 - A store-side aggregate (`GroupBy...Count()`) must run after the `SaveChangesAsync` that persists what it counts; tracked-but-unsaved rows are invisible to it (phase-21a).
 - A Domain factory/mutator can stay `internal` only while its sole caller is in the Domain assembly (phase-7 bug #1).
+- An enum setting whose member 0 means something must be projected nullable: `InventoryTrackingMode` 0 is *Physical*, so a missing row flips the default (phase-58).
+- An uncovered composite can lose to a narrower FK index plus lookups: the physical balance's index was never chosen (318 either way) until INCLUDE made it 5 (phase-58).
 - Never name a Domain type after a common BCL word (`Task` → `WorkTask`) (phase-13).
 - A value type cannot refuse its own `default(T)` — C# hands every caller one whatever the constructor's accessibility — so the **aggregate** must; a default `StatementAmount` failed in the EF converter on *read*, i.e. as a list that would not load (phase-55).
 - Two columns of which exactly one may be non-zero is redundant state guarded by a rule: store the signed value (`StatementAmount`), as `ProductBatch` and `PrimaryQuantity` already ruled twice (phase-55).
@@ -215,6 +218,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A "reverse of X" posting rule can balance its own entry while leaving a paired control account (AP net of TDS) permanently off; trace the net effect on every account across original + reversal (phase-6 bug #3).
 - Reversals mirror the original entry's own posted lines via `GlJournalEntry.PostReversalOf` (a second entry, never a mutation); never re-derive a reversal from the posting rule (phase-16a).
 - A document with a GL line matched into a bank reconciliation cannot be voided (409): one check in `SourceDocumentGlEntries.ReverseOutstandingAsync` covers all fifteen reversal sites (phase-57).
+- *Physical Movement* picks which stock ledger reports read; DN/GRN write the physical ledger in both modes and post nothing. No handler branches on it (phase-58).
+- A GRN's Void is refused (409) once its goods left the physical ledger — the rule a consumed bill layer already has; the vendor lets it reach −3 (phase-58).
 - "One GL entry per Approved document" is a habit, not an invariant; reverse the outstanding net of every entry via `SourceDocumentGlEntries`, never `SingleAsync` (phase-36).
 - A settlement folds to base at the rate of **what it settles** (each allocation at its target's rate, the remainder at its own), or a fully settled invoice keeps a residual balance equal to the realised forex (phase-36).
 - `ReferrerType`/`ReferrerId` enforce nothing — a conversion needs `MarkConverted`, quantity/rate caps net of prior reversals, and contact/TDS consistency checks in the Create handler (phase-6 bug #4).
@@ -392,6 +397,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - …and `touch` it afterwards: a restored backup carries an *older* mtime, MSBuild skips the rebuild, and the suite keeps failing on an injected regression the source no longer contains (phase-50).
 - A guard asserting a rule's concrete *consequences* is not a guard on the rule: the ListSort test checked two indexes exist and passed the injected third ordering. Drive it from the thing that can change (phase-50).
 - A cross-assembly invariant decidable from types and model metadata belongs in a unit-test project referencing both, never `Api.IntegrationTests` — a guard inside a Docker-gated failure is not read (phase-50).
+- A probe that wraps EF's SQL in `COUNT(*)` measures another query — the optimiser drops the unread columns (1,839 vs 4,584 reads); materialise it `INTO #t` (phase-58).
+- On a tenant seeded with Opening Stock the three-view law is layers = movements = GL + opening value; Opening Stock posts no GL entry (phase-58).
 - Wall time on a working machine cannot settle one screen's plan (two identical passes moved a report 4×); read logical reads and CPU from `sys.dm_exec_query_stats` (`tools/scale/probe-cheque-io.sh`, phase-50).
 - …but an ad-hoc `sqlcmd` batch is cached as a plan **stub** with no `query_stats` row, so that DMV reports zero for it; use `SET STATISTICS IO` there (phase-54).
 - A recorded reason is not evidence until something checks it: measuring phase 52's `Include` falsified its own comment's premise (`MAX_PAGE_SIZE` is 200, not "a very large page") (phase-54).
@@ -412,11 +419,10 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 **Tooling and shell**
 - `nvm use` from a shell that cannot create the symlink deletes `C:\nvm4w\nodejs` and reports success; recreate it with `cmd /c 'mklink /J "C:\nvm4w\nodejs" "%LOCALAPPDATA%\nvm\v24.11.0"'`.
-- A `cat > file <<'EOF'` heredoc in the Bash tool is silently truncated or mis-parsed well below the ~8 KB figure (any heredoc, `python -` included); use the Write tool, or write a small patch script and run it (phase-26a, phase-57). It also **eats backslash escapes** even when the delimiter is quoted, so a `
-` or `	` inside an embedded script arrives as a literal newline or tab — a syntax error if you are lucky and a corrupted path if you are not (phase-39).
-- A script inserting an import after "the last `
-import ` line" lands *inside* a multi-line `import { … }` block; anchor on the statement's closing line (phase-35a).
+- A `cat > file <<'EOF'` heredoc in the Bash tool is silently truncated or mis-parsed well below the ~8 KB figure (any heredoc, `python -` included); use the Write tool, or write a small patch script and run it (phase-26a, phase-57). It also **eats backslash escapes** even when the delimiter is quoted, so a `\n` or `\t` inside an embedded script arrives as a literal newline or tab — a syntax error if you are lucky and a corrupted path if you are not (phase-39).
+- A script inserting an import after "the last `\nimport ` line" lands *inside* a multi-line `import { … }` block; anchor on the statement's closing line (phase-35a).
 - A scripted insert *before* a method lands between it and its doc comment; the unit to anchor on is the comment plus the declaration (phase-47, phase-35a's rule in mirror).
+- git-bash `grep -c $'\r$'` reports 0 on a CRLF file; count bytes with Python `open(p, 'rb')` before trusting any newline check (phase-58).
 - One sweep can span two newline conventions — three of 42 files were LF in a CRLF repo; detect per file, and let the asserted anchor count abort rather than rewrite three files invisibly (phase-47).
 - A lazy `.*?` between two anchors spans the instances between them; exclude the closing marker (`((?:(?!</label>).)*?)`) and derive the expected count a second way (phase-34a).
 - …and a **greedy** `.*` picks the last match: `.*logical reads \([0-9]*\)` reads `lob logical reads 0`. Anchor on what precedes the number (phase-54).
@@ -425,8 +431,7 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 - In the browser pane the **screenshot is ground truth**: after a viewport resize, `getComputedStyle`/`getBoundingClientRect` can lag the rendering (a drawer measured on-screen while the screenshot showed it tucked away). Reload after emulating a viewport (phase-34b).
 - …and the same lag makes `getComputedStyle` inside a `focusin` handler report `outline: none` on every control, which reads as an app-wide 2.4.7 failure that does not exist. Measure after a real key event, and look at the picture (phase-40).
 - A green `ng build` and a browser showing the pre-fix markup means the **dev server is serving a bundle older than the source** after a failed rebuild; the unchanged `_ngcontent-ng-cNNNNNN` attribute is the tell. Restart the preview (phase-40).
-- `sed -i` also flips the CRLF of the file you *aimed* it at, after which every `
-`-anchored patch script fails its assertion with the anchor looking correct; use Edit for a single substitution, or read the file's own newline (phase-33).
+- `sed -i` also flips the CRLF of the file you *aimed* it at, after which every `\n`-anchored patch script fails its assertion with the anchor looking correct; use Edit for a single substitution, or read the file's own newline (phase-33).
 - A `sed -i` over a glob rewrites every matched file and flips CRLF to LF on Windows even where the pattern never fires; restrict the file list (phase-30).
 - When a generator script emits Angular templates through `str.format`, interpolation braces need escaping in the *format string* but not in a substituted value — `{{{{ x }}}}` in a value ships literally and fails as NG5002 (phase-26b).
 - A benchmark against an empty tenant looks fast (20 ms p95, all 200); a harness must assert its target is populated before timing it (phase-34c).
@@ -440,61 +445,56 @@ import ` line" lands *inside* a multi-line `import { … }` block; anchor on the
 
 ## Current status
 
-**Phases 0-57 are complete, and the forward plan is empty.** The v1 sequence (0-25), parity (26-34c),
-consolidation (35-41), completion (42-47) and the continuation and bank-module phases (48-57) are all
-done; each phase's story is in its `docs/phase-N-status.md`, and every finished planning entry is
-archived in `docs/roadmap-history.md`.
+**Phases 0-58 are complete, and the forward plan is empty again.** Phase 58 built the last two of the
+vendor's 22 document types, Delivery Note and Goods Received Note, and the Inventory Variance Report.
+Each phase's story is in its `docs/phase-N-status.md`, and every finished planning entry is archived
+in `docs/roadmap-history.md`.
 
-**Phase 57 finished the bank module.** Quick Approve turns one unmatched statement line into this
-tenant's own document and reconciles the two in a single action; the Reconciliation Report gained its
-`.xlsx`; and the 30-day Balance History chart went on that report rather than on an account Overview
-this app does not have. All four routing branches were driven live and proved in SQL.
+**The phase's substance is a falsified premise.** The plan, written from screens, said *Physical
+Movement* moves FIFO consumption to DN/GRN Approve and needs a goods-received-not-billed account. One
+live GRN and a Trial Balance said otherwise. The vendor keeps **two stock ledgers always**, the
+setting only picks which one the inventory screens read, and neither document posts. So phase 58
+**adds a ledger and changes none**. The physical ledger is derived and quantity-only: a new
+append-only `PhysicalStockMovement` table plus the four shared types' existing `StockMovements` rows.
+No handler branches on the setting. DN/GRN rows in the GL, `StockMovements` and the FIFO layers were
+asserted zero in SQL, in both modes.
 
-**Two translations are the phase's substance.** The vendor's **four** executors are **two** documents
-here — its picker is one list of ledger accounts in a chart where a customer *is* an account, so a
-Contact becomes a `Payment` whose direction is the line's own and an Account becomes a two-line
-`JournalVoucher` (phase 17's Decision #7 had already written down why). And reusing the Create and
-Approve commands through `ISender` **derives** the permission answer rather than defaulting it: the
-nested sends run `AuthorizationBehavior`, so Quick Approve needs the target document's own keys on
-top of `Accounting.BankStatement.Manage`. **No new permission key**, for the second phase running.
+**Every rule is per ledger, under one verdict.** A DN checks the physical balance and an Invoice the
+accounting one, through the one Negative Item Balance read. A GRN's Void is refused once its goods
+have left (the vendor carries −3). PO → GRN and SO → DN run parallel to billing and invoicing, and
+each is one-shot. Eleven keys, all Admin+Member. **Two indexes made covering, with numbers**, on
+`tools/scale` fixtures of 200,000 rows each:
 
-**It auto-reconciles through phase 56's own mechanism**, extracted into `BankReconciliationWriter` so
-the two paths cannot diverge — which also closes the delete door for free, since a reconciled line
-already refuses deletion. The **void** door was open and not by this feature's doing: any document
-with a reconciled GL line could be voided since phase 56, so the refusal went into
-`SourceDocumentGlEntries.ReverseOutstandingAsync`, the single path all fifteen reversals take.
+- the physical balance check: 318 → 5 logical reads;
+- its shared half on `StockMovements`: 319 → 5;
+- the untargeted paths: flat;
+- the report load: a full read in every variant, so measured and refused.
 
-**The census re-run reproduced phase 53's 166 keys exactly** (162 plus the four `-alter` ones, on a
-byte-identical bundle), so the catalogue has not moved. Its one report diff, the **Inventory Variance
-Report**, opens live as *"Inventory Tracking and Physical Inventory Tracking Not Enabled"* — the seam
-Delivery Note and GRN are already deferred behind, so it joined that deferral rather than the
-sequence. **`is_bank_user`** turned out to be a read-only lender's report shell: fourteen report
-routes, its own sign-in, no path to the reconciliation module. Closed.
+**Next: nothing is scheduled.** What remains:
 
-**The measurement is the part worth remembering.** Phase 56 owed a number for an index on
-`ReconciliationId`. Measured on `tools/scale`'s 50k dataset, that column in the key is worth **one**
-logical read — while making the index **covering on `AccountId`** takes the matcher's pane from
-**153,470 logical reads to 553**, and takes the Book Statement and the report's own balance with it,
-both of which predate the reconciliation module. The index ships keyed on `AccountId` and *replaces*
-EF's automatic FK index. Paying a debt can mean finding it was booked against the wrong account.
+- phase 58's carried items: the Mode filter on Movement, Ledger and Ageing; partial receipts; Mark
+  as Delivered / Processed; batch/serial and a per-line warehouse on DN/GRN;
+- the auto-match suggestion engine, which is a product decision first;
+- the three standing "outside the sequence" items.
 
-**Next: nothing is scheduled, and that is the honest statement.** What remains is the three standing
-"outside the sequence" items (the NVDA hour, the two traceability reports' real columns, full-text
-search) plus **the auto-match suggestion engine** — a phase if wanted, but a *product decision* first,
-because the vendor returns `account_suggestions: null` on every row and its rule cannot be copied.
-Plan the next phase the way 53 planned 54-57: from a fresh read, against evidence.
+An Invoice availability bug found in passing (the gate sums the entered quantity, not the primary
+quantity) is filed as its own task. Plan the next phase from a fresh read, against evidence.
 
-Tests: Domain 738, Application.UnitTests **1356** (+13), Infrastructure.UnitTests 13,
-Api.IntegrationTests 30, Angular **619** (+6). `dotnet build` / `dotnet test` / `ng build` / `ng test`
-all clean, and `ng build` does not warn — phase 42's measured 680 kB initial-bundle budget is pinned
-by `build-budget.spec.ts`, and the bundle sits at **644.77 kB**. `Api.IntegrationTests` needs Docker
-Desktop running: without it the Testcontainers-backed tests fail in their constructors with
-`DockerEndpointAuthConfig` before any assertion, which reads like regressions and is not; it also
-fails nondeterministically under machine load and passes on re-run (phase 36/37) — the Angular suite
-did exactly that once in phase 52. `tsc --noEmit` does not cover `web/src/app`; `ng build` is the
-check (phase-28), and `ng test` must be run from `web/` (phase-35a) on **Node 24**
-(`nvm use 24.11.0` — v16 dies with `availableParallelism is not a function`). When the subject is one
-screen's plan, the number to trust is `tools/scale/`, not the wall clock (phase-50).
+Tests: Domain **764** (+26), Application.UnitTests **1378** (+22), Infrastructure.UnitTests 13,
+Api.IntegrationTests 30, Angular **627** (+8). `dotnet build` / `dotnet test` / `ng build` / `ng test`
+are all clean, and `ng build` does not warn. Phase 42's measured 680 kB initial-bundle budget is
+pinned by `build-budget.spec.ts`, and the bundle sits at **645.57 kB**.
+
+- `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests
+  fail in their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like
+  regressions and is not.
+- That suite also fails nondeterministically under machine load and passes on re-run (phase 36/37).
+  The Angular suite did the same once in phase 52.
+- `tsc --noEmit` does not cover `web/src/app`; `ng build` is the check (phase-28).
+- `ng test` must be run from `web/` (phase-35a) on **Node 24** (`nvm use 24.11.0`; v16 dies with
+  `availableParallelism is not a function`).
+- When the subject is one screen's plan, the number to trust is `tools/scale/`, not the wall clock
+  (phase-50).
 
 **Update rule for this section:** when a phase completes, add its one-liner to the Phase index above,
 append its "read before X" paragraph to `docs/phase-lessons.md`, and replace this block with a

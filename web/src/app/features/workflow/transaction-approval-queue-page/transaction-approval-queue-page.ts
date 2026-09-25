@@ -86,6 +86,10 @@ export class TransactionApprovalQueuePage {
         return ['/organizations', org, 'inventory', 'warehouse-transfers', row.documentId];
       case 'InventoryAdjustment':
         return ['/organizations', org, 'inventory', 'inventory-adjustments', row.documentId];
+      case 'DeliveryNote':
+        return ['/organizations', org, 'sales', 'delivery-notes', row.documentId];
+      case 'GoodsReceivedNote':
+        return ['/organizations', org, 'purchasing', 'goods-received-notes', row.documentId];
       case 'Payment':
         return row.direction === 'Paid'
           ? ['/organizations', org, 'purchasing', 'supplier-payments', row.documentId]
@@ -107,6 +111,8 @@ export class TransactionApprovalQueuePage {
       case 'CashTransfer': return 'Cash Transfer';
       case 'WarehouseTransfer': return 'Warehouse Transfer';
       case 'InventoryAdjustment': return 'Inventory Adjustment';
+      case 'DeliveryNote': return 'Delivery Note';
+      case 'GoodsReceivedNote': return 'Goods Received Note';
       case 'Payment': return 'Payment';
     }
   }

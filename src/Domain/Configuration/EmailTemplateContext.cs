@@ -59,4 +59,11 @@ public enum EmailTemplateContext
     /// than diverging once.</para>
     /// </summary>
     BalanceConfirmation,
+
+    /// <summary>Phase 58 -- listed first in the live Template Type picker once a tenant runs Physical
+    /// Movement, with a seeded "Delivery Note Notification" template (2026-09-24). Appended.</summary>
+    DeliveryNote,
+
+    /// <summary>Phase 58 -- the GRN counterpart, with a seeded "Goods Received Note Notification".</summary>
+    GoodsReceivedNote,
 }

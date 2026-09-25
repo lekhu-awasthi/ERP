@@ -20,5 +20,8 @@ public sealed class InventoryPositionReportQueryValidator : AbstractValidator<In
         this.RuleFor(x => x.DisplayWarehouseInColumn)
             .Must((query, displayInColumn) => !displayInColumn || query.GroupByWarehouse)
             .WithMessage("Display Warehouse in Column requires Group by Warehouse.");
+
+        // Phase 58 -- an unknown mode is a 400 naming the field, never a silent fall-back.
+        this.RuleFor(x => x.Mode).IsInEnum();
     }
 }

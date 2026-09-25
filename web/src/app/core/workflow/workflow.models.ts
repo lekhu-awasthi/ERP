@@ -19,7 +19,11 @@ export type TransactionApprovalDocumentType =
   | 'CashTransfer'
   | 'WarehouseTransfer'
   | 'InventoryAdjustment'
-  | 'Payment';
+  | 'Payment'
+  // Phase 58 -- the physical-movement pair, on the queue's rule: every Draft of a type the caller
+  // can approve.
+  | 'DeliveryNote'
+  | 'GoodsReceivedNote';
 
 export interface TransactionApprovalRowDto {
   documentType: TransactionApprovalDocumentType;
@@ -65,7 +69,10 @@ export type TaskParentType =
   // Phase 43 (39 carried item #1) — a Deal parents tasks (its detail page has a Tasks tab); a task
   // does not, so there is deliberately no 'WorkTask' member here. The server's TaskParentType is
   // the same set, asserted by DocumentMechanismSweepGuardTests in both directions.
-  | 'Deal';
+  | 'Deal'
+  // Phase 58 -- the physical-movement pair; both detail pages carry the Tasks tab.
+  | 'DeliveryNote'
+  | 'GoodsReceivedNote';
 
 export type TaskPriority = 'Normal' | 'Urgent';
 

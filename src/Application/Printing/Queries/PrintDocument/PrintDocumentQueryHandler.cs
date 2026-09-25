@@ -55,6 +55,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             DocumentType.InventoryAdjustment => await BuildInventoryAdjustmentAsync(request, organization, templateName, cancellationToken),
             DocumentType.ProductionOrder => await BuildProductionOrderAsync(request, organization, templateName, cancellationToken),
             DocumentType.ProductionJournal => await BuildProductionJournalAsync(request, organization, templateName, cancellationToken),
+            DocumentType.DeliveryNote => await BuildDeliveryNoteAsync(request, organization, templateName, cancellationToken),
+            DocumentType.GoodsReceivedNote => await BuildGoodsReceivedNoteAsync(request, organization, templateName, cancellationToken),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(request.DocumentType), request.DocumentType, "This document type has no printable record."),
         };
@@ -421,6 +423,73 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             contactId: null, partyHeading: null, [], sections,
             [new PrintableFieldDto("Total Transfer", Money(total), Emphasise: true)], notes: null, terms: null, ct,
             document.CurrencyCode, document.ExchangeRate);
+    }
+
+    // ---- Physical movement (phase 58) ----------------------------------------------------------
+
+    /// <summary>The Sales Order print plus the warehouse and delivery facts. The live Printing
+    /// Templates page lists a Delivery Note section, and its money prints as its own form shows it:
+    /// the lines, discount, VAT and total the document carries, none of which is posted.</summary>
+    private async Task<PrintableDocumentDto> BuildDeliveryNoteAsync(
+        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+    {
+        var document = await db.DeliveryNotes.Include(x => x.Lines).SingleOrDefaultAsync(
+            x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
+            ?? throw new NotFoundException("Delivery note not found.");
+
+        var warehouseName = await db.Warehouses
+            .Where(x => x.Id == document.WarehouseId).Select(x => x.Name).SingleOrDefaultAsync(ct);
+
+        var header = new List<PrintableFieldDto>
+        {
+            new("Expected Delivery", RequestCalendar.Format(document.ExpectedDeliveryDate)),
+            new("Warehouse", warehouseName ?? "-"),
+        };
+        if (!string.IsNullOrWhiteSpace(document.TrackingNo))
+        {
+            header.Add(new PrintableFieldDto("Tracking No", document.TrackingNo));
+        }
+
+        if (!string.IsNullOrWhiteSpace(document.ShippingAddress))
+        {
+            header.Add(new PrintableFieldDto("Ship To", document.ShippingAddress));
+        }
+
+        var lines = document.Lines
+            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount))
+            .ToList();
+
+        return await BuildProductDocumentAsync(
+            request, organization, templateName, "Delivery Note", document.Code, document.Date, document.Reference,
+            document.ContactId, "Customer", header, lines, document.DiscountPct, document.Terms, ct,
+            currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
+    }
+
+    /// <summary>The Purchase Order print plus the warehouse and tracking number.</summary>
+    private async Task<PrintableDocumentDto> BuildGoodsReceivedNoteAsync(
+        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+    {
+        var document = await db.GoodsReceivedNotes.Include(x => x.Lines).SingleOrDefaultAsync(
+            x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
+            ?? throw new NotFoundException("Goods received note not found.");
+
+        var warehouseName = await db.Warehouses
+            .Where(x => x.Id == document.WarehouseId).Select(x => x.Name).SingleOrDefaultAsync(ct);
+
+        var header = new List<PrintableFieldDto> { new("Warehouse", warehouseName ?? "-") };
+        if (!string.IsNullOrWhiteSpace(document.TrackingNo))
+        {
+            header.Add(new PrintableFieldDto("Tracking No", document.TrackingNo));
+        }
+
+        var lines = document.Lines
+            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount))
+            .ToList();
+
+        return await BuildProductDocumentAsync(
+            request, organization, templateName, "Goods Received Note", document.Code, document.Date, document.Reference,
+            document.ContactId, "Supplier", header, lines, document.DiscountPct, terms: null, ct,
+            currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
     }
 
     // ---- Inventory ---------------------------------------------------------------------------

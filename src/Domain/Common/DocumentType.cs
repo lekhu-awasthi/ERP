@@ -111,4 +111,21 @@ public enum DocumentType
     /// <c>Task</c> for phase-13's reason.
     /// </summary>
     WorkTask,
+
+    /// <summary>
+    /// Phase 58 -- the sales-side document of the <b>physical</b> stock ledger: goods leaving a
+    /// warehouse for a customer, recorded apart from the Invoice that bills them. It moves
+    /// <c>PhysicalStockMovement</c> rows and nothing else -- no FIFO layer, no GL entry -- because
+    /// that is what the reference product does (confirmed live 2026-09-24: its Trial Balance
+    /// carried the Invoice and not the Delivery Note). See <c>Domain.Inventory.StockBooks</c>.
+    /// Appended last, so no persisted ordinal moves.
+    /// </summary>
+    DeliveryNote,
+
+    /// <summary>
+    /// Phase 58 -- the purchase-side counterpart of <see cref="DeliveryNote"/>: goods arriving from
+    /// a supplier, recorded apart from the Purchase Bill that is owed for them. Same ledger, same
+    /// absence of any GL entry, same reasoning.
+    /// </summary>
+    GoodsReceivedNote,
 }

@@ -39,6 +39,7 @@ public sealed class GetPurchaseOrderQueryHandler(IAppDbContext db) : IRequestHan
                 x.UnitId, x.UnitId is null ? null : unitNames.GetValueOrDefault(x.UnitId.Value), x.ConversionFactor)).ToList(),
             purchaseOrder.CurrencyCode,
             purchaseOrder.ExchangeRate,
-            purchaseOrder.LocationId);
+            purchaseOrder.LocationId,
+            purchaseOrder.ReceivedAt);
     }
 }

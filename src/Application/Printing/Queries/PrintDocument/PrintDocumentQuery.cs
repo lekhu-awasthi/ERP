@@ -61,6 +61,8 @@ public static class PrintDocumentPermissions
         DocumentType.InventoryAdjustment => PermissionKeys.InventoryAdjustmentView,
         DocumentType.ProductionOrder => PermissionKeys.ProductionOrderView,
         DocumentType.ProductionJournal => PermissionKeys.ProductionJournalView,
+        DocumentType.DeliveryNote => PermissionKeys.DeliveryNoteView,
+        DocumentType.GoodsReceivedNote => PermissionKeys.GoodsReceivedNoteView,
         _ => throw new ArgumentOutOfRangeException(
             nameof(documentType), documentType, "This document type has no printable record."),
     };

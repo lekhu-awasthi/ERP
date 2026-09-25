@@ -40,6 +40,8 @@ public class GlobalSearchSweepGuardTests
             [DocumentType.InventoryAdjustment] = typeof(Domain.Inventory.InventoryAdjustment),
             [DocumentType.ProductionOrder] = typeof(Domain.Manufacturing.ProductionOrder),
             [DocumentType.ProductionJournal] = typeof(Domain.Manufacturing.ProductionJournal),
+            [DocumentType.DeliveryNote] = typeof(Domain.Sales.DeliveryNote),
+            [DocumentType.GoodsReceivedNote] = typeof(Domain.Purchasing.GoodsReceivedNote),
         };
 
     [Fact]

@@ -120,7 +120,10 @@ public class ListSortIndexCorrespondenceTests(ModelFixture fixture)
         // BankStatementLine carries Date, so TenantIndexConvention derives both
         // (OrganizationId, Date) and (OrganizationId, CreatedAt DESC) for it with no hand-written
         // index at all.
-        Assert.Equal(16, queries.Count);
+        //
+        // Seventeen and eighteen are phase 58's ListDeliveryNotesQuery and ListGoodsReceivedNotesQuery,
+        // both on the same terms: each aggregate carries Date, so both orderings are derived indexes.
+        Assert.Equal(18, queries.Count);
         Assert.All(queries, q => Assert.NotNull(EntityFor(q)));
     }
 

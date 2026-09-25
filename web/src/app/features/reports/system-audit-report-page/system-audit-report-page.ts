@@ -25,6 +25,8 @@ const ACTIONS: SystemAuditAction[] = ['Create', 'Update', 'Approve', 'Void', 'Ex
 const DOCUMENT_TYPES: SystemAuditDocumentType[] = [
   'Quotation', 'SalesOrder', 'Invoice', 'CreditNote', 'PurchaseOrder', 'PurchaseBill', 'Expense',
   'DebitNote', 'JournalVoucher', 'CashTransfer', 'WarehouseTransfer', 'InventoryAdjustment', 'Payment',
+  // Phase 58 -- both documents' Create/Update commands are IAuditableRequest.
+  'DeliveryNote', 'GoodsReceivedNote',
   // Phase 22 -- so an Admin can filter the audit trail down to "which documents were sent to the
   // extraction service, by whom", which is the reason that row is written at all.
   'DocumentExtraction',
@@ -208,6 +210,10 @@ export class SystemAuditReportPage {
         return ['/organizations', org, 'inventory', 'warehouse-transfers', row.documentId];
       case 'InventoryAdjustment':
         return ['/organizations', org, 'inventory', 'inventory-adjustments', row.documentId];
+      case 'DeliveryNote':
+        return ['/organizations', org, 'sales', 'delivery-notes', row.documentId];
+      case 'GoodsReceivedNote':
+        return ['/organizations', org, 'purchasing', 'goods-received-notes', row.documentId];
       case 'Payment':
         return row.direction === 'Paid'
           ? ['/organizations', org, 'purchasing', 'supplier-payments', row.documentId]

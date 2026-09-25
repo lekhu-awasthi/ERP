@@ -33,7 +33,11 @@ export type DocumentType =
   // each row is identified by its own OpeningBalanceLine / OpeningStockLine id. See the backend's
   // DocumentMechanisms.ReportingTags, which is the list these two widen.
   | 'OpeningBalance'
-  | 'OpeningStock';
+  | 'OpeningStock'
+  // Phase 58 -- the two physical-movement documents. Appended on the backend too, so no persisted
+  // ordinal moves.
+  | 'DeliveryNote'
+  | 'GoodsReceivedNote';
 
 export interface QuotationLineInput {
   productId: string;
@@ -351,6 +355,89 @@ export interface SalesOrderDetail extends SalesOrder {
   currencyCode: string;
   exchangeRate: number;
   lines: SalesOrderLineDto[];
+  /** Phase 58 -- when a Delivery Note was raised against this order. */
+  deliveredAt?: string | null;
+}
+
+// --- Delivery Note (phase 58) ---
+
+export type DeliveryNoteStatus = 'Draft' | 'Approved' | 'Void';
+
+/** Same shape as a Sales Order line, phase 52's optional unit included. */
+export type DeliveryNoteLineInput = SalesOrderLineInput;
+
+export interface DeliveryNote {
+  id: string;
+  organizationId: string;
+  contactId: string;
+  warehouseId: string;
+  code: string;
+  date: string;
+  expectedDeliveryDate: string;
+  reference: string | null;
+  trackingNo: string | null;
+  shippingAddress: string | null;
+  status: DeliveryNoteStatus;
+  approvedByUserId: string | null;
+  approvedAt: string | null;
+  createdAt: string;
+  discountPct: number;
+  customStatusId: string | null;
+  terms: string | null;
+  referrerType: DocumentType | null;
+  referrerId: string | null;
+  currencyCode: string;
+  exchangeRate: number;
+  locationId: string | null;
+}
+
+export type DeliveryNoteLineDto = SalesOrderLineDto;
+
+export interface DeliveryNoteDetail extends DeliveryNote {
+  voidedAt: string | null;
+  /** The Sales Order's number, when the note was raised against one. */
+  referrerCode: string | null;
+  lines: DeliveryNoteLineDto[];
+}
+
+export interface DeliveryNoteRequest {
+  contactId: string;
+  warehouseId: string;
+  date: string;
+  expectedDeliveryDate: string;
+  reference: string | null;
+  trackingNo: string | null;
+  shippingAddress: string | null;
+  lines: DeliveryNoteLineInput[];
+  discountPct: number;
+  terms: string | null;
+  referrerType?: DocumentType | null;
+  referrerId?: string | null;
+  currencyCode?: string | null;
+  exchangeRate?: number | null;
+  locationId?: string | null;
+}
+
+export interface DeliveryNoteResult {
+  id: string;
+  code: string;
+  status: DeliveryNoteStatus;
+}
+
+/** The prefill "Convert to Delivery Note" hands to the new-DN form. */
+export interface DeliveryNoteConversionTemplate {
+  contactId: string;
+  date: string;
+  expectedDeliveryDate: string;
+  reference: string | null;
+  referrerType: DocumentType;
+  referrerId: string;
+  discountPct: number;
+  terms: string | null;
+  lines: DeliveryNoteLineInput[];
+  currencyCode: string;
+  exchangeRate: number;
+  locationId: string | null;
 }
 
 export interface SalesOrderRequest {

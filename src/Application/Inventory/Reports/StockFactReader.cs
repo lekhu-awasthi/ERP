@@ -1,6 +1,7 @@
 ﻿using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Inventory;
+using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Inventory.Reports;
@@ -145,6 +146,99 @@ internal static class StockFactReader
         // deterministic ordering StockLedgerEntry documents for its own FIFO walk.
         return rows.OrderBy(m => m.TransactionDate).ThenBy(m => m.CreatedAt).ThenBy(m => m.Id).ToList();
     }
+
+    /// <summary>
+    /// Phase 58 -- the same movement list for the <b>physical</b> ledger: the rows only a Delivery
+    /// Note or a GRN writes, plus the <see cref="Domain.Inventory.StockBooks.Shared"/> documents'
+    /// <c>StockMovement</c> rows, with the same filters and the same ordering as
+    /// <see cref="LoadMovementsAsync"/>. See <c>PhysicalStockReader</c> for why the ledger is these
+    /// two sources and not a copy.
+    ///
+    /// <para><b>Quantity only.</b> Every row comes back with a zero unit cost and no value
+    /// adjustment, so every Value a caller derives is zero. The physical ledger posts nothing and
+    /// carries no cost of its own; letting the shared rows keep theirs would have produced a
+    /// "value" that was the adjustments' cost and nobody else's -- a number with no meaning printed
+    /// in a column that looks like it has one. Cost catch-up rows (quantity zero) are dropped.</para>
+    ///
+    /// <para>Two queries merged in memory rather than a SQL <c>Concat</c>: EF refuses a set operation
+    /// after a client projection (phase 38).</para>
+    /// </summary>
+    internal static async Task<List<Movement>> LoadPhysicalMovementsAsync(
+        IAppDbContext db,
+        Guid organizationId,
+        IReadOnlyCollection<Guid>? productIds,
+        Guid? warehouseId,
+        DateOnly toDate,
+        CancellationToken cancellationToken,
+        Guid? locationId = null,
+        IReadOnlyList<Guid>? reportLocations = null)
+    {
+        var physical = db.PhysicalStockMovements
+            .Where(m => m.OrganizationId == organizationId && m.TransactionDate <= toDate)
+            .AtLocations(locationId, reportLocations);
+        var shared = db.StockMovements
+            .Where(m => m.OrganizationId == organizationId && m.TransactionDate <= toDate && m.Quantity != 0)
+            .Where(m => StockBooks.Shared.Contains(m.SourceDocumentType))
+            .AtLocations(locationId, reportLocations);
+
+        if (productIds is not null)
+        {
+            var ids = productIds as IList<Guid> ?? productIds.ToList();
+            physical = physical.Where(m => ids.Contains(m.ProductId));
+            shared = shared.Where(m => ids.Contains(m.ProductId));
+        }
+
+        if (warehouseId is { } warehouse)
+        {
+            physical = physical.Where(m => m.WarehouseId == warehouse);
+            shared = shared.Where(m => m.WarehouseId == warehouse);
+        }
+
+        var fromPhysical = await physical
+            .Select(m => new Movement(
+                m.Id, m.ProductId, m.WarehouseId, m.TransactionDate, m.CreatedAt,
+                m.SourceDocumentType, m.SourceDocumentId, m.Direction, m.Quantity, 0m, 0m))
+            .ToListAsync(cancellationToken);
+        var fromShared = await shared
+            .Select(m => new Movement(
+                m.Id, m.ProductId, m.WarehouseId, m.TransactionDate, m.CreatedAt,
+                m.SourceDocumentType, m.SourceDocumentId, m.Direction, m.Quantity, 0m, 0m))
+            .ToListAsync(cancellationToken);
+
+        return [.. fromPhysical.Concat(fromShared)
+            .OrderBy(m => m.TransactionDate).ThenBy(m => m.CreatedAt).ThenBy(m => m.Id)];
+    }
+
+    /// <summary>
+    /// Phase 58 -- the ledger a report reads when its caller did not choose one: the tenant's own
+    /// Mode of Inventory Tracking, which is the live filter's default ("1 Selected", the tenant's
+    /// mode, on every report that carries it).
+    /// </summary>
+    internal static async Task<InventoryTrackingMode> ResolveModeAsync(
+        IAppDbContext db, Guid organizationId, InventoryTrackingMode? requested, CancellationToken cancellationToken) =>
+        requested ?? await db.TenantSettings
+            .Where(x => x.OrganizationId == organizationId)
+            .Select(x => (InventoryTrackingMode?)x.InventoryTrackingMode)
+            .SingleOrDefaultAsync(cancellationToken)
+        // Nullable on purpose: PhysicalMovement is the enum's ordinal zero, so a bare default would
+        // silently flip a tenant with no settings row onto the wrong ledger (phase-2 bug #2's shape).
+        ?? InventoryTrackingMode.AccountingMovement;
+
+    /// <summary>Phase 58 -- <see cref="LoadMovementsAsync"/> or <see cref="LoadPhysicalMovementsAsync"/>,
+    /// by mode.</summary>
+    internal static Task<List<Movement>> LoadMovementsAsync(
+        IAppDbContext db,
+        InventoryTrackingMode mode,
+        Guid organizationId,
+        IReadOnlyCollection<Guid>? productIds,
+        Guid? warehouseId,
+        DateOnly toDate,
+        CancellationToken cancellationToken,
+        Guid? locationId = null,
+        IReadOnlyList<Guid>? reportLocations = null) =>
+        mode == InventoryTrackingMode.PhysicalMovement
+            ? LoadPhysicalMovementsAsync(db, organizationId, productIds, warehouseId, toDate, cancellationToken, locationId, reportLocations)
+            : LoadMovementsAsync(db, organizationId, productIds, warehouseId, toDate, cancellationToken, locationId, reportLocations);
 
     /// <summary>
     /// Folds already-loaded movements into one <see cref="ProductFacts"/> per product. Movements

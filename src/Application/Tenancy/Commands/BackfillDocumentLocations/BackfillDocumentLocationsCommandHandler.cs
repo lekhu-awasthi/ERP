@@ -93,6 +93,8 @@ public sealed class BackfillDocumentLocationsCommandHandler(IAppDbContext db)
         await BackfillAsync(DocumentType.InventoryAdjustment, db.InventoryAdjustments, x => x.BackfillLocation(headOfficeId));
         await BackfillAsync(DocumentType.ProductionOrder, db.ProductionOrders, x => x.BackfillLocation(headOfficeId));
         await BackfillAsync(DocumentType.ProductionJournal, db.ProductionJournals, x => x.BackfillLocation(headOfficeId));
+        await BackfillAsync(DocumentType.DeliveryNote, db.DeliveryNotes, x => x.BackfillLocation(headOfficeId));
+        await BackfillAsync(DocumentType.GoodsReceivedNote, db.GoodsReceivedNotes, x => x.BackfillLocation(headOfficeId));
 
         // The two lifecycle-free "day zero" kinds. They have no SetLocation of their own -- the whole
         // row is editable in place through Update -- so the backfill restates the values it just read

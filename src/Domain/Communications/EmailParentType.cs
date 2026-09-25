@@ -29,4 +29,9 @@ public enum EmailParentType
     CreditNote,
     Payment,
     PurchaseOrder,
+
+    /// <summary>Phase 58 -- both appear in the live Email Template Type picker, so phase 30's rule
+    /// ("Send Email exists where a template can be scoped") gives both the action. Appended.</summary>
+    DeliveryNote,
+    GoodsReceivedNote,
 }

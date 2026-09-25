@@ -1,0 +1,7 @@
+200000 accounting movements on the tenant; probe product 181C365C-A187-4C83-8600-00055DBCE622
+
+variant                                                       S shared half  R shared load  L history
+before phase 58: plain composite                                        319           7495        304
+shipped: covering (Direction, Quantity, SourceDocumentType)               5           7495        305
+
+shipped (covering) index restored

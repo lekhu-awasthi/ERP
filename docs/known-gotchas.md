@@ -565,8 +565,7 @@ branch you were not testing.
 CLAUDE.md already records that `sed -i` over a glob rewrites every file it matches and flips CRLF to
 LF even where the pattern never fires. The narrower case is worth its own line: it does that to the
 **intended** file too. A one-token fix (`VatRate.Zero` → `VatRate.NoVat`) silently converted a
-newly-written test file from CRLF to LF, after which every subsequent `
-`-anchored patch script
+newly-written test file from CRLF to LF, after which every subsequent `\n`-anchored patch script
 failed its assertion with no explanation — the anchor was right, the line endings were not. Prefer
 the Edit tool for a single substitution, and if a script must patch a file, read its existing
 newline (`io.open(..., newline='')`) rather than assuming one.
@@ -3752,3 +3751,75 @@ so when the refusal throws the tracked entity is already dirty while nothing is 
 handler's single `SaveChangesAsync` is never reached. A test asserting the document is still Approved
 must read past the change tracker (`AsNoTracking()`), or it fails on a claim that is true of the
 database and false of the tracker.
+
+## A setting that looks like a behaviour switch may only pick a default (phase 58)
+
+The phase-58 plan, written from screens, said *Physical Movement* moves FIFO consumption from
+Invoice / Purchase Bill Approve to Delivery Note / GRN Approve, and so needs a goods-received-not-
+billed account for the credit a GRN leaves behind. One GRN, one bill and the Trial Balance after each
+disproved all of it. The vendor keeps **two stock ledgers always** (GRN/DN write the physical one,
+the commercial documents the accounting one, adjustments both), the GL never sees a DN or GRN, and
+the setting only chooses which ledger the inventory screens read by default.
+
+So nothing in this codebase branches on `InventoryTrackingMode` except `StockFactReader.
+ResolveModeAsync`, which supplies a report's default. **Before designing around a setting, write one
+document under each value and read what moved.** The screens had been read for an hour, and one
+write answered the question.
+
+## Enum ordinal zero is a value, not an absence (phase 58)
+
+`InventoryTrackingMode.PhysicalMovement` is ordinal 0. A non-nullable `Select(x =>
+x.InventoryTrackingMode)` over a tenant with no settings row materialises `default(T)`, which is
+*Physical*, and every such tenant would silently read the physical ledger by default. Project it
+nullable and state the fallback once (`?? AccountingMovement`), and pin the default with a test. This
+is the read-side twin of phase 2's `HasDefaultValue` + `ValueGeneratedNever()` gotcha.
+
+## A receipt's Void is refused once its goods have left (phase 58)
+
+The vendor voids a consumed GRN and carries the physical balance at −3, rate 0, even with Negative
+Item Balance on Reject. This codebase refuses it (409) whatever the setting. That is the rule the
+accounting ledger already enforces: a Purchase Bill whose FIFO layer is consumed cannot be voided,
+and Opening Stock correction refuses the same way (phase 16a). A negative shelf after un-receiving
+says the goods that shipped never arrived, which is a data error to fix at its source (void the
+delivery first) and not an oversell to warn about. The Delivery Note's Void always restocks.
+
+## An index declared for a path may never be chosen by it (phase 58)
+
+`PhysicalStockMovements (OrganizationId, ProductId, WarehouseId, TransactionDate)` was declared for
+the availability sum. Measured on 200,000 rows, the optimiser ignored it: the `ProductId` FK index
+plus key lookups cost the same 318 reads, and the composite was dead weight for the path it existed
+for. `INCLUDE (Direction, Quantity)` took the path to 5. `StockMovements`' identical index, which the
+physical balance's shared-type half reads, went from 319 to 5 with `INCLUDE (Direction, Quantity,
+SourceDocumentType)`, while one product's history, its original reader, went 304 → 305. **An
+uncovered composite competes with every narrower index on the table; measure which one the plan
+picks before crediting it.**
+
+## A probe that wraps the query measures a different query (phase 58)
+
+The first phase-58 probe counted the report load's rows with `SELECT COUNT(*) FROM (<EF's SELECT>)`.
+The optimiser dropped the unread columns and answered from the narrowest index that had
+`TransactionDate`: 1,839 logical reads, against 4,584 for the query EF actually sends. Every
+comparison built on it would have credited that index with a report it does not serve. Materialise
+the probed statement (`SELECT … INTO #a`) so every column is read. The absolute figure also tracks
+page count: 4,584 on a fresh seed, 6,651 after a delete-and-reseed on random-GUID keys. So compare
+within a pass, never across two.
+
+## The three-view law on a tenant with Opening Stock (phase 58)
+
+Phase 37's conservation law is layers = GL Inventory = movements. Opening Stock writes layers and
+movements and posts **no** GL entry (phase 37 §7: it and Warehouse Transfer "post nothing in the
+ordinary case"). So on any tenant seeded with it, the Inventory account is short by exactly the
+opening value, and the law reads **layers = movements = GL + opening-stock value**.
+`StockConservation.AssertHoldsAsync` never meets this because its seeds use bills. An E2E does, and
+phase 58's first check failed by a constant 1,000 at every checkpoint. The constancy is itself the
+evidence that nothing between the checkpoints moved the relation.
+
+## git-bash `grep` cannot see a carriage return (phase 58)
+
+`grep -c $'\r$' file` in the Bash tool reported **0** on a spec file with 274 CRLF lines, so a
+per-file newline check built on it certifies every file as LF. Count bytes instead:
+`python -c "b=open(p,'rb').read(); print(b.count(b'\r\n'), b.count(b'\n'))"`. Equal numbers mean
+CRLF, zero CRLF means LF, and anything between is a mixed file whose own lines each keep their
+ending. The same pass found the heredoc gotcha had already damaged two committed docs in phase 57
+(a literal ` n m m---` in `roadmap.md`, and the `\n` in this file's own heredoc entry as mirrored in
+CLAUDE.md and `e2e-recipes.md`). Scripts go through the Write tool.

@@ -35,6 +35,22 @@ public interface IStockAvailabilityPolicy
         Guid warehouseId,
         IReadOnlyCollection<StockRequirement> requirements,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Phase 58 -- the same question asked of the <b>physical</b> ledger, for a Delivery Note.
+    ///
+    /// <para>A third method rather than a ledger parameter on the one above, and on the same
+    /// interface rather than a parallel policy, for phase 25's reason: there must be one place the
+    /// Negative Item Balance setting is read. The reference product applies that one setting to both
+    /// ledgers, each document against its own -- with Reject on it refused an Invoice for 5 against
+    /// an accounting balance of 3, and a Delivery Note for 8 against a physical balance of 7, on the
+    /// same tenant at the same moment (2026-09-24).</para>
+    /// </summary>
+    Task<StockAvailabilityStatus> CheckPhysicalRequirementsAsync(
+        Guid organizationId,
+        Guid warehouseId,
+        IReadOnlyCollection<StockRequirement> requirements,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>One product's total requirement against a single warehouse.</summary>

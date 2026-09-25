@@ -59,14 +59,17 @@ public class TermsConversionSweepGuardTests
     /// Five templates, two of which carry Terms — if either number moves, a conversion has been
     /// added or a type has gained Terms, and both deserve a decision rather than a silent pass.
     /// </summary>
+    /// <remarks>Phase 58 moved both numbers, each by decision: Sales Order -> Delivery Note carries
+    /// Terms (the order's terms follow the goods onto a note that has a Terms block), and Purchase
+    /// Order -> Goods Received Note does not (a GRN has no Terms block live).</remarks>
     [Fact]
-    public void There_are_five_conversion_templates_and_two_of_them_carry_terms()
+    public void There_are_seven_conversion_templates_and_three_of_them_carry_terms()
     {
         var dtos = ConversionTemplateDtos().ToList();
 
-        Assert.Equal(5, dtos.Count);
+        Assert.Equal(7, dtos.Count);
         Assert.Equal(
-            ["CreditNoteConversionTemplateDto", "InvoiceConversionTemplateDto"],
+            ["CreditNoteConversionTemplateDto", "DeliveryNoteConversionTemplateDto", "InvoiceConversionTemplateDto"],
             dtos.Where(d => d.GetProperty("Terms") is not null)
                 .Select(d => d.Name)
                 .OrderBy(x => x, StringComparer.Ordinal));

@@ -56,4 +56,7 @@ public sealed record SalesOrderDetailDto(
     // projecting a DTO silently drops a field the aggregate has, and the form would then post the
     // picker's default over a stored location on every edit. Fourteen instances of phase-32's own
     // carried gotcha.
-    Guid? LocationId);
+    Guid? LocationId,
+    // Phase 58 -- when a Delivery Note was raised against this order; see
+    // PurchaseOrderDetailDto.ReceivedAt.
+    DateTimeOffset? DeliveredAt = null);

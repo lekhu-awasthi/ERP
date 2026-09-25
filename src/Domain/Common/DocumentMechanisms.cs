@@ -24,10 +24,12 @@ namespace ErpApp.Domain.Common;
 public static class DocumentMechanisms
 {
     /// <summary>
-    /// The 15 real transactional document types -- everything with a Draft/Approve lifecycle, a
-    /// document number and a detail page. The other nine <see cref="DocumentType"/> members are
-    /// numbering-pool stubs, non-numbered posting sources, or non-documents; see
-    /// <see cref="NotApplicableReasons"/>.
+    /// The real transactional document types -- everything with a Draft/Approve lifecycle, a
+    /// document number and a detail page. Fifteen until phase 58 added Delivery Note and Goods
+    /// Received Note; the lists below that were written as "all 15" (Reporting Tags, Detail Tabs,
+    /// Print, Location) spread this one and so became 17 without an edit. The other
+    /// <see cref="DocumentType"/> members are numbering-pool stubs, non-numbered posting sources, or
+    /// non-documents; see <see cref="NotApplicableReasons"/>.
     /// </summary>
     public static readonly IReadOnlyList<DocumentType> Transactional =
     [
@@ -46,6 +48,11 @@ public static class DocumentMechanisms
         DocumentType.InventoryAdjustment,
         DocumentType.ProductionOrder,
         DocumentType.ProductionJournal,
+
+        // Phase 58 -- the physical-movement pair. Draft/Approve, a number (DO / GRN, location-wise),
+        // and the Overview / Tasks / Documents / Activity detail page, all confirmed live 2026-09-24.
+        DocumentType.DeliveryNote,
+        DocumentType.GoodsReceivedNote,
     ];
 
     /// <summary>
@@ -76,6 +83,13 @@ public static class DocumentMechanisms
         DocumentType.CashTransfer,
         DocumentType.ProductionOrder,
         DocumentType.ProductionJournal,
+
+        // Phase 58 -- Configurations > Custom Fields renders a Delivery Note and a Goods Received
+        // Note section once the tenant runs Physical Movement (2026-09-24). The same pass also
+        // showed a Warehouse Transfer section this list's 13 exclude; that is recorded in the module
+        // scan as a later vendor change and left for its own decision, not swept in here.
+        DocumentType.DeliveryNote,
+        DocumentType.GoodsReceivedNote,
     ];
 
     /// <summary>
@@ -96,6 +110,13 @@ public static class DocumentMechanisms
         DocumentType.SalesOrder,
         DocumentType.PurchaseOrder,
         DocumentType.ProductionOrder,
+
+        // Phase 58 -- the rule is the list-grid Stage column, and both grids carry one live. The
+        // Delivery Note's statuses have a Custom Status section ("Delivery Note Order Status":
+        // Pending / Dispatched / Delivered); the GRN's four seeded statuses have a column and no
+        // section. Here both are configurable, because a status nobody can create is not a pipeline.
+        DocumentType.DeliveryNote,
+        DocumentType.GoodsReceivedNote,
     ];
 
     /// <summary>
@@ -164,6 +185,11 @@ public static class DocumentMechanisms
         DocumentType.Invoice,
         DocumentType.CreditNote,
         DocumentType.PurchaseOrder,
+
+        // Phase 58 -- the Delivery Note form carries "+ Add Terms and Conditions" live; the GRN form
+        // does not. Phase 27b's own dividing line predicts both: a DN is issued to the customer, a
+        // GRN records something received.
+        DocumentType.DeliveryNote,
     ];
 
     /// <summary>
@@ -200,6 +226,13 @@ public static class DocumentMechanisms
         DocumentType.CreditNote,
         DocumentType.Payment,
         DocumentType.PurchaseOrder,
+
+        // Phase 58 -- the rule, not a sample: the live Email Template Type picker lists Delivery Note
+        // and Goods Received Note (first, in fact), and both detail pages carry Send Email. The GRN
+        // is the first "received" document on this list, so the "sent to a counterparty" gloss
+        // above is the description of the other six, not the rule.
+        DocumentType.DeliveryNote,
+        DocumentType.GoodsReceivedNote,
     ];
 
     /// <summary>

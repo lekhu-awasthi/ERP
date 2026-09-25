@@ -27,6 +27,8 @@ const DOCUMENT_ROUTES: Readonly<Record<SearchDocumentType, readonly string[]>> =
   InventoryAdjustment: ['inventory', 'inventory-adjustments'],
   ProductionOrder: ['manufacturing', 'production-orders'],
   ProductionJournal: ['manufacturing', 'production-journals'],
+  DeliveryNote: ['sales', 'delivery-notes'],
+  GoodsReceivedNote: ['purchasing', 'goods-received-notes'],
 };
 
 /**

@@ -148,6 +148,8 @@ public static class EmailMergeValueReader
             DocumentType.Invoice => await ReadInvoiceAsync(db, organizationId, documentId, ct),
             DocumentType.CreditNote => await ReadCreditNoteAsync(db, organizationId, documentId, ct),
             DocumentType.PurchaseOrder => await ReadPurchaseOrderAsync(db, organizationId, documentId, ct),
+            DocumentType.DeliveryNote => await ReadDeliveryNoteAsync(db, organizationId, documentId, ct),
+            DocumentType.GoodsReceivedNote => await ReadGoodsReceivedNoteAsync(db, organizationId, documentId, ct),
             DocumentType.Payment => await ReadPaymentAsync(db, organizationId, documentId, ct),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(documentType), documentType, "This document type has no Send Email action."),
@@ -208,6 +210,32 @@ public static class EmailMergeValueReader
         var d = await db.PurchaseOrders.Include(x => x.Lines)
             .SingleOrDefaultAsync(x => x.Id == id && x.OrganizationId == organizationId, ct)
             ?? throw new NotFoundException("Purchase order not found.");
+
+        return FromLines(
+            d.ContactId, d.Code, d.Date, d.Reference, d.CurrencyCode, d.ExchangeRate, d.DiscountPct,
+            d.Lines.Select(l => (l.Amount, l.VatAmount)));
+    }
+
+    /// <summary>Phase 58 -- the Purchase Order reader's shape; the note's money is what it says.</summary>
+    private static async Task<EmailDocumentFacts> ReadDeliveryNoteAsync(
+        IAppDbContext db, Guid organizationId, Guid id, CancellationToken ct)
+    {
+        var d = await db.DeliveryNotes.Include(x => x.Lines)
+            .SingleOrDefaultAsync(x => x.Id == id && x.OrganizationId == organizationId, ct)
+            ?? throw new NotFoundException("Delivery note not found.");
+
+        return FromLines(
+            d.ContactId, d.Code, d.Date, d.Reference, d.CurrencyCode, d.ExchangeRate, d.DiscountPct,
+            d.Lines.Select(l => (l.Amount, l.VatAmount)));
+    }
+
+    /// <inheritdoc cref="ReadDeliveryNoteAsync"/>
+    private static async Task<EmailDocumentFacts> ReadGoodsReceivedNoteAsync(
+        IAppDbContext db, Guid organizationId, Guid id, CancellationToken ct)
+    {
+        var d = await db.GoodsReceivedNotes.Include(x => x.Lines)
+            .SingleOrDefaultAsync(x => x.Id == id && x.OrganizationId == organizationId, ct)
+            ?? throw new NotFoundException("Goods received note not found.");
 
         return FromLines(
             d.ContactId, d.Code, d.Date, d.Reference, d.CurrencyCode, d.ExchangeRate, d.DiscountPct,

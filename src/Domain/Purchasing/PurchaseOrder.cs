@@ -75,6 +75,18 @@ public sealed class PurchaseOrder
     /// even after that template is edited or deleted.</summary>
     public string? Terms { get; private set; }
 
+    /// <summary>
+    /// Phase 58 -- when a Goods Received Note was created against this order, or null. A second
+    /// conversion flag beside <see cref="PurchaseOrderStatus.Converted"/>, not a new status value,
+    /// because receiving and billing are independent: the reference product keeps a
+    /// <c>received_quantity</c> and a <c>billed_quantity</c> on every PO line, and after a full
+    /// receipt it still offered Convert to Bill with the whole quantity (confirmed live 2026-09-24).
+    /// A status can hold only one of the two facts; this order can have both.
+    /// </summary>
+    public DateTimeOffset? ReceivedAt { get; private set; }
+
+    public bool IsReceived => ReceivedAt is not null;
+
     public IReadOnlyList<PurchaseOrderLine> Lines => _lines;
 
     private PurchaseOrder()
@@ -165,11 +177,38 @@ public sealed class PurchaseOrder
         Status = PurchaseOrderStatus.Converted;
     }
 
+    /// <summary>
+    /// Phase 58 -- records that a Goods Received Note was raised against this order. Allowed on an
+    /// Approved order and on a Converted one (a bill first, the goods later, is ordinary), never twice:
+    /// one order, one GRN, the same one-shot rule <see cref="MarkConverted"/> applies to the bill.
+    /// </summary>
+    public void MarkReceived()
+    {
+        if (Status is not (PurchaseOrderStatus.Approved or PurchaseOrderStatus.Converted))
+        {
+            throw new InvalidOperationException("Only an Approved purchase order can be received.");
+        }
+
+        if (IsReceived)
+        {
+            throw new InvalidOperationException("This purchase order has already been received on a Goods Received Note.");
+        }
+
+        ReceivedAt = DateTimeOffset.UtcNow;
+    }
+
     /// <summary>Mirror of Quotation.Void -- a Converted purchase order (live dependent: the
-    /// PurchaseBill created from it) is rejected by EnsureApproved's plain status check.</summary>
+    /// PurchaseBill created from it) is rejected by EnsureApproved's plain status check, and so,
+    /// since phase 58, is a received one (live dependent: its Goods Received Note).</summary>
     public void Void(Guid voidedByUserId)
     {
         EnsureApproved();
+
+        if (IsReceived)
+        {
+            throw new InvalidOperationException("Only an Approved purchase order can be voided.");
+        }
+
         Status = PurchaseOrderStatus.Void;
         VoidedByUserId = voidedByUserId;
         VoidedAt = DateTimeOffset.UtcNow;

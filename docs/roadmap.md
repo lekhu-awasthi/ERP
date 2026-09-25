@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–57)
+## Completed phases (0–58)
 
 Detail lives in each phase's own status doc — this table is the index, not the history.
 
@@ -87,6 +87,7 @@ Detail lives in each phase's own status doc — this table is the index, not the
 | 55 | Bank statement import. **The kickoff's premise was falsified by the screen**: `/config/import-statement` is a generic CSV staging editor for Delivery Note / GRN / Inventory Adjustment, not the bank importer — which is `/accounting/bank-accounts/:id/import`, read in full and probed with twelve files. An ordinary tenth `ImportEntityType` (phase 21c's precedent beats the "resolves into no command" doubt), one signed `StatementAmount` rather than the vendor's dr/cr pair, Status derived and deferred to 56, deletion by row id **plus an undo-this-import** the vendor lacks, and the account as **per-run context** on `ImportJob`. **Phase 56 is unblocked** — its start condition was wrong | `phase-55-status.md` |
 | 56 | Bank reconciliation — the two-pane N:M matcher, Book Statement, the reconciliation detail page with Unreconcile, the Reconciliation Report, and phase 55's deferred Status column and filter. The live read settled what inference could not: the right-hand pane is **`/gl-transactions`** (GL rows, not documents — so a reconciliation joins a `GlLine`, the only thing that is *one movement of money*), N:M is real, and the gate is **sum equality enforced by the server**. Membership is a nullable key on each side, not a link table; the aggregate carries no amount; **it posts nothing**, proven in SQL before and after. No new permission keys. The phase's own bug — an `OrderBy` over a projected record, green on InMemory and **500** on SQL Server — was the fourth trip through one door and is now fixed structurally | `phase-56-status.md` |
 | 57 | **Finishing the bank module.** Quick Approve (a statement line becomes a document and is matched against itself in one action), the reconciliation report's `.xlsx`, and the 30-day Balance History chart. The vendor's **four** executors are **two** documents here — its picker is one list of ledger accounts in a chart where a customer *is* an account, so a Contact becomes a `Payment` and an Account a `JournalVoucher`. Reusing the Create/Approve commands through `ISender` **derives** the permission answer (the target document's own keys, on top of `.Manage`) instead of minting one. **The census re-run reproduced phase 53's 166 exactly**; its one diff, the Inventory Variance Report, is gated on *Physical* Inventory Tracking and so belongs to the DN/GRN deferral. `is_bank_user` is a read-only lender's report shell — a different product. **Phase 56's index debt paid, and it was booked against the wrong column**: `ReconciliationId` in the key is worth one logical read, while a covering index on `AccountId` takes the matcher's pane from 153,470 reads to 553 | `phase-57-status.md` |
+| 58 | **Physical-movement inventory** — Delivery Note, Goods Received Note and the Inventory Variance Report. **The kickoff's premise was falsified by the first live write**: the vendor does not move FIFO consumption to DN/GRN, it keeps **two stock ledgers always** (physical: GRN/DN; accounting: bill/invoice/returns; both: adjustments and the other shared types) and the setting only picks which one the inventory screens read. Neither document posts, so the GRNI account dissolved. Here the physical ledger is **derived and quantity-only** (a new append-only table plus the shared types' existing rows — no dual writes, no backfill), every rule is per ledger under one Negative Item Balance verdict, a GRN's Void is refused once its goods have left (the vendor carries −3 at rate 0), and conversions are parallel and one-shot. Eleven keys, all Admin+Member. **Two indexes made covering with numbers**: the physical balance check 318 → 5 logical reads on its own table and 319 → 5 on `StockMovements`' shared half, the untargeted paths flat, the report load a full read in every variant and refused | `phase-58-status.md` |
 
 ---
 
@@ -120,7 +121,7 @@ scope (batch and serial tracking, which became phase 51) — so the sequence was
 Every entry is done. The planning entries moved verbatim to `docs/roadmap-history.md` on 2026-09-20;
 the outcomes are in each `docs/phase-N-status.md`, and the index table above carries the one-liners.
 
- n m m---
+---
 
 ## Forward plan (54–56) — planned 2026-09-20 in phase 53, **all done**
 
@@ -131,26 +132,31 @@ and reproduced exactly.
 
 ---
 
-## Forward plan — **empty**, and that is the honest statement (2026-09-21, after phase 57)
+## Forward plan (58) — planned 2026-09-22, **done**
 
-Phase 57 closed the bank module, and with it the last item the phase-53 census produced. **Nothing is
-scheduled.** The census that generated phases 54–57 is exhausted, and it was re-run on 2026-09-21
-against a byte-identical bundle: 166 permission keys, the same 22 document types, the same 51
-reports. Padding past this point would be inventing work, which is phase 53's own rule.
+Archived to `roadmap-history.md` ("Physical-movement phase (58)") on 2026-09-25. Its structural
+paragraph — *FIFO consumption moves to DN/GRN Approve, plus a goods-received-not-billed account* —
+is kept there as written and is **wrong**: the first live write showed two ledgers and no GL posting,
+and `phase-58-status.md` is the record of what was built instead.
 
-What actually remains is three items below under *Outside the sequence*, each blocked on somebody
-other than a session, plus **one item that is a phase if it is wanted**:
+---
 
-- **The auto-match suggestion engine** (`/bank-statements-matched`, `account_suggestions`,
-  `POST /bank-reconciliations {action: "approve" | "un-match"}`). It is the only bank-module feature
-  not built, and phase 56 excluded it for a reason that still holds: the vendor's demo tenant returns
-  `account_suggestions: null` on every row, so its matching rule cannot be copied and would have to
-  be **invented**. That makes it a product decision, not a parity phase — which is the same shape as
-  full-text search below. **Start condition:** a decision about what "suggest a match" should mean
-  here (amount and date within a window? the description against a contact's name? a learned mapping
-  from previous approvals?), taken deliberately rather than inferred from an empty field.
+## Forward plan — **empty** (2026-09-25, after phase 58)
 
-**Plan the phase after this one the way 53 planned 54–56: from a fresh read, against evidence.**
+The last two of the vendor's 22 document types are built, and the census that produced 54–57 was
+reproduced exactly on 2026-09-21. **Nothing is scheduled**, and padding past this point would be
+inventing work (phase 53's rule). What remains, each with its start condition:
+
+- **Phase 58's carried items** (`phase-58-status.md`, "Carried into a later phase"): the Mode filter
+  on Movement / Ledger / Ageing, partial receipts and deliveries (per-line counters), Mark as
+  Delivered / Processed, batch/serial and a per-line warehouse on DN/GRN. Parity work with the
+  vendor's shape already read — a phase if wanted, not a discovery.
+- **The auto-match suggestion engine** — a *product decision* first: the vendor returns
+  `account_suggestions: null` on every row, so its rule would be invented, not copied.
+- The three items under *Outside the sequence*, and the vendor-side actor.
+
+**Plan the next phase the way 53 planned 54–57: from a fresh read, against evidence** — a census
+re-run is cheap and is the right first step of any session that wants one.
 
 ### Read, and absent — recorded so no future session re-opens it
 
@@ -212,7 +218,7 @@ strengthened both: the DN/GRN and marketplace seams are demonstrably real in the
   its 22 document types we lack. **Phase 57 adds a third item to this deferral:** its report
   catalogue diff is the **Inventory Variance Report** (`/reports/new/inventory-variance`), which
   opens live as *"Inventory Tracking **and Physical Inventory Tracking** Not Enabled"* — the same
-  flag. Scoping this phase from the two document types alone would ship it without the report. **Re-entry:** the user flips that setting on a tenant and the screens
+  flag. Scoping this phase from the two document types alone would ship it without the report. **PROMOTED to phase 58 on 2026-09-22 and BUILT** (`phase-58-status.md`) — no longer deferred; the start condition and the FIFO sentence after it are the pre-read plan, and the second is wrong. **Start condition:** the user flips that setting on a tenant and the screens
   are read; then it is a phase of its own (FIFO consumption moves from Invoice/Bill Approve to DO/GRN
   Approve under a handler-level gate, plus a goods-received-not-billed default account).
 - **A vendor-side actor** (41 Decision G): every subscription ceiling is self-liftable until an actor

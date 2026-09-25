@@ -51,6 +51,8 @@ public class LocationBearingCommandSweepGuardTests
             [DocumentType.ProductionJournal] = "ProductionJournal",
             [DocumentType.OpeningBalance] = "OpeningBalanceLine",
             [DocumentType.OpeningStock] = "OpeningStockLine",
+            [DocumentType.DeliveryNote] = "DeliveryNote",
+            [DocumentType.GoodsReceivedNote] = "GoodsReceivedNote",
         };
 
     private static bool RequiresCreateAndUpdatePair(DocumentType documentType) =>

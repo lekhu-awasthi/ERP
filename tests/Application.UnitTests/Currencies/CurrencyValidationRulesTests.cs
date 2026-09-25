@@ -74,7 +74,8 @@ public class CurrencyValidationRulesTests
                         && t != typeof(ICurrencyBearingCommand))
             .ToList();
 
-        Assert.Equal(23, commandTypes.Count);
+        // Twenty-seven since phase 58: Create/Update for Delivery Note and Goods Received Note.
+        Assert.Equal(27, commandTypes.Count);
 
         foreach (var commandType in commandTypes)
         {

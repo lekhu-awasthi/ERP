@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
@@ -6,6 +6,7 @@ import { CatalogueReportsService } from '../../../core/reports/catalogue-reports
 import {
   InventoryBalanceFilter,
   InventoryPositionRowDto,
+  InventoryTrackingMode,
 } from '../../../core/reports/catalogue-reports.models';
 import { CatalogService } from '../../../core/catalog/catalog.service';
 import { Product, ProductCategory } from '../../../core/catalog/catalog.models';
@@ -57,6 +58,16 @@ export class InventoryPositionPage {
   protected readonly productId = signal('');
   protected readonly warehouseId = signal('');
   protected readonly balanceFilter = signal<InventoryBalanceFilter>('All');
+
+  /** Phase 58 -- the live drawer's Mode of Inventory Tracking. Null asks for the tenant's own
+   *  mode; `reportMode` is the server's answer, which is what the select shows and what decides
+   *  the columns, so the two cannot disagree about which ledger is on screen. */
+  protected readonly mode = signal<InventoryTrackingMode | null>(null);
+  protected readonly reportMode = signal<InventoryTrackingMode>('AccountingMovement');
+
+  /** The physical ledger (GRN, Delivery Note and the four shared types) carries quantity only,
+   *  so Rate and Amount are hidden rather than printed as a false zero. */
+  protected readonly physical = computed(() => this.reportMode() === 'PhysicalMovement');
 
   /** Phase 36 -- the live drawer's Show Columns checkbox and its Reporting Tags. Grouping adds a
    *  WAREHOUSE column and splits each product's row per warehouse. */
@@ -145,6 +156,11 @@ export class InventoryPositionPage {
     this.load();
   }
 
+  protected onModeChange(event: Event): void {
+    this.mode.set((event.target as HTMLSelectElement).value as InventoryTrackingMode);
+    this.reload();
+  }
+
   protected onBalanceFilterChange(event: Event): void {
     this.balanceFilter.set((event.target as HTMLSelectElement).value as InventoryBalanceFilter);
     this.reload();
@@ -186,7 +202,7 @@ export class InventoryPositionPage {
         this.organizationId, this.fromDate(), this.toDate(), this.categoryId() || null,
         this.productId() || null, this.warehouseId() || null, this.balanceFilter(), full, page, pageSize,
         this.locationId(), this.groupByWarehouse(), this.selectedTagOptionIds(),
-        this.displayWarehouseInColumn(),
+        this.displayWarehouseInColumn(), this.mode(),
       )
       .subscribe({
         next: (blob) => {
@@ -210,11 +226,12 @@ export class InventoryPositionPage {
         this.productId() || null, this.warehouseId() || null, this.balanceFilter(),
         this.page(), this.pageSize(),
         this.locationId(), this.groupByWarehouse(), this.selectedTagOptionIds(),
-        this.displayWarehouseInColumn(),
+        this.displayWarehouseInColumn(), this.mode(),
       )
       .subscribe({
         next: (report) => {
           this.rows.set(report.items);
+          this.reportMode.set(report.mode);
           // Read from the response, not from the request flag: the headers are the server's
           // answer about which warehouses exist, and the two must not be able to disagree about
           // how many columns a row has.

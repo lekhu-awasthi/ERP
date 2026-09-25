@@ -23,6 +23,18 @@
       } @else {
         <span class="badge bg-warning-subtle text-warning-emphasis">Draft</span>
       }
+      @if (po.receivedAt) {
+        <span class="badge bg-info-subtle text-info-emphasis">Received</span>
+      } @else if (po.status === 'Approved' || po.status === 'Converted') {
+        <!-- Phase 58 -- independent of Convert to Bill below: receiving and billing are separate. -->
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="receiving()" (click)="convertToGoodsReceivedNote()">
+          @if (receiving()) {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+          } @else {
+            <i aria-hidden="true" class="bi bi-box-seam"></i> Convert to Goods Received Note
+          }
+        </button>
+      }
     }
     @if (purchaseOrder()?.status === 'Approved') {
       <button type="button" class="btn btn-outline-secondary btn-sm fw-bold ms-auto" [disabled]="printing()" (click)="print()">

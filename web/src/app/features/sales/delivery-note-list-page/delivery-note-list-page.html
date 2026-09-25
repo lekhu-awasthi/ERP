@@ -1,0 +1,118 @@
+<div class="container py-5" style="max-width: 900px;">
+  <app-list-chrome
+    [organizationId]="organizationId"
+    locationDocumentType="DeliveryNote"
+    [locationId]="filter.location()"
+    (locationChange)="onLocation($event)"
+    heading="Delivery Notes"
+    description="Goods leaving a warehouse for a customer -- the physical stock, apart from the invoice"
+    icon="truck"
+    [totalCount]="totalCount()"
+    [loading]="loading()"
+    [dateScoped]="true"
+    [sortOptions]="sortOptions"
+    [sort]="filter.sort()"
+    (sortChange)="onSort($event)"
+    (searchChange)="onSearch($event)"
+  >
+    <div listActions class="d-flex align-items-center gap-2 flex-wrap">
+  <a class="btn btn-success btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'sales', 'delivery-notes', 'new']">
+          <i aria-hidden="true" class="bi bi-plus-lg"></i> New Delivery Note
+        </a>
+    </div>
+  </app-list-chrome>
+
+  <app-status-banner [message]="errorMessage()" />
+
+  <div class="btn-group mb-4" role="group" aria-label="Filter by status">
+    @for (status of statuses; track status) {
+      <button
+        type="button"
+        class="btn btn-sm"
+        [class.btn-primary]="statusFilter() === status"
+        [class.btn-outline-primary]="statusFilter() !== status"
+        (click)="selectStatus(status)"
+      >
+        {{ status }}
+      </button>
+    }
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading delivery notes...</p>
+        </div>
+      } @else if (items().length === 0) {
+        <div class="text-center py-5">
+          <div class="bg-light d-inline-flex p-4 rounded-circle mb-3 text-muted">
+            <i aria-hidden="true" class="bi bi-truck fs-1"></i>
+          </div>
+          <h5 class="fw-bold text-dark">No Delivery Notes Yet</h5>
+          <p class="text-muted small mb-0">Click "New Delivery Note" to create one.</p>
+        </div>
+      } @else {
+        <div class="list-group list-group-flush">
+          @for (item of items(); track item.id) {
+            <!-- Phase 47 -- the row is a <div> and the link sits inside it, not the other way
+                 round. A <select> nested in an <a> is invalid HTML that no event handler makes
+                 valid: the control is inside the link's accessible name, and a keyboard user who
+                 tabs onto the picker is standing inside a link they did not ask to be in. Phase 45
+                 fixed the *navigation*; this fixes the nesting. Bootstrap's `stretched-link` keeps
+                 the whole-row click target a mouse user already had, and the control cluster below
+                 sits above its overlay. The focus ring follows the inner link out to the row --
+                 see `styles.scss`. -->
+            <div
+              class="list-group-item list-group-item-action border rounded-3 mb-3 p-3 d-flex justify-content-between align-items-center flex-wrap gap-3 position-relative"
+            >
+              <div class="d-flex align-items-center gap-3">
+                <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-circle">
+                  <i aria-hidden="true" class="bi bi-truck fs-5"></i>
+                </div>
+                <div>
+                  <h6 class="fw-bold mb-1 text-dark">
+                    <a class="stretched-link text-reset text-decoration-none" [routerLink]="['/organizations', organizationId, 'sales', 'delivery-notes', item.id]">{{ item.code }}</a>
+                  </h6>
+                  <!-- Phase 35a -- the LOCATION every live document grid carries in
+                       second position. Renders nothing when the row has none. -->
+                  <app-location-name [organizationId]="organizationId" [locationId]="item.locationId" />
+                  <span class="text-muted small">{{ item.date | nepaliDate }}{{ item.reference ? ' · ' + item.reference : '' }}{{ item.trackingNo ? ' · ' + item.trackingNo : '' }}</span>
+                </div>
+              </div>
+              <!-- position-relative + z-2: Bootstrap paints `stretched-link`'s overlay at
+                   z-index 1, so a control that is merely positioned still sits underneath it
+                   and the row link swallows the click. -->
+              <div class="d-flex align-items-center gap-3 position-relative z-2">
+                <app-custom-status-picker
+                  [organizationId]="organizationId"
+                  documentType="DeliveryNote"
+                  [documentId]="item.id"
+                  [customStatusId]="item.customStatusId"
+                  [options]="customStatusOptions()"
+                  (statusChange)="onCustomStatusChange(item.id, $event)"
+                />
+                @if (item.status === 'Approved') {
+                  <span class="badge bg-success-subtle text-success-emphasis">Approved</span>
+                } @else if (item.status === 'Void') {
+                  <span class="badge bg-secondary-subtle text-secondary-emphasis">Void</span>
+                } @else {
+                  <span class="badge bg-warning-subtle text-warning-emphasis">Draft</span>
+                }
+                <i aria-hidden="true" class="bi bi-chevron-right text-muted"></i>
+              </div>
+            </div>
+          }
+        </div>
+        <app-pagination-control
+          [page]="page()"
+          [pageSize]="pageSize()"
+          [totalCount]="totalCount()"
+          (pageChange)="onPageChange($event)"
+          (pageSizeChange)="onPageSizeChange($event)"
+        />
+      }
+    </div>
+  </div>
+</div>

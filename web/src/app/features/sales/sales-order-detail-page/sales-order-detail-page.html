@@ -33,6 +33,18 @@
       <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" (click)="emailDialog.show()">
         <i aria-hidden="true" class="bi bi-envelope"></i> Send Email
       </button>
+      @if (salesOrder()?.deliveredAt) {
+        <span class="badge bg-info-subtle text-info-emphasis">Delivered</span>
+      } @else {
+        <!-- Phase 58 -- Convert to Delivery Note; see convertToDeliveryNote. -->
+        <button type="button" class="btn btn-primary btn-sm fw-bold" [disabled]="delivering()" (click)="convertToDeliveryNote()">
+          @if (delivering()) {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+          } @else {
+            <i aria-hidden="true" class="bi bi-truck"></i> Convert to Delivery Note
+          }
+        </button>
+      }
       <button type="button" class="btn btn-outline-danger btn-sm fw-bold" [disabled]="voiding()" (click)="voidSalesOrder()">
         @if (voiding()) {
           <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>

@@ -4,6 +4,7 @@ using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Application.Configuration;
 using ErpApp.Application.Inventory.Reports;
+using ErpApp.Domain.Tenancy;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,8 +27,11 @@ public sealed class InventoryPositionReportQueryHandler(IAppDbContext db, ICurre
         var products = await InventoryReportProducts.LoadAsync(
             db, request.OrganizationId, request.CategoryId, request.ProductId, cancellationToken);
 
+        // Phase 58 -- which ledger: the caller's choice, else the tenant's own mode.
+        var mode = await StockFactReader.ResolveModeAsync(db, request.OrganizationId, request.Mode, cancellationToken);
+
         var movements = await StockFactReader.LoadMovementsAsync(
-            db, request.OrganizationId, products.MatchingIds, request.WarehouseId, request.ToDate, cancellationToken,
+            db, mode, request.OrganizationId, products.MatchingIds, request.WarehouseId, request.ToDate, cancellationToken,
             request.LocationId, reportLocations);
 
         // Phase 36 -- the drawer's Reporting Tags, applied to the movements rather than to the rows:
@@ -66,7 +70,7 @@ public sealed class InventoryPositionReportQueryHandler(IAppDbContext db, ICurre
         // crosstab is added beside it. Recorded rather than quietly reconciled.
         if (request.DisplayWarehouseInColumn)
         {
-            return await CrosstabAsync(request, movements, products, cancellationToken);
+            return await CrosstabAsync(request, movements, products, mode, cancellationToken);
         }
 
         List<(Guid? WarehouseId, List<StockFactReader.Movement> Movements)> groups = request.GroupByWarehouse
@@ -102,7 +106,7 @@ public sealed class InventoryPositionReportQueryHandler(IAppDbContext db, ICurre
 
         return new InventoryPositionReportDto(
             request.FromDate, request.ToDate, paged.Items, paged.Page, paged.PageSize, paged.TotalCount,
-            rows.Sum(row => row.Quantity), rows.Sum(row => row.Amount));
+            rows.Sum(row => row.Quantity), rows.Sum(row => row.Amount), Mode: mode);
     }
 
     /// <summary>
@@ -119,6 +123,7 @@ public sealed class InventoryPositionReportQueryHandler(IAppDbContext db, ICurre
         InventoryPositionReportQuery request,
         IReadOnlyList<StockFactReader.Movement> movements,
         InventoryReportProducts products,
+        InventoryTrackingMode mode,
         CancellationToken cancellationToken)
     {
         // Every warehouse in the tenant, in a stable order -- see WarehouseColumns for why not only
@@ -173,6 +178,6 @@ public sealed class InventoryPositionReportQueryHandler(IAppDbContext db, ICurre
         return new InventoryPositionReportDto(
             request.FromDate, request.ToDate, paged.Items, paged.Page, paged.PageSize, paged.TotalCount,
             rows.Sum(x => x.Quantity), rows.Sum(x => x.Amount),
-            WarehouseColumns: [.. columns.Select(c => c.Name)]);
+            WarehouseColumns: [.. columns.Select(c => c.Name)], Mode: mode);
     }
 }

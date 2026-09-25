@@ -50,4 +50,8 @@ public enum TaskParentType
     // DocumentMechanismSweepGuardTests asserts that in both directions rather than leaving it to
     // look like a member somebody forgot.
     Deal,
+
+    // Phase 58 -- the two physical-movement documents, appended so no persisted ordinal moves.
+    DeliveryNote,
+    GoodsReceivedNote,
 }

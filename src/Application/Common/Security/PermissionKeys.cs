@@ -1025,4 +1025,39 @@ public static class PermissionKeys
     // create command under the initiating user's identity (phase 21a).
     public const string BankStatementView = "Accounting.BankStatement.View";
     public const string BankStatementManage = "Accounting.BankStatement.Manage";
+
+    // Phase 58 (physical-movement inventory) -- derived, not defaulted, from what the reference
+    // product carries and from what the two documents are.
+    //
+    // The shape is the vendor's own: its role editor gives Delivery Note (under Sales) and Goods
+    // Received Note (under Purchase) a View / Create / Edit / Approve / Void row each, exactly like
+    // their sibling documents, and no key at all for "Mark as Delivered / Processed" (read live
+    // 2026-09-24). So each is the five-key document shape, and this codebase's Sales.* / Purchasing.*
+    // prefixes place them beside the documents they sit between.
+    //
+    // All ten are Admin+Member. A delivery note and a GRN are the most routine working data a
+    // warehouse has -- the storekeeper who cannot record goods arriving cannot do the job -- and
+    // neither exposes anything a Member does not already see on the Sales Order / Purchase Order
+    // they are raised from: the same contact, the same lines. Neither posts to the general ledger,
+    // so Approve here cannot move a balance an accountant owns; the Admin-only bar this file keeps
+    // for flat registers carrying PAN and contact identity does not reach a single document.
+    //
+    // InventoryVarianceView is Admin+Member for the reason InventoryPositionView is: a per-product
+    // quantity rollup with no counterparty anywhere. It is its own key rather than a ride on
+    // InventoryPositionView because the vendor gives it one ("Inventory Variance Report" under
+    // Inventory report), and a tenant may reasonably want a storekeeper to see stock without
+    // seeing where the books and the shelf disagree.
+    public const string DeliveryNoteView = "Sales.DeliveryNote.View";
+    public const string DeliveryNoteCreate = "Sales.DeliveryNote.Create";
+    public const string DeliveryNoteEdit = "Sales.DeliveryNote.Edit";
+    public const string DeliveryNoteApprove = "Sales.DeliveryNote.Approve";
+    public const string DeliveryNoteVoid = "Sales.DeliveryNote.Void";
+
+    public const string GoodsReceivedNoteView = "Purchasing.GoodsReceivedNote.View";
+    public const string GoodsReceivedNoteCreate = "Purchasing.GoodsReceivedNote.Create";
+    public const string GoodsReceivedNoteEdit = "Purchasing.GoodsReceivedNote.Edit";
+    public const string GoodsReceivedNoteApprove = "Purchasing.GoodsReceivedNote.Approve";
+    public const string GoodsReceivedNoteVoid = "Purchasing.GoodsReceivedNote.Void";
+
+    public const string InventoryVarianceView = "Reports.InventoryVariance.View";
 }

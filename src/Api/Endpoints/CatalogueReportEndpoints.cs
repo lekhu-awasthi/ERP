@@ -7,11 +7,13 @@ using ErpApp.Application.Inventory.Queries.InventoryLedgerReport;
 using ErpApp.Application.Inventory.Queries.InventoryMasterReport;
 using ErpApp.Application.Inventory.Queries.InventoryMovementReport;
 using ErpApp.Application.Inventory.Queries.InventoryPositionReport;
+using ErpApp.Application.Inventory.Queries.InventoryVarianceReport;
 using ErpApp.Application.Inventory.Queries.ProductBatchReport;
 using ErpApp.Application.Inventory.Queries.ProductSerialReport;
 using ErpApp.Application.Purchasing.Queries.PurchaseReturnRegister;
 using ErpApp.Application.Sales.Queries.SalesReturnRegister;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Tenancy;
 using MediatR;
 
 namespace ErpApp.Api.Endpoints;
@@ -135,7 +137,7 @@ public static class CatalogueReportEndpoints
             Guid organizationId, DateOnly fromDate, DateOnly toDate,
             Guid? categoryId, Guid? productId, Guid? warehouseId, InventoryBalanceFilter? balanceFilter,
             int? page, int? pageSize, Guid? locationId, bool? groupByWarehouse, Guid[]? tagOptionIds,
-            bool? displayWarehouseInColumn, ISender sender, CancellationToken ct) =>
+            bool? displayWarehouseInColumn, InventoryTrackingMode? mode, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new InventoryPositionReportQuery(
@@ -143,7 +145,7 @@ public static class CatalogueReportEndpoints
                     balanceFilter ?? InventoryBalanceFilter.All,
                     page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId,
                     GroupByWarehouse: groupByWarehouse ?? false, TagOptionIds: tagOptionIds,
-                    DisplayWarehouseInColumn: displayWarehouseInColumn ?? false),
+                    DisplayWarehouseInColumn: displayWarehouseInColumn ?? false, Mode: mode),
                 ct);
             return Results.Ok(result);
         });
@@ -152,7 +154,7 @@ public static class CatalogueReportEndpoints
             Guid organizationId, DateOnly fromDate, DateOnly toDate,
             Guid? categoryId, Guid? productId, Guid? warehouseId, InventoryBalanceFilter? balanceFilter,
             bool full, int? page, int? pageSize, Guid? locationId, bool? groupByWarehouse, Guid[]? tagOptionIds,
-            bool? displayWarehouseInColumn, ISender sender, CancellationToken ct) =>
+            bool? displayWarehouseInColumn, InventoryTrackingMode? mode, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new InventoryPositionReportQuery(
@@ -160,9 +162,37 @@ public static class CatalogueReportEndpoints
                     balanceFilter ?? InventoryBalanceFilter.All,
                     page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId,
                     GroupByWarehouse: groupByWarehouse ?? false, TagOptionIds: tagOptionIds,
-                    DisplayWarehouseInColumn: displayWarehouseInColumn ?? false),
+                    DisplayWarehouseInColumn: displayWarehouseInColumn ?? false, Mode: mode),
                 ct);
-            return ReportSpreadsheetExporter.ExportInventoryPosition(result);
+            return result.Mode == InventoryTrackingMode.PhysicalMovement
+                ? ReportSpreadsheetExporter.ExportPhysicalInventoryPosition(result)
+                : ReportSpreadsheetExporter.ExportInventoryPosition(result);
+        });
+
+        // Phase 58 -- the Inventory Variance Report: Book (accounting ledger) against Actual
+        // (physical ledger), as of one date.
+        group.MapGet("/reports/inventory-variance", async (
+            Guid organizationId, DateOnly asOfDate, Guid? categoryId, Guid? productId,
+            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new InventoryVarianceReportQuery(
+                    organizationId, asOfDate, categoryId, productId,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/reports/inventory-variance/export", async (
+            Guid organizationId, DateOnly asOfDate, Guid? categoryId, Guid? productId,
+            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new InventoryVarianceReportQuery(
+                    organizationId, asOfDate, categoryId, productId,
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
+                ct);
+            return ReportSpreadsheetExporter.ExportInventoryVariance(result);
         });
 
         group.MapGet("/reports/inventory-movement", async (

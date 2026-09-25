@@ -46,6 +46,8 @@ public static class DocumentPermissions
         DocumentType.InventoryAdjustment => PermissionKeys.InventoryAdjustmentEdit,
         DocumentType.ProductionOrder => PermissionKeys.ProductionOrderEdit,
         DocumentType.ProductionJournal => PermissionKeys.ProductionJournalEdit,
+        DocumentType.DeliveryNote => PermissionKeys.DeliveryNoteEdit,
+        DocumentType.GoodsReceivedNote => PermissionKeys.GoodsReceivedNoteEdit,
         DocumentType.OpeningBalance or DocumentType.OpeningStock => PermissionKeys.OpeningBalanceEdit,
         _ => throw NotADocument(documentType),
     };
@@ -68,6 +70,8 @@ public static class DocumentPermissions
         DocumentType.InventoryAdjustment => PermissionKeys.InventoryAdjustmentView,
         DocumentType.ProductionOrder => PermissionKeys.ProductionOrderView,
         DocumentType.ProductionJournal => PermissionKeys.ProductionJournalView,
+        DocumentType.DeliveryNote => PermissionKeys.DeliveryNoteView,
+        DocumentType.GoodsReceivedNote => PermissionKeys.GoodsReceivedNoteView,
         DocumentType.OpeningBalance or DocumentType.OpeningStock => PermissionKeys.OpeningBalanceView,
         _ => throw NotADocument(documentType),
     };

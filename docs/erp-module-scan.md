@@ -2074,3 +2074,165 @@ That last point is the vendor's own answer to the question "what if the document
 line knows", and it is why this codebase's version takes an optional `locationId` rather than
 inventing one.
 
+## Physical Movement, read and written (2026-09-24, phase 58) — Delivery Note, GRN, and the second ledger
+
+**Read and write, on a tenant made for it.** `hamrosamman.tigg.app` (*Hamro Samaan*, a fresh 15-day
+trial the user created for this phase and cleared for writes). The user signed in; no credentials
+were entered. `InventoryTrackingMode` was switched to *Physical Movement* with the user's authority,
+switched back to *Accounting Movement* once to observe the reverse, and **left on Physical
+Movement**. Negative Item Balance was set to *Reject* for two tests and **restored to Do Nothing**.
+The API was read by recording the page's own XHRs (`api-v2.tigg.app/api/v1/erp`, phase 34b's
+instrumented-`XMLHttpRequest` method), because the pane's network log does not see that origin.
+Moonbeam (`moonbeamtradingandsuppliers.tigg.dev`) was signed in too and **not touched**.
+
+Everything below was produced by one product `P58 Widget` (Goods, 13% VAT, unit Box) in one
+warehouse, a supplier and a customer created for the purpose. Every figure is from an API response,
+not from a screen.
+
+### What the flag reveals — and the one sentence the kickoff had wrong
+
+The flag is `general-settings` → `inventory_tracking_mode`, written as
+`POST /general-settings {"type":"inventory_tracking_mode","value":"Physical Movement"}`, mirrored into
+`localStorage.inventoryTrackingMode`. Switching it is immediate and **nothing refuses the reverse**:
+switching back to Accounting Movement with approved DNs and GRNs on file returned 200.
+
+The kickoff's premise was that the flag *moves* FIFO consumption from Invoice/Purchase Bill Approve
+to DN/GRN Approve. **It does not move anything.** The vendor keeps **two stock ledgers, always**, and
+the flag chooses which one the inventory screens read by default:
+
+| Document | Physical ledger | Accounting ledger | Measured |
+|---|---|---|---|
+| Goods Received Note | **in** | — | yes |
+| Delivery Note | **out** | — | yes |
+| Purchase Bill | — | **in** | yes |
+| Invoice | — | **out** | yes |
+| Credit Note (sales return) | — | **in** | yes |
+| Inventory Adjustment | **in/out** | **in/out** | yes |
+| Debit Note | — | out | inferred (the Credit Note's mirror) |
+| Warehouse Transfer, Production Journal, Opening Stock | both | both | inferred (not physical *or* commercial-only; the tenant has one warehouse and no manufacturing) |
+
+The sequence that measured it, as `(physical, accounting)` quantity after each approve:
+GRN 10 @ 100 → **(10, 0)**; Purchase Bill 5 @ 120 → **(10, 5)**; DN 3 → **(7, 5)**;
+Invoice 2 → **(7, 3)**; then later Inventory Adjustment +2 @ 90 on `(4, 3)` → **(6, 5)**;
+Credit Note 1 → **(6, 6)**. Each ledger is FIFO-valued at its own documents' rates: after the four
+documents above, physical was **7 @ 100 = 700** and accounting **3 @ 120 = 360** — the DN consumed at
+the GRN's cost, the Invoice at the bill's.
+
+### Neither document posts to the GL
+
+After GRN + Purchase Bill the Trial Balance held exactly **Purchase (Direct Expenses) Dr 600, Duties
+and Taxes Payable Dr 78, Account Payable Cr 678** — the bill, nothing else. After DN + Invoice it
+added **Account Receivable Dr 339, Sale Cr 300**, VAT net Dr 39: again the Invoice and nothing else,
+and **no COGS line at all** (the vendor is periodic, as phase 29 already recorded). The GRN and DN
+detail pages have no journal panel. **There is no goods-received-not-billed account**, because there
+is nothing to clear: the kickoff's GRNI decision dissolves.
+
+### Each document checks its own ledger; one setting governs both
+
+With Negative Item Balance = *Reject* and `(physical, accounting) = (7, 3)`:
+
+- an **Invoice for 5** → `POST /transactions/approve` **400**
+  `{"info":{"type":"negative-stock","warn_only":false,…,"value":-2}}` — **3 − 5**, the accounting
+  ledger, although physical held 7;
+- a **DN for 8** → **400**, `"value":-1` — **7 − 8**, the physical ledger.
+
+The dialog is the existing *Negative Stock Balance* one ("P58 Widget −1 Units", Dismiss).
+
+### Void puts back what Approve took — but a receipt's void is not checked
+
+`POST /transactions/void {"collection":"GoodsReceivedNote"|"DeliveryNote","void_reason":…,"ids":[…],
+"inactive":true}`; a void reason is required.
+
+- **Voiding the consumed GRN succeeded (200) with Reject on**, taking physical from 7 to **−3**. The
+  shortfall is carried at **rate 0, amount 0**. The vendor does not apply its own Reject to a
+  receipt's void.
+- Voiding the DN then brought physical to **0** (the report returned no rows): a void restores exactly
+  what its approve took.
+- Voided rows **vanish** from Inventory Movement rather than appearing as reversals.
+
+### The two documents
+
+**Goods Received Note** — `#/purchases/goods-received-notes` (list `…?is_processed=false&status=
+Approved`, Approved/Draft tabs), form `…/add` titled *"Add New Goods Received Note Bill"*:
+Supplier*, Reference No (a **Purchase Order** picker), GRN No (`DRAFT` until approve), Goods
+Received Date*, Tracking No, Currency + Exchange Rate To NPR*, Warehouse*; lines Product / Qty (with
+unit) / Rate / Discount (% or amount) / Tax / Amount, a per-line Product Description and **per-line
+Warehouse**; document Discount; Sub Total / Non-Taxable / Taxable / VAT / Grand Total; Notes;
+Reporting Tags. **No** Terms and Conditions, **no** Additional Cost, no TDS. Grid columns: Supplier,
+Location, Bill No, Reference No, Tracking No, Date, Total, Stage.
+
+**Delivery Note** — `#/sales/delivery-notes` (list `…?is_delivered=false&status=Approved`), form
+*"Add New Delivery Note"*: Customer*, Reference No (search), Delivery Note No, Delivery Note Date*,
+**Expected Delivery Date*** (defaults to date + 1), Tracking No, **Shipping Address**, Currency +
+rate, Warehouse*; the same line table; **+ Add Terms and Conditions**; Reporting Tags. Grid adds
+**Total Quantity**.
+
+Both carry money exactly as their commercial siblings do (payload: `sub_total`, `vat_amount`,
+`total_amount`, per-line `rate`, `discount`, `vat_type`, `measurement_unit_id`,
+`primary_quantity`, `warehouse_id`), none of which is posted anywhere. Numbering: **DO** and **GRN**
+prefixes, location-wise (`DO0001/HO/83-84`, `GRN0001/HO/83-84`); Document Numbering grew from 16
+rows to 18. Detail pages: Overview / Tasks / Documents / Activity, **Send Email** and View Print
+Preview. Options: draft — Edit, Make Duplicate, Void, Print; approved — **Edit** (still offered),
+Make Duplicate, Void, **Mark as Processed** (GRN) / **Mark as Delivered** (DN), Print. Mark as
+Processed is `PATCH /goods-received-notes {"ids":[…],"is_processed":true}`, reversible ("change it to
+'Unprocessed'"), and only hides the row from the list's default filter.
+
+### Conversions: parallel, not a chain
+
+- An approved **Purchase Order**, under Physical Movement, offers **Convert to Goods Received Note**
+  as its primary banner and keeps **Convert to Bill** in its menu. The prefill
+  (`form_data`) carries `referrer_type: "PurchaseOrder"`, and **each PO line carries two counters,
+  `received_quantity` and `billed_quantity`**. After a 4-unit GRN the PO read `received 4, billed 0`,
+  the GRN banner disappeared, and Convert to Bill still prefilled **4**. Receiving and billing are
+  capped independently.
+- An approved **Sales Order** mirrors it exactly: **Convert to Delivery Note** banner, Convert to
+  Invoice in the menu, lines carrying `delivered_quantity` and `invoiced_quantity`.
+- There is **no GRN → Purchase Bill and no DN → Invoice**. The bill's Reference picker queries
+  `purchase-orders?referred=false` only; the invoice's `invoice-referrers` returned **empty** with an
+  approved DN on file; neither detail page offers a convert action.
+- The DN's own Reference picker calls **`delivery-notes-referrers` → 404**. The SO-side button works;
+  the DN-side picker is a dead endpoint (phase 53's recurring-invoice shape).
+
+### Everything else the flag switches
+
+- **Nav:** Sales gains *Delivery Notes* (between Sales Orders and Invoice), Purchase gains *Goods
+  Received Notes* (between Purchase Order and Purchase Bills). Inventory and Accounting unchanged.
+  With the flag off the entries disappear but **the routes still load** and show the documents.
+  The *Create New* flyout lists neither, in either mode (a curated tray; phase 34b).
+- **Reports index:** gains exactly one entry, **Inventory Variance Report**, between Product
+  Profitability and Inventory Master. Everything else matches the recorded catalogue.
+- **A "Mode of Inventory Tracking" filter** (Physical / Accounting, single-select, default = the
+  tenant's mode) appears on **four** existing reports — Inventory Position, Inventory Ageing,
+  Inventory Movement, Inventory Ledger — sent as `"is_physical_movement_inventory": true|false`. Not
+  on Product Profitability, Inventory Master or the three Production reports. With the flag off the
+  filter is gone and Inventory Position shows Product Category and Product filters instead.
+- **Custom Fields** lists both types (and, as an aside, Warehouse Transfer, which 27a recorded as
+  absent). **Custom Status** shows a *"Delivery Note Order Status"* group (Pending / Dispatched /
+  Delivered); GRN has **four seeded statuses** (Pending / Received / Partially Received / Cancelled,
+  `custom-orders?status_for=GoodsReceivedNote`) and a Stage column, but **no section** on the
+  Custom Status page. **Printing Templates** lists both. **Email Templates**: seeded *Delivery Note
+  Notification* and *Goods Received Note Notification*, and the Template Type picker offers
+  **Delivery Note** and **Goods Received Note** — phase 30's rule ("Send Email exists where a
+  template can be scoped") holds, and now covers both.
+- **Import / Export** offers seven master-data upload types; neither document is importable there.
+- **Permissions:** Sales = 6 × 5 = 30 keys and Purchase = 6 × 5 = 30, each with a *Delivery Note* /
+  *Goods Received Note* row of View / Create / Edit / Approve / Void. There is **no key for Mark as
+  Delivered / Processed**. The report has its own key under *Inventory report*. The vendor's seeded
+  *Sales* role holds no `delivery-note-*` key (it predates the switch). The role editor counts 186
+  permissions.
+
+### Inventory Variance Report
+
+`POST /report?report_id=report-inventory-variance {page, limit, from_date, to_date}`; filters: date
+range, Group by Item/Category, Billing Location. Seven columns: **Item code, Item Name, Item
+Category, Book Balance, Actual Balance, Difference, Remarks**. *Book* is the accounting ledger and
+*Actual* the physical; values are strings with the unit baked in (`"3 BX"`). **Difference is the
+absolute gap** and Remarks carries the direction:
+
+| Book | Actual | Difference | Remarks |
+|---|---|---|---|
+| 3 BX | 7 BX | 4 BX | *Quantity To Be Shipped* |
+| 3 BX | −3 BX | 6 BX | *Quantity To Be Received* |
+
+With the flag off it shows the refusal phase 57 recorded, word for word.
+

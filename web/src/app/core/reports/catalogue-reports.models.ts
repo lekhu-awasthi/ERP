@@ -4,6 +4,8 @@
  * particular no footer total is summed in the browser (phase-16c bug #1).
  */
 
+import type { InventoryTrackingMode } from '../organizations/organizations.models';
+
 export type InventoryBalanceFilter = 'All' | 'PositiveOnly' | 'NegativeOnly';
 
 export interface InventoryPositionRowDto {
@@ -35,6 +37,42 @@ export interface InventoryPositionReportDto {
   readonly totalCount: number;
   readonly totalQuantity: number;
   readonly totalAmount: number;
+  /** Phase 58 -- the ledger this report was read from: the one asked for, else the tenant's own
+   *  Mode of Inventory Tracking. The physical ledger carries quantity only, so in that mode every
+   *  rate and amount is zero and the screen hides both columns rather than print a false 0.00. */
+  readonly mode: InventoryTrackingMode;
+}
+
+/** Phase 58 -- the Configurations > General setting's type, re-exported so a report screen names
+ *  its mode from the report models it already imports. One declaration, not two. */
+export type { InventoryTrackingMode } from '../organizations/organizations.models';
+
+/** Phase 58 -- which way the physical ledger is ahead of the books. The live column reads
+ *  "Quantity To Be Shipped" when Actual is above Book and "Quantity To Be Received" below. */
+export type InventoryVarianceDirection = 'ToBeShipped' | 'ToBeReceived';
+
+export interface InventoryVarianceRowDto {
+  readonly productId: string;
+  readonly code: string;
+  readonly name: string;
+  readonly category: string;
+  readonly unit: string;
+  /** The accounting ledger: Purchase Bill, Invoice, Credit Note, Debit Note, plus the shared four. */
+  readonly bookBalance: number;
+  /** The physical ledger: GRN, Delivery Note, plus the shared four. */
+  readonly actualBalance: number;
+  /** Absolute, as the live column prints it; `direction` carries the sign. */
+  readonly difference: number;
+  readonly direction: InventoryVarianceDirection;
+}
+
+export interface InventoryVarianceReportDto {
+  readonly asOfDate: string;
+  readonly items: InventoryVarianceRowDto[];
+  readonly page: number;
+  readonly pageSize: number;
+  readonly totalCount: number;
+  readonly mode: InventoryTrackingMode;
 }
 
 /** One of Inventory Movement's four column groups. */

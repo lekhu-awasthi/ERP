@@ -68,6 +68,11 @@ export class CustomStatusListPage {
     { value: 'SalesOrder', label: 'Sales Order' },
     { value: 'PurchaseOrder', label: 'Purchase Order' },
     { value: 'ProductionOrder', label: 'Production Order' },
+    // Phase 58 -- both grids carry a Stage column live. The reference product configures the
+    // Delivery Note's here ("Delivery Note Order Status") and only seeds the GRN's; this screen
+    // offers both, because a status nobody can create is not a pipeline.
+    { value: 'DeliveryNote', label: 'Delivery Note' },
+    { value: 'GoodsReceivedNote', label: 'Goods Received Note' },
   ];
 
   protected readonly filtered = computed(() =>

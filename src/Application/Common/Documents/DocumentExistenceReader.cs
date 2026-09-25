@@ -66,6 +66,10 @@ public static class DocumentExistenceReader
                 .AnyAsync(x => x.Id == documentId && x.OrganizationId == organizationId, cancellationToken),
             DocumentType.ProductionJournal => await db.ProductionJournals
                 .AnyAsync(x => x.Id == documentId && x.OrganizationId == organizationId, cancellationToken),
+            DocumentType.DeliveryNote => await db.DeliveryNotes
+                .AnyAsync(x => x.Id == documentId && x.OrganizationId == organizationId, cancellationToken),
+            DocumentType.GoodsReceivedNote => await db.GoodsReceivedNotes
+                .AnyAsync(x => x.Id == documentId && x.OrganizationId == organizationId, cancellationToken),
 
             // The two non-transactional taggables. Each is one row of the Opening Balances screen,
             // keyed by its own Id -- the same identity GlJournalEntry.SourceDocumentId already uses.

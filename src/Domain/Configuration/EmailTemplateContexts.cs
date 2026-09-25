@@ -38,6 +38,8 @@ public static class EmailTemplateContexts
             DocumentType.Invoice => EmailTemplateContext.Invoice,
             DocumentType.CreditNote => EmailTemplateContext.CreditNote,
             DocumentType.PurchaseOrder => EmailTemplateContext.PurchaseOrder,
+            DocumentType.DeliveryNote => EmailTemplateContext.DeliveryNote,
+            DocumentType.GoodsReceivedNote => EmailTemplateContext.GoodsReceivedNote,
             DocumentType.Payment => paymentDirection switch
             {
                 PaymentDirection.Received => EmailTemplateContext.CustomerPayment,
@@ -66,6 +68,8 @@ public static class EmailTemplateContexts
         EmailTemplateContext.CustomerPayment => DocumentType.Payment,
         EmailTemplateContext.SupplierPayment => DocumentType.Payment,
         EmailTemplateContext.PurchaseOrder => DocumentType.PurchaseOrder,
+        EmailTemplateContext.DeliveryNote => DocumentType.DeliveryNote,
+        EmailTemplateContext.GoodsReceivedNote => DocumentType.GoodsReceivedNote,
         _ => null,
     };
 

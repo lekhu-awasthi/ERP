@@ -23,6 +23,14 @@ public sealed class VoidPurchaseOrderCommandHandler(IAppDbContext db, ICurrentUs
             throw new ConflictException("Only an Approved purchase order can be voided.");
         }
 
+        // Phase 58 -- a received order has a live dependent, its Goods Received Note, exactly as a
+        // Converted one has its bill.
+        if (purchaseOrder.IsReceived)
+        {
+            throw new ConflictException(
+                "Cannot void this purchase order -- goods have been received against it on a Goods Received Note.");
+        }
+
         purchaseOrder.Void(currentUser.UserId);
 
         await db.SaveChangesAsync(cancellationToken);

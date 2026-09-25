@@ -59,21 +59,29 @@ const SWEPT_PAGES: readonly SweptPage[] = [
   { documentType: 'InventoryAdjustment', template: '/src/app/features/inventory/inventory-adjustment-detail-page/inventory-adjustment-detail-page.html', customFields: false },
   { documentType: 'ProductionOrder', template: '/src/app/features/manufacturing/production-order-detail-page/production-order-detail-page.html', customFields: true },
   { documentType: 'ProductionJournal', template: '/src/app/features/manufacturing/production-journal-detail-page/production-journal-detail-page.html', customFields: true },
+  // Phase 58 -- live Configurations > Custom Fields lists both (Hamro Samaan, 2026-09-24).
+  { documentType: 'DeliveryNote', template: '/src/app/features/sales/delivery-note-detail-page/delivery-note-detail-page.html', customFields: true },
+  { documentType: 'GoodsReceivedNote', template: '/src/app/features/purchasing/goods-received-note-detail-page/goods-received-note-detail-page.html', customFields: true },
 ];
 
-/** The four types whose LIST grid carries a custom-status picker (phase 20b's third shape). */
+/** The six types whose LIST grid carries a custom-status picker (phase 20b's third shape). Phase 58
+ *  added Delivery Note (its live "Delivery Note Order Status" group) and GRN (four seeded statuses
+ *  and a Stage column, though no section on the live Custom Status page). */
 const CUSTOM_STATUS_PAGES: readonly { documentType: string; template: string }[] = [
   { documentType: 'Quotation', template: '/src/app/features/sales/quotation-list-page/quotation-list-page.html' },
   { documentType: 'SalesOrder', template: '/src/app/features/sales/sales-order-list-page/sales-order-list-page.html' },
   { documentType: 'PurchaseOrder', template: '/src/app/features/purchasing/purchase-order-list-page/purchase-order-list-page.html' },
   { documentType: 'ProductionOrder', template: '/src/app/features/manufacturing/production-order-list-page/production-order-list-page.html' },
+  { documentType: 'DeliveryNote', template: '/src/app/features/sales/delivery-note-list-page/delivery-note-list-page.html' },
+  { documentType: 'GoodsReceivedNote', template: '/src/app/features/purchasing/goods-received-note-list-page/goods-received-note-list-page.html' },
 ];
 
 /**
- * Phase 27b -- the five types whose form carries the "+ Add Terms and Conditions" block. Live-
+ * Phase 27b -- the types whose form carries the "+ Add Terms and Conditions" block. Live-
  * confirmed 2026-09-03 across all eight line-item add forms: Purchase Bill, Expense and Debit Note
  * do not have it, so this list is deliberately narrower than SWEPT_PAGES and must stay that way
- * unless someone re-reads the real screen.
+ * unless someone re-reads the real screen. Phase 58 re-read both new forms: Delivery Note has the
+ * block, GRN does not -- the purchase side's receiving document mirrors the Purchase Bill here.
  */
 const TERMS_TEMPLATES: readonly string[] = [
   '/src/app/features/sales/quotation-detail-page/quotation-detail-page.html',
@@ -81,13 +89,15 @@ const TERMS_TEMPLATES: readonly string[] = [
   '/src/app/features/sales/invoice-detail-page/invoice-detail-page.html',
   '/src/app/features/sales/credit-note-detail-page/credit-note-detail-page.html',
   '/src/app/features/purchasing/purchase-order-detail-page/purchase-order-detail-page.html',
+  '/src/app/features/sales/delivery-note-detail-page/delivery-note-detail-page.html',
 ];
 
 /**
  * Phase 30 -- the detail pages that must carry a Send Email action, live-confirmed one real
  * approved document at a time on 2026-09-05 (docs/phase-30-status.md, Step 1.2).
  *
- * Seven templates for six DocumentTypes: Customer Payment and Supplier Payment are two screens over
+ * Nine templates for eight DocumentTypes (phase 58 added Delivery Note and GRN, whose seeded
+ * Notification templates and Template Type entries make them email contexts by phase 30's rule): Customer Payment and Supplier Payment are two screens over
  * this codebase's one Payment aggregate, and the reference product treats them as two contexts with
  * genuinely different templates, so both must have the action.
  */
@@ -99,6 +109,8 @@ const EMAILABLE_TEMPLATES: readonly string[] = [
   '/src/app/features/sales/payment-detail-page/payment-detail-page.html',
   '/src/app/features/purchasing/supplier-payment-detail-page/supplier-payment-detail-page.html',
   '/src/app/features/purchasing/purchase-order-detail-page/purchase-order-detail-page.html',
+  '/src/app/features/sales/delivery-note-detail-page/delivery-note-detail-page.html',
+  '/src/app/features/purchasing/goods-received-note-detail-page/goods-received-note-detail-page.html',
 ];
 
 /** The Opening Balances screen tags per row, one document type per tab. */

@@ -104,6 +104,9 @@ internal static class TenantIndexConvention
                 "The same shape and the same composite. This IS what a dated stock report reads, and "
                 + "it reads it per product and warehouse -- a tenant-wide movement list by date is "
                 + "not a screen.",
+            ["PhysicalStockMovement"] =
+                "Phase 58 -- StockMovement's shape for the physical ledger, with the same composite and "
+                + "the same readers: per product and warehouse, never a tenant-wide list by date.",
             ["AlertSendLog"] =
                 "OccurrenceDate is a job claim's key, not a business date: it exists to make "
                 + "(AlertDefinitionId, OccurrenceDate, Recipient) unique so a send happens exactly "
