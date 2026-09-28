@@ -1,3 +1,4 @@
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
 
 namespace ErpApp.Application.Sales.Stock;
@@ -6,7 +7,7 @@ namespace ErpApp.Application.Sales.Stock;
 /// The seam ApproveInvoiceCommandHandler calls on the decrement side (architecture-spec.md §3.5).
 /// Phase 5 shipped this as a literal always-Ok stub (AlwaysOkStockAvailabilityPolicy, now removed);
 /// Phase 7's FifoStockAvailabilityPolicy is the real implementation, comparing each Goods line's
-/// requested Quantity against IStockLedgerService.GetAvailableQuantityAsync for
+/// requested quantity, in its primary unit, against IStockLedgerService.GetAvailableQuantityAsync for
 /// (ProductId, Invoice.WarehouseId) and branching on TenantSettings.NegativeStockBalanceAction.
 /// Async because the real implementation needs DB reads the Phase 5 stub never did.
 ///
@@ -53,5 +54,13 @@ public interface IStockAvailabilityPolicy
         CancellationToken cancellationToken);
 }
 
-/// <summary>One product's total requirement against a single warehouse.</summary>
-public sealed record StockRequirement(Guid ProductId, decimal Quantity);
+/// <summary>One product's total requirement against a single warehouse, in the product's
+/// <b>primary</b> unit -- the unit the balance it is compared against is kept in.
+///
+/// <para>A <see cref="PrimaryQuantity"/> and not a <see cref="decimal"/>, for phase 52's Decision E
+/// reason. That phase typed the ledger's own methods and stopped there, so this gate, which runs
+/// before the ledger is reached, kept taking a bare number, and the Invoice's caller summed the
+/// <i>entered</i> quantity past every green test (phase 58, bug 9). Now each caller has to say, in
+/// code, which kind of quantity it holds.</para>
+/// </summary>
+public sealed record StockRequirement(Guid ProductId, PrimaryQuantity Quantity);

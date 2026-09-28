@@ -378,6 +378,7 @@ Item Balance set to Reject, then Warn.
    Invoice's gate) sums the line's **entered** `Quantity`, while consumption uses `PrimaryQuantity`.
    Under a unit whose factor is not 1 the gate compares the wrong number. The DN's check sums primary
    quantity. This is a phase-52 miss that "an optional field ends a sweep" predicts.
+   **Fixed after the phase (2026-09-28):** `CheckAsync` now sums primary quantity, and `StockRequirement.Quantity` is a `PrimaryQuantity` (guarded in `UnitSweepGuardTests`), so each of the three callers must say which quantity it holds. Pinned both ways in `NegativeStockTests`: bags at 50 refused or warned, 50 g units at 0.02 allowed.
 10. **Not bugs, checked:** the converted DN's Warehouse is empty because the seed is the *location's*
     default warehouse, and this tenant's Head Office has none. The Invoice behaves identically. The
     line table prints the raw `ThirteenPercentVat`, which is the existing convention on every form.
@@ -400,6 +401,6 @@ Item Balance set to Reject, then Warn.
 4. **Batch and serial on DN/GRN lines** (phase 51's keys on a second ledger).
 5. **Per-line warehouse** on both forms.
 6. **Warehouse Transfer in Custom Fields**, a vendor change noticed in passing.
-7. **The Invoice availability `PrimaryQuantity` bug** (bug 9), filed as a separate task.
+7. **The Invoice availability `PrimaryQuantity` bug** (bug 9), filed as a separate task. Fixed; see bug 9.
 8. Hiding **Void** on a received PO or delivered SO. The server refuses it with a clear 409, and the
    button still shows.

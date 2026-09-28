@@ -1,3 +1,5 @@
+using ErpApp.Application.Catalog.Commands.AddSecondaryUnit;
+using ErpApp.Application.Catalog.Commands.CreateUnitOfMeasurement;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Inventory.Queries.InventoryPositionReport;
@@ -309,6 +311,95 @@ public sealed class NegativeStockTests
 
         Assert.Equal(4m * 25m + 2m * 15m, await OnHandValueAsync(db, seed));
         await StockConservation.AssertHoldsAsync(db, seed.OrganizationId);
+    }
+
+    /// <summary>
+    /// The availability gate counts in <b>primary</b> units, because the balance it compares
+    /// against and what Approve then consumes are both primary. It used to sum the line's entered
+    /// Quantity: 2 bags at 50 read as 2 against 60 on hand, passed a Reject tenant's gate, and
+    /// approval took 100 -- an oversell the setting exists to refuse.
+    /// </summary>
+    [Fact]
+    public async Task A_Reject_tenant_refuses_an_oversell_entered_in_a_larger_unit()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await InventoryReportSeed.CreateAsync(db);
+        await SetNegativeStockActionAsync(db, seed, BalanceAction.Reject);
+        var bagUnitId = await AddSecondaryUnitAsync(db, seed, "Bag", "bag", conversionRate: 50m);
+
+        await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(1), 60m, 10m);
+        var invoiceId = await InventoryReportSeed.DraftInvoiceAsync(
+            db, seed, PeriodStart.AddDays(2), 2m, 600m, unitId: bagUnitId);
+
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            InventoryReportSeed.ApproveInvoiceAsync(db, seed, invoiceId, overrideWarning: false));
+
+        var layer = Assert.Single(await db.StockLedgerEntries.ToListAsync(CancellationToken.None));
+        Assert.Equal(60m, layer.QuantityRemaining);
+    }
+
+    /// <summary>
+    /// The same gate on a Warn tenant: interrupted first, and once confirmed the shortfall recorded
+    /// is the one the gate warned about (100 wanted, 60 held), which pins the gate and the consume
+    /// to the same quantity.
+    /// </summary>
+    [Fact]
+    public async Task A_Warn_tenant_is_warned_about_an_oversell_entered_in_a_larger_unit()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await InventoryReportSeed.CreateAsync(db);
+        var bagUnitId = await AddSecondaryUnitAsync(db, seed, "Bag", "bag", conversionRate: 50m);
+
+        await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(1), 60m, 10m);
+        var invoiceId = await InventoryReportSeed.DraftInvoiceAsync(
+            db, seed, PeriodStart.AddDays(2), 2m, 600m, unitId: bagUnitId);
+
+        await Assert.ThrowsAsync<StockAvailabilityWarningException>(() =>
+            InventoryReportSeed.ApproveInvoiceAsync(db, seed, invoiceId, overrideWarning: false));
+        Assert.Empty(await db.StockLedgerEntries.Where(x => x.QuantityRemaining < 0).ToListAsync(CancellationToken.None));
+
+        await InventoryReportSeed.ApproveInvoiceAsync(db, seed, invoiceId, overrideWarning: true);
+
+        var shortfall = Assert.Single(
+            await db.StockLedgerEntries.Where(x => x.QuantityRemaining < 0).ToListAsync(CancellationToken.None));
+        Assert.Equal(-40m, shortfall.QuantityRemaining);
+    }
+
+    /// <summary>
+    /// The mirror direction. A factor below one is ordinary (phase 52: a live product carries
+    /// <c>bag</c> -> <c>NOS</c> at 0.02), and summing entered Quantity read 200 against 5 on hand
+    /// and refused a sale of 4.
+    /// </summary>
+    [Fact]
+    public async Task A_Reject_tenant_allows_a_sale_entered_in_a_smaller_unit_that_the_stock_covers()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await InventoryReportSeed.CreateAsync(db);
+        await SetNegativeStockActionAsync(db, seed, BalanceAction.Reject);
+        var gramUnitId = await AddSecondaryUnitAsync(db, seed, "Fifty-gram", "50g", conversionRate: 0.02m);
+
+        await InventoryReportSeed.PurchaseAsync(db, seed, PeriodStart.AddDays(1), 5m, 10m);
+        var invoiceId = await InventoryReportSeed.DraftInvoiceAsync(
+            db, seed, PeriodStart.AddDays(2), 200m, 0.5m, unitId: gramUnitId);
+
+        await InventoryReportSeed.ApproveInvoiceAsync(db, seed, invoiceId, overrideWarning: false);
+
+        var layer = Assert.Single(await db.StockLedgerEntries.ToListAsync(CancellationToken.None));
+        Assert.Equal(1m, layer.QuantityRemaining);
+        await StockConservation.AssertHoldsAsync(db, seed.OrganizationId);
+    }
+
+    private static async Task<Guid> AddSecondaryUnitAsync(
+        IAppDbContext db, InventoryReportSeed.Seed seed, string name, string shortName, decimal conversionRate)
+    {
+        var unit = await new CreateUnitOfMeasurementCommandHandler(db).Handle(
+            new CreateUnitOfMeasurementCommand(seed.OrganizationId, name, shortName), CancellationToken.None);
+
+        await new AddSecondaryUnitCommandHandler(db).Handle(
+            new AddSecondaryUnitCommand(seed.OrganizationId, seed.ProductId, unit.Id, conversionRate, 0m, 0m),
+            CancellationToken.None);
+
+        return unit.Id;
     }
 
     private static async Task<decimal> OnHandValueAsync(IAppDbContext db, InventoryReportSeed.Seed seed)

@@ -80,10 +80,12 @@ public sealed class ApproveProductionJournalCommandHandler(
                 "Default Production Cost account is not configured. Set it under Accounting Defaults before approving production journals.");
 
         // Step 1 -- availability, before anything is mutated. Quantities are summed per product
-        // because one raw material may legitimately appear on more than one line.
+        // because one raw material may legitimately appear on more than one line. AlreadyPrimary
+        // because a raw-material line carries no unit (phase 54's reading), the same reason the
+        // consume below passes AlreadyPrimary(line.Quantity), so the gate and the consume agree.
         var requirements = journal.RawMaterials
             .GroupBy(x => x.ProductId)
-            .Select(g => new StockRequirement(g.Key, g.Sum(x => x.Quantity)))
+            .Select(g => new StockRequirement(g.Key, PrimaryQuantity.AlreadyPrimary(g.Sum(x => x.Quantity))))
             .ToList();
 
         var stockStatus = await stockAvailabilityPolicy.CheckRequirementsAsync(

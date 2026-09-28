@@ -56,7 +56,7 @@ public sealed class ApproveDeliveryNoteCommandHandler(
         var requirements = deliveryNote.Lines
             .Where(x => goodsIds.Contains(x.ProductId))
             .GroupBy(x => x.ProductId)
-            .Select(g => new StockRequirement(g.Key, g.Sum(x => x.PrimaryQuantity.Value)))
+            .Select(g => new StockRequirement(g.Key, PrimaryQuantity.Sum(g.Select(x => x.PrimaryQuantity))))
             .ToList();
 
         var stockStatus = await stockAvailabilityPolicy.CheckPhysicalRequirementsAsync(

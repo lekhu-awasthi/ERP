@@ -255,10 +255,26 @@ public class UnitSweepGuardTests
     }
 
     [Fact]
+    public void The_availability_gate_accepts_only_a_primary_quantity()
+    {
+        // Decision E typed the ledger's own methods and stopped there, and the gate that runs before
+        // the ledger kept a decimal: the Invoice's caller summed the entered quantity, so 2 bags at
+        // 50 passed against 60 on hand (phase 58, bug 9). The record is what every caller builds,
+        // so typing it is what makes each one say which quantity it holds.
+        var ctor = Assert.Single(typeof(Application.Sales.Stock.StockRequirement).GetConstructors());
+        var quantity = ctor.GetParameters().SingleOrDefault(p => p.Name == "Quantity");
+
+        Assert.True(quantity is not null, "StockRequirement no longer takes a Quantity; re-read what the gate compares.");
+        Assert.Equal(typeof(PrimaryQuantity), quantity!.ParameterType);
+        Assert.DoesNotContain(ctor.GetParameters(), p => p.ParameterType == typeof(decimal));
+    }
+
+    [Fact]
     public void PrimaryQuantity_cannot_be_built_from_a_bare_decimal()
     {
-        // No implicit conversion, no public constructor: the only ways in are the two named
-        // factories, each of which forces the caller to say which kind of quantity it holds.
+        // No implicit conversion, no public constructor: the only ways in from a decimal are the two
+        // named factories, each of which forces the caller to say which kind of quantity it holds.
+        // Sum is not a third, because it takes only values that have already said so.
         Assert.Empty(typeof(PrimaryQuantity).GetConstructors(BindingFlags.Public | BindingFlags.Instance));
 
         var implicitOps = typeof(PrimaryQuantity)

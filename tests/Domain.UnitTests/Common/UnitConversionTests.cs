@@ -114,4 +114,15 @@ public class PrimaryQuantityTests
         // what they are putting back against what went out.
         Assert.Equal(PrimaryQuantity.FromEntered(2m, 12m), PrimaryQuantity.AlreadyPrimary(24m));
     }
+
+    [Fact]
+    public void Sum_adds_lines_entered_in_different_units_in_the_primary_unit()
+    {
+        // One product on two lines, one in bags at 50 and one in a unit at 0.02: the availability
+        // gate needs 100 + 0.8, never the 2 + 40 the lines were typed as.
+        var total = PrimaryQuantity.Sum([PrimaryQuantity.FromEntered(2m, 50m), PrimaryQuantity.FromEntered(40m, 0.02m)]);
+
+        Assert.Equal(100.8m, total.Value);
+        Assert.Equal(PrimaryQuantity.Zero, PrimaryQuantity.Sum([]));
+    }
 }

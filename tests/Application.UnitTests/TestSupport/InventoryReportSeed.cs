@@ -175,12 +175,12 @@ internal static class InventoryReportSeed
     /// </summary>
     internal static async Task<Guid> DraftInvoiceAsync(
         IAppDbContext db, Seed seed, DateOnly date, decimal quantity, decimal rate,
-        Guid? productId = null, VatRate vatRate = VatRate.NoVat)
+        Guid? productId = null, VatRate vatRate = VatRate.NoVat, Guid? unitId = null)
     {
         var created = await new CreateInvoiceCommandHandler(db).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
-                [new InvoiceLineInput(productId ?? seed.ProductId, quantity, rate, vatRate)]),
+                [new InvoiceLineInput(productId ?? seed.ProductId, quantity, rate, vatRate, UnitId: unitId)]),
             CancellationToken.None);
 
         return created.Id;

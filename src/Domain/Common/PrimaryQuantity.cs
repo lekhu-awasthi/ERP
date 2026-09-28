@@ -67,5 +67,14 @@ public readonly record struct PrimaryQuantity
     /// </summary>
     public static PrimaryQuantity AlreadyPrimary(decimal quantity) => new(quantity);
 
+    /// <summary>
+    /// The total of quantities that have each already said which kind they are -- the per-product
+    /// sum an availability gate compares against a balance. Takes only <see cref="PrimaryQuantity"/>
+    /// values, so it is not a third way in from a <see cref="decimal"/>, and it rounds nothing:
+    /// every term was rounded once, where it was built.
+    /// </summary>
+    public static PrimaryQuantity Sum(IEnumerable<PrimaryQuantity> quantities) =>
+        new(quantities.Sum(x => x.Value));
+
     public override string ToString() => Value.ToString();
 }

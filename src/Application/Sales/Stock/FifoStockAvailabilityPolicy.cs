@@ -2,6 +2,7 @@ using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Inventory.Stock;
 using ErpApp.Domain.Catalog;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +12,7 @@ namespace ErpApp.Application.Sales.Stock;
 /// <summary>
 /// The real Phase 7 implementation, replacing Phase 5's AlwaysOkStockAvailabilityPolicy stub.
 /// Only Invoice.Type==Goods lines touch stock (a Service line is skipped entirely -- there's
-/// nothing to check). For each remaining line, sums requested Quantity per ProductId (a line-split
+/// nothing to check). For each remaining line, sums its primary quantity per ProductId (a line-split
 /// product could appear more than once) and compares against
 /// IStockLedgerService.GetAvailableQuantityAsync for (ProductId, Invoice.WarehouseId). The first
 /// product with a shortfall decides the whole document's status -- once any shortfall exists, this
@@ -33,10 +34,13 @@ public sealed class FifoStockAvailabilityPolicy(IAppDbContext db, IStockLedgerSe
             .Select(x => new { x.Id, x.Type })
             .ToDictionaryAsync(x => x.Id, x => x.Type, cancellationToken);
 
+        // PrimaryQuantity, not Quantity: the balance this is compared against, and what Approve then
+        // consumes, are both in the product's primary unit, while Quantity is in the unit the line
+        // was entered in (phase 52). Summing Quantity let 2 bags at 50 pass against 60 on hand.
         var requirements = invoice.Lines
             .Where(x => productTypes.TryGetValue(x.ProductId, out var type) && type == ProductType.Goods)
             .GroupBy(x => x.ProductId)
-            .Select(g => new StockRequirement(g.Key, g.Sum(x => x.Quantity)))
+            .Select(g => new StockRequirement(g.Key, PrimaryQuantity.Sum(g.Select(x => x.PrimaryQuantity))))
             .ToList();
 
         return await CheckRequirementsAsync(
@@ -55,7 +59,7 @@ public sealed class FifoStockAvailabilityPolicy(IAppDbContext db, IStockLedgerSe
             var available = await stockLedgerService.GetAvailableQuantityAsync(
                 organizationId, requirement.ProductId, warehouseId, cancellationToken);
 
-            if (requirement.Quantity > available)
+            if (requirement.Quantity.Value > available)
             {
                 hasShortfall = true;
                 break;
@@ -81,7 +85,7 @@ public sealed class FifoStockAvailabilityPolicy(IAppDbContext db, IStockLedgerSe
         var onHand = await PhysicalStockReader.GetOnHandAsync(
             db, organizationId, warehouseId, [.. requirements.Select(x => x.ProductId)], cancellationToken);
 
-        var hasShortfall = requirements.Any(r => r.Quantity > onHand.GetValueOrDefault(r.ProductId));
+        var hasShortfall = requirements.Any(r => r.Quantity.Value > onHand.GetValueOrDefault(r.ProductId));
 
         return hasShortfall
             ? await VerdictForShortfallAsync(organizationId, cancellationToken)
