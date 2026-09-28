@@ -2236,3 +2236,142 @@ absolute gap** and Remarks carries the direction:
 
 With the flag off it shows the refusal phase 57 recorded, word for word.
 
+
+---
+
+## POS, read and written (2026-09-28, phase 59) — the till, its wire, and what reaches the ERP
+
+Tenant *Hamro Samaan* (`hamrosamman.tigg.app`, the phase 58 trial, 11 days left), entered through
+`me.tiggapp.com`'s *Open Pos* / *Open Tigg* buttons. User-authorised writes; the list is in
+`phase-59-status.md`. Decisions and the phase plan live there. This section is the raw evidence.
+
+### Build and entry
+
+- *Open Pos* → `window.open(https://<ns>.tigg.app/pos/auth/validate-login?email&identity&hash&expiry_timestamp&namespace)`.
+  *Open Tigg* → the same query on `/erp/#/validate-login`. **Separate sessions**: POS's *Accounting*
+  nav item (`href="https://<ns>.tigg.app/erp#/"`) lands on the ERP sign-in page.
+- Next.js static export (`__NEXT_DATA__.nextExport: true`, `assetPrefix: /pos`), Chakra UI, redux
+  (+ `redux-persist`, key `persist:root`), react-query. **No service worker.** `localStorage` holds
+  `device_fingerprint`, `refreshToken`, `negative_stock_balance`, `persist:root`.
+- Redux slices: `product, orderList, editOrderList, orderSessionList, takeawayOrderList, floor,
+  payment, settings, auth`. `auth.permissions` and `auth.locationPermissions` are `null` for an Admin.
+- API: axios `baseURL https://api-v2.tigg.app/api/v1/erp`, every call `?channel=POS`.
+
+### Route census (`__BUILD_MANIFEST`, 99 pages)
+
+```
+/  /auth/{forgot-password,login,register,reset-password,sign-up,validate-login,verify-code,verify-login}
+/contact/contacts/{list,details}  /contact/group/list
+/dine-in  /dine-in/order  /dine-in/order/[orderId]  /take-away  /take-away/order/[orderId]
+/delivery  /delivery/order  /delivery/[locationId]/[orderId]
+/retail  /retail/invoices  /retail/orders  /retail/orders/[orderId]  /retail/orders/[orderId]/payment
+/retail/delivery  /retail/delivery/order  /retail/delivery/order/[orderId]
+/kot/list  /kot/[id]  /orders/list  /invoice/list  /payments  /payments/[orderId]
+/inventory/{barcode/print,categories/list,units/list}  /inventory/products/{add,details,edit,list}
+/inventory/variant-attributes/{add,edit,list}  /inventory/variant-products/{add,detail,list}
+/location/details/{activity,dashboard,floor-plan,invoices,order,orders,session,sessions,settings}
+/location/invoices/{list,details}  /location/refunds/{list,details}
+/reports/{list,transaction-list,order-report,day-report,payment-summary-report,delivery-partner-statement,
+  product-sales-report,customer-sales-report,sales-master-report,sales-summary-report,sales-register,
+  sales-return-register,annex-5-materialized-view-report,activity-log-report,migration-sales-register,
+  migration-purchase-register}
+/settings/organization/{overview,locations,warehouse,subscription,cbms/configure}
+/settings/pos/{accounts,modes,delivery-partners,discount-numbering,discount-setup,discount-setup/add,
+  print-profiles,printing-templates,printing-templates/edit/[id],product-settings}
+/settings/users-permissions  …/edit/[id]  …/role-reference/{add,edit}   /test  /_error
+```
+
+### Endpoint map (module `45036`, export `P`, read through `webpackChunk_N_E`)
+
+POS-only: `AREAS /pos/areas`, `FLOORPLAN /pos/floorplans`, `SESSIONS /pos/sessions`,
+`ORDERS /pos/orders`, `DISCARD_ORDER /pos/orders-discard`, `REMOVE_ORDER_ITEMS /pos/orders/items-remove`,
+`TRANSFER_ORDER_ITEMS /pos/orders/items-transfer`, `UPDATE_ORDER_ITEMS /pos/orders/items-update`,
+`UPDATE_ORDER_CUSTOMER /pos/orders/customers`, `SPLIT_BILL /pos/invoices` (+ `/{order}/split-bill`),
+`PRINT_PROFILES /pos/print-profiles`, `DELIVERY_PARTNERS /pos/delivery-partners`,
+`LINKED_PAYMENT_MODES /pos/linked-payment-modes`, `LOCATION_EDIT_LINKED_PAYMENT_MODES /pos/location-payment-modes`,
+`UNLINK_PAYMENT_MODES /pos/unlink-payment-modes`, `LOCATION_GENERAL_SETTINGS /pos/general-settings/service`,
+`LOCATIONS_GENERAL_SETTINGS_PRINTING /pos/general-settings`, `CBMS /pos/general-settings/cbms`,
+`SUBSCRIPTION /pos/general-settings/subscription`, plus literals `/pos/kots`, `/pos/kots/items-summary`,
+`/pos/kots/mark-as-served`, `/pos/credit-notes`, `/pos/sales-stats`, `/pos/order-stats`,
+`/pos/sales-figure`, `/pos/payment-stats`, `/pos/top-product-stats`,
+`/pos/general-settings/locations/{id}/round-amount`, `/pos/sessions/{id}/transaction`.
+Payments: `FONEPAY_QR /fonepay/qr`, `FONEPAY_WS_STATUS /fonepay/qr/status`, `NEPALPAY_QR /nepalpay/qr`,
+`NEPALPAY_QR_STATUS /nepalpay/qr/status`, SSE `/nepalpay/qr/events/{id}`, `PAYMENT_PROVIDERS /payment-mode-providers` (404).
+Shared with the ERP: `ORDERS_TIGG /sales-orders`, `INVOICES|PAYMENT /invoices`, `PAYMENT_MODES /payment-modes`,
+`PRODUCTS /products`, `PRODUCTS_FAVOURITE[/position]`, `CONTACTS`, `LOCATIONS`, `DOCUMENT_NUMBERINGS`,
+`GENERAL_SETTINGS`, `IRD_CREDENTIALS /ird-credentials`, `TRANSACTION_VOID /transactions/void`, `/ird-bills-re-sync`,
+`/verify-device`, `/resend-otp`.
+
+### Permission keys in the POS bundle (38 matches, 8 POS-only)
+
+POS-only: `floor-plan-{view,add,edit,void}`, `location-settings-{view,add,edit,void}`. The rest are
+ERP keys: `invoice-*`, `sales-order-*`, `credit-note-*`, `customer-receipt-*`, `contact-{view,add,edit}`,
+`product-{view,add,edit}`, `organization-configuration-{view,edit}`, `report-transaction-list`.
+
+### Configuration, as read
+
+- **Locations** (`/settings/organization/locations`): type options are exactly
+  `[{label:"Bar / Restaurant",value:"Bar"},{label:"Retail",value:"Retail"}]`, default `Bar`.
+  API rows: `HO HeadOffice type Retail default_tab Retail`; `1002 POS Restaurant type Bar default_tab
+  "Dine In"`; `1003 POS Retail type Retail`. `type === "Bar"` gates the KOT Print toggle and the
+  Dine-In/Take-Away/KOT shell.
+- **Location Settings > General**: Service Charge Applicable (rate % + account), Round off (account),
+  Require Cash Verification (→ Cash Denominations 1000/500/100/50/20/10/5/2/1, editable, Reset to
+  default), Default Tab (Dine In / Take Away / Delivery), Printing (Estimate Bill, Invoice Print,
+  Credit Note Print, KOT Print, Amount Based Billing). **Payment Mode** tab: payment modes linked to
+  the location. `GET /pos/general-settings/service/{loc}` → `{is_service_charge_applicable, service_charge_rate}`;
+  `GET …/locations/{loc}/round-amount` → `{account_id, round_amount}`.
+- **Payment Modes**: type Cash | Card | E-Payment | Other; Name; Payment Account; *Enable Payment
+  Integration* → Provider FonePay | NepalPay; QR Integration: Merchant Code, Secret Key, Username,
+  Password; *Test Integration*. Row: `{name,type,provider,payment_account,is_qr_integrated,merchant_id,username,is_pos}`.
+  Seeded: *Cash* → Cash In Hand.
+- **Payment Accounts** = the cash/bank accounts list. **Delivery Partners**: Name, Supplier Account.
+  **Print Profiles**: Name only (`POST {name}`). **Discount Schemes**: Item Wise | Category Wise | Slab
+  Discount; Name, Code, Start/End Date, Vat, Applicable Locations; detail Product|Category, Rate, Issue
+  Qty (slab: Lower/Upper Limit, Rate, Issue Qty). **Product Settings** = the ERP's VAT-inclusive
+  price basis and Negative Stock Balance. **Transaction Numbering** = the ERP's document numbering
+  (CreditNote CN2, DeliveryNote DO2, GoodsReceivedNote GRN3, Invoice INV2, SalesOrder SO2 at read time).
+- **CBMS Configuration**: "IRD CBMS Test Server Credentials", Username, Password. `GET` →
+  `{api_invoice, api_credit_note, username, password, description}`.
+- **Product (POS form)**: Goods | Services; Name, Code, **Category\***, Tax, Primary Unit, Selling Price
+  (excl. VAT), Locations, Purchase Price, HS code, **Service Charge Applicable\***, **Available For
+  Sale\***, **Print Profile**, image, secondary units. JSON adds `barcodes`, `marketplace_skus`, `sku_id`.
+
+### The wire, per action
+
+- Floor plan save: `POST /pos/floorplans {area_id, width:1100, height:800, table:[{id:<client uuid v1>,
+  name, capacity, shape:"Rectangle"|"Circle", x, y, width, height, fill}]}`, which **replaces the
+  area's whole table set**.
+- Session: open `POST /pos/sessions {location_id, denominations:[{value,count}]}` → `{status:"In
+  Progress", no_of_txn, no_of_refunds, opened_at}`. List rows carry `cash_difference`. Cash In/Out
+  `POST /pos/sessions/{id}/transaction {type:"Cash Out", amount, note}` → stored `amount: 100000`.
+  Close `POST /pos/sessions/{id} {status:"Closed", closing_amt, note}`.
+- Order: `POST /sales-orders {customer_count, location_id, table_id, area_id, contact_id, order_type,
+  items:[<whole product object> + rate, quantity, discount, discount_type, service_charge,
+  global_service_charge_applicable, product_service_charge_applicable, is_take_away, description, …]}`
+  → `SO0002/1002/83-84`, `status: Approved`, `channel: POS`. Line: `service_charge_amount 40,
+  sub_total 400, taxable_amount 440, vat_amount 57.2, grand_total_amount 497.2, invoiced_quantity 0,
+  delivered_quantity 0`. Update `POST /sales-orders/{id}` with every line (+`original_quantity`).
+- KOT: `GET /pos/kots` → `{id, sales_order_id, items, print_items, table_id, served, code, order_type,
+  creator}`. Items carry `takeaway_quantity, served_quantity, discarded_quantity, transferred_quantity,
+  print_profile_id, order_batch_id`. `GET /pos/kots/items-summary` → `[{item_name, quantity}]`.
+- Pay (split): `POST /pos/invoices/{order}/split-bill {order_type, contact_id, items, payments:[{payment_method_id,
+  amount, type, payment_response}], referrer_id, location_id, area_id, table_id, order_id, service_charge,
+  abbreviated_bill:true, change_amount, discount, discount_type, note}`. Pay (whole):
+  `POST /pos/invoices` with the same shape. A credit tender is `{type:"Credit", amount}` (no method id).
+- Invoice row: `rounded_amount, change_amount, table_id, area_id, order_type, session_id,
+  service_charge_amount, taxable_total, payment_modes:["Credit","Cash"], payments:null, AbbreviatedBill,
+  print_count, first_print_time, print_id, printed_by, amount_in_words, channel:"POS"`.
+- Refund: `POST /pos/credit-notes {referrer_id:<invoice>, note, description, payments:[…], …}` →
+  `CN0002/1002/83-84`, Approved, `reference_no` = the invoice code.
+
+### Numbers from the one service
+
+Momo 2 × 200 (SC) + Coke 2 × 60 → Sub 520, SC 40, Taxable 560, VAT 72.8, 632.80 → **633**.
+Split 1: Sub 260, SC 20, Taxable 280, VAT 36.4 → 317 (cash 500, change 183), GL above.
+Split 2 (**SC dropped**): Sub 260, SC 0, Taxable 260, VAT 33.8 → 294 (credit 194 + cash 100).
+Its GL: Dr Cash Customer 294, Dr Cash In Hand 100; Cr Sales Service 200, Sales Goods 60.20,
+Cash Customer 100, VAT 33.80. Refund: Coke 60 + 7.8 → 68. Session: opening 1,000; cash sales 417;
+refunds −68; cash out −100; expected 1,249; counted 1,240; *short by Rs. 9.00*. Day Report the same day:
+No. of Sales 2, Returns 1, Sessions 2, SC 20, Taxable 540, VAT 70.20, **Total Sales 610.20**;
+Payments Credit 194, Cash 349.

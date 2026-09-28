@@ -1619,3 +1619,45 @@ Materialise it. And **a count of zero rows in an accounting view is evidence**: 
 Opening Stock posts no GL entry (phase 37 §7). The E2E's first check omitted the term and failed by
 a constant 1,000 at every checkpoint, which is itself the proof that nothing in between moved the
 relation.
+
+## Phase 59 — POS scoping, and a second front end that is not a second product
+
+**Read `phase-59-status.md` before any POS phase (60–66), before adding a field to `Invoice` that
+only one channel uses, or before deciding what a "type" of location means.** No code was written. The
+vendor's till was read *and written*: one full restaurant service on the phase 58 tenant, every step
+checked against what the ERP shows and posts.
+
+**A second front end on the same API is a client, not a product.** The vendor's POS is a separate
+Next.js SPA with its own login, but every document it produces is an ERP document. The open order
+is a Sales Order (Approved and numbered at save), the sale is an Invoice (sale and settlement in one
+GL entry), and the refund is a Credit Note. The POS adds only what an ERP lacks: sessions, tables,
+KOTs, print stations, payment modes, service charge and rounding. So ours is one Angular app with a
+lazy till route tree, and it reuses the documents. The separate login is the vendor's worst seam:
+POS's own *Accounting* link lands on a sign-in page.
+
+**Write through the flow, don't read the screens.** One written service found nine defects that no
+screen pass would have shown, because each one appears only as a number that is wrong afterwards:
+
+- a split bill drops the remainder's service charge (and its VAT) while the till still offers
+  *Disable Service Charge*;
+- the drawer's float, cash-out and over/short never reach the GL;
+- the Day Report (610.20) and the session (611.00) disagree about one day.
+
+Phase 58's lesson again, one layer up: the first written action is worth more than the whole screen
+pass.
+
+**A thing dropped as dead from one surface may be alive on another.** Phase 47 dropped
+`Product.PrintProfileId` ("does nothing observable") and the Service Charge column ("printing `-`
+on every row"). Both were correct *from the ERP*. The POS routes KOTs by the first and bills by the
+second. A drop is scoped to the surface that was read.
+
+**A "type" can be the wrong axis.** Phase 32 reserved `BillingLocationType.PosRestaurant/PosRetail`
+as kinds of location beside HeadOffice. Live, the POS type is `Bar` or `Retail`, **HeadOffice itself
+is Retail**, and the seeded "POS Restaurant" row is an ordinary location with that name. It is a
+mode every location has, so phase 60 adds `PosMode` and retires the reserved members.
+
+**The divergences are argued, not inherited.** Where the vendor mutates its Sales Order on a split,
+ours keeps a `PosOrder` with per-line invoiced counters, and that divergence owes the ERP a
+read-only *POS Orders* list (phase 49's rule). Where the vendor posts nothing for the drawer, ours
+posts cash movements and over/short. Where it extends credit to the anonymous walk-in, ours
+requires a named customer.

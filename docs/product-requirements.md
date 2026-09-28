@@ -69,7 +69,7 @@ This PRD describes the **full target product**. Actual build sequencing (what sh
 Everything under §1.3 except the exclusions below. This includes multi-currency, multi-warehouse, multi-location (HeadOffice-style) support, and the manufacturing sub-module, since the underlying platform (Tigg) treats these as core rather than exotic — though see `roadmap.md` for the actual build order, which may defer Manufacturing to a later phase pending a scope confirmation with the business owner.
 
 ### 4.2 Deferred (not in this PRD's v1 surface, but the data model reserves the seams so adding them later isn't a breaking change)
-- **POS Retail / POS Restaurant** front-ends — till-style billing, table/KOT management, split payments. The permission model and Billing Location concept both already anticipate these as a location "type," so this is additive later, not a redesign.
+- **POS Retail / POS Restaurant** front-ends — till-style billing, table/KOT management, split payments. The permission model and Billing Location concept both already anticipate these as a location "type," so this is additive later, not a redesign. **Moved into scope on 2026-09-28**: phase 59 read the reference POS and planned phases 60–66 (`roadmap.md`, `phase-59-status.md`).
 - **IRD e-filing/CBMS direct integration** — v1 produces the correct statutory reports (VAT Summary, TDS Report, Annex 13/5) for a human to file; automated submission is a future integration point.
 - **Marketplace / third-party app ecosystem** — referenced only as a permission flag in the research; not a v1 requirement.
 

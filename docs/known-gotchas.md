@@ -3823,3 +3823,45 @@ CRLF, zero CRLF means LF, and anything between is a mixed file whose own lines e
 ending. The same pass found the heredoc gotcha had already damaged two committed docs in phase 57
 (a literal ` n m m---` in `roadmap.md`, and the `\n` in this file's own heredoc entry as mirrored in
 CLAUDE.md and `e2e-recipes.md`). Scripts go through the Write tool.
+
+## A drop is scoped to the surface that was read (phase 59)
+
+Phase 47 dropped `Product.PrintProfileId` as "live-confirmed to do nothing observable" and the
+Service Charge column as "a product flag this codebase does not model, printing `-` on every live
+row". Both readings were true of the ERP screens they came from. Phase 59 opened the vendor's POS,
+a second front end on the same API, and both fields act there. The print profile is the **KOT
+station**: one ticket per save per profile, "Kitchen" and "Default" side by side. Service charge
+is a **location rate times a product flag**, inside the VAT base, credited to an account the
+location names. The drop was evidence about the ERP surface, not about the field. Before calling a
+field dead, list every client of the API that carries it.
+
+## A POS "type" is a mode of every location, not a kind of location (phase 59)
+
+Phase 32 reserved `BillingLocationType.PosRestaurant = 3` and `PosRetail = 4` beside `HeadOffice`
+and `Standard`, reading the seeded rows "1002 POS Restaurant" and "1003 POS Retail" as location
+kinds. The POS's own Locations form offers exactly two types, `{label:"Bar / Restaurant",
+value:"Bar"}` and `{label:"Retail", value:"Retail"}`, and the API returns **HeadOffice with `type:
+"Retail"`**. The seeded rows are ordinary locations *named* after POS types. The type chooses the
+till's shell (Bar adds Dine In, Take Away, KOT, the floor plan and KOT printing), so it is an
+attribute every location carries. Phase 60 models it as `BillingLocation.PosMode` and retires the two
+enum members, which nothing branches on.
+
+## A written service finds what a screen pass cannot (phase 59)
+
+The vendor's split bill looks right on screen: two receipts, both paid, the table cleared. The
+defect is visible only as a number afterwards. The remainder's order header returned
+`service_charge: 0`, so the second invoice charged the momo no service charge and its VAT was 2.60
+short, while the payment screen still offered *Disable Service Charge*. The same service showed that
+the drawer's cash-out and the close's 9-rupee shortage never reach the GL, and that the Day Report
+(610.20, unrounded) and the session (611.00) disagree about one day. Each of these needed a write
+and a read-back of the posted rows. For a feature whose output is money, the confirm-live pass
+**writes through to the ledger** and reads the GL, not the till.
+
+## The vendor's two apps do not share a session (phase 59)
+
+`me.tiggapp.com`'s *Open Pos* and *Open Tigg* each `window.open` a signed
+`validate-login?email&identity&hash&expiry_timestamp&namespace` URL. The two apps sit on the same
+host but keep separate sessions, so POS's *Accounting* link (`/erp#/`) lands on the ERP sign-in
+page. To drive both in the Browser pane without entering credentials, override `window.open` on the
+organisation list, click the button, and navigate a tab to the captured URL. Never record the
+`hash` or `identity`, because they are a sign-in token.

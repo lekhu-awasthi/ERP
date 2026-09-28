@@ -90,6 +90,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 56: bank reconciliation (the two-pane N:M matcher; a reconciliation joins `GlLine`s, membership is a nullable key on each side, and it posts nothing). Before deciding what a cross-record match joins to, or exposing an `IQueryable` from a shared reader — `docs/phase-56-status.md`
 - Phase 57: the bank module finished (Quick Approve, the report's `.xlsx`, the balance chart) + phase 53's census re-run. Before paying an index debt, re-running a census, or choosing a calendar for a derived series — `docs/phase-57-status.md`
 - Phase 58: physical-movement inventory (Delivery Note, GRN, Inventory Variance): a second, derived, quantity-only stock ledger; the setting picks a default, never a behaviour. Before touching `InventoryTrackingMode`, a stock balance, or a covering index — `docs/phase-58-status.md`
+- Phase 59: POS scoping, no code. The vendor's till read and written end to end: an ERP client on the same API (sale = Invoice, refund = Credit Note), 9 vendor defects, phases 60–66 planned. Before any POS phase or a channel-only `Invoice` field — `docs/phase-59-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -201,6 +202,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - When a control's **disabled** state looks like its absence, a tenant with no data cannot tell you whether the control exists; get a row *and* a value worth choosing (phase-54).
 - A field in the vendor's payload is not a feature: ask what **writes** it. `fg_measurement_unit_id` is the product's primary unit, stored and never chosen (phase-54, phase-43's present-and-ignored shape).
 - A **record** parent (Contact, Deal, WorkTask) is a `DocumentType` member that is *not* transactional; that one property is what routes it to its own keys with no special-casing (phase-43).
+- A drop is scoped to the surface that was read: `PrintProfileId` and Service Charge were dead on the ERP (phase 47) and are the POS's KOT station and billing rule (phase 59).
+- A POS "type" is a mode every location has (HeadOffice is typed Retail), not a location kind; `BillingLocationType.PosRestaurant/PosRetail` model the wrong axis (phase 59).
 - A filter over a tree of tenant-defined groups must match on group **id**, never group name — names are not unique across a chart of accounts (phase-26a bug #1).
 - `decimal` has a signed zero: `-0m` keeps its sign bit and surfaces as `-0` / `-0.00` once cast to `double` for a spreadsheet cell. Accumulate a magnitude only when the value is strictly non-zero — no test catches this, because `-0m == 0m` (phase-26c bug #1).
 
@@ -442,48 +445,44 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - One screen 404ing does not make a feature unreachable: `/accounting/recon` takes its account from router state, while the six real routes take it from the URL — so phase 56's recorded start condition never existed (phase-55).
 - A flag that swaps the whole shell is a different product until chased: `is_bank_user` is fourteen **report** routes and its own sign-in, with no path to the module it was noticed beside (phase-57).
 - A vendor's N-way routing table collapses when its vocabulary is not yours: four executors keyed on `account_type` are two documents here, because a customer is not an Account (phase-57).
+- For a feature whose output is money, confirm-live **writes through to the ledger** and reads the GL: the vendor's split-bill defect and its drawer-never-posts gap show only as numbers afterwards (phase 59).
+- The vendor's POS and ERP keep separate sessions; drive both by capturing the organisation list's `window.open` URL, and never record its `hash`/`identity` (phase 59).
 
 ## Current status
 
-**Phases 0-58 are complete, and the forward plan is empty again.** Phase 58 built the last two of the
-vendor's 22 document types, Delivery Note and Goods Received Note, and the Inventory Variance Report.
-Each phase's story is in its `docs/phase-N-status.md`, and every finished planning entry is archived
-in `docs/roadmap-history.md`.
+**Phases 0-59 are complete. Phase 59 was a scoping phase with no code, and the forward plan is
+phases 60–66: POS.** Each phase's story is in its `docs/phase-N-status.md`, and finished planning
+entries are archived in `docs/roadmap-history.md`.
 
-**The phase's substance is a falsified premise.** The plan, written from screens, said *Physical
-Movement* moves FIFO consumption to DN/GRN Approve and needs a goods-received-not-billed account. One
-live GRN and a Trial Balance said otherwise. The vendor keeps **two stock ledgers always**, the
-setting only picks which one the inventory screens read, and neither document posts. So phase 58
-**adds a ledger and changes none**. The physical ledger is derived and quantity-only: a new
-append-only `PhysicalStockMovement` table plus the four shared types' existing `StockMovements` rows.
-No handler branches on the setting. DN/GRN rows in the GL, `StockMovements` and the FIFO layers were
-asserted zero in SQL, in both modes.
+**Phase 59 read and wrote the vendor's POS on *Hamro Samaan*.** It ran one restaurant service end
+to end and checked every step against what the ERP shows and posts. **The POS is an ERP client, not
+a second product.** It is a separate Next.js SPA on the same API (`?channel=POS`): its open order is
+an Approved Sales Order, its sale is an ordinary Invoice (sale and settlement in one GL entry), and
+its refund is a Credit Note. Only what an ERP lacks is new: sessions, tables, KOTs, print stations,
+payment modes, service charge and rounding.
 
-**Every rule is per ledger, under one verdict.** A DN checks the physical balance and an Invoice the
-accounting one, through the one Negative Item Balance read. A GRN's Void is refused once its goods
-have left (the vendor carries −3). PO → GRN and SO → DN run parallel to billing and invoicing, and
-each is one-shot. Eleven keys, all Admin+Member. **Two indexes made covering, with numbers**, on
-`tools/scale` fixtures of 200,000 rows each:
+**So ours is one app.** The till is a lazy `/pos` route tree on the existing cookie and API, reusing
+Invoice and Credit Note. Nine vendor defects become decisions. The main ones:
 
-- the physical balance check: 318 → 5 logical reads;
-- its shared half on `StockMovements`: 319 → 5;
-- the untargeted paths: flat;
-- the report load: a full read in every variant, so measured and refused.
+- the split bill drops the remainder's service charge and its VAT;
+- the drawer never reaches the GL;
+- the Day Report and the session disagree about one day;
+- credit is extended to the anonymous walk-in.
 
-**Next: nothing is scheduled.** What remains:
+**Next: phase 60, POS foundation.** It covers `BillingLocation.PosMode` (replacing phase 32's
+reserved enum members, which model the wrong axis), per-location POS settings, `PaymentMode`
+extended with a kind, an account and a location link, the walk-in customer, three tenant-default
+accounts, product flags and `Pos.*` keys. Retail ships at 63 and Restaurant at 65. Phase 47's drops
+of `PrintProfileId` and Service Charge are reopened with evidence. Three rule questions (service
+charge VAT, abbreviated tax invoice, reprint marking) must be settled before 61/62 ship; see
+`phase-59-status.md` §6. Phase 58's carried items, the auto-match engine and the three "outside the
+sequence" items still stand.
 
-- phase 58's carried items: the Mode filter on Movement, Ledger and Ageing; partial receipts; Mark
-  as Delivered / Processed; batch/serial and a per-line warehouse on DN/GRN;
-- the auto-match suggestion engine, which is a product decision first;
-- the three standing "outside the sequence" items.
-
-An Invoice availability bug found in passing (the gate sums the entered quantity, not the primary
-quantity) is filed as its own task. Plan the next phase from a fresh read, against evidence.
-
-Tests: Domain **764** (+26), Application.UnitTests **1378** (+22), Infrastructure.UnitTests 13,
-Api.IntegrationTests 30, Angular **627** (+8). `dotnet build` / `dotnet test` / `ng build` / `ng test`
-are all clean, and `ng build` does not warn. Phase 42's measured 680 kB initial-bundle budget is
-pinned by `build-budget.spec.ts`, and the bundle sits at **645.57 kB**.
+Tests (unchanged by phase 59): Domain **764**, Application.UnitTests **1378**,
+Infrastructure.UnitTests 13, Api.IntegrationTests 30, Angular **627**. `dotnet build` / `dotnet
+test` / `ng build` / `ng test` were clean at phase 58's close, and `ng build` does not warn. Phase
+42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts`, and the bundle sits
+at **645.57 kB**. The POS till must stay lazy so that holds.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests
   fail in their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like

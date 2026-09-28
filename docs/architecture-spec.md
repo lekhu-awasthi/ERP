@@ -194,7 +194,7 @@ All lookup-list contexts (`CustomStatus`, `CreditTerm`, `CostTerm`, `PaymentMode
 ## 6. What this spec deliberately defers
 
 Per the scan's confirmed scope decision and remaining open items:
-- **POS Restaurant / POS Retail**: `BillingLocation.LocationType` reserves the seam; no POS-specific aggregates (KOT, table billing, split payment) are modeled yet.
+- **POS Restaurant / POS Retail**: `BillingLocation.LocationType` reserves the seam; no POS-specific aggregates (KOT, table billing, split payment) are modeled yet. **Promoted 2026-09-28 (phase 59) to phases 60–66.** The POS type turned out to be a mode of every location, not a location type (`phase-59-status.md` §4 B). The sale and refund reuse Invoice and Credit Note, and the new aggregates are `PosSession`, `PosOrder`, `KitchenTicket`, floor areas/tables and per-location POS settings.
 - **IRD e-filing / CBMS sync**: `TenantSubscription.IrdSyncEnabled` flag reserved; actual integration not designed (Tigg's own trial tenant had it disabled, so the real submission flow was never observed to spec against).
 - **Manufacturing** (§4.10): included in the domain model since it's architecturally analogous to Purchase Order→Bill, but confirm with the user whether it's in v1 scope before building it — it's a meaningfully sized sub-system (BOM + 2-stage production documents + cost roll-up) that could reasonably be its own phase.
 - **Physical Movement inventory mode** (Delivery Note / Goods Received Note): both scanned tenants run Accounting Movement; v1 ships Accounting Movement only.
