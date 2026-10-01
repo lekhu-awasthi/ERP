@@ -96,3 +96,27 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   `sales.InvoiceTenders`, and two `GlJournalEntries` rows (`SourceDocumentType = 'Invoice'`). A
   session's own postings are `SourceDocumentType = 'PosSession'`. Drawer counts are text such as
   `1000x1,500x1` in `pos.PosSessions.OpeningCount`/`ClosingCount` (phase-61).
+
+- The till's reads (phase 62), all under `/{org}/pos` and gated on `Pos.Session.Operate`:
+  - `GET /tills` lists the launcher's rows, each with `mySessionId`/`mySessionCode`.
+  - `GET /tills/{locationId}` is the till's settings subset, with `paymentModes` (Cash first),
+    `categories`, `walkInCustomer`, `warehouseId` and `canSellOnCredit`.
+  - `GET /tills/{locationId}/products?search=&code=&categoryId=&page=&pageSize=`: `code` is an exact
+    Barcode/Code/SKU match, and every `rate` is VAT-exclusive after the price basis. A product's
+    `units[0]` is the primary unit.
+  - `GET /sessions/{id}/sales` lists the session's sales, with `printCount`.
+- `POST /pos/sales/{invoiceId}/prints` has no body and returns the receipt with `printNumber` (1 is
+  the original) and `title` (`Invoice`/`TaxInvoice`/`AbbreviatedTaxInvoice`). It is gated by
+  `Sales.Invoice.View` at the sale's location. An ERP invoice or a voided sale is a 409. In SQL it is
+  `sales.InvoicePrints`, and the stored heading is `sales.Invoices.IsAbbreviatedTaxInvoice`.
+- `PUT /pos/locations/{id}/settings` takes a 13th field, **`abbreviatedTaxInvoiceEnabled`**. The
+  sale result carries `isAbbreviatedTaxInvoice`. A walk-in bill is abbreviated only on a
+  VAT-registered organization with the setting on and a total of at most 10,000 (phase-62).
+- The till's 403-not-404 pair: `GET /pos/sessions/{nonexistent}/sales` is **404** "Session not
+  found." as Admin. It is **403 naming `Pos.Session.Operate`** from a role holding
+  `Sales.Invoice.Create/View`, `Tenancy.BillingLocation.View` and `Tenancy.Subscription.View`, beside
+  a 200 on `GET /billing-locations`. The last key is what lets the browser reach the till's own
+  refusal rather than be redirected Home by the feature guard (phase-62).
+- Driving the till in the browser pane: stub `window.print` after **every** full reload (a Vite
+  reload after an edit drops it too), and fill number inputs with `form_input`. A ref-based click on
+  them can land elsewhere (phase-62).

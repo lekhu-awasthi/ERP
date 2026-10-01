@@ -3943,6 +3943,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<bool>("AbbreviatedTaxInvoiceEnabled")
+                        .HasColumnType("bit");
+
                     b.Property<Guid>("BillingLocationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -5461,6 +5464,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<bool>("IsAbbreviatedTaxInvoice")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsExport")
                         .HasColumnType("bit");
 
@@ -5612,6 +5618,37 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("UnitId");
 
                     b.ToTable("InvoiceLines", "sales");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Sales.InvoicePrint", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("InvoiceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("PrintNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("PrintedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("PrintedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InvoiceId");
+
+                    b.HasIndex("OrganizationId", "InvoiceId", "PrintNumber")
+                        .IsUnique();
+
+                    b.ToTable("InvoicePrints", "sales");
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Sales.InvoiceTender", b =>
@@ -11594,6 +11631,15 @@ namespace ErpApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("UnitId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Sales.InvoicePrint", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Sales.Invoice", null)
+                        .WithMany()
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Sales.InvoiceTender", b =>

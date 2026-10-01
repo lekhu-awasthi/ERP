@@ -26,7 +26,8 @@ public sealed record UpdatePosLocationSettingsCommand(
     bool PrintEstimateBill,
     bool PrintInvoice,
     bool PrintCreditNote,
-    bool PrintKot)
+    bool PrintKot,
+    bool AbbreviatedTaxInvoiceEnabled)
     : IRequest<PosLocationSettingsDto>, IRequirePermission, IOrganizationScoped, IRequireAnyFeature
 {
     public string PermissionKey => PermissionKeys.PosSettingsManage;

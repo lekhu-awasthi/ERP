@@ -19,7 +19,8 @@ public class PosFoundationTests
         settings.Update(
             mode, serviceChargeEnabled, rate, Guid.NewGuid(), roundOffEnabled: false, Guid.NewGuid(),
             cashVerificationRequired: true, denominations ?? [1, 500, 100], defaultTab,
-            printEstimateBill: true, printInvoice: true, printCreditNote: true, printKot: true);
+            printEstimateBill: true, printInvoice: true, printCreditNote: true, printKot: true,
+            abbreviatedTaxInvoiceEnabled: false);
         return settings;
     }
 

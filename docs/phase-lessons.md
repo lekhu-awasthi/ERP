@@ -1733,3 +1733,45 @@ handler because it depends on the tenders.
 **The next row of the evidence was already on the page.** Phase 60 modelled rounding from one
 observation (632.80 → 633). The scan's next two rows (316.40 → 317, 293.80 → 294) show the vendor
 rounds up. Phase 61 rounds to the nearest rupee on purpose, and its status doc says so.
+
+## Phase 62 — the Retail till, and the two rules its receipt owed
+
+**Read `phase-62-status.md` before showing a figure someone pays against, before printing anything
+the law counts, before keeping a draft in the browser, or before adding a screen with its own
+layout.** It built the till on phase 61's engine:
+
+- a lazy, full-screen `/pos` (launcher, till, session page);
+- reads under `Pos.Session.Operate`;
+- a cart, holds and payment screen;
+- an 80 mm receipt;
+- Cash In/Out and the close.
+
+**A rule question's answer can be a set of conditions, and each belongs where its fact lives.** "When
+may a bill be an abbreviated tax invoice?" turned out to be four conditions, held in four places:
+
+- the Tax Officer's permission is a location setting that states the rule;
+- the Rs 10,000 limit is a Domain constant;
+- "the buyer did not ask for a full one" is the walk-in;
+- VAT registration is the organization's.
+
+The decision is stored on the sale, because a reprint must carry the original's heading.
+
+**A number printed on paper by law is a server fact.** The 2072 procedure requires a reprint to say
+how many times the bill has been printed. A browser counter would be wrong the moment a second till
+reprints, so every print is an append-only row under a unique index. The count is of requests,
+because a browser cannot tell a cancelled print dialog from a printed page, and that errs toward an
+extra "copy" mark, never an unmarked second original.
+
+**A figure a cashier takes money against must be the server's figure.** The till totals the bill
+before the server sees it, so its arithmetic is pinned to the server's by a shared table, phase 26b's
+arrangement for a third pair. It is done in `bigint` paisa, because the float `1.005` rounds the wrong
+way and the server's decimal does not.
+
+**A draft that is not a document belongs where documents are not.** The vendor numbers a parked cart
+as an approved Sales Order. Ours keeps holds in the browser, keyed to the session, which is also what
+stops a cart following a cashier to another till (the vendor's defect 8).
+
+**A guard's predicate can name the wrong thing and still pass for six phases.** Phase 24's picker
+guard matched the method *name* `listProducts`, so the till's own `PosService.listProducts` tripped
+it. It was taught the receiver (does the file import `CatalogService`?), with a second assertion that
+the allow-listed screen still matches, rather than given an exemption.

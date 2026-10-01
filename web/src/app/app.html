@@ -23,7 +23,7 @@
   password it is already there and the chrome paints with the first in-organization route.
 -->
 @defer (when organizationId() !== null; prefetch on idle) {
-  @if (organizationId(); as orgId) {
+  @if (chromeOrganizationId(); as orgId) {
     <!-- Phase 33: the platform chrome. Phase 34b: the left nav, Create New flyout, company switcher
          and global date filter that phase 33 deferred by name (its carried item #5).
 
@@ -57,6 +57,7 @@
   `tabindex="-1"` is what makes the skip link actually move focus: without it the browser scrolls to
   the target and leaves focus on the link, so the next Tab goes straight back into the header.
 -->
-<main id="main-content" class="shell" [class.shell-with-nav]="organizationId() !== null" tabindex="-1">
+<!-- Phase 62: at the till (`/organizations/{id}/pos…`) the chrome steps aside and so does its inset. -->
+<main id="main-content" class="shell" [class.shell-with-nav]="chromeOrganizationId() !== null" tabindex="-1">
   <router-outlet />
 </main>

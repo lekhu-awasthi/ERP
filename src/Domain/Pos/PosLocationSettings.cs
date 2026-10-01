@@ -72,6 +72,17 @@ public sealed class PosLocationSettings
     /// toggle on <c>type === "Bar"</c>); stored regardless so a mode change loses nothing.</summary>
     public bool PrintKot { get; private set; }
 
+    /// <summary>
+    /// Phase 62 -- this till may issue an <b>abbreviated tax invoice</b> (संक्षिप्त कर बीजक) instead
+    /// of a full one. Off by default, because it is not the business's choice alone: VAT Rules 2053
+    /// Rule 18(1) (as amended by the 21st Amendment, 2076) allows it only to a registered person who
+    /// sells by retail <b>with the Tax Officer's permission</b>, and Rule 18(6) caps it at
+    /// <see cref="Domain.Sales.Invoice.AbbreviatedTaxInvoiceLimit"/> per transaction. Switching it on
+    /// records that the permission is held; which bills then qualify is decided per sale
+    /// (phase-62-status.md Decision A).
+    /// </summary>
+    public bool AbbreviatedTaxInvoiceEnabled { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     private PosLocationSettings()
@@ -99,6 +110,7 @@ public sealed class PosLocationSettings
             PrintInvoice = true,
             PrintCreditNote = true,
             PrintKot = true,
+            AbbreviatedTaxInvoiceEnabled = false,
             CreatedAt = DateTimeOffset.UtcNow,
         };
     }
@@ -120,7 +132,8 @@ public sealed class PosLocationSettings
         bool printEstimateBill,
         bool printInvoice,
         bool printCreditNote,
-        bool printKot)
+        bool printKot,
+        bool abbreviatedTaxInvoiceEnabled)
     {
         if (serviceChargeEnabled && (serviceChargeRate <= 0m || serviceChargeRate > 100m))
         {
@@ -145,6 +158,7 @@ public sealed class PosLocationSettings
         PrintInvoice = printInvoice;
         PrintCreditNote = printCreditNote;
         PrintKot = printKot;
+        AbbreviatedTaxInvoiceEnabled = abbreviatedTaxInvoiceEnabled;
     }
 
     /// <summary>The tab the till opens on: the saved one when it still belongs to

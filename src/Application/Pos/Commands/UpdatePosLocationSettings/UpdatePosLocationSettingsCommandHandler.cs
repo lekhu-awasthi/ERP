@@ -66,7 +66,8 @@ public sealed class UpdatePosLocationSettingsCommandHandler(IAppDbContext db)
             request.PrintEstimateBill,
             request.PrintInvoice,
             request.PrintCreditNote,
-            request.PrintKot);
+            request.PrintKot,
+            request.AbbreviatedTaxInvoiceEnabled);
 
         await db.SaveChangesAsync(cancellationToken);
 

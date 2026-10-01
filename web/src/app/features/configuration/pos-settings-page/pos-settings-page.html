@@ -231,6 +231,29 @@
             }
           </fieldset>
 
+          <fieldset class="mb-4">
+            <legend class="h6 fw-bold">Abbreviated Tax Invoice</legend>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="pos-settings-abbreviated"
+                aria-describedby="pos-settings-abbreviated-rule"
+                [checked]="abbreviatedTaxInvoiceEnabled()" (change)="abbreviatedTaxInvoiceEnabled.set(checkedOf($event))" />
+              <label class="form-check-label" for="pos-settings-abbreviated">
+                Issue abbreviated tax invoices (the Tax Officer's permission is held)
+              </label>
+            </div>
+            <!-- Phase 62 (Decision A) -- like the service-charge ruling above: the rule is stated where
+                 the switch is, because switching it on is a claim about a permission only the tax
+                 office can give. -->
+            <p id="pos-settings-abbreviated-rule" class="form-text mb-2">
+              <i class="bi bi-info-circle" aria-hidden="true"></i>
+              Under VAT Rules 2053, Rule 18 (amended 2076), a registered business selling by retail may issue
+              an abbreviated tax invoice only with the Tax Officer's permission, and only for a bill of up to
+              Rs 10,000. When this is on, the till issues one for a walk-in bill within that limit. A named
+              customer, or any bill over the limit, always gets a full tax invoice, because a customer who
+              asks for one must be given it. A business not registered for VAT issues neither.
+            </p>
+          </fieldset>
+
           <button type="button" class="btn btn-primary fw-bold" [disabled]="saving()" (click)="saveSettings()">
             Save Settings
           </button>

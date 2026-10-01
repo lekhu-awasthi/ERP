@@ -121,6 +121,7 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
 
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
     public DbSet<InvoiceTender> InvoiceTenders => Set<InvoiceTender>();
+    public DbSet<InvoicePrint> InvoicePrints => Set<InvoicePrint>();
 
     public DbSet<SalesOrder> SalesOrders => Set<SalesOrder>();
 

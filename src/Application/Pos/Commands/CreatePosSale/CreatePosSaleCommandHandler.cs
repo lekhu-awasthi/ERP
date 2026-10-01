@@ -87,6 +87,8 @@ public sealed class CreatePosSaleCommandHandler(
             throw new ValidationException([new ValidationFailure(nameof(request.Tenders), ex.Message)]);
         }
 
+        await IssueAsAbbreviatedWhereAllowedAsync(request, till, contact, invoice, cancellationToken);
+
         // Stock first, then credit: the order the ERP's Approve checks them in, so a sale tripping
         // both shows them in the same order an invoice does.
         await EnsureStockAsync(request, invoice, cancellationToken);
@@ -113,7 +115,40 @@ public sealed class CreatePosSaleCommandHandler(
 
         return new CreatePosSaleResult(
             invoice.Id, invoice.Code, invoice.GrandTotal, invoice.ServiceChargeTotal, invoice.RoundOff,
-            invoice.TenderedAmount, invoice.ChangeAmount, invoice.CreditAmount);
+            invoice.TenderedAmount, invoice.ChangeAmount, invoice.CreditAmount, invoice.IsAbbreviatedTaxInvoice);
+    }
+
+    /// <summary>
+    /// Phase 62 Decision A -- an abbreviated tax invoice (VAT Rules 2053, Rule 18 as amended in 2076)
+    /// is issued only when every condition the rule sets is met, and otherwise the full one:
+    /// <list type="bullet">
+    /// <item>the seller is VAT-registered -- only a registered person issues a tax invoice at all;</item>
+    /// <item>the location records the Tax Officer's permission (Rule 18(1));</item>
+    /// <item>the buyer is the walk-in. A customer who asks for a full tax invoice must be given one, and
+    /// a buyer who wants to claim input VAT needs one; naming the customer at the till is how a cashier
+    /// asks for it, so a named customer always gets the full invoice;</item>
+    /// <item>the bill is at most <see cref="Invoice.AbbreviatedTaxInvoiceLimit"/> (Rule 18(6)).</item>
+    /// </list>
+    /// </summary>
+    private async Task IssueAsAbbreviatedWhereAllowedAsync(
+        CreatePosSaleCommand request, PosTillContext till, Contact contact, Invoice invoice,
+        CancellationToken cancellationToken)
+    {
+        if (!till.Settings.AbbreviatedTaxInvoiceEnabled || !contact.IsWalkInCustomer
+            || invoice.GrandTotal > Invoice.AbbreviatedTaxInvoiceLimit)
+        {
+            return;
+        }
+
+        var vatRegistered = await db.Organizations
+            .Where(x => x.Id == request.OrganizationId)
+            .Select(x => x.IsVatRegistered)
+            .SingleAsync(cancellationToken);
+
+        if (vatRegistered)
+        {
+            invoice.IssueAsAbbreviatedTaxInvoice();
+        }
     }
 
     private static PosTab ResolveOrderType(CreatePosSaleCommand request, PosTillContext till)

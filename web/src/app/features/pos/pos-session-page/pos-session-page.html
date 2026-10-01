@@ -1,0 +1,240 @@
+<div class="pos-screen-root">
+  <div class="container py-4">
+    <app-status-banner [message]="errorMessage()" />
+    <app-status-banner [message]="successMessage()" tone="success" />
+
+    @if (loading()) {
+      <p class="text-body-secondary">Loading the session…</p>
+    } @else if (session(); as s) {
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <h1 class="h3 fw-bold mb-0 me-auto">
+          Session {{ s.code }}
+          <span class="badge" [class.text-bg-success]="s.status === 'Open'" [class.text-bg-secondary]="s.status === 'Closed'">{{ s.status }}</span>
+        </h1>
+        @if (isOwnOpen()) {
+          <a class="btn btn-primary fw-bold" [routerLink]="['/organizations', organizationId, 'pos', 'till', s.locationId]">Back to Till</a>
+        }
+        <a class="btn btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'pos']">All Tills</a>
+      </div>
+      <p class="text-body-secondary">
+        {{ s.locationName }} &middot; {{ s.userName }} &middot; opened {{ s.openedAt | nepaliDate: 'datetime' }}
+        @if (s.closedAt) { &middot; closed {{ s.closedAt | nepaliDate: 'datetime' }} }
+      </p>
+
+      <div class="row g-3">
+        <!-- ===================== X / Z report ===================== -->
+        <section class="col-lg-5" aria-labelledby="pos-session-report-heading">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body">
+              <h2 id="pos-session-report-heading" class="h5 fw-bold">{{ s.status === 'Open' ? 'X Report (so far)' : 'Z Report' }}</h2>
+              <table class="table table-sm mb-0">
+                <caption class="visually-hidden">Figures for session {{ s.code }}</caption>
+                <tbody>
+                  <tr><th scope="row">Sales</th><td class="text-end">{{ s.sales.salesCount }}</td></tr>
+                  <tr><th scope="row">Sub total</th><td class="text-end">{{ s.sales.subTotal | amount }}</td></tr>
+                  <tr><th scope="row">Service charge</th><td class="text-end">{{ s.sales.serviceCharge | amount }}</td></tr>
+                  <tr><th scope="row">VAT</th><td class="text-end">{{ s.sales.vat | amount }}</td></tr>
+                  <tr><th scope="row">Round off</th><td class="text-end">{{ s.sales.roundOff | amount }}</td></tr>
+                  <tr><th scope="row">Total sales</th><td class="text-end fw-bold">{{ s.sales.grandTotal | amount }}</td></tr>
+                  @for (tender of s.sales.tenders; track tender.paymentModeId) {
+                    <tr><th scope="row" class="fw-normal ps-3">{{ tender.paymentModeName }}</th><td class="text-end">{{ tender.amount | amount }}</td></tr>
+                  }
+                  <tr><th scope="row">Change given</th><td class="text-end">{{ s.sales.change | amount }}</td></tr>
+                  <tr><th scope="row">Left on credit</th><td class="text-end">{{ s.sales.credit | amount }}</td></tr>
+                  <tr><th scope="row" colspan="2" class="pt-3">Drawer</th></tr>
+                  <tr><th scope="row" class="fw-normal">Opening float</th><td class="text-end">{{ s.openingFloat | amount }}</td></tr>
+                  <tr><th scope="row" class="fw-normal">Cash from sales</th><td class="text-end">{{ s.sales.cashSales | amount }}</td></tr>
+                  <tr><th scope="row" class="fw-normal">Cash in</th><td class="text-end">{{ s.cashIn | amount }}</td></tr>
+                  <tr><th scope="row" class="fw-normal">Cash out</th><td class="text-end">{{ s.cashOut | amount }}</td></tr>
+                  <tr><th scope="row">Expected in drawer</th><td class="text-end fw-bold">{{ s.expectedCash | amount }}</td></tr>
+                  @if (s.status === 'Closed') {
+                    <tr><th scope="row">Counted</th><td class="text-end">{{ s.countedCash | amount }}</td></tr>
+                    <tr><th scope="row">Over / (short)</th><td class="text-end fw-bold">{{ s.cashDifference | amount }}</td></tr>
+                    @if (s.closingNote) {
+                      <tr><th scope="row">Note</th><td class="text-end">{{ s.closingNote }}</td></tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          @if (s.cashMovements.length > 0) {
+            <div class="card border-0 shadow-sm mt-3">
+              <div class="card-body">
+                <h2 class="h6 fw-bold">Cash movements</h2>
+                <table class="table table-sm mb-0">
+                  <thead>
+                    <tr><th scope="col">When</th><th scope="col">In/Out</th><th scope="col">Account</th><th scope="col" class="text-end">Amount</th></tr>
+                  </thead>
+                  <tbody>
+                    @for (movement of s.cashMovements; track movement.id) {
+                      <tr>
+                        <td>{{ movement.createdAt | nepaliDate: 'datetime' }}</td>
+                        <td>{{ movement.direction }}</td>
+                        <td>{{ movement.accountName }}@if (movement.note) { <span class="d-block small text-body-secondary">{{ movement.note }}</span> }</td>
+                        <td class="text-end">{{ movement.amount | amount }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+        </section>
+
+        <div class="col-lg-7">
+          @if (isOwnOpen()) {
+            <!-- ===================== Cash In / Out ===================== -->
+            <section class="card border-0 shadow-sm mb-3" aria-labelledby="pos-cash-heading">
+              <div class="card-body">
+                <h2 id="pos-cash-heading" class="h5 fw-bold">Cash In / Cash Out</h2>
+                <p class="small text-body-secondary">Every movement names the account the cash came from or went to, and posts.</p>
+                <form (submit)="$event.preventDefault(); recordMovement()">
+                  <fieldset class="mb-2">
+                    <legend class="h6">Direction</legend>
+                    <div class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="pos-direction" id="pos-direction-out"
+                        [checked]="direction() === 'Out'" (change)="direction.set('Out')" />
+                      <label class="form-check-label" for="pos-direction-out">Cash out of the drawer</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="pos-direction" id="pos-direction-in"
+                        [checked]="direction() === 'In'" (change)="direction.set('In')" />
+                      <label class="form-check-label" for="pos-direction-in">Cash into the drawer</label>
+                    </div>
+                  </fieldset>
+                  <div class="row g-2">
+                    <div class="col-sm-4">
+                      <label class="form-label" for="pos-movement-amount">Amount</label>
+                      <input class="form-control" type="number" min="0" step="0.01" id="pos-movement-amount" inputmode="decimal"
+                        [class.is-invalid]="fieldError.is('pos-movement-amount')"
+                        [attr.aria-invalid]="fieldError.invalid('pos-movement-amount')"
+                        [attr.aria-describedby]="fieldError.describedBy('pos-movement-amount')"
+                        [value]="movementAmount() ?? ''" (input)="movementAmount.set(numberOf($event))" />
+                      <app-field-error [state]="fieldError" control="pos-movement-amount" />
+                    </div>
+                    <div class="col-sm-8">
+                      <label class="form-label" for="pos-movement-account">{{ direction() === 'Out' ? 'Paid to (account)' : 'Came from (account)' }}</label>
+                      <select class="form-select" id="pos-movement-account" (change)="onAccountChange($event)"
+                        [class.is-invalid]="fieldError.is('pos-movement-account')"
+                        [attr.aria-invalid]="fieldError.invalid('pos-movement-account')"
+                        [attr.aria-describedby]="fieldError.describedBy('pos-movement-account')">
+                        <option value="" [selected]="movementAccountId() === ''">Choose an account</option>
+                        @for (account of movementAccounts(); track account.id) {
+                          <option [value]="account.id" [selected]="account.id === movementAccountId()">{{ account.code }} — {{ account.name }}</option>
+                        }
+                      </select>
+                      <app-field-error [state]="fieldError" control="pos-movement-account" />
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label" for="pos-movement-note">Note</label>
+                      <input class="form-control" type="text" id="pos-movement-note" maxlength="500"
+                        [value]="movementNote()" (input)="movementNote.set(textOf($event))" />
+                    </div>
+                  </div>
+                  <app-status-banner [message]="cashWarning()" tone="warning" spacing="mt-2 mb-0" [spread]="true">
+                    <button bannerAction type="button" class="btn btn-sm btn-warning" (click)="recordMovement(true)">Record Anyway</button>
+                  </app-status-banner>
+                  <button type="submit" class="btn btn-primary fw-bold mt-3" [disabled]="submitting()">Record</button>
+                </form>
+              </div>
+            </section>
+
+            <!-- ===================== Close ===================== -->
+            <section class="card border-0 shadow-sm mb-3" aria-labelledby="pos-close-heading">
+              <div class="card-body">
+                <h2 id="pos-close-heading" class="h5 fw-bold">Close the Session</h2>
+                <p class="small">The drawer should hold <strong>{{ s.expectedCash | amount }}</strong>. Count it, and the difference posts to Cash Over/Short.</p>
+                @if (heldCarts() > 0) {
+                  <p class="small fw-bold">{{ heldCarts() }} held cart(s) in this browser will be discarded when the session closes.</p>
+                }
+                @if (till(); as t) {
+                  <form (submit)="$event.preventDefault(); closeSession()">
+                    @if (t.cashVerificationRequired) {
+                      <app-denomination-count [denominations]="t.denominations" idPrefix="pos-close-count"
+                        legend="Closing count" (countsChange)="closingCount.set($event)" />
+                    } @else {
+                      <label class="form-label" for="pos-close-amount">Cash counted in the drawer</label>
+                      <input class="form-control" type="number" min="0" step="0.01" id="pos-close-amount" inputmode="decimal"
+                        [class.is-invalid]="fieldError.is('pos-close-amount')"
+                        [attr.aria-invalid]="fieldError.invalid('pos-close-amount')"
+                        [attr.aria-describedby]="fieldError.describedBy('pos-close-amount')"
+                        (input)="countedAmount.set(numberOf($event))" />
+                      <app-field-error [state]="fieldError" control="pos-close-amount" />
+                    }
+                    @if (difference(); as diff) {
+                      <p class="mt-2 mb-1 fw-bold">{{ diff < 0 ? 'Short by ' : 'Over by ' }}{{ (diff < 0 ? -diff : diff) | amount }}</p>
+                    }
+                    <label class="form-label mt-2" for="pos-close-note">Note {{ difference() ? '(required: say why the count differs)' : '' }}</label>
+                    <textarea class="form-control" id="pos-close-note" rows="2" maxlength="500"
+                      [class.is-invalid]="fieldError.is('pos-close-note')"
+                      [attr.aria-invalid]="fieldError.invalid('pos-close-note')"
+                      [attr.aria-describedby]="fieldError.describedBy('pos-close-note')"
+                      (input)="closingNote.set(textOf($event))"></textarea>
+                    <app-field-error [state]="fieldError" control="pos-close-note" />
+                    <button type="submit" class="btn btn-danger fw-bold mt-3" [disabled]="submitting()">Close Session</button>
+                  </form>
+                }
+              </div>
+            </section>
+          }
+
+          <!-- ===================== Sales ===================== -->
+          <section class="card border-0 shadow-sm" aria-labelledby="pos-sales-heading">
+            <div class="card-body">
+              <h2 id="pos-sales-heading" class="h5 fw-bold">Sales in this session</h2>
+              @if (sales().length === 0) {
+                <p class="text-body-secondary mb-0">No sales yet.</p>
+              } @else {
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th scope="col">Bill</th>
+                        <th scope="col">Time</th>
+                        <th scope="col">Customer</th>
+                        <th scope="col" class="text-end">Total</th>
+                        <th scope="col" class="text-end">On credit</th>
+                        <th scope="col">Printed</th>
+                        <th scope="col"><span class="visually-hidden">Actions</span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (sale of sales(); track sale.invoiceId) {
+                        <tr>
+                          <td>
+                            <a [routerLink]="['/organizations', organizationId, 'sales', 'invoices', sale.invoiceId]">{{ sale.code }}</a>
+                            @if (sale.status === 'Void') { <span class="badge text-bg-secondary ms-1">Void</span> }
+                          </td>
+                          <td>{{ sale.soldAt | nepaliDate: 'datetime' }}</td>
+                          <td>{{ sale.customerName }}</td>
+                          <td class="text-end">{{ sale.grandTotal | amount }}</td>
+                          <td class="text-end">{{ sale.creditAmount | amount }}</td>
+                          <td>{{ sale.printCount === 0 ? 'Not yet' : sale.printCount + ' time(s)' }}</td>
+                          <td class="text-end">
+                            @if (sale.status === 'Approved') {
+                              <button type="button" class="btn btn-sm btn-outline-primary" (click)="reprint(sale)">
+                                {{ sale.printCount === 0 ? 'Print' : 'Reprint' }}<span class="visually-hidden"> {{ sale.code }}</span>
+                              </button>
+                            }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            </div>
+          </section>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+<div class="pos-print-root">
+  @if (printing(); as r) {
+    <app-pos-receipt [receipt]="r" />
+  }
+</div>

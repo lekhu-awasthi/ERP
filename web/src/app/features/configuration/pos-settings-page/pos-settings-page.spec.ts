@@ -43,6 +43,7 @@ describe('PosSettingsPage', () => {
     printInvoice: true,
     printCreditNote: true,
     printKot: true,
+    abbreviatedTaxInvoiceEnabled: false,
     paymentModeIds: [],
   });
 
@@ -165,6 +166,7 @@ describe('PosSettingsPage', () => {
     p.tick('pos-settings-round-off');
     p.tick('pos-settings-cash-verification');
     p.tick('pos-settings-print-kot');
+    p.tick('pos-settings-abbreviated');
     p.press('Save Settings');
 
     expect(p.service.saved).toEqual({
@@ -180,6 +182,7 @@ describe('PosSettingsPage', () => {
       printInvoice: true,
       printCreditNote: true,
       printKot: false,
+      abbreviatedTaxInvoiceEnabled: true,
     });
     expect(p.text()).toContain('Settings saved for HeadOffice.');
   });

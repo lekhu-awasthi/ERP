@@ -1,0 +1,82 @@
+<div class="container py-4">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <h1 class="h3 fw-bold mb-0">Point of Sale</h1>
+    <a class="btn btn-outline-secondary btn-sm" [routerLink]="['/organizations', organizationId, 'home']">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i> Back to the ERP
+    </a>
+  </div>
+
+  <app-status-banner [message]="errorMessage()" />
+
+  @if (loading()) {
+    <p class="text-body-secondary">Loading tills…</p>
+  } @else if (loadFailed()) {
+    <!-- The banner above says why; an empty-list explanation under a refusal would be a second, wrong reason. -->
+  } @else if (tills().length === 0) {
+    <p>
+      No location runs a till you can open. A till is a location given a POS mode under
+      <a [routerLink]="['/organizations', organizationId, 'configuration', 'pos']">Configurations &gt; Point of Sale</a>,
+      and opening its drawer needs permission to create invoices there.
+    </p>
+  } @else {
+    <ul class="list-unstyled row g-3">
+      @for (till of tills(); track till.locationId) {
+        <li class="col-12 col-md-6 col-xl-4">
+          <section class="card h-100 border-0 shadow-sm" [attr.aria-labelledby]="'pos-till-' + till.locationId">
+            <div class="card-body">
+              <h2 class="h5 fw-bold" [id]="'pos-till-' + till.locationId">{{ till.locationName }}</h2>
+              <p class="text-body-secondary small mb-3">{{ till.locationCode }} &middot; {{ modeLabels[till.posMode] }}</p>
+
+              @if (till.posMode === 'Restaurant') {
+                <p class="mb-0">
+                  The restaurant till (tables, kitchen orders and bill splitting) is not built yet. This location's
+                  sales are rung up from the ERP until it is.
+                </p>
+              } @else if (till.mySessionId) {
+                <p>
+                  Your session <strong>{{ till.mySessionCode }}</strong> has been open since
+                  {{ till.mySessionOpenedAt | nepaliDate: 'datetime' }}.
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                  <a class="btn btn-primary fw-bold" [routerLink]="['/organizations', organizationId, 'pos', 'till', till.locationId]">
+                    Open Till
+                  </a>
+                  <a class="btn btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'pos', 'sessions', till.mySessionId]">
+                    Session &amp; Cash
+                  </a>
+                </div>
+              } @else if (starting()?.locationId === till.locationId) {
+                @let current = starting()!;
+                <form (submit)="$event.preventDefault(); startSession()">
+                  @if (current.cashVerificationRequired) {
+                    <p class="small">This till counts its float note by note.</p>
+                    <app-denomination-count
+                      [denominations]="current.denominations"
+                      [idPrefix]="'pos-open-' + till.locationId"
+                      legend="Opening float"
+                      (countsChange)="openingCount.set($event)"
+                    />
+                  } @else {
+                    <label class="form-label" for="pos-open-amount">Opening float (cash already in the drawer)</label>
+                    <input class="form-control mb-1" type="number" min="0" step="0.01" id="pos-open-amount"
+                      inputmode="decimal" (input)="onAmountInput($event)" />
+                    <p class="form-text">The float posts nothing: it is cash the drawer's account already holds.</p>
+                  }
+                  <div class="d-flex flex-wrap gap-2 mt-3">
+                    <button type="submit" class="btn btn-primary fw-bold" [disabled]="submitting()">Start Session</button>
+                    <button type="button" class="btn btn-outline-secondary" (click)="cancelStart()">Cancel</button>
+                  </div>
+                </form>
+              } @else {
+                <p>You have no session open here.</p>
+                <button type="button" class="btn btn-primary fw-bold" (click)="beginStart(till.locationId)">
+                  Start Session
+                </button>
+              }
+            </div>
+          </section>
+        </li>
+      }
+    </ul>
+  }
+</div>

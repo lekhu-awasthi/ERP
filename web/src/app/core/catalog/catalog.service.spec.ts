@@ -86,10 +86,20 @@ describe('Phase 24 picker sweep completeness', () => {
     expect(Object.keys(sources).length).toBeGreaterThan(50);
   });
 
+  /**
+   * Phase 62 -- the rule is about `CatalogService.listProducts`, and the predicate used to be the
+   * method's *name*: the till's `PosService.listProducts` (a server-side projection that already
+   * excludes variant parents and unsellable products) tripped it. A file can only call the catalogue's
+   * method if it imports the catalogue's service, so that is now part of the predicate -- taught, not
+   * exempted (phase 55), and the allow-listed Products screen is pinned to still match it below.
+   */
+  const callsCatalogListProducts = (source: string) =>
+    /\bCatalogService\b/.test(source) && /\.listProducts\(/.test(source);
+
   it('has no picker calling listProducts directly instead of the shared listAllProducts seam', () => {
     const found = Object.entries(sources)
       .filter(([path]) => !DIRECT_LIST_ALLOWED.has(path))
-      .filter(([, source]) => /\.listProducts\(/.test(source))
+      .filter(([, source]) => callsCatalogListProducts(source))
       .map(([path]) => path)
       .sort();
 
@@ -98,6 +108,13 @@ describe('Phase 24 picker sweep completeness', () => {
       `Product pickers must call catalogService.listAllProducts (which excludes variant parents) ` +
         `rather than listProducts:\n  ${found.join('\n  ')}`,
     ).toEqual([]);
+  });
+
+  it('still recognises the one screen allowed to call it, so the narrowed predicate is not vacuous', () => {
+    for (const path of DIRECT_LIST_ALLOWED.keys()) {
+      expect(sources[path], path).toBeDefined();
+      expect(callsCatalogListProducts(sources[path]), path).toBe(true);
+    }
   });
 
   it('has no feature fetching /products over HttpClient directly', () => {

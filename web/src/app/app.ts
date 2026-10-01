@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs/operators';
 
@@ -44,6 +44,17 @@ export class App implements OnInit {
   /** The organization in scope, parsed from the url — null outside `/organizations/{id}/…`. */
   protected readonly organizationId = signal<string | null>(null);
 
+  /**
+   * Phase 62 — the till is its own full-screen layout (phase 59 Decision A): a cashier at a counter
+   * gets the product grid and the cart edge to edge, with no nav rail, search box or date filter to
+   * tab through. The organization stays in scope (the till's dates still follow the BS toggle), and
+   * only the chrome steps aside.
+   */
+  protected readonly tillMode = signal(false);
+
+  /** The organization the chrome renders for: none outside an organization, and none at the till. */
+  protected readonly chromeOrganizationId = computed(() => (this.tillMode() ? null : this.organizationId()));
+
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly history = inject(HistoryService);
@@ -64,6 +75,8 @@ export class App implements OnInit {
   }
 
   private onNavigated(url: string): void {
+    this.tillMode.set(isTillUrl(url));
+
     const organizationId = organizationIdOf(url);
 
     if (organizationId === this.organizationId()) {
@@ -82,6 +95,13 @@ export class App implements OnInit {
       this.dateRange.activate(organizationId);
     }
   }
+}
+
+/** Phase 62 — `/organizations/{guid}/pos…`, the till's own route tree. */
+export function isTillUrl(url: string): boolean {
+  const segments = url.split('?')[0].split('#')[0].split('/').filter((s) => s.length > 0);
+
+  return segments[0] === 'organizations' && segments.length >= 3 && segments[2] === 'pos';
 }
 
 /** `/organizations/{guid}/…` → the guid; anything else → null. */

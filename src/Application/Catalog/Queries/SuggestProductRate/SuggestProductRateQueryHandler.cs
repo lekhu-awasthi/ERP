@@ -60,26 +60,8 @@ public sealed class SuggestProductRateQueryHandler(IAppDbContext db)
         }
 
         return new SuggestedProductRateDto(
-            FromProductPrice(product.SellingPrice, product.VatRate, settings.ProductPriceBasis),
+            ProductPrices.ToExclusiveRate(product.SellingPrice, product.VatRate, settings.ProductPriceBasis),
             product.VatRate,
             ProductRateSource.ProductSellingPrice);
-    }
-
-    /// <summary>
-    /// Inclusive-of-VAT means the number typed into the product's Selling Price already contains the
-    /// tax, so the line's exclusive rate is that number divided by (1 + rate). Rounded to 2 dp, the
-    /// scale every line rate in this codebase is entered and stored at; the residue lands where it
-    /// would have anyway, in the VAT computed from the rounded rate. A NoVat or ZeroVat product
-    /// divides by 1 and is untouched, which is why no branch on the rate is needed.
-    /// </summary>
-    private static decimal FromProductPrice(decimal sellingPrice, VatRate vatRate, ProductPriceBasis basis)
-    {
-        if (basis != ProductPriceBasis.InclusiveOfVat)
-        {
-            return sellingPrice;
-        }
-
-        var divisor = 1m + vatRate.ToPercent();
-        return decimal.Round(sellingPrice / divisor, 2, MidpointRounding.AwayFromZero);
     }
 }

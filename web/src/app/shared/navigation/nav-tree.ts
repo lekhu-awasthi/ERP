@@ -32,6 +32,8 @@ export const AREA_ORDER: readonly string[] = [
   'CRM',
   'Workflow',
   'Sales',
+  // Phase 62 -- after Sales, because a till sale is a sale.
+  'Point of Sale',
   'Purchase',
   'Accounting',
   'Inventory',
@@ -44,7 +46,7 @@ export const AREA_ORDER: readonly string[] = [
 /**
  * Areas the nav renders as a **single leaf** rather than an accordion, with the screen it points at.
  *
- * Reports is the only one, and it is not a style choice: this codebase has **52** routes under
+ * Reports was the only one until phase 62, and it is not a style choice: this codebase has **52** routes under
  * `reports/`, more nav rows than every other area put together. Confirmed live — the reference
  * product's Reports is likewise one leaf (`ant-menu-item`, not `ant-menu-submenu`) opening a
  * catalogue page at `#/reports/new` that groups its reports under Accounting / Receivable / Payable
@@ -53,6 +55,9 @@ export const AREA_ORDER: readonly string[] = [
  */
 export const LEAF_AREAS: Readonly<Record<string, string>> = {
   Reports: '/reports',
+  // Phase 62 -- one screen, the till's launcher; an accordion holding one row would be a click for
+  // nothing. The till's other screens are reached from the launcher, which is where a cashier starts.
+  'Point of Sale': '/pos',
 };
 
 /**

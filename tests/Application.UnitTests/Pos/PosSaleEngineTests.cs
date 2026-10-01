@@ -89,7 +89,7 @@ public sealed class PosSaleEngineTests
         var settings = await till.Db.PosLocationSettings.SingleAsync();
         settings.Update(
             PosMode.Retail, false, 0m, null, false, null, false, PosLocationSettings.DefaultDenominations, null,
-            true, true, true, false);
+            true, true, true, false, false);
         await till.Db.SaveChangesAsync();
         var session = await till.OpenAsync();
 
@@ -117,7 +117,7 @@ public sealed class PosSaleEngineTests
         var posSettings = await till.Db.PosLocationSettings.SingleAsync();
         posSettings.Update(
             PosMode.Retail, true, 10m, till.VegetablesAccountId, true, null, false,
-            PosLocationSettings.DefaultDenominations, null, true, true, true, false);
+            PosLocationSettings.DefaultDenominations, null, true, true, true, false, false);
         await till.Db.SaveChangesAsync();
 
         await till.SellAsync(session.Id, [till.Momo(1)], [till.Cash(249m)]);
@@ -402,7 +402,7 @@ public sealed class PosSaleEngineTests
         var settings = await till.Db.PosLocationSettings.SingleAsync();
         settings.Update(
             PosMode.Retail, true, 10m, null, true, null, cashVerificationRequired: true,
-            [1000, 500, 100], null, true, true, true, false);
+            [1000, 500, 100], null, true, true, true, false, false);
         await till.Db.SaveChangesAsync();
 
         await Assert.ThrowsAsync<ValidationException>(() => till.OpenAsync(amount: 1000m));

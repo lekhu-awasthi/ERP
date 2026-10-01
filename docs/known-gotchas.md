@@ -3957,3 +3957,76 @@ compiled, passed every test and written nothing. It was removed, because the ses
 cash movement's creator and timestamp already are the record. A drawer action that must reach the
 System Audit report needs new action members there and on the Angular `SystemAuditAction` union, not
 just the marker.
+
+## A figure a cashier pays against must round exactly as the server does (phase 62)
+
+The till shows a total before the server has seen the sale, and the cashier hands back change
+against it. If the screen says 633 and the server bills 632, the difference is a rupee of change the
+drawer is short, or a rupee of credit on the walk-in, which phase 61 refuses outright with a 400 at
+the worst moment. The server rounds every line figure to the paisa half away from zero in `decimal`.
+JavaScript cannot do that with numbers: `1.005` is stored as 1.00499999…, so
+`Math.round(1.005 * 100) / 100` is `1`, where the server says `1.01`.
+
+`pos-bill.ts` therefore scales every input to an exact integer of millionths, does the arithmetic in
+`bigint`, and rounds once per figure where the server does, with `(2n·n + d) / (2n·d)`.
+`pos-bill-cases.json` holds 14 cases generated with Python's `Decimal`, including the 1.005 trap, an
+exact half-paisa and a bill of exactly x.50. `PosBillSharedCasesTests` (embedded resource) and
+`pos-bill.spec.ts` both read it. Swapping the rounding for truncation failed 9 of the 17 specs.
+
+## A count the law prints on paper is a server row (phase 62)
+
+The IRD's computerised-invoicing procedure (2072, §6) allows one original and requires every reprint
+to say "copy of original" with how many times the bill has been printed. Three things follow:
+
+- the count must be the same whichever till or cashier prints next, so it cannot be a browser's;
+- two simultaneous prints must not both become copy 2, so the row carries a unique index on
+  (organization, invoice, number), and the loser gets a 409 rather than a renumbering. InMemory does
+  not enforce the index, so this was not raced against SQL Server;
+- a browser cannot tell a cancelled print dialog from a printed page, so the count is of requests.
+
+The same reasoning stores the bill's heading (`IsAbbreviatedTaxInvoice`) at the sale. A reprint
+derived from today's location setting could change the heading of a bill already handed over.
+
+## A guard predicate that names a method name catches a namesake (phase 62)
+
+`catalog.service.spec.ts`'s phase 24 guard asserted that no feature calls `.listProducts(` outside
+an allow-list, because `CatalogService.listProducts` includes variant parents. The till's
+`PosService.listProducts` is a different method on a different service, a server-side projection
+that already excludes them, and it tripped the guard. The predicate named the *method*, not the
+*receiver*.
+
+Exempting the till would have been phase 55's anti-pattern: an exemption on a brand-new screen. The
+guard was taught instead. A file can only call the catalogue's method if it imports `CatalogService`,
+so that is now part of the predicate. A second assertion checks that the allow-listed Products screen
+still matches, because narrowing a predicate is exactly how a guard goes quietly vacuous.
+
+## The feature route guard needs the subscription read (phase 62)
+
+`anyFeatureGuard` reads `GET /organizations/{id}/subscription`, which is gated by
+`Tenancy.Subscription.View`, and fails closed by redirecting to Home. An E2E that moves its own user
+onto a narrow custom role to show the till's 403 therefore lands on Home, where every widget
+403s, and never sees the till's own refusal. Give the role `Tenancy.Subscription.View` beside its
+control key. The role cannot be edited while the user is on it (phase 52), so restore Admin through
+`sqlcmd`, edit the role, and move back.
+
+## `\\` in a Bash heredoc reaches Python as `\`, and `\b` is a backspace (phase 62)
+
+The phase 39 entry says the Bash tool's heredoc eats backslash escapes. The concrete failure here:
+a Python patch script wrote `/\\bCatalogService\\b/` into a TypeScript regex. The heredoc delivered
+`\b` to Python, whose non-raw string turned it into U+0008. The file then held
+`/<BS>CatalogService<BS>/`, which looks like `/CatalogService/` in every viewer and matches nothing.
+It was found only because a new non-vacuity assertion failed. Any script carrying a backslash goes
+through the Write tool, then `python file.py`.
+
+## `docker info` succeeds with the engine down (phase 62)
+
+`docker info` prints a client section and exits 0 when Docker Desktop's engine pipe
+(`dockerDesktopLinuxEngine`) does not exist, so a readiness loop on its exit code reports "ready"
+immediately. Test `{{.ServerVersion}}` for a non-empty value. In this phase the engine took more than six minutes
+to come up after Docker Desktop was started. Once it reported a version, the suite passed 30/30.
+
+## A running API preview locks the integration suite's build (phase 62)
+
+`Api.IntegrationTests` builds `src/Api`. With the `erp-api` preview running, `ErpApp.Api.dll` is
+locked and the build fails, so a test run filtered on `[FAIL]|Passed!` prints nothing at all. Stop
+the preview first, and grep for ` error ` as well.

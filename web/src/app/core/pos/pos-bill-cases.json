@@ -1,0 +1,476 @@
+{
+  "about": "Phase 62 -- the till's bill arithmetic, shared by the server (InvoiceLine.CreatePos, Invoice.ApplyRoundOff; PosBillSharedCasesTests) and the till screen (pos-bill.ts; pos-bill.spec.ts). The till shows a total before the server has seen the sale, and the cashier takes money against it, so the two must agree to the paisa. Every line figure is rounded to the paisa half away from zero; the bill is rounded to the nearest rupee half away from zero when the location rounds.",
+  "cases": [
+    {
+      "why": "Phase 59's vendor table: 2 momo with 10% service charge and 2 coke without. 632.80 rounds to 633.",
+      "roundOff": true,
+      "discountPct": 0,
+      "lines": [
+        {
+          "quantity": 2,
+          "rate": 200,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 10
+        },
+        {
+          "quantity": 2,
+          "rate": 60,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 400,
+            "serviceCharge": 40,
+            "vat": 57.2,
+            "total": 497.2
+          },
+          {
+            "amount": 120,
+            "serviceCharge": 0,
+            "vat": 15.6,
+            "total": 135.6
+          }
+        ],
+        "subTotal": 520,
+        "serviceCharge": 40,
+        "vat": 72.8,
+        "roundOff": 0.2,
+        "grandTotal": 633
+      }
+    },
+    {
+      "why": "Split 1 of the same service: 316.40 rounds DOWN to 316 here. The vendor charged 317, a ceiling (phase 61 Decision B).",
+      "roundOff": true,
+      "discountPct": 0,
+      "lines": [
+        {
+          "quantity": 1,
+          "rate": 200,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 10
+        },
+        {
+          "quantity": 1,
+          "rate": 60,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 200,
+            "serviceCharge": 20,
+            "vat": 28.6,
+            "total": 248.6
+          },
+          {
+            "amount": 60,
+            "serviceCharge": 0,
+            "vat": 7.8,
+            "total": 67.8
+          }
+        ],
+        "subTotal": 260,
+        "serviceCharge": 20,
+        "vat": 36.4,
+        "roundOff": -0.4,
+        "grandTotal": 316
+      }
+    },
+    {
+      "why": "One momo: 248.60 rounds up to 249.",
+      "roundOff": true,
+      "discountPct": 0,
+      "lines": [
+        {
+          "quantity": 1,
+          "rate": 200,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 10
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 200,
+            "serviceCharge": 20,
+            "vat": 28.6,
+            "total": 248.6
+          }
+        ],
+        "subTotal": 200,
+        "serviceCharge": 20,
+        "vat": 28.6,
+        "roundOff": 0.4,
+        "grandTotal": 249
+      }
+    },
+    {
+      "why": "The same momo at a till that does not round: 248.60 is charged as it is.",
+      "roundOff": false,
+      "discountPct": 0,
+      "lines": [
+        {
+          "quantity": 1,
+          "rate": 200,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 10
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 200,
+            "serviceCharge": 20,
+            "vat": 28.6,
+            "total": 248.6
+          }
+        ],
+        "subTotal": 200,
+        "serviceCharge": 20,
+        "vat": 28.6,
+        "roundOff": 0,
+        "grandTotal": 248.6
+      }
+    },
+    {
+      "why": "A 10% line discount on a coke: 54 + VAT 7.02 = 61.02, rounded to 61.",
+      "roundOff": true,
+      "discountPct": 0,
+      "lines": [
+        {
+          "quantity": 1,
+          "rate": 60,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 10,
+          "serviceChargeRate": 0
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 54,
+            "serviceCharge": 0,
+            "vat": 7.02,
+            "total": 61.02
+          }
+        ],
+        "subTotal": 54,
+        "serviceCharge": 0,
+        "vat": 7.02,
+        "roundOff": -0.02,
+        "grandTotal": 61
+      }
+    },
+    {
+      "why": "A 5% bill discount applies before service charge and VAT, line by line.",
+      "roundOff": true,
+      "discountPct": 5,
+      "lines": [
+        {
+          "quantity": 2,
+          "rate": 200,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 10
+        },
+        {
+          "quantity": 2,
+          "rate": 60,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 380,
+            "serviceCharge": 38,
+            "vat": 54.34,
+            "total": 472.34
+          },
+          {
+            "amount": 114,
+            "serviceCharge": 0,
+            "vat": 14.82,
+            "total": 128.82
+          }
+        ],
+        "subTotal": 494,
+        "serviceCharge": 38,
+        "vat": 69.16,
+        "roundOff": -0.16,
+        "grandTotal": 601
+      }
+    },
+    {
+      "why": "1.005 is 1.00499999... as a binary float. The paisa rounds UP, as decimal does; naive JS rounding gives 1.00.",
+      "roundOff": false,
+      "discountPct": 0,
+      "lines": [
+        {
+          "quantity": 1,
+          "rate": 1.005,
+          "vatRate": "NoVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 1.01,
+            "serviceCharge": 0,
+            "vat": 0,
+            "total": 1.01
+          }
+        ],
+        "subTotal": 1.01,
+        "serviceCharge": 0,
+        "vat": 0,
+        "roundOff": 0,
+        "grandTotal": 1.01
+      }
+    },
+    {
+      "why": "An exact half-paisa rounds away from zero: 0.125 is 0.13.",
+      "roundOff": false,
+      "discountPct": 0,
+      "lines": [
+        {
+          "quantity": 1,
+          "rate": 0.125,
+          "vatRate": "NoVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 0.13,
+            "serviceCharge": 0,
+            "vat": 0,
+            "total": 0.13
+          }
+        ],
+        "subTotal": 0.13,
+        "serviceCharge": 0,
+        "vat": 0,
+        "roundOff": 0,
+        "grandTotal": 0.13
+      }
+    },
+    {
+      "why": "A bill of exactly x.50 rounds up to the next rupee (half away from zero).",
+      "roundOff": true,
+      "discountPct": 0,
+      "lines": [
+        {
+          "quantity": 1,
+          "rate": 10.5,
+          "vatRate": "NoVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 10.5,
+            "serviceCharge": 0,
+            "vat": 0,
+            "total": 10.5
+          }
+        ],
+        "subTotal": 10.5,
+        "serviceCharge": 0,
+        "vat": 0,
+        "roundOff": 0.5,
+        "grandTotal": 11
+      }
+    },
+    {
+      "why": "A bill of x.49 rounds down.",
+      "roundOff": true,
+      "discountPct": 0,
+      "lines": [
+        {
+          "quantity": 1,
+          "rate": 10.49,
+          "vatRate": "NoVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 10.49,
+            "serviceCharge": 0,
+            "vat": 0,
+            "total": 10.49
+          }
+        ],
+        "subTotal": 10.49,
+        "serviceCharge": 0,
+        "vat": 0,
+        "roundOff": -0.49,
+        "grandTotal": 10
+      }
+    },
+    {
+      "why": "A fractional quantity: 1.5 x 33.33 = 49.995, which is 50.00 before VAT.",
+      "roundOff": true,
+      "discountPct": 0,
+      "lines": [
+        {
+          "quantity": 1.5,
+          "rate": 33.33,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 50,
+            "serviceCharge": 0,
+            "vat": 6.5,
+            "total": 56.5
+          }
+        ],
+        "subTotal": 50,
+        "serviceCharge": 0,
+        "vat": 6.5,
+        "roundOff": 0.5,
+        "grandTotal": 57
+      }
+    },
+    {
+      "why": "An exempt line still carries service charge; it is simply charged no VAT on either.",
+      "roundOff": true,
+      "discountPct": 0,
+      "lines": [
+        {
+          "quantity": 1,
+          "rate": 100,
+          "vatRate": "NoVat",
+          "discountPct": 0,
+          "serviceChargeRate": 10
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 100,
+            "serviceCharge": 10,
+            "vat": 0,
+            "total": 110
+          }
+        ],
+        "subTotal": 100,
+        "serviceCharge": 10,
+        "vat": 0,
+        "roundOff": 0,
+        "grandTotal": 110
+      }
+    },
+    {
+      "why": "Line and bill discounts and service charge together, where every rounding step matters.",
+      "roundOff": true,
+      "discountPct": 2.5,
+      "lines": [
+        {
+          "quantity": 3,
+          "rate": 99.99,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 12.5,
+          "serviceChargeRate": 10
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 255.91,
+            "serviceCharge": 25.59,
+            "vat": 36.6,
+            "total": 318.1
+          }
+        ],
+        "subTotal": 255.91,
+        "serviceCharge": 25.59,
+        "vat": 36.6,
+        "roundOff": -0.1,
+        "grandTotal": 318
+      }
+    },
+    {
+      "why": "Many lines whose per-line roundings each move the total.",
+      "roundOff": true,
+      "discountPct": 0,
+      "lines": [
+        {
+          "quantity": 7,
+          "rate": 13.57,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 3,
+          "serviceChargeRate": 10
+        },
+        {
+          "quantity": 0.333,
+          "rate": 45,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0
+        },
+        {
+          "quantity": 12,
+          "rate": 0.99,
+          "vatRate": "NoVat",
+          "discountPct": 0,
+          "serviceChargeRate": 10
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 92.14,
+            "serviceCharge": 9.21,
+            "vat": 13.18,
+            "total": 114.53
+          },
+          {
+            "amount": 14.99,
+            "serviceCharge": 0,
+            "vat": 1.95,
+            "total": 16.94
+          },
+          {
+            "amount": 11.88,
+            "serviceCharge": 1.19,
+            "vat": 0,
+            "total": 13.07
+          }
+        ],
+        "subTotal": 119.01,
+        "serviceCharge": 10.4,
+        "vat": 15.13,
+        "roundOff": 0.46,
+        "grandTotal": 145
+      }
+    }
+  ]
+}

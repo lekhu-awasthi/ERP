@@ -121,6 +121,25 @@ export const routes: Routes = [
     canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
   },
   {
+    // Phase 62 -- the till, a lazy full-screen route tree of its own (phase 59 Decision A). The shell
+    // drops its chrome for every url under `pos` (App.tillMode), and each screen is its own lazy
+    // chunk, so none of it reaches the initial bundle (build-budget.spec.ts).
+    path: 'organizations/:id/pos',
+    loadComponent: () => import('./features/pos/pos-launcher-page/pos-launcher-page').then((m) => m.PosLauncherPage),
+    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
+  },
+  {
+    path: 'organizations/:id/pos/till/:locationId',
+    loadComponent: () => import('./features/pos/pos-till-page/pos-till-page').then((m) => m.PosTillPage),
+    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
+  },
+  {
+    // Also where a PosSession's GL rows drill down to (phase 61 section 5).
+    path: 'organizations/:id/pos/sessions/:sessionId',
+    loadComponent: () => import('./features/pos/pos-session-page/pos-session-page').then((m) => m.PosSessionPage),
+    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
+  },
+  {
     path: 'organizations/:id/configuration/banks',
     loadComponent: () =>
       import('./features/configuration/bank-list-page/bank-list-page').then((m) => m.BankListPage),

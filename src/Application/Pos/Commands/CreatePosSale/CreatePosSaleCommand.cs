@@ -74,6 +74,8 @@ public sealed record CreatePosSaleCommand(
 }
 
 /// <param name="CreditAmount">What was left on the customer's account.</param>
+/// <param name="IsAbbreviatedTaxInvoice">Phase 62 -- the bill was issued as an abbreviated tax invoice
+/// (VAT Rules Rule 18) rather than a full one.</param>
 public sealed record CreatePosSaleResult(
     Guid Id,
     string Code,
@@ -82,4 +84,5 @@ public sealed record CreatePosSaleResult(
     decimal RoundOff,
     decimal Tendered,
     decimal ChangeAmount,
-    decimal CreditAmount);
+    decimal CreditAmount,
+    bool IsAbbreviatedTaxInvoice);

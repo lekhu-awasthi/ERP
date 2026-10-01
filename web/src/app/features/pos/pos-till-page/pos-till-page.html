@@ -1,0 +1,366 @@
+<div class="pos-screen-root">
+  <div class="pos-till">
+    <header class="pos-bar">
+      <div class="me-auto">
+        <h1 class="h5 fw-bold mb-0">{{ till()?.locationName ?? 'Till' }}</h1>
+        @if (session(); as s) {
+          <p class="small text-body-secondary mb-0">Session {{ s.code }} &middot; {{ s.userName }}</p>
+        }
+      </div>
+
+      @if (cart(); as c) {
+        @if ((till()?.availableTabs?.length ?? 0) > 1) {
+          <fieldset class="d-flex align-items-center gap-1 mb-0">
+            <legend class="visually-hidden">Order type</legend>
+            @for (tab of till()!.availableTabs; track tab) {
+              <input type="radio" class="btn-check" name="pos-order-type" id="pos-order-type-{{ tab }}"
+                [checked]="c.orderType() === tab" (change)="setOrderType(tab)" />
+              <label class="btn btn-sm btn-outline-primary" for="pos-order-type-{{ tab }}">{{ tabLabels[tab] }}</label>
+            }
+          </fieldset>
+        }
+      }
+
+      <nav aria-label="Till" class="d-flex gap-2">
+        @if (session(); as s) {
+          <a class="btn btn-sm btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'pos', 'sessions', s.id]">
+            Session &amp; Cash
+          </a>
+        }
+        <a class="btn btn-sm btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'pos']">Exit Till</a>
+      </nav>
+    </header>
+
+    <div class="px-3">
+      <app-status-banner [message]="errorMessage()" spacing="mt-2 mb-0" />
+      <app-status-banner [message]="noticeMessage()" tone="success" spacing="mt-2 mb-0" [small]="true" />
+    </div>
+    <div class="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{{ announcement() }}</div>
+
+    @if (loading()) {
+      <p class="p-3 text-body-secondary">Opening the till…</p>
+    } @else if (till() && !session()) {
+      <div class="p-3">
+        <p>You have no session open at {{ till()!.locationName }}, so this till cannot sell yet.</p>
+        <a class="btn btn-primary fw-bold" [routerLink]="['/organizations', organizationId, 'pos']">Start a Session</a>
+      </div>
+    } @else if (cart(); as c) {
+      <div class="pos-body">
+        <!-- ===================== Products ===================== -->
+        <section class="pos-catalogue" aria-labelledby="pos-products-heading">
+          <h2 id="pos-products-heading" class="visually-hidden">Products</h2>
+
+          <form role="search" class="mb-2" (submit)="$event.preventDefault(); onScan()">
+            <label class="form-label small fw-bold mb-1" for="pos-search">Search or scan a code <span class="fw-normal text-body-secondary">(F2)</span></label>
+            <input #searchBox class="form-control" id="pos-search" type="search" autocomplete="off"
+              placeholder="Name, code, SKU or barcode, then Enter" (input)="onSearchInput($event)" />
+          </form>
+
+          @if (till()!.categories.length > 0) {
+            <div class="d-flex flex-wrap gap-1 mb-2" role="group" aria-label="Product categories">
+              <button type="button" class="btn btn-sm" [class.btn-primary]="categoryId() === null"
+                [class.btn-outline-primary]="categoryId() !== null" [attr.aria-pressed]="categoryId() === null"
+                (click)="chooseCategory(null)">All</button>
+              @for (category of till()!.categories; track category.id) {
+                <button type="button" class="btn btn-sm" [class.btn-primary]="categoryId() === category.id"
+                  [class.btn-outline-primary]="categoryId() !== category.id" [attr.aria-pressed]="categoryId() === category.id"
+                  (click)="chooseCategory(category.id)">{{ category.name }}</button>
+              }
+            </div>
+          }
+
+          @if (products().length === 0) {
+            <p class="text-body-secondary">No product to sell matches.</p>
+          } @else {
+            <ul class="pos-grid list-unstyled mb-2">
+              @for (product of products(); track product.id) {
+                <li>
+                  <button type="button" class="pos-tile" (click)="addProduct(product)">
+                    <span class="pos-tile-name">{{ product.name }}</span>
+                    <span class="small text-body-secondary">{{ product.code }}</span>
+                    <span class="fw-bold">{{ product.rate | amount }}</span>
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+
+          @if (pageCount() > 1) {
+            <nav aria-label="Product pages" class="d-flex align-items-center gap-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="page() <= 1" (click)="goToPage(page() - 1)">Previous</button>
+              <span class="small">Page {{ page() }} of {{ pageCount() }}</span>
+              <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="page() >= pageCount()" (click)="goToPage(page() + 1)">Next</button>
+            </nav>
+          }
+        </section>
+
+        <!-- ===================== Cart ===================== -->
+        <section class="pos-cart" aria-labelledby="pos-cart-heading">
+          <h2 id="pos-cart-heading" class="h6 fw-bold">Cart</h2>
+
+          <div class="mb-2">
+            <p class="small mb-1">
+              Customer: <strong>{{ c.customer()?.name ?? (till()!.walkInCustomer?.name ?? 'Walk-in') + ' (walk-in)' }}</strong>
+            </p>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-expanded]="customerOpen()"
+                aria-controls="pos-customer-panel" (click)="customerOpen.set(!customerOpen())">Change Customer</button>
+              @if (c.customer()) {
+                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="chooseCustomer(null)">Use Walk-in</button>
+              }
+            </div>
+            <div id="pos-customer-panel" class="mt-2" [hidden]="!customerOpen()">
+              <label class="form-label small mb-1" for="pos-customer-search">Find a customer by name, code or PAN</label>
+              <input class="form-control form-control-sm" id="pos-customer-search" type="search" autocomplete="off"
+                (input)="onCustomerInput($event)" />
+              <ul class="list-unstyled mb-0 mt-1">
+                @for (contact of customerResults(); track contact.id) {
+                  <li>
+                    <button type="button" class="btn btn-link btn-sm p-0" (click)="chooseCustomer(contact)">
+                      {{ contact.name }} ({{ contact.code }})
+                    </button>
+                  </li>
+                }
+              </ul>
+            </div>
+          </div>
+
+          @if (c.lines().length === 0) {
+            <p class="text-body-secondary">The cart is empty. Tap a product or scan a code.</p>
+          } @else {
+            <ul class="list-unstyled pos-lines">
+              @for (line of c.lines(); track line.key; let i = $index) {
+                <li class="pos-line">
+                  <div class="d-flex justify-content-between gap-2">
+                    <span class="fw-bold">{{ line.product.name }}</span>
+                    <span>{{ lineFigures(i)?.amount | amount }}</span>
+                  </div>
+                  <div class="d-flex align-items-center gap-1 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-label]="'One fewer ' + line.product.name"
+                      (click)="step(line, -1)"><i class="bi bi-dash" aria-hidden="true"></i></button>
+                    <label class="visually-hidden" for="pos-qty-{{ line.key }}">Quantity of {{ line.product.name }}</label>
+                    <input class="form-control form-control-sm pos-qty" type="number" min="0" step="any" id="pos-qty-{{ line.key }}"
+                      [value]="line.quantity" (change)="c.setQuantity(line.key, numberOf($event))" />
+                    <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-label]="'One more ' + line.product.name"
+                      (click)="step(line, 1)"><i class="bi bi-plus" aria-hidden="true"></i></button>
+                    <span class="small">{{ unitName(line) }} &times; {{ line.rate | amount }}@if (line.discountPct > 0) { &minus;{{ line.discountPct }}% }</span>
+                    <button type="button" class="btn btn-sm btn-link ms-auto" [attr.aria-expanded]="editingKey() === line.key"
+                      [attr.aria-controls]="'pos-line-edit-' + line.key" (click)="toggleEdit(line.key)">Edit<span class="visually-hidden"> {{ line.product.name }}</span></button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" [attr.aria-label]="'Remove ' + line.product.name"
+                      (click)="removeLine(line)"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                  </div>
+                  <div class="row g-2 mt-1" [id]="'pos-line-edit-' + line.key" [hidden]="editingKey() !== line.key">
+                    @if (line.product.units.length > 1) {
+                      <div class="col-4">
+                        <label class="form-label small mb-0" for="pos-unit-{{ line.key }}">Unit</label>
+                        <!-- [selected] per option, never [value] on the select (phases 5-7). -->
+                        <select class="form-select form-select-sm" id="pos-unit-{{ line.key }}" (change)="onUnitChange(line, $event)">
+                          @for (unit of line.product.units; track unit.unitId) {
+                            <option [value]="unit.unitId" [selected]="unit.unitId === line.unitId">{{ unit.shortName }}</option>
+                          }
+                        </select>
+                      </div>
+                    }
+                    <div class="col-4">
+                      <label class="form-label small mb-0" for="pos-rate-{{ line.key }}">Price (excl. VAT)</label>
+                      <input class="form-control form-control-sm" type="number" min="0" step="0.01" id="pos-rate-{{ line.key }}"
+                        [value]="line.rate" (change)="c.setRate(line.key, numberOf($event))" />
+                    </div>
+                    <div class="col-4">
+                      <label class="form-label small mb-0" for="pos-discount-{{ line.key }}">Discount %</label>
+                      <input class="form-control form-control-sm" type="number" min="0" max="100" step="0.01" id="pos-discount-{{ line.key }}"
+                        [value]="line.discountPct" (change)="c.setLineDiscount(line.key, numberOf($event))" />
+                    </div>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <label class="small mb-0" for="pos-bill-discount">Bill discount %</label>
+            <input class="form-control form-control-sm pos-qty" type="number" min="0" max="100" step="0.01" id="pos-bill-discount"
+              [value]="c.discountPct()" (change)="c.setBillDiscount(numberOf($event))" />
+          </div>
+
+          @let bill = c.bill();
+          <dl class="pos-totals mb-2">
+            <dt>Sub Total</dt><dd>{{ bill.subTotal | amount }}</dd>
+            @if (bill.serviceCharge !== 0) {
+              <dt>Service Charge ({{ till()!.serviceChargeRate }}%)</dt><dd>{{ bill.serviceCharge | amount }}</dd>
+            }
+            <dt>VAT</dt><dd>{{ bill.vat | amount }}</dd>
+            @if (bill.roundOff !== 0) {
+              <dt>Round Off</dt><dd>{{ bill.roundOff | amount }}</dd>
+            }
+            <dt class="fs-5">Total</dt><dd class="fs-5 fw-bold">{{ bill.grandTotal | amount }}</dd>
+          </dl>
+
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-secondary" [disabled]="c.lines().length === 0" (click)="hold()">Hold</button>
+            <button type="button" class="btn btn-outline-secondary" [attr.aria-expanded]="holdsOpen()" aria-controls="pos-holds"
+              [disabled]="c.holds().length === 0" (click)="holdsOpen.set(!holdsOpen())">Held carts ({{ c.holds().length }})</button>
+            <button type="button" class="btn btn-outline-danger" [disabled]="c.lines().length === 0" (click)="clearCart()">Clear</button>
+            <button #payButton type="button" class="btn btn-success fw-bold ms-auto px-4" [disabled]="c.lines().length === 0"
+              (click)="openPayment()">Pay (F9)</button>
+          </div>
+
+          <div id="pos-holds" class="mt-2" [hidden]="!holdsOpen()">
+            <ul class="list-unstyled mb-0">
+              @for (held of c.holds(); track held.id) {
+                <li class="d-flex align-items-center gap-2 border-top py-1">
+                  <span class="me-auto small">{{ held.label }} &middot; held {{ held.heldAt | nepaliDate: 'datetime' }}</span>
+                  <button type="button" class="btn btn-sm btn-outline-primary" (click)="recall(held.id)">Recall</button>
+                  <button type="button" class="btn btn-sm btn-outline-danger" (click)="c.discardHold(held.id)">Discard</button>
+                </li>
+              }
+            </ul>
+          </div>
+        </section>
+      </div>
+    }
+  </div>
+
+  <!-- ===================== Payment (modal) ===================== -->
+  @if (paying() && cart(); as c) {
+    <div class="pos-backdrop">
+      <div #dialog class="pos-dialog" role="dialog" aria-modal="true" aria-labelledby="pos-pay-heading" (keydown)="onDialogKeydown($event)">
+        @if (sale(); as done) {
+          <h2 id="pos-pay-heading" class="h4 fw-bold">Sale {{ done.code }} complete</h2>
+          <p class="fs-5 mb-1">Total {{ done.grandTotal | amount }}</p>
+          @if (done.changeAmount > 0) {
+            <p class="fs-3 fw-bold">Change {{ done.changeAmount | amount }}</p>
+          }
+          @if (done.creditAmount > 0) {
+            <p class="fw-bold">{{ done.creditAmount | amount }} left on the customer's account.</p>
+          }
+          <app-status-banner [message]="payError()" spacing="mb-2" />
+          @if (receipt(); as r) {
+            <div class="pos-receipt-preview mb-2"><app-pos-receipt [receipt]="r" /></div>
+          }
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-primary" (click)="print(done.id)">
+              {{ receipt() ? 'Print a Copy' : 'Print Receipt' }}
+            </button>
+            <button type="button" class="btn btn-primary fw-bold" id="pos-new-sale" (click)="closePayment()">New Sale</button>
+          </div>
+        } @else {
+          <h2 id="pos-pay-heading" class="h4 fw-bold">Payment</h2>
+          <p class="fs-4 mb-1">Total due <strong>{{ fromPaisa(totalPaisa()) | amount }}</strong></p>
+          <p class="small text-body-secondary">Customer: {{ c.customer()?.name ?? 'Walk-in' }}</p>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <fieldset class="mb-2">
+                <legend class="h6">Paid with</legend>
+                <div class="d-flex flex-wrap gap-1">
+                  @for (mode of till()!.paymentModes; track mode.id) {
+                    <input type="radio" class="btn-check" name="pos-mode" id="pos-mode-{{ mode.id }}"
+                      [checked]="selectedModeId() === mode.id" (change)="chooseMode(mode.id)" />
+                    <label class="btn btn-outline-primary" for="pos-mode-{{ mode.id }}">{{ mode.name }}</label>
+                  }
+                </div>
+              </fieldset>
+
+              <!-- The keyboard hint is inside the label, so it is part of the field's name rather than loose text
+                   beside it; aria-describedby belongs to the field error (phase 47's guard). -->
+              <label class="form-label mb-1 d-block" for="pos-tender-amount">
+                Amount handed over
+                <span class="d-block form-text mt-0">Enter adds it. When nothing is left to pay, Enter again completes the sale.</span>
+              </label>
+              <div class="input-group mb-2">
+                <input class="form-control form-control-lg" id="pos-tender-amount" type="text" inputmode="decimal"
+                  autocomplete="off" [value]="amountText()" (input)="onAmountInput($event)"
+                  [class.is-invalid]="fieldError.is('pos-tender-amount')"
+                  [attr.aria-invalid]="fieldError.invalid('pos-tender-amount')"
+                  [attr.aria-describedby]="fieldError.describedBy('pos-tender-amount')"
+                  (keydown.enter)="$event.preventDefault(); addTender()" />
+                <button type="button" class="btn btn-primary" (click)="addTender()">Add</button>
+              </div>
+              <app-field-error [state]="fieldError" control="pos-tender-amount" />
+
+              @if (selectedMode()?.kind === 'Cash' && quickCash().length > 0) {
+                <div class="d-flex flex-wrap gap-1 mb-2" role="group" aria-label="Common cash amounts">
+                  @for (value of quickCash(); track value) {
+                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="setAmount(value)">{{ value | amount }}</button>
+                  }
+                </div>
+              }
+
+              <div class="pos-keypad" role="group" aria-label="Keypad">
+                @for (key of ['7', '8', '9', '4', '5', '6', '1', '2', '3', '0', '.']; track key) {
+                  <button type="button" class="btn btn-light border" (click)="press(key)">{{ key }}</button>
+                }
+                <button type="button" class="btn btn-light border" aria-label="Delete the last digit" (click)="press('back')">
+                  <i class="bi bi-backspace" aria-hidden="true"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <h3 class="h6">Tenders</h3>
+              @if (tenders().length === 0) {
+                <p class="small text-body-secondary">Nothing taken yet.</p>
+              } @else {
+                <ul class="list-unstyled">
+                  @for (tender of tenders(); track tender.key) {
+                    <li class="d-flex align-items-center gap-2 border-bottom py-1">
+                      <span class="me-auto">{{ tender.mode.name }}</span>
+                      <span>{{ fromPaisa(tender.paisa) | amount }}</span>
+                      <button type="button" class="btn btn-sm btn-outline-danger" [attr.aria-label]="'Remove ' + tender.mode.name + ' tender'"
+                        (click)="removeTender(tender.key)"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                    </li>
+                  }
+                </ul>
+              }
+
+              <dl class="pos-totals">
+                <dt>Tendered</dt><dd>{{ fromPaisa(tenderedPaisa()) | amount }}</dd>
+                @if (remainingPaisa() > 0) {
+                  <dt>Still to pay</dt><dd class="fw-bold">{{ fromPaisa(remainingPaisa()) | amount }}</dd>
+                } @else {
+                  <dt class="fs-5">Change</dt><dd class="fs-5 fw-bold">{{ fromPaisa(changePaisa()) | amount }}</dd>
+                }
+              </dl>
+
+              @if (remainingPaisa() > 0 && tenders().length > 0) {
+                @if (creditRefusal(); as why) {
+                  <p class="small">{{ why }}</p>
+                } @else {
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="pos-credit-accept" [checked]="creditAccepted()"
+                      (change)="onCreditToggle($event)" />
+                    <label class="form-check-label" for="pos-credit-accept">
+                      Leave {{ fromPaisa(remainingPaisa()) | amount }} on {{ c.customer()!.name }}'s account
+                    </label>
+                  </div>
+                }
+              }
+              @if (changeError(); as why) {
+                <p class="small fw-bold">{{ why }}</p>
+              }
+            </div>
+          </div>
+
+          <app-status-banner [message]="payError()" spacing="mt-2 mb-0" />
+          <app-status-banner [message]="warning()?.message" tone="warning" spacing="mt-2 mb-0" [spread]="true">
+            <button bannerAction type="button" class="btn btn-sm btn-warning" (click)="confirmWarning()">Sell Anyway</button>
+          </app-status-banner>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <button type="button" class="btn btn-outline-secondary" (click)="closePayment()">Back to Cart (Esc)</button>
+            <button type="button" class="btn btn-success fw-bold ms-auto px-4" [disabled]="!canComplete()" (click)="completeSale()">
+              Complete Sale
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>
+
+<div class="pos-print-root">
+  @if (printing(); as r) {
+    <app-pos-receipt [receipt]="r" />
+  }
+</div>

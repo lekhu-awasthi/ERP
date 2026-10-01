@@ -28,6 +28,10 @@
          of a test that quietly asserts nothing. See RichTextSharedCasesTests. -->
     <EmbeddedResource Include="../../web/src/app/shared/rich-text/rich-text-cases.json"
                       LogicalName="ErpApp.Domain.UnitTests.rich-text-cases.json" />
+    <!-- Phase 62: the till's bill arithmetic, shared with pos-bill.spec.ts the same way. See
+         PosBillSharedCasesTests. -->
+    <EmbeddedResource Include="../../web/src/app/core/pos/pos-bill-cases.json"
+                      LogicalName="ErpApp.Domain.UnitTests.pos-bill-cases.json" />
   </ItemGroup>
 
 </Project>

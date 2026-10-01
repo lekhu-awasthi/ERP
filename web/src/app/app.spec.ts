@@ -3,7 +3,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { Component } from '@angular/core';
 import { DeferBlockBehavior, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { App } from './app';
+import { App, isTillUrl } from './app';
 
 describe('App', () => {
   beforeEach(async () => {
@@ -54,6 +54,7 @@ describe('App — the deferred platform chrome (phase 34c Decision D)', () => {
         provideRouter([
           { path: 'login', component: Blank },
           { path: 'organizations/:organizationId/dashboard', component: Blank },
+          { path: 'organizations/:organizationId/pos/till/:locationId', component: Blank },
         ]),
       ],
     }).compileComponents();
@@ -91,5 +92,37 @@ describe('App — the deferred platform chrome (phase 34c Decision D)', () => {
     expect(compiled.querySelector('app-left-nav')).not.toBeNull();
     expect(compiled.querySelector('app-global-search')).not.toBeNull();
     expect(compiled.querySelector('app-date-range-picker')).not.toBeNull();
+  });
+
+  it('steps aside at the till, which is a full-screen layout of its own (phase 62)', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+
+    await TestBed.inject(Router).navigate([
+      '/organizations',
+      '11111111-1111-1111-1111-111111111111',
+      'pos',
+      'till',
+      '22222222-2222-2222-2222-222222222222',
+    ]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.platform-bar')).toBeNull();
+    expect(compiled.querySelector('app-left-nav')).toBeNull();
+    expect(compiled.querySelector('main')!.classList.contains('shell-with-nav')).toBe(false);
+  });
+});
+
+describe('isTillUrl', () => {
+  it('is the pos route tree inside an organization, and nothing else', () => {
+    expect(isTillUrl('/organizations/abc/pos')).toBe(true);
+    expect(isTillUrl('/organizations/abc/pos/till/loc?x=1')).toBe(true);
+    expect(isTillUrl('/organizations/abc/configuration/pos')).toBe(false);
+    expect(isTillUrl('/organizations/abc/home')).toBe(false);
+    expect(isTillUrl('/pos')).toBe(false);
   });
 });

@@ -22,6 +22,8 @@ export const GL_SOURCE_DOCUMENT_TYPES: GlSourceDocumentType[] = [
   'Payment',
   'ProductionJournal',
   'OpeningBalance',
+  // Phase 61/62 -- a till drawer's cash movements and close; filterable now that it has a page.
+  'PosSession',
 ];
 
 /**
@@ -73,5 +75,8 @@ export function glDetailRoute(
       return ['/organizations', org, 'manufacturing', 'production-journals', documentId];
     case 'OpeningBalance':
       return null;
+    case 'PosSession':
+      // Phase 62 -- the session page is the drawer's X/Z report, which is what these rows came from.
+      return ['/organizations', org, 'pos', 'sessions', documentId];
   }
 }

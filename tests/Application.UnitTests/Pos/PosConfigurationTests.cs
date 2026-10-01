@@ -70,7 +70,8 @@ public class PosConfigurationTests
         PrintEstimateBill: true,
         PrintInvoice: true,
         PrintCreditNote: false,
-        PrintKot: true);
+        PrintKot: true,
+        AbbreviatedTaxInvoiceEnabled: false);
 
     // ---- The walk-in customer ----
 

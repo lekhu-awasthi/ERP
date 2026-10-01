@@ -58,10 +58,21 @@ internal sealed class PosTestTill
     ];
 
     /// <param name="grantedKeys">What the cashier's role holds; every till key by default.</param>
-    public static async Task<PosTestTill> CreateAsync(string[]? grantedKeys = null, int cokeInStock = 20)
+    /// <param name="vatRegistered">Phase 62 -- the seller's registration, which decides whether a bill
+    /// is a tax invoice at all. A real Organization row is seeded for it, which phase 61's tests never
+    /// needed.</param>
+    public static async Task<PosTestTill> CreateAsync(
+        string[]? grantedKeys = null, int cokeInStock = 20, bool vatRegistered = true)
     {
         var db = TestAppDbContext.Create();
-        var seed = await InventoryReportSeed.CreateAsync(db);
+
+        var organization = Organization.Create(
+            "Momo Ghar", "Restaurant", "Thamel, Kathmandu", new DateOnly(2026, 1, 1), vatRegistered, "momo-ghar",
+            null, null, vatRegistered ? "601234567" : null, null, Guid.NewGuid());
+        db.Organizations.Add(organization);
+        await db.SaveChangesAsync();
+
+        var seed = await InventoryReportSeed.CreateAsync(db, organization.Id);
         var organizationId = seed.OrganizationId;
 
         await TenantFeatureSeed.SeedAsync(db, organizationId, new AccountingFeatureSelections(
@@ -107,7 +118,8 @@ internal sealed class PosTestTill
             PosMode.Retail, serviceChargeEnabled: true, serviceChargeRate: 10m, serviceChargeAccountId: null,
             roundOffEnabled: true, roundOffAccountId: null, cashVerificationRequired: false,
             denominations: PosLocationSettings.DefaultDenominations, defaultTab: null,
-            printEstimateBill: true, printInvoice: true, printCreditNote: true, printKot: false);
+            printEstimateBill: true, printInvoice: true, printCreditNote: true, printKot: false,
+            abbreviatedTaxInvoiceEnabled: false);
         db.PosLocationSettings.Add(posSettings);
 
         var walkIn = Contact.CreateWalkInCustomer(organizationId);

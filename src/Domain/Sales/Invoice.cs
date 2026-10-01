@@ -163,6 +163,21 @@ public sealed class Invoice
     /// </summary>
     public decimal ChangeAmount { get; private set; }
 
+    /// <summary>
+    /// Phase 62 -- the most a single abbreviated tax invoice may be for: VAT Rules 2053 Rule 18(6),
+    /// raised from Rs 5,000 to Rs 10,000 by the 21st Amendment (Jestha 15, 2076). Inclusive: the rule
+    /// refuses a transaction of <i>more than</i> the amount.
+    /// </summary>
+    public const decimal AbbreviatedTaxInvoiceLimit = 10_000m;
+
+    /// <summary>
+    /// Phase 62 -- this till sale was issued as an <b>abbreviated tax invoice</b> (VAT Rules Rule 18)
+    /// rather than a full one (Rule 17). Stored, not derived at print time, because it is a fact about
+    /// the bill that was handed over: a reprint must carry the same heading as the original even after
+    /// the location's setting changes. Always false on an ERP invoice.
+    /// </summary>
+    public bool IsAbbreviatedTaxInvoice { get; private set; }
+
     public IReadOnlyList<InvoiceLine> Lines => _lines;
 
     /// <summary>Phase 61 -- how a till sale was paid. Empty on every ERP invoice, which is settled
@@ -443,6 +458,33 @@ public sealed class Invoice
     // Not persisted: it only has to stop a second Settle while the sale is still the in-memory draft
     // its command is building. Once approved, EnsureDraft refuses everything this guards.
     private bool _settled;
+
+    /// <summary>
+    /// Phase 62 -- issues this till sale as an abbreviated tax invoice. Only once it is paid, because
+    /// the limit is on what the bill comes to and nothing can be added after <see cref="Settle"/>.
+    /// Whether the seller may issue one at all (VAT registration, the Tax Officer's permission, a
+    /// buyer who did not ask for a full invoice) is the handler's question; the one fact the bill
+    /// itself can answer, its amount, is refused here.
+    /// </summary>
+    public void IssueAsAbbreviatedTaxInvoice()
+    {
+        EnsureDraft();
+        EnsurePos();
+
+        if (!_settled)
+        {
+            throw new InvalidOperationException("A bill is issued as abbreviated only once it is paid.");
+        }
+
+        if (GrandTotal > AbbreviatedTaxInvoiceLimit)
+        {
+            throw new InvalidOperationException(
+                $"An abbreviated tax invoice may be for at most {AbbreviatedTaxInvoiceLimit:0.00} (VAT Rules, Rule 18(6)); "
+                + $"this bill is {GrandTotal:0.00}.");
+        }
+
+        IsAbbreviatedTaxInvoice = true;
+    }
 
     /// <summary>What <see cref="Settle"/> needs of one tender, already resolved from its payment mode.</summary>
     public sealed record TenderInput(Guid PaymentModeId, PaymentModeKind Kind, Guid AccountId, decimal Amount);

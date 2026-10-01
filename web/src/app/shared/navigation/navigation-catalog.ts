@@ -99,6 +99,8 @@ const SEGMENT_AREAS: Readonly<Record<string, string>> = {
   crm: 'CRM',
   inventory: 'Inventory',
   manufacturing: 'Manufacturing',
+  // Phase 62 -- the till's own section (phase 59 Decision A).
+  pos: 'Point of Sale',
   products: 'Inventory',
   purchasing: 'Purchase',
   reports: 'Reports',
@@ -114,6 +116,7 @@ const TITLE_OVERRIDES: Readonly<Record<string, string>> = {
   'configuration/import': 'Import',
   'configuration/migration': 'Migration',
   'configuration/pos': 'Point of Sale',
+  pos: 'Till',
   features: 'Subscription & Features',
   'lock-date': 'Lock Date',
   'organization-profile': 'Organization Profile',

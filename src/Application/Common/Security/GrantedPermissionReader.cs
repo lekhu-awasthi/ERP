@@ -93,9 +93,7 @@ public static class GrantedPermissionReader
         Guid locationId,
         CancellationToken cancellationToken)
     {
-        var granted = await GrantedKeysAsync(db, organizationId, userId, cancellationToken);
-
-        if (granted.Contains(permissionKey))
+        if (await IsGrantedAtLocationAsync(db, organizationId, userId, permissionKey, locationId, cancellationToken))
         {
             return;
         }
@@ -106,13 +104,6 @@ public static class GrantedPermissionReader
                 $"You do not have permission to perform this action ({permissionKey}).");
         }
 
-        var locations = await GrantedLocationsAsync(db, organizationId, userId, permissionKey, cancellationToken);
-
-        if (locations.Contains(locationId))
-        {
-            return;
-        }
-
         var code = await db.BillingLocations
             .Where(x => x.Id == locationId && x.OrganizationId == organizationId)
             .Select(x => x.Code)
@@ -120,6 +111,37 @@ public static class GrantedPermissionReader
 
         throw new ForbiddenException(
             $"You do not have permission to perform this action ({LocationScopedPermissions.Describe(code, permissionKey)}).");
+    }
+
+    /// <summary>
+    /// Phase 62 -- the question <see cref="EnsureGrantedAtLocationAsync"/> refuses on, asked without
+    /// refusing: held organization-wide, or (for a scopable key) granted at
+    /// <paramref name="locationId"/>. For a screen that must say in advance what it will refuse --
+    /// the till's credit tender -- rather than offer it and turn the cashier away at Pay.
+    /// </summary>
+    public static async Task<bool> IsGrantedAtLocationAsync(
+        IAppDbContext db,
+        Guid organizationId,
+        Guid userId,
+        string permissionKey,
+        Guid locationId,
+        CancellationToken cancellationToken)
+    {
+        var granted = await GrantedKeysAsync(db, organizationId, userId, cancellationToken);
+
+        if (granted.Contains(permissionKey))
+        {
+            return true;
+        }
+
+        if (!LocationScopedPermissions.IsLocationScopable(permissionKey))
+        {
+            return false;
+        }
+
+        var locations = await GrantedLocationsAsync(db, organizationId, userId, permissionKey, cancellationToken);
+
+        return locations.Contains(locationId);
     }
 
     /// <summary>

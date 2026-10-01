@@ -1,6 +1,7 @@
 using ErpApp.Application.Pos.Commands.ClosePosSession;
 using ErpApp.Application.Pos.Commands.CreatePosSale;
 using ErpApp.Application.Pos.Commands.OpenPosSession;
+using ErpApp.Application.Pos.Commands.PrintPosReceipt;
 using ErpApp.Application.Pos.Commands.RecordPosCashMovement;
 using ErpApp.Application.Pos.Commands.SetLocationPosMode;
 using ErpApp.Application.Pos.Commands.SetPosLocationPaymentModes;
@@ -10,6 +11,10 @@ using ErpApp.Application.Pos.Queries.GetPosConfiguration;
 using ErpApp.Application.Pos.Queries.GetPosDaySummary;
 using ErpApp.Application.Pos.Queries.GetPosLocationSettings;
 using ErpApp.Application.Pos.Queries.GetPosSession;
+using ErpApp.Application.Pos.Queries.GetPosTill;
+using ErpApp.Application.Pos.Queries.ListPosProducts;
+using ErpApp.Application.Pos.Queries.ListPosSessionSales;
+using ErpApp.Application.Pos.Queries.ListPosTills;
 using ErpApp.Domain.Pos;
 using ErpApp.Domain.Tenancy;
 using MediatR;
@@ -55,7 +60,8 @@ public static class PosEndpoints
                     request.PrintEstimateBill,
                     request.PrintInvoice,
                     request.PrintCreditNote,
-                    request.PrintKot),
+                    request.PrintKot,
+                    request.AbbreviatedTaxInvoiceEnabled),
                 ct)));
 
         group.MapPut("/locations/{locationId:guid}/mode", async (
@@ -128,6 +134,37 @@ public static class PosEndpoints
         group.MapGet("/day-summary", async (
             Guid organizationId, DateOnly date, Guid? locationId, ISender sender, CancellationToken ct) =>
             Results.Ok(await sender.Send(new GetPosDaySummaryQuery(organizationId, date, locationId), ct)));
+
+        // ---- Phase 62: what the till screen reads, and its receipt -------------------------------
+
+        // The launcher: the tills the caller may open a drawer at, with their own open session.
+        group.MapGet("/tills", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(new ListPosTillsQuery(organizationId), ct)));
+
+        // The till's own read of its location -- the settings it acts on, under the cashier's key
+        // rather than the Admin's configuration key (phase-62-status.md Decision D).
+        group.MapGet("/tills/{locationId:guid}", async (
+            Guid organizationId, Guid locationId, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(new GetPosTillQuery(organizationId, locationId), ct)));
+
+        group.MapGet("/tills/{locationId:guid}/products", async (
+            Guid organizationId, Guid locationId, string? search, string? code, Guid? categoryId, int? page,
+            int? pageSize, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(
+                new ListPosProductsQuery(
+                    organizationId, locationId, search, code, categoryId, page ?? 1,
+                    pageSize ?? ListPosProductsQuery.DefaultPageSize),
+                ct)));
+
+        group.MapGet("/sessions/{sessionId:guid}/sales", async (
+            Guid organizationId, Guid sessionId, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(new ListPosSessionSalesQuery(organizationId, sessionId), ct)));
+
+        // A POST because every call is a printing the server counts (Decision B): the first answers
+        // print number 1, the original; every later one is a marked copy.
+        group.MapPost("/sales/{invoiceId:guid}/prints", async (
+            Guid organizationId, Guid invoiceId, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(new PrintPosReceiptCommand(organizationId, invoiceId), ct)));
     }
 
     private sealed record UpdatePosLocationSettingsRequest(
@@ -142,7 +179,8 @@ public static class PosEndpoints
         bool PrintEstimateBill,
         bool PrintInvoice,
         bool PrintCreditNote,
-        bool PrintKot);
+        bool PrintKot,
+        bool AbbreviatedTaxInvoiceEnabled);
 
     private sealed record SetLocationPosModeRequest(PosMode PosMode);
 

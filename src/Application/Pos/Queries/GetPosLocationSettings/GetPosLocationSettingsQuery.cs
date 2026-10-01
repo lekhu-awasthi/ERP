@@ -43,4 +43,5 @@ public sealed record PosLocationSettingsDto(
     bool PrintInvoice,
     bool PrintCreditNote,
     bool PrintKot,
+    bool AbbreviatedTaxInvoiceEnabled,
     IReadOnlyList<Guid> PaymentModeIds);

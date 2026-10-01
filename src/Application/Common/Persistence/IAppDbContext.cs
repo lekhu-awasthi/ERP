@@ -84,6 +84,7 @@ public interface IAppDbContext
     DbSet<Invoice> Invoices { get; }
     DbSet<InvoiceLine> InvoiceLines { get; }
     DbSet<InvoiceTender> InvoiceTenders { get; }
+    DbSet<InvoicePrint> InvoicePrints { get; }
     DbSet<SalesOrder> SalesOrders { get; }
     DbSet<SalesOrderLine> SalesOrderLines { get; }
     DbSet<CreditNote> CreditNotes { get; }

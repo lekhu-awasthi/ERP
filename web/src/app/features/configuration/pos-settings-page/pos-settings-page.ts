@@ -70,6 +70,7 @@ export class PosSettingsPage {
   protected readonly printInvoice = signal(true);
   protected readonly printCreditNote = signal(true);
   protected readonly printKot = signal(true);
+  protected readonly abbreviatedTaxInvoiceEnabled = signal(false);
   protected readonly linkedModeIds = signal<ReadonlySet<string>>(new Set());
 
   /** The modes the tenant is entitled to offer, plus None, which is always allowed. */
@@ -143,6 +144,7 @@ export class PosSettingsPage {
         printInvoice: this.printInvoice(),
         printCreditNote: this.printCreditNote(),
         printKot: this.printKot(),
+        abbreviatedTaxInvoiceEnabled: this.abbreviatedTaxInvoiceEnabled(),
       })
       .subscribe({
         next: (settings) => {
@@ -226,6 +228,7 @@ export class PosSettingsPage {
     this.printInvoice.set(settings.printInvoice);
     this.printCreditNote.set(settings.printCreditNote);
     this.printKot.set(settings.printKot);
+    this.abbreviatedTaxInvoiceEnabled.set(settings.abbreviatedTaxInvoiceEnabled);
     this.linkedModeIds.set(new Set(settings.paymentModeIds));
   }
 

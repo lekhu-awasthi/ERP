@@ -66,6 +66,7 @@ internal static class PosLocationSettingsReader
             settings.PrintInvoice,
             settings.PrintCreditNote,
             settings.PrintKot,
+            settings.AbbreviatedTaxInvoiceEnabled,
             paymentModeIds);
     }
 }

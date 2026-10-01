@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–60)
+## Completed phases (0–62)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -46,6 +46,8 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 58 | Physical-movement inventory (Delivery Note, GRN, Inventory Variance) |
 | 59 | POS scoping (no code); phases 60–66 planned |
 | 60 | POS foundation: `PosMode`, per-location settings, payment modes with kind + account, walk-in, POS default accounts |
+| 61 | POS sale engine: a till sale is an Invoice created approved, tenders a second GL entry, `PosSession` drawer posts, one session/day reader |
+| 62 | Retail till UI (lazy full-screen `/pos`); abbreviated tax invoice and reprint-copy rules settled from the statutes |
 
 ---
 
@@ -76,7 +78,7 @@ API), reuses Invoice/Credit Note, and adds aggregates only for what an ERP lacks
 |---|---|
 | **60 — POS foundation** ✅ *done 2026-10-01, `phase-60-status.md`* | `BillingLocation.PosMode` (None/Retail/Restaurant; B) replacing the two reserved `BillingLocationType` members; per-location POS settings (service charge rate + account, round-off + account, cash verification + denominations, default tab, print toggles); phase 2's `PaymentMode` extended with a kind, an account and a location link; the seeded walk-in customer; tenant-default Service Charge Income / Rounding / Cash Over-Short accounts; `Product.ServiceChargeApplicable` / `AvailableForSale`; new `Pos.*` keys; ERP-side configuration screens |
 | **61 — POS sale engine** ✅ *done 2026-10-01, `phase-61-status.md`* | Invoice gains channel, session, order type, per-line service charge (inside the VAT base), round-off, change and **tenders**, which post as a second GL entry on the same source document (C, D); `PosSession` with denominations, Cash In/Out and close, **all posting** (H); one create-approved command; the shared session/day reader |
-| **62 — Retail till** | the `/pos` shell, session picker, product grid + search + barcode, cart and line edit, payment screen (multi-tender, change), hold/recall, 80 mm receipt with the correct header and separate service-charge and round-off lines, reprint marked as a copy |
+| **62 — Retail till** ✅ *done 2026-10-01, `phase-62-status.md`* | the `/pos` shell, session picker, product grid + search + barcode, cart and line edit, payment screen (multi-tender, change), hold/recall, 80 mm receipt with the correct header and separate service-charge and round-off lines, reprint marked as a copy |
 | **63 — Returns at the till** | refund from an invoice → Credit Note with a payout tender against the open session; inherited lock-date and reconciliation refusals |
 | **64 — Restaurant: floor, orders, KOT** | areas and tables with a layout editor; `PosOrder` with per-line invoiced/served/discarded counters (E); `KitchenTicket` per send × station (F); Take Away and Delivery; an ERP *POS Orders* list (the divergence's surface) |
 | **65 — Kitchen display and settling** | a live KOT board; estimate bill; split by item/qty and equal split that **preserve the service charge** (the vendor's defect 1 is the regression test); settle to Invoice(s) |
@@ -86,15 +88,30 @@ API), reuses Invoice/Credit Note, and adds aggregates only for what an ERP lacks
 phase 64) and the Service Charge column (a location rule × product flag, phases 60–61). Both were
 correctly dead *from the ERP side*. The POS is where they act.
 
-**Open before phase 62 ships** (phase-59 §6): the abbreviated-tax-invoice conditions and what a
-reprint must print. Read the rules, not the vendor: its abbreviated flag is inert. *(Question 1 was
-settled in phase 61. Service charge is inside the VAT base, and a mandatory one has been unlawful in
-Nepal since the Supreme Court's ruling of 2023-01-25. It is built behind an off-by-default setting
-that states the ruling: `phase-61-status.md` Decision A.)*
+**Phase 59 §6's rule questions are all settled.**
+
+- q1 was settled in phase 61. Service charge is inside the VAT base, and a mandatory one has been
+  unlawful in Nepal since the Supreme Court's ruling of 2023-01-25 (`phase-61-status.md` Decision A).
+- q2 and q3 were settled in phase 62 (`phase-62-status.md` Decisions A and B):
+  - an abbreviated tax invoice needs the Tax Officer's permission, a VAT-registered seller and a
+    bill of at most Rs 10,000 (VAT Rules Rule 18 as amended in 2076), and is never issued to a
+    customer who asks for a full one;
+  - a reprint must say "copy of original" and how many times the bill has been printed (the 2072
+    computerised-invoicing procedure, §6).
+
+The two rules apply to every tax invoice, and the ERP's own PDF print follows neither yet (below).
 
 **Carried from phase 61** (§ 5 there): an ERP credit note against a till sale returns no service
 charge (phase 63 owns returns), and the full-tenant export has no service-charge or round-off
 column.
+
+**Carried from phase 62** (§ 5 there):
+
+- **The ERP invoice PDF** titles every invoice "Invoice", and neither counts nor marks a reprint.
+  Making the GET print write print rows is a decision, because the email pipeline renders the same
+  PDF.
+- **Serial-tracked products** cannot be sold at the till yet: the cart sends no serials.
+- **The barcode lookup is unindexed**; measure it on `tools/scale` before indexing.
 
 **Outside this sequence, each with a start condition:**
 

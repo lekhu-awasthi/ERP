@@ -623,7 +623,10 @@ export type GlSourceDocumentType =
   | 'InventoryAdjustment'
   | 'Payment'
   | 'ProductionJournal'
-  | 'OpeningBalance';
+  | 'OpeningBalance'
+  // Phase 61 posts a till drawer's cash movements and over/short against its session; phase 62
+  // gives those rows somewhere to drill down to.
+  | 'PosSession';
 
 /** Balances travel as a non-negative magnitude plus this marker, never a signed number, so no
  * template has to know which side is normal for which account. */
