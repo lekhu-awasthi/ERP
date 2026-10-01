@@ -10,6 +10,7 @@ using ErpApp.Domain.Imports;
 using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Manufacturing;
 using ErpApp.Domain.Payments;
+using ErpApp.Domain.Pos;
 using ErpApp.Domain.Purchasing;
 using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
@@ -43,6 +44,8 @@ public interface IAppDbContext
     DbSet<RolePermission> RolePermissions { get; }
     DbSet<CreditTerm> CreditTerms { get; }
     DbSet<PaymentMode> PaymentModes { get; }
+    DbSet<PosLocationSettings> PosLocationSettings { get; }
+    DbSet<PosLocationPaymentMode> PosLocationPaymentModes { get; }
     DbSet<Bank> Banks { get; }
     DbSet<CustomStatus> CustomStatuses { get; }
     DbSet<CostTerm> CostTerms { get; }

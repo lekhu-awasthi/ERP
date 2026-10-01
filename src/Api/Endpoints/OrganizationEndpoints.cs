@@ -328,7 +328,10 @@ public static class OrganizationEndpoints
                     request.DefaultProductionCostAccountId,
                     request.DefaultForexGainAccountId,
                     request.DefaultForexLossAccountId,
-                    request.DefaultLandedCostClearingAccountId),
+                    request.DefaultLandedCostClearingAccountId,
+                    request.DefaultServiceChargeAccountId,
+                    request.DefaultRoundingAccountId,
+                    request.DefaultCashOverShortAccountId),
                 ct);
             return Results.Ok(result);
         });
@@ -556,7 +559,12 @@ public static class OrganizationEndpoints
         Guid? DefaultForexLossAccountId = null,
         // Phase 29 (FR-6.15) -- the landed-cost clearing account, same trailing-optional treatment
         // and the same phase-27b warning applies.
-        Guid? DefaultLandedCostClearingAccountId = null);
+        Guid? DefaultLandedCostClearingAccountId = null,
+        // Phase 60 -- the three POS fallback accounts. On this record as well as the command, or
+        // they bind to null in silence (phase-27b).
+        Guid? DefaultServiceChargeAccountId = null,
+        Guid? DefaultRoundingAccountId = null,
+        Guid? DefaultCashOverShortAccountId = null);
 
     /// <summary>
     /// Phase 43 -- every field <c>Organization.UpdateDetails</c> takes and nothing else. Notably no

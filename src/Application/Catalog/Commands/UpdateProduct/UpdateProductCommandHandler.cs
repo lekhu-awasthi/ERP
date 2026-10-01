@@ -56,7 +56,8 @@ public sealed class UpdateProductCommandHandler(IAppDbContext db)
             request.Sku,
             request.Barcode,
             request.BatchTracking,
-            request.SerialTracking);
+            request.SerialTracking,
+            request.ServiceChargeApplicable);
         product.SetAccounts(
             request.SalesAccountId, request.SalesReturnAccountId, request.PurchaseAccountId, request.PurchaseReturnAccountId);
 

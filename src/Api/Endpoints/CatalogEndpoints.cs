@@ -154,7 +154,8 @@ public static class CatalogEndpoints
                     organizationId, request.Type, request.Name, request.CategoryId, request.PrimaryUnitId,
                     request.HsCode, request.AvailableForSale, request.SellingPrice, request.PurchasePrice,
                     request.VatRate, request.ReOrderLevel, request.TrackInventory, request.Sku, request.Barcode,
-                    request.LocationIds, request.BatchTracking, request.SerialTracking),
+                    request.LocationIds, request.BatchTracking, request.SerialTracking,
+                    request.ServiceChargeApplicable),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/products/{result.Id}", result);
         });
@@ -169,7 +170,7 @@ public static class CatalogEndpoints
                     request.ReOrderLevel, request.TrackInventory, request.IsActive,
                     request.SalesAccountId, request.SalesReturnAccountId, request.PurchaseAccountId, request.PurchaseReturnAccountId,
                     request.Sku, request.Barcode, request.LocationIds,
-                    request.BatchTracking, request.SerialTracking),
+                    request.BatchTracking, request.SerialTracking, request.ServiceChargeApplicable),
                 ct);
             return Results.Ok(result);
         });
@@ -369,14 +370,16 @@ public static class CatalogEndpoints
         // Phase 51. Carried on the Api's own record, not only on the command: a trailing optional
         // parameter added to a command reaches nothing until this record has it too -- it compiles,
         // every test passes, and the field binds to null in silence (phase-27b's Terms).
-        bool BatchTracking, bool SerialTracking);
+        bool BatchTracking, bool SerialTracking,
+        // Phase 60 -- on both records for the same reason as the two above.
+        bool ServiceChargeApplicable = false);
 
     private sealed record UpdateProductRequest(
         string Name, Guid CategoryId, Guid PrimaryUnitId, string? HsCode, bool AvailableForSale,
         decimal SellingPrice, decimal PurchasePrice, VatRate VatRate, int ReOrderLevel, bool TrackInventory, bool IsActive,
         Guid? SalesAccountId, Guid? SalesReturnAccountId, Guid? PurchaseAccountId, Guid? PurchaseReturnAccountId,
         string? Sku, string? Barcode, IReadOnlyList<Guid>? LocationIds,
-        bool BatchTracking, bool SerialTracking);
+        bool BatchTracking, bool SerialTracking, bool ServiceChargeApplicable = false);
 
     private sealed record AddSecondaryUnitRequest(Guid UnitId, decimal ConversionRate, decimal SellingPrice, decimal PurchasePrice);
 

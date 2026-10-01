@@ -21,6 +21,7 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(x => x.Code).HasMaxLength(30).IsRequired();
         builder.Property(x => x.HsCode).HasMaxLength(30);
         builder.Property(x => x.AvailableForSale).IsRequired();
+        builder.Property(x => x.ServiceChargeApplicable).IsRequired().HasDefaultValue(false);
         builder.Property(x => x.SellingPrice).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.PurchasePrice).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.VatRate).HasConversion<string>().HasMaxLength(30).IsRequired();

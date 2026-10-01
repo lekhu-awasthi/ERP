@@ -2,6 +2,7 @@ using ErpApp.Application.Common.BotProtection;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
+using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Tenancy;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -69,6 +70,14 @@ public sealed class CreateOrganizationCommandHandler(
         // CreateBillingLocationCommandHandler.EnforceMultipleLocationsEntitlementAsync, and
         // phase-20f Decision #4 / phase-28's currency cap for the first two instances of the shape.
         db.BillingLocations.Add(BillingLocation.CreateHeadOffice(organization.Id));
+
+        // Phase 60 -- the walk-in customer, seeded unconditionally beside HeadOffice and the base
+        // currency. Not gated on the POS entitlements: the Accounting Features are fixed at creation
+        // but the plan is not (phase 41), and a tenant that gains POS later must find its walk-in
+        // already there rather than depend on a seeding path that only one transition runs. It is
+        // also an ordinary, useful contact for a cash sale raised in the ERP. See
+        // Contact.IsWalkInCustomer for why it is a flag and not a setting.
+        db.Contacts.Add(Contact.CreateWalkInCustomer(organization.Id));
 
         var features = new AccountingFeatureSelections(
             request.TrackInventory,

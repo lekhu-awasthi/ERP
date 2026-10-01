@@ -27,7 +27,14 @@ public sealed class FeatureGateBehavior<TRequest, TResponse>(IAppDbContext db) :
     public async Task<TResponse> Handle(
         TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
     {
-        if (request is not IRequireFeature featureRequest)
+        var required = request is IRequireFeature featureRequest
+            ? featureRequest.RequiredFeatures
+            : null;
+        var anyOf = request is IRequireAnyFeature anyFeatureRequest
+            ? anyFeatureRequest.AnyOfFeatures
+            : null;
+
+        if (required is null && anyOf is null)
         {
             return await next();
         }
@@ -40,14 +47,14 @@ public sealed class FeatureGateBehavior<TRequest, TResponse>(IAppDbContext db) :
         if (request is not IOrganizationScoped scoped)
         {
             throw new InvalidOperationException(
-                $"{typeof(TRequest).Name} implements IRequireFeature but not IOrganizationScoped, so its " +
+                $"{typeof(TRequest).Name} implements a feature marker but not IOrganizationScoped, so its " +
                 "tenant's feature flags cannot be resolved. Every feature-gated request must be organization-scoped.");
         }
 
         var subscription = await db.TenantSubscriptions
             .SingleOrDefaultAsync(x => x.OrganizationId == scoped.OrganizationId, cancellationToken);
 
-        foreach (var feature in featureRequest.RequiredFeatures)
+        foreach (var feature in required ?? [])
         {
             // Fail closed on a missing subscription row. Every Organization created through
             // CreateOrganizationCommand gets one in the same SaveChanges, so this only fires for
@@ -59,6 +66,14 @@ public sealed class FeatureGateBehavior<TRequest, TResponse>(IAppDbContext db) :
                     $"This organization does not have the {Describe(feature)} feature enabled. " +
                     "Accounting Features are chosen when the organization is created and cannot be changed afterwards.");
             }
+        }
+
+        // Phase 60 -- the any-of half (IRequireAnyFeature). Same fail-closed reading of a missing row.
+        if (anyOf is { Count: > 0 } && (subscription is null || !anyOf.Any(subscription.IsEnabled)))
+        {
+            throw new FeatureNotEnabledException(
+                $"This organization does not have the {string.Join(" or ", anyOf.Select(Describe))} feature enabled. " +
+                "Accounting Features are chosen when the organization is created and cannot be changed afterwards.");
         }
 
         return await next();

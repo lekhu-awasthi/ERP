@@ -1,0 +1,264 @@
+<div class="container py-5" style="max-width: 860px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i aria-hidden="true" class="bi bi-shop fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Point of Sale</h1>
+          <p class="text-muted small mb-0">Which locations run a till, and how each one charges, rounds, counts and prints</p>
+        </div>
+      </div>
+      <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'configuration']">
+        <i aria-hidden="true" class="bi bi-arrow-left"></i> Configurations
+      </a>
+    </div>
+  </div>
+
+  <app-status-banner [message]="errorMessage()" />
+  <app-status-banner [message]="successMessage()" tone="success" />
+
+  @if (loading()) {
+    <p class="text-muted">Loading point-of-sale configuration...</p>
+  } @else if (configuration(); as config) {
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-sm-6">
+            <label class="form-label small fw-semibold" for="pos-settings-location">Location</label>
+            <select id="pos-settings-location" class="form-select" (change)="selectLocation(valueOf($event))">
+              @for (location of config.locations; track location.id) {
+                <option [value]="location.id" [selected]="location.id === selectedLocationId()">
+                  {{ location.name }} ({{ location.code }}) — {{ modeLabels[location.posMode] }}{{ location.isActive ? '' : ' — inactive' }}
+                </option>
+              }
+            </select>
+          </div>
+          <div class="col-12 col-sm-6 small text-muted">
+            Walk-in customer:
+            @if (config.walkInCustomer; as walkIn) {
+              <span class="fw-semibold text-dark">{{ walkIn.name }}</span> ({{ walkIn.code }})
+            } @else {
+              <span class="fw-semibold text-dark">none</span>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    @if (settings(); as current) {
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-4">
+          <h2 class="h5 fw-bold mb-1">POS Type</h2>
+          <p class="text-muted small mb-3">
+            A Retail till has Retail and Delivery tabs; a Bar / Restaurant till adds Dine In, Take Away, kitchen tickets and the floor plan.
+          </p>
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-sm-6">
+              <label class="form-label small fw-semibold" for="pos-settings-mode">Type</label>
+              <select id="pos-settings-mode" class="form-select" (change)="posMode.set($any(valueOf($event)))">
+                @for (mode of availableModes(); track mode) {
+                  <option [value]="mode" [selected]="mode === posMode()">{{ modeLabels[mode] }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-12 col-sm-6">
+              <button type="button" class="btn btn-outline-primary fw-bold" [disabled]="saving() || posMode() === current.posMode" (click)="saveMode()">
+                Change Type
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-4">
+          <h2 class="h5 fw-bold mb-1">General</h2>
+          <p class="text-muted small mb-3">
+            @if (current.isSaved) {
+              Saved settings for {{ current.locationName }}.
+            } @else {
+              {{ current.locationName }} has never been saved, so these are the defaults.
+            }
+          </p>
+
+          <fieldset class="mb-4">
+            <legend class="h6 fw-bold">Service Charge</legend>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="pos-settings-service-charge"
+                [checked]="serviceChargeEnabled()" (change)="serviceChargeEnabled.set(checkedOf($event))" />
+              <label class="form-check-label" for="pos-settings-service-charge">Service charge applicable</label>
+            </div>
+            @if (serviceChargeEnabled()) {
+              <div class="row g-3">
+                <div class="col-12 col-sm-4">
+                  <label class="form-label small fw-semibold" for="pos-settings-service-charge-rate">Rate (%)</label>
+                  <input id="pos-settings-service-charge-rate" type="number" class="form-control" min="0" max="100" step="0.01"
+                    [value]="serviceChargeRate()" (input)="serviceChargeRate.set(numberOf($event))" />
+                </div>
+                <div class="col-12 col-sm-8">
+                  <label class="form-label small fw-semibold" for="pos-settings-service-charge-account">Account</label>
+                  <select id="pos-settings-service-charge-account" class="form-select"
+                    aria-describedby="pos-settings-service-charge-account-help"
+                    (change)="serviceChargeAccountId.set(valueOf($event))">
+                    <option value="" [selected]="!serviceChargeAccountId()">— Tenant default —</option>
+                    @for (account of sortedAccounts(); track account.id) {
+                      <option [value]="account.id" [selected]="account.id === serviceChargeAccountId()">{{ account.code }} — {{ account.name }}</option>
+                    }
+                  </select>
+                  <p id="pos-settings-service-charge-account-help" class="form-text mb-0">
+                    Left empty, the Default Service Charge Account on Accounting Defaults is used. Applies only to products marked Service Charge Applicable.
+                  </p>
+                </div>
+              </div>
+            }
+          </fieldset>
+
+          <fieldset class="mb-4">
+            <legend class="h6 fw-bold">Round Off</legend>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="pos-settings-round-off"
+                [checked]="roundOffEnabled()" (change)="roundOffEnabled.set(checkedOf($event))" />
+              <label class="form-check-label" for="pos-settings-round-off">Round bills to the rupee</label>
+            </div>
+            @if (roundOffEnabled()) {
+              <label class="form-label small fw-semibold" for="pos-settings-round-off-account">Account</label>
+              <select id="pos-settings-round-off-account" class="form-select"
+                aria-describedby="pos-settings-round-off-account-help"
+                (change)="roundOffAccountId.set(valueOf($event))">
+                <option value="" [selected]="!roundOffAccountId()">— Tenant default —</option>
+                @for (account of sortedAccounts(); track account.id) {
+                  <option [value]="account.id" [selected]="account.id === roundOffAccountId()">{{ account.code }} — {{ account.name }}</option>
+                }
+              </select>
+              <p id="pos-settings-round-off-account-help" class="form-text mb-0">Left empty, the Default Rounding Account on Accounting Defaults is used.</p>
+            }
+          </fieldset>
+
+          <fieldset class="mb-4">
+            <legend class="h6 fw-bold">Cash</legend>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="pos-settings-cash-verification"
+                [checked]="cashVerificationRequired()" (change)="cashVerificationRequired.set(checkedOf($event))" />
+              <label class="form-check-label" for="pos-settings-cash-verification">Require cash verification (count notes to open and close a session)</label>
+            </div>
+            <p class="small fw-semibold mb-2" id="pos-settings-denominations-label">Cash denominations</p>
+            <ul class="list-inline mb-2" aria-labelledby="pos-settings-denominations-label">
+              @for (value of denominations(); track value) {
+                <li class="list-inline-item mb-2">
+                  <span class="badge bg-light text-dark border fs-6 fw-normal">
+                    {{ value }}
+                    <button type="button" class="btn btn-link btn-sm p-0 ms-1 text-danger" (click)="removeDenomination(value)"
+                      [attr.aria-label]="'Remove ' + value">
+                      <i aria-hidden="true" class="bi bi-x"></i>
+                    </button>
+                  </span>
+                </li>
+              }
+            </ul>
+            <div class="row g-2 align-items-end">
+              <div class="col-6 col-sm-3">
+                <label class="form-label small fw-semibold" for="pos-settings-new-denomination">Add</label>
+                <input id="pos-settings-new-denomination" type="number" class="form-control" min="1" step="1"
+                  [value]="newDenomination()" (input)="newDenomination.set(valueOf($event))" />
+              </div>
+              <div class="col-auto">
+                <button type="button" class="btn btn-outline-secondary" (click)="addDenomination()">Add</button>
+              </div>
+              <div class="col-auto">
+                <button type="button" class="btn btn-link" (click)="resetDenominations()">Reset to default</button>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="mb-4">
+            <legend class="h6 fw-bold">Till</legend>
+            <label class="form-label small fw-semibold" for="pos-settings-default-tab">Default tab</label>
+            <select id="pos-settings-default-tab" class="form-select" style="max-width: 320px;"
+              aria-describedby="pos-settings-default-tab-help"
+              [disabled]="current.availableTabs.length === 0"
+              (change)="defaultTab.set($any(valueOf($event)))">
+              <option value="" [selected]="!defaultTab()">
+                {{ current.availableTabs.length ? 'First tab (' + tabLabels[current.availableTabs[0]] + ')' : '— No till —' }}
+              </option>
+              @for (tab of current.availableTabs; track tab) {
+                <option [value]="tab" [selected]="tab === defaultTab()">{{ tabLabels[tab] }}</option>
+              }
+            </select>
+            <p id="pos-settings-default-tab-help" class="form-text mb-0">
+              @if (current.availableTabs.length === 0) {
+                Choose a POS type first.
+              } @else if (current.effectiveDefaultTab) {
+                The till opens on {{ tabLabels[current.effectiveDefaultTab] }}.
+              }
+            </p>
+          </fieldset>
+
+          <fieldset class="mb-4">
+            <legend class="h6 fw-bold">Printing</legend>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="pos-settings-print-estimate"
+                [checked]="printEstimateBill()" (change)="printEstimateBill.set(checkedOf($event))" />
+              <label class="form-check-label" for="pos-settings-print-estimate">Estimate bill</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="pos-settings-print-invoice"
+                [checked]="printInvoice()" (change)="printInvoice.set(checkedOf($event))" />
+              <label class="form-check-label" for="pos-settings-print-invoice">Invoice</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="pos-settings-print-credit-note"
+                [checked]="printCreditNote()" (change)="printCreditNote.set(checkedOf($event))" />
+              <label class="form-check-label" for="pos-settings-print-credit-note">Credit note</label>
+            </div>
+            @if (current.posMode === 'Restaurant') {
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="pos-settings-print-kot"
+                  [checked]="printKot()" (change)="printKot.set(checkedOf($event))" />
+                <label class="form-check-label" for="pos-settings-print-kot">Kitchen order ticket (KOT)</label>
+              </div>
+            }
+          </fieldset>
+
+          <button type="button" class="btn btn-primary fw-bold" [disabled]="saving()" (click)="saveSettings()">
+            Save Settings
+          </button>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-4">
+          <h2 class="h5 fw-bold mb-1">Payment Modes</h2>
+          <p class="text-muted small mb-3">
+            The tender tabs this location's till offers. A mode needs to be active and name its payment account on
+            <a [routerLink]="['/organizations', organizationId, 'configuration', 'payment-modes']">Payment Modes</a> first.
+          </p>
+          @if (modeRows().length === 0) {
+            <p class="text-muted small mb-3">This organization has no payment modes yet.</p>
+          }
+          <fieldset class="mb-3">
+            <legend class="visually-hidden">Payment modes offered at {{ current.locationName }}</legend>
+            @for (row of modeRows(); track row.mode.id) {
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" [id]="'pos-settings-mode-' + row.mode.id"
+                  [checked]="linkedModeIds().has(row.mode.id)"
+                  [disabled]="!row.usable && !linkedModeIds().has(row.mode.id)"
+                  (change)="toggleMode(row.mode.id, checkedOf($event))" />
+                <label class="form-check-label" [for]="'pos-settings-mode-' + row.mode.id">
+                  {{ row.mode.name }}
+                  @if (!row.usable) {
+                    <span class="text-muted small">— {{ row.mode.isActive ? 'no payment account' : 'inactive' }}</span>
+                  }
+                </label>
+              </div>
+            }
+          </fieldset>
+          <button type="button" class="btn btn-primary fw-bold" [disabled]="saving()" (click)="savePaymentModes()">
+            Save Payment Modes
+          </button>
+        </div>
+      </div>
+    }
+  }
+</div>

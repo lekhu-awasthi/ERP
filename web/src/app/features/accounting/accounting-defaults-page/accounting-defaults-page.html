@@ -229,6 +229,51 @@
           <p class="form-text">Credited when a Purchase Bill capitalises an Additional Cost into stock -- a clearing liability the carrier&#39;s own bill later nets to zero. Required before approving a bill that carries one.</p>
         </div>
 
+        <hr class="my-4" />
+        <h6 class="fw-bold text-dark mb-3">Point-of-Sale Defaults</h6>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-service-charge-account">Default Service Charge Account</label>
+          <select id="accounting-defaults-page-default-service-charge-account"
+            class="form-select"
+            (change)="defaultServiceChargeAccountId.set($any($event.target).value)"
+          >
+            <option value="" [selected]="!defaultServiceChargeAccountId()">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id" [selected]="account.id === defaultServiceChargeAccountId()">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">Credited with a till sale&#39;s service charge when its location names no account of its own.</p>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-rounding-account">Default Rounding Account</label>
+          <select id="accounting-defaults-page-default-rounding-account"
+            class="form-select"
+            (change)="defaultRoundingAccountId.set($any($event.target).value)"
+          >
+            <option value="" [selected]="!defaultRoundingAccountId()">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id" [selected]="account.id === defaultRoundingAccountId()">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">Takes a till bill&#39;s round-off difference when its location names no account of its own.</p>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-cash-over-short-account">Default Cash Over/Short Account</label>
+          <select id="accounting-defaults-page-default-cash-over-short-account"
+            class="form-select"
+            (change)="defaultCashOverShortAccountId.set($any($event.target).value)"
+          >
+            <option value="" [selected]="!defaultCashOverShortAccountId()">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id" [selected]="account.id === defaultCashOverShortAccountId()">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">Takes the difference between counted and expected cash when a till session is closed.</p>
+        </div>
+
         <button type="button" class="btn btn-primary fw-bold" [disabled]="saving()" (click)="save()">
           @if (saving()) {
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>

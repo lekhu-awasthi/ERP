@@ -54,6 +54,18 @@ public sealed class Product
     public Guid PrimaryUnitId { get; private set; }
     public string? HsCode { get; private set; }
     public bool AvailableForSale { get; private set; }
+
+    /// <summary>
+    /// Phase 60 -- a till sale of this product carries its location's service charge. Service charge
+    /// is <b>a location rate times this flag</b> (phase 59 Decision G): the vendor's POS product form
+    /// marks it required, Chicken Momo carried it and Coke did not, and one table's bill charged
+    /// exactly the flagged lines. This reopens phase 47's drop of the Service Charge column, which was
+    /// right about the ERP screen it read -- nothing there acts on it -- and wrong about the field.
+    /// False for every product that existed before the phase: no service charge was ever charged.
+    ///
+    /// <para>Read by nothing in the ERP; phase 61's POS sale engine is its consumer.</para>
+    /// </summary>
+    public bool ServiceChargeApplicable { get; private set; }
     public decimal SellingPrice { get; private set; }
     public decimal PurchasePrice { get; private set; }
     public VatRate VatRate { get; private set; }
@@ -168,7 +180,8 @@ public sealed class Product
         string? sku = null,
         string? barcode = null,
         bool batchTracking = false,
-        bool serialTracking = false)
+        bool serialTracking = false,
+        bool serviceChargeApplicable = false)
     {
         EnsureTrackingIsCoherent(type, trackInventory, batchTracking, serialTracking);
 
@@ -183,6 +196,7 @@ public sealed class Product
             PrimaryUnitId = primaryUnitId,
             HsCode = hsCode,
             AvailableForSale = availableForSale,
+            ServiceChargeApplicable = serviceChargeApplicable,
             SellingPrice = sellingPrice,
             PurchasePrice = purchasePrice,
             VatRate = vatRate,
@@ -213,7 +227,8 @@ public sealed class Product
         string? sku = null,
         string? barcode = null,
         bool batchTracking = false,
-        bool serialTracking = false)
+        bool serialTracking = false,
+        bool serviceChargeApplicable = false)
     {
         EnsureTrackingIsCoherent(Type, trackInventory, batchTracking, serialTracking);
 
@@ -222,6 +237,7 @@ public sealed class Product
         PrimaryUnitId = primaryUnitId;
         HsCode = hsCode;
         AvailableForSale = availableForSale;
+        ServiceChargeApplicable = serviceChargeApplicable;
         SellingPrice = sellingPrice;
         PurchasePrice = purchasePrice;
         VatRate = vatRate;
@@ -404,6 +420,7 @@ public sealed class Product
             PrimaryUnitId = PrimaryUnitId,
             HsCode = HsCode,
             AvailableForSale = AvailableForSale,
+            ServiceChargeApplicable = ServiceChargeApplicable,
             SellingPrice = sellingPrice,
             PurchasePrice = purchasePrice,
             VatRate = VatRate,

@@ -1661,3 +1661,39 @@ ours keeps a `PosOrder` with per-line invoiced counters, and that divergence owe
 read-only *POS Orders* list (phase 49's rule). Where the vendor posts nothing for the drawer, ours
 posts cash movements and over/short. Where it extends credit to the anonymous walk-in, ours
 requires a named customer.
+
+## Phase 60 — POS foundation, and the parameters nobody passed
+
+**Read `phase-60-status.md` before a POS phase reads a setting, a payment mode or the walk-in; before
+gating anything on "either of two entitlements"; or before adding a trailing optional parameter to a
+Domain method.** It shipped the configuration a till reads and nothing that sells: `PosMode` on every
+location, `PosLocationSettings`, payment modes with a kind and an account linked per location, a
+flagged walk-in customer, three tenant-default accounts, `Product.ServiceChargeApplicable`, and
+*Configurations > Point of Sale*.
+
+**Migrate a new mode to the value that is true, not the one the vendor shows.** The vendor types its
+HeadOffice Retail, but no till existed here, and a mode needs its entitlement. So every row became
+`None`, and a tenant opts each location in.
+
+**A flag on the row beats a setting pointing at the row when the question is about the row.** "Is
+this contact the walk-in?" is asked of a contact already loaded, and a re-pointable setting would
+make yesterday's walk-in creditable in silence. `Contact.IsWalkInCustomer` has HeadOffice's standing:
+at most one, and never deactivated.
+
+**An any-of entitlement is still a pipeline concern.** `IRequireAnyFeature` joined `IRequireFeature`
+in `FeatureGateBehavior`. The one POS request whose entitlement depends on its *value* (set a mode)
+checks in its handler, and switching a till off needs no entitlement at all.
+
+**Refuse a bad setting where it is set, and again where it is edited.** A payment mode offered at a
+till must be active and name a cash or bank account. That is refused at link time and at edit time,
+so the cashier never finds out.
+
+**Adding the Nth trailing optional parameter is an audit of every call site that stopped at N−2.**
+Adding `serviceChargeApplicable` found two production callers already silently dropping arguments.
+Every variant edit had been switching batch and serial tracking off since phase 51. Every update
+import had been clearing a product's SKU, barcode, location restriction and tracking. Grep the
+callers of the method, not only of the command.
+
+**Ship a permission key with its request.** Only `Pos.Settings.Manage` shipped. The other four keys
+phase 59 derived gate requests that do not exist yet, and a toggle that gates nothing lies to the
+Admin who flips it.

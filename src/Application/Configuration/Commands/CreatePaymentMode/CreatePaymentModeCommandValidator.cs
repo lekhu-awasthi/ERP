@@ -8,5 +8,6 @@ public sealed class CreatePaymentModeCommandValidator : AbstractValidator<Create
     {
         RuleFor(x => x.OrganizationId).NotEmpty();
         RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.Kind).IsInEnum();
     }
 }

@@ -221,6 +221,46 @@ public class ImportJobProcessorTests
         Assert.Equal(created.Code, only.Code);
     }
 
+    /// <summary>Phase 60 -- an update import changes the columns the template has and nothing else.
+    /// Five fields with no column (SKU, barcode, locations, batch and serial tracking) were trailing
+    /// optional parameters the importer never passed, so every update import cleared them; the
+    /// sixth, ServiceChargeApplicable, would have joined them.</summary>
+    [Fact]
+    public async Task Update_mode_keeps_every_field_the_template_has_no_column_for()
+    {
+        using var host = new ImportTestHost(Now);
+        var db = host.NewDbContext();
+        var tenant = await ImportTestSeed.SeedAsync(db);
+
+        await ImportTestSeed.QueueJobAsync(db, tenant, ImportEntityType.Product, ImportMode.CreateNew, Now, host.FileStorage);
+        host.FileReader.Returns(ImportTestSeed.ProductHeaders, ImportTestSeed.ProductRow("Momo"));
+        await host.NewProcessor().ProcessNextAsync(CancellationToken.None);
+
+        var locationId = Guid.NewGuid();
+        var edit = host.NewDbContext();
+        var product = await edit.Products.Include(x => x.Locations).SingleAsync();
+        product.Update(
+            product.Name, product.CategoryId, product.PrimaryUnitId, product.HsCode, product.AvailableForSale,
+            product.SellingPrice, product.PurchasePrice, product.VatRate, product.ReOrderLevel, trackInventory: true,
+            product.IsActive, sku: "SKU-1", barcode: "8901234567890", batchTracking: true, serialTracking: false,
+            serviceChargeApplicable: true);
+        edit.ProductLocations.AddRange(product.SetLocations([locationId]).Added);
+        await edit.SaveChangesAsync();
+
+        await ImportTestSeed.QueueJobAsync(
+            host.NewDbContext(), tenant, ImportEntityType.Product, ImportMode.UpdateExisting, Now, host.FileStorage);
+        host.FileReader.Returns(ImportTestSeed.ProductHeaders, ImportTestSeed.ProductRow("Chicken Momo", code: product.Code));
+        await host.NewProcessor().ProcessNextAsync(CancellationToken.None);
+
+        var updated = await host.NewDbContext().Products.Include(x => x.Locations).SingleAsync();
+        Assert.Equal("Chicken Momo", updated.Name);
+        Assert.Equal("SKU-1", updated.Sku);
+        Assert.Equal("8901234567890", updated.Barcode);
+        Assert.True(updated.BatchTracking);
+        Assert.True(updated.ServiceChargeApplicable);
+        Assert.Equal([locationId], updated.Locations.Select(x => x.LocationId));
+    }
+
     /// <summary>The other half of "create and update modes differ": update mode must not quietly
     /// create a record for a code it cannot find.</summary>
     [Fact]

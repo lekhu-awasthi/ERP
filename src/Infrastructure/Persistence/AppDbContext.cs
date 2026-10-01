@@ -12,6 +12,7 @@ using ErpApp.Domain.Imports;
 using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Manufacturing;
 using ErpApp.Domain.Payments;
+using ErpApp.Domain.Pos;
 using ErpApp.Domain.Purchasing;
 using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
@@ -36,6 +37,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<CreditTerm> CreditTerms => Set<CreditTerm>();
     public DbSet<PaymentMode> PaymentModes => Set<PaymentMode>();
+    public DbSet<PosLocationSettings> PosLocationSettings => Set<PosLocationSettings>();
+    public DbSet<PosLocationPaymentMode> PosLocationPaymentModes => Set<PosLocationPaymentMode>();
     public DbSet<Bank> Banks => Set<Bank>();
     public DbSet<CustomStatus> CustomStatuses => Set<CustomStatus>();
     public DbSet<CostTerm> CostTerms => Set<CostTerm>();

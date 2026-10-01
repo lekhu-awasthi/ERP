@@ -1,5 +1,7 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+
+import { SubscriptionStore } from '../../../shared/platform/subscription.store';
 
 /**
  * Configurations nav hub (roadmap Phase 2 task 5) -- mirrors organization-dashboard-page's card
@@ -17,4 +19,11 @@ export class ConfigurationShell {
   private readonly route = inject(ActivatedRoute);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
+
+  private readonly subscription = inject(SubscriptionStore).subscription(this.organizationId);
+
+  /** Phase 60 -- the Point of Sale card shows only where a till can exist, as its route guard allows. */
+  protected readonly posEnabled = computed(() =>
+    this.subscription()?.features.some(
+      (x) => (x.feature === 'PosRetail' || x.feature === 'PosRestaurant') && x.isEnabled) === true);
 }

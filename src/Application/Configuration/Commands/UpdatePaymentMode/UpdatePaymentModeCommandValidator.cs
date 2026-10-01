@@ -9,5 +9,6 @@ public sealed class UpdatePaymentModeCommandValidator : AbstractValidator<Update
         RuleFor(x => x.OrganizationId).NotEmpty();
         RuleFor(x => x.Id).NotEmpty();
         RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.Kind).IsInEnum();
     }
 }

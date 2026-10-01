@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { authGuard } from './core/auth/auth.guard';
-import { featureGuard } from './core/organizations/feature.guard';
+import { anyFeatureGuard, featureGuard } from './core/organizations/feature.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'login' },
@@ -112,6 +112,13 @@ export const routes: Routes = [
         (m) => m.PaymentModeListPage,
       ),
     canActivate: [authGuard],
+  },
+  {
+    // Phase 60 -- POS configuration. Either POS entitlement opens it, as either opens the server side.
+    path: 'organizations/:id/configuration/pos',
+    loadComponent: () =>
+      import('./features/configuration/pos-settings-page/pos-settings-page').then((m) => m.PosSettingsPage),
+    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
   },
   {
     path: 'organizations/:id/configuration/banks',

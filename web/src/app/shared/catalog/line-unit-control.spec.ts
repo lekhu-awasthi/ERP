@@ -25,6 +25,7 @@ function product(overrides: Partial<Product> = {}): Product {
     primaryUnitId: PIECE,
     hsCode: null,
     availableForSale: true,
+    serviceChargeApplicable: false,
     sellingPrice: 1200,
     purchasePrice: 900,
     vatRate: 'NoVat',

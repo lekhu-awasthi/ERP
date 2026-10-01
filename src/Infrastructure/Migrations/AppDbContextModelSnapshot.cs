@@ -610,6 +610,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<bool>("ServiceChargeApplicable")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Sku")
                         .HasMaxLength(60)
                         .HasColumnType("nvarchar(60)");
@@ -1613,11 +1618,20 @@ namespace ErpApp.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("AccountId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Other");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1631,6 +1645,8 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("bit");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AccountId");
 
                     b.HasIndex("OrganizationId", "Name")
                         .IsUnique();
@@ -1921,6 +1937,11 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsWalkInCustomer")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1951,6 +1972,11 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("CreditTermId");
 
                     b.HasIndex("GroupId");
+
+                    b.HasIndex("OrganizationId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Contacts_OrganizationId_WalkInCustomer")
+                        .HasFilter("[IsWalkInCustomer] = 1");
 
                     b.HasIndex("OrganizationId", "Code")
                         .IsUnique();
@@ -3839,6 +3865,105 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("TargetDocumentType", "TargetDocumentId");
 
                     b.ToTable("PaymentAllocations", "payments");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Pos.PosLocationPaymentMode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BillingLocationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PaymentModeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillingLocationId");
+
+                    b.HasIndex("PaymentModeId");
+
+                    b.HasIndex("OrganizationId", "BillingLocationId", "PaymentModeId")
+                        .IsUnique();
+
+                    b.ToTable("PosLocationPaymentModes", "pos");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Pos.PosLocationSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BillingLocationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("CashVerificationRequired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DefaultTab")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Denominations")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("PrintCreditNote")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("PrintEstimateBill")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("PrintInvoice")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("PrintKot")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid?>("RoundOffAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("RoundOffEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid?>("ServiceChargeAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("ServiceChargeEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("ServiceChargeRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillingLocationId");
+
+                    b.HasIndex("RoundOffAccountId");
+
+                    b.HasIndex("ServiceChargeAccountId");
+
+                    b.HasIndex("OrganizationId", "BillingLocationId")
+                        .IsUnique();
+
+                    b.ToTable("PosLocationSettings", "pos");
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Purchasing.DebitNote", b =>
@@ -5743,6 +5868,12 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PosMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("None");
 
                     b.Property<Guid?>("WarehouseId")
                         .HasColumnType("uniqueidentifier");
@@ -9349,6 +9480,20 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = true,
                             PermissionKey = "Reports.InventoryVariance.View",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001e1"),
+                            IsGranted = true,
+                            PermissionKey = "Pos.Settings.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001e2"),
+                            IsGranted = false,
+                            PermissionKey = "Pos.Settings.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 
@@ -9501,6 +9646,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid?>("DefaultAccountsReceivableId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("DefaultCashOverShortAccountId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("DefaultCogsAccountId")
                         .HasColumnType("uniqueidentifier");
 
@@ -9525,7 +9673,13 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid?>("DefaultPurchaseAccountId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("DefaultRoundingAccountId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("DefaultSalesAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("DefaultServiceChargeAccountId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid?>("DefaultTdsPayableAccountId")
@@ -10233,6 +10387,14 @@ namespace ErpApp.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Configuration.PaymentMode", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Accounting.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Configuration.ReportingTagOption", b =>
                 {
                     b.HasOne("ErpApp.Domain.Configuration.ReportingTagCategory", null)
@@ -10756,6 +10918,40 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasOne("ErpApp.Domain.Configuration.PaymentMode", null)
                         .WithMany()
                         .HasForeignKey("PaymentModeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Pos.PosLocationPaymentMode", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("BillingLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Configuration.PaymentMode", null)
+                        .WithMany()
+                        .HasForeignKey("PaymentModeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Pos.PosLocationSettings", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("BillingLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Accounting.Account", null)
+                        .WithMany()
+                        .HasForeignKey("RoundOffAccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ErpApp.Domain.Accounting.Account", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceChargeAccountId")
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 

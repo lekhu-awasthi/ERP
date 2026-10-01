@@ -771,6 +771,10 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminInventoryVarianceViewId = Guid.Parse("00000000-0000-0000-0002-0000000001df");
     private static readonly Guid MemberInventoryVarianceViewId = Guid.Parse("00000000-0000-0000-0002-0000000001e0");
 
+    // Phase 60 -- Pos.Settings.Manage, Admin-only (derived in PermissionKeys.PosSettingsManage).
+    private static readonly Guid AdminPosSettingsManageId = Guid.Parse("00000000-0000-0000-0002-0000000001e1");
+    private static readonly Guid MemberPosSettingsManageId = Guid.Parse("00000000-0000-0000-0002-0000000001e2");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1364,6 +1368,8 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminGoodsReceivedNoteVoidId, Role.AdminId, PermissionKeys.GoodsReceivedNoteVoid, true),
             RolePermission.Create(MemberGoodsReceivedNoteVoidId, Role.MemberId, PermissionKeys.GoodsReceivedNoteVoid, true),
             RolePermission.Create(AdminInventoryVarianceViewId, Role.AdminId, PermissionKeys.InventoryVarianceView, true),
-            RolePermission.Create(MemberInventoryVarianceViewId, Role.MemberId, PermissionKeys.InventoryVarianceView, true));
+            RolePermission.Create(MemberInventoryVarianceViewId, Role.MemberId, PermissionKeys.InventoryVarianceView, true),
+            RolePermission.Create(AdminPosSettingsManageId, Role.AdminId, PermissionKeys.PosSettingsManage, true),
+            RolePermission.Create(MemberPosSettingsManageId, Role.MemberId, PermissionKeys.PosSettingsManage, false));
     }
 }

@@ -26,6 +26,24 @@
           <label class="form-label small fw-semibold" for="payment-mode-list-page-name">Name</label>
           <input id="payment-mode-list-page-name" type="text" class="form-control" formControlName="name" placeholder="e.g. Cash" />
         </div>
+        <div class="col-6 col-sm-3">
+          <label class="form-label small fw-semibold" for="payment-mode-list-page-kind">Type</label>
+          <select id="payment-mode-list-page-kind" class="form-select" formControlName="kind">
+            @for (k of kinds; track k.value) {
+              <option [value]="k.value">{{ k.label }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-6 col-sm-4">
+          <label class="form-label small fw-semibold" for="payment-mode-list-page-account">Payment Account</label>
+          <select id="payment-mode-list-page-account" class="form-select" formControlName="accountId"
+            aria-describedby="payment-mode-list-page-account-help">
+            <option value="">— None —</option>
+            @for (account of paymentAccounts(); track account.id) {
+              <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+        </div>
         <div class="col-6 col-sm-2 form-check ps-4 align-self-center">
           <input type="checkbox" class="form-check-input" id="requiresChequeDetails" formControlName="requiresChequeDetails" />
           <label class="form-check-label small" for="requiresChequeDetails">Cheque mode</label>
@@ -36,6 +54,9 @@
             <label class="form-check-label small" for="isActive">Active</label>
           </div>
         }
+        <p id="payment-mode-list-page-account-help" class="col-12 form-text mt-1 mb-0 order-last">
+          Payment Account: a cash or bank account. Required to offer this mode at a point-of-sale till.
+        </p>
         <div class="col-12 col-sm-3 d-flex gap-2">
           <button type="submit" class="btn btn-primary fw-bold flex-fill" [disabled]="saving()">
             @if (saving()) {
@@ -88,6 +109,10 @@
                 </div>
                 <div>
                   <h6 class="fw-bold mb-1 text-dark">{{ item.name }}</h6>
+                  <span class="badge bg-light text-dark border me-1">{{ kindLabel(item.kind) }}</span>
+                  @if (item.accountId) {
+                    <span class="small text-muted me-1">{{ accountNames().get(item.accountId) ?? 'Account set' }}</span>
+                  }
                   @if (item.requiresChequeDetails) {
                     <span class="badge bg-info-subtle text-info-emphasis me-1">Cheque mode</span>
                   }

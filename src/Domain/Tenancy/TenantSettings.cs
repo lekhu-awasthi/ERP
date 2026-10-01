@@ -223,6 +223,30 @@ public sealed class TenantSettings
     public Guid? DefaultLandedCostClearingAccountId { get; private set; }
 
     /// <summary>
+    /// Phase 60 (phase 59 Decision I) -- where a till's service charge is credited when the location
+    /// names no account of its own (<c>PosLocationSettings.ServiceChargeAccountId</c>). The vendor
+    /// credits whatever account the location names (live: <i>Sales Service</i>); a tenant default
+    /// lets one account serve every branch without setting it N times.
+    ///
+    /// <para>Lazy, like the forex and landed-cost accounts: phase 61 resolves it only when a sale
+    /// actually carries a service charge, so a tenant that never charges one is never asked for it.</para>
+    /// </summary>
+    public Guid? DefaultServiceChargeAccountId { get; private set; }
+
+    /// <summary>Phase 60 -- where a till's round-off difference is booked when the location names no
+    /// account (<c>PosLocationSettings.RoundOffAccountId</c>). Same fallback and laziness as
+    /// <see cref="DefaultServiceChargeAccountId"/>.</summary>
+    public Guid? DefaultRoundingAccountId { get; private set; }
+
+    /// <summary>
+    /// Phase 60 -- where a closed session's counted-minus-expected cash difference posts (phase 59
+    /// Decision H). Tenant-level only: the vendor has no such account anywhere, because its drawer
+    /// never reaches the ledger (defect 6), and a shortage is a loss of the business rather than of a
+    /// branch's configuration. Resolved by phase 61 only when a close actually differs.
+    /// </summary>
+    public Guid? DefaultCashOverShortAccountId { get; private set; }
+
+    /// <summary>
     /// Phase 32 (FR-2.3/FR-3.3) -- the first of the two controls inside Organization &gt; Features &gt;
     /// Billing Location &gt; Advanced. Defaults to <see cref="LocationScopeMode.SalesTransactionsOnly"/>,
     /// which is the option the live screen badges <b>Default</b>.
@@ -330,6 +354,17 @@ public sealed class TenantSettings
         DefaultInventoryAdjustmentAccountId = defaultInventoryAdjustmentAccountId;
         DefaultProductionCostAccountId = defaultProductionCostAccountId;
         DefaultLandedCostClearingAccountId = defaultLandedCostClearingAccountId;
+    }
+
+    /// <summary>Phase 60 -- the three point-of-sale fallback accounts. See each property.</summary>
+    public void SetPosDefaults(
+        Guid? defaultServiceChargeAccountId,
+        Guid? defaultRoundingAccountId,
+        Guid? defaultCashOverShortAccountId)
+    {
+        DefaultServiceChargeAccountId = defaultServiceChargeAccountId;
+        DefaultRoundingAccountId = defaultRoundingAccountId;
+        DefaultCashOverShortAccountId = defaultCashOverShortAccountId;
     }
 
     /// <summary>Phase 22 -- turns AI-assisted extraction on or off for this tenant. Its own

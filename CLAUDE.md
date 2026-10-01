@@ -91,6 +91,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 57: the bank module finished (Quick Approve, the report's `.xlsx`, the balance chart) + phase 53's census re-run. Before paying an index debt, re-running a census, or choosing a calendar for a derived series — `docs/phase-57-status.md`
 - Phase 58: physical-movement inventory (Delivery Note, GRN, Inventory Variance): a second, derived, quantity-only stock ledger; the setting picks a default, never a behaviour. Before touching `InventoryTrackingMode`, a stock balance, or a covering index — `docs/phase-58-status.md`
 - Phase 59: POS scoping, no code. The vendor's till read and written end to end: an ERP client on the same API (sale = Invoice, refund = Credit Note), 9 vendor defects, phases 60–66 planned. Before any POS phase or a channel-only `Invoice` field — `docs/phase-59-status.md`
+- Phase 60: POS foundation (`PosMode` on every location, `PosLocationSettings`, payment modes with a kind + account linked per location, the flagged walk-in, 3 tenant-default accounts, `IRequireAnyFeature`). Before a POS phase reads a setting, or adding a trailing optional parameter — `docs/phase-60-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -203,7 +204,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A field in the vendor's payload is not a feature: ask what **writes** it. `fg_measurement_unit_id` is the product's primary unit, stored and never chosen (phase-54, phase-43's present-and-ignored shape).
 - A **record** parent (Contact, Deal, WorkTask) is a `DocumentType` member that is *not* transactional; that one property is what routes it to its own keys with no special-casing (phase-43).
 - A drop is scoped to the surface that was read: `PrintProfileId` and Service Charge were dead on the ERP (phase 47) and are the POS's KOT station and billing rule (phase 59).
-- A POS "type" is a mode every location has (HeadOffice is typed Retail), not a location kind; `BillingLocationType.PosRestaurant/PosRetail` model the wrong axis (phase 59).
+- A POS "type" is a mode every location has, not a location kind: `BillingLocation.PosMode`; the two reserved `BillingLocationType` members are retired and every existing row migrated to `None` (phase 59, 60).
+- Switching a feature *off* needs no entitlement: `PosMode.None` is always settable, so the mode command checks its entitlement per value in the handler, not via `IRequireAnyFeature` (phase-60).
+- Adding the Nth trailing optional parameter finds callers that stopped at N−2: variant edits reset batch/serial tracking and update imports cleared SKU, barcode, locations and tracking (phase-60).
 - A filter over a tree of tenant-defined groups must match on group **id**, never group name — names are not unique across a chart of accounts (phase-26a bug #1).
 - `decimal` has a signed zero: `-0m` keeps its sign bit and surfaces as `-0` / `-0.00` once cast to `double` for a spreadsheet cell. Accumulate a magnitude only when the value is strictly non-zero — no test catches this, because `-0m == 0m` (phase-26c bug #1).
 
@@ -450,45 +453,43 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-59 are complete. Phase 59 was a scoping phase with no code, and the forward plan is
-phases 60–66: POS.** Each phase's story is in its `docs/phase-N-status.md`, and finished planning
-entries are archived in `docs/roadmap-history.md`.
+**Phases 0-60 are complete. The forward plan is phases 61–66: POS.** Each phase's story is in its
+`docs/phase-N-status.md`, and finished planning entries are archived in `docs/roadmap-history.md`.
 
-**Phase 59 read and wrote the vendor's POS on *Hamro Samaan*.** It ran one restaurant service end
-to end and checked every step against what the ERP shows and posts. **The POS is an ERP client, not
-a second product.** It is a separate Next.js SPA on the same API (`?channel=POS`): its open order is
-an Approved Sales Order, its sale is an ordinary Invoice (sale and settlement in one GL entry), and
-its refund is a Credit Note. Only what an ERP lacks is new: sessions, tables, KOTs, print stations,
-payment modes, service charge and rounding.
+**Phase 60 built the configuration a till reads, and nothing that sells.** It added:
 
-**So ours is one app.** The till is a lazy `/pos` route tree on the existing cookie and API, reusing
-Invoice and Credit Note. Nine vendor defects become decisions. The main ones:
+- `BillingLocation.PosMode` (`None | Retail | Restaurant`, every existing row `None`), set on the
+  new *Configurations > Point of Sale* screen and gated per value;
+- `PosLocationSettings` per location (service charge, round-off, cash verification and
+  denominations, default tab, print toggles), read as defaults until first saved;
+- `PaymentMode.Kind` and `AccountId`, and a per-location link that refuses a mode which cannot post;
+- a flagged walk-in customer on every tenant (`Contact.IsWalkInCustomer`, code `WALKIN`);
+- three tenant-default accounts (Service Charge, Rounding, Cash Over/Short);
+- `Product.ServiceChargeApplicable`, and `IRequireAnyFeature` in `FeatureGateBehavior`.
 
-- the split bill drops the remainder's service charge and its VAT;
-- the drawer never reaches the GL;
-- the Day Report and the session disagree about one day;
-- credit is extended to the anonymous walk-in.
+Only `Pos.Settings.Manage` shipped. The other four §4 J keys arrive with their requests. Two
+silent-default bugs were fixed in passing (variant edits, update imports).
 
-**Next: phase 60, POS foundation.** It covers `BillingLocation.PosMode` (replacing phase 32's
-reserved enum members, which model the wrong axis), per-location POS settings, `PaymentMode`
-extended with a kind, an account and a location link, the walk-in customer, three tenant-default
-accounts, product flags and `Pos.*` keys. Retail ships at 63 and Restaurant at 65. Phase 47's drops
-of `PrintProfileId` and Service Charge are reopened with evidence. Three rule questions (service
-charge VAT, abbreviated tax invoice, reprint marking) must be settled before 61/62 ship; see
-`phase-59-status.md` §6. Phase 58's carried items, the auto-match engine and the three "outside the
-sequence" items still stand.
+**Next: phase 61, the POS sale engine (backend).** Invoice gains channel, session, order type,
+per-line service charge, round-off, change and tenders; tenders post as a second GL entry on the same
+source document. `PosSession` gets its float, Cash In/Out and a close that posts, plus one
+create-approved command and the shared session/day reader. **Settle phase 59 §6 question 1 (service
+charge and VAT) before it posts a charge.** Accounts resolve location → tenant default → 409, and a
+Credit tender is refused against the walk-in. Phase 58's carried items, the auto-match engine and the
+three "outside the sequence" items still stand.
 
-Tests (unchanged by phase 59): Domain **764**, Application.UnitTests **1378**,
-Infrastructure.UnitTests 13, Api.IntegrationTests 30, Angular **627**. `dotnet build` / `dotnet
-test` / `ng build` / `ng test` were clean at phase 58's close, and `ng build` does not warn. Phase
-42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts`, and the bundle sits
-at **645.57 kB**. The POS till must stay lazy so that holds.
+Tests: Domain **777**, Application.UnitTests **1397**, Infrastructure.UnitTests 13,
+Api.IntegrationTests 30 (**not run in phase 60**: Docker was down), Angular **632**. `dotnet build`,
+the three unit suites, `ng build` and `ng test` were clean at phase 60's close, and `ng build` does
+not warn. Phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts`, and
+the bundle sits at **645.98 kB**. The POS till must stay lazy so that holds.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests
   fail in their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like
   regressions and is not.
 - That suite also fails nondeterministically under machine load and passes on re-run (phase 36/37).
-  The Angular suite did the same once in phase 52.
+  The Angular suite does the same: at phase 60's close, 13 files timed out while `ng build` ran
+  alongside, and all 75 passed alone.
 - `tsc --noEmit` does not cover `web/src/app`; `ng build` is the check (phase-28).
 - `ng test` must be run from `web/` (phase-35a) on **Node 24** (`nvm use 24.11.0`; v16 dies with
   `availableParallelism is not a function`).

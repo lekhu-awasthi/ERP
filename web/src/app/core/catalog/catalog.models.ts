@@ -86,6 +86,8 @@ export interface Product {
   primaryUnitId: string;
   hsCode: string | null;
   availableForSale: boolean;
+  /** Phase 60 -- a till sale of this product carries its location's service charge. */
+  serviceChargeApplicable: boolean;
   sellingPrice: number;
   purchasePrice: number;
   vatRate: VatRate;
@@ -147,6 +149,8 @@ export interface CreateProductRequest {
   primaryUnitId: string;
   hsCode: string | null;
   availableForSale: boolean;
+  /** Phase 60 -- a till sale of this product carries its location's service charge. */
+  serviceChargeApplicable: boolean;
   sellingPrice: number;
   purchasePrice: number;
   vatRate: VatRate;
@@ -174,6 +178,8 @@ export interface UpdateProductRequest {
   primaryUnitId: string;
   hsCode: string | null;
   availableForSale: boolean;
+  /** Phase 60 -- a till sale of this product carries its location's service charge. */
+  serviceChargeApplicable: boolean;
   sellingPrice: number;
   purchasePrice: number;
   vatRate: VatRate;

@@ -21,6 +21,7 @@ const headOffice: BillingLocation = {
   locationType: 'HeadOffice',
   isHeadOffice: true,
   isActive: true,
+  posMode: 'None',
 };
 
 const branch: BillingLocation = {
@@ -33,6 +34,7 @@ const branch: BillingLocation = {
   locationType: 'Standard',
   isHeadOffice: false,
   isActive: true,
+  posMode: 'None',
 };
 
 function settings(types: string[], multipleLocationsEnabled = true): BillingLocationSettings {

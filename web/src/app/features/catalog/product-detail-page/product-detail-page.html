@@ -161,6 +161,12 @@
                       <label class="form-check-label small" for="availableForSale">Available For Sale</label>
                     </div>
                     <div class="form-check">
+                      <input type="checkbox" class="form-check-input" id="serviceChargeApplicable" formControlName="serviceChargeApplicable"
+                        aria-describedby="serviceChargeApplicable-help" />
+                      <label class="form-check-label small" for="serviceChargeApplicable">Service Charge Applicable</label>
+                      <span id="serviceChargeApplicable-help" class="visually-hidden">Point of sale: the location's service charge applies to this product</span>
+                    </div>
+                    <div class="form-check">
                       <input type="checkbox" class="form-check-input" id="trackInventory" formControlName="trackInventory" />
                       <label class="form-check-label small" for="trackInventory">Track Inventory</label>
                     </div>
@@ -270,6 +276,8 @@
                 <dd class="col-8">{{ p.reOrderLevel }}</dd>
                 <dt class="col-4 text-muted small">Available For Sale</dt>
                 <dd class="col-8">{{ p.availableForSale ? 'Yes' : 'No' }}</dd>
+                <dt class="col-4 text-muted small">Service Charge Applicable</dt>
+                <dd class="col-8">{{ p.serviceChargeApplicable ? 'Yes' : 'No' }}</dd>
                 <dt class="col-4 text-muted small">Track Inventory</dt>
                 <dd class="col-8">{{ p.trackInventory ? 'Yes' : 'No' }}</dd>
                 @if (p.batchTracking) {

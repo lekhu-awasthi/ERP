@@ -31,6 +31,9 @@ public sealed class UpdateAccountingDefaultsCommandHandler(IAppDbContext db)
                 request.DefaultForexGainAccountId,
                 request.DefaultForexLossAccountId,
                 request.DefaultLandedCostClearingAccountId,
+                request.DefaultServiceChargeAccountId,
+                request.DefaultRoundingAccountId,
+                request.DefaultCashOverShortAccountId,
             }
             .Where(x => x is not null)
             .Select(x => x!.Value)
@@ -64,6 +67,10 @@ public sealed class UpdateAccountingDefaultsCommandHandler(IAppDbContext db)
             request.DefaultInventoryAdjustmentAccountId,
             request.DefaultProductionCostAccountId,
             request.DefaultLandedCostClearingAccountId);
+        settings.SetPosDefaults(
+            request.DefaultServiceChargeAccountId,
+            request.DefaultRoundingAccountId,
+            request.DefaultCashOverShortAccountId);
         await db.SaveChangesAsync(cancellationToken);
 
         return new UpdateAccountingDefaultsResult(
@@ -80,6 +87,9 @@ public sealed class UpdateAccountingDefaultsCommandHandler(IAppDbContext db)
             settings.DefaultProductionCostAccountId,
             settings.DefaultForexGainAccountId,
             settings.DefaultForexLossAccountId,
-            settings.DefaultLandedCostClearingAccountId);
+            settings.DefaultLandedCostClearingAccountId,
+            settings.DefaultServiceChargeAccountId,
+            settings.DefaultRoundingAccountId,
+            settings.DefaultCashOverShortAccountId);
     }
 }

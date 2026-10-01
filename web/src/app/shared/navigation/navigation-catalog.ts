@@ -113,6 +113,7 @@ const TITLE_OVERRIDES: Readonly<Record<string, string>> = {
   'configuration/general': 'General Settings',
   'configuration/import': 'Import',
   'configuration/migration': 'Migration',
+  'configuration/pos': 'Point of Sale',
   features: 'Subscription & Features',
   'lock-date': 'Lock Date',
   'organization-profile': 'Organization Profile',

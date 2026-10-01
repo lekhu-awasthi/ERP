@@ -166,7 +166,18 @@ public sealed class ProductImporter(IAppDbContext db) : IEntityImporter
                 existing.SalesAccountId,
                 existing.SalesReturnAccountId,
                 existing.PurchaseAccountId,
-                existing.PurchaseReturnAccountId),
+                existing.PurchaseReturnAccountId,
+                // Phase 60 -- and the same for every field after them, none of which has a column
+                // either. They are trailing optional parameters, so leaving them off compiled and an
+                // update import silently cleared the SKU and barcode, widened a product's locations
+                // to all of them, and switched batch and serial tracking off. Found while adding
+                // ServiceChargeApplicable, which would have joined them.
+                existing.Sku,
+                existing.Barcode,
+                existing.Locations.Select(x => x.LocationId).ToList(),
+                existing.BatchTracking,
+                existing.SerialTracking,
+                existing.ServiceChargeApplicable),
             $"Update product '{existing.Code}' to '{name}'",
             existing.Code,
             updated => new ImportRowResult(updated.Id, existing.Code));
@@ -211,6 +222,7 @@ public sealed class ProductImporter(IAppDbContext db) : IEntityImporter
 
         var product = await db.Products
             .AsNoTracking()
+            .Include(x => x.Locations)
             .FirstOrDefaultAsync(x => x.OrganizationId == organizationId && x.Code == code, cancellationToken);
 
         return product ?? throw new ImportRowException(

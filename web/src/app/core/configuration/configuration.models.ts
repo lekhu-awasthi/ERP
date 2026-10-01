@@ -42,24 +42,42 @@ export interface UpdateCostTermRequest {
   isActive: boolean;
 }
 
+/** Phase 60 -- the vendor's payment-mode type. Mirrors Domain.Configuration.PaymentModeKind. */
+export type PaymentModeKind = 'Cash' | 'Card' | 'EPayment' | 'Other';
+
+export const PAYMENT_MODE_KINDS: readonly { value: PaymentModeKind; label: string }[] = [
+  { value: 'Cash', label: 'Cash' },
+  { value: 'Card', label: 'Card' },
+  { value: 'EPayment', label: 'E-Payment' },
+  { value: 'Other', label: 'Other' },
+];
+
 export interface PaymentMode {
   id: string;
   organizationId: string;
   name: string;
   isActive: boolean;
   requiresChequeDetails: boolean;
+  /** Phase 60. */
+  kind: PaymentModeKind;
+  /** Phase 60 -- the cash or bank account a till tender in this mode posts to. */
+  accountId: string | null;
   createdAt: string;
 }
 
 export interface CreatePaymentModeRequest {
   name: string;
   requiresChequeDetails?: boolean;
+  kind: PaymentModeKind;
+  accountId: string | null;
 }
 
 export interface UpdatePaymentModeRequest {
   name: string;
   isActive: boolean;
   requiresChequeDetails: boolean;
+  kind: PaymentModeKind;
+  accountId: string | null;
 }
 
 // Phase 17 -- Bank lookup (docs/phase-17-status.md decision #3), populates a Bank-kind Account's

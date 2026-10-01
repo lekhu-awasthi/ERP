@@ -12,6 +12,7 @@ using ErpApp.Domain.Imports;
 using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Manufacturing;
 using ErpApp.Domain.Payments;
+using ErpApp.Domain.Pos;
 using ErpApp.Domain.Purchasing;
 using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
@@ -49,6 +50,10 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<CreditTerm> CreditTerms => Set<CreditTerm>();
 
     public DbSet<PaymentMode> PaymentModes => Set<PaymentMode>();
+
+    public DbSet<PosLocationSettings> PosLocationSettings => Set<PosLocationSettings>();
+
+    public DbSet<PosLocationPaymentMode> PosLocationPaymentModes => Set<PosLocationPaymentMode>();
 
     public DbSet<Bank> Banks => Set<Bank>();
 
@@ -294,6 +299,14 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<BankStatementLine>()
             .Property(x => x.Amount)
             .HasConversion(v => v.Signed, v => StatementAmount.FromSigned(v));
+
+        // Phase 60 -- PosLocationSettings.Denominations is a list of ints the real configuration
+        // stores as one delimited string. Restated for the reason every conversion here is.
+        modelBuilder.Entity<PosLocationSettings>()
+            .Property(x => x.Denominations)
+            .HasConversion(
+                v => string.Join(',', v),
+                v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToList());
 
         // ApplicableDocumentTypes needs the same delimited-string conversion as the real
         // CustomFieldDefinitionConfiguration (Infrastructure) -- IEntityTypeConfiguration classes

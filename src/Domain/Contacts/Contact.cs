@@ -73,7 +73,29 @@ public sealed class Contact
     /// </summary>
     public bool AcceptsReverseTransactions { get; private set; }
 
+    /// <summary>
+    /// Phase 60 -- this is the tenant's one walk-in customer, the contact an anonymous till sale is
+    /// raised against (the vendor's seeded "Cash Customer"). A flag on the contact, not a tenant
+    /// setting pointing at one (phase-60-status.md Decision B): the question the till asks is always
+    /// "is <i>this</i> contact the walk-in", asked of a row it has already loaded, and a re-pointable
+    /// setting would turn yesterday's walk-in into an ordinary creditable customer in silence.
+    /// At most one per tenant (a filtered unique index), seeded at Organization creation and by the
+    /// phase 60 migration for every existing tenant, and never deactivated -- the same standing as
+    /// the HeadOffice location.
+    ///
+    /// <para>Phase 61 reads it to refuse a Credit tender (the vendor extends credit to its shared
+    /// walk-in; phase 59 defect 5).</para>
+    /// </summary>
+    public bool IsWalkInCustomer { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
+
+    /// <summary>The fixed code the walk-in customer carries. Outside the numbered contact pool
+    /// (whose codes are digits), so it can never collide with one.</summary>
+    public const string WalkInCustomerCode = "WALKIN";
+
+    /// <summary>The seeded walk-in customer's name, the vendor's own.</summary>
+    public const string WalkInCustomerName = "Cash Customer";
 
     private Contact()
     {
@@ -117,6 +139,29 @@ public sealed class Contact
         };
     }
 
+    /// <summary>
+    /// Phase 60 -- the walk-in customer seeded for every Organization at creation, beside the
+    /// HeadOffice location and the base currency and for the same reason: the till raises every
+    /// anonymous sale against it, so a tenant without one could not sell. A Customer with no credit
+    /// limit and no credit term; renamable like any contact.
+    /// </summary>
+    public static Contact CreateWalkInCustomer(Guid organizationId)
+    {
+        var contact = Create(
+            organizationId,
+            ContactType.Customer,
+            WalkInCustomerName,
+            WalkInCustomerCode,
+            address: null,
+            pan: null,
+            phone: null,
+            email: null,
+            groupId: null,
+            openingBalance: 0m);
+        contact.IsWalkInCustomer = true;
+        return contact;
+    }
+
     public void Update(
         string name,
         string? address,
@@ -145,6 +190,13 @@ public sealed class Contact
 
     public void Deactivate()
     {
+        if (IsWalkInCustomer)
+        {
+            throw new InvalidOperationException(
+                $"'{Name}' is this organization's walk-in customer, which the point of sale raises every "
+                + "anonymous sale against, and cannot be deactivated.");
+        }
+
         IsActive = false;
     }
 }

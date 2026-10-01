@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–59)
+## Completed phases (0–60)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -45,6 +45,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 54–57 | Deferred line types settled; bank statement import; bank reconciliation; bank module finished + census re-run |
 | 58 | Physical-movement inventory (Delivery Note, GRN, Inventory Variance) |
 | 59 | POS scoping (no code); phases 60–66 planned |
+| 60 | POS foundation: `PosMode`, per-location settings, payment modes with kind + account, walk-in, POS default accounts |
 
 ---
 
@@ -73,7 +74,7 @@ API), reuses Invoice/Credit Note, and adds aggregates only for what an ERP lacks
 
 | Phase | Scope (decision letters refer to `phase-59-status.md` §4) |
 |---|---|
-| **60 — POS foundation** | `BillingLocation.PosMode` (None/Retail/Restaurant; B) replacing the two reserved `BillingLocationType` members; per-location POS settings (service charge rate + account, round-off + account, cash verification + denominations, default tab, print toggles); phase 2's `PaymentMode` extended with a kind, an account and a location link; the seeded walk-in customer; tenant-default Service Charge Income / Rounding / Cash Over-Short accounts; `Product.ServiceChargeApplicable` / `AvailableForSale`; new `Pos.*` keys; ERP-side configuration screens |
+| **60 — POS foundation** ✅ *done 2026-10-01, `phase-60-status.md`* | `BillingLocation.PosMode` (None/Retail/Restaurant; B) replacing the two reserved `BillingLocationType` members; per-location POS settings (service charge rate + account, round-off + account, cash verification + denominations, default tab, print toggles); phase 2's `PaymentMode` extended with a kind, an account and a location link; the seeded walk-in customer; tenant-default Service Charge Income / Rounding / Cash Over-Short accounts; `Product.ServiceChargeApplicable` / `AvailableForSale`; new `Pos.*` keys; ERP-side configuration screens |
 | **61 — POS sale engine** | Invoice gains channel, session, order type, per-line service charge (inside the VAT base), round-off, change and **tenders**, which post as a second GL entry on the same source document (C, D); `PosSession` with denominations, Cash In/Out and close, **all posting** (H); one create-approved command; the shared session/day reader |
 | **62 — Retail till** | the `/pos` shell, session picker, product grid + search + barcode, cart and line edit, payment screen (multi-tender, change), hold/recall, 80 mm receipt with the correct header and separate service-charge and round-off lines, reprint marked as a copy |
 | **63 — Returns at the till** | refund from an invoice → Credit Note with a payout tender against the open session; inherited lock-date and reconciliation refusals |

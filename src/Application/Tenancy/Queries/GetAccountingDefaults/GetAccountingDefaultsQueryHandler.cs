@@ -28,6 +28,9 @@ public sealed class GetAccountingDefaultsQueryHandler(IAppDbContext db)
             settings.DefaultProductionCostAccountId,
             settings.DefaultForexGainAccountId,
             settings.DefaultForexLossAccountId,
-            settings.DefaultLandedCostClearingAccountId);
+            settings.DefaultLandedCostClearingAccountId,
+            settings.DefaultServiceChargeAccountId,
+            settings.DefaultRoundingAccountId,
+            settings.DefaultCashOverShortAccountId);
     }
 }

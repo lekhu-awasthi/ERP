@@ -11,12 +11,13 @@ namespace ErpApp.Domain.Tenancy;
 /// architecture-spec.md §3.7 -- each modelled <c>locationType</c> as if it were part of the create
 /// form.
 ///
-/// <para>Only <see cref="HeadOffice"/> and <see cref="Standard"/> are reachable in this product:
-/// HeadOffice is the row seeded at Organization creation, Standard is what every user-created branch
-/// is. The two POS members exist because architecture-spec.md §6 reserves the seam and because the
-/// permission matrix scopes itself by location (phase 32b) -- a POS location must be nameable there
-/// before POS itself is built. Nothing in the ERP back-office branches on the two POS members;
-/// they are reserved vocabulary, not dead code paths.</para>
+/// <para>HeadOffice is the row seeded at Organization creation, Standard is what every user-created
+/// branch is. <b>Phase 60 retired the two POS members</b> (<c>PosRestaurant = 3</c>,
+/// <c>PosRetail = 4</c>) that phase 32 had reserved here: the vendor's POS proved a POS type is a
+/// <i>mode</i> every location carries, HeadOffice included, not a kind of location (phase 59
+/// Decision B). That axis is <see cref="PosMode"/>. Nothing had branched on either member and no row
+/// held one; the phase 60 migration maps any that did onto Standard plus the matching mode, and the
+/// two ordinals stay unused so an old value can never be misread.</para>
 /// </summary>
 public enum BillingLocationType
 {
@@ -25,9 +26,6 @@ public enum BillingLocationType
 
     /// <summary>An ordinary branch the tenant added itself -- what "+ ADD NEW LOCATION" creates.</summary>
     Standard = 2,
-
-    PosRestaurant = 3,
-    PosRetail = 4,
 }
 
 /// <summary>
@@ -91,6 +89,11 @@ public sealed class BillingLocation
     public Guid? WarehouseId { get; private set; }
 
     public BillingLocationType LocationType { get; private set; }
+
+    /// <summary>Phase 60 -- which till, if any, runs here. See <see cref="Tenancy.PosMode"/>. Set
+    /// only through <see cref="SetPosMode"/>; the entitlement check is the handler's, because it
+    /// depends on the value requested (the phase-20f conditional-gate shape).</summary>
+    public PosMode PosMode { get; private set; }
 
     public bool IsActive { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
@@ -182,6 +185,28 @@ public sealed class BillingLocation
         Address = string.IsNullOrWhiteSpace(address) ? null : address.Trim();
         WarehouseId = warehouseId;
         IsActive = isActive;
+    }
+
+    /// <summary>
+    /// Phase 60 -- puts a till at this location, changes which one, or takes it away. Any location
+    /// may carry any mode, HeadOffice included: the vendor types its own HeadOffice Retail. An
+    /// inactive location may not be given a till (nobody can sell from a location no document can
+    /// name), but may always be set back to <see cref="PosMode.None"/>.
+    /// </summary>
+    public void SetPosMode(PosMode mode)
+    {
+        if (!Enum.IsDefined(mode))
+        {
+            throw new InvalidOperationException($"'{mode}' is not a POS mode.");
+        }
+
+        if (mode != PosMode.None && !IsActive)
+        {
+            throw new InvalidOperationException(
+                $"'{Name}' is inactive, so no till can run there. Reactivate the location first.");
+        }
+
+        PosMode = mode;
     }
 
     private static string Require(string value, string field)

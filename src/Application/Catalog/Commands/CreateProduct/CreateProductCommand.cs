@@ -13,6 +13,8 @@ namespace ErpApp.Application.Catalog.Commands.CreateProduct;
     /// default. Goods with Track Inventory on, or the command is refused naming the field.</param>
     /// <param name="SerialTracking">Phase 51 -- stock of this product is tracked by serial number,
     /// one physical unit per FIFO layer. Same preconditions as <paramref name="BatchTracking"/>.</param>
+    /// <param name="ServiceChargeApplicable">Phase 60 -- a till sale of this product carries its
+    /// location's service charge. See <see cref="Product.ServiceChargeApplicable"/>.</param>
 public sealed record CreateProductCommand(
     Guid OrganizationId,
     ProductType Type,
@@ -30,7 +32,8 @@ public sealed record CreateProductCommand(
     string? Barcode = null,
     IReadOnlyList<Guid>? LocationIds = null,
     bool BatchTracking = false,
-    bool SerialTracking = false)
+    bool SerialTracking = false,
+    bool ServiceChargeApplicable = false)
     : IRequest<CreateProductResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData, IMeteredProduct
 {
     public string PermissionKey => PermissionKeys.ProductManage;

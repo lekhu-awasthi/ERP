@@ -1060,4 +1060,23 @@ public static class PermissionKeys
     public const string GoodsReceivedNoteVoid = "Purchasing.GoodsReceivedNote.Void";
 
     public const string InventoryVarianceView = "Reports.InventoryVariance.View";
+
+    // Phase 60 (POS foundation) -- derived per phase 59 Decision J, which settled all five POS keys:
+    // Pos.Session.Operate and Pos.Kitchen.Operate Admin+Member (routine daily working data),
+    // Pos.Session.ViewAll, Pos.FloorPlan.Manage and Pos.Settings.Manage Admin-only (cash
+    // accountability across staff, and configuration). Selling and refunding at the till reuse the
+    // Invoice and Credit Note keys, scoped per location by phase 32b -- the vendor's own model.
+    //
+    // Only Pos.Settings.Manage ships here, because it is the only one with anything behind it: the
+    // POS configuration screens, a location's mode, and which payment modes its till offers. The
+    // other four arrive with the requests they gate (61: sessions; 64: floor plan and kitchen). A
+    // key in the role editor that gates nothing is present-and-ignored -- an Admin who revokes it
+    // has been told they changed something (phase 43's WorkspaceName, applied to a permission).
+    //
+    // Admin-only, and organization-wide: it is not a transaction key, so phase 32b's per-location
+    // scope does not reach it, and the location a request names is the thing being configured,
+    // not a place the caller is acting from. It reads as well as writes, the pattern
+    // GetAccountingDefaultsQuery set: the settings screen is the only reader today, and the till
+    // (phase 62) will read what it needs through its own session-gated bootstrap, not through this.
+    public const string PosSettingsManage = "Pos.Settings.Manage";
 }

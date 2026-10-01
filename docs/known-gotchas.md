@@ -3865,3 +3865,43 @@ host but keep separate sessions, so POS's *Accounting* link (`/erp#/`) lands on 
 page. To drive both in the Browser pane without entering credentials, override `window.open` on the
 organisation list, click the button, and navigate a tab to the captured URL. Never record the
 `hash` or `identity`, because they are a sign-in token.
+
+## A new mode migrates to the value that is true of the existing rows (phase 60)
+
+The vendor's HeadOffice is typed Retail, so migrating every HeadOffice to `PosMode.Retail` looked
+like parity. It would have been false twice. No till existed before phase 60. A mode requires its
+entitlement, so 192 tenants would have held a state their own flags forbid, or the migration would
+have guessed per tenant from flags nobody had acted on. `None` is the only value true of every row,
+and the vendor has no "none" only because every vendor location has a till. The same migration maps
+the retired `LocationType` 3/4 onto Standard plus the matching mode. No row held either, but a
+database that did must not keep an enum ordinal the model no longer has.
+
+## Switching a feature off needs no entitlement (phase 60)
+
+`SetLocationPosModeCommand` is not behind `IRequireAnyFeature`, although every other POS
+configuration request is. Retail needs POS Retail, Restaurant needs POS Restaurant, and `None` needs
+nothing. A tenant that loses an entitlement (the plan can change after creation, phase 41) must
+still be able to turn its tills off. That is phase 20f's "a flag-off tenant must still function",
+applied to a value rather than a request. The check lives in the handler because it depends on the
+value asked for.
+
+## Guard a till setting where it is set and where it is edited (phase 60)
+
+A payment mode linked to a POS location must be active and name a cash or bank account, because a
+tender posts to it. `SetPosLocationPaymentModesCommand` refuses an unusable mode with a 400 naming
+it. `UpdatePaymentModeCommand` refuses (409) removing a linked mode's account or deactivating it, and
+the message names the way out: unlink first. Deleting the mode cascades its links, because the
+delete is the decision. This is phase 45's "guard the add and the edit, never the delete", on a
+configuration row rather than a unit matrix.
+
+## The Nth optional parameter finds the callers that stopped at N−2 (phase 60)
+
+Adding `serviceChargeApplicable` to the end of `Product.Update` meant finding every caller, and two
+production callers already stopped early. `UpdateProductVariantCommandHandler` passed nothing after
+`barcode`, so every variant edit since phase 51 reset batch and serial tracking to off.
+`ProductImporter`'s update plan passed nothing after the four GL accounts, so every "Update Existing
+Records" import cleared the SKU and barcode, widened the product's locations to all, and switched
+tracking off. Nothing failed, because every omitted argument has a legal default. Phase 51's gotcha
+says the compiler enumerates none of these call sites. The remedy is to grep the Domain method's
+callers, not only the command's, and to pin the importer with a test that sets every column-less
+field and asserts it survives.

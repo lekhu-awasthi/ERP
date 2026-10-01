@@ -37,6 +37,15 @@ public sealed class ContactConfiguration : IEntityTypeConfiguration<Contact>
 
         builder.HasIndex(x => new { x.OrganizationId, x.Code }).IsUnique();
 
+        // Phase 60 -- at most one walk-in customer per tenant. Filtered, so every ordinary contact
+        // (false) is outside the index; the filter is on a bit column, not a nullable one, so this
+        // is not the NULL-sentinel case phase 32's numbering counter needed HasFilter(null) for.
+        builder.Property(x => x.IsWalkInCustomer).IsRequired().HasDefaultValue(false);
+        builder.HasIndex(x => x.OrganizationId)
+            .IsUnique()
+            .HasFilter("[IsWalkInCustomer] = 1")
+            .HasDatabaseName("IX_Contacts_OrganizationId_WalkInCustomer");
+
         builder.HasOne<ContactGroup>()
             .WithMany()
             .HasForeignKey(x => x.GroupId)

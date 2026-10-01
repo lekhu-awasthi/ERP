@@ -49,6 +49,29 @@ export const featureGuard = (feature: TenantFeatureKey): FeatureCanActivateFn =>
   return Object.assign(guard, { featureKey: feature });
 };
 
+/**
+ * Phase 60 -- the any-of counterpart, for a screen that either of two entitlements opens: point-of-sale
+ * configuration serves a POS Retail tenant and a POS Restaurant tenant alike. The client half of the
+ * server's `IRequireAnyFeature`, with the same fail-closed redirect as {@link featureGuard}.
+ */
+export const anyFeatureGuard = (...features: TenantFeatureKey[]): CanActivateFn => {
+  return (route: ActivatedRouteSnapshot) => {
+    const router = inject(Router);
+    const organizationId = organizationIdOf(route);
+
+    if (!organizationId) {
+      return router.createUrlTree(['/organizations']);
+    }
+
+    return subscriptionFor(organizationId, inject(OrganizationsService)).pipe(
+      map((subscription) =>
+        subscription?.features.some((x) => features.includes(x.feature) && x.isEnabled) === true
+          ? true
+          : router.createUrlTree(['/organizations', organizationId, 'home'])),
+    );
+  };
+};
+
 /** A `CanActivateFn` that declares which entitlement it gates. */
 export type FeatureCanActivateFn = CanActivateFn & { readonly featureKey: TenantFeatureKey };
 

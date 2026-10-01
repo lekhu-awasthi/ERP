@@ -19,10 +19,14 @@ public sealed class CreatePaymentModeCommandHandler(IAppDbContext db)
             throw new ConflictException($"A payment mode named '{request.Name}' already exists.");
         }
 
-        var paymentMode = PaymentMode.Create(request.OrganizationId, request.Name, request.RequiresChequeDetails);
+        await PaymentModeAccountRule.EnsureCashOrBankAsync(db, request.OrganizationId, request.AccountId, cancellationToken);
+
+        var paymentMode = PaymentMode.Create(
+            request.OrganizationId, request.Name, request.RequiresChequeDetails, request.Kind, request.AccountId);
         db.PaymentModes.Add(paymentMode);
         await db.SaveChangesAsync(cancellationToken);
 
-        return new CreatePaymentModeResult(paymentMode.Id, paymentMode.Name, paymentMode.RequiresChequeDetails);
+        return new CreatePaymentModeResult(
+            paymentMode.Id, paymentMode.Name, paymentMode.RequiresChequeDetails, paymentMode.Kind, paymentMode.AccountId);
     }
 }

@@ -38,7 +38,14 @@ public sealed class UpdateProductVariantCommandHandler(IAppDbContext db)
             variant.TrackInventory,
             request.IsActive,
             request.Sku,
-            request.Barcode);
+            request.Barcode,
+            // Phase 60 -- passed explicitly. These are trailing optional parameters, so leaving
+            // them off compiled and silently reset a variant's batch and serial tracking to off on
+            // every edit, found while adding the third one (the phase-51 sweep-through-optional-
+            // parameters gotcha, on a call site that predates it).
+            variant.BatchTracking,
+            variant.SerialTracking,
+            variant.ServiceChargeApplicable);
 
         await db.SaveChangesAsync(cancellationToken);
 

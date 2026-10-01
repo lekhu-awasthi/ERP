@@ -30,4 +30,5 @@ public sealed record BillingLocationDto(
     string? WarehouseName,
     BillingLocationType LocationType,
     bool IsHeadOffice,
-    bool IsActive);
+    bool IsActive,
+    PosMode PosMode);

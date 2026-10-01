@@ -46,6 +46,9 @@ export class AccountingDefaultsPage {
   protected readonly defaultForexGainAccountId = signal<string>('');
   protected readonly defaultForexLossAccountId = signal<string>('');
   protected readonly defaultLandedCostClearingAccountId = signal<string>('');
+  protected readonly defaultServiceChargeAccountId = signal<string>('');
+  protected readonly defaultRoundingAccountId = signal<string>('');
+  protected readonly defaultCashOverShortAccountId = signal<string>('');
 
   protected readonly sortedAccounts = computed(() => [...this.accounts()].sort((a, b) => a.code.localeCompare(b.code)));
 
@@ -74,6 +77,9 @@ export class AccountingDefaultsPage {
         defaultForexGainAccountId: this.defaultForexGainAccountId() || null,
         defaultForexLossAccountId: this.defaultForexLossAccountId() || null,
         defaultLandedCostClearingAccountId: this.defaultLandedCostClearingAccountId() || null,
+        defaultServiceChargeAccountId: this.defaultServiceChargeAccountId() || null,
+        defaultRoundingAccountId: this.defaultRoundingAccountId() || null,
+        defaultCashOverShortAccountId: this.defaultCashOverShortAccountId() || null,
       })
       .subscribe({
         next: () => {
@@ -108,6 +114,9 @@ export class AccountingDefaultsPage {
         this.defaultForexGainAccountId.set(defaults.defaultForexGainAccountId ?? '');
         this.defaultForexLossAccountId.set(defaults.defaultForexLossAccountId ?? '');
         this.defaultLandedCostClearingAccountId.set(defaults.defaultLandedCostClearingAccountId ?? '');
+        this.defaultServiceChargeAccountId.set(defaults.defaultServiceChargeAccountId ?? '');
+        this.defaultRoundingAccountId.set(defaults.defaultRoundingAccountId ?? '');
+        this.defaultCashOverShortAccountId.set(defaults.defaultCashOverShortAccountId ?? '');
         this.loading.set(false);
       },
       error: (err: unknown) => {

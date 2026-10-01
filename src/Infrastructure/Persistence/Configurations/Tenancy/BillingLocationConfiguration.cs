@@ -17,6 +17,16 @@ public sealed class BillingLocationConfiguration : IEntityTypeConfiguration<Bill
         builder.Property(x => x.Name).HasMaxLength(100).IsRequired();
         builder.Property(x => x.Address).HasMaxLength(250);
         builder.Property(x => x.LocationType).HasConversion<int>().IsRequired();
+
+        // Phase 60. The SQL default backfills every pre-phase row as None (phase-60-status.md
+        // Decision A). None is member 0, so EF's default-sentinel substitution (phase-2 bug #2)
+        // would send the same value anyway; ValueGeneratedNever keeps it from ever deciding.
+        builder.Property(x => x.PosMode)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired()
+            .HasDefaultValue(PosMode.None)
+            .ValueGeneratedNever();
         builder.Property(x => x.IsActive).IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
 

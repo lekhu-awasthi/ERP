@@ -27,7 +27,8 @@ public sealed class ListBillingLocationsQueryHandler(IAppDbContext db)
                 warehouse != null ? warehouse.Name : null,
                 location.LocationType,
                 location.LocationType == BillingLocationType.HeadOffice,
-                location.IsActive))
+                location.IsActive,
+                location.PosMode))
             .ToListAsync(cancellationToken);
 
         return rows;

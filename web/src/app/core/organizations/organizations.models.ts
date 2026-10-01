@@ -179,8 +179,12 @@ export const BASE_CURRENCY_CODE = 'NPR';
 // tenant), which is why these live here rather than under configuration.
 
 /** System-assigned, never chosen by the tenant: the live Add New Location dialog has no type
- * control at all. Mirrors Domain.Tenancy.BillingLocationType. */
-export type BillingLocationType = 'HeadOffice' | 'Standard' | 'PosRestaurant' | 'PosRetail';
+ * control at all. Mirrors Domain.Tenancy.BillingLocationType. Phase 60 retired the two POS members:
+ * a POS type is a mode every location carries ({@link PosMode}), not a kind of location. */
+export type BillingLocationType = 'HeadOffice' | 'Standard';
+
+/** Phase 60 -- which till, if any, runs at a location. Mirrors Domain.Tenancy.PosMode. */
+export type PosMode = 'None' | 'Retail' | 'Restaurant';
 
 export interface BillingLocation {
   id: string;
@@ -192,6 +196,7 @@ export interface BillingLocation {
   locationType: BillingLocationType;
   isHeadOffice: boolean;
   isActive: boolean;
+  posMode: PosMode;
 }
 
 export interface CreateBillingLocationRequest {
@@ -263,6 +268,11 @@ export interface AccountingDefaults {
   defaultForexLossAccountId: string | null;
   /** Phase 29 (FR-6.15) -- credited when a Purchase Bill capitalises an Additional Cost. */
   defaultLandedCostClearingAccountId: string | null;
+  /** Phase 60 -- the three point-of-sale fallbacks: service charge and round-off when a location
+   * names no account of its own, and a closed session's cash over/short. */
+  defaultServiceChargeAccountId: string | null;
+  defaultRoundingAccountId: string | null;
+  defaultCashOverShortAccountId: string | null;
 }
 
 // Phase 16a (lock-date enforcement) -- lockDate is an ISO date string (yyyy-MM-dd) or null (unset).

@@ -122,7 +122,8 @@ public static class ConfigurationEndpoints
             Guid organizationId, CreatePaymentModeRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new CreatePaymentModeCommand(organizationId, request.Name, request.RequiresChequeDetails), ct);
+                new CreatePaymentModeCommand(
+                    organizationId, request.Name, request.RequiresChequeDetails, request.Kind, request.AccountId), ct);
             return Results.Created($"/api/organizations/{organizationId}/configuration/payment-modes/{result.Id}", result);
         });
 
@@ -130,7 +131,9 @@ public static class ConfigurationEndpoints
             Guid organizationId, Guid id, UpdatePaymentModeRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new UpdatePaymentModeCommand(organizationId, id, request.Name, request.IsActive, request.RequiresChequeDetails), ct);
+                new UpdatePaymentModeCommand(
+                    organizationId, id, request.Name, request.IsActive, request.RequiresChequeDetails,
+                    request.Kind, request.AccountId), ct);
             return Results.Ok(result);
         });
 
@@ -658,9 +661,21 @@ public static class ConfigurationEndpoints
 
     private sealed record UpdateCreditTermRequest(string Name, int DueDays, bool IsActive);
 
-    private sealed record CreatePaymentModeRequest(string Name, bool RequiresChequeDetails = false);
+    // Phase 60 -- Kind and AccountId on both records as well as both commands, or they bind to
+    // their defaults in silence (phase-27b). A client that omits Kind gets Other, which is what
+    // every pre-phase-60 mode was backfilled to.
+    private sealed record CreatePaymentModeRequest(
+        string Name,
+        bool RequiresChequeDetails = false,
+        PaymentModeKind Kind = PaymentModeKind.Other,
+        Guid? AccountId = null);
 
-    private sealed record UpdatePaymentModeRequest(string Name, bool IsActive, bool RequiresChequeDetails);
+    private sealed record UpdatePaymentModeRequest(
+        string Name,
+        bool IsActive,
+        bool RequiresChequeDetails,
+        PaymentModeKind Kind = PaymentModeKind.Other,
+        Guid? AccountId = null);
 
     private sealed record CreateBankRequest(string Name);
 

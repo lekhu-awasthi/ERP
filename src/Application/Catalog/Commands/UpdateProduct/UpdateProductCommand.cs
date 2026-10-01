@@ -31,7 +31,8 @@ public sealed record UpdateProductCommand(
     string? Barcode = null,
     IReadOnlyList<Guid>? LocationIds = null,
     bool BatchTracking = false,
-    bool SerialTracking = false)
+    bool SerialTracking = false,
+    bool ServiceChargeApplicable = false)
     : IRequest<UpdateProductResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData
 {
     public string PermissionKey => PermissionKeys.ProductManage;
