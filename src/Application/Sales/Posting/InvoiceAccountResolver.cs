@@ -27,7 +27,7 @@ internal static class InvoiceAccountResolver
     public static async Task<InvoicePostingInput> ResolveAsync(
         IAppDbContext db,
         Guid organizationId,
-        IEnumerable<(Guid ProductId, decimal Amount, decimal VatAmount)> lines,
+        IEnumerable<(Guid ProductId, decimal Amount, decimal VatAmount, decimal ServiceChargeAmount)> lines,
         bool resolveInventoryAccounts,
         CancellationToken cancellationToken)
     {
@@ -52,7 +52,10 @@ internal static class InvoiceAccountResolver
                     "One or more products have no Sales Account and no Default Sales Account is configured. " +
                     "Set a Sales Account on the product, or configure a Default Sales Account under Accounting Defaults.");
 
-            postingLines.Add(new InvoicePostingLineInput(salesAccountId, line.Amount, line.VatAmount));
+            postingLines.Add(new InvoicePostingLineInput(salesAccountId, line.Amount, line.VatAmount)
+            {
+                ServiceChargeAmount = line.ServiceChargeAmount,
+            });
         }
 
         if (settings.DefaultAccountsReceivableId is not { } accountsReceivableId)

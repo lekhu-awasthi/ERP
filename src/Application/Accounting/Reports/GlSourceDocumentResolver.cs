@@ -13,11 +13,12 @@ namespace ErpApp.Application.Accounting.Reports;
 /// <para><b>Why a resolver exists at all.</b> <c>GlJournalEntry</c> stores only
 /// SourceDocumentType, SourceDocumentId and PostedAt -- it deliberately carries no copy of the
 /// document's number or reference, because those belong to the document. Every report that shows
-/// them therefore has to join back, and there are <b>thirteen</b> document types that post GL
+/// them therefore has to join back, and there are <b>fourteen</b> source types that post GL
 /// (grep-confirmed against every <c>GlJournalEntry.Post</c> call site: Invoice, CreditNote,
 /// PurchaseBill, Expense, DebitNote, JournalVoucher, CashTransfer, InventoryAdjustment, Payment,
 /// ProductionJournal, OpeningBalance, and -- from phase 37, for a cost catch-up only --
-/// WarehouseTransfer and OpeningStock; Quotation, SalesOrder and PurchaseOrder post nothing).
+/// WarehouseTransfer and OpeningStock; and from phase 61 a till's PosSession, for its drawer's cash
+/// movements and its close's over/short. Quotation, SalesOrder and PurchaseOrder post nothing).
 /// Writing that join out once here beats writing it three times.</para>
 ///
 /// <para><b>One batched round trip per type, not one per row.</b> Each type is its own concrete
@@ -215,6 +216,23 @@ public sealed class GlSourceDocumentResolver
             foreach (var x in items)
             {
                 documents[(DocumentType.WarehouseTransfer, x.Id)] = new SourceDocument(x.Code, x.Reference);
+            }
+        }
+
+        // Phase 61 -- a till session posts its cash movements and its close's over/short against
+        // itself, so a GL row from one names the session (SES0001), with the location as reference.
+        var posSessionIds = IdsOf(DocumentType.PosSession);
+        if (posSessionIds.Count > 0)
+        {
+            var items = await (
+                    from session in db.PosSessions
+                    where session.OrganizationId == organizationId && posSessionIds.Contains(session.Id)
+                    join location in db.BillingLocations on session.BillingLocationId equals location.Id
+                    select new { session.Id, session.Code, LocationName = location.Name })
+                .ToListAsync(cancellationToken);
+            foreach (var x in items)
+            {
+                documents[(DocumentType.PosSession, x.Id)] = new SourceDocument(x.Code, x.LocationName);
             }
         }
 

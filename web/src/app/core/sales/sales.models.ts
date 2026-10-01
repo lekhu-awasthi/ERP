@@ -1,4 +1,6 @@
 import { VatRate } from '../catalog/catalog.models';
+import { PaymentModeKind } from '../configuration/configuration.models';
+import { PosTab } from '../pos/pos.models';
 
 export type QuotationStatus = 'Draft' | 'Approved' | 'Void' | 'Converted';
 export type InvoiceStatus = 'Draft' | 'Approved' | 'Void';
@@ -208,6 +210,34 @@ export interface InvoiceLineDto extends InvoiceLineInput {
   unitId: string | null;
   unitName: string | null;
   conversionFactor: number;
+  /** Phase 61 -- a till line's service charge rate and amount; zero on every ERP line. The line's
+   *  vatAmount already includes the VAT on its service charge, which is inside the VAT base. */
+  serviceChargeRate: number;
+  serviceChargeAmount: number;
+}
+
+/** Phase 61 -- which front end raised an invoice. */
+export type SalesChannel = 'Erp' | 'Pos';
+
+/** Phase 61 -- one way a till sale was paid, as frozen on the invoice. */
+export interface InvoiceTenderDto {
+  paymentModeId: string;
+  paymentModeName: string;
+  kind: PaymentModeKind;
+  amount: number;
+}
+
+/** Phase 61 -- what a till sale carries that an ERP invoice does not. Null on every ERP invoice. */
+export interface InvoicePosSaleDto {
+  posSessionId: string | null;
+  sessionCode: string | null;
+  orderType: PosTab | null;
+  serviceChargeTotal: number;
+  roundOff: number;
+  tenders: InvoiceTenderDto[];
+  tenderedAmount: number;
+  changeAmount: number;
+  creditAmount: number;
 }
 
 export interface PostedGlLineDto {
@@ -225,6 +255,9 @@ export interface InvoiceDetail extends Invoice {
   grandTotal: number;
   lines: InvoiceLineDto[];
   glLines: PostedGlLineDto[] | null;
+  /** Phase 61 -- the channel, and the till's own figures when it was the POS. */
+  channel: SalesChannel;
+  posSale: InvoicePosSaleDto | null;
 }
 
 export interface InvoiceRequest {
@@ -625,6 +658,8 @@ export interface SalesMasterReportRowDto {
   itemDiscount: number;
   transactionDiscount: number;
   netSales: number;
+  /** Phase 61 -- a till line's service charge (zero elsewhere); totalAmount includes it. */
+  serviceCharge: number;
   vatType: VatRate;
   vatAmount: number;
   totalAmount: number;

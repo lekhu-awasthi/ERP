@@ -53,7 +53,7 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
         }
 
         var invoiceLines = await invoiceLinesQuery
-            .Select(x => new { x.InvoiceId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount })
+            .Select(x => new { x.InvoiceId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.ServiceChargeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         var creditNoteQuery = db.CreditNotes.Where(x =>
@@ -161,7 +161,8 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
                 invoice.Code, invoice.Reference, invoice.Date,
                 product.Id, product.Code, product.Name,
                 line.Quantity, line.Rate, netAfterLineDiscount, itemDiscount, transactionDiscount, line.Amount,
-                line.VatRate, line.VatAmount, line.Amount + line.VatAmount));
+                line.ServiceChargeAmount, line.VatRate, line.VatAmount,
+                line.Amount + line.ServiceChargeAmount + line.VatAmount));
         }
 
         foreach (var line in creditNoteLines)
@@ -196,7 +197,7 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
                 creditNote.Code, creditNote.Reference, creditNote.Date,
                 product.Id, product.Code, product.Name,
                 line.Quantity, line.Rate, netAfterLineDiscount, itemDiscount, transactionDiscount, line.Amount,
-                line.VatRate, line.VatAmount, line.Amount + line.VatAmount));
+                0m, line.VatRate, line.VatAmount, line.Amount + line.VatAmount));
         }
 
         var orderedRows = rows.OrderBy(x => x.EntryDate).ThenBy(x => x.EntryNo).ToList();

@@ -16,23 +16,8 @@ public sealed class SetLocationPosModeCommandHandler(IAppDbContext db)
             x => x.Id == request.LocationId && x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Billing location not found.");
 
-        if (request.PosMode != PosMode.None)
-        {
-            var feature = request.PosMode == PosMode.Retail ? TenantFeature.PosRetail : TenantFeature.PosRestaurant;
-
-            // Fails closed on a missing subscription row, like FeatureGateBehavior.
-            var subscription = await db.TenantSubscriptions.SingleOrDefaultAsync(
-                x => x.OrganizationId == request.OrganizationId, cancellationToken);
-
-            if (subscription is null || !subscription.IsEnabled(feature))
-            {
-                var name = request.PosMode == PosMode.Retail ? "Point of Sale (Retail)" : "Point of Sale (Restaurant)";
-                throw new FeatureNotEnabledException(
-                    $"This organization does not have the {name} feature enabled, so no location can run a "
-                    + $"{request.PosMode} till. Accounting Features are chosen when the organization is created and "
-                    + "cannot be changed afterwards.");
-            }
-        }
+        // Phase 61 -- the same question the till asks before every request, so the two cannot drift.
+        await PosTill.EnsureEntitledAsync(db, request.OrganizationId, request.PosMode, cancellationToken);
 
         try
         {

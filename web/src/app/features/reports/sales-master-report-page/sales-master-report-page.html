@@ -114,6 +114,8 @@
                 <th scope="col" class="text-end">Item Discount</th>
                 <th scope="col" class="text-end">Transaction Discount</th>
                 <th scope="col" class="text-end">Net Sales</th>
+                <!-- Phase 61 -- a till line's service charge; zero on every ERP line. -->
+                <th scope="col" class="text-end">Service Charge</th>
                 <th scope="col">VAT Type</th>
                 <th scope="col" class="text-end">VAT Amount</th>
                 <th scope="col" class="text-end">Total Amount</th>
@@ -143,6 +145,7 @@
                   <td class="text-end">{{ (row.itemDiscount | amount) }}</td>
                   <td class="text-end">{{ (row.transactionDiscount | amount) }}</td>
                   <td class="text-end">{{ (row.netSales | amount) }}</td>
+                  <td class="text-end">{{ (row.serviceCharge | amount) }}</td>
                   <td>{{ row.vatType }}</td>
                   <td class="text-end">{{ (row.vatAmount | amount) }}</td>
                   <td class="text-end fw-bold">{{ (row.totalAmount | amount) }}</td>
@@ -151,7 +154,7 @@
             </tbody>
             <tfoot>
               <tr class="fw-bold border-top">
-                <td colspan="17">Total</td>
+                <td colspan="18">Total</td>
                 <td class="text-end">{{ (totalAmount() | amount) }}</td>
               </tr>
             </tfoot>

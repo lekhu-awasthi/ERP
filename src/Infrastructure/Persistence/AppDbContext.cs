@@ -39,6 +39,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<PaymentMode> PaymentModes => Set<PaymentMode>();
     public DbSet<PosLocationSettings> PosLocationSettings => Set<PosLocationSettings>();
     public DbSet<PosLocationPaymentMode> PosLocationPaymentModes => Set<PosLocationPaymentMode>();
+    public DbSet<PosSession> PosSessions => Set<PosSession>();
+    public DbSet<PosCashMovement> PosCashMovements => Set<PosCashMovement>();
     public DbSet<Bank> Banks => Set<Bank>();
     public DbSet<CustomStatus> CustomStatuses => Set<CustomStatus>();
     public DbSet<CostTerm> CostTerms => Set<CostTerm>();
@@ -74,6 +76,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<QuotationLine> QuotationLines => Set<QuotationLine>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
+    public DbSet<InvoiceTender> InvoiceTenders => Set<InvoiceTender>();
     public DbSet<SalesOrder> SalesOrders => Set<SalesOrder>();
     public DbSet<SalesOrderLine> SalesOrderLines => Set<SalesOrderLine>();
     public DbSet<CreditNote> CreditNotes => Set<CreditNote>();

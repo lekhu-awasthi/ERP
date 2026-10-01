@@ -6,6 +6,7 @@ using ErpApp.Application.Inventory.Stock;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Payments;
+using ErpApp.Domain.Pos;
 using ErpApp.Domain.Sales;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -35,6 +36,28 @@ public sealed class VoidInvoiceCommandHandler(IAppDbContext db, ICurrentUserServ
         if (invoice.Status != InvoiceStatus.Approved)
         {
             throw new ConflictException("Only an Approved invoice can be voided.");
+        }
+
+        // Phase 61 (Decision H of docs/phase-61-status.md) -- a till sale is voidable only while the
+        // session it was rung up in is still open. Its reversal takes the cash back out of the
+        // drawer's account, which is right while the cashier can still hand it back and the drawer
+        // has not been counted. After the close, the count already held this sale's cash and the
+        // over/short was posted against a figure that included it: a void then would rewrite a
+        // closed Z report and leave the ledger short of cash nobody took out. A refund after the
+        // close is a credit note (phase 63), which moves today's drawer, not yesterday's.
+        if (invoice.Channel == SalesChannel.Pos && invoice.PosSessionId is { } sessionId)
+        {
+            var session = await db.PosSessions.SingleAsync(x => x.Id == sessionId, cancellationToken);
+
+            if (session.Status != PosSessionStatus.Open)
+            {
+                throw new ConflictException(
+                    $"This sale was rung up in session {session.Code}, which is closed and counted. Refund it with a "
+                    + "credit note instead of voiding it.");
+            }
+
+            // Touches the session's rowversion, so a void and a close of the same drawer are serial.
+            session.RecordActivity();
         }
 
         var hasNonVoidCreditNote = await db.CreditNotes.AnyAsync(

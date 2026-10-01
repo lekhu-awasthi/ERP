@@ -19,6 +19,34 @@ public sealed class InvoiceLine
     public decimal Amount { get; private set; }
     public decimal VatAmount { get; private set; }
 
+    /// <summary>
+    /// Phase 61 -- the service charge rate (percent) that applied to this line when it was rung up:
+    /// the location's rate when the product is <c>ServiceChargeApplicable</c> and the location charges
+    /// one, otherwise zero. Zero on every ERP line.
+    ///
+    /// <para><b>Persisted, not re-derived.</b> The vendor's split bill re-read the order header's
+    /// service charge after the split and found zero, so the remainder was billed without it (phase
+    /// 59 defect 1). A rate frozen on the line is what lets phase 65 move quantities between bills
+    /// without ever touching a rate.</para>
+    /// </summary>
+    public decimal ServiceChargeRate { get; private set; }
+
+    /// <summary>
+    /// Phase 61 -- <see cref="Amount"/> times <see cref="ServiceChargeRate"/>, rounded to the paisa.
+    /// It is <b>inside the VAT base</b>: <see cref="VatAmount"/> is computed on
+    /// <see cref="TaxableAmount"/>. That is VAT Act 2052 §13 (the value of a taxable supply is the
+    /// whole consideration charged for it) and the pre-2023 practice the vendor still follows; see
+    /// docs/phase-61-status.md Decision A, which also records the 2023 Supreme Court ruling that a
+    /// mandatory service charge may not be added to a bill in Nepal.
+    /// </summary>
+    public decimal ServiceChargeAmount { get; private set; }
+
+    /// <summary>What VAT is charged on: the goods or service itself plus its service charge.</summary>
+    public decimal TaxableAmount => Amount + ServiceChargeAmount;
+
+    /// <summary>What this line adds to what the customer owes.</summary>
+    public decimal LineTotal => Amount + ServiceChargeAmount + VatAmount;
+
     /// <summary>Null until Invoice.Approve() actually consumes FIFO stock for this line (a
     /// Service line, or a Draft line, never gets one). Set once, from
     /// IStockLedgerService.ConsumeAsync's actual weighted-average result -- not recomputed later --
@@ -113,6 +141,57 @@ public sealed class InvoiceLine
             BatchId = batchId,
         };
     }
+
+    /// <summary>
+    /// Phase 61 -- a line rung up at a till. Same discount order as <see cref="Create"/> (line, then
+    /// header, both before VAT), plus the service charge, with two differences:
+    ///
+    /// <para>1. <b>Every money figure is rounded to the paisa as it is made</b>
+    /// (<see cref="Invoice.PosMoneyScale"/>, away from zero). An ERP line keeps four decimals and its
+    /// document is settled later by a payment of any amount. A till sale is settled on the spot in
+    /// notes and coins: if its lines summed to 632.8045, a 632.80 cash tender would leave 0.0045 as
+    /// credit on the walk-in, which this phase refuses. Rounding per line also makes the printed bill
+    /// add up line by line.</para>
+    ///
+    /// <para>2. <b>VAT is charged on <see cref="TaxableAmount"/></b>, the amount plus its service
+    /// charge (see <see cref="ServiceChargeAmount"/>).</para>
+    /// </summary>
+    internal static InvoiceLine CreatePos(
+        Guid invoiceId, Guid productId, decimal quantity, decimal rate, VatRate vatRate,
+        decimal discountPct, decimal headerDiscountPct, Guid? batchId, Guid? unitId,
+        decimal conversionFactor, decimal serviceChargeRate)
+    {
+        if (serviceChargeRate < 0m || serviceChargeRate > 100m)
+        {
+            throw new InvalidOperationException("A service charge rate must be between 0% and 100%.");
+        }
+
+        var grossAmount = quantity * rate;
+        var netAfterLineDiscount = grossAmount * (1 - discountPct / 100m);
+        var amount = RoundMoney(netAfterLineDiscount * (1 - headerDiscountPct / 100m));
+        var serviceCharge = RoundMoney(amount * serviceChargeRate / 100m);
+
+        return new InvoiceLine
+        {
+            Id = Guid.NewGuid(),
+            InvoiceId = invoiceId,
+            ProductId = productId,
+            UnitId = unitId,
+            ConversionFactor = UnitConversion.Validate(conversionFactor),
+            Quantity = quantity,
+            Rate = rate,
+            VatRate = vatRate,
+            DiscountPct = discountPct,
+            Amount = amount,
+            ServiceChargeRate = serviceChargeRate,
+            ServiceChargeAmount = serviceCharge,
+            VatAmount = RoundMoney((amount + serviceCharge) * vatRate.ToPercent()),
+            BatchId = batchId,
+        };
+    }
+
+    private static decimal RoundMoney(decimal value) =>
+        decimal.Round(value, Invoice.PosMoneyScale, MidpointRounding.AwayFromZero);
 
     /// <summary>Called once, from ApproveInvoiceCommandHandler right after
     /// IStockLedgerService.ConsumeAsync returns this line's actual weighted-average cost. Public

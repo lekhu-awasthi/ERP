@@ -92,6 +92,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 58: physical-movement inventory (Delivery Note, GRN, Inventory Variance): a second, derived, quantity-only stock ledger; the setting picks a default, never a behaviour. Before touching `InventoryTrackingMode`, a stock balance, or a covering index — `docs/phase-58-status.md`
 - Phase 59: POS scoping, no code. The vendor's till read and written end to end: an ERP client on the same API (sale = Invoice, refund = Credit Note), 9 vendor defects, phases 60–66 planned. Before any POS phase or a channel-only `Invoice` field — `docs/phase-59-status.md`
 - Phase 60: POS foundation (`PosMode` on every location, `PosLocationSettings`, payment modes with a kind + account linked per location, the flagged walk-in, 3 tenant-default accounts, `IRequireAnyFeature`). Before a POS phase reads a setting, or adding a trailing optional parameter — `docs/phase-60-status.md`
+- Phase 61: POS sale engine (a till sale is an Invoice created approved, tenders a second GL entry on it, `PosSession` drawer posts cash movements and over/short, one session/day reader; service charge inside the VAT base, its 2023 ban stated on screen). Before a second entry on a document, a second approving door, or a value-dependent permission — `docs/phase-61-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -147,6 +148,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `IOptions<T>` caches at first resolution and never sees a later `dotnet user-secrets set`; restart the Api (long-lived singletons should use `IOptionsMonitor`).
 - MediatR 12.4.1's `RequestHandlerDelegate<TResponse>` is parameterless — call `next()`, not `next(cancellationToken)`.
 - A FluentValidation rule built from a captured `Func` selector 500s every endpoint it guards (`Could not infer property name`) and no handler test can see it; take `Expression<Func<T, IEnumerable<TElement>>>` and cover it with a validator test (phase-25).
+- `AuditBehavior` writes a row only for a Create/Update/Approve/Void/Extract-prefixed request; `IAuditableRequest` on any other verb (Open, Close) is present-and-ignored (phase-61).
 
 **EF Core, migrations and the InMemory provider**
 - `dotnet ef` needs `Microsoft.EntityFrameworkCore.Design` referenced by the `--startup-project` (`Api`), not just `Infrastructure`.
@@ -206,6 +208,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A drop is scoped to the surface that was read: `PrintProfileId` and Service Charge were dead on the ERP (phase 47) and are the POS's KOT station and billing rule (phase 59).
 - A POS "type" is a mode every location has, not a location kind: `BillingLocation.PosMode`; the two reserved `BillingLocationType` members are retired and every existing row migrated to `None` (phase 59, 60).
 - Switching a feature *off* needs no entitlement: `PosMode.None` is always settable, so the mode command checks its entitlement per value in the handler, not via `IRequireAnyFeature` (phase-60).
+- A till sale's tenders are the invoice paying itself: every reader of what a customer owes must count them (net of change), or the walk-in's balance grows with every cash sale (phase-61).
+- A rule question answered from the statutes can change the product question: Nepal voided mandatory service charge on 2023-01-25. Ask the user; never build or drop it silently (phase-61).
 - Adding the Nth trailing optional parameter finds callers that stopped at N−2: variant edits reset batch/serial tracking and update imports cleared SKU, barcode, locations and tracking (phase-60).
 - A filter over a tree of tenant-defined groups must match on group **id**, never group name — names are not unique across a chart of accounts (phase-26a bug #1).
 - `decimal` has a signed zero: `-0m` keeps its sign bit and surfaces as `-0` / `-0.00` once cast to `double` for a spreadsheet cell. Accumulate a magnitude only when the value is strictly non-zero — no test catches this, because `-0m == 0m` (phase-26c bug #1).
@@ -388,6 +392,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A source-scanning guard cannot tell a comment from markup — five templates failed the nesting check on their own explanatory comments. Strip comments once, and assert both that they are gone and that nothing else is (phase-47).
 - Derive the N in "sweep the N screens that qualify": the roadmap's 18 document lists were 16 screens over 15 queries, and the single exemption was an index gap nobody had noticed (phase-47).
 - When a new screen breaks a sweep guard's harness, teach the harness rather than exempt the screen — an exemption on a *brand-new* screen is how a seam stays empty for six phases, and teaching it is what found phase 55's `default(T)` hole (phase-55).
+- A command that creates a document *approved* is a second door: guards premised on one Approve per type (metered, location marker, stock books) must name it with a reason, not exempt it (phase-61).
 - A guard whose predicate names a **type** silently stops covering anything solved before that type existed: `SearchSweepGuardTests` recognised only `PagedResult<T>`, so the two list queries that predate it were invisible — and were exactly the two the phase had to fix (phase-39).
 - …and a predicate naming a **file extension** does the same: `a11y-sweep-guard`'s glob missed five inline-`template:` components for six phases. Widening it found nothing wrong, which is the honest result and not the same as never having looked (phase-40).
 - A guard that accepts two spellings on one side must accept both on the other: it recognised `[for]` and `[attr.for]` on a label but only `[id]` on a control, so a control naming itself `[attr.id]` read as unnamed (phase-40).
@@ -449,50 +454,49 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A flag that swaps the whole shell is a different product until chased: `is_bank_user` is fourteen **report** routes and its own sign-in, with no path to the module it was noticed beside (phase-57).
 - A vendor's N-way routing table collapses when its vocabulary is not yours: four executors keyed on `account_type` are two documents here, because a customer is not an Account (phase-57).
 - For a feature whose output is money, confirm-live **writes through to the ledger** and reads the GL: the vendor's split-bill defect and its drawer-never-posts gap show only as numbers afterwards (phase 59).
+- Read the scan's next row before modelling from one: phase 60's "round to the rupee" had 316.40 → 317, a ceiling, two lines down. We round to nearest by choice (phase-61).
 - The vendor's POS and ERP keep separate sessions; drive both by capturing the organisation list's `window.open` URL, and never record its `hash`/`identity` (phase 59).
 
 ## Current status
 
-**Phases 0-60 are complete. The forward plan is phases 61–66: POS.** Each phase's story is in its
+**Phases 0-61 are complete. The forward plan is phases 62–66: POS.** Each phase's story is in its
 `docs/phase-N-status.md`, and finished planning entries are archived in `docs/roadmap-history.md`.
 
-**Phase 60 built the configuration a till reads, and nothing that sells.** It added:
+**Phase 61 built the sale engine a till calls, with no till UI yet.** It added:
 
-- `BillingLocation.PosMode` (`None | Retail | Restaurant`, every existing row `None`), set on the
-  new *Configurations > Point of Sale* screen and gated per value;
-- `PosLocationSettings` per location (service charge, round-off, cash verification and
-  denominations, default tab, print toggles), read as defaults until first saved;
-- `PaymentMode.Kind` and `AccountId`, and a per-location link that refuses a mode which cannot post;
-- a flagged walk-in customer on every tenant (`Contact.IsWalkInCustomer`, code `WALKIN`);
-- three tenant-default accounts (Service Charge, Rounding, Cash Over/Short);
-- `Product.ServiceChargeApplicable`, and `IRequireAnyFeature` in `FeatureGateBehavior`.
+- a till sale as an ordinary Invoice created **approved** in one command (`POST /pos/sales`), with
+  per-line service charge inside the VAT base, a nearest-rupee round-off, change and tenders;
+- tenders as a **second GL entry** on the same invoice, counted as settlement by every reader of what
+  a customer owes;
+- `PosSession`, one cashier's drawer: float by denomination, Cash In/Out naming an account and
+  posting, and a close that freezes expected cash and posts over/short;
+- `PosSalesReader`, the one reader the session (X/Z) and day figures share;
+- `Pos.Session.Operate` and `Pos.Session.ViewAll`. Credit needs `Sales.Invoice.Approve`, and the
+  walk-in never gets credit.
 
-Only `Pos.Settings.Manage` shipped. The other four §4 J keys arrive with their requests. Two
-silent-default bugs were fixed in passing (variant edits, update imports).
+Service charge was settled from the statutes before anything posted. It is in the VAT base, and a
+mandatory one has been unlawful in Nepal since 2023-01-25. The user chose to build it with the ruling
+stated on the settings screen.
 
-**Next: phase 61, the POS sale engine (backend).** Invoice gains channel, session, order type,
-per-line service charge, round-off, change and tenders; tenders post as a second GL entry on the same
-source document. `PosSession` gets its float, Cash In/Out and a close that posts, plus one
-create-approved command and the shared session/day reader. **Settle phase 59 §6 question 1 (service
-charge and VAT) before it posts a charge.** Accounts resolve location → tenant default → 409, and a
-Credit tender is refused against the walk-in. Phase 58's carried items, the auto-match engine and the
-three "outside the sequence" items still stand.
+**Next: phase 62, the Retail till (UI).** That is the lazy `/pos` shell, the session picker on
+`GET /pos/locations/{id}/sessions/mine`, the product grid with search and barcode, cart and line
+edit, the payment screen (multi-tender, change), hold/recall, and the 80 mm receipt with separate
+service-charge and round-off lines. **Settle phase 59 §6 q2 (abbreviated tax invoice) and q3
+(reprint marking) from the rules before the receipt ships.** Phase 61 §5's open items stand: an ERP
+credit note against a till sale, and the export's missing service-charge column.
 
-Tests: Domain **777**, Application.UnitTests **1397**, Infrastructure.UnitTests 13,
-Api.IntegrationTests 30 (**not run in phase 60**: Docker was down), Angular **632**. `dotnet build`,
-the three unit suites, `ng build` and `ng test` were clean at phase 60's close, and `ng build` does
-not warn. Phase 42's measured 680 kB initial-bundle budget is pinned by `build-budget.spec.ts`, and
-the bundle sits at **645.98 kB**. The POS till must stay lazy so that holds.
+Tests: Domain **797**, Application.UnitTests **1425**, Infrastructure.UnitTests 13,
+Api.IntegrationTests **30**, Angular **632**. Everything was green at phase 61's close with Docker
+up. The bundle sits at **645.98 kB** against `build-budget.spec.ts`'s 680 kB, and the till must stay
+lazy so that holds.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests
   fail in their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like
   regressions and is not.
-- That suite also fails nondeterministically under machine load and passes on re-run (phase 36/37).
-  The Angular suite does the same: at phase 60's close, 13 files timed out while `ng build` ran
-  alongside, and all 75 passed alone.
+- That suite also fails nondeterministically under machine load and passes on re-run (phase 36/37),
+  and so does the Angular suite.
 - `tsc --noEmit` does not cover `web/src/app`; `ng build` is the check (phase-28).
-- `ng test` must be run from `web/` (phase-35a) on **Node 24** (`nvm use 24.11.0`; v16 dies with
-  `availableParallelism is not a function`).
+- `ng test` must be run from `web/` (phase-35a) on **Node 24** (`nvm use 24.11.0`).
 - When the subject is one screen's plan, the number to trust is `tools/scale/`, not the wall clock
   (phase-50).
 

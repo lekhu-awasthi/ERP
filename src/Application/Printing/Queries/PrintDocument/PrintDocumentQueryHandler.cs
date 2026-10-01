@@ -112,7 +112,10 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             ?? throw new NotFoundException("Invoice not found.");
 
         var lines = document.Lines
-            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount))
+            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount)
+            {
+                ServiceChargeAmount = l.ServiceChargeAmount,
+            })
             .ToList();
 
         var header = new List<PrintableFieldDto>();
@@ -128,7 +131,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         return await BuildProductDocumentAsync(
             request, organization, templateName, "Invoice", document.Code, document.Date, document.Reference,
             document.ContactId, "Bill To", header, lines, document.DiscountPct, document.Terms, ct,
-            currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
+            currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate, roundOff: document.RoundOff);
     }
 
     private async Task<PrintableDocumentDto> BuildCreditNoteAsync(
@@ -716,8 +719,16 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
 
     // ---- Shared assembly ---------------------------------------------------------------------
 
+    /// <summary>One printed line. <see cref="ServiceChargeAmount"/> is a till line's (phase 61) and zero
+    /// on every other line of every other document, which is why it is an init property rather than
+    /// a positional one every one of the seven builders would have to pass.</summary>
     private readonly record struct ProductLine(
-        Guid ProductId, decimal Quantity, decimal Rate, decimal DiscountPct, decimal Amount, decimal VatAmount);
+        Guid ProductId, decimal Quantity, decimal Rate, decimal DiscountPct, decimal Amount, decimal VatAmount)
+    {
+        public decimal ServiceChargeAmount { get; init; }
+
+        public decimal LineTotal => Amount + ServiceChargeAmount + VatAmount;
+    }
 
     /// <summary>The seven product-line documents (Quotation, Sales Order, Invoice, Credit Note,
     /// Purchase Order, Purchase Bill, Debit Note) share one table and one totals block.</summary>
@@ -738,7 +749,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         CancellationToken ct,
         decimal tdsAmount = 0,
         string? currencyCode = null,
-        decimal? exchangeRate = null)
+        decimal? exchangeRate = null,
+        decimal roundOff = 0)
     {
         var products = await ProductLabelsAsync(lines.Select(l => l.ProductId), ct);
 
@@ -760,15 +772,16 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
                     Money(l.Rate),
                     Percent(l.DiscountPct),
                     Money(l.VatAmount),
-                    Money(l.Amount + l.VatAmount),
+                    Money(l.LineTotal),
                 ])).ToList(),
                 new PrintableRowDto([
                     "Total", Quantity(lines.Sum(l => l.Quantity)), string.Empty, string.Empty,
-                    Money(lines.Sum(l => l.VatAmount)), Money(lines.Sum(l => l.Amount + l.VatAmount)),
+                    Money(lines.Sum(l => l.VatAmount)), Money(lines.Sum(l => l.LineTotal)),
                 ])),
         };
 
         var subTotal = lines.Sum(l => l.Amount);
+        var serviceCharge = lines.Sum(l => l.ServiceChargeAmount);
         var vat = lines.Sum(l => l.VatAmount);
 
         var summary = new List<PrintableFieldDto> { new("Sub Total", Money(subTotal)) };
@@ -779,13 +792,26 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             summary.Add(new PrintableFieldDto("Discount Applied", $"{Percent(discountPct)}%"));
         }
 
+        // Phase 61 -- a till sale prints its service charge and round-off as lines of their own (the
+        // vendor's receipt folds both away, phase 59 defect 3). Neither appears on any other document.
+        if (serviceCharge != 0)
+        {
+            summary.Add(new PrintableFieldDto("Service Charge", Money(serviceCharge)));
+        }
+
         summary.Add(new PrintableFieldDto("VAT", Money(vat)));
         if (tdsAmount != 0)
         {
             summary.Add(new PrintableFieldDto("TDS", Money(tdsAmount)));
         }
 
-        summary.Add(new PrintableFieldDto("Grand Total", Money(subTotal + vat - tdsAmount), Emphasise: true));
+        if (roundOff != 0)
+        {
+            summary.Add(new PrintableFieldDto("Round Off", Money(roundOff)));
+        }
+
+        summary.Add(new PrintableFieldDto(
+            "Grand Total", Money(subTotal + serviceCharge + vat - tdsAmount + roundOff), Emphasise: true));
 
         return await BuildDocumentAsync(
             request, organization, templateName, title, code, date, reference, contactId, partyHeading,

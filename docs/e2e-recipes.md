@@ -74,3 +74,25 @@ beside a 200 from the same user, and create a fresh Organization per phase.
 - POS configuration (phase 60) lives under `/{org}/pos`: `GET /configuration` (walk-in + locations with `posMode`), `GET|PUT /locations/{id}/settings` (a **whole-object** `PUT`: `serviceChargeEnabled, serviceChargeRate, serviceChargeAccountId, roundOffEnabled, roundOffAccountId, cashVerificationRequired, denominations, defaultTab, printEstimateBill, printInvoice, printCreditNote, printKot`), `PUT /locations/{id}/mode` `{posMode}` (`None`/`Retail`/`Restaurant`), and `PUT /locations/{id}/payment-modes` `{paymentModeIds: [...]}`. `defaultTab` is `Retail`/`DineIn`/`TakeAway`/`Delivery` and must belong to the location's **current** mode, so set the mode first (phase-60).
 - `POST /organizations` takes `posRetail`/`posRestaurant`. A payment mode that a till can offer needs `kind` (`Cash`/`Card`/`EPayment`/`Other`) **and** an `accountId` naming a `Cash`- or `Bank`-kind account; `POST /configuration/payment-modes` with an income account is a 400 naming `AccountId`. The walk-in is a contact with code `WALKIN`, and `POST /contacts/{id}/deactivate` on it is 409 (phase-60).
 - The `Pos.Settings.Manage` 403-not-404 pair: `GET /pos/locations/{nonexistent}/settings` is **404** as Admin (*"Billing location not found."*) and **403** from a role granting only `Tenancy.BillingLocation.View`, beside a **200** on `GET /billing-locations` from that same user. The feature gate is a separate 403 whose detail names *"Point of Sale (Retail) or Point of Sale (Restaurant)"*; authorization runs first (phase-60).
+- The till (phase 61) is under `/{org}/pos`. Sessions:
+  - `POST /sessions {locationId, openingAmount, denominations: [{value, count}] | null}`. With cash
+    verification on, `denominations` is required and an amount alone is a 400.
+  - `GET /locations/{id}/sessions/mine` returns **204** when you have none open.
+  - `POST /sessions/{id}/cash-movements {direction: In|Out, amount, accountId, note, overrideNegativeCashBalanceWarning}`.
+  - `POST /sessions/{id}/close {countedAmount | denominations, note}`. A difference needs `note`
+    (400 otherwise).
+  A location needs `PosMode` set, a linked **Cash** mode with an account, and (for a sale) a default
+  warehouse on `PUT /billing-locations/{id}` (which answers **204**) or `warehouseId` on the sale
+  (phase-61).
+- `POST /pos/sales {sessionId, locationId, lines: [{productId, quantity, rate, vatRate?, discountPct, unitId?, batchNo?, serialNumbers?}], tenders: [{paymentModeId, amount}], changeAmount, contactId?, warehouseId?, orderType?, discountPct, overrideStockWarning, overrideCreditLimitWarning}`.
+  `contactId` null is the walk-in, and `vatRate` null is the product's own. It returns `{id, code,
+  grandTotal, serviceCharge, roundOff, tendered, changeAmount, creditAmount}`. Credit on the walk-in
+  is a 409, and change beyond the cash tendered is a 400 naming `Tenders` (phase-61).
+- The `Pos.Session.*` 403-not-404 pair: `GET /pos/sessions/{nonexistent}` (or `POST .../close`) is
+  **404** "Session not found." as Admin. From a role granting only `Tenancy.BillingLocation.View` it
+  is **403 naming `Pos.Session.Operate`**, beside a 200 on `GET /billing-locations`. `GET
+  /pos/day-summary?date=` is **403 naming `Pos.Session.ViewAll`** from the same role (phase-61).
+- In SQL a till sale is `sales.Invoices.Channel = 'Pos'` with `PosSessionId`, tenders in
+  `sales.InvoiceTenders`, and two `GlJournalEntries` rows (`SourceDocumentType = 'Invoice'`). A
+  session's own postings are `SourceDocumentType = 'PosSession'`. Drawer counts are text such as
+  `1000x1,500x1` in `pos.PosSessions.OpeningCount`/`ClosingCount` (phase-61).

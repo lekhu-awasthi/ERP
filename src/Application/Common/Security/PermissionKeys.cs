@@ -1079,4 +1079,25 @@ public static class PermissionKeys
     // GetAccountingDefaultsQuery set: the settings screen is the only reader today, and the till
     // (phase 62) will read what it needs through its own session-gated bootstrap, not through this.
     public const string PosSettingsManage = "Pos.Settings.Manage";
+
+    // Phase 61 (POS sale engine) -- the two session keys, arriving with the requests they gate, as
+    // phase 60 Decision D promised. Derivations are phase 59 Decision J's, re-read against what was
+    // actually built:
+    //
+    // - Pos.Session.Operate (Admin+Member): open your own session, move cash in and out of its
+    //   drawer, close it, and read it while you work. Routine daily working data, exactly as a
+    //   Member already creates invoices. It does NOT sell: a sale is an Invoice and carries the
+    //   Invoice keys (Sales.Invoice.Create, and Sales.Invoice.Approve only when part of the bill is
+    //   left on credit -- see CreatePosSaleCommand), which is what makes a cashier scopable to one
+    //   branch today.
+    // - Pos.Session.ViewAll (Admin-only): read anyone's session, list every session, and the day
+    //   report. Cash accountability across staff -- the figures that say whose drawer was short.
+    //
+    // Organization-wide, not location-scopable (docs/phase-61-status.md Decision G): phase 32b
+    // scopes keys of the form Module.<DocumentType>.Verb over location-bearing documents, and a
+    // session is neither. The branch boundary is enforced where it matters instead: opening a
+    // session at a location requires Sales.Invoice.Create there, so a drawer only exists where its
+    // owner may sell.
+    public const string PosSessionOperate = "Pos.Session.Operate";
+    public const string PosSessionViewAll = "Pos.Session.ViewAll";
 }

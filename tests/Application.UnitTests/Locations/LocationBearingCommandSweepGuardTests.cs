@@ -55,6 +55,25 @@ public class LocationBearingCommandSweepGuardTests
             [DocumentType.GoodsReceivedNote] = "GoodsReceivedNote",
         };
 
+    /// <summary>
+    /// Phase 61 -- commands that write a location-bearing type's location <b>besides</b> its own
+    /// Create/Update pair, each named with the type it writes and why. Named rather than pattern-matched,
+    /// so a copy-pasted marker on an unrelated command still fails below.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, (DocumentType Writes, string Reason)> SecondWriters =
+        new Dictionary<string, (DocumentType, string)>
+        {
+            ["CreatePosSaleCommand"] = (DocumentType.Invoice,
+                "A till sale is an Invoice created at the till's location, and it carries the location so "
+                + "phase 32b can scope Sales.Invoice.Create to a branch exactly as it does for an ERP invoice."),
+        };
+
+    [Fact]
+    public void Every_second_writer_writes_a_location_bearing_type()
+    {
+        Assert.All(SecondWriters.Values, x => Assert.Contains(x.Writes, DocumentMechanisms.LocationBearing));
+    }
+
     private static bool RequiresCreateAndUpdatePair(DocumentType documentType) =>
         documentType is not (DocumentType.OpeningBalance or DocumentType.OpeningStock);
 
@@ -102,6 +121,7 @@ public class LocationBearingCommandSweepGuardTests
                     ? new[] { $"Create{stem}Command", $"Update{stem}Command" }
                     : [$"CreateOrUpdate{stem}Command"];
             })
+            .Concat(SecondWriters.Keys)
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();
 

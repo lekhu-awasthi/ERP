@@ -128,4 +128,15 @@ public enum DocumentType
     /// absence of any GL entry, same reasoning.
     /// </summary>
     GoodsReceivedNote,
+
+    /// <summary>
+    /// Phase 61 -- a till session (<c>Domain.Pos.PosSession</c>). Not a document: no lifecycle
+    /// beyond open and closed, no approval, no detail page of the document shape. It is a member
+    /// because it is the <b>source of postings</b> -- a cash movement and a close's over/short each
+    /// post a <c>GlJournalEntry</c> whose <c>SourceDocumentType</c> must name something. It writes no
+    /// audit row: the session's own columns and each cash movement's CreatedByUserId/CreatedAt already
+    /// say who did what and when, and <c>AuditBehavior</c>'s verbs (Create, Update, Approve, Void) are
+    /// not a drawer's. Appended last, so no persisted ordinal moves.
+    /// </summary>
+    PosSession,
 }

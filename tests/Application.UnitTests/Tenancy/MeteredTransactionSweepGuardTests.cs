@@ -1,5 +1,6 @@
 using System.Reflection;
 using ErpApp.Application.Common.Security;
+using ErpApp.Application.Pos.Commands.CreatePosSale;
 using ErpApp.Domain.Common;
 
 namespace ErpApp.Application.UnitTests.Tenancy;
@@ -18,18 +19,34 @@ namespace ErpApp.Application.UnitTests.Tenancy;
 ///
 /// <para>The third assertion is the one that catches the real future mistake. A document type that
 /// starts posting to the GL without joining this list would be metered nowhere, so the list is also
-/// checked against <c>GlSourceDocumentResolver</c>'s own thirteen -- named here as the two
-/// deliberate exclusions, so adding a fourteenth GL-posting type fails until someone decides which
+/// checked against <c>GlSourceDocumentResolver</c>'s own fourteen -- named here as the three
+/// deliberate exclusions, so adding a fifteenth GL-posting type fails until someone decides which
 /// side it falls on.</para>
 /// </summary>
 public class MeteredTransactionSweepGuardTests
 {
     private static readonly Assembly ApplicationAssembly = typeof(IMeteredTransaction).Assembly;
 
-    private static IReadOnlyList<Type> MeteredCommands => [.. ApplicationAssembly
+    private static IReadOnlyList<Type> AllMeteredCommands => [.. ApplicationAssembly
         .GetTypes()
         .Where(t => t is { IsAbstract: false, IsInterface: false } && typeof(IMeteredTransaction).IsAssignableFrom(t))
         .OrderBy(t => t.Name, StringComparer.Ordinal)];
+
+    /// <summary>
+    /// Phase 61 -- commands that are a <b>second door</b> onto an approved document of a type already
+    /// metered by its own Approve command, each with its reason. The premise "one command per metered
+    /// type" was true until a document could be created approved; the till is the first. Named here
+    /// rather than counted, so a third door still fails until someone writes down why it is one.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<Type, string> SecondDoors = new Dictionary<Type, string>
+    {
+        [typeof(CreatePosSaleCommand)] =
+            "A till sale is an Invoice created Approved in one command (phase 59 Decision C), so it spends "
+            + "the same allowance ApproveInvoiceCommand does, and SubscriptionUsageReader already counts it.",
+    };
+
+    /// <summary>The Approve-shaped commands: one per metered type, the set the list is checked against.</summary>
+    private static IReadOnlyList<Type> MeteredCommands => [.. AllMeteredCommands.Where(t => !SecondDoors.ContainsKey(t))];
 
     /// <summary>
     /// The two GL-posting source types that are deliberately <b>not</b> metered, each with its
@@ -44,11 +61,15 @@ public class MeteredTransactionSweepGuardTests
                 "Opening setup, keyed by (OrganizationId, AccountId) and edited in place -- no Approve to meter.",
             [DocumentType.OpeningStock] =
                 "Opening setup, as OpeningBalance; phase 37 posts a cost catch-up against it, not a trade.",
+            [DocumentType.PosSession] =
+                "Phase 61 -- a till session posts its drawer's cash movements and its close's over/short. "
+                + "That is cash being counted and moved, not a trade: the sales in it are Invoices and are "
+                + "metered as Invoices. Metering the drawer would bill a tenant for counting its till.",
         };
 
     /// <summary>
-    /// The thirteen types that reach <c>GlJournalEntry.Post</c>, per
-    /// <c>GlSourceDocumentResolver</c>'s own doc comment (phase 26a, extended by phase 37).
+    /// The fourteen types that reach <c>GlJournalEntry.Post</c>, per
+    /// <c>GlSourceDocumentResolver</c>'s own doc comment (phase 26a, extended by phases 37 and 61).
     /// Restated here rather than derived, so this test and that resolver are two independently
     /// written things that have to agree -- the same reason phase 39 pinned two implementations of
     /// one rule to a shared table rather than to each other.
@@ -68,6 +89,7 @@ public class MeteredTransactionSweepGuardTests
         DocumentType.WarehouseTransfer,
         DocumentType.OpeningBalance,
         DocumentType.OpeningStock,
+        DocumentType.PosSession,
     ];
 
     [Fact]
@@ -92,7 +114,7 @@ public class MeteredTransactionSweepGuardTests
 
     /// <summary>
     /// Every type that posts to the GL is either metered or has a written reason not to be. This is
-    /// the assertion that fails when a fourteenth posting type is added, which is the mistake a
+    /// the assertion that fails when a fifteenth posting type is added, which is the mistake a
     /// quota feature is actually exposed to.
     /// </summary>
     [Fact]
@@ -103,6 +125,19 @@ public class MeteredTransactionSweepGuardTests
             .OrderBy(x => x);
 
         Assert.Equal(GlPostingTypes.OrderBy(x => x), accountedFor);
+    }
+
+    /// <summary>Phase 61 -- every second door implements the marker, and for a type the list already
+    /// meters: a door onto an unmetered type would be a quota on something nobody decided to meter.</summary>
+    [Fact]
+    public void Every_second_door_is_metered_and_for_a_metered_type()
+    {
+        Assert.All(SecondDoors.Keys, door =>
+        {
+            Assert.Contains(door, AllMeteredCommands);
+            var type = ((IMeteredTransaction)FormatterServicesStub.Uninitialized(door)).MeteredDocumentType;
+            Assert.Contains(type, DocumentMechanisms.MeteredTransactions);
+        });
     }
 
     /// <summary>A metered type that is not transactional would have no Approve command to carry the

@@ -54,6 +54,8 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<PosLocationSettings> PosLocationSettings => Set<PosLocationSettings>();
 
     public DbSet<PosLocationPaymentMode> PosLocationPaymentModes => Set<PosLocationPaymentMode>();
+    public DbSet<PosSession> PosSessions => Set<PosSession>();
+    public DbSet<PosCashMovement> PosCashMovements => Set<PosCashMovement>();
 
     public DbSet<Bank> Banks => Set<Bank>();
 
@@ -118,6 +120,7 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<Invoice> Invoices => Set<Invoice>();
 
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
+    public DbSet<InvoiceTender> InvoiceTenders => Set<InvoiceTender>();
 
     public DbSet<SalesOrder> SalesOrders => Set<SalesOrder>();
 
@@ -254,6 +257,15 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<Invoice>().Ignore(x => x.RowVersion);
         modelBuilder.Entity<EmailSendLog>().Ignore(x => x.RowVersion);
         modelBuilder.Entity<Invoice>().Ignore(x => x.GrandTotal);
+        // Phase 61 -- the till sale's derived figures, and the line's two derived sums.
+        modelBuilder.Entity<Invoice>().Ignore(x => x.ServiceChargeTotal);
+        modelBuilder.Entity<Invoice>().Ignore(x => x.TenderedAmount);
+        modelBuilder.Entity<Invoice>().Ignore(x => x.SettledAmount);
+        modelBuilder.Entity<Invoice>().Ignore(x => x.CreditAmount);
+        modelBuilder.Entity<InvoiceLine>().Ignore(x => x.TaxableAmount);
+        modelBuilder.Entity<InvoiceLine>().Ignore(x => x.LineTotal);
+        modelBuilder.Entity<PosSession>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<PosCashMovement>().Ignore(x => x.SignedAmount);
         modelBuilder.Entity<SalesOrder>().Ignore(x => x.RowVersion);
         modelBuilder.Entity<CreditNote>().Ignore(x => x.RowVersion);
         modelBuilder.Entity<Payment>().Ignore(x => x.RowVersion);
@@ -400,6 +412,23 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<Invoice>()
             .Metadata.FindNavigation(nameof(Invoice.Lines))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        // Phase 61 -- a till sale's tenders and a session's cash movements are encapsulated
+        // collections too (see the gotcha this whole block exists for).
+        modelBuilder.Entity<Invoice>().HasMany(x => x.Tenders).WithOne().HasForeignKey(x => x.InvoiceId);
+        modelBuilder.Entity<Invoice>()
+            .Metadata.FindNavigation(nameof(Invoice.Tenders))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+        modelBuilder.Entity<PosSession>().HasMany(x => x.CashMovements).WithOne().HasForeignKey(x => x.PosSessionId);
+        modelBuilder.Entity<PosSession>()
+            .Metadata.FindNavigation(nameof(PosSession.CashMovements))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+        modelBuilder.Entity<PosSession>()
+            .Property(x => x.OpeningCount)
+            .HasConversion(v => v!.Serialize(), v => CashCount.Parse(v));
+        modelBuilder.Entity<PosSession>()
+            .Property(x => x.ClosingCount)
+            .HasConversion(v => v!.Serialize(), v => CashCount.Parse(v));
 
         modelBuilder.Entity<SalesOrder>().HasMany(x => x.Lines).WithOne().HasForeignKey("SalesOrderId");
         modelBuilder.Entity<SalesOrder>()

@@ -16,6 +16,7 @@ public sealed class GetInvoiceQueryHandler(IAppDbContext db) : IRequestHandler<G
     {
         var invoice = await db.Invoices
             .Include(x => x.Lines)
+            .Include(x => x.Tenders)
             .SingleOrDefaultAsync(x => x.Id == request.Id && x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Invoice not found.");
 
@@ -42,7 +43,9 @@ public sealed class GetInvoiceQueryHandler(IAppDbContext db) : IRequestHandler<G
 
             glLines = glEntries.Count == 0
                 ? null
-                : glEntries.SelectMany(e => e.Lines)
+                // Phase 61 -- in posting order, so a till sale reads as the sale and then its
+                // settlement rather than in whatever order the rows came back.
+                : glEntries.OrderBy(e => e.PostedAt).SelectMany(e => e.Lines)
                     .Select(x => new PostedGlLineDto(x.Id, x.AccountId, x.Debit, x.Credit)).ToList();
         }
 
@@ -80,9 +83,41 @@ public sealed class GetInvoiceQueryHandler(IAppDbContext db) : IRequestHandler<G
                 x.BatchId is null ? null : batches.GetValueOrDefault(x.BatchId.Value)?.ManufactureDate,
                 x.BatchId is null ? null : batches.GetValueOrDefault(x.BatchId.Value)?.ExpiryDate,
                 serials.TryGetValue(x.Id, out var lineSerials) ? lineSerials : [],
-                x.UnitId, x.UnitId is null ? null : unitNames.GetValueOrDefault(x.UnitId.Value), x.ConversionFactor)).ToList(),
+                x.UnitId, x.UnitId is null ? null : unitNames.GetValueOrDefault(x.UnitId.Value), x.ConversionFactor,
+                x.ServiceChargeRate, x.ServiceChargeAmount)).ToList(),
             glLines,
             invoice.CurrencyCode,
-            invoice.ExchangeRate);
+            invoice.ExchangeRate,
+            invoice.Channel,
+            await ReadPosSaleAsync(invoice, cancellationToken));
+    }
+
+    private async Task<InvoicePosSaleDto?> ReadPosSaleAsync(Invoice invoice, CancellationToken cancellationToken)
+    {
+        if (invoice.Channel != SalesChannel.Pos)
+        {
+            return null;
+        }
+
+        var sessionCode = invoice.PosSessionId is { } sessionId
+            ? await db.PosSessions.Where(x => x.Id == sessionId).Select(x => x.Code).SingleOrDefaultAsync(cancellationToken)
+            : null;
+
+        var modeIds = invoice.Tenders.Select(x => x.PaymentModeId).Distinct().ToList();
+        var modeNames = await db.PaymentModes
+            .Where(x => x.OrganizationId == invoice.OrganizationId && modeIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+
+        return new InvoicePosSaleDto(
+            invoice.PosSessionId,
+            sessionCode,
+            invoice.OrderType,
+            invoice.ServiceChargeTotal,
+            invoice.RoundOff,
+            [.. invoice.Tenders.Select(x => new InvoiceTenderDto(
+                x.PaymentModeId, modeNames.GetValueOrDefault(x.PaymentModeId, ""), x.Kind, x.Amount))],
+            invoice.TenderedAmount,
+            invoice.ChangeAmount,
+            invoice.CreditAmount);
     }
 }

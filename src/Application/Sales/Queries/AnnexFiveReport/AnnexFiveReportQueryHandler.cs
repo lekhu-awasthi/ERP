@@ -35,7 +35,9 @@ public sealed class AnnexFiveReportQueryHandler(IAppDbContext db, ICurrentUserSe
             .ToListAsync(cancellationToken);
         var invoiceLines = await db.InvoiceLines
             .Where(x => invoices.Select(i => i.Id).Contains(x.InvoiceId))
-            .Select(x => new { x.InvoiceId, x.VatRate, x.Amount, x.VatAmount })
+            // Phase 61 -- a till line's service charge is inside the VAT base, so it is taxable with
+            // its line. Zero on every ERP line; the round-off is not a supply and is not here.
+            .Select(x => new { x.InvoiceId, x.VatRate, Amount = x.Amount + x.ServiceChargeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         var creditNotes = await db.CreditNotes

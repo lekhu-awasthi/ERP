@@ -443,6 +443,16 @@
                   <td></td>
                 }
               </tr>
+              <!-- Phase 61 -- a till sale's service charge, its own line (the vendor's bill folds it away). -->
+              @if (posSale(); as pos) {
+                @if (pos.serviceChargeTotal !== 0) {
+                  <tr>
+                    <td colspan="4"></td>
+                    <td class="text-end fw-semibold">Service Charge</td>
+                    <td class="text-end fw-bold">{{ (pos.serviceChargeTotal | amount) }}</td>
+                  </tr>
+                }
+              }
               <tr>
                 <td colspan="4"></td>
                 <td class="text-end fw-semibold">Non-Taxable Total</td>
@@ -467,6 +477,15 @@
                   <td></td>
                 }
               </tr>
+              @if (posSale(); as pos) {
+                @if (pos.roundOff !== 0) {
+                  <tr>
+                    <td colspan="4"></td>
+                    <td class="text-end fw-semibold">Round Off</td>
+                    <td class="text-end fw-bold">{{ (pos.roundOff | amount) }}</td>
+                  </tr>
+                }
+              }
               <tr>
                 <td colspan="4"></td>
                 <td class="text-end fw-bold">Grand Total</td>
@@ -478,6 +497,44 @@
             </tfoot>
           </table>
         </div>
+
+        <!-- Phase 61 -- how a till sale was paid. Read-only: the sale was settled at the counter. -->
+        @if (posSale(); as pos) {
+          <section class="border rounded p-3 mb-3" aria-labelledby="invoice-pos-payment-heading">
+            <h6 id="invoice-pos-payment-heading" class="fw-bold text-dark mb-2">Paid at the till</h6>
+            <p class="small text-muted mb-2">
+              Session {{ pos.sessionCode ?? '—' }}@if (pos.orderType; as orderType) { · {{ posTabLabels[orderType] }} }
+            </p>
+            <table class="table table-sm mb-0" aria-label="Tenders">
+              <thead>
+                <tr>
+                  <th scope="col">Payment mode</th>
+                  <th scope="col" class="text-end">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (tender of pos.tenders; track $index) {
+                  <tr>
+                    <td>{{ tender.paymentModeName }}</td>
+                    <td class="text-end">{{ (tender.amount | amount) }}</td>
+                  </tr>
+                }
+                @if (pos.changeAmount !== 0) {
+                  <tr>
+                    <td>Change given</td>
+                    <td class="text-end">({{ (pos.changeAmount | amount) }})</td>
+                  </tr>
+                }
+                @if (pos.creditAmount !== 0) {
+                  <tr>
+                    <td>Left on credit</td>
+                    <td class="text-end fw-semibold">{{ (pos.creditAmount | amount) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        }
 
         <!-- Phase 27b: the "+ Add Terms and Conditions" block, seeded from a CustomTemplate. -->
         <app-terms-editor [organizationId]="organizationId" [(terms)]="terms" [disabled]="!isDraft()" />

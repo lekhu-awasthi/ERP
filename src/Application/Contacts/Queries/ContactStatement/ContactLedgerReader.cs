@@ -102,13 +102,23 @@ internal static class ContactLedgerReader
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
                 && x.Status == InvoiceStatus.Approved && x.Date <= toDate)
             .AtLocations(locationId, reportLocations)
-            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference, x.ExchangeRate })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference, x.ExchangeRate, x.RoundOff, x.ChangeAmount })
             .ToListAsync(cancellationToken);
         var invoiceLines = await db.InvoiceLines
             .Where(x => invoices.Select(i => i.Id).Contains(x.InvoiceId))
-            .Select(x => new { x.InvoiceId, x.Amount, x.VatAmount })
+            .Select(x => new { x.InvoiceId, x.Amount, x.ServiceChargeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
-        var invoiceTotals = invoiceLines.GroupBy(x => x.InvoiceId).ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.VatAmount));
+        // Phase 61 -- a till line's service charge and the bill's round-off are owed too (both zero
+        // on an ERP invoice).
+        var invoiceTotals = invoiceLines.GroupBy(x => x.InvoiceId)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount));
+
+        // Phase 61 -- what each till sale's tenders settled on the spot (handed over less change).
+        var invoiceTendered = await db.InvoiceTenders
+            .Where(x => invoices.Select(i => i.Id).Contains(x.InvoiceId))
+            .GroupBy(x => x.InvoiceId)
+            .Select(g => new { InvoiceId = g.Key, Amount = g.Sum(x => x.Amount) })
+            .ToDictionaryAsync(x => x.InvoiceId, x => x.Amount, cancellationToken);
 
         var creditNotes = await db.CreditNotes
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
@@ -136,7 +146,19 @@ internal static class ContactLedgerReader
         var events = new List<Event>();
         events.AddRange(invoices.Select(x => new Event(
             x.ContactId, x.Date, DocumentType.Invoice, x.Code, x.Reference,
-            ExchangeRates.ToBase(invoiceTotals.GetValueOrDefault(x.Id), x.ExchangeRate))));
+            ExchangeRates.ToBase(invoiceTotals.GetValueOrDefault(x.Id) + x.RoundOff, x.ExchangeRate))));
+
+        // Phase 61 (phase 59 Decision D) -- a till sale's settlement is a credit on the same day under
+        // the same number: the invoice paying itself, which is how the vendor's own ledger shows it.
+        // Without it the walk-in's balance would grow by every cash sale ever rung up, and a named
+        // customer's credit-limit check (ContactCreditLimitPolicy reads this) would count bills they
+        // paid at the counter as owed.
+        events.AddRange(invoices
+            .Where(x => invoiceTendered.ContainsKey(x.Id))
+            .Select(x => new Event(
+                x.ContactId, x.Date, DocumentType.Invoice, x.Code, x.Reference,
+                -ExchangeRates.ToBase(invoiceTendered[x.Id] - x.ChangeAmount, x.ExchangeRate)))
+            .Where(x => x.SignedAmount != 0));
         events.AddRange(creditNotes.Select(x => new Event(
             x.ContactId, x.Date, DocumentType.CreditNote, x.Code, x.Reference,
             -ExchangeRates.ToBase(creditNoteTotals.GetValueOrDefault(x.Id), x.ExchangeRate))));

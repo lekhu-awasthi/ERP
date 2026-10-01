@@ -81,6 +81,12 @@ public sealed record SalesMasterReportRowDto(
     decimal ItemDiscount,
     decimal TransactionDiscount,
     decimal NetSales,
+    // Phase 61 -- a till line's service charge (zero on every ERP line and on every credit note line).
+    // A column of its own rather than folded into NetSales: NetSales is what the discount columns to
+    // its left reconcile to, and the service charge is income of its own account, not the product's.
+    // It is inside the VAT base, so VatAmount already includes the VAT on it, and TotalAmount is
+    // NetSales + ServiceCharge + VatAmount.
+    decimal ServiceCharge,
     VatRate VatType,
     decimal VatAmount,
     decimal TotalAmount);

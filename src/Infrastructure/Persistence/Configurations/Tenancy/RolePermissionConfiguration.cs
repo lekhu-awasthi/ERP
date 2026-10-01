@@ -775,6 +775,12 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminPosSettingsManageId = Guid.Parse("00000000-0000-0000-0002-0000000001e1");
     private static readonly Guid MemberPosSettingsManageId = Guid.Parse("00000000-0000-0000-0002-0000000001e2");
 
+    // Phase 61 -- the two session keys (derived in PermissionKeys.PosSessionOperate).
+    private static readonly Guid AdminPosSessionOperateId = Guid.Parse("00000000-0000-0000-0002-0000000001e3");
+    private static readonly Guid MemberPosSessionOperateId = Guid.Parse("00000000-0000-0000-0002-0000000001e4");
+    private static readonly Guid AdminPosSessionViewAllId = Guid.Parse("00000000-0000-0000-0002-0000000001e5");
+    private static readonly Guid MemberPosSessionViewAllId = Guid.Parse("00000000-0000-0000-0002-0000000001e6");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1370,6 +1376,10 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminInventoryVarianceViewId, Role.AdminId, PermissionKeys.InventoryVarianceView, true),
             RolePermission.Create(MemberInventoryVarianceViewId, Role.MemberId, PermissionKeys.InventoryVarianceView, true),
             RolePermission.Create(AdminPosSettingsManageId, Role.AdminId, PermissionKeys.PosSettingsManage, true),
-            RolePermission.Create(MemberPosSettingsManageId, Role.MemberId, PermissionKeys.PosSettingsManage, false));
+            RolePermission.Create(MemberPosSettingsManageId, Role.MemberId, PermissionKeys.PosSettingsManage, false),
+            RolePermission.Create(AdminPosSessionOperateId, Role.AdminId, PermissionKeys.PosSessionOperate, true),
+            RolePermission.Create(MemberPosSessionOperateId, Role.MemberId, PermissionKeys.PosSessionOperate, true),
+            RolePermission.Create(AdminPosSessionViewAllId, Role.AdminId, PermissionKeys.PosSessionViewAll, true),
+            RolePermission.Create(MemberPosSessionViewAllId, Role.MemberId, PermissionKeys.PosSessionViewAll, false));
     }
 }

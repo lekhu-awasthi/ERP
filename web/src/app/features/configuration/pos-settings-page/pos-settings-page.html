@@ -87,9 +87,19 @@
             <legend class="h6 fw-bold">Service Charge</legend>
             <div class="form-check mb-2">
               <input class="form-check-input" type="checkbox" id="pos-settings-service-charge"
+                aria-describedby="pos-settings-service-charge-legal"
                 [checked]="serviceChargeEnabled()" (change)="serviceChargeEnabled.set(checkedOf($event))" />
               <label class="form-check-label" for="pos-settings-service-charge">Service charge applicable</label>
             </div>
+            <!-- Phase 61 (Decision A) -- the rule the setting is subject to, stated where it is switched
+                 on, so the tenant decides with the facts rather than finding out from a complaint. -->
+            <p id="pos-settings-service-charge-legal" class="form-text mb-2">
+              <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+              In Nepal, the Supreme Court held on 25 January 2023 (Writ No. 0022) that a mandatory service
+              charge may not be added to a bill, and voided the Labour Act 2074 rule for distributing it to
+              staff. Where one is charged, it is part of the VAT base, so VAT is charged on it too. Check that
+              charging one is lawful for your business before switching this on.
+            </p>
             @if (serviceChargeEnabled()) {
               <div class="row g-3">
                 <div class="col-12 col-sm-4">

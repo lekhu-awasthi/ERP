@@ -1,5 +1,7 @@
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Configuration;
+using ErpApp.Domain.Pos;
 
 namespace ErpApp.Domain.Sales;
 
@@ -41,7 +43,12 @@ public sealed class Invoice
 {
     public const string DraftCode = "DRAFT";
 
+    /// <summary>Phase 61 -- a till sale's money is whole paisa: every line figure, the round-off, each
+    /// tender and the change. See <see cref="InvoiceLine.CreatePos"/> for why an ERP line is not.</summary>
+    public const int PosMoneyScale = 2;
+
     private readonly List<InvoiceLine> _lines = [];
+    private readonly List<InvoiceTender> _tenders = [];
 
     public Guid Id { get; private set; }
     public Guid OrganizationId { get; private set; }
@@ -126,9 +133,59 @@ public sealed class Invoice
     /// even after that template is edited or deleted.</summary>
     public string? Terms { get; private set; }
 
+    /// <summary>Phase 61 -- which front end raised this invoice. See <see cref="SalesChannel"/>.</summary>
+    public SalesChannel Channel { get; private set; }
+
+    /// <summary>Phase 61 -- the till session a POS sale was rung up in; null on every ERP invoice.
+    /// It is what the session reader selects by, and what decides whether a POS sale may still be
+    /// voided (only while its session is open).</summary>
+    public Guid? PosSessionId { get; private set; }
+
+    /// <summary>Phase 61 -- the till tab the sale was rung up on (Retail, Dine In, Take Away,
+    /// Delivery). The vendor's <c>order_type</c> takes exactly the tab's values, so this reuses
+    /// <see cref="PosTab"/> rather than inventing a parallel enum that would have to be mapped onto
+    /// it by name. Null on every ERP invoice.</summary>
+    public PosTab? OrderType { get; private set; }
+
+    /// <summary>
+    /// Phase 61 -- the amount added to (positive) or taken off (negative) the bill to bring it to a
+    /// whole rupee, when the location rounds. <b>Outside the VAT base</b>: the vendor's own bill rounds
+    /// 632.80 to 633 with VAT unchanged at 72.80, and a rounding is not consideration for a supply.
+    /// It is part of what the customer owes, so <see cref="GrandTotal"/> includes it and so does the
+    /// receivable.
+    /// </summary>
+    public decimal RoundOff { get; private set; }
+
+    /// <summary>
+    /// Phase 61 -- cash handed back to the customer. Always cash and always out of the session's
+    /// drawer (Decision C of docs/phase-61-status.md): change can only be given out of cash that was
+    /// tendered, so it is capped by the cash tenders, and it never leaves anything on credit.
+    /// </summary>
+    public decimal ChangeAmount { get; private set; }
+
     public IReadOnlyList<InvoiceLine> Lines => _lines;
 
-    public decimal GrandTotal => _lines.Sum(x => x.Amount + x.VatAmount);
+    /// <summary>Phase 61 -- how a till sale was paid. Empty on every ERP invoice, which is settled
+    /// afterwards by a Payment allocated against it.</summary>
+    public IReadOnlyList<InvoiceTender> Tenders => _tenders;
+
+    /// <summary>What the customer owes for this invoice: every line's amount, service charge and VAT,
+    /// plus the round-off. For an ERP invoice the last two terms are zero, so this is the figure it
+    /// always was.</summary>
+    public decimal GrandTotal => _lines.Sum(x => x.LineTotal) + RoundOff;
+
+    public decimal ServiceChargeTotal => _lines.Sum(x => x.ServiceChargeAmount);
+
+    /// <summary>Everything handed over, before change.</summary>
+    public decimal TenderedAmount => _tenders.Sum(x => x.Amount);
+
+    /// <summary>What the tenders settled: handed over, less the change given back.</summary>
+    public decimal SettledAmount => TenderedAmount - ChangeAmount;
+
+    /// <summary>The unsettled remainder, left on the customer's account as a receivable -- what the
+    /// vendor calls a Credit tender. Zero for a fully paid till sale; the whole total for an ERP
+    /// invoice, which is settled later.</summary>
+    public decimal CreditAmount => GrandTotal - SettledAmount;
 
     private Invoice()
     {
@@ -204,6 +261,14 @@ public sealed class Invoice
         bool isExport, string? exportCountry, string? exportDeclarationNo, DateOnly? exportDeclarationDate)
     {
         EnsureDraft();
+
+        // Phase 61 -- the rebuild below would re-create every line through the ERP factory and drop a
+        // till line's service charge. A counter sale is not an export sale anyway.
+        if (isExport && Channel == SalesChannel.Pos)
+        {
+            throw new InvalidOperationException("A till sale cannot be an export sale.");
+        }
+
         IsExport = isExport;
         ExportCountry = isExport ? exportCountry : null;
         ExportDeclarationNo = isExport ? exportDeclarationNo : null;
@@ -233,11 +298,165 @@ public sealed class Invoice
         }
     }
 
+    /// <summary>
+    /// Phase 61 -- a till sale (phase 59 Decision C). The same aggregate as an ERP invoice, created in
+    /// Draft and approved in the same command by <c>CreatePosSaleCommandHandler</c>, so it is numbered
+    /// at approve exactly like every other invoice (location-wise numbering included).
+    ///
+    /// <para>The location is set here and not through <see cref="SetLocation"/>'s "null means the
+    /// default" path: a till is always somewhere, and Invoice carries a location in every
+    /// <c>LocationScopeMode</c>. The due date is the sale date, because whatever is left on credit at
+    /// a counter is due when the customer walks out.</para>
+    /// </summary>
+    public static Invoice CreatePosSale(
+        Guid organizationId,
+        Guid contactId,
+        Guid warehouseId,
+        DateOnly date,
+        Guid locationId,
+        Guid posSessionId,
+        PosTab orderType,
+        decimal discountPct = 0)
+    {
+        if (locationId == Guid.Empty || posSessionId == Guid.Empty)
+        {
+            throw new InvalidOperationException("A till sale names its location and its session.");
+        }
+
+        if (!Enum.IsDefined(orderType))
+        {
+            throw new InvalidOperationException($"'{orderType}' is not a till order type.");
+        }
+
+        var invoice = Create(organizationId, contactId, warehouseId, date, null, null, null, date, discountPct);
+        invoice.Channel = SalesChannel.Pos;
+        invoice.PosSessionId = posSessionId;
+        invoice.OrderType = orderType;
+        invoice.LocationId = locationId;
+        return invoice;
+    }
+
+    /// <summary>Phase 61 -- adds a till line carrying its own service charge rate. See
+    /// <see cref="InvoiceLine.CreatePos"/>.</summary>
+    public void AddPosLine(
+        Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct,
+        Guid? unitId, decimal conversionFactor, Guid? batchId, decimal serviceChargeRate)
+    {
+        EnsureDraft();
+        EnsurePos();
+        EnsureUnsettled();
+
+        if (quantity <= 0 || rate < 0)
+        {
+            throw new InvalidOperationException("An invoice line needs a positive Quantity and a non-negative Rate.");
+        }
+
+        EnsureValidDiscountPct(discountPct);
+
+        _lines.Add(InvoiceLine.CreatePos(
+            Id, productId, quantity, rate, vatRate, discountPct, DiscountPct, batchId, unitId,
+            conversionFactor, serviceChargeRate));
+
+        // A line added after a rounding would leave the bill rounded to the wrong rupee.
+        RoundOff = 0m;
+    }
+
+    /// <summary>
+    /// Phase 61 -- rounds what the customer owes to the nearest whole rupee (half away from zero, so
+    /// 632.50 becomes 633 and 632.49 becomes 632), when the location rounds. Phase 60 modelled the
+    /// vendor's <c>round_amount</c> as a flag because the one behaviour observed was 632.80 to 633;
+    /// this is that rule and no other increment.
+    /// </summary>
+    public void ApplyRoundOff()
+    {
+        EnsureDraft();
+        EnsurePos();
+        EnsureUnsettled();
+
+        var unrounded = _lines.Sum(x => x.LineTotal);
+        RoundOff = decimal.Round(unrounded, 0, MidpointRounding.AwayFromZero) - unrounded;
+    }
+
+    /// <summary>
+    /// Phase 61 -- records how a till sale was paid. Called once, after the lines and the round-off.
+    ///
+    /// <para>The invariants are about the drawer and the receivable, in that order:</para>
+    /// <list type="bullet">
+    /// <item>change comes out of cash that was handed over, so it cannot exceed the cash tenders --
+    /// a card is not over-swiped to give cash back;</item>
+    /// <item>nothing may be settled beyond what is owed: tenders less change are at most the total;</item>
+    /// <item>change is only given on a bill paid in full -- handing cash back while leaving the rest on
+    /// credit would be lending the customer their own change.</item>
+    /// </list>
+    /// <para>What is left unsettled is <see cref="CreditAmount"/>. Whether this customer may carry it
+    /// (the walk-in may not; a named customer is subject to phase 31's credit control) is the
+    /// handler's decision, because it needs the contact row and the tenant's policy.</para>
+    /// </summary>
+    public void Settle(IReadOnlyCollection<TenderInput> tenders, decimal changeAmount)
+    {
+        EnsureDraft();
+        EnsurePos();
+        EnsureUnsettled();
+
+        if (_lines.Count == 0)
+        {
+            throw new InvalidOperationException("A till sale needs at least one line before it is paid.");
+        }
+
+        if (changeAmount < 0m || decimal.Round(changeAmount, PosMoneyScale) != changeAmount)
+        {
+            throw new InvalidOperationException("Change must be zero or a positive amount in whole paisa.");
+        }
+
+        // Built aside and checked whole before anything is kept, so a refused settlement leaves the
+        // sale exactly as unpaid as it was.
+        var built = tenders
+            .Select(x => InvoiceTender.Create(Id, x.PaymentModeId, x.Kind, x.AccountId, x.Amount))
+            .ToList();
+
+        var cashTendered = built.Where(x => x.Kind == PaymentModeKind.Cash).Sum(x => x.Amount);
+        if (changeAmount > cashTendered)
+        {
+            throw new InvalidOperationException(
+                $"Change ({changeAmount:0.00}) can only come out of cash handed over ({cashTendered:0.00}).");
+        }
+
+        var settled = built.Sum(x => x.Amount) - changeAmount;
+        if (settled > GrandTotal)
+        {
+            throw new InvalidOperationException(
+                $"The tenders less change come to {settled - GrandTotal:0.00} more than the bill. Give that much "
+                + "more change, or take less in a non-cash mode.");
+        }
+
+        if (changeAmount > 0m && settled != GrandTotal)
+        {
+            throw new InvalidOperationException(
+                "Change is only given on a bill paid in full; the rest of this one would be left on credit.");
+        }
+
+        _tenders.AddRange(built);
+        ChangeAmount = changeAmount;
+        _settled = true;
+    }
+
+    // Not persisted: it only has to stop a second Settle while the sale is still the in-memory draft
+    // its command is building. Once approved, EnsureDraft refuses everything this guards.
+    private bool _settled;
+
+    /// <summary>What <see cref="Settle"/> needs of one tender, already resolved from its payment mode.</summary>
+    public sealed record TenderInput(Guid PaymentModeId, PaymentModeKind Kind, Guid AccountId, decimal Amount);
+
     public void AddLine(
         Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct,
         Guid? unitId, decimal conversionFactor, Guid? batchId = null)
     {
         EnsureDraft();
+
+        if (Channel == SalesChannel.Pos)
+        {
+            throw new InvalidOperationException("A till sale's lines carry a service charge rate; add them with AddPosLine.");
+        }
 
         if (quantity <= 0 || rate < 0)
         {
@@ -377,6 +596,22 @@ public sealed class Invoice
         if (Status != InvoiceStatus.Approved)
         {
             throw new InvalidOperationException("Only an Approved invoice can be voided.");
+        }
+    }
+
+    private void EnsurePos()
+    {
+        if (Channel != SalesChannel.Pos)
+        {
+            throw new InvalidOperationException("Only a till sale carries service charge, round-off and tenders.");
+        }
+    }
+
+    private void EnsureUnsettled()
+    {
+        if (_settled || _tenders.Count > 0)
+        {
+            throw new InvalidOperationException("This till sale has already been paid.");
         }
     }
 }

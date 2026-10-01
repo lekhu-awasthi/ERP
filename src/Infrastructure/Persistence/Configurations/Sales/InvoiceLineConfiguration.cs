@@ -20,6 +20,13 @@ public sealed class InvoiceLineConfiguration : IEntityTypeConfiguration<InvoiceL
         builder.Property(x => x.DiscountPct).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.Amount).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.VatAmount).HasPrecision(18, 4).IsRequired();
+
+        // Phase 61 -- a till line's service charge inputs, persisted (phase 59 defect 1). Zero on
+        // every ERP line, which is also every existing row.
+        builder.Property(x => x.ServiceChargeRate).HasPrecision(5, 2).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+        builder.Property(x => x.ServiceChargeAmount).HasPrecision(18, 4).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+        builder.Ignore(x => x.TaxableAmount);
+        builder.Ignore(x => x.LineTotal);
         builder.Property(x => x.CogsUnitCost).HasPrecision(18, 4);
 
         builder.HasOne<Product>().WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);

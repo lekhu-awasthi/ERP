@@ -39,6 +39,7 @@ import { UnitOfMeasurementStore } from '../../../shared/catalog/unit-of-measurem
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { POS_TAB_LABELS } from '../../../core/pos/pos.models';
 
 interface EditableLine {
   key: number;
@@ -191,24 +192,47 @@ export class InvoiceDetailPage {
     this.round(this.lines().reduce((sum, l) => sum + this.netAfterLineDiscount(l), 0)),
   );
   protected readonly discountAmount = computed(() => this.round((this.subTotal() * this.discountPct()) / 100));
+  /** Phase 61 -- a till sale's own figures, or null for an ERP invoice. A till sale is created
+   * approved, so its form is never edited, and its totals are the server's stored ones: the
+   * computation below knows nothing of a service charge (which sits inside the VAT base, so it
+   * changes VAT too) or a round-off, and would show a total the customer did not pay. */
+  protected readonly posSale = computed(() => this.invoice()?.posSale ?? null);
+  protected readonly posTabLabels = POS_TAB_LABELS;
+  private readonly storedLines = computed(() => this.invoice()?.lines ?? []);
+
   protected readonly nonTaxableTotal = computed(() =>
-    this.round(
-      this.lines()
-        .filter((l) => this.vatPercent(l.vatRate) === 0)
-        .reduce((sum, l) => sum + this.netAfterBothDiscounts(l), 0),
-    ),
+    this.posSale()
+      ? this.round(this.storedLines()
+          .filter((l) => this.vatPercent(l.vatRate) === 0)
+          .reduce((sum, l) => sum + l.amount + l.serviceChargeAmount, 0))
+      : this.round(
+          this.lines()
+            .filter((l) => this.vatPercent(l.vatRate) === 0)
+            .reduce((sum, l) => sum + this.netAfterBothDiscounts(l), 0),
+        ),
   );
   protected readonly taxableTotal = computed(() =>
-    this.round(
-      this.lines()
-        .filter((l) => this.vatPercent(l.vatRate) > 0)
-        .reduce((sum, l) => sum + this.netAfterBothDiscounts(l), 0),
-    ),
+    this.posSale()
+      ? this.round(this.storedLines()
+          .filter((l) => this.vatPercent(l.vatRate) > 0)
+          .reduce((sum, l) => sum + l.amount + l.serviceChargeAmount, 0))
+      : this.round(
+          this.lines()
+            .filter((l) => this.vatPercent(l.vatRate) > 0)
+            .reduce((sum, l) => sum + this.netAfterBothDiscounts(l), 0),
+        ),
   );
   protected readonly vatTotal = computed(() =>
-    this.round(this.lines().reduce((sum, l) => sum + this.netAfterBothDiscounts(l) * this.vatPercent(l.vatRate), 0)),
+    this.posSale()
+      ? this.round(this.storedLines().reduce((sum, l) => sum + l.vatAmount, 0))
+      : this.round(this.lines().reduce((sum, l) => sum + this.netAfterBothDiscounts(l) * this.vatPercent(l.vatRate), 0)),
   );
-  protected readonly grandTotal = computed(() => this.round(this.taxableTotal() + this.nonTaxableTotal() + this.vatTotal()));
+  protected readonly grandTotal = computed(() => {
+    const invoice = this.invoice();
+    return invoice?.posSale
+      ? invoice.grandTotal
+      : this.round(this.taxableTotal() + this.nonTaxableTotal() + this.vatTotal());
+  });
 
   protected readonly isDraft = computed(() => {
     const invoice = this.invoice();

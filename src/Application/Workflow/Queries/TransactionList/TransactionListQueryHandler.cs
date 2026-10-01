@@ -370,7 +370,19 @@ public sealed class TransactionListQueryHandler(IAppDbContext db, ICurrentUserSe
         var invoiceIds = IdsOf(DocumentType.Invoice);
         if (invoiceIds.Count > 0)
         {
-            await SumAsync(db.InvoiceLines.Where(l => invoiceIds.Contains(l.InvoiceId)), l => l.InvoiceId, l => l.Amount + l.VatAmount);
+            await SumAsync(
+                db.InvoiceLines.Where(l => invoiceIds.Contains(l.InvoiceId)), l => l.InvoiceId,
+                l => l.Amount + l.ServiceChargeAmount + l.VatAmount);
+
+            // Phase 61 -- a till sale's round-off is part of its total; zero on every ERP invoice.
+            var roundOffs = await db.Invoices
+                .Where(x => invoiceIds.Contains(x.Id) && x.RoundOff != 0)
+                .Select(x => new { x.Id, x.RoundOff })
+                .ToListAsync(cancellationToken);
+            foreach (var row in roundOffs)
+            {
+                amounts[row.Id] = amounts.GetValueOrDefault(row.Id) + row.RoundOff;
+            }
         }
 
         var creditNoteIds = IdsOf(DocumentType.CreditNote);

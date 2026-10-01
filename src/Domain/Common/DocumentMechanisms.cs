@@ -371,5 +371,12 @@ public static class DocumentMechanisms
             [DocumentType.WorkTask] =
                 "The WorkTask counterpart of Deal, same reasoning. Its tabs are Documents and " +
                 "Activity only: a task does not parent tasks (live, 2026-09-13).",
+            [DocumentType.PosSession] =
+                "A till's cash drawer for one shift (Phase 61), not a document: opened and closed, " +
+                "never drafted or approved, and numbered only so a GL row can name it. It is a " +
+                "DocumentType because its cash movements and over/short post GL entries against it. " +
+                "Its location is a column of its own that is always set, so it needs no " +
+                "LocationScopeMode, and the sales it carries are Invoices, which already carry " +
+                "every mechanism.",
         };
 }

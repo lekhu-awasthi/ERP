@@ -1,5 +1,6 @@
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
+using ErpApp.Domain.Pos;
 using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -61,6 +62,34 @@ public sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
             .HasDefaultValue(ExchangeRates.BaseRate).ValueGeneratedNever();
 
         builder.Ignore(x => x.GrandTotal);
+        builder.Ignore(x => x.ServiceChargeTotal);
+        builder.Ignore(x => x.TenderedAmount);
+        builder.Ignore(x => x.SettledAmount);
+        builder.Ignore(x => x.CreditAmount);
+
+        // Phase 61 -- the till sale's header. Channel defaults to Erp, which is true of every row
+        // that existed before this phase; ValueGeneratedNever so EF never substitutes the SQL default
+        // for an in-memory Erp (phase 2's enum-default gotcha, harmless here only because the member
+        // is 0 -- stated anyway so a reordering cannot make it harmful).
+        builder.Property(x => x.Channel)
+            .HasConversion<string>().HasMaxLength(10).IsRequired()
+            .HasDefaultValue(SalesChannel.Erp).ValueGeneratedNever();
+        builder.Property(x => x.OrderType).HasConversion<string>().HasMaxLength(20);
+        builder.Property(x => x.RoundOff).HasPrecision(18, 4).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+        builder.Property(x => x.ChangeAmount).HasPrecision(18, 4).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+
+        builder.HasOne<PosSession>()
+            .WithMany()
+            .HasForeignKey(x => x.PosSessionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(x => x.Tenders)
+            .WithOne()
+            .HasForeignKey(x => x.InvoiceId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Metadata.FindNavigation(nameof(Invoice.Tenders))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
 
         builder.HasOne<Contact>().WithMany().HasForeignKey(x => x.ContactId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Warehouse>().WithMany().HasForeignKey(x => x.WarehouseId).OnDelete(DeleteBehavior.Restrict);

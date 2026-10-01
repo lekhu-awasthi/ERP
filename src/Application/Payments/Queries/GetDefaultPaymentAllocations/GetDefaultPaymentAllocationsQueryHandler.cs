@@ -30,8 +30,12 @@ public sealed class GetDefaultPaymentAllocationsQueryHandler(IAppDbContext db)
             ? await SuggestAsync(
                 db.Invoices
                     .Include(x => x.Lines)
+                    .Include(x => x.Tenders)
                     .Where(x => x.OrganizationId == request.OrganizationId && x.ContactId == request.ContactId && x.Status == InvoiceStatus.Approved),
-                x => x.Id, x => x.Date, x => x.GrandTotal,
+                // Phase 61 -- CreditAmount, not GrandTotal: a till sale's tenders already settled part
+                // (or all) of it, so only what was left on credit can still be paid. For an ERP invoice
+                // the two are the same figure.
+                x => x.Id, x => x.Date, x => x.CreditAmount,
                 ids => LoadCreditNoteReversalsAsync(request.OrganizationId, ids, cancellationToken),
                 DocumentType.Invoice, request.Amount, db, cancellationToken)
             : await SuggestAsync(

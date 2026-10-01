@@ -75,6 +75,54 @@ public static class GrantedPermissionReader
     }
 
     /// <summary>
+    /// Phase 61 -- <see cref="EnsureGrantedAsync"/> for a request acting <b>at one location</b>: held
+    /// organization-wide, or (for a phase-32b scopable key) granted at <paramref name="locationId"/>.
+    /// The refusal names the key the way <c>AuthorizationBehavior</c> does, including the
+    /// <c>CODE.Key</c> form for a location the caller is not granted, so a handler's re-check reads
+    /// exactly like the pipeline's.
+    ///
+    /// <para>For a key whose answer depends on the request's value or on a row the pipeline does not
+    /// load -- the till's Approve-when-on-credit and open-only-where-you-sell rules -- which is the
+    /// <c>AttachmentAccess</c> shape (phase 27a) with a location in it.</para>
+    /// </summary>
+    public static async Task EnsureGrantedAtLocationAsync(
+        IAppDbContext db,
+        Guid organizationId,
+        Guid userId,
+        string permissionKey,
+        Guid locationId,
+        CancellationToken cancellationToken)
+    {
+        var granted = await GrantedKeysAsync(db, organizationId, userId, cancellationToken);
+
+        if (granted.Contains(permissionKey))
+        {
+            return;
+        }
+
+        if (!LocationScopedPermissions.IsLocationScopable(permissionKey))
+        {
+            throw new ForbiddenException(
+                $"You do not have permission to perform this action ({permissionKey}).");
+        }
+
+        var locations = await GrantedLocationsAsync(db, organizationId, userId, permissionKey, cancellationToken);
+
+        if (locations.Contains(locationId))
+        {
+            return;
+        }
+
+        var code = await db.BillingLocations
+            .Where(x => x.Id == locationId && x.OrganizationId == organizationId)
+            .Select(x => x.Code)
+            .SingleOrDefaultAsync(cancellationToken) ?? locationId.ToString();
+
+        throw new ForbiddenException(
+            $"You do not have permission to perform this action ({LocationScopedPermissions.Describe(code, permissionKey)}).");
+    }
+
+    /// <summary>
     /// Phase 32b -- the billing locations at which this user holds <paramref name="permissionKey"/>
     /// <b>location-specifically</b>. Empty is the normal answer: the live editor's own default is
     /// 0 of 94 at every location, and a role that works purely from organization-wide grants never

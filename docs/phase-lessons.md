@@ -1697,3 +1697,39 @@ callers of the method, not only of the command.
 **Ship a permission key with its request.** Only `Pos.Settings.Manage` shipped. The other four keys
 phase 59 derived gate requests that do not exist yet, and a toggle that gates nothing lies to the
 Admin who flips it.
+
+## Phase 61 — POS sale engine, and the invoice that pays itself
+
+**Read `phase-61-status.md` before posting a second GL entry against a document, before adding a
+command that creates a document already approved, before a permission whose answer depends on the
+request's values, or before rendering any figure a till produced.** It built the money path a till
+calls. A sale is an Invoice created approved, with per-line service charge, a nearest-rupee
+round-off, change and tenders. The tenders post as a second entry on the same invoice. A
+`PosSession` drawer posts its cash movements and its over/short, and one reader serves the session
+and the day.
+
+**Settle the rule first, and expect the answer to move the question.** "Is service charge in the VAT
+base?" was yes (VAT Act 2052 §13). The research also found that Nepal's Supreme Court made a mandatory
+service charge unlawful on 2023-01-25. That decides whether the feature should exist, so it went to
+the user, who chose to build it with the ruling stated on the settings screen. A rule question owes
+its sources in the status doc, and a surprising answer owes a question to the user.
+
+**Two entries per document is now routine, and nothing new was needed for it.** Phase 36 made
+`SourceDocumentGlEntries` reverse the net of every entry, so a voided till sale's sale entry and
+tender entry net to zero on every account with no new reversal code. What *did* need work was every
+reader that derives what a customer owes from documents rather than the GL. Each had to learn that a
+till sale's tenders are the invoice paying itself, or the walk-in would owe every cash sale ever rung
+up.
+
+**A second door onto an approved document breaks the guards that assumed one.** The metered,
+location-marker and stock-book guards all failed on the new command or the new `DocumentType`
+member. Each was taught a named entry with its reason, so a third door still fails.
+
+**Make the cheap door the common one, and put the review where the risk is.** A fully paid counter
+sale needs only `Sales.Invoice.Create`, because the session's count is the control over cash. A
+sale that leaves a receivable also needs `Sales.Invoice.Approve` at that branch, re-checked in the
+handler because it depends on the tenders.
+
+**The next row of the evidence was already on the page.** Phase 60 modelled rounding from one
+observation (632.80 → 633). The scan's next two rows (316.40 → 317, 293.80 → 294) show the vendor
+rounds up. Phase 61 rounds to the nearest rupee on purpose, and its status doc says so.

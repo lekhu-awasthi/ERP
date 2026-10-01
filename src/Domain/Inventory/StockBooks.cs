@@ -91,5 +91,7 @@ public static class StockBooks
             [DocumentType.DocumentExtraction] = "An audit marker, not a document.",
             [DocumentType.Deal] = "A CRM record.",
             [DocumentType.WorkTask] = "A CRM record.",
+            [DocumentType.PosSession] =
+                "A till's cash drawer (phase 61). Its sales are Invoices, which move stock as Invoices.",
         };
 }

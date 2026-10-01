@@ -18,8 +18,11 @@ internal static class CreditNoteAccountResolver
         // only when this CreditNote actually reverses stock against a Goods-line source Invoice --
         // see that handler's doc comment. A standalone CreditNote, or one against an all-Service
         // Invoice, passes false the same way an all-Service Invoice itself does.
+        // Phase 61 -- a credit note line carries no service charge (returns at the till are phase 63),
+        // so it is resolved as an invoice line whose service charge is zero.
         var invoiceInput = await InvoiceAccountResolver.ResolveAsync(
-            db, organizationId, lines, resolveInventoryAccounts, cancellationToken);
+            db, organizationId, lines.Select(x => (x.ProductId, x.Amount, x.VatAmount, 0m)),
+            resolveInventoryAccounts, cancellationToken);
 
         return new CreditNotePostingInput(
             invoiceInput.AccountsReceivableAccountId, invoiceInput.VatPayableAccountId, invoiceInput.Lines,

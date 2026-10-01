@@ -75,7 +75,7 @@ API), reuses Invoice/Credit Note, and adds aggregates only for what an ERP lacks
 | Phase | Scope (decision letters refer to `phase-59-status.md` §4) |
 |---|---|
 | **60 — POS foundation** ✅ *done 2026-10-01, `phase-60-status.md`* | `BillingLocation.PosMode` (None/Retail/Restaurant; B) replacing the two reserved `BillingLocationType` members; per-location POS settings (service charge rate + account, round-off + account, cash verification + denominations, default tab, print toggles); phase 2's `PaymentMode` extended with a kind, an account and a location link; the seeded walk-in customer; tenant-default Service Charge Income / Rounding / Cash Over-Short accounts; `Product.ServiceChargeApplicable` / `AvailableForSale`; new `Pos.*` keys; ERP-side configuration screens |
-| **61 — POS sale engine** | Invoice gains channel, session, order type, per-line service charge (inside the VAT base), round-off, change and **tenders**, which post as a second GL entry on the same source document (C, D); `PosSession` with denominations, Cash In/Out and close, **all posting** (H); one create-approved command; the shared session/day reader |
+| **61 — POS sale engine** ✅ *done 2026-10-01, `phase-61-status.md`* | Invoice gains channel, session, order type, per-line service charge (inside the VAT base), round-off, change and **tenders**, which post as a second GL entry on the same source document (C, D); `PosSession` with denominations, Cash In/Out and close, **all posting** (H); one create-approved command; the shared session/day reader |
 | **62 — Retail till** | the `/pos` shell, session picker, product grid + search + barcode, cart and line edit, payment screen (multi-tender, change), hold/recall, 80 mm receipt with the correct header and separate service-charge and round-off lines, reprint marked as a copy |
 | **63 — Returns at the till** | refund from an invoice → Credit Note with a payout tender against the open session; inherited lock-date and reconciliation refusals |
 | **64 — Restaurant: floor, orders, KOT** | areas and tables with a layout editor; `PosOrder` with per-line invoiced/served/discarded counters (E); `KitchenTicket` per send × station (F); Take Away and Delivery; an ERP *POS Orders* list (the divergence's surface) |
@@ -86,9 +86,15 @@ API), reuses Invoice/Credit Note, and adds aggregates only for what an ERP lacks
 phase 64) and the Service Charge column (a location rule × product flag, phases 60–61). Both were
 correctly dead *from the ERP side*. The POS is where they act.
 
-**Open before phase 61/62 ships** (phase-59 §6): the Nepal VAT treatment of service charge, the
-abbreviated-tax-invoice conditions, and what a reprint must print. Read the rules, not the vendor:
-its abbreviated flag is inert.
+**Open before phase 62 ships** (phase-59 §6): the abbreviated-tax-invoice conditions and what a
+reprint must print. Read the rules, not the vendor: its abbreviated flag is inert. *(Question 1 was
+settled in phase 61. Service charge is inside the VAT base, and a mandatory one has been unlawful in
+Nepal since the Supreme Court's ruling of 2023-01-25. It is built behind an off-by-default setting
+that states the ruling: `phase-61-status.md` Decision A.)*
+
+**Carried from phase 61** (§ 5 there): an ERP credit note against a till sale returns no service
+charge (phase 63 owns returns), and the full-tenant export has no service-charge or round-off
+column.
 
 **Outside this sequence, each with a start condition:**
 

@@ -146,6 +146,8 @@ public static class DependencyInjection
         // Invoice/Payment's posting rules take a resolved *PostingInput record, not the aggregate
         // itself -- see InvoicePostingInput's doc comment for why.
         services.AddTransient<IGlPostingRule<InvoicePostingInput>, InvoicePostingRule>();
+        // Phase 61 -- a till sale's settlement, posted as a second entry against the same invoice.
+        services.AddTransient<IGlPostingRule<InvoiceTenderPostingInput>, InvoiceTenderPostingRule>();
         services.AddTransient<IGlPostingRule<CreditNotePostingInput>, CreditNotePostingRule>();
         services.AddTransient<IGlPostingRule<PaymentPostingInput>, PaymentPostingRule>();
         // Purchase-side resolved-input-record posting rules, same InvoicePostingRule split.

@@ -2,6 +2,8 @@ using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Configuration;
+using ErpApp.Domain.Pos;
 using ErpApp.Domain.Sales;
 using MediatR;
 
@@ -43,7 +45,30 @@ public sealed record InvoiceLineDto(
     DateOnly? ManufactureDate,
     DateOnly? ExpiryDate,
     IReadOnlyList<string> SerialNumbers,
-    Guid? UnitId, string? UnitName, decimal ConversionFactor);
+    Guid? UnitId, string? UnitName, decimal ConversionFactor,
+    // Phase 61 -- a till line's service charge rate and amount (zero on every ERP line). VatAmount
+    // already includes the VAT on the service charge, which is inside the VAT base.
+    decimal ServiceChargeRate, decimal ServiceChargeAmount);
+
+/// <summary>Phase 61 -- one way a till sale was paid, as frozen on the invoice.</summary>
+public sealed record InvoiceTenderDto(Guid PaymentModeId, string PaymentModeName, PaymentModeKind Kind, decimal Amount);
+
+/// <summary>
+/// Phase 61 -- what a till sale carries that an ERP invoice does not. Null on every ERP invoice. The
+/// detail page shows it, because a POS sale opened in the ERP must show the same total the customer
+/// paid: the page computes an ERP invoice's totals from its lines and knows nothing of service charge,
+/// round-off or tenders (phase 35a's rule -- a field written is owed to every reader).
+/// </summary>
+public sealed record InvoicePosSaleDto(
+    Guid? PosSessionId,
+    string? SessionCode,
+    PosTab? OrderType,
+    decimal ServiceChargeTotal,
+    decimal RoundOff,
+    IReadOnlyList<InvoiceTenderDto> Tenders,
+    decimal TenderedAmount,
+    decimal ChangeAmount,
+    decimal CreditAmount);
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
 
@@ -82,4 +107,7 @@ public sealed record InvoiceDetailDto(
     // Every amount above is denominated in CurrencyCode; the general ledger figures under
     // GlLines are in the base currency, already converted at ExchangeRate.
     string CurrencyCode,
-    decimal ExchangeRate);
+    decimal ExchangeRate,
+    // Phase 61 -- which front end raised it, and the till's own figures when that was the POS.
+    SalesChannel Channel,
+    InvoicePosSaleDto? PosSale);

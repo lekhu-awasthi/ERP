@@ -46,6 +46,8 @@ public interface IAppDbContext
     DbSet<PaymentMode> PaymentModes { get; }
     DbSet<PosLocationSettings> PosLocationSettings { get; }
     DbSet<PosLocationPaymentMode> PosLocationPaymentModes { get; }
+    DbSet<PosSession> PosSessions { get; }
+    DbSet<PosCashMovement> PosCashMovements { get; }
     DbSet<Bank> Banks { get; }
     DbSet<CustomStatus> CustomStatuses { get; }
     DbSet<CostTerm> CostTerms { get; }
@@ -81,6 +83,7 @@ public interface IAppDbContext
     DbSet<QuotationLine> QuotationLines { get; }
     DbSet<Invoice> Invoices { get; }
     DbSet<InvoiceLine> InvoiceLines { get; }
+    DbSet<InvoiceTender> InvoiceTenders { get; }
     DbSet<SalesOrder> SalesOrders { get; }
     DbSet<SalesOrderLine> SalesOrderLines { get; }
     DbSet<CreditNote> CreditNotes { get; }

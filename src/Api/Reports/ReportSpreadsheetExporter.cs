@@ -96,12 +96,15 @@ public static partial class ReportSpreadsheetExporter
                 ("Item Discount", r => r.ItemDiscount),
                 ("Transaction Discount", r => r.TransactionDiscount),
                 ("Net Sales", r => r.NetSales),
+                // Phase 61 -- a till line's service charge, beside the Net Sales it is charged on. It
+                // shifts Total Amount from index 19 to 20, and the WriteTotalRow index moves with it.
+                ("Service Charge", r => r.ServiceCharge),
                 ("VAT Type", r => r.VatType.ToString()),
                 ("VAT Amount", r => r.VatAmount),
                 ("Total Amount", r => r.TotalAmount),
             ],
             report.Rows,
-            sheet => WriteTotalRow(sheet, report.Rows.Count, "Total Amount", 19, report.TotalAmount));
+            sheet => WriteTotalRow(sheet, report.Rows.Count, "Total Amount", 20, report.TotalAmount));
 
     public static IResult ExportPurchaseMasterReport(PurchaseMasterReportDto report, DateOnly fromDate, DateOnly toDate) =>
         ExportTable(

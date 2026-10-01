@@ -209,7 +209,7 @@ internal static class OutstandingDocumentReader
             .AtLocations(locationId, reportLocations);
 
         var invoices = await invoiceQuery
-            .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate, x.Code, x.Reference, x.ExchangeRate })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate, x.Code, x.Reference, x.ExchangeRate, x.RoundOff })
             .ToListAsync(cancellationToken);
 
         // Phase 42 -- the line totals are summed in SQL against the same invoice *query*, not
@@ -222,13 +222,15 @@ internal static class OutstandingDocumentReader
             from line in db.InvoiceLines
             join invoice in invoiceQuery on line.InvoiceId equals invoice.Id
             group line by line.InvoiceId into g
-            select new { InvoiceId = g.Key, Total = g.Sum(x => x.Amount + x.VatAmount) })
+            // Phase 61 -- a till line's service charge is part of what is owed, and so is the bill's
+            // round-off (added below). Both are zero on an ERP invoice.
+            select new { InvoiceId = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount) })
             .ToDictionaryAsync(x => x.InvoiceId, x => x.Total, cancellationToken);
 
         var candidates = invoices
             .Select(x => new OutstandingDocument(
                 AgeableDocumentType.Invoice, x.Id, x.ContactId, x.Date, x.DueDate, x.Code, x.Reference,
-                totals.GetValueOrDefault(x.Id), 0m, x.ExchangeRate))
+                totals.GetValueOrDefault(x.Id) + x.RoundOff, 0m, x.ExchangeRate))
             .ToList();
 
         candidates.AddRange(await LoadJournalVoucherCandidatesAsync(
@@ -408,7 +410,53 @@ internal static class OutstandingDocumentReader
             result[row.TargetId] = result.GetValueOrDefault(row.TargetId) + row.Allocated;
         }
 
+        if (contactType == ContactType.Customer)
+        {
+            foreach (var (invoiceId, settled) in await LoadTenderSettlementsAsync(db, organizationId, cancellationToken))
+            {
+                result[invoiceId] = result.GetValueOrDefault(invoiceId) + settled;
+            }
+        }
+
         return result;
+    }
+
+    /// <summary>
+    /// Phase 61 (phase 59 Decision D) -- <b>a till sale's tenders are allocations against itself</b>:
+    /// what each Approved invoice's tenders settled, handed over less change given back. This is what
+    /// makes a fully paid counter sale not outstanding, and a part-paid one outstanding by exactly
+    /// the part left on credit -- the same figure the sale's two GL entries leave on the receivable,
+    /// so ageing, Customer Receivable Summary and the ledger agree by construction rather than by a
+    /// second calculation. Scoped like the two queries above: by organization through the invoice,
+    /// never by a materialised id list (phase 42).
+    /// </summary>
+    internal static async Task<Dictionary<Guid, decimal>> LoadTenderSettlementsAsync(
+        IAppDbContext db, Guid organizationId, CancellationToken cancellationToken)
+    {
+        var tendered = await (
+                from t in db.InvoiceTenders
+                join i in db.Invoices on t.InvoiceId equals i.Id
+                where i.OrganizationId == organizationId && i.Status == InvoiceStatus.Approved
+                group t by t.InvoiceId into g
+                select new { InvoiceId = g.Key, Amount = g.Sum(x => x.Amount) })
+            .ToDictionaryAsync(x => x.InvoiceId, x => x.Amount, cancellationToken);
+
+        if (tendered.Count == 0)
+        {
+            return tendered;
+        }
+
+        var change = await db.Invoices
+            .Where(x => x.OrganizationId == organizationId && x.Status == InvoiceStatus.Approved && x.ChangeAmount > 0)
+            .Select(x => new { x.Id, x.ChangeAmount })
+            .ToListAsync(cancellationToken);
+
+        foreach (var row in change)
+        {
+            tendered[row.Id] = tendered.GetValueOrDefault(row.Id) - row.ChangeAmount;
+        }
+
+        return tendered;
     }
 
     private static async Task<Dictionary<Guid, decimal>> LoadCreditNoteReductionsAsync(

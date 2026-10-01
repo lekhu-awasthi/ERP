@@ -54,14 +54,6 @@ public sealed class ApproveInvoiceCommandHandler(
             throw new ConflictException("An invoice needs at least one line to be approved.");
         }
 
-        var productIds = invoice.Lines.Select(x => x.ProductId).Distinct().ToList();
-        var productTypes = await db.Products
-            .Where(x => x.OrganizationId == request.OrganizationId && productIds.Contains(x.Id))
-            .Select(x => new { x.Id, x.Type })
-            .ToDictionaryAsync(x => x.Id, x => x.Type, cancellationToken);
-
-        var goodsLines = invoice.Lines.Where(x => productTypes.GetValueOrDefault(x.ProductId) == ProductType.Goods).ToList();
-
         var stockStatus = await stockAvailabilityPolicy.CheckAsync(invoice, cancellationToken);
         if (stockStatus == StockAvailabilityStatus.Reject)
         {
@@ -105,64 +97,17 @@ public sealed class ApproveInvoiceCommandHandler(
                 "Approve again to continue anyway.");
         }
 
-        // Phase 28 (FR-2.5): the fold. The document stores its amounts in its own currency; the
-        // general ledger is denominated in the base currency, so every line amount is converted
-        // here, before the posting rule runs. Doing it here rather than on the finished GlLineInput
-        // list is what keeps the entry balanced by construction -- the rule derives its balancing
-        // leg as a sum of these very numbers. See ExchangeRates' doc comment.
-        var postingInput = await InvoiceAccountResolver.ResolveAsync(
-            db, request.OrganizationId,
-            invoice.Lines.Select(x => (
-                x.ProductId,
-                ExchangeRates.ToBase(x.Amount, invoice.ExchangeRate),
-                ExchangeRates.ToBase(x.VatAmount, invoice.ExchangeRate))),
-            resolveInventoryAccounts: goodsLines.Count > 0, cancellationToken);
-
-        var code = await numberGenerator.GetNextNumberAsync(
-            request.OrganizationId, DocumentType.Invoice, cancellationToken, invoice.LocationId);
-
-        invoice.Approve(currentUser.UserId, code);
-
-        // Phase 51 -- the serials each Goods line names, loaded once for the whole document rather
-        // than per line. A line of a non-serialised product is simply absent from the dictionary.
+        // Phase 51 -- the serials each line names, loaded once for the whole document. A line of a
+        // non-serialised product (or a Service line) is simply absent from the dictionary.
         var serialsByLine = await LineStockAllocator.LoadSerialsAsync(
             db, request.OrganizationId, DocumentLineParentType.InvoiceLine,
-            goodsLines.Select(x => x.Id).ToList(), cancellationToken);
+            invoice.Lines.Select(x => x.Id).ToList(), cancellationToken);
 
-        var totalCogs = 0m;
-        foreach (var line in goodsLines)
-        {
-            // Phase 51 -- line.BatchId narrows the FIFO walk to one batch when the line named one,
-            // and the serials (if any) turn this into one call per physical unit. A line that names
-            // neither takes exactly the path it took before this phase.
-            var consumption = await LineStockAllocator.ConsumeLineAsync(
-                stockLedgerService, request.OrganizationId, line.ProductId, invoice.WarehouseId,
-                line.PrimaryQuantity, line.BatchId,
-                serialsByLine.TryGetValue(line.Id, out var serials) ? serials : [],
-                DocumentType.Invoice, invoice.Id, invoice.Date, cancellationToken, invoice.LocationId,
-                // Phase 37 -- the Negative Item Balance setting made real. The gate above has
-                // already turned it into a verdict (and, on Warn, has already been confirmed by the
-                // caller), so a shortfall reaching here is one the tenant has asked for: it becomes
-                // a shortfall layer at the product's last known cost rather than a 409 from the
-                // engine that would have made Warn and Do Nothing indistinguishable from Reject.
-                allowNegative: true);
-
-            line.RecordCogsUnitCost(consumption.AverageUnitCost);
-            // Phase 52 -- COGS is priced per PRIMARY unit: AverageUnitCost came off FIFO layers,
-            // which are always denominated in primary units. A line entered in cartons would
-            // otherwise be costed as though it had shipped cartons' worth of pieces.
-            totalCogs += line.PrimaryQuantity.Value * consumption.AverageUnitCost;
-        }
-
-        if (totalCogs > 0)
-        {
-            postingInput = postingInput with { CogsAmount = totalCogs };
-        }
-
-        var glLines = postingRule.BuildLines(postingInput);
-        var glEntry = GlJournalEntry.Post(
-            request.OrganizationId, DocumentType.Invoice, invoice.Id, glLines, invoice.LocationId);
-        db.GlJournalEntries.Add(glEntry);
+        // Phase 61 -- the number, the status, the stock and the sale entry, through the one path the
+        // till's create-approved sale takes too (see InvoiceApprovalPosting for what stays here).
+        await InvoiceApprovalPosting.ApproveAndPostAsync(
+            db, numberGenerator, postingRule, stockLedgerService, currentUser.UserId, invoice, serialsByLine,
+            cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

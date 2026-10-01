@@ -21,7 +21,9 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
             .ToListAsync(cancellationToken);
         var invoiceLines = await db.InvoiceLines
             .Where(x => invoices.Select(i => i.Id).Contains(x.InvoiceId))
-            .Select(x => new { x.InvoiceId, x.ProductId, x.Amount, x.VatAmount })
+            // Phase 61 -- a till line's service charge is part of what was charged for the supply
+            // (inside the VAT base), so it counts toward the party's gross. Zero on every ERP line.
+            .Select(x => new { x.InvoiceId, x.ProductId, Amount = x.Amount + x.ServiceChargeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         var creditNotes = await db.CreditNotes

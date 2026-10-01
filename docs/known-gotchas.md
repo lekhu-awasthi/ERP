@@ -3905,3 +3905,55 @@ tracking off. Nothing failed, because every omitted argument has a legal default
 says the compiler enumerates none of these call sites. The remedy is to grep the Domain method's
 callers, not only the command's, and to pin the importer with a test that sets every column-less
 field and asserts it survives.
+
+## A rule question answered from the statutes can change the product question (phase 61)
+
+Phase 59 §6 asked whether service charge sits inside Nepal's VAT base before phase 61 posted one.
+It does (VAT Act 2052 §13: the value of a taxable supply is the whole consideration charged). The
+same research found that on 2023-01-25 the Supreme Court voided Labour Act 2074 §87(3) and Labour
+Rules 2075 r.82 and held that a mandatory service charge may not be added to any bill in Nepal. The
+vendor still offers one, and phase 60 had already shipped the setting. That is not an engineering
+call. The user was asked with four options (build and warn, build silently, refuse with a 409,
+retire the setting) and chose to build it with the ruling stated on the settings screen. The general
+form: when settling a rule question turns up a fact about whether the feature should exist, stop and
+ask, and give the tenant the fact where they act on it.
+
+## A command that creates a document approved is a second door (phase 61)
+
+Three guards were written when every metered or location-bearing document had exactly one approving
+command and one create/update pair. `MeteredTransactionSweepGuardTests` asserted one command per
+metered type. `LocationBearingCommandSweepGuardTests` derived the full set of marker implementers
+from command-name stems. `PhysicalMovementTests` classified every `DocumentType`. All three failed on
+`CreatePosSaleCommand` or `DocumentType.PosSession`, which is what they are for. Each was taught a
+named entry with its reason (`SecondDoors`, `SecondWriters`, a `NotStockMovingReasons` row) rather
+than an exemption. A third door still fails until someone writes down why it is one (phase 55's rule:
+teach the harness, never exempt the screen).
+
+## A till sale's settlement is the invoice paying itself (phase 61)
+
+A POS invoice's tenders post as a second GL entry crediting AR, so the ledger nets to zero for a paid
+sale. Every document-derived reader of what a customer owes computed the invoice's total and
+subtracted Payment and Journal Voucher allocations only. Without a change, all of them would have
+shown every counter sale as owed in full. The walk-in's balance would have grown with every cash
+sale, and a named customer's credit check would have counted bills paid at the counter.
+`OutstandingDocumentReader` counts tenders less change as `Paid`. `ContactLedgerReader` emits the
+settlement as a credit event under the same number. `GetDefaultPaymentAllocations` suggests
+`CreditAmount`. Proven to bite by disabling the first.
+
+## Read the scan's next row before modelling from one (phase 61)
+
+Phase 60 modelled the vendor's `round_amount` as "round to the rupee, the one behaviour observed:
+632.80 → 633". Two rows down, the same scan section records split 1 at 316.40 → 317 (the GL's
+"coke 60 + round-off 0.60") and split 2 at 293.80 → 294. The vendor rounds every bill up. Phase 61
+rounds to the nearest rupee as a deliberate divergence. The lesson is about evidence: one observation
+consistent with two rules settles neither, and here the disambiguating row was already on the page.
+
+## `AuditBehavior` audits verbs, not markers (phase 61)
+
+`IAuditableRequest` marks a request as worth auditing, but `AuditBehavior.ResolveAction` writes a row
+only when the request type's name starts with Create, Update, Approve, Void or Extract. The marker on
+`OpenPosSessionCommand`, `RecordPosCashMovementCommand` and `ClosePosSessionCommand` would have
+compiled, passed every test and written nothing. It was removed, because the session row and each
+cash movement's creator and timestamp already are the record. A drawer action that must reach the
+System Audit report needs new action members there and on the Angular `SystemAuditAction` union, not
+just the marker.

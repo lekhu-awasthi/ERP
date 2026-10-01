@@ -163,9 +163,22 @@ public static class EmailMergeValueReader
             .SingleOrDefaultAsync(x => x.Id == id && x.OrganizationId == organizationId, ct)
             ?? throw new NotFoundException("Invoice not found.");
 
-        return FromLines(
+        var facts = FromLines(
             d.ContactId, d.Code, d.Date, d.Reference, d.CurrencyCode, d.ExchangeRate, d.DiscountPct,
             d.Lines.Select(l => (l.Amount, l.VatAmount)), d.DueDate);
+
+        // Phase 61 -- a till sale's service charge sits in the VAT base beside its line (taxable or not,
+        // as the line is), and its round-off is part of what is owed. Both are zero on an ERP invoice,
+        // so this changes nothing there.
+        var serviceCharge = d.Lines.Sum(l => l.ServiceChargeAmount);
+        var taxableServiceCharge = d.Lines.Where(l => l.VatAmount != 0m).Sum(l => l.ServiceChargeAmount);
+
+        return facts with
+        {
+            TaxableTotal = facts.TaxableTotal + taxableServiceCharge,
+            NonTaxableTotal = facts.NonTaxableTotal + (serviceCharge - taxableServiceCharge),
+            GrandTotal = d.GrandTotal,
+        };
     }
 
     private static async Task<EmailDocumentFacts> ReadQuotationAsync(
