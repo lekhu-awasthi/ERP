@@ -1,16 +1,22 @@
 using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Common.Locations;
+using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Sales;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Sales.Commands.CreateCreditNote;
 
 public sealed class CreateCreditNoteCommandHandler(IAppDbContext db)
     : IRequestHandler<CreateCreditNoteCommand, CreateCreditNoteResult>
 {
+    internal const string TillSaleReturnMessage =
+        "This invoice was rung up at a till, so it is returned at the till (Refund), which gives back its "
+        + "service charge and round-off and pays the money out of a drawer.";
+
     public async Task<CreateCreditNoteResult> Handle(CreateCreditNoteCommand request, CancellationToken cancellationToken)
     {
         await SalesValidation.EnsureContactExistsAsync(db, request.OrganizationId, request.ContactId, ContactType.Customer, cancellationToken);
@@ -19,6 +25,15 @@ public sealed class CreateCreditNoteCommandHandler(IAppDbContext db)
 
         if (request.ReferrerType == DocumentType.Invoice && request.ReferrerId is { } invoiceId)
         {
+            // Phase 63 -- a till sale is returned at the till, the one door that gives back its service
+            // charge and round-off and pays the money out of a drawer (phase-63-status.md Decision G).
+            if (await db.Invoices.AnyAsync(
+                    x => x.Id == invoiceId && x.OrganizationId == request.OrganizationId && x.Channel == SalesChannel.Pos,
+                    cancellationToken))
+            {
+                throw new ConflictException(TillSaleReturnMessage);
+            }
+
             await SalesValidation.EnsureCreditNoteLinesWithinInvoiceRemainingAsync(
                 db, request.OrganizationId, invoiceId, request.ContactId, request.DiscountPct, request.Lines, cancellationToken);
         }

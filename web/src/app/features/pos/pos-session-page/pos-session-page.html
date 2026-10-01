@@ -13,6 +13,9 @@
         </h1>
         @if (isOwnOpen()) {
           <a class="btn btn-primary fw-bold" [routerLink]="['/organizations', organizationId, 'pos', 'till', s.locationId]">Back to Till</a>
+          @if (till()?.canRefund) {
+            <a class="btn btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'pos', 'refund', s.locationId]">Refund</a>
+          }
         }
         <a class="btn btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'pos']">All Tills</a>
       </div>
@@ -41,9 +44,22 @@
                   }
                   <tr><th scope="row">Change given</th><td class="text-end">{{ s.sales.change | amount }}</td></tr>
                   <tr><th scope="row">Left on credit</th><td class="text-end">{{ s.sales.credit | amount }}</td></tr>
+                  <tr><th scope="row" colspan="2" class="pt-3">Refunds</th></tr>
+                  <tr><th scope="row" class="fw-normal">Refunds</th><td class="text-end">{{ s.sales.refunds.refundsCount }}</td></tr>
+                  @if (s.sales.refunds.refundsCount > 0) {
+                    <tr><th scope="row" class="fw-normal">Service charge returned</th><td class="text-end">{{ s.sales.refunds.serviceCharge | amount }}</td></tr>
+                    <tr><th scope="row" class="fw-normal">VAT returned</th><td class="text-end">{{ s.sales.refunds.vat | amount }}</td></tr>
+                    <tr><th scope="row">Total refunded</th><td class="text-end fw-bold">{{ s.sales.refunds.grandTotal | amount }}</td></tr>
+                    @for (payout of s.sales.refunds.payouts; track payout.paymentModeId) {
+                      <tr><th scope="row" class="fw-normal ps-3">Paid back: {{ payout.paymentModeName }}</th><td class="text-end">{{ payout.amount | amount }}</td></tr>
+                    }
+                    <tr><th scope="row" class="fw-normal">Off customers' accounts</th><td class="text-end">{{ s.sales.refunds.toAccount | amount }}</td></tr>
+                  }
+                  <tr><th scope="row">Net sales</th><td class="text-end fw-bold">{{ s.sales.netSales | amount }}</td></tr>
                   <tr><th scope="row" colspan="2" class="pt-3">Drawer</th></tr>
                   <tr><th scope="row" class="fw-normal">Opening float</th><td class="text-end">{{ s.openingFloat | amount }}</td></tr>
                   <tr><th scope="row" class="fw-normal">Cash from sales</th><td class="text-end">{{ s.sales.cashSales | amount }}</td></tr>
+                  <tr><th scope="row" class="fw-normal">Cash refunds</th><td class="text-end">{{ s.sales.refunds.cashRefunds | amount }}</td></tr>
                   <tr><th scope="row" class="fw-normal">Cash in</th><td class="text-end">{{ s.cashIn | amount }}</td></tr>
                   <tr><th scope="row" class="fw-normal">Cash out</th><td class="text-end">{{ s.cashOut | amount }}</td></tr>
                   <tr><th scope="row">Expected in drawer</th><td class="text-end fw-bold">{{ s.expectedCash | amount }}</td></tr>
@@ -212,10 +228,67 @@
                           <td class="text-end">{{ sale.grandTotal | amount }}</td>
                           <td class="text-end">{{ sale.creditAmount | amount }}</td>
                           <td>{{ sale.printCount === 0 ? 'Not yet' : sale.printCount + ' time(s)' }}</td>
-                          <td class="text-end">
+                          <td class="text-end text-nowrap">
                             @if (sale.status === 'Approved') {
                               <button type="button" class="btn btn-sm btn-outline-primary" (click)="reprint(sale)">
                                 {{ sale.printCount === 0 ? 'Print' : 'Reprint' }}<span class="visually-hidden"> {{ sale.code }}</span>
+                              </button>
+                              @if (isOwnOpen() && till()?.canRefund) {
+                                <a class="btn btn-sm btn-outline-danger ms-1"
+                                  [routerLink]="['/organizations', organizationId, 'pos', 'refund', s.locationId]"
+                                  [queryParams]="{ invoiceId: sale.invoiceId }">
+                                  Refund<span class="visually-hidden"> {{ sale.code }}</span>
+                                </a>
+                              }
+                            }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            </div>
+          </section>
+
+          <!-- ===================== Refunds (phase 63) ===================== -->
+          <section class="card border-0 shadow-sm mt-3" aria-labelledby="pos-refunds-heading">
+            <div class="card-body">
+              <h2 id="pos-refunds-heading" class="h5 fw-bold">Refunds paid out of this drawer</h2>
+              @if (refunds().length === 0) {
+                <p class="text-body-secondary mb-0">No refunds.</p>
+              } @else {
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th scope="col">Credit note</th>
+                        <th scope="col">Against bill</th>
+                        <th scope="col">Time</th>
+                        <th scope="col">Customer</th>
+                        <th scope="col" class="text-end">Total</th>
+                        <th scope="col" class="text-end">Paid back</th>
+                        <th scope="col">Printed</th>
+                        <th scope="col"><span class="visually-hidden">Actions</span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (refund of refunds(); track refund.creditNoteId) {
+                        <tr>
+                          <td>
+                            <a [routerLink]="['/organizations', organizationId, 'sales', 'credit-notes', refund.creditNoteId]">{{ refund.code }}</a>
+                            @if (refund.status === 'Void') { <span class="badge text-bg-secondary ms-1">Void</span> }
+                          </td>
+                          <td>{{ refund.invoiceCode }}</td>
+                          <td>{{ refund.refundedAt | nepaliDate: 'datetime' }}</td>
+                          <td>{{ refund.customerName }}@if (refund.reason) { <span class="d-block small text-body-secondary">{{ refund.reason }}</span> }</td>
+                          <td class="text-end">{{ refund.grandTotal | amount }}</td>
+                          <td class="text-end">{{ refund.paidOut | amount }}</td>
+                          <td>{{ refund.printCount === 0 ? 'Not yet' : refund.printCount + ' time(s)' }}</td>
+                          <td class="text-end">
+                            @if (refund.status === 'Approved') {
+                              <button type="button" class="btn btn-sm btn-outline-primary" (click)="reprintRefund(refund)">
+                                {{ refund.printCount === 0 ? 'Print' : 'Reprint' }}<span class="visually-hidden"> {{ refund.code }}</span>
                               </button>
                             }
                           </td>
@@ -236,5 +309,8 @@
 <div class="pos-print-root">
   @if (printing(); as r) {
     <app-pos-receipt [receipt]="r" />
+  }
+  @if (printingRefund(); as r) {
+    <app-pos-refund-receipt [receipt]="r" />
   }
 </div>

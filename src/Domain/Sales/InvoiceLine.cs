@@ -161,15 +161,9 @@ public sealed class InvoiceLine
         decimal discountPct, decimal headerDiscountPct, Guid? batchId, Guid? unitId,
         decimal conversionFactor, decimal serviceChargeRate)
     {
-        if (serviceChargeRate < 0m || serviceChargeRate > 100m)
-        {
-            throw new InvalidOperationException("A service charge rate must be between 0% and 100%.");
-        }
-
-        var grossAmount = quantity * rate;
-        var netAfterLineDiscount = grossAmount * (1 - discountPct / 100m);
-        var amount = RoundMoney(netAfterLineDiscount * (1 - headerDiscountPct / 100m));
-        var serviceCharge = RoundMoney(amount * serviceChargeRate / 100m);
+        // Phase 63 -- the arithmetic lives in PosLineArithmetic, which the refund line also calls.
+        var figures = PosLineArithmetic.Compute(
+            quantity, rate, vatRate.ToPercent(), discountPct, headerDiscountPct, serviceChargeRate);
 
         return new InvoiceLine
         {
@@ -182,16 +176,13 @@ public sealed class InvoiceLine
             Rate = rate,
             VatRate = vatRate,
             DiscountPct = discountPct,
-            Amount = amount,
+            Amount = figures.Amount,
             ServiceChargeRate = serviceChargeRate,
-            ServiceChargeAmount = serviceCharge,
-            VatAmount = RoundMoney((amount + serviceCharge) * vatRate.ToPercent()),
+            ServiceChargeAmount = figures.ServiceChargeAmount,
+            VatAmount = figures.VatAmount,
             BatchId = batchId,
         };
     }
-
-    private static decimal RoundMoney(decimal value) =>
-        decimal.Round(value, Invoice.PosMoneyScale, MidpointRounding.AwayFromZero);
 
     /// <summary>Called once, from ApproveInvoiceCommandHandler right after
     /// IStockLedgerService.ConsumeAsync returns this line's actual weighted-average cost. Public

@@ -559,6 +559,29 @@ export interface CreditNoteLineDto extends CreditNoteLineInput {
   unitId: string | null;
   unitName: string | null;
   conversionFactor: number;
+  /** Phase 63 -- the service charge a till refund line gives back; zero on an ERP line. */
+  serviceChargeAmount: number;
+}
+
+/** Phase 63 -- one way a till refund was paid back, as frozen on the credit note. */
+export interface CreditNotePayoutDto {
+  paymentModeId: string;
+  paymentModeName: string;
+  kind: PaymentModeKind;
+  amount: number;
+}
+
+/** Phase 63 -- what a till refund carries that an ERP credit note does not. Null on every ERP note. */
+export interface CreditNotePosRefundDto {
+  posSessionId: string | null;
+  sessionCode: string | null;
+  reason: string | null;
+  serviceChargeTotal: number;
+  roundOff: number;
+  grandTotal: number;
+  payouts: CreditNotePayoutDto[];
+  paidOutAmount: number;
+  toAccountAmount: number;
 }
 
 export interface CreditNoteDetail extends CreditNote {
@@ -568,6 +591,7 @@ export interface CreditNoteDetail extends CreditNote {
   exchangeRate: number;
   lines: CreditNoteLineDto[];
   glLines: PostedGlLineDto[] | null;
+  posRefund: CreditNotePosRefundDto | null;
 }
 
 export interface CreditNoteRequest {

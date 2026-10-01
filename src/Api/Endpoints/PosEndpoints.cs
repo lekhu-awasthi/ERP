@@ -1,19 +1,25 @@
 using ErpApp.Application.Pos.Commands.ClosePosSession;
+using ErpApp.Application.Pos.Commands.CreatePosRefund;
 using ErpApp.Application.Pos.Commands.CreatePosSale;
 using ErpApp.Application.Pos.Commands.OpenPosSession;
 using ErpApp.Application.Pos.Commands.PrintPosReceipt;
+using ErpApp.Application.Pos.Commands.PrintPosRefundReceipt;
 using ErpApp.Application.Pos.Commands.RecordPosCashMovement;
 using ErpApp.Application.Pos.Commands.SetLocationPosMode;
 using ErpApp.Application.Pos.Commands.SetPosLocationPaymentModes;
 using ErpApp.Application.Pos.Commands.UpdatePosLocationSettings;
+using ErpApp.Application.Pos.Queries.FindPosSales;
 using ErpApp.Application.Pos.Queries.GetMyOpenPosSession;
 using ErpApp.Application.Pos.Queries.GetPosConfiguration;
 using ErpApp.Application.Pos.Queries.GetPosDaySummary;
 using ErpApp.Application.Pos.Queries.GetPosLocationSettings;
 using ErpApp.Application.Pos.Queries.GetPosSession;
+using ErpApp.Application.Pos.Queries.GetPosRefundableSale;
 using ErpApp.Application.Pos.Queries.GetPosTill;
 using ErpApp.Application.Pos.Queries.ListPosProducts;
+using ErpApp.Application.Pos.Queries.ListPosSessionRefunds;
 using ErpApp.Application.Pos.Queries.ListPosSessionSales;
+using ErpApp.Application.Pos.Queries.PreviewPosRefund;
 using ErpApp.Application.Pos.Queries.ListPosTills;
 using ErpApp.Domain.Pos;
 using ErpApp.Domain.Tenancy;
@@ -165,6 +171,46 @@ public static class PosEndpoints
         group.MapPost("/sales/{invoiceId:guid}/prints", async (
             Guid organizationId, Guid invoiceId, ISender sender, CancellationToken ct) =>
             Results.Ok(await sender.Send(new PrintPosReceiptCommand(organizationId, invoiceId), ct)));
+
+        // ---- Phase 63: returns at the till ------------------------------------------------------
+
+        // Find a sale to refund by its number, at one till's location.
+        group.MapGet("/tills/{locationId:guid}/sales", async (
+            Guid organizationId, Guid locationId, string? search, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(new FindPosSalesQuery(organizationId, locationId, search), ct)));
+
+        // A sale as the refund screen needs it: lines with what is left to refund, earlier refunds.
+        group.MapGet("/sales/{invoiceId:guid}/refundable", async (
+            Guid organizationId, Guid invoiceId, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(new GetPosRefundableSaleQuery(organizationId, invoiceId), ct)));
+
+        // The refund's figure before it is made: a query with a body, computed by the refund's own planner.
+        group.MapPost("/refunds/preview", async (
+            Guid organizationId, PreviewPosRefundRequest request, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(
+                new PreviewPosRefundQuery(organizationId, request.SessionId, request.InvoiceId, request.Lines ?? []), ct)));
+
+        group.MapPost("/refunds", async (
+            Guid organizationId, CreatePosRefundRequest request, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(
+                new CreatePosRefundCommand(
+                    organizationId,
+                    request.SessionId,
+                    request.LocationId,
+                    request.InvoiceId,
+                    request.Lines ?? [],
+                    request.Payouts ?? [],
+                    request.Reason ?? ""),
+                ct)));
+
+        group.MapGet("/sessions/{sessionId:guid}/refunds", async (
+            Guid organizationId, Guid sessionId, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(new ListPosSessionRefundsQuery(organizationId, sessionId), ct)));
+
+        // A POST for the sale receipt's reason: every call is a printing the server counts.
+        group.MapPost("/refunds/{creditNoteId:guid}/prints", async (
+            Guid organizationId, Guid creditNoteId, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(new PrintPosRefundReceiptCommand(organizationId, creditNoteId), ct)));
     }
 
     private sealed record UpdatePosLocationSettingsRequest(
@@ -213,4 +259,16 @@ public static class PosEndpoints
         decimal DiscountPct,
         bool OverrideStockWarning,
         bool OverrideCreditLimitWarning);
+
+    // Phase 63 -- every field each request takes (phase 27b). No date: the refund stamps the Nepal date.
+    private sealed record PreviewPosRefundRequest(
+        Guid SessionId, Guid InvoiceId, IReadOnlyList<PosRefundLineInput>? Lines);
+
+    private sealed record CreatePosRefundRequest(
+        Guid SessionId,
+        Guid? LocationId,
+        Guid InvoiceId,
+        IReadOnlyList<PosRefundLineInput>? Lines,
+        IReadOnlyList<PosTenderInput>? Payouts,
+        string? Reason);
 }

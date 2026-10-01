@@ -54,9 +54,13 @@ public sealed class DailyTransactionSummaryContentBuilder(IAppDbContext db) : IA
             .Where(x => x.OrganizationId == organizationId && x.Date == occurrenceDate && x.Status == CreditNoteStatus.Approved)
             .Select(x => x.Id)
             .ToListAsync(cancellationToken);
-        var creditNoteTotal = await db.CreditNoteLines
+        // Phase 63 -- a till refund's service charge and round-off are part of its total (zero on ERP).
+        var creditNoteTotal = (await db.CreditNoteLines
             .Where(l => creditNoteIds.Contains(l.CreditNoteId))
-            .SumAsync(l => (decimal?)(l.Amount + l.VatAmount), cancellationToken) ?? 0m;
+            .SumAsync(l => (decimal?)(l.Amount + l.ServiceChargeAmount + l.VatAmount), cancellationToken) ?? 0m)
+            + (await db.CreditNotes
+                .Where(x => creditNoteIds.Contains(x.Id))
+                .SumAsync(x => (decimal?)x.RoundOff, cancellationToken) ?? 0m);
 
         var purchaseBillIds = await db.PurchaseBills
             .Where(x => x.OrganizationId == organizationId && x.Date == occurrenceDate

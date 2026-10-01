@@ -21,6 +21,13 @@ public sealed class CreditNoteLineConfiguration : IEntityTypeConfiguration<Credi
         builder.Property(x => x.Amount).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.VatAmount).HasPrecision(18, 4).IsRequired();
 
+        // Phase 63 -- a till refund line's service charge, copied from the sale line's rate. Zero on
+        // every ERP line, which is also every existing row, so the default needs no backfill.
+        builder.Property(x => x.ServiceChargeRate).HasPrecision(5, 2).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+        builder.Property(x => x.ServiceChargeAmount).HasPrecision(18, 4).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+        builder.Ignore(x => x.TaxableAmount);
+        builder.Ignore(x => x.LineTotal);
+
         builder.HasOne<Product>().WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
 
         // Phase 51 -- the batch this line receives into or issues from. Restrict, not Cascade:

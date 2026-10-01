@@ -18,6 +18,9 @@ public sealed record PosTenderTotalDto(Guid PaymentModeId, string PaymentModeNam
 /// <param name="Settled">What the tenders settled: tendered less change.</param>
 /// <param name="Credit">What was left on customers' accounts: grand total less settled.</param>
 /// <param name="CashSales">What the sales put into the drawer: cash tendered less change given.</param>
+/// <param name="Refunds">Phase 63 -- the refunds paid out in the same set (session or day).</param>
+/// <param name="NetSales">Phase 63 -- what customers owed less what was refunded: the grand total less
+/// the refunds' grand total.</param>
 public sealed record PosSalesSummaryDto(
     int SalesCount,
     decimal SubTotal,
@@ -30,7 +33,32 @@ public sealed record PosSalesSummaryDto(
     decimal Change,
     decimal Settled,
     decimal Credit,
-    decimal CashSales);
+    decimal CashSales,
+    PosRefundsSummaryDto Refunds,
+    decimal NetSales);
+
+/// <summary>
+/// Phase 63 -- the refunds a till paid out, one session's or one day's.
+/// </summary>
+/// <param name="GrandTotal">What the refunds gave back in all: sub-total, service charge, VAT and round-off.</param>
+/// <param name="Payouts">What was handed back, per mode.</param>
+/// <param name="PaidOut">Everything handed back, in every mode.</param>
+/// <param name="ToAccount">What came off customers' accounts instead: grand total less paid out.</param>
+/// <param name="CashRefunds">What the refunds took out of the drawer.</param>
+public sealed record PosRefundsSummaryDto(
+    int RefundsCount,
+    decimal SubTotal,
+    decimal ServiceCharge,
+    decimal Vat,
+    decimal RoundOff,
+    decimal GrandTotal,
+    IReadOnlyList<PosTenderTotalDto> Payouts,
+    decimal PaidOut,
+    decimal ToAccount,
+    decimal CashRefunds)
+{
+    public static readonly PosRefundsSummaryDto None = new(0, 0m, 0m, 0m, 0m, 0m, [], 0m, 0m, 0m);
+}
 
 /// <summary>
 /// Phase 61 -- <b>the one place a till's takings are added up</b> (phase 59 Decision H, against the
@@ -54,7 +82,11 @@ internal static class PosSalesReader
 {
     public static Task<PosSalesSummaryDto> ForSessionAsync(
         IAppDbContext db, Guid organizationId, Guid sessionId, CancellationToken cancellationToken) =>
-        SummarizeAsync(db, TillSales(db, organizationId).Where(x => x.PosSessionId == sessionId), cancellationToken);
+        SummarizeAsync(
+            db,
+            TillSales(db, organizationId).Where(x => x.PosSessionId == sessionId),
+            TillRefunds(db, organizationId).Where(x => x.PosSessionId == sessionId),
+            cancellationToken);
 
     /// <summary>One business day's till sales, at one location or all of them. The day is the
     /// invoice's own date, which a till stamps with the Nepal date it was rung up on.</summary>
@@ -62,36 +94,49 @@ internal static class PosSalesReader
         IAppDbContext db, Guid organizationId, DateOnly date, Guid? locationId, CancellationToken cancellationToken)
     {
         var sales = TillSales(db, organizationId).Where(x => x.Date == date);
+        var refunds = TillRefunds(db, organizationId).Where(x => x.Date == date);
 
         if (locationId is { } onlyLocation)
         {
             sales = sales.Where(x => x.LocationId == onlyLocation);
+            refunds = refunds.Where(x => x.LocationId == onlyLocation);
         }
 
-        return SummarizeAsync(db, sales, cancellationToken);
+        return SummarizeAsync(db, sales, refunds, cancellationToken);
     }
 
     /// <summary>
-    /// What a session's drawer should hold now: the float it opened with, every cash movement, and
-    /// what its sales put in. The one formula both the live session view and the close use.
+    /// What a session's drawer should hold now: the float it opened with, every cash movement, what its
+    /// sales put in and what its refunds took out. The one formula both the live session view and the
+    /// close use.
     /// </summary>
     public static decimal ExpectedCash(PosSession session, PosSalesSummaryDto sales) =>
-        session.OpeningFloat + session.CashMovements.Sum(x => x.SignedAmount) + sales.CashSales;
+        session.OpeningFloat + session.CashMovements.Sum(x => x.SignedAmount) + sales.CashSales
+        - sales.Refunds.CashRefunds;
 
     private static IQueryable<Invoice> TillSales(IAppDbContext db, Guid organizationId) =>
         db.Invoices.Where(x => x.OrganizationId == organizationId
             && x.Channel == SalesChannel.Pos && x.Status == InvoiceStatus.Approved);
 
+    /// <summary>Phase 63 -- approved till refunds. A voided one is out, as a voided sale is, and for
+    /// the same reason it is safe: a refund's void is refused once its session has closed.</summary>
+    private static IQueryable<CreditNote> TillRefunds(IAppDbContext db, Guid organizationId) =>
+        db.CreditNotes.Where(x => x.OrganizationId == organizationId
+            && x.Channel == SalesChannel.Pos && x.Status == CreditNoteStatus.Approved);
+
     private static async Task<PosSalesSummaryDto> SummarizeAsync(
-        IAppDbContext db, IQueryable<Invoice> sales, CancellationToken cancellationToken)
+        IAppDbContext db, IQueryable<Invoice> sales, IQueryable<CreditNote> refunds, CancellationToken cancellationToken)
     {
+        var refundSummary = await SummarizeRefundsAsync(db, refunds, cancellationToken);
+
         var headers = await sales
             .Select(x => new { x.Id, x.RoundOff, x.ChangeAmount })
             .ToListAsync(cancellationToken);
 
         if (headers.Count == 0)
         {
-            return new PosSalesSummaryDto(0, 0m, 0m, 0m, 0m, 0m, [], 0m, 0m, 0m, 0m, 0m);
+            return new PosSalesSummaryDto(
+                0, 0m, 0m, 0m, 0m, 0m, [], 0m, 0m, 0m, 0m, 0m, refundSummary, -refundSummary.GrandTotal);
         }
 
         var lineTotals = await (
@@ -143,6 +188,69 @@ internal static class PosSalesReader
             change,
             settled,
             grandTotal - settled,
-            cashTendered - change);
+            cashTendered - change,
+            refundSummary,
+            grandTotal - refundSummary.GrandTotal);
+    }
+
+    /// <summary>Phase 63 -- the refunds' half, the same shape as the sales' above: line and payout totals
+    /// summed store-side over the refund <i>query</i>, then added up here.</summary>
+    private static async Task<PosRefundsSummaryDto> SummarizeRefundsAsync(
+        IAppDbContext db, IQueryable<CreditNote> refunds, CancellationToken cancellationToken)
+    {
+        var headers = await refunds
+            .Select(x => new { x.Id, x.RoundOff })
+            .ToListAsync(cancellationToken);
+
+        if (headers.Count == 0)
+        {
+            return PosRefundsSummaryDto.None;
+        }
+
+        var lineTotals = await (
+                from line in db.CreditNoteLines
+                join note in refunds on line.CreditNoteId equals note.Id
+                group line by line.CreditNoteId into g
+                select new
+                {
+                    Amount = g.Sum(x => x.Amount),
+                    ServiceCharge = g.Sum(x => x.ServiceChargeAmount),
+                    Vat = g.Sum(x => x.VatAmount),
+                })
+            .ToListAsync(cancellationToken);
+
+        var payoutTotals = await (
+                from payout in db.CreditNotePayouts
+                join note in refunds on payout.CreditNoteId equals note.Id
+                group payout by new { payout.PaymentModeId, payout.Kind } into g
+                select new { g.Key.PaymentModeId, g.Key.Kind, Amount = g.Sum(x => x.Amount) })
+            .ToListAsync(cancellationToken);
+
+        var modeIds = payoutTotals.Select(x => x.PaymentModeId).Distinct().ToList();
+        var modeNames = await db.PaymentModes
+            .Where(x => modeIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+
+        var subTotal = lineTotals.Sum(x => x.Amount);
+        var serviceCharge = lineTotals.Sum(x => x.ServiceCharge);
+        var vat = lineTotals.Sum(x => x.Vat);
+        var roundOff = headers.Sum(x => x.RoundOff);
+        var grandTotal = subTotal + serviceCharge + vat + roundOff;
+        var paidOut = payoutTotals.Sum(x => x.Amount);
+
+        return new PosRefundsSummaryDto(
+            headers.Count,
+            subTotal,
+            serviceCharge,
+            vat,
+            roundOff,
+            grandTotal,
+            [.. payoutTotals
+                .Select(x => new PosTenderTotalDto(x.PaymentModeId, modeNames.GetValueOrDefault(x.PaymentModeId, ""), x.Kind, x.Amount))
+                .OrderBy(x => x.Kind)
+                .ThenBy(x => x.PaymentModeName, StringComparer.Ordinal)],
+            paidOut,
+            grandTotal - paidOut,
+            payoutTotals.Where(x => x.Kind == PaymentModeKind.Cash).Sum(x => x.Amount));
     }
 }

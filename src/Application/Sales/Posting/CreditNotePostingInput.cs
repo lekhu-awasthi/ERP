@@ -17,4 +17,15 @@ public sealed record CreditNotePostingInput(
     IReadOnlyList<InvoicePostingLineInput> Lines,
     Guid? CogsAccountId = null,
     Guid? InventoryAccountId = null,
-    decimal CogsAmount = 0);
+    decimal CogsAmount = 0)
+{
+    /// <summary>Phase 63 -- a till refund's service charge given back is debited here (the account the
+    /// sale credited it to). Null when the note gives back no service charge.</summary>
+    public Guid? ServiceChargeAccountId { get; init; }
+
+    public Guid? RoundingAccountId { get; init; }
+
+    /// <summary>Signed like <c>InvoicePostingInput.RoundOff</c>: positive gives back more than the lines
+    /// (debited to rounding), negative less (credited).</summary>
+    public decimal RoundOff { get; init; }
+}

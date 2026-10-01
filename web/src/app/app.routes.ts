@@ -134,6 +134,13 @@ export const routes: Routes = [
     canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
   },
   {
+    // Phase 63 -- refunds at the till: find a sale, choose what came back, pay it out of the drawer.
+    // Its own lazy chunk, like the other till screens.
+    path: 'organizations/:id/pos/refund/:locationId',
+    loadComponent: () => import('./features/pos/pos-refund-page/pos-refund-page').then((m) => m.PosRefundPage),
+    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
+  },
+  {
     // Also where a PosSession's GL rows drill down to (phase 61 section 5).
     path: 'organizations/:id/pos/sessions/:sessionId',
     loadComponent: () => import('./features/pos/pos-session-page/pos-session-page').then((m) => m.PosSessionPage),

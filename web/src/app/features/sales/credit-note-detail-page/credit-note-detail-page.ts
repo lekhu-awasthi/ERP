@@ -126,24 +126,43 @@ export class CreditNoteDetailPage {
     this.round(this.lines().reduce((sum, l) => sum + this.netAfterLineDiscount(l), 0)),
   );
   protected readonly discountAmount = computed(() => this.round((this.subTotal() * this.discountPct()) / 100));
+  /** Phase 63 -- a till refund's own figures, or null for an ERP credit note. Created approved, so
+   * never edited, and its totals are the server's stored ones -- for the invoice page's phase 61
+   * reason: the computation below knows nothing of a service charge or a round-off. */
+  protected readonly posRefund = computed(() => this.creditNote()?.posRefund ?? null);
+  private readonly storedLines = computed(() => this.creditNote()?.lines ?? []);
+
   protected readonly nonTaxableTotal = computed(() =>
-    this.round(
-      this.lines()
-        .filter((l) => this.vatPercent(l.vatRate) === 0)
-        .reduce((sum, l) => sum + this.netAfterBothDiscounts(l), 0),
-    ),
+    this.posRefund()
+      ? this.round(this.storedLines()
+          .filter((l) => this.vatPercent(l.vatRate) === 0)
+          .reduce((sum, l) => sum + l.amount + l.serviceChargeAmount, 0))
+      : this.round(
+          this.lines()
+            .filter((l) => this.vatPercent(l.vatRate) === 0)
+            .reduce((sum, l) => sum + this.netAfterBothDiscounts(l), 0),
+        ),
   );
   protected readonly taxableTotal = computed(() =>
-    this.round(
-      this.lines()
-        .filter((l) => this.vatPercent(l.vatRate) > 0)
-        .reduce((sum, l) => sum + this.netAfterBothDiscounts(l), 0),
-    ),
+    this.posRefund()
+      ? this.round(this.storedLines()
+          .filter((l) => this.vatPercent(l.vatRate) > 0)
+          .reduce((sum, l) => sum + l.amount + l.serviceChargeAmount, 0))
+      : this.round(
+          this.lines()
+            .filter((l) => this.vatPercent(l.vatRate) > 0)
+            .reduce((sum, l) => sum + this.netAfterBothDiscounts(l), 0),
+        ),
   );
   protected readonly vatTotal = computed(() =>
-    this.round(this.lines().reduce((sum, l) => sum + this.netAfterBothDiscounts(l) * this.vatPercent(l.vatRate), 0)),
+    this.posRefund()
+      ? this.round(this.storedLines().reduce((sum, l) => sum + l.vatAmount, 0))
+      : this.round(this.lines().reduce((sum, l) => sum + this.netAfterBothDiscounts(l) * this.vatPercent(l.vatRate), 0)),
   );
-  protected readonly grandTotal = computed(() => this.round(this.taxableTotal() + this.nonTaxableTotal() + this.vatTotal()));
+  protected readonly grandTotal = computed(() => {
+    const refund = this.posRefund();
+    return refund ? refund.grandTotal : this.round(this.taxableTotal() + this.nonTaxableTotal() + this.vatTotal());
+  });
 
   protected readonly isDraft = computed(() => {
     const creditNote = this.creditNote();

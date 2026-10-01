@@ -26,6 +26,9 @@
           <a class="btn btn-sm btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'pos', 'sessions', s.id]">
             Session &amp; Cash
           </a>
+          @if (till()?.canRefund) {
+            <a class="btn btn-sm btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'pos', 'refund', s.locationId]">Refund</a>
+          }
         }
         <a class="btn btn-sm btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'pos']">Exit Till</a>
       </nav>

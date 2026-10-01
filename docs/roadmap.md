@@ -79,7 +79,7 @@ API), reuses Invoice/Credit Note, and adds aggregates only for what an ERP lacks
 | **60 — POS foundation** ✅ *done 2026-10-01, `phase-60-status.md`* | `BillingLocation.PosMode` (None/Retail/Restaurant; B) replacing the two reserved `BillingLocationType` members; per-location POS settings (service charge rate + account, round-off + account, cash verification + denominations, default tab, print toggles); phase 2's `PaymentMode` extended with a kind, an account and a location link; the seeded walk-in customer; tenant-default Service Charge Income / Rounding / Cash Over-Short accounts; `Product.ServiceChargeApplicable` / `AvailableForSale`; new `Pos.*` keys; ERP-side configuration screens |
 | **61 — POS sale engine** ✅ *done 2026-10-01, `phase-61-status.md`* | Invoice gains channel, session, order type, per-line service charge (inside the VAT base), round-off, change and **tenders**, which post as a second GL entry on the same source document (C, D); `PosSession` with denominations, Cash In/Out and close, **all posting** (H); one create-approved command; the shared session/day reader |
 | **62 — Retail till** ✅ *done 2026-10-01, `phase-62-status.md`* | the `/pos` shell, session picker, product grid + search + barcode, cart and line edit, payment screen (multi-tender, change), hold/recall, 80 mm receipt with the correct header and separate service-charge and round-off lines, reprint marked as a copy |
-| **63 — Returns at the till** | refund from an invoice → Credit Note with a payout tender against the open session; inherited lock-date and reconciliation refusals |
+| **63 — Returns at the till** ✅ *done 2026-10-02, `phase-63-status.md`* | a refund is a Credit Note created approved against the till sale, returning service charge and VAT in proportion; its payout is a second entry out of the caller's open drawer, after clearing what the customer still owes; one planner for the preview and the refund; the ERP's conversion of a till sale refused; refunds in the X/Z report and every reader of what is owed |
 | **64 — Restaurant: floor, orders, KOT** | areas and tables with a layout editor; `PosOrder` with per-line invoiced/served/discarded counters (E); `KitchenTicket` per send × station (F); Take Away and Delivery; an ERP *POS Orders* list (the divergence's surface) |
 | **65 — Kitchen display and settling** | a live KOT board; estimate bill; split by item/qty and equal split that **preserve the service charge** (the vendor's defect 1 is the regression test); settle to Invoice(s) |
 | **66 — POS reports and dashboard** | Day Report, Payment Summary, Order Report, Product/Customer Sales, Sales Master/Summary, POS activity; the home dashboard, with every figure reconciling to the session reader and the Sales Register |
@@ -101,15 +101,19 @@ correctly dead *from the ERP side*. The POS is where they act.
 
 The two rules apply to every tax invoice, and the ERP's own PDF print follows neither yet (below).
 
-**Carried from phase 61** (§ 5 there): an ERP credit note against a till sale returns no service
-charge (phase 63 owns returns), and the full-tenant export has no service-charge or round-off
-column.
+**Carried from phase 61** (§ 5 there): the full-tenant export has no service-charge or round-off
+column (now for credit notes too). The ERP credit note against a till sale is settled by phase 63:
+the ERP may no longer convert one, and the till's refund returns the service charge.
+
+**Carried from phase 63** (§ 5 there): cross-branch returns; split payouts on the refund screen (the
+API takes several); a fully refunded bill still listed in the refund search.
 
 **Carried from phase 62** (§ 5 there):
 
-- **The ERP invoice PDF** titles every invoice "Invoice", and neither counts nor marks a reprint.
-  Making the GET print write print rows is a decision, because the email pipeline renders the same
-  PDF.
+- **The ERP invoice PDF** titles every invoice "Invoice", and neither counts nor marks a reprint;
+  phase 63 adds the ERP credit-note PDF to the same item. Making the GET print write print rows is a
+  decision, because the email pipeline renders the same PDF. Scheduled, not done, in phase 63: it
+  belongs with phase 66's print and report surface or a phase of its own.
 - **Serial-tracked products** cannot be sold at the till yet: the cart sends no serials.
 - **The barcode lookup is unindexed**; measure it on `tools/scale` before indexing.
 

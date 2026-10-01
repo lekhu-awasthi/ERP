@@ -15,6 +15,7 @@ public sealed class GetCreditNoteQueryHandler(IAppDbContext db) : IRequestHandle
     {
         var creditNote = await db.CreditNotes
             .Include(x => x.Lines)
+            .Include(x => x.Payouts)
             .SingleOrDefaultAsync(x => x.Id == request.Id && x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Credit note not found.");
 
@@ -58,10 +59,44 @@ public sealed class GetCreditNoteQueryHandler(IAppDbContext db) : IRequestHandle
             creditNote.Terms,
             creditNote.Lines.Select(x => new CreditNoteLineDto(
                 x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount,
-                x.UnitId, x.UnitId is null ? null : unitNames.GetValueOrDefault(x.UnitId.Value), x.ConversionFactor)).ToList(),
+                x.UnitId, x.UnitId is null ? null : unitNames.GetValueOrDefault(x.UnitId.Value), x.ConversionFactor)
+            {
+                ServiceChargeAmount = x.ServiceChargeAmount,
+            }).ToList(),
             glLines,
             creditNote.CurrencyCode,
             creditNote.ExchangeRate,
-            creditNote.LocationId);
+            creditNote.LocationId,
+            await ReadPosRefundAsync(creditNote, cancellationToken));
+    }
+
+    private async Task<CreditNotePosRefundDto?> ReadPosRefundAsync(CreditNote creditNote, CancellationToken cancellationToken)
+    {
+        if (creditNote.Channel != SalesChannel.Pos)
+        {
+            return null;
+        }
+
+        var sessionCode = await db.PosSessions
+            .Where(x => x.Id == creditNote.PosSessionId && x.OrganizationId == creditNote.OrganizationId)
+            .Select(x => x.Code)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        var modeIds = creditNote.Payouts.Select(x => x.PaymentModeId).Distinct().ToList();
+        var modeNames = await db.PaymentModes
+            .Where(x => x.OrganizationId == creditNote.OrganizationId && modeIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+
+        return new CreditNotePosRefundDto(
+            creditNote.PosSessionId,
+            sessionCode,
+            creditNote.Reason,
+            creditNote.ServiceChargeTotal,
+            creditNote.RoundOff,
+            creditNote.GrandTotal,
+            [.. creditNote.Payouts.Select(x => new CreditNotePayoutDto(
+                x.PaymentModeId, modeNames.GetValueOrDefault(x.PaymentModeId, ""), x.Kind, x.Amount))],
+            creditNote.PaidOutAmount,
+            creditNote.ToAccountAmount);
     }
 }

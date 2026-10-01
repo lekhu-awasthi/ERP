@@ -28,7 +28,31 @@ public sealed record GetCreditNoteQuery(Guid OrganizationId, Guid Id)
 /// wire that can contradict the first.</param>
 public sealed record CreditNoteLineDto(
     Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal Amount, decimal VatAmount,
-    Guid? UnitId, string? UnitName, decimal ConversionFactor);
+    Guid? UnitId, string? UnitName, decimal ConversionFactor)
+{
+    /// <summary>Phase 63 -- the service charge a till refund line gives back; zero on an ERP line.</summary>
+    public decimal ServiceChargeAmount { get; init; }
+}
+
+/// <summary>Phase 63 -- one way a till refund was paid back.</summary>
+public sealed record CreditNotePayoutDto(
+    Guid PaymentModeId, string PaymentModeName, ErpApp.Domain.Configuration.PaymentModeKind Kind, decimal Amount);
+
+/// <summary>
+/// Phase 63 -- what a till refund carries that an ERP credit note does not, for the detail page's
+/// reason in <c>InvoicePosSaleDto</c>: a refund opened in the ERP must show the total it gave back
+/// and how. Null on every ERP credit note.
+/// </summary>
+public sealed record CreditNotePosRefundDto(
+    Guid? PosSessionId,
+    string? SessionCode,
+    string? Reason,
+    decimal ServiceChargeTotal,
+    decimal RoundOff,
+    decimal GrandTotal,
+    IReadOnlyList<CreditNotePayoutDto> Payouts,
+    decimal PaidOutAmount,
+    decimal ToAccountAmount);
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
 
@@ -60,4 +84,5 @@ public sealed record CreditNoteDetailDto(
     // projecting a DTO silently drops a field the aggregate has, and the form would then post the
     // picker's default over a stored location on every edit. Fourteen instances of phase-32's own
     // carried gotcha.
-    Guid? LocationId);
+    Guid? LocationId,
+    CreditNotePosRefundDto? PosRefund = null);

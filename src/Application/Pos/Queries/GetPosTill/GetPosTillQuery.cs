@@ -21,6 +21,11 @@ public sealed record PosTillCategoryDto(Guid Id, string Name);
 /// before Pay rather than after.</param>
 /// <param name="IsVatRegistered">The seller's registration, which decides whether a bill is a tax
 /// invoice at all (phase-62-status.md Decision A).</param>
+/// <param name="PrintCreditNote">Phase 63 -- whether a refund's credit note prints itself, the location's
+/// phase 60 toggle.</param>
+/// <param name="CanRefund">Phase 63 -- whether the caller holds both <c>Sales.CreditNote.Create</c> and
+/// <c>Sales.CreditNote.Approve</c> here, which every refund needs (phase-63-status.md Decision E). Read so
+/// the till can say so before a cashier starts one.</param>
 public sealed record PosTillDto(
     Guid LocationId,
     string LocationCode,
@@ -41,7 +46,9 @@ public sealed record PosTillDto(
     PosWalkInCustomerDto? WalkInCustomer,
     IReadOnlyList<PosTillPaymentModeDto> PaymentModes,
     IReadOnlyList<PosTillCategoryDto> Categories,
-    bool CanSellOnCredit);
+    bool CanSellOnCredit,
+    bool PrintCreditNote,
+    bool CanRefund);
 
 /// <summary>
 /// Phase 62 -- the till's own read of its location. <c>GET /pos/locations/{id}/settings</c> already

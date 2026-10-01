@@ -65,6 +65,14 @@ public sealed class GetPosTillQueryHandler(IAppDbContext db, ICurrentUserService
             db, request.OrganizationId, currentUser.UserId, PermissionKeys.InvoiceApprove, location.Id,
             cancellationToken);
 
+        // Phase 63 -- a refund is a credit note created approved, so it needs both keys here.
+        var canRefund = await GrantedPermissionReader.IsGrantedAtLocationAsync(
+                db, request.OrganizationId, currentUser.UserId, PermissionKeys.CreditNoteCreate, location.Id,
+                cancellationToken)
+            && await GrantedPermissionReader.IsGrantedAtLocationAsync(
+                db, request.OrganizationId, currentUser.UserId, PermissionKeys.CreditNoteApprove, location.Id,
+                cancellationToken);
+
         return new PosTillDto(
             location.Id,
             location.Code,
@@ -85,6 +93,8 @@ public sealed class GetPosTillQueryHandler(IAppDbContext db, ICurrentUserService
             walkIn,
             paymentModes,
             categories,
-            canSellOnCredit);
+            canSellOnCredit,
+            settings.PrintCreditNote,
+            canRefund);
     }
 }

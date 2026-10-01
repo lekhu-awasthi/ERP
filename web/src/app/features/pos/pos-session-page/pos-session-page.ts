@@ -11,7 +11,9 @@ import {
   DenominationCount,
   PosCashMovementDirection,
   PosReceipt,
+  PosRefundReceipt,
   PosSession,
+  PosSessionRefund,
   PosSessionSale,
   PosTill,
 } from '../../../core/pos/pos.models';
@@ -22,6 +24,7 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { DenominationCountInput } from '../denomination-count/denomination-count';
 import { PosReceiptView } from '../pos-receipt/pos-receipt';
+import { PosRefundReceiptView } from '../pos-receipt/pos-refund-receipt';
 
 /** The app's one money format (lakh/crore grouping), for messages built in code. */
 const money = new AmountPipe();
@@ -39,7 +42,10 @@ const money = new AmountPipe();
  */
 @Component({
   selector: 'app-pos-session-page',
-  imports: [RouterLink, StatusBanner, FieldErrorMessage, AmountPipe, NepaliDatePipe, DenominationCountInput, PosReceiptView],
+  imports: [
+    RouterLink, StatusBanner, FieldErrorMessage, AmountPipe, NepaliDatePipe, DenominationCountInput, PosReceiptView,
+    PosRefundReceiptView,
+  ],
   templateUrl: './pos-session-page.html',
 })
 export class PosSessionPage {
@@ -59,6 +65,8 @@ export class PosSessionPage {
 
   protected readonly session = signal<PosSession | null>(null);
   protected readonly sales = signal<PosSessionSale[]>([]);
+  /** Phase 63 -- the refunds paid out of this drawer. */
+  protected readonly refunds = signal<PosSessionRefund[]>([]);
   protected readonly till = signal<PosTill | null>(null);
   protected readonly accounts = signal<Account[]>([]);
 
@@ -107,6 +115,7 @@ export class PosSessionPage {
 
   // ---- Reprint ----
   protected readonly printing = signal<PosReceipt | null>(null);
+  protected readonly printingRefund = signal<PosRefundReceipt | null>(null);
 
   constructor() {
     this.load();
@@ -120,6 +129,7 @@ export class PosSessionPage {
         this.session.set(session);
         this.loading.set(false);
         this.loadSales(session.id);
+        this.loadRefunds(session.id);
         this.heldCarts.set(storedHoldCount(this.organizationId, session.locationId, session.id));
 
         if (this.isOwnOpen()) {
@@ -144,6 +154,13 @@ export class PosSessionPage {
     this.posService.listSessionSales(this.organizationId, sessionId).subscribe({
       next: (sales) => this.sales.set(sales),
       error: (err: unknown) => this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load the sales.'),
+    });
+  }
+
+  private loadRefunds(sessionId: string): void {
+    this.posService.listSessionRefunds(this.organizationId, sessionId).subscribe({
+      next: (refunds) => this.refunds.set(refunds),
+      error: (err: unknown) => this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load the refunds.'),
     });
   }
 
@@ -251,6 +268,7 @@ export class PosSessionPage {
     this.errorMessage.set(null);
     this.posService.printReceipt(this.organizationId, sale.invoiceId).subscribe({
       next: (receipt) => {
+        this.printingRefund.set(null);
         this.printing.set(receipt);
         this.sales.set(this.sales().map((x) => (x.invoiceId === sale.invoiceId ? { ...x, printCount: receipt.printNumber } : x)));
         this.successMessage.set(
@@ -260,6 +278,25 @@ export class PosSessionPage {
         afterNextRender(() => window.print(), { injector: this.injector });
       },
       error: (err: unknown) => this.errorMessage.set(extractErrorMessage(err) ?? 'Could not print the receipt.'),
+    });
+  }
+
+  /** Phase 63 -- a credit note's reprint, counted and marked like a sale's. */
+  protected reprintRefund(refund: PosSessionRefund): void {
+    this.errorMessage.set(null);
+    this.posService.printRefundReceipt(this.organizationId, refund.creditNoteId).subscribe({
+      next: (receipt) => {
+        this.printing.set(null);
+        this.printingRefund.set(receipt);
+        this.refunds.set(this.refunds().map((x) =>
+          (x.creditNoteId === refund.creditNoteId ? { ...x, printCount: receipt.printNumber } : x)));
+        this.successMessage.set(
+          receipt.printNumber > 1
+            ? `${receipt.code} printed as copy ${receipt.printNumber - 1} (printed ${receipt.printNumber} times).`
+            : `${receipt.code} printed.`);
+        afterNextRender(() => window.print(), { injector: this.injector });
+      },
+      error: (err: unknown) => this.errorMessage.set(extractErrorMessage(err) ?? 'Could not print the credit note.'),
     });
   }
 

@@ -34,13 +34,17 @@
       <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" (click)="emailDialog.show()">
         <i aria-hidden="true" class="bi bi-envelope"></i> Send Email
       </button>
-      <button type="button" class="btn btn-primary btn-sm fw-bold" [disabled]="converting()" (click)="convertToCreditNote()">
-        @if (converting()) {
-          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-        } @else {
-          <i aria-hidden="true" class="bi bi-arrow-return-left"></i> Convert to Credit Note
-        }
-      </button>
+      <!-- Phase 63 -- a till sale is returned at the till (Refund), which gives back its service charge
+           and round-off and pays out of a drawer; the server refuses the ERP's conversion of one. -->
+      @if (!posSale()) {
+        <button type="button" class="btn btn-primary btn-sm fw-bold" [disabled]="converting()" (click)="convertToCreditNote()">
+          @if (converting()) {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+          } @else {
+            <i aria-hidden="true" class="bi bi-arrow-return-left"></i> Convert to Credit Note
+          }
+        </button>
+      }
       <button type="button" class="btn btn-outline-danger btn-sm fw-bold" [disabled]="voiding()" (click)="voidInvoice()">
         @if (voiding()) {
           <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -502,6 +506,7 @@
         @if (posSale(); as pos) {
           <section class="border rounded p-3 mb-3" aria-labelledby="invoice-pos-payment-heading">
             <h6 id="invoice-pos-payment-heading" class="fw-bold text-dark mb-2">Paid at the till</h6>
+            <p class="small mb-2">A till sale is returned at the till, with <strong>Refund</strong>, not converted to a credit note here.</p>
             <p class="small text-muted mb-2">
               Session {{ pos.sessionCode ?? '—' }}@if (pos.orderType; as orderType) { · {{ posTabLabels[orderType] }} }
             </p>

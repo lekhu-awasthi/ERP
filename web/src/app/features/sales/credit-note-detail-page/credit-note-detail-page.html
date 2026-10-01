@@ -297,6 +297,16 @@
                   <td></td>
                 }
               </tr>
+              <!-- Phase 63 -- a till refund's service charge given back, its own line as on the sale. -->
+              @if (posRefund(); as refund) {
+                @if (refund.serviceChargeTotal !== 0) {
+                  <tr>
+                    <td colspan="4"></td>
+                    <td class="text-end fw-semibold">Service Charge</td>
+                    <td class="text-end fw-bold">{{ (refund.serviceChargeTotal | amount) }}</td>
+                  </tr>
+                }
+              }
               <tr>
                 <td colspan="4"></td>
                 <td class="text-end fw-semibold">Non-Taxable Total</td>
@@ -321,6 +331,15 @@
                   <td></td>
                 }
               </tr>
+              @if (posRefund(); as refund) {
+                @if (refund.roundOff !== 0) {
+                  <tr>
+                    <td colspan="4"></td>
+                    <td class="text-end fw-semibold">Round Off</td>
+                    <td class="text-end fw-bold">{{ (refund.roundOff | amount) }}</td>
+                  </tr>
+                }
+              }
               <tr>
                 <td colspan="4"></td>
                 <td class="text-end fw-bold">Grand Total</td>
@@ -332,6 +351,38 @@
             </tfoot>
           </table>
         </div>
+
+        <!-- Phase 63 -- how a till refund was paid back. Read-only: it was settled at the counter. -->
+        @if (posRefund(); as refund) {
+          <section class="border rounded p-3 mb-3" aria-labelledby="credit-note-pos-refund-heading">
+            <h6 id="credit-note-pos-refund-heading" class="fw-bold text-dark mb-2">Refunded at the till</h6>
+            <p class="small text-muted mb-2">
+              Session {{ refund.sessionCode ?? '—' }}@if (refund.reason) { · {{ refund.reason }} }
+            </p>
+            <table class="table table-sm mb-0" aria-label="Payouts">
+              <thead>
+                <tr>
+                  <th scope="col">Paid back in</th>
+                  <th scope="col" class="text-end">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (payout of refund.payouts; track $index) {
+                  <tr>
+                    <td>{{ payout.paymentModeName }}</td>
+                    <td class="text-end">{{ (payout.amount | amount) }}</td>
+                  </tr>
+                }
+                @if (refund.toAccountAmount !== 0) {
+                  <tr>
+                    <td>Taken off the customer's account</td>
+                    <td class="text-end fw-semibold">{{ (refund.toAccountAmount | amount) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        }
 
         <!-- Phase 27b: the "+ Add Terms and Conditions" block, seeded from a CustomTemplate. -->
         <app-terms-editor [organizationId]="organizationId" [(terms)]="terms" [disabled]="!isDraft()" />

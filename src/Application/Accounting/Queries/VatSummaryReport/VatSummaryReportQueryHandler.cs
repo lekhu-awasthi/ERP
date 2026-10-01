@@ -52,7 +52,9 @@ public sealed class VatSummaryReportQueryHandler(IAppDbContext db)
         var creditNoteLines = FoldToBase(
             await db.CreditNoteLines
                 .Where(x => creditNoteIds.Contains(x.CreditNoteId))
-                .Select(x => new RawVatLine(x.CreditNoteId, x.VatRate, x.Amount, x.VatAmount))
+                // Phase 63 -- a till refund's service charge is inside the VAT base it gives back,
+                // as it was in the sale's (phase 61 Decision A). Zero on an ERP note.
+                .Select(x => new RawVatLine(x.CreditNoteId, x.VatRate, x.Amount + x.ServiceChargeAmount, x.VatAmount))
                 .ToListAsync(cancellationToken),
             creditNoteRates);
 

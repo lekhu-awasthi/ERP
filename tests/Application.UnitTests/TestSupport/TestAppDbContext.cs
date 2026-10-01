@@ -122,6 +122,8 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
     public DbSet<InvoiceTender> InvoiceTenders => Set<InvoiceTender>();
     public DbSet<InvoicePrint> InvoicePrints => Set<InvoicePrint>();
+    public DbSet<CreditNotePayout> CreditNotePayouts => Set<CreditNotePayout>();
+    public DbSet<CreditNotePrint> CreditNotePrints => Set<CreditNotePrint>();
 
     public DbSet<SalesOrder> SalesOrders => Set<SalesOrder>();
 
@@ -419,6 +421,11 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<Invoice>().HasMany(x => x.Tenders).WithOne().HasForeignKey(x => x.InvoiceId);
         modelBuilder.Entity<Invoice>()
             .Metadata.FindNavigation(nameof(Invoice.Tenders))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+        // Phase 63 -- a till refund's payouts, the mirror of the sale's tenders.
+        modelBuilder.Entity<CreditNote>().HasMany(x => x.Payouts).WithOne().HasForeignKey(x => x.CreditNoteId);
+        modelBuilder.Entity<CreditNote>()
+            .Metadata.FindNavigation(nameof(CreditNote.Payouts))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
         modelBuilder.Entity<PosSession>().HasMany(x => x.CashMovements).WithOne().HasForeignKey(x => x.PosSessionId);
         modelBuilder.Entity<PosSession>()

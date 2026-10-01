@@ -49,7 +49,8 @@ public sealed class AnnexFiveReportQueryHandler(IAppDbContext db, ICurrentUserSe
             .ToListAsync(cancellationToken);
         var creditNoteLines = await db.CreditNoteLines
             .Where(x => creditNotes.Select(c => c.Id).Contains(x.CreditNoteId))
-            .Select(x => new { x.CreditNoteId, x.VatRate, x.Amount, x.VatAmount })
+            // Phase 63 -- a till refund's service charge is inside the taxable value it returns.
+            .Select(x => new { x.CreditNoteId, x.VatRate, Amount = x.Amount + x.ServiceChargeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         var contactIds = invoices.Select(x => x.ContactId).Concat(creditNotes.Select(x => x.ContactId)).Distinct().ToList();

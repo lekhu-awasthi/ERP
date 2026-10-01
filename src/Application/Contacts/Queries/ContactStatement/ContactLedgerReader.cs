@@ -124,13 +124,23 @@ internal static class ContactLedgerReader
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
                 && x.Status == CreditNoteStatus.Approved && x.Date <= toDate)
             .AtLocations(locationId, reportLocations)
-            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference, x.ExchangeRate })
+            .Select(x => new { x.Id, x.ContactId, x.Date, x.Code, x.Reference, x.ExchangeRate, x.RoundOff })
             .ToListAsync(cancellationToken);
         var creditNoteLines = await db.CreditNoteLines
             .Where(x => creditNotes.Select(c => c.Id).Contains(x.CreditNoteId))
-            .Select(x => new { x.CreditNoteId, x.Amount, x.VatAmount })
+            .Select(x => new { x.CreditNoteId, x.Amount, x.ServiceChargeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
-        var creditNoteTotals = creditNoteLines.GroupBy(x => x.CreditNoteId).ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.VatAmount));
+        // Phase 63 -- a till refund gives back its service charge and round-off too (both zero on an
+        // ERP note).
+        var creditNoteTotals = creditNoteLines.GroupBy(x => x.CreditNoteId)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount));
+
+        // Phase 63 -- what each till refund handed back over the counter.
+        var creditNotePaidOut = await db.CreditNotePayouts
+            .Where(x => creditNotes.Select(c => c.Id).Contains(x.CreditNoteId))
+            .GroupBy(x => x.CreditNoteId)
+            .Select(g => new { CreditNoteId = g.Key, Amount = g.Sum(x => x.Amount) })
+            .ToDictionaryAsync(x => x.CreditNoteId, x => x.Amount, cancellationToken);
 
         var payments = await db.Payments
             .Where(x => x.OrganizationId == organizationId && (contactId == null || x.ContactId == contactId)
@@ -161,7 +171,16 @@ internal static class ContactLedgerReader
             .Where(x => x.SignedAmount != 0));
         events.AddRange(creditNotes.Select(x => new Event(
             x.ContactId, x.Date, DocumentType.CreditNote, x.Code, x.Reference,
-            -ExchangeRates.ToBase(creditNoteTotals.GetValueOrDefault(x.Id), x.ExchangeRate))));
+            -ExchangeRates.ToBase(creditNoteTotals.GetValueOrDefault(x.Id) + x.RoundOff, x.ExchangeRate))));
+
+        // Phase 63 -- a till refund's payout is a debit on the same day under the same number: the
+        // credit note paying itself out, the mirror of the sale's settlement above. Without it a cash
+        // refund would leave the customer in credit for money already handed back.
+        events.AddRange(creditNotes
+            .Where(x => creditNotePaidOut.ContainsKey(x.Id))
+            .Select(x => new Event(
+                x.ContactId, x.Date, DocumentType.CreditNote, x.Code, x.Reference,
+                ExchangeRates.ToBase(creditNotePaidOut[x.Id], x.ExchangeRate))));
         events.AddRange(payments.Select(x =>
             new Event(x.ContactId, x.Date, DocumentType.Payment, x.Code, x.Reference, -paymentBaseAmounts[x.Id])));
         events.AddRange(await LoadJournalVoucherEventsAsync(

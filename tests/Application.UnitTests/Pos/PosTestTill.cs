@@ -4,10 +4,14 @@ using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Pos.Commands.ClosePosSession;
+using ErpApp.Application.Pos.Commands.CreatePosRefund;
 using ErpApp.Application.Pos.Commands.CreatePosSale;
 using ErpApp.Application.Pos.Commands.OpenPosSession;
+using ErpApp.Application.Pos.Commands.PrintPosRefundReceipt;
 using ErpApp.Application.Pos.Commands.RecordPosCashMovement;
+using ErpApp.Application.Pos.Queries.PreviewPosRefund;
 using ErpApp.Application.Pos.Sessions;
+using ErpApp.Application.Sales.Commands.VoidCreditNote;
 using ErpApp.Application.Sales.Commands.VoidInvoice;
 using ErpApp.Application.Sales.Credit;
 using ErpApp.Application.Sales.Posting;
@@ -55,6 +59,9 @@ internal sealed class PosTestTill
     [
         PermissionKeys.InvoiceCreate, PermissionKeys.InvoiceApprove, PermissionKeys.InvoiceVoid,
         PermissionKeys.PosSessionOperate, PermissionKeys.PosSessionViewAll,
+        // Phase 63 -- a refund is a credit note created approved.
+        PermissionKeys.CreditNoteView, PermissionKeys.CreditNoteCreate, PermissionKeys.CreditNoteApprove,
+        PermissionKeys.CreditNoteVoid,
     ];
 
     /// <param name="grantedKeys">What the cashier's role holds; every till key by default.</param>
@@ -216,6 +223,46 @@ internal sealed class PosTestTill
     public Task VoidAsync(Guid invoiceId) =>
         new VoidInvoiceCommandHandler(Db, CurrentUser(), new StockLedgerService(Db)).Handle(
             new VoidInvoiceCommand(OrganizationId, invoiceId), CancellationToken.None);
+
+    // ---- Phase 63: refunds -----------------------------------------------------------------
+
+    public CreatePosRefundCommandHandler RefundHandler(Guid? userId = null) =>
+        new(Db, Seed.NumberGenerator, CurrentUser(userId), new CreditNotePostingRule(),
+            new CreditNotePayoutPostingRule(), new StockLedgerService(Db));
+
+    /// <summary>One line of a sale, by product: the sale's own line id, as the refund screen sends it.</summary>
+    public async Task<PosRefundLineInput> ReturnAsync(Guid invoiceId, Guid productId, decimal quantity)
+    {
+        var lineId = await Db.InvoiceLines
+            .Where(x => x.InvoiceId == invoiceId && x.ProductId == productId)
+            .Select(x => x.Id)
+            .FirstAsync();
+        return new PosRefundLineInput(lineId, quantity);
+    }
+
+    public Task<CreatePosRefundResult> RefundAsync(
+        Guid sessionId,
+        Guid invoiceId,
+        IReadOnlyList<PosRefundLineInput> lines,
+        IReadOnlyList<PosTenderInput> payouts,
+        string reason = "Customer changed their mind",
+        Guid? userId = null) =>
+        RefundHandler(userId).Handle(
+            new CreatePosRefundCommand(OrganizationId, sessionId, Location.Id, invoiceId, lines, payouts, reason),
+            CancellationToken.None);
+
+    public Task<PosRefundPreviewDto> PreviewRefundAsync(
+        Guid sessionId, Guid invoiceId, IReadOnlyList<PosRefundLineInput> lines) =>
+        new PreviewPosRefundQueryHandler(Db, CurrentUser()).Handle(
+            new PreviewPosRefundQuery(OrganizationId, sessionId, invoiceId, lines), CancellationToken.None);
+
+    public Task VoidRefundAsync(Guid creditNoteId) =>
+        new VoidCreditNoteCommandHandler(Db, CurrentUser(), new StockLedgerService(Db)).Handle(
+            new VoidCreditNoteCommand(OrganizationId, creditNoteId), CancellationToken.None);
+
+    public Task<PosRefundReceiptDto> PrintRefundAsync(Guid creditNoteId) =>
+        new PrintPosRefundReceiptCommandHandler(Db, CurrentUser()).Handle(
+            new PrintPosRefundReceiptCommand(OrganizationId, creditNoteId), CancellationToken.None);
 
     /// <summary>Debit minus credit on one account, across every entry the tenant has posted.</summary>
     public async Task<decimal> BalanceAsync(Guid accountId)

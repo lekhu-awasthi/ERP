@@ -33,7 +33,8 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
             .ToListAsync(cancellationToken);
         var creditNoteLines = await db.CreditNoteLines
             .Where(x => creditNotes.Select(c => c.Id).Contains(x.CreditNoteId))
-            .Select(x => new { x.CreditNoteId, x.ProductId, x.Amount, x.VatAmount })
+            // Phase 63 -- the mirror of the invoice line above: a till refund gives back its service charge.
+            .Select(x => new { x.CreditNoteId, x.ProductId, Amount = x.Amount + x.ServiceChargeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         var purchaseBills = await db.PurchaseBills

@@ -51,83 +51,10 @@ public sealed class ApproveCreditNoteCommandHandler(
             throw new ConflictException("A credit note needs at least one line to be approved.");
         }
 
-        var productIds = creditNote.Lines.Select(x => x.ProductId).Distinct().ToList();
-        var productTypes = await db.Products
-            .Where(x => x.OrganizationId == request.OrganizationId && productIds.Contains(x.Id))
-            .Select(x => new { x.Id, x.Type })
-            .ToDictionaryAsync(x => x.Id, x => x.Type, cancellationToken);
-
-        var goodsLines = creditNote.Lines.Where(x => productTypes.GetValueOrDefault(x.ProductId) == ProductType.Goods).ToList();
-
-        Invoice? sourceInvoice = null;
-        if (creditNote.ReferrerType == DocumentType.Invoice && creditNote.ReferrerId is { } invoiceId && goodsLines.Count > 0)
-        {
-            sourceInvoice = await db.Invoices
-                .Include(x => x.Lines)
-                .SingleOrDefaultAsync(x => x.Id == invoiceId && x.OrganizationId == request.OrganizationId, cancellationToken);
-        }
-
-        // Phase 28 (FR-2.5): the fold. The document stores its amounts in its own currency; the
-        // general ledger is denominated in the base currency, so every line amount is converted
-        // here, before the posting rule runs. Doing it here rather than on the finished GlLineInput
-        // list is what keeps the entry balanced by construction -- the rule derives its balancing
-        // leg as a sum of these very numbers. See ExchangeRates' doc comment.
-        var postingInput = await CreditNoteAccountResolver.ResolveAsync(
-            db, request.OrganizationId,
-            creditNote.Lines.Select(x => (
-                x.ProductId,
-                ExchangeRates.ToBase(x.Amount, creditNote.ExchangeRate),
-                ExchangeRates.ToBase(x.VatAmount, creditNote.ExchangeRate))),
-            resolveInventoryAccounts: sourceInvoice is not null, cancellationToken);
-
-        var code = await numberGenerator.GetNextNumberAsync(
-            request.OrganizationId, DocumentType.CreditNote, cancellationToken, creditNote.LocationId);
-
-        creditNote.Approve(currentUser.UserId, code);
-
-        var totalCogsReversal = 0m;
-        var costCatchUp = 0m;
-        if (sourceInvoice is not null)
-        {
-            var costByLine = sourceInvoice.Lines
-                .Where(x => x.CogsUnitCost is not null)
-                .GroupBy(x => (x.ProductId, x.Rate, x.VatRate))
-                .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity * x.CogsUnitCost!.Value) / g.Sum(x => x.Quantity));
-
-            foreach (var line in goodsLines)
-            {
-                if (!costByLine.TryGetValue((line.ProductId, line.Rate, line.VatRate), out var unitCost))
-                {
-                    continue;
-                }
-
-                costCatchUp += await stockLedgerService.IncrementAsync(
-                    request.OrganizationId, line.ProductId, sourceInvoice.WarehouseId, line.PrimaryQuantity, unitCost,
-                    DocumentType.CreditNote, creditNote.Id, creditNote.Date, cancellationToken, creditNote.LocationId);
-                // Phase 52 -- the COGS reversal is priced per PRIMARY unit, because unitCost came
-                // off a FIFO layer and a layer is always denominated in primary units. Multiplying
-                // by the entered quantity would credit COGS for 2 cartons at the cost of one piece.
-                totalCogsReversal += line.PrimaryQuantity.Value * unitCost;
-            }
-        }
-
-        if (totalCogsReversal > 0)
-        {
-            postingInput = postingInput with { CogsAmount = totalCogsReversal };
-        }
-
-        var glLines = postingRule.BuildLines(postingInput);
-        var glEntry = GlJournalEntry.Post(
-            request.OrganizationId, DocumentType.CreditNote, creditNote.Id, glLines, creditNote.LocationId);
-        db.GlJournalEntries.Add(glEntry);
-
-        // Phase 37 -- a sales return puts stock back at the cost it left at, which is already the
-        // right figure for its own invoice; this is non-zero only when the warehouse owes stock
-        // from some *other* document, and the returned goods pay part of that debt at a cost the
-        // shortfall was not issued at.
-        await StockCostCatchUp.PostAsync(
-            db, request.OrganizationId, DocumentType.CreditNote, creditNote.Id, creditNote.LocationId,
-            costCatchUp, cancellationToken);
+        // Phase 63 -- the approve core moved to CreditNoteApprovalPosting, which the till's refund
+        // also calls; see the doc comment above for what it does to stock.
+        await CreditNoteApprovalPosting.ApproveAndPostAsync(
+            db, numberGenerator, postingRule, stockLedgerService, currentUser.UserId, creditNote, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

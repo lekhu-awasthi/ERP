@@ -206,7 +206,17 @@ public sealed class RecentTransactionsQueryHandler(IAppDbContext db, ICurrentUse
             DocumentType.CreditNote,
             db.CreditNoteLines.Where(l => creditNoteIds.Contains(l.CreditNoteId)),
             l => l.CreditNoteId,
-            l => l.Amount + l.VatAmount);
+            l => l.Amount + l.ServiceChargeAmount + l.VatAmount);
+
+        // Phase 63 -- a till refund's round-off is part of its total, as the sale's is.
+        var creditNoteRoundOffs = await db.CreditNotes
+            .Where(x => creditNoteIds.Contains(x.Id) && x.RoundOff != 0)
+            .Select(x => new { x.Id, x.RoundOff })
+            .ToListAsync(cancellationToken);
+        foreach (var row in creditNoteRoundOffs)
+        {
+            amounts[row.Id] = amounts.GetValueOrDefault(row.Id) + row.RoundOff;
+        }
 
         var billIds = page.Where(x => x.DocumentType == DocumentType.PurchaseBill).Select(x => x.DocumentId).ToList();
         await SumAsync(

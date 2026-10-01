@@ -11,7 +11,9 @@ import { cartStorageKey } from '../../../core/pos/pos-cart';
 import {
   ClosePosSessionRequest,
   PosReceipt,
+  PosRefundReceipt,
   PosSession,
+  PosSessionRefund,
   PosSessionSale,
   PosTill,
   RecordPosCashMovementRequest,
@@ -35,6 +37,7 @@ describe('PosSessionPage', () => {
         { paymentModeId: 'm-cash', paymentModeName: 'Cash', kind: 'Cash', amount: 1300 },
         { paymentModeId: 'm-card', paymentModeName: 'Card', kind: 'Card', amount: 116 },
       ], tendered: 1416, change: 367, settled: 1049, credit: 149, cashSales: 933,
+      refunds: { refundsCount: 0, subTotal: 0, serviceCharge: 0, vat: 0, roundOff: 0, grandTotal: 0, payouts: [], paidOut: 0, toAccount: 0, cashRefunds: 0 }, netSales: 1198,
     },
     cashMovements: [], cashIn: 0, cashOut: 0, expectedCash: 1933, countedCash: null, closingCount: null,
     cashDifference: null, closingNote: null,
@@ -52,7 +55,8 @@ describe('PosSessionPage', () => {
     defaultTab: 'Retail', serviceChargeEnabled: true, serviceChargeRate: 10, roundOffEnabled: true,
     cashVerificationRequired: false, denominations: [1000, 500, 100], printInvoice: true,
     abbreviatedTaxInvoiceEnabled: false, isVatRegistered: true, warehouseId: null, warehouseName: null,
-    walkInCustomer: null, paymentModes: [], categories: [], canSellOnCredit: true,
+    walkInCustomer: null, paymentModes: [], categories: [], canSellOnCredit: true, printCreditNote: true,
+    canRefund: true,
   };
 
   const account = (id: string, code: string, name: string): Account => ({
@@ -65,13 +69,23 @@ describe('PosSessionPage', () => {
     vi.spyOn(window, 'print').mockImplementation(() => undefined);
   });
 
-  function page(current: PosSession, userId = 'u1') {
+  // Phase 63 -- phase 59's refund: one Coke, 68, paid back in cash, against INV0001.
+  const refund: PosSessionRefund = {
+    creditNoteId: 'cn-1', code: 'CN0001', status: 'Approved', refundedAt: '2026-10-01T05:00:00Z', invoiceId: 'inv-1',
+    invoiceCode: 'INV0001', customerName: 'Cash Customer', isWalkIn: true, reason: 'Damaged can', grandTotal: 68,
+    paidOut: 68, toAccount: 0, printCount: 1,
+  };
+
+  function page(current: PosSession, userId = 'u1', refunds: PosSessionRefund[] = []) {
     const moved: RecordPosCashMovementRequest[] = [];
     const closed: ClosePosSessionRequest[] = [];
     let state = current;
     const service = {
       getSession: (): Observable<PosSession> => of(state),
       listSessionSales: (): Observable<PosSessionSale[]> => of([sale]),
+      listSessionRefunds: (): Observable<PosSessionRefund[]> => of(refunds),
+      printRefundReceipt: (): Observable<PosRefundReceipt> =>
+        of({ code: 'CN0001', printNumber: 2, lines: [], payouts: [] } as unknown as PosRefundReceipt),
       getTill: (): Observable<PosTill> => of(till),
       recordCashMovement: (_o: string, _s: string, request: RecordPosCashMovementRequest): Observable<PosSession> => {
         moved.push(request);
@@ -191,6 +205,53 @@ describe('PosSessionPage', () => {
     expect(p.closed).toEqual([{ countedAmount: 1824, denominations: null, note: 'Coins short' }]);
     expect(p.text()).toContain('Session SES0001 is closed.');
     expect(localStorage.getItem(cartStorageKey(organizationId, 'loc-1', 'ses-1'))).toBeNull();
+  });
+
+  it('counts refunds in the X report and takes cash refunds out of the drawer figure', () => {
+    const s = session();
+    const p = page({
+      ...s,
+      expectedCash: 1865,
+      sales: {
+        ...s.sales,
+        refunds: {
+          refundsCount: 1, subTotal: 60, serviceCharge: 0, vat: 7.8, roundOff: 0.2, grandTotal: 68,
+          payouts: [{ paymentModeId: 'm-cash', paymentModeName: 'Cash', kind: 'Cash', amount: 68 }],
+          paidOut: 68, toAccount: 0, cashRefunds: 68,
+        },
+        netSales: 1130,
+      },
+    }, 'u1', [refund]);
+
+    expect(p.text()).toContain('Refunds 1');
+    expect(p.text()).toContain('Total refunded 68.00');
+    expect(p.text()).toContain('Paid back: Cash 68.00');
+    expect(p.text()).toContain('Net sales 1,130.00');
+    expect(p.text()).toContain('Cash refunds 68.00');
+    expect(p.text()).toContain('CN0001');
+    expect(p.text()).toContain('Damaged can');
+  });
+
+  it('reprints a refund’s credit note as a counted copy', () => {
+    const p = page(session(), 'u1', [refund]);
+
+    const button = [...p.element.querySelectorAll<HTMLButtonElement>('button')]
+      .find((b) => b.textContent?.includes('CN0001'))!;
+    button.click();
+    TestBed.tick();
+
+    expect(p.text()).toContain('CN0001 printed as copy 1 (printed 2 times).');
+    expect(window.print).toHaveBeenCalled();
+  });
+
+  it('offers a refund of each sale to its own cashier, and to nobody reading someone else’s session', () => {
+    const own = page(session());
+    const link = own.element.querySelector<HTMLAnchorElement>('a[href*="/pos/refund/loc-1"][href*="invoiceId=inv-1"]');
+    expect(link?.textContent).toContain('Refund');
+    TestBed.resetTestingModule();
+
+    const other = page(session(), 'someone-else');
+    expect(other.element.querySelector('a[href*="/pos/refund/"]')).toBeNull();
   });
 
   it('shows another cashier’s session read-only', () => {

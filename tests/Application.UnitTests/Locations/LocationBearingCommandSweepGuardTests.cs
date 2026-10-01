@@ -66,6 +66,9 @@ public class LocationBearingCommandSweepGuardTests
             ["CreatePosSaleCommand"] = (DocumentType.Invoice,
                 "A till sale is an Invoice created at the till's location, and it carries the location so "
                 + "phase 32b can scope Sales.Invoice.Create to a branch exactly as it does for an ERP invoice."),
+            ["CreatePosRefundCommand"] = (DocumentType.CreditNote,
+                "Phase 63 -- a till refund is a Credit Note created at the till's location, and it carries the "
+                + "location so phase 32b can scope Sales.CreditNote.Create to a branch as it does for an ERP note."),
         };
 
     [Fact]

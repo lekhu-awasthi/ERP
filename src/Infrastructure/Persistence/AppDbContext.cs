@@ -78,6 +78,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
     public DbSet<InvoiceTender> InvoiceTenders => Set<InvoiceTender>();
     public DbSet<InvoicePrint> InvoicePrints => Set<InvoicePrint>();
+    public DbSet<CreditNotePayout> CreditNotePayouts => Set<CreditNotePayout>();
+    public DbSet<CreditNotePrint> CreditNotePrints => Set<CreditNotePrint>();
     public DbSet<SalesOrder> SalesOrders => Set<SalesOrder>();
     public DbSet<SalesOrderLine> SalesOrderLines => Set<SalesOrderLine>();
     public DbSet<CreditNote> CreditNotes => Set<CreditNote>();

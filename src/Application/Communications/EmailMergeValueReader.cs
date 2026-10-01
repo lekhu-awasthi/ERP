@@ -212,9 +212,21 @@ public static class EmailMergeValueReader
             .SingleOrDefaultAsync(x => x.Id == id && x.OrganizationId == organizationId, ct)
             ?? throw new NotFoundException("Credit note not found.");
 
-        return FromLines(
+        var facts = FromLines(
             d.ContactId, d.Code, d.Date, d.Reference, d.CurrencyCode, d.ExchangeRate, d.DiscountPct,
             d.Lines.Select(l => (l.Amount, l.VatAmount)));
+
+        // Phase 63 -- a till refund gives back its service charge (in the VAT base beside its line) and
+        // its round-off, as ReadInvoiceAsync counts the sale's. Both are zero on an ERP note.
+        var serviceCharge = d.Lines.Sum(l => l.ServiceChargeAmount);
+        var taxableServiceCharge = d.Lines.Where(l => l.VatAmount != 0m).Sum(l => l.ServiceChargeAmount);
+
+        return facts with
+        {
+            TaxableTotal = facts.TaxableTotal + taxableServiceCharge,
+            NonTaxableTotal = facts.NonTaxableTotal + (serviceCharge - taxableServiceCharge),
+            GrandTotal = d.GrandTotal,
+        };
     }
 
     private static async Task<EmailDocumentFacts> ReadPurchaseOrderAsync(

@@ -8,6 +8,8 @@ import { environment } from '../../../environments/environment';
 import { PosMode } from '../organizations/organizations.models';
 import {
   ClosePosSessionRequest,
+  CreatePosRefundRequest,
+  CreatePosRefundResult,
   CreatePosSaleRequest,
   CreatePosSaleResult,
   OpenPosSessionRequest,
@@ -15,10 +17,16 @@ import {
   PosLocationSettings,
   PosProduct,
   PosReceipt,
+  PosRefundableSale,
+  PosRefundPreview,
+  PosRefundReceipt,
+  PosSaleMatch,
   PosSession,
+  PosSessionRefund,
   PosSessionSale,
   PosTill,
   PosTillSummary,
+  PreviewPosRefundRequest,
   RecordPosCashMovementRequest,
   UpdatePosLocationSettingsRequest,
 } from './pos.models';
@@ -141,6 +149,50 @@ export class PosService {
   /** Every call is a printing the server counts: 1 is the original, every later one a marked copy. */
   printReceipt(organizationId: string, invoiceId: string): Observable<PosReceipt> {
     return this.http.post<PosReceipt>(`${this.baseUrl(organizationId)}/sales/${invoiceId}/prints`, {}, {
+      withCredentials: true,
+    });
+  }
+
+  // ---- Phase 63: refunds -----------------------------------------------------------------------
+
+  /** Approved till sales of one location whose number contains `search`, newest first. */
+  findSales(organizationId: string, locationId: string, search: string): Observable<PosSaleMatch[]> {
+    const params: Record<string, string> = {};
+    if (search) params['search'] = search;
+    return this.http.get<PosSaleMatch[]>(`${this.baseUrl(organizationId)}/tills/${locationId}/sales`, {
+      withCredentials: true,
+      params,
+    });
+  }
+
+  getRefundableSale(organizationId: string, invoiceId: string): Observable<PosRefundableSale> {
+    return this.http.get<PosRefundableSale>(`${this.baseUrl(organizationId)}/sales/${invoiceId}/refundable`, {
+      withCredentials: true,
+    });
+  }
+
+  /** The refund's figure before it is made, from the refund's own planner on the server. */
+  previewRefund(organizationId: string, request: PreviewPosRefundRequest): Observable<PosRefundPreview> {
+    return this.http.post<PosRefundPreview>(`${this.baseUrl(organizationId)}/refunds/preview`, request, {
+      withCredentials: true,
+    });
+  }
+
+  createRefund(organizationId: string, request: CreatePosRefundRequest): Observable<CreatePosRefundResult> {
+    return this.http.post<CreatePosRefundResult>(`${this.baseUrl(organizationId)}/refunds`, request, {
+      withCredentials: true,
+    });
+  }
+
+  listSessionRefunds(organizationId: string, sessionId: string): Observable<PosSessionRefund[]> {
+    return this.http.get<PosSessionRefund[]>(`${this.baseUrl(organizationId)}/sessions/${sessionId}/refunds`, {
+      withCredentials: true,
+    });
+  }
+
+  /** Every call is a printing the server counts, as for a sale's receipt. */
+  printRefundReceipt(organizationId: string, creditNoteId: string): Observable<PosRefundReceipt> {
+    return this.http.post<PosRefundReceipt>(`${this.baseUrl(organizationId)}/refunds/${creditNoteId}/prints`, {}, {
       withCredentials: true,
     });
   }

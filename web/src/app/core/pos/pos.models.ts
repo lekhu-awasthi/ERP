@@ -144,6 +144,10 @@ export interface PosTill {
   categories: PosTillCategory[];
   /** Whether this cashier holds Sales.Invoice.Approve here, which credit needs (phase 61 Decision F). */
   canSellOnCredit: boolean;
+  /** Phase 63 -- whether a refund's credit note prints itself (the location's toggle). */
+  printCreditNote: boolean;
+  /** Phase 63 -- whether this cashier holds Sales.CreditNote.Create and .Approve here, which a refund needs. */
+  canRefund: boolean;
 }
 
 /** One unit a product sells in; `rate` is already exclusive of VAT for that unit. Primary first. */
@@ -194,6 +198,24 @@ export interface PosSalesSummary {
   settled: number;
   credit: number;
   cashSales: number;
+  /** Phase 63 -- the refunds paid out in the same session or day. */
+  refunds: PosRefundsSummary;
+  /** Phase 63 -- grand total less the refunds' grand total. */
+  netSales: number;
+}
+
+/** Phase 63 -- the refunds half of PosSalesReader's shape. */
+export interface PosRefundsSummary {
+  refundsCount: number;
+  subTotal: number;
+  serviceCharge: number;
+  vat: number;
+  roundOff: number;
+  grandTotal: number;
+  payouts: PosTenderTotal[];
+  paidOut: number;
+  toAccount: number;
+  cashRefunds: number;
 }
 
 export interface PosCashMovement {
@@ -310,6 +332,137 @@ export interface PosSessionSale {
   printCount: number;
 }
 
+// ---- Phase 63: refunds --------------------------------------------------------------------------
+
+/** A sale found by its number, for the refund screen. */
+export interface PosSaleMatch {
+  invoiceId: string;
+  code: string;
+  date: string;
+  soldAt: string | null;
+  sessionCode: string | null;
+  customerName: string;
+  isWalkIn: boolean;
+  grandTotal: number;
+}
+
+export interface PosRefundableLine {
+  invoiceLineId: string;
+  productId: string;
+  productName: string;
+  unitShortName: string;
+  sold: number;
+  /** Sold, less what earlier credit notes returned. */
+  remaining: number;
+  rate: number;
+  discountPct: number;
+  serviceChargeRate: number;
+  vatRate: VatRate;
+  lineTotal: number;
+}
+
+export interface PosPriorRefund {
+  creditNoteId: string;
+  code: string;
+  date: string;
+  grandTotal: number;
+}
+
+/** A till sale as the refund screen needs it. */
+export interface PosRefundableSale {
+  invoiceId: string;
+  code: string;
+  date: string;
+  soldAt: string | null;
+  locationId: string | null;
+  sessionCode: string | null;
+  contactId: string;
+  customerName: string;
+  isWalkIn: boolean;
+  grandTotal: number;
+  /** Paid at the till: tendered less change. */
+  settled: number;
+  /** Still owed on this sale; a refund comes off this first (phase-63-status.md Decision D). */
+  owed: number;
+  lines: PosRefundableLine[];
+  priorRefunds: PosPriorRefund[];
+  canRefund: boolean;
+}
+
+export interface PosRefundLineInput {
+  invoiceLineId: string;
+  quantity: number;
+}
+
+export interface PreviewPosRefundRequest {
+  sessionId: string;
+  invoiceId: string;
+  lines: PosRefundLineInput[];
+}
+
+export interface PosRefundPreviewLine {
+  invoiceLineId: string;
+  quantity: number;
+  amount: number;
+  serviceChargeAmount: number;
+  vatAmount: number;
+  lineTotal: number;
+}
+
+/** The server's figure for a refund before it is made -- the refund's own planner, so the screen and the ledger agree. */
+export interface PosRefundPreview {
+  lines: PosRefundPreviewLine[];
+  subTotal: number;
+  serviceCharge: number;
+  vat: number;
+  roundOff: number;
+  grandTotal: number;
+  owedBefore: number;
+  /** What must be handed back; payouts must come to exactly this. */
+  requiredPayout: number;
+  /** What comes off what the customer owes instead. */
+  toAccount: number;
+}
+
+/** Every field the endpoint's request record takes (phase 27b). */
+export interface CreatePosRefundRequest {
+  sessionId: string;
+  locationId: string;
+  invoiceId: string;
+  lines: PosRefundLineInput[];
+  payouts: PosTenderInput[];
+  reason: string;
+}
+
+export interface CreatePosRefundResult {
+  id: string;
+  code: string;
+  grandTotal: number;
+  serviceCharge: number;
+  roundOff: number;
+  paidOut: number;
+  toAccount: number;
+}
+
+export type CreditNoteStatusValue = 'Draft' | 'Approved' | 'Void';
+
+/** One refund paid out of a session's drawer. */
+export interface PosSessionRefund {
+  creditNoteId: string;
+  code: string;
+  status: CreditNoteStatusValue;
+  refundedAt: string | null;
+  invoiceId: string | null;
+  invoiceCode: string | null;
+  customerName: string;
+  isWalkIn: boolean;
+  reason: string | null;
+  grandTotal: number;
+  paidOut: number;
+  toAccount: number;
+  printCount: number;
+}
+
 /** The heading a receipt prints (phase-62-status.md Decision A). */
 export type PosReceiptTitle = 'Invoice' | 'TaxInvoice' | 'AbbreviatedTaxInvoice';
 
@@ -374,4 +527,43 @@ export interface PosReceipt {
   tendered: number;
   changeAmount: number;
   creditAmount: number;
+}
+
+/** Phase 63 -- one printing of a till refund's credit note, carrying VAT Rules Rule 20's particulars. */
+export interface PosRefundReceipt {
+  creditNoteId: string;
+  code: string;
+  printNumber: number;
+  printedAt: string;
+  printedByName: string;
+  sellerName: string;
+  sellerAddress: string | null;
+  sellerPan: string | null;
+  sellerVatRegistered: boolean;
+  locationName: string;
+  date: string;
+  refundedAt: string | null;
+  sessionCode: string;
+  cashierName: string;
+  invoiceCode: string | null;
+  invoiceDate: string | null;
+  customerName: string;
+  customerAddress: string | null;
+  customerPan: string | null;
+  isWalkIn: boolean;
+  reason: string | null;
+  lines: PosReceiptLine[];
+  grossAmount: number;
+  discountAmount: number;
+  subTotal: number;
+  serviceCharge: number;
+  taxableAmount: number;
+  nonTaxableAmount: number;
+  vat: number;
+  roundOff: number;
+  grandTotal: number;
+  amountInWords: string;
+  payouts: PosReceiptTender[];
+  paidOut: number;
+  toAccount: number;
 }

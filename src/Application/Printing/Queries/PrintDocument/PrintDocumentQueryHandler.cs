@@ -141,14 +141,19 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
             ?? throw new NotFoundException("Credit note not found.");
 
+        // Phase 63 -- a till refund's service charge and round-off print as the sale's do (both zero on
+        // an ERP note).
         var lines = document.Lines
-            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount))
+            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount)
+            {
+                ServiceChargeAmount = l.ServiceChargeAmount,
+            })
             .ToList();
 
         return await BuildProductDocumentAsync(
             request, organization, templateName, "Credit Note", document.Code, document.Date, document.Reference,
             document.ContactId, "Credit To", [], lines, document.DiscountPct, document.Terms, ct,
-            currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
+            currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate, roundOff: document.RoundOff);
     }
 
     /// <summary>Two sections, matching the reference product's Customer Receipt layout read live:

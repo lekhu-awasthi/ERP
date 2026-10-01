@@ -388,7 +388,19 @@ public sealed class TransactionListQueryHandler(IAppDbContext db, ICurrentUserSe
         var creditNoteIds = IdsOf(DocumentType.CreditNote);
         if (creditNoteIds.Count > 0)
         {
-            await SumAsync(db.CreditNoteLines.Where(l => creditNoteIds.Contains(l.CreditNoteId)), l => l.CreditNoteId, l => l.Amount + l.VatAmount);
+            await SumAsync(
+                db.CreditNoteLines.Where(l => creditNoteIds.Contains(l.CreditNoteId)), l => l.CreditNoteId,
+                l => l.Amount + l.ServiceChargeAmount + l.VatAmount);
+
+            // Phase 63 -- a till refund's round-off is part of its total; zero on every ERP note.
+            var creditNoteRoundOffs = await db.CreditNotes
+                .Where(x => creditNoteIds.Contains(x.Id) && x.RoundOff != 0)
+                .Select(x => new { x.Id, x.RoundOff })
+                .ToListAsync(cancellationToken);
+            foreach (var row in creditNoteRoundOffs)
+            {
+                amounts[row.Id] = amounts.GetValueOrDefault(row.Id) + row.RoundOff;
+            }
         }
 
         var purchaseOrderIds = IdsOf(DocumentType.PurchaseOrder);

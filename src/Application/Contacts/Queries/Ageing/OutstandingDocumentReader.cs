@@ -479,24 +479,46 @@ internal static class OutstandingDocumentReader
                 && x.ReferrerId != null);
 
         var creditNotes = await creditNoteQuery
-            .Select(x => new { x.Id, ReferrerId = x.ReferrerId!.Value })
+            .Select(x => new { x.Id, ReferrerId = x.ReferrerId!.Value, x.RoundOff })
             .ToListAsync(cancellationToken);
 
+        // Phase 63 -- a till refund's service charge and round-off are part of what it gives back
+        // (both zero on an ERP note).
         var gross = await (
             from line in db.CreditNoteLines
             join note in creditNoteQuery on line.CreditNoteId equals note.Id
             group line by line.CreditNoteId into g
-            select new { CreditNoteId = g.Key, Total = g.Sum(x => x.Amount + x.VatAmount) })
+            select new { CreditNoteId = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount) })
             .ToDictionaryAsync(x => x.CreditNoteId, x => x.Total, cancellationToken);
+
+        var paidOut = await LoadRefundPayoutsAsync(db, creditNoteQuery, cancellationToken);
 
         var result = new Dictionary<Guid, decimal>();
         foreach (var note in creditNotes)
         {
-            result[note.ReferrerId] = result.GetValueOrDefault(note.ReferrerId) + gross.GetValueOrDefault(note.Id);
+            var reduction = gross.GetValueOrDefault(note.Id) + note.RoundOff - paidOut.GetValueOrDefault(note.Id);
+            result[note.ReferrerId] = result.GetValueOrDefault(note.ReferrerId) + reduction;
         }
 
         return result;
     }
+
+    /// <summary>
+    /// Phase 63 -- <b>a till refund's payouts are the credit note paying itself out</b>, the mirror of
+    /// <see cref="LoadTenderSettlementsAsync"/>: what was handed back over the counter never reaches the
+    /// sale's balance, so only the rest of the note -- the part left on the customer's account -- reduces
+    /// what the sale is owed. Without it, a cash refund of a paid sale would leave the sale owed a
+    /// negative amount, the walk-in's balance would fall with every refund, and the payout entry's
+    /// debit to the receivable would have nothing in any report to answer it.
+    /// </summary>
+    internal static async Task<Dictionary<Guid, decimal>> LoadRefundPayoutsAsync(
+        IAppDbContext db, IQueryable<CreditNote> creditNotes, CancellationToken cancellationToken) =>
+        await (
+                from p in db.CreditNotePayouts
+                join n in creditNotes on p.CreditNoteId equals n.Id
+                group p by p.CreditNoteId into g
+                select new { CreditNoteId = g.Key, Amount = g.Sum(x => x.Amount) })
+            .ToDictionaryAsync(x => x.CreditNoteId, x => x.Amount, cancellationToken);
 
     private static async Task<Dictionary<Guid, decimal>> LoadDebitNoteReductionsAsync(
         IAppDbContext db, Guid organizationId, DateOnly asOfDate, List<OutstandingDocument> candidates,

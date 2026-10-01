@@ -15,14 +15,37 @@ public sealed class CreditNotePostingRule : IGlPostingRule<CreditNotePostingInpu
 {
     public IReadOnlyList<GlLineInput> BuildLines(CreditNotePostingInput document)
     {
+        var receivable = document.Lines.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount) + document.RoundOff;
+
         var lines = new List<GlLineInput>
         {
-            new(document.AccountsReceivableAccountId, 0, document.Lines.Sum(x => x.Amount + x.VatAmount)),
+            new(document.AccountsReceivableAccountId, 0, receivable),
         };
 
         lines.AddRange(document.Lines
             .GroupBy(x => x.SalesAccountId)
             .Select(g => new GlLineInput(g.Key, g.Sum(x => x.Amount), 0)));
+
+        // Phase 63 -- the reverse of InvoicePostingRule's two till legs. Both are zero on an ERP note,
+        // so its entry is unchanged.
+        var totalServiceCharge = document.Lines.Sum(x => x.ServiceChargeAmount);
+        if (totalServiceCharge > 0)
+        {
+            lines.Add(new GlLineInput(
+                document.ServiceChargeAccountId
+                    ?? throw new InvalidOperationException("A service charge needs its account resolved before posting."),
+                totalServiceCharge, 0));
+        }
+
+        if (document.RoundOff != 0)
+        {
+            var roundingAccountId = document.RoundingAccountId
+                ?? throw new InvalidOperationException("A round-off needs its account resolved before posting.");
+
+            lines.Add(document.RoundOff > 0
+                ? new GlLineInput(roundingAccountId, document.RoundOff, 0)
+                : new GlLineInput(roundingAccountId, 0, -document.RoundOff));
+        }
 
         var totalVat = document.Lines.Sum(x => x.VatAmount);
         if (totalVat > 0)

@@ -75,10 +75,192 @@ public sealed class CreditNote
     /// even after that template is edited or deleted.</summary>
     public string? Terms { get; private set; }
 
+    /// <summary>Phase 63 -- where the credit note was raised: <see cref="SalesChannel.Pos"/> for a refund
+    /// at a till, <see cref="SalesChannel.Erp"/> for everything else (every row before this phase).</summary>
+    public SalesChannel Channel { get; private set; }
+
+    /// <summary>Phase 63 -- the session whose drawer a till refund was paid out of. That is the session
+    /// <b>open when the refund was made</b>, which for yesterday's sale is today's, never the sale's own
+    /// (phase-63-status.md Decision C).</summary>
+    public Guid? PosSessionId { get; private set; }
+
+    /// <summary>Phase 63 -- a till refund's rounding to the rupee, signed like
+    /// <see cref="Invoice.RoundOff"/>: positive gives back more than the lines, negative less. Zero on
+    /// every ERP credit note.</summary>
+    public decimal RoundOff { get; private set; }
+
+    /// <summary>Phase 63 -- why the goods came back. Required at the till (the vendor's Remarks*), and it
+    /// is what VAT Rules Rule 20's "details of ... credit" asks the note to carry.</summary>
+    public string? Reason { get; private set; }
+
+    public const int MaxReasonLength = 500;
+
+    private readonly List<CreditNotePayout> _payouts = [];
+
     public IReadOnlyList<CreditNoteLine> Lines => _lines;
+
+    /// <summary>Phase 63 -- what a till refund handed back, per mode. Empty on an ERP credit note.</summary>
+    public IReadOnlyList<CreditNotePayout> Payouts => _payouts;
+
+    /// <summary>What the note takes off what the customer owes in all: every line's amount, service
+    /// charge and VAT, plus the round-off. For an ERP note it is Σ(Amount + VAT), as before.</summary>
+    public decimal GrandTotal => _lines.Sum(x => x.LineTotal) + RoundOff;
+
+    public decimal ServiceChargeTotal => _lines.Sum(x => x.ServiceChargeAmount);
+
+    /// <summary>Phase 63 -- what was handed back over the counter.</summary>
+    public decimal PaidOutAmount => _payouts.Sum(x => x.Amount);
+
+    /// <summary>Phase 63 -- what was left on the customer's account instead: the part of the refund that
+    /// settles what they still owed on the sale.</summary>
+    public decimal ToAccountAmount => GrandTotal - PaidOutAmount;
 
     private CreditNote()
     {
+    }
+
+    /// <summary>
+    /// Phase 63 -- a refund at a till: a credit note against the till sale <paramref name="invoiceId"/>,
+    /// raised in <paramref name="posSessionId"/> at <paramref name="locationId"/>, carrying the sale's
+    /// bill discount. It is approved by the same command that creates it, like the sale.
+    /// </summary>
+    public static CreditNote CreatePosRefund(
+        Guid organizationId, Guid contactId, DateOnly date, Guid locationId, Guid posSessionId, Guid invoiceId,
+        string invoiceCode, decimal discountPct, string reason)
+    {
+        if (locationId == Guid.Empty || posSessionId == Guid.Empty || invoiceId == Guid.Empty)
+        {
+            throw new InvalidOperationException("A till refund names its location, its session and the sale it returns.");
+        }
+
+        var trimmed = reason?.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            throw new InvalidOperationException("A refund says why the goods came back.");
+        }
+
+        if (trimmed.Length > MaxReasonLength)
+        {
+            throw new InvalidOperationException($"A reason is at most {MaxReasonLength} characters.");
+        }
+
+        // The reference is the sale's number, as the vendor stores it (reference_no = the invoice code)
+        // and as Rule 20 asks: the note names the tax invoice it relates to.
+        var note = Create(organizationId, contactId, date, invoiceCode, DocumentType.Invoice, invoiceId, discountPct);
+        note.Channel = SalesChannel.Pos;
+        note.PosSessionId = posSessionId;
+        note.LocationId = locationId;
+        note.Reason = trimmed;
+        return note;
+    }
+
+    /// <summary>Phase 63 -- one returned line, at the sale line's rate, discount, VAT rate, unit factor
+    /// and service charge rate. The caller copies those from the sale line; the quantity is what came
+    /// back.</summary>
+    public void AddPosLine(
+        Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct,
+        Guid? unitId, decimal conversionFactor, Guid? batchId, decimal serviceChargeRate)
+    {
+        EnsureDraft();
+        EnsurePos();
+        EnsureUnpaid();
+
+        if (quantity <= 0 || rate < 0)
+        {
+            throw new InvalidOperationException("A credit note line needs a positive Quantity and a non-negative Rate.");
+        }
+
+        EnsureValidDiscountPct(discountPct);
+
+        _lines.Add(CreditNoteLine.CreatePos(
+            Id, productId, quantity, rate, vatRate, discountPct, DiscountPct, batchId, unitId, conversionFactor,
+            serviceChargeRate));
+
+        RoundOff = 0m;
+    }
+
+    /// <summary>
+    /// Phase 63 -- sets the refund's round-off. The caller decides it (nearest rupee, or exactly what is
+    /// left of the sale when this refund returns the last of it -- see
+    /// <c>CreatePosRefundCommandHandler</c>), because only the caller can see the sale's earlier
+    /// refunds. The aggregate holds the shape: whole paisa, and never a refund of less than nothing.
+    /// </summary>
+    public void SetRoundOff(decimal roundOff)
+    {
+        EnsureDraft();
+        EnsurePos();
+        EnsureUnpaid();
+
+        if (decimal.Round(roundOff, Invoice.PosMoneyScale) != roundOff)
+        {
+            throw new InvalidOperationException("A round-off is whole paisa.");
+        }
+
+        if (_lines.Sum(x => x.LineTotal) + roundOff < 0m)
+        {
+            throw new InvalidOperationException("A round-off cannot take a refund below zero.");
+        }
+
+        RoundOff = roundOff;
+    }
+
+    /// <summary>
+    /// Phase 63 -- records what is handed back. <paramref name="requiredPayout"/> is the part of the
+    /// refund the customer does not still owe on the sale (the caller reads that from the one reader
+    /// of what is owed); the payouts must come to exactly that. Anything paid out beyond it would be
+    /// cash for a bill nobody paid, and anything short of it would leave the customer in credit for
+    /// money they were owed back (phase-63-status.md Decision D).
+    /// </summary>
+    public void PayOut(IReadOnlyCollection<Invoice.TenderInput> payouts, decimal requiredPayout)
+    {
+        EnsureDraft();
+        EnsurePos();
+        EnsureUnpaid();
+
+        if (_lines.Count == 0)
+        {
+            throw new InvalidOperationException("A refund needs at least one line before it is paid out.");
+        }
+
+        if (requiredPayout < 0m || requiredPayout > GrandTotal)
+        {
+            throw new InvalidOperationException(
+                $"A refund of {GrandTotal:0.00} cannot pay out {requiredPayout:0.00}.");
+        }
+
+        var built = payouts
+            .Select(x => CreditNotePayout.Create(Id, x.PaymentModeId, x.Kind, x.AccountId, x.Amount))
+            .ToList();
+
+        var paidOut = built.Sum(x => x.Amount);
+        if (paidOut != requiredPayout)
+        {
+            throw new InvalidOperationException(requiredPayout == 0m
+                ? $"Nothing is handed back on this refund: all {GrandTotal:0.00} comes off what the customer still owes."
+                : $"Hand back exactly {requiredPayout:0.00}; the payouts come to {paidOut:0.00}.");
+        }
+
+        _payouts.AddRange(built);
+        _paid = true;
+    }
+
+    // Not persisted, for Invoice._settled's reason: it only stops a second PayOut on the in-memory draft.
+    private bool _paid;
+
+    private void EnsurePos()
+    {
+        if (Channel != SalesChannel.Pos)
+        {
+            throw new InvalidOperationException("Only a refund at a till carries a service charge, a round-off or payouts.");
+        }
+    }
+
+    private void EnsureUnpaid()
+    {
+        if (_paid)
+        {
+            throw new InvalidOperationException("This refund has already been paid out.");
+        }
     }
 
     public static CreditNote Create(
@@ -118,6 +300,11 @@ public sealed class CreditNote
         Guid? unitId, decimal conversionFactor, Guid? batchId = null)
     {
         EnsureDraft();
+
+        if (Channel == SalesChannel.Pos)
+        {
+            throw new InvalidOperationException("A till refund's lines carry a service charge rate; add them with AddPosLine.");
+        }
 
         if (quantity <= 0 || rate < 0)
         {

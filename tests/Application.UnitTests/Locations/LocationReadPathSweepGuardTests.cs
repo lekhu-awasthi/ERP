@@ -79,6 +79,10 @@ public class LocationReadPathSweepGuardTests
                 "A picker inside the Allocate dialog, not a list screen: it offers the credits that " +
                 "can settle one document, and narrowing them by branch is the allocation policy " +
                 "question phase 36 owns, not a grid filter.",
+            ["PreviewPosRefundQuery"] =
+                "Phase 63 -- the till's refund figure, not a list: its location is the caller's open " +
+                "session's, which the handler reads and re-checks the key at. A LocationId on the request " +
+                "would be a second statement of a location the session already fixes.",
         };
 
     public static TheoryData<DocumentType> DocumentTypes => [.. QueryStems.Keys];

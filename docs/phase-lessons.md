@@ -1775,3 +1775,31 @@ stops a cart following a cashier to another till (the vendor's defect 8).
 guard matched the method *name* `listProducts`, so the till's own `PosService.listProducts` tripped
 it. It was taught the receiver (does the file import `CatalogService`?), with a second assertion that
 the allow-listed screen still matches, rather than given an exemption.
+
+## Phase 63 — returns at the till, and a figure that depends on other documents
+
+**Read `phase-63-status.md` before building any reversal a till or a screen must price before it
+posts, before deciding what a refund pays back, or before a second way to return a sale.** It made a
+refund an ordinary Credit Note created approved against the till sale, with its payout as a second
+entry out of the caller's open drawer, and taught every reader of what is owed that a payout is the
+note paying itself out.
+
+**A figure that depends on other documents cannot be mirrored in the client.** Phase 62 put the
+sale's arithmetic in TypeScript, pinned to the server's by a shared table, because a bill is a
+function of its own cart. A refund is not: the last refund of a sale gives back exactly what is left
+of it, and the payout depends on what the customer still owes. So one planner builds the refund, and
+the preview the cashier reads and the refund that posts both call it, phase 38's dry-run rule
+applied to money.
+
+**Make the payout a rule, not a choice.** "The refund clears what is still owed first, and the rest
+is paid out exactly" answers the walk-in, the credit sale and the part-paid sale with one sentence,
+and leaves the cashier only the mode. A payout amount the cashier could type would have been a way
+to hand cash back on a bill nobody paid.
+
+**Give one document one door.** The ERP's *Convert to Credit Note* on a till sale priced the return
+without its service charge (phase 61's open item). Rather than teach the ERP path the till's rules, it
+now refuses with a 409 naming the till, so a till sale has exactly one way to be returned.
+
+**The rule's text may not name the case; say which reading you took.** The 2072 procedure's copy rule
+speaks of invoices. Applying it to credit notes is the reading that can only add a "copy" mark, and
+the status doc says it is a reading, not the text.

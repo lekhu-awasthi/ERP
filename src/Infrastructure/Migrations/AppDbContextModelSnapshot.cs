@@ -5078,6 +5078,12 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid?>("ApprovedByUserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasDefaultValue("Erp");
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -5113,6 +5119,13 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("PosSessionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("Reference")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -5123,6 +5136,11 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<string>("ReferrerType")
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal>("RoundOff")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasDefaultValue(0m);
 
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
@@ -5149,6 +5167,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("ContactId");
 
                     b.HasIndex("LocationId");
+
+                    b.HasIndex("PosSessionId");
 
                     b.HasIndex("OrganizationId", "Code");
 
@@ -5199,6 +5219,16 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<decimal>("ServiceChargeAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("ServiceChargeRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)")
+                        .HasDefaultValue(0m);
+
                     b.Property<Guid?>("UnitId")
                         .HasColumnType("uniqueidentifier");
 
@@ -5222,6 +5252,72 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("UnitId");
 
                     b.ToTable("CreditNoteLines", "sales");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Sales.CreditNotePayout", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid>("CreditNoteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("PaymentModeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("CreditNoteId");
+
+                    b.HasIndex("PaymentModeId");
+
+                    b.ToTable("CreditNotePayouts", "sales");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Sales.CreditNotePrint", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CreditNoteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("PrintNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("PrintedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("PrintedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreditNoteId");
+
+                    b.HasIndex("OrganizationId", "CreditNoteId", "PrintNumber")
+                        .IsUnique();
+
+                    b.ToTable("CreditNotePrints", "sales");
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Sales.DeliveryNote", b =>
@@ -11511,6 +11607,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("LocationId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ErpApp.Domain.Pos.PosSession", null)
+                        .WithMany()
+                        .HasForeignKey("PosSessionId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Sales.CreditNoteLine", b =>
@@ -11536,6 +11637,36 @@ namespace ErpApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("UnitId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Sales.CreditNotePayout", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Accounting.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Sales.CreditNote", null)
+                        .WithMany("Payouts")
+                        .HasForeignKey("CreditNoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Configuration.PaymentMode", null)
+                        .WithMany()
+                        .HasForeignKey("PaymentModeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Sales.CreditNotePrint", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Sales.CreditNote", null)
+                        .WithMany()
+                        .HasForeignKey("CreditNoteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Sales.DeliveryNote", b =>
@@ -11993,6 +12124,8 @@ namespace ErpApp.Infrastructure.Migrations
             modelBuilder.Entity("ErpApp.Domain.Sales.CreditNote", b =>
                 {
                     b.Navigation("Lines");
+
+                    b.Navigation("Payouts");
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Sales.DeliveryNote", b =>

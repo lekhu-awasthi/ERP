@@ -23,6 +23,8 @@ public sealed class GetCreditNoteConversionTemplateQueryHandler(IAppDbContext db
             throw new ConflictException("Only an Approved invoice can be converted to a Credit Note.");
         }
 
+        SalesValidation.EnsureNotTillSale(invoice);
+
         var remainingByLine = await SalesValidation.GetInvoiceRemainingByLineAsync(
             db, request.OrganizationId, invoice, cancellationToken);
 

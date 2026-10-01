@@ -209,55 +209,14 @@ public sealed class CreatePosSaleCommandHandler(
         return products;
     }
 
-    /// <summary>
-    /// Each tender's mode must be one this till offers (phase 60: linked, active, with an account),
-    /// and a cash tender must go into <i>this</i> drawer -- its mode's account must be the session's
-    /// drawer account, fixed when the session opened. The kind and account are frozen onto the tender.
-    /// </summary>
-    private async Task<List<Invoice.TenderInput>> ResolveTendersAsync(
-        CreatePosSaleCommand request, PosTillContext till, PosSession session, CancellationToken cancellationToken)
-    {
-        if (request.Tenders.Count == 0)
-        {
-            return [];
-        }
-
-        var modeIds = request.Tenders.Select(x => x.PaymentModeId).Distinct().ToList();
-
-        var offered = await (
-                from link in db.PosLocationPaymentModes
-                join mode in db.PaymentModes on link.PaymentModeId equals mode.Id
-                where link.OrganizationId == request.OrganizationId && link.BillingLocationId == till.Location.Id
-                      && modeIds.Contains(mode.Id)
-                select new { mode.Id, mode.Name, mode.Kind, mode.AccountId, mode.IsActive })
-            .ToDictionaryAsync(x => x.Id, cancellationToken);
-
-        var refused = modeIds.Where(id => !offered.TryGetValue(id, out var m) || !m.IsActive || m.AccountId is null).ToList();
-        if (refused.Count > 0)
-        {
-            throw new ValidationException([new ValidationFailure(
-                nameof(request.Tenders),
-                $"{refused.Count} payment mode(s) on this sale are not offered at '{till.Location.Name}', are inactive, "
-                + "or name no payment account. A till takes the modes linked to it under Configurations > Point of Sale.")]);
-        }
-
-        var strayCash = offered.Values
-            .Where(x => x.Kind == PaymentModeKind.Cash && x.AccountId != session.CashAccountId)
-            .Select(x => $"'{x.Name}'")
-            .ToList();
-        if (strayCash.Count > 0)
-        {
-            throw new ConflictException(
-                $"Cash taken in {string.Join(", ", strayCash)} would post to a different account from session "
-                + $"{session.Code}'s drawer. Point every Cash mode this till offers at the drawer's account.");
-        }
-
-        return [.. request.Tenders.Select(x =>
-        {
-            var mode = offered[x.PaymentModeId];
-            return new Invoice.TenderInput(mode.Id, mode.Kind, mode.AccountId!.Value, x.Amount);
-        })];
-    }
+    /// <summary>Each tender's mode must be one this till offers, and a cash tender must go into this
+    /// drawer; the kind and account are frozen onto the tender (<see cref="PosTenderModes"/>).</summary>
+    private Task<List<Invoice.TenderInput>> ResolveTendersAsync(
+        CreatePosSaleCommand request, PosTillContext till, PosSession session, CancellationToken cancellationToken) =>
+        PosTenderModes.ResolveAsync(
+            db, request.OrganizationId, till, session,
+            [.. request.Tenders.Select(x => (x.PaymentModeId, x.Amount))],
+            nameof(request.Tenders), cancellationToken);
 
     private async Task AddLinesAsync(
         CreatePosSaleCommand request,

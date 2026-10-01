@@ -17,6 +17,24 @@ public sealed class CreditNoteLine
     public decimal VatAmount { get; private set; }
 
     /// <summary>
+    /// Phase 63 -- the service charge rate the returned sale line was charged at, copied from it, and
+    /// zero on every ERP line. A refund returns the service charge in proportion because it is computed
+    /// from this rate by the same arithmetic the sale used (<see cref="PosLineArithmetic"/>), never
+    /// re-read from the location's setting today.
+    /// </summary>
+    public decimal ServiceChargeRate { get; private set; }
+
+    /// <summary>Phase 63 -- the service charge this line gives back. Inside the VAT base, as on the sale
+    /// line (<see cref="InvoiceLine.ServiceChargeAmount"/>).</summary>
+    public decimal ServiceChargeAmount { get; private set; }
+
+    /// <summary>What the VAT given back was charged on: the amount plus its service charge.</summary>
+    public decimal TaxableAmount => Amount + ServiceChargeAmount;
+
+    /// <summary>What this line takes off what the customer owes.</summary>
+    public decimal LineTotal => Amount + ServiceChargeAmount + VatAmount;
+
+    /// <summary>
     /// Phase 51 -- the <b>batch</b> this line receives into or issues from, or null when the
     /// product is not batch-tracked. One value per line and not a collection, because the
     /// 2026-09-16 read shows exactly one <c>Item Batch</c> column between Qty and Rate: a delivery
@@ -74,6 +92,38 @@ public sealed class CreditNoteLine
             DiscountPct = discountPct,
             Amount = amount,
             VatAmount = amount * vatRate.ToPercent(),
+            BatchId = batchId,
+        };
+    }
+
+    /// <summary>
+    /// Phase 63 -- a line of a refund at the till: the returned quantity of a sale line, priced by the
+    /// arithmetic that priced the sale (<see cref="PosLineArithmetic"/>). Returning every unit of a line
+    /// therefore gives back its amount, service charge and VAT to the paisa.
+    /// </summary>
+    internal static CreditNoteLine CreatePos(
+        Guid creditNoteId, Guid productId, decimal quantity, decimal rate, VatRate vatRate,
+        decimal discountPct, decimal headerDiscountPct, Guid? batchId, Guid? unitId,
+        decimal conversionFactor, decimal serviceChargeRate)
+    {
+        var figures = PosLineArithmetic.Compute(
+            quantity, rate, vatRate.ToPercent(), discountPct, headerDiscountPct, serviceChargeRate);
+
+        return new CreditNoteLine
+        {
+            Id = Guid.NewGuid(),
+            CreditNoteId = creditNoteId,
+            ProductId = productId,
+            UnitId = unitId,
+            ConversionFactor = UnitConversion.Validate(conversionFactor),
+            Quantity = quantity,
+            Rate = rate,
+            VatRate = vatRate,
+            DiscountPct = discountPct,
+            Amount = figures.Amount,
+            ServiceChargeRate = serviceChargeRate,
+            ServiceChargeAmount = figures.ServiceChargeAmount,
+            VatAmount = figures.VatAmount,
             BatchId = batchId,
         };
     }

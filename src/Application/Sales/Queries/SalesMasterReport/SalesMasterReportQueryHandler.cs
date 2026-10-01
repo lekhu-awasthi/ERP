@@ -78,7 +78,7 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
         }
 
         var creditNoteLines = await creditNoteLinesQuery
-            .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount })
+            .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.ServiceChargeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         // CreditNote carries no WarehouseId of its own -- resolve it from the source Invoice when
@@ -197,7 +197,9 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
                 creditNote.Code, creditNote.Reference, creditNote.Date,
                 product.Id, product.Code, product.Name,
                 line.Quantity, line.Rate, netAfterLineDiscount, itemDiscount, transactionDiscount, line.Amount,
-                0m, line.VatRate, line.VatAmount, line.Amount + line.VatAmount));
+                // Phase 63 -- a till refund line's service charge, in the column the sale's sits in.
+                line.ServiceChargeAmount, line.VatRate, line.VatAmount,
+                line.Amount + line.ServiceChargeAmount + line.VatAmount));
         }
 
         var orderedRows = rows.OrderBy(x => x.EntryDate).ThenBy(x => x.EntryNo).ToList();

@@ -94,6 +94,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 60: POS foundation (`PosMode` on every location, `PosLocationSettings`, payment modes with a kind + account linked per location, the flagged walk-in, 3 tenant-default accounts, `IRequireAnyFeature`). Before a POS phase reads a setting, or adding a trailing optional parameter — `docs/phase-60-status.md`
 - Phase 61: POS sale engine (a till sale is an Invoice created approved, tenders a second GL entry on it, `PosSession` drawer posts cash movements and over/short, one session/day reader; service charge inside the VAT base, its 2023 ban stated on screen). Before a second entry on a document, a second approving door, or a value-dependent permission — `docs/phase-61-status.md`
 - Phase 62: Retail till UI (lazy full-screen `/pos`: launcher, grid + scan, cart, multi-tender payment, session X/Z, cash in/out, close); abbreviated tax invoice and reprint-copy rules settled from the statutes. Before a figure a cashier pays against, a printed count, or a browser-held draft — `docs/phase-62-status.md`
+- Phase 63: returns at the till (a refund is a Credit Note created approved; its payout is a second entry out of the open drawer after clearing what is still owed; one planner prices the preview and the refund; the ERP's conversion of a till sale refused). Before a reversal priced before it posts, or a second way to return a sale — `docs/phase-63-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -210,6 +211,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A POS "type" is a mode every location has, not a location kind: `BillingLocation.PosMode`; the two reserved `BillingLocationType` members are retired and every existing row migrated to `None` (phase 59, 60).
 - Switching a feature *off* needs no entitlement: `PosMode.None` is always settable, so the mode command checks its entitlement per value in the handler, not via `IRequireAnyFeature` (phase-60).
 - A till sale's tenders are the invoice paying itself: every reader of what a customer owes must count them (net of change), or the walk-in's balance grows with every cash sale (phase-61).
+- …and a refund's payouts are the credit note paying itself out: reduce the sale by the note **less its payouts**, or a cash refund leaves the walk-in in credit (phase-63).
 - A rule question answered from the statutes can change the product question: Nepal voided mandatory service charge on 2023-01-25. Ask the user; never build or drop it silently (phase-61).
 - Adding the Nth trailing optional parameter finds callers that stopped at N−2: variant edits reset batch/serial tracking and update imports cleared SKU, barcode, locations and tracking (phase-60).
 - A filter over a tree of tenant-defined groups must match on group **id**, never group name — names are not unique across a chart of accounts (phase-26a bug #1).
@@ -339,6 +341,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Bootstrap's JavaScript is not loaded anywhere (`angular.json` has no `scripts`), so `data-bs-toggle` does nothing; drive menus from a signal (phase-22).
 - Angular's `DatePipe` ignores `DatePreferenceService` entirely, so `| date:` renders Gregorian whatever the BS toggle says; phase 23's guard banned date *inputs* and nobody asked the mirror question about date **output** (phase-48).
 - A total a cashier takes money against must round as the server does: `Math.round(1.005 * 100)` is 100. The till's bill is `bigint` paisa pinned to `pos-bill-cases.json`, which the Domain suite also reads (phase-62).
+- …but a figure that depends on **other documents** (a refund's last-part remainder, what is still owed) cannot be mirrored in the browser: preview it through the server's own planner (phase-63).
 - `NepaliDatePipe` takes an instant's **Nepal** day, never `slice(0, 10)` of its UTC form — between 18:15 and 24:00 UTC that names yesterday, which the Transaction List had been doing since phase 26a (phase-48).
 - …but a **derived series** follows the calendar of the figure it must agree with: the balance chart is UTC-day like `GlDateBoundary`, or it contradicts the report printed above it (phase-57).
 - One calendar gets one pipe: a time is a **mode** on `NepaliDatePipe` (`'datetime'`, `'datetime-seconds'`) rendered from the same shifted instant, never a second pipe (phase-48).
@@ -438,6 +441,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A `cat > file <<'EOF'` heredoc in the Bash tool is silently truncated or mis-parsed well below the ~8 KB figure (any heredoc, `python -` included); use the Write tool, or write a small patch script and run it (phase-26a, phase-57). It also **eats backslash escapes** even when the delimiter is quoted, so a `\n` or `\t` inside an embedded script arrives as a literal newline or tab — a syntax error if you are lucky and a corrupted path if you are not (phase-39).
 - …and `\\b` arrives as `\b`, which Python reads as a **backspace** inside a regex string, invisible in the file. A script carrying backslashes goes through the Write tool, always (phase-62).
 - `docker info` exits 0 with the engine down; Docker is up only when `{{.ServerVersion}}` is non-empty (phase-62).
+- Two `dotnet test` runs at once collide on the shared `ErpApp.Application.dll` (`CS2012`, file locked) and print nothing under a `Passed!` filter; run the .NET suites one at a time (phase-63).
 - A script inserting an import after "the last `\nimport ` line" lands *inside* a multi-line `import { … }` block; anchor on the statement's closing line (phase-35a).
 - A scripted insert *before* a method lands between it and its doc comment; the unit to anchor on is the comment plus the declaration (phase-47, phase-35a's rule in mirror).
 - git-bash `grep -c $'\r$'` reports 0 on a CRLF file; count bytes with Python `open(p, 'rb')` before trusting any newline check (phase-58).
@@ -466,39 +470,39 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-62 are complete. The forward plan is phases 63–66: POS.** Each phase's story is in its
-`docs/phase-N-status.md`, and finished planning entries are archived in `docs/roadmap-history.md`.
+**Phases 0-63 are complete. The forward plan is phases 64–66: POS Restaurant.** Each phase's story is
+in its `docs/phase-N-status.md`, and finished planning entries are archived in `docs/roadmap-history.md`.
 
-**Phase 62 built the Retail till on phase 61's engine.** It added:
+**Phase 63 built returns at the till.** It added:
 
-- a lazy, full-screen `/organizations/:id/pos` (launcher, till, session page) with the shell's
-  chrome stepping aside (`App.tillMode`), and a *Point of Sale* nav leaf;
-- the till's own reads under `Pos.Session.Operate`: `GET /pos/tills`, `/tills/{id}`,
-  `/tills/{id}/products` (scan by exact code; rates VAT-exclusive after the tenant's price basis);
-- a cart whose total is the server's (`pos-bill.ts`, bigint paisa, a shared table), with holds and
-  persistence in the browser keyed by organization × location × session;
-- the abbreviated tax invoice (VAT Rules Rule 18: permission recorded per location, walk-in, at most
-  Rs 10,000, VAT-registered), stored on the sale, and an append-only `InvoicePrint` log so every
-  reprint says "copy of original · printed N times" (the 2072 computerised-invoicing procedure);
-- the session page: X/Z report, Cash In/Out, close with a count, and reprint.
+- a refund that is an ordinary Credit Note created approved against the till sale, returning service
+  charge and VAT in proportion (`PosLineArithmetic`, shared with the sale line), with stock back at the
+  cost it left at;
+- a payout posted as a second entry on the note, out of the caller's **open** drawer (yesterday's sale
+  refunds into today's session), after the refund has cleared what the customer still owes;
+- `PosRefundPlanner`, the one computation behind both `POST /pos/refunds/preview` and the refund;
+- `CreditNotePrint` (a sibling of `InvoicePrint`) and an 80 mm credit note laid out to VAT Rules Rule 20;
+- refunds in `PosSalesReader` (X/Z, day summary, expected cash) and every reader of what is owed;
+- the ERP's *Convert to Credit Note* refused on a till sale.
 
-**Next: phase 63, returns at the till.** A refund from an invoice becomes a Credit Note with a payout
-tender against the open session, inheriting the lock-date and reconciliation refusals. It also owns
-phase 61's open item: an ERP credit note against a till sale returns no service charge. Phase 62
-§ 5 adds the ERP PDF's missing tax-invoice heading and copy marking, serial-tracked products at the
-till, and the unmeasured barcode index.
+**Next: phase 64, Restaurant: floor, orders, KOT.** Areas and tables with a layout editor, `PosOrder`
+with per-line counters, `KitchenTicket` per send × station, Take Away and Delivery, and an ERP *POS
+Orders* list. Carried: phase 62 § 5 (the ERP PDF's tax-invoice heading and copy marking, now for credit
+notes too; serial-tracked products at the till; the unmeasured barcode index) and phase 63 § 5
+(cross-branch returns, split payouts on screen).
 
-Tests: Domain **830**, Application.UnitTests **1446**, Infrastructure.UnitTests 13,
-Api.IntegrationTests **30**, Angular **687**. Everything was green at phase 62's close with Docker up.
-The bundle sits at **647.12 kB** against `build-budget.spec.ts`'s 680 kB; the till is lazy (36 kB
-chunk).
+Tests: Domain **842**, Application.UnitTests **1464**, Infrastructure.UnitTests 13,
+Api.IntegrationTests **30**, Angular **697**. Everything was green at phase 63's close with Docker up.
+The bundle sits at **647.29 kB** against `build-budget.spec.ts`'s 680 kB; the till and the refund
+screen are lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests
   fail in their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like
   regressions and is not.
 - That suite also fails nondeterministically under machine load and passes on re-run (phase 36/37),
   and so does the Angular suite.
-- A running `erp-api` preview locks `ErpApp.Api.dll`, so stop it before running that suite.
+- A running `erp-api` preview locks `ErpApp.Api.dll`, so stop it before running that suite, and run
+  the .NET suites one at a time (phase 63).
 - `tsc --noEmit` does not cover `web/src/app`; `ng build` is the check (phase-28).
 - `ng test` must be run from `web/` (phase-35a) on **Node 24** (`nvm use 24.11.0`).
 - When the subject is one screen's plan, the number to trust is `tools/scale/`, not the wall clock

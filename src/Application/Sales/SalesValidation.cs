@@ -90,6 +90,16 @@ internal static class SalesValidation
     /// would credit an Amount that doesn't match what was actually invoiced even if every per-line
     /// (ProductId, Rate, VatRate, DiscountPct) key matches -- the same "reversal must reproduce the
     /// exact original, not just balance its own entry" reasoning as the per-line check.</summary>
+    /// <summary>Phase 63 -- the ERP's Convert to Credit Note refuses a till sale (Decision G).</summary>
+    public static void EnsureNotTillSale(Invoice invoice)
+    {
+        if (invoice.Channel == SalesChannel.Pos)
+        {
+            throw new ConflictException(
+                Commands.CreateCreditNote.CreateCreditNoteCommandHandler.TillSaleReturnMessage);
+        }
+    }
+
     public static async Task EnsureCreditNoteLinesWithinInvoiceRemainingAsync(
         IAppDbContext db,
         Guid organizationId,

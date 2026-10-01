@@ -4030,3 +4030,30 @@ to come up after Docker Desktop was started. Once it reported a version, the sui
 `Api.IntegrationTests` builds `src/Api`. With the `erp-api` preview running, `ErpApp.Api.dll` is
 locked and the build fails, so a test run filtered on `[FAIL]|Passed!` prints nothing at all. Stop
 the preview first, and grep for ` error ` as well.
+
+## A refund's payout is the credit note paying itself out (phase 63)
+
+A till refund posts two entries against one credit note: the note (credit AR for the whole refund)
+and the payout (debit AR, credit the drawer or the card account). Every document-derived reader of
+what a customer owes reduced the sale by the credit note's gross. Without a change, a cash refund of a
+paid sale would have taken the sale below zero, showing the walk-in in credit for money already
+handed back. `OutstandingDocumentReader` reduces by the note's total **less its payouts**,
+`ContactLedgerReader` emits the payout as a debit event under the note's number, and
+`GetDefaultPaymentAllocations` follows the first. Proven to bite by removing the payout from the
+first, which fails the part-paid refund test.
+
+## A figure that depends on other documents cannot be mirrored in the browser (phase 63)
+
+Phase 62 mirrored the sale's arithmetic in `pos-bill.ts` because a bill is a function of its own
+cart. A refund's total and payout are not: the refund that returns the last of a sale gives back
+exactly what is left of its total (so two halves of 633 are 316 and 317, not 316 twice), and the
+payout depends on what the customer still owes on the sale. Neither is visible to the browser. So the
+screen asks `POST /pos/refunds/preview`, which runs `PosRefundPlanner`, the same planner the refund
+runs. A TypeScript copy would have agreed with the server until the second refund of a bill.
+
+## Two `dotnet test` runs at once collide on the shared build (phase 63)
+
+`Infrastructure.UnitTests` and `Api.IntegrationTests` both build `ErpApp.Application.dll`. Started
+together, the second build fails with `CS2012` (the file is locked by `VBCSCompiler`), and a run
+filtered on `Passed!|Failed!` prints nothing, which reads like a hung suite. Run the .NET suites one at
+a time.

@@ -51,6 +51,8 @@ describe('PosTillPage', () => {
     ],
     categories: [{ id: 'food', name: 'Food' }, { id: 'drinks', name: 'Drinks' }],
     canSellOnCredit: true,
+    printCreditNote: true,
+    canRefund: true,
     ...overrides,
   });
 
@@ -60,6 +62,7 @@ describe('PosTillPage', () => {
     sales: {
       salesCount: 0, subTotal: 0, serviceCharge: 0, vat: 0, roundOff: 0, grandTotal: 0, tenders: [], tendered: 0,
       change: 0, settled: 0, credit: 0, cashSales: 0,
+      refunds: { refundsCount: 0, subTotal: 0, serviceCharge: 0, vat: 0, roundOff: 0, grandTotal: 0, payouts: [], paidOut: 0, toAccount: 0, cashRefunds: 0 }, netSales: 0,
     },
     cashMovements: [], cashIn: 0, cashOut: 0, expectedCash: 1000, countedCash: null, closingCount: null,
     cashDifference: null, closingNote: null,
@@ -197,6 +200,15 @@ describe('PosTillPage', () => {
       complete: () => buttons('Complete Sale')[0],
     };
   }
+
+  it('offers Refund only to a cashier who may refund here (phase 63)', () => {
+    const can = page(till({ canRefund: true }));
+    expect(can.element.querySelector('a[href*="/pos/refund/"]')?.textContent?.trim()).toBe('Refund');
+    TestBed.resetTestingModule();
+
+    const cannot = page(till({ canRefund: false }));
+    expect(cannot.element.querySelector('a[href*="/pos/refund/"]')).toBeNull();
+  });
 
   it('cannot sell without a session of the cashier’s own, and says where to start one', () => {
     const p = page(till(), null);

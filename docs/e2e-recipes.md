@@ -120,3 +120,23 @@ beside a 200 from the same user, and create a fresh Organization per phase.
 - Driving the till in the browser pane: stub `window.print` after **every** full reload (a Vite
   reload after an edit drops it too), and fill number inputs with `form_input`. A ref-based click on
   them can land elsewhere (phase-62).
+
+- Refunds at the till (phase 63), under `/{org}/pos`:
+  - `GET /tills/{locationId}/sales?search=` finds approved till sales of that location by number
+    (newest 20). `GET /sales/{invoiceId}/refundable` returns the lines with `invoiceLineId`, `sold`,
+    `remaining`, plus `owed`, `priorRefunds` and `canRefund`.
+  - `POST /refunds/preview {sessionId, invoiceId, lines: [{invoiceLineId, quantity}]}` returns the
+    server's figure: `grandTotal`, `roundOff`, `owedBefore`, `requiredPayout`, `toAccount`.
+  - `POST /refunds {sessionId, locationId, invoiceId, lines, payouts: [{paymentModeId, amount}], reason}`.
+    The payouts must sum to exactly `requiredPayout` (a 400 naming `Payouts` otherwise), so preview
+    first. A credit sale's refund sends `payouts: []`. A missing reason is a 400 naming `Reason`.
+  - `GET /sessions/{id}/refunds` lists a drawer's refunds with `printCount`, and
+    `POST /refunds/{creditNoteId}/prints` (no body) returns the credit note with `printNumber`.
+  - A refund needs `Sales.CreditNote.Create` (pipeline) **and** `Sales.CreditNote.Approve` at the
+    location (handler), which a default Member lacks. The 403-not-404 pair: `POST /refunds` naming a
+    nonexistent `invoiceId` is **404** "Sale not found." as Admin and **403 naming
+    `Sales.CreditNote.Approve`** from a role without it, because the key is checked before the sale is read.
+  - In SQL a refund is `sales.CreditNotes.Channel = 'Pos'` with `PosSessionId` (the session it was
+    paid out of, not the sale's), `Reason`, `RoundOff`; payouts are in `sales.CreditNotePayouts`; prints
+    in `sales.CreditNotePrints`; and it posts up to two `GlJournalEntries` rows
+    (`SourceDocumentType = 'CreditNote'`): the note, and the payout (none for a credit sale).

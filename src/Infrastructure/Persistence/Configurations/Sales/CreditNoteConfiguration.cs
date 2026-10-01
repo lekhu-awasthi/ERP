@@ -1,5 +1,6 @@
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
+using ErpApp.Domain.Pos;
 using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -47,6 +48,32 @@ public sealed class CreditNoteConfiguration : IEntityTypeConfiguration<CreditNot
             .HasDefaultValue(ExchangeRates.BaseRate).ValueGeneratedNever();
 
         builder.HasOne<Contact>().WithMany().HasForeignKey(x => x.ContactId).OnDelete(DeleteBehavior.Restrict);
+
+        builder.Ignore(x => x.GrandTotal);
+        builder.Ignore(x => x.ServiceChargeTotal);
+        builder.Ignore(x => x.PaidOutAmount);
+        builder.Ignore(x => x.ToAccountAmount);
+
+        // Phase 63 -- a till refund's header. Defaults true of every existing row (Erp, zero, null),
+        // and ValueGeneratedNever for the same reason as Invoice.Channel's (phase 2's enum default).
+        builder.Property(x => x.Channel)
+            .HasConversion<string>().HasMaxLength(10).IsRequired()
+            .HasDefaultValue(SalesChannel.Erp).ValueGeneratedNever();
+        builder.Property(x => x.RoundOff).HasPrecision(18, 4).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+        builder.Property(x => x.Reason).HasMaxLength(CreditNote.MaxReasonLength);
+
+        builder.HasOne<PosSession>()
+            .WithMany()
+            .HasForeignKey(x => x.PosSessionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(x => x.Payouts)
+            .WithOne()
+            .HasForeignKey(x => x.CreditNoteId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Metadata.FindNavigation(nameof(CreditNote.Payouts))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
 
         builder.HasMany(x => x.Lines)
             .WithOne()

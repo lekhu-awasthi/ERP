@@ -53,18 +53,28 @@ public sealed class GetDefaultPaymentAllocationsQueryHandler(IAppDbContext db)
         var creditNotes = await db.CreditNotes
             .Where(x => x.OrganizationId == organizationId && x.Status == CreditNoteStatus.Approved
                 && x.ReferrerType == DocumentType.Invoice && x.ReferrerId != null && invoiceIds.Contains(x.ReferrerId.Value))
-            .Select(x => new { x.Id, ReferrerId = x.ReferrerId!.Value })
+            .Select(x => new { x.Id, ReferrerId = x.ReferrerId!.Value, x.RoundOff })
             .ToListAsync(cancellationToken);
         var lines = await db.CreditNoteLines
             .Where(x => creditNotes.Select(c => c.Id).Contains(x.CreditNoteId))
-            .Select(x => new { x.CreditNoteId, x.Amount, x.VatAmount })
+            .Select(x => new { x.CreditNoteId, x.Amount, x.ServiceChargeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
-        var gross = lines.GroupBy(x => x.CreditNoteId).ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.VatAmount));
+        var gross = lines.GroupBy(x => x.CreditNoteId)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount));
+
+        // Phase 63 -- what a till refund handed back never reduced the sale (OutstandingDocumentReader's
+        // LoadRefundPayoutsAsync); only the part left on the customer's account did.
+        var paidOut = await db.CreditNotePayouts
+            .Where(x => creditNotes.Select(c => c.Id).Contains(x.CreditNoteId))
+            .GroupBy(x => x.CreditNoteId)
+            .Select(g => new { CreditNoteId = g.Key, Amount = g.Sum(x => x.Amount) })
+            .ToDictionaryAsync(x => x.CreditNoteId, x => x.Amount, cancellationToken);
 
         var result = new Dictionary<Guid, decimal>();
         foreach (var cn in creditNotes)
         {
-            result[cn.ReferrerId] = result.GetValueOrDefault(cn.ReferrerId) + gross.GetValueOrDefault(cn.Id);
+            result[cn.ReferrerId] = result.GetValueOrDefault(cn.ReferrerId)
+                + gross.GetValueOrDefault(cn.Id) + cn.RoundOff - paidOut.GetValueOrDefault(cn.Id);
         }
 
         return result;

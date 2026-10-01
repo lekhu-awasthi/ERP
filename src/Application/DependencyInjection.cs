@@ -149,6 +149,8 @@ public static class DependencyInjection
         // Phase 61 -- a till sale's settlement, posted as a second entry against the same invoice.
         services.AddTransient<IGlPostingRule<InvoiceTenderPostingInput>, InvoiceTenderPostingRule>();
         services.AddTransient<IGlPostingRule<CreditNotePostingInput>, CreditNotePostingRule>();
+        // Phase 63 -- a till refund's payout, posted as a second entry against the same credit note.
+        services.AddTransient<IGlPostingRule<CreditNotePayoutPostingInput>, CreditNotePayoutPostingRule>();
         services.AddTransient<IGlPostingRule<PaymentPostingInput>, PaymentPostingRule>();
         // Purchase-side resolved-input-record posting rules, same InvoicePostingRule split.
         services.AddTransient<IGlPostingRule<PurchaseBillPostingInput>, PurchaseBillPostingRule>();

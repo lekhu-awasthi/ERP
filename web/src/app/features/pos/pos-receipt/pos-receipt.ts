@@ -12,6 +12,29 @@ const NEPALI_TITLES: Readonly<Record<PosReceipt['title'], string>> = {
 };
 
 /**
+ * The 80 mm paper's stylesheet, shared by the sale's receipt and the refund's credit note (phase 63)
+ * so the two print alike, and so a page rendering only one of them still prints. Unencapsulated, and
+ * it hides `.pos-screen-root` when printing -- see the component comment below.
+ */
+export const POS_RECEIPT_STYLES = `
+    .pos-receipt { width: 72mm; padding: 2mm; background: #fff; color: #000; font: 12px/1.35 'Courier New', monospace; }
+    .pos-receipt p { margin: 0; }
+    .pos-receipt .r-center { text-align: center; }
+    .pos-receipt .r-title { font-weight: 700; font-size: 14px; text-transform: uppercase; }
+    .pos-receipt .r-copy { border: 1px solid #000; text-align: center; font-weight: 700; margin: 1mm 0; }
+    .pos-receipt .r-rule { border-top: 1px dashed #000; margin: 1.5mm 0; }
+    .pos-receipt .r-row { display: flex; justify-content: space-between; gap: 2mm; }
+    .pos-receipt .r-strong { font-weight: 700; }
+    .pos-receipt .r-indent { padding-left: 3mm; }
+    .pos-print-root { display: none; }
+    @media print {
+      .pos-screen-root, .skip-link { display: none !important; }
+      .pos-print-root { display: block !important; }
+      @page { margin: 2mm; }
+    }
+  `;
+
+/**
  * Phase 62 -- the 80 mm receipt: a till sale exactly as it was issued, plus which printing this is.
  *
  * <p><b>The heading follows the bill</b> (Decision A; the vendor's defect 3 printed "ESTIMATE BILL"
@@ -37,23 +60,7 @@ const NEPALI_TITLES: Readonly<Record<PosReceipt['title'], string>> = {
   imports: [AmountPipe, NepaliDatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
-  styles: `
-    .pos-receipt { width: 72mm; padding: 2mm; background: #fff; color: #000; font: 12px/1.35 'Courier New', monospace; }
-    .pos-receipt p { margin: 0; }
-    .pos-receipt .r-center { text-align: center; }
-    .pos-receipt .r-title { font-weight: 700; font-size: 14px; text-transform: uppercase; }
-    .pos-receipt .r-copy { border: 1px solid #000; text-align: center; font-weight: 700; margin: 1mm 0; }
-    .pos-receipt .r-rule { border-top: 1px dashed #000; margin: 1.5mm 0; }
-    .pos-receipt .r-row { display: flex; justify-content: space-between; gap: 2mm; }
-    .pos-receipt .r-strong { font-weight: 700; }
-    .pos-receipt .r-indent { padding-left: 3mm; }
-    .pos-print-root { display: none; }
-    @media print {
-      .pos-screen-root, .skip-link { display: none !important; }
-      .pos-print-root { display: block !important; }
-      @page { margin: 2mm; }
-    }
-  `,
+  styles: POS_RECEIPT_STYLES,
   template: `
     @let r = receipt();
     <div class="pos-receipt">

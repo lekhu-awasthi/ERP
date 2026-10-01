@@ -1,0 +1,228 @@
+<div class="pos-screen-root">
+  <div class="container py-4">
+    <header class="d-flex flex-wrap align-items-center gap-2 mb-3">
+      <h1 class="h3 fw-bold mb-0 me-auto">
+        Refund
+        @if (till(); as t) { <span class="fs-6 fw-normal text-body-secondary">&middot; {{ t.locationName }}</span> }
+      </h1>
+      <nav aria-label="Refund" class="d-flex gap-2">
+        @if (till(); as t) {
+          <a class="btn btn-sm btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'pos', 'till', t.locationId]">Back to Till</a>
+        }
+        @if (session(); as s) {
+          <a class="btn btn-sm btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'pos', 'sessions', s.id]">Session &amp; Cash</a>
+        }
+      </nav>
+    </header>
+
+    <app-status-banner [message]="errorMessage()" />
+    <app-status-banner [message]="successMessage()" tone="success" />
+
+    @if (loading()) {
+      <p class="text-body-secondary">Loading the till…</p>
+    } @else if (till(); as t) {
+      @if (!session()) {
+        <p>Open a session at this till before refunding: a refund is paid out of a drawer.</p>
+        <a class="btn btn-primary fw-bold" [routerLink]="['/organizations', organizationId, 'pos', 'till', t.locationId]">Go to the Till</a>
+      } @else if (!t.canRefund) {
+        <p>
+          A refund is a credit note made and approved at once, so it needs permission to create and approve
+          credit notes at {{ t.locationName }} (Sales.CreditNote.Create and Sales.CreditNote.Approve).
+          Ask an administrator, or ask a colleague who has it.
+        </p>
+      } @else if (!sale()) {
+        <!-- ===================== Find the sale ===================== -->
+        <section class="card border-0 shadow-sm" aria-labelledby="pos-refund-find-heading">
+          <div class="card-body">
+            <h2 id="pos-refund-find-heading" class="h5 fw-bold">Find the sale</h2>
+            <form class="row g-2 align-items-end mb-3" role="search" (submit)="$event.preventDefault(); search()">
+              <div class="col-sm-6">
+                <label class="form-label" for="pos-refund-search">Bill number</label>
+                <input #searchBox class="form-control" type="search" id="pos-refund-search" maxlength="50"
+                  autocomplete="off" [value]="searchTerm()" (input)="searchTerm.set(textOf($event))" />
+              </div>
+              <div class="col-auto">
+                <button type="submit" class="btn btn-primary fw-bold">Search</button>
+              </div>
+            </form>
+            @if (searched() && matches().length === 0) {
+              <p class="text-body-secondary mb-0">No sale at {{ t.locationName }} matches that number.</p>
+            } @else if (matches().length > 0) {
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <caption class="visually-hidden">Sales at {{ t.locationName }}, newest first</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Bill</th>
+                      <th scope="col">Sold</th>
+                      <th scope="col">Session</th>
+                      <th scope="col">Customer</th>
+                      <th scope="col" class="text-end">Total</th>
+                      <th scope="col"><span class="visually-hidden">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (match of matches(); track match.invoiceId) {
+                      <tr>
+                        <td>{{ match.code }}</td>
+                        <td>{{ match.soldAt | nepaliDate: 'datetime' }}</td>
+                        <td>{{ match.sessionCode }}</td>
+                        <td>{{ match.customerName }}</td>
+                        <td class="text-end">{{ match.grandTotal | amount }}</td>
+                        <td class="text-end">
+                          <button type="button" class="btn btn-sm btn-outline-primary" (click)="selectSale(match.invoiceId)">
+                            Refund<span class="visually-hidden"> bill {{ match.code }}</span>
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        </section>
+      } @else if (sale(); as sl) {
+        <!-- ===================== The sale ===================== -->
+        <section class="card border-0 shadow-sm mb-3" aria-labelledby="pos-refund-sale-heading">
+          <div class="card-body">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+              <h2 id="pos-refund-sale-heading" class="h5 fw-bold mb-0 me-auto" tabindex="-1">Bill {{ sl.code }}</h2>
+              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="backToSearch()">Choose another bill</button>
+            </div>
+            <p class="mb-2">
+              {{ sl.soldAt | nepaliDate: 'datetime' }} &middot; {{ sl.customerName }}
+              @if (sl.sessionCode) { &middot; session {{ sl.sessionCode }} }
+            </p>
+            <p class="mb-3">
+              Total {{ sl.grandTotal | amount }} &middot; paid at the till {{ sl.settled | amount }}
+              @if (sl.owed > 0) { &middot; <strong>still owed {{ sl.owed | amount }}</strong> }
+            </p>
+            @if (sl.priorRefunds.length > 0) {
+              <p class="small">
+                Already refunded:
+                @for (prior of sl.priorRefunds; track prior.creditNoteId; let last = $last) {
+                  {{ prior.code }} ({{ prior.grandTotal | amount }}){{ last ? '' : ', ' }}
+                }
+              </p>
+            }
+
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <caption class="visually-hidden">Lines of bill {{ sl.code }} and how much of each to refund</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Item</th>
+                    <th scope="col" class="text-end">Sold</th>
+                    <th scope="col" class="text-end">Left to refund</th>
+                    <th scope="col" class="text-end">Rate</th>
+                    <th scope="col" style="width: 9rem">Refund</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of sl.lines; track line.invoiceLineId) {
+                    <tr>
+                      <td>
+                        {{ line.productName }}
+                        @if (line.serviceChargeRate > 0) {
+                          <span class="d-block small text-body-secondary">service charge {{ line.serviceChargeRate }}%</span>
+                        }
+                      </td>
+                      <td class="text-end">{{ line.sold }} {{ line.unitShortName }}</td>
+                      <td class="text-end">{{ line.remaining }} {{ line.unitShortName }}</td>
+                      <td class="text-end">{{ line.rate | amount }}</td>
+                      <td>
+                        <label class="visually-hidden" [for]="'pos-refund-qty-' + line.invoiceLineId">
+                          Quantity of {{ line.productName }} to refund, at most {{ line.remaining }}
+                        </label>
+                        <input class="form-control form-control-sm" type="number" min="0" step="any" inputmode="decimal"
+                          [id]="'pos-refund-qty-' + line.invoiceLineId" [max]="line.remaining"
+                          [disabled]="line.remaining === 0 || submitting()"
+                          [value]="quantityOf(line)" (change)="onQuantity(line, $event)" />
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary" (click)="refundAll()" [disabled]="submitting()">
+              Refund everything left
+            </button>
+          </div>
+        </section>
+
+        <section class="card border-0 shadow-sm mb-3" aria-labelledby="pos-refund-pay-heading">
+          <div class="card-body">
+            <h2 id="pos-refund-pay-heading" class="h5 fw-bold">Refund</h2>
+            <form (submit)="$event.preventDefault(); complete()">
+              <label class="form-label" for="pos-refund-reason">Reason (printed on the credit note)</label>
+              <textarea class="form-control" id="pos-refund-reason" rows="2" maxlength="500"
+                [class.is-invalid]="fieldError.is('pos-refund-reason')"
+                [attr.aria-invalid]="fieldError.invalid('pos-refund-reason')"
+                [attr.aria-describedby]="fieldError.describedBy('pos-refund-reason')"
+                [value]="reason()" (input)="onReason($event)"></textarea>
+              <app-field-error [state]="fieldError" control="pos-refund-reason" />
+
+              @if (preview(); as p) {
+                <table class="table table-sm mt-3 mb-2">
+                  <caption class="visually-hidden">What this refund gives back</caption>
+                  <tbody>
+                    <tr><th scope="row">Sub total</th><td class="text-end">{{ p.subTotal | amount }}</td></tr>
+                    @if (p.serviceCharge !== 0) {
+                      <tr><th scope="row">Service charge</th><td class="text-end">{{ p.serviceCharge | amount }}</td></tr>
+                    }
+                    <tr><th scope="row">VAT</th><td class="text-end">{{ p.vat | amount }}</td></tr>
+                    @if (p.roundOff !== 0) {
+                      <tr><th scope="row">Round off</th><td class="text-end">{{ p.roundOff | amount }}</td></tr>
+                    }
+                    <tr><th scope="row">Refund total</th><td class="text-end fw-bold">{{ p.grandTotal | amount }}</td></tr>
+                    @if (p.toAccount > 0) {
+                      <tr><th scope="row">Off {{ sl.customerName }}'s account</th><td class="text-end">{{ p.toAccount | amount }}</td></tr>
+                    }
+                    <tr><th scope="row">To hand back</th><td class="text-end fw-bold">{{ p.requiredPayout | amount }}</td></tr>
+                  </tbody>
+                </table>
+
+                @if (p.requiredPayout > 0) {
+                  <fieldset>
+                    <legend class="h6">Hand back {{ p.requiredPayout | amount }} in</legend>
+                    @for (mode of payoutModes(); track mode.id) {
+                      <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="pos-refund-mode" [id]="'pos-refund-mode-' + mode.id"
+                          [checked]="mode.id === payoutModeId()" (change)="onPayoutMode(mode.id)" />
+                        <label class="form-check-label" [for]="'pos-refund-mode-' + mode.id">{{ mode.name }}</label>
+                      </div>
+                    }
+                  </fieldset>
+                } @else {
+                  <p class="mb-0">Nothing is handed back: all of it comes off what {{ sl.customerName }} still owes on this bill.</p>
+                }
+              } @else {
+                <p class="text-body-secondary mt-3 mb-0">{{ previewing() ? 'Working out the refund…' : 'Enter a quantity against what came back.' }}</p>
+              }
+
+              <button type="submit" class="btn btn-danger fw-bold mt-3" [disabled]="!canComplete()">Complete Refund</button>
+            </form>
+          </div>
+        </section>
+      }
+
+      @if (done(); as d) {
+        <section id="pos-refund-done" class="card border-0 shadow-sm" tabindex="-1" aria-labelledby="pos-refund-done-heading">
+          <div class="card-body d-flex flex-wrap align-items-center gap-2">
+            <h2 id="pos-refund-done-heading" class="h6 fw-bold mb-0 me-auto">Credit note {{ d.code }}</h2>
+            <button type="button" class="btn btn-sm btn-outline-primary" (click)="print(d.id)">
+              Print credit note<span class="visually-hidden"> {{ d.code }}</span>
+            </button>
+          </div>
+        </section>
+      }
+    }
+  </div>
+</div>
+
+<div class="pos-print-root">
+  @if (printing(); as r) {
+    <app-pos-refund-receipt [receipt]="r" />
+  }
+</div>
