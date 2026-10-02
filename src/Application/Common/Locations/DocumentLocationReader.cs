@@ -91,6 +91,10 @@ public static class DocumentLocationReader
                 .Select(x => new LocationBox(x.LocationId)).SingleOrDefaultAsync(cancellationToken),
             DocumentType.GoodsReceivedNote => await db.GoodsReceivedNotes.Where(x => x.Id == documentId)
                 .Select(x => new LocationBox(x.LocationId)).SingleOrDefaultAsync(cancellationToken),
+            // Phase 64 -- not a location-bearing document (no LocationScopeMode, no scopable key), but its
+            // audit rows are stamped with the location the order is at, like every audited document's.
+            DocumentType.PosOrder => await db.PosOrders.Where(x => x.Id == documentId)
+                .Select(x => new LocationBox(x.BillingLocationId)).SingleOrDefaultAsync(cancellationToken),
             _ => null,
         };
     }

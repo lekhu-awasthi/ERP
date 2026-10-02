@@ -1,0 +1,117 @@
+<div class="container py-4" style="max-width: 900px;">
+  <nav aria-label="Breadcrumb" class="mb-2">
+    <a [routerLink]="['/organizations', organizationId, 'configuration', 'pos']">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i> Point of Sale
+    </a>
+  </nav>
+  <h1 class="h3 fw-bold">Kitchen Stations</h1>
+  <p class="text-body-secondary">
+    Where a restaurant order's kitchen tickets go: each send prints one ticket per station. A product on no station
+    goes to <strong>{{ defaultName }}</strong>.
+  </p>
+
+  <app-status-banner [message]="errorMessage()" />
+  <app-status-banner [message]="noticeMessage()" tone="success" [small]="true" />
+
+  <form class="d-flex flex-wrap align-items-end gap-2 mb-4" (submit)="$event.preventDefault(); add()">
+    <div>
+      <label class="form-label small mb-1" for="station-new-name">New station</label>
+      <input class="form-control" id="station-new-name" type="text" maxlength="60" placeholder="e.g. Kitchen, Bar"
+        [value]="newName()" (input)="onNewName($event)" />
+    </div>
+    <button type="submit" class="btn btn-primary">Add Station</button>
+  </form>
+
+  @if (loading()) {
+    <p class="text-body-secondary">Loading the kitchen stations…</p>
+  } @else {
+    <ul class="list-unstyled">
+      @for (station of stations(); track station.id) {
+        <li class="card border-0 shadow-sm mb-3">
+          <section class="card-body" [attr.aria-labelledby]="'station-' + station.id">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              <h2 class="h6 fw-bold mb-0 me-auto" [id]="'station-' + station.id">
+                {{ station.name }}
+                @if (!station.isActive) {
+                  <span class="badge text-bg-secondary">Inactive</span>
+                }
+              </h2>
+              <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-expanded]="editingId() === station.id"
+                [attr.aria-controls]="'station-edit-' + station.id" (click)="edit(station)">
+                Edit<span class="visually-hidden"> {{ station.name }}</span>
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-primary" [attr.aria-expanded]="choosingId() === station.id"
+                [attr.aria-controls]="'station-products-' + station.id" (click)="choose(station)">
+                Choose Products<span class="visually-hidden"> for {{ station.name }}</span>
+              </button>
+            </div>
+
+            <p class="small mb-0 mt-2">
+              @if (station.products.length === 0) {
+                <span class="text-body-secondary">No product is sent here yet.</span>
+              } @else {
+                {{ station.products.length }} product(s):
+                @for (product of station.products; track product.id; let last = $last) {
+                  {{ product.name }}{{ last ? '' : ', ' }}
+                }
+              }
+            </p>
+
+            @if (editingId() === station.id) {
+              <form [id]="'station-edit-' + station.id" class="d-flex flex-wrap align-items-end gap-2 mt-3"
+                (submit)="$event.preventDefault(); saveEdit(station)">
+                <div>
+                  <label class="form-label small mb-1" [for]="'station-name-' + station.id">Name</label>
+                  <input class="form-control form-control-sm" type="text" maxlength="60" [id]="'station-name-' + station.id"
+                    [value]="editName()" (input)="onEditName($event)" />
+                </div>
+                <div class="form-check mb-1">
+                  <input class="form-check-input" type="checkbox" [id]="'station-active-' + station.id"
+                    [checked]="editActive()" (change)="onEditActive($event)" />
+                  <label class="form-check-label" [for]="'station-active-' + station.id">Active</label>
+                </div>
+                <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="editingId.set(null)">Cancel</button>
+              </form>
+            }
+
+            @if (choosingId() === station.id) {
+              <form [id]="'station-products-' + station.id" class="mt-3" (submit)="$event.preventDefault(); saveProducts(station)">
+                <label class="form-label small mb-1" [for]="'station-search-' + station.id">Find a product</label>
+                <input class="form-control form-control-sm mb-2" type="search" [id]="'station-search-' + station.id"
+                  autocomplete="off" (input)="onProductSearch($event)" />
+                <fieldset class="border rounded p-2 mb-2" style="max-height: 20rem; overflow-y: auto;">
+                  <legend class="visually-hidden">Products sent to {{ station.name }}</legend>
+                  @for (product of matchingProducts(); track product.id) {
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" [id]="'station-' + station.id + '-p-' + product.id"
+                        [checked]="chosen().has(product.id)" (change)="toggle(product.id, $event)" />
+                      <label class="form-check-label" [for]="'station-' + station.id + '-p-' + product.id">
+                        {{ product.name }} <span class="text-body-secondary">({{ product.code }})</span>
+                        @if (currentlyAt(product.id, station.name); as at) {
+                          <span class="small text-body-secondary"> · now at {{ at }}</span>
+                        }
+                      </label>
+                    </div>
+                  } @empty {
+                    <p class="small text-body-secondary mb-0">No product for sale matches.</p>
+                  }
+                </fieldset>
+                <div class="d-flex gap-2">
+                  <button type="submit" class="btn btn-sm btn-primary">Save Products ({{ chosen().size }})</button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" (click)="choosingId.set(null)">Cancel</button>
+                </div>
+              </form>
+            }
+          </section>
+        </li>
+      }
+      <li class="card border-0 bg-light mb-3">
+        <div class="card-body">
+          <h2 class="h6 fw-bold mb-1">{{ defaultName }}</h2>
+          <p class="small mb-0">{{ onDefault() }} product(s) for sale have no station, so their tickets go here.</p>
+        </div>
+      </li>
+    </ul>
+  }
+</div>

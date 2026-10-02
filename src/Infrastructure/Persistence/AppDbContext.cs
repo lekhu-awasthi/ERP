@@ -41,6 +41,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<PosLocationPaymentMode> PosLocationPaymentModes => Set<PosLocationPaymentMode>();
     public DbSet<PosSession> PosSessions => Set<PosSession>();
     public DbSet<PosCashMovement> PosCashMovements => Set<PosCashMovement>();
+    public DbSet<PosArea> PosAreas => Set<PosArea>();
+    public DbSet<PosTable> PosTables => Set<PosTable>();
+    public DbSet<KitchenStation> KitchenStations => Set<KitchenStation>();
+    public DbSet<PosOrder> PosOrders => Set<PosOrder>();
+    public DbSet<PosOrderLine> PosOrderLines => Set<PosOrderLine>();
+    public DbSet<KitchenTicket> KitchenTickets => Set<KitchenTicket>();
+    public DbSet<KitchenTicketLine> KitchenTicketLines => Set<KitchenTicketLine>();
     public DbSet<Bank> Banks => Set<Bank>();
     public DbSet<CustomStatus> CustomStatuses => Set<CustomStatus>();
     public DbSet<CostTerm> CostTerms => Set<CostTerm>();

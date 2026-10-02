@@ -1,0 +1,334 @@
+<div class="pos-screen-root">
+  <div class="pos-order">
+    <header class="pos-bar">
+      <div class="me-auto">
+        <h1 class="h5 fw-bold mb-0">{{ heading() }}</h1>
+        @if (order(); as o) {
+          <p class="small text-body-secondary mb-0">
+            {{ o.covers }} guest(s) &middot; {{ o.contactName }} &middot; opened {{ o.createdAt | nepaliDate: 'datetime' }} by {{ o.createdByName }}
+            @if (o.status === 'Voided') {
+              &middot; <span class="badge text-bg-secondary">Voided</span>
+            }
+          </p>
+        }
+      </div>
+      <nav aria-label="Order" class="d-flex gap-2">
+        @if (restaurant(); as r) {
+          <a class="btn btn-sm btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'pos', 'restaurant', r.locationId]">
+            Back to Floor
+          </a>
+        }
+      </nav>
+    </header>
+
+    <div class="px-3">
+      <app-status-banner [message]="errorMessage()" spacing="mt-2 mb-0" />
+      <app-status-banner [message]="noticeMessage()" tone="success" spacing="mt-2 mb-0" [small]="true" />
+    </div>
+
+    @if (loading()) {
+      <p class="p-3 text-body-secondary">Opening the order…</p>
+    } @else if (restaurant(); as r) {
+      <div class="pos-body">
+        <!-- ===================== Products ===================== -->
+        <section class="pos-catalogue" aria-labelledby="pos-order-products">
+          <h2 id="pos-order-products" class="visually-hidden">Products</h2>
+
+          <form role="search" class="mb-2" (submit)="$event.preventDefault()">
+            <label class="form-label small fw-bold mb-1" for="pos-order-search">Search the menu</label>
+            <input #searchBox class="form-control" id="pos-order-search" type="search" autocomplete="off"
+              placeholder="Name or code" (input)="onSearchInput($event)" />
+          </form>
+
+          @if (r.categories.length > 0) {
+            <div class="d-flex flex-wrap gap-1 mb-2" role="group" aria-label="Product categories">
+              <button type="button" class="btn btn-sm" [class.btn-primary]="categoryId() === null"
+                [class.btn-outline-primary]="categoryId() !== null" [attr.aria-pressed]="categoryId() === null"
+                (click)="chooseCategory(null)">All</button>
+              @for (category of r.categories; track category.id) {
+                <button type="button" class="btn btn-sm" [class.btn-primary]="categoryId() === category.id"
+                  [class.btn-outline-primary]="categoryId() !== category.id" [attr.aria-pressed]="categoryId() === category.id"
+                  (click)="chooseCategory(category.id)">{{ category.name }}</button>
+              }
+            </div>
+          }
+
+          @if (products().length === 0) {
+            <p class="text-body-secondary">Nothing on the menu matches.</p>
+          } @else {
+            <ul class="pos-grid list-unstyled mb-2">
+              @for (product of products(); track product.id) {
+                <li>
+                  <button type="button" class="pos-tile" [disabled]="!isOpen()" (click)="addProduct(product)">
+                    <span class="pos-tile-name">{{ product.name }}</span>
+                    <span class="small text-body-secondary">{{ product.code }}</span>
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+
+          @if (pageCount() > 1) {
+            <nav aria-label="Menu pages" class="d-flex align-items-center gap-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="page() <= 1" (click)="goToPage(page() - 1)">Previous</button>
+              <span class="small">Page {{ page() }} of {{ pageCount() }}</span>
+              <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="page() >= pageCount()" (click)="goToPage(page() + 1)">Next</button>
+            </nav>
+          }
+        </section>
+
+        <!-- ===================== The order ===================== -->
+        <section class="pos-cart" aria-labelledby="pos-order-heading">
+          <h2 id="pos-order-heading" class="h6 fw-bold" tabindex="-1">Order</h2>
+
+          @if (isNew()) {
+            @if (orderType() === 'DineIn') {
+              <label class="form-label small fw-bold mb-1" for="pos-order-covers">Guests</label>
+              <input class="form-control form-control-sm pos-qty mb-2" id="pos-order-covers" type="number" min="1"
+                [max]="seatedAt()?.table?.capacity ?? 100" [value]="covers()" (input)="onCoversInput($event)" />
+            } @else {
+              <p class="small mb-1">
+                Customer: <strong>{{ customer()?.name ?? (orderType() === 'Delivery' ? 'none chosen' : (r.walkInCustomer?.name ?? 'Walk-in') + ' (walk-in)') }}</strong>
+              </p>
+              @if (needsCustomer()) {
+                <p class="small text-danger-emphasis mb-1" id="pos-order-customer-needed">A delivery goes to a named customer: choose one before sending.</p>
+              }
+              <button type="button" class="btn btn-sm btn-outline-secondary mb-2" [attr.aria-expanded]="customerOpen()"
+                aria-controls="pos-order-customer-panel" (click)="customerOpen.set(!customerOpen())">Choose Customer</button>
+              <div id="pos-order-customer-panel" class="mb-2" [hidden]="!customerOpen()">
+                <label class="form-label small mb-1" for="pos-order-customer-search">Find a customer by name, code or PAN</label>
+                <input class="form-control form-control-sm" id="pos-order-customer-search" type="search" autocomplete="off"
+                  (input)="onCustomerInput($event)" />
+                <ul class="list-unstyled mb-0 mt-1">
+                  @for (contact of customerResults(); track contact.id) {
+                    <li>
+                      <button type="button" class="btn btn-link btn-sm p-0" (click)="chooseCustomer(contact)">
+                        {{ contact.name }} ({{ contact.code }})
+                      </button>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          } @else if (order(); as o) {
+            @if (o.status === 'Open') {
+              <div class="d-flex flex-wrap gap-2 mb-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-expanded]="isPanel('details')"
+                  aria-controls="pos-order-details-panel" (click)="openPanel({ kind: 'details' })">
+                  {{ o.orderType === 'DineIn' ? 'Move Table / Guests' : 'Guests' }}
+                </button>
+                @if (r.canVoid) {
+                  <button type="button" class="btn btn-sm btn-outline-danger" [attr.aria-expanded]="isPanel('void')"
+                    aria-controls="pos-order-void-panel" (click)="openPanel({ kind: 'void' })">Void Order</button>
+                }
+              </div>
+              @if (isPanel('details')) {
+                <form id="pos-order-details-panel" class="pos-panel" (submit)="$event.preventDefault(); confirmPanel()">
+                  @if (o.orderType === 'DineIn') {
+                    <label class="form-label small mb-1" for="pos-order-panel-first">Table</label>
+                    <select class="form-select form-select-sm mb-2" id="pos-order-panel-first" (change)="onPanelTable($event)">
+                      @if (seatedAt(); as current) {
+                        <option [value]="current.table.id" [selected]="panelTableId() === current.table.id">{{ tableOption(current) }} (now)</option>
+                      }
+                      @for (entry of freeTables(); track entry.table.id) {
+                        <option [value]="entry.table.id" [selected]="panelTableId() === entry.table.id">{{ tableOption(entry) }}</option>
+                      }
+                    </select>
+                  }
+                  <label class="form-label small mb-1" [attr.for]="o.orderType === 'DineIn' ? 'pos-order-panel-covers' : 'pos-order-panel-first'">Guests</label>
+                  <input class="form-control form-control-sm pos-qty mb-2" type="number" min="0"
+                    [id]="o.orderType === 'DineIn' ? 'pos-order-panel-covers' : 'pos-order-panel-first'"
+                    [value]="covers()" (input)="onCoversInput($event)" />
+                  <app-status-banner [message]="panelError()" spacing="mb-2" [small]="true" />
+                  <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy()">Save</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePanel()">Cancel</button>
+                  </div>
+                </form>
+              }
+              @if (isPanel('void')) {
+                <form id="pos-order-void-panel" class="pos-panel" (submit)="$event.preventDefault(); confirmPanel()">
+                  <p class="small mb-1">Voiding cancels everything still on the order to the kitchen and frees the table.</p>
+                  <label class="form-label small mb-1" for="pos-order-panel-first">Reason (required)</label>
+                  <input class="form-control form-control-sm mb-2" id="pos-order-panel-first" type="text" maxlength="200"
+                    [attr.aria-invalid]="panelError() ? true : null" (input)="onPanelReason($event)" />
+                  <app-status-banner [message]="panelError()" spacing="mb-2" [small]="true" />
+                  <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-danger" [disabled]="busy()">Void Order</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePanel()">Cancel</button>
+                  </div>
+                </form>
+              }
+            } @else {
+              <p class="small">Voided {{ o.voidedAt | nepaliDate: 'datetime' }} by {{ o.voidedByName }}: {{ o.voidReason }}</p>
+            }
+
+            <h3 class="h6 fw-bold mt-3">Sent to the kitchen</h3>
+            <ul class="list-unstyled pos-lines">
+              @for (line of o.lines; track line.id) {
+                <li class="pos-line">
+                  <div class="d-flex justify-content-between gap-2">
+                    <span class="fw-bold">{{ line.quantity }} × {{ line.productName }}</span>
+                    <span>{{ line.total | amount }}</span>
+                  </div>
+                  <p class="small text-body-secondary mb-1">
+                    {{ lineSummary(line) }} &middot; {{ line.kitchenStationName }}
+                    @if (line.note) {
+                      &middot; “{{ line.note }}”
+                    }
+                  </p>
+                  @if (o.status === 'Open') {
+                    <div class="d-flex flex-wrap gap-1">
+                      <button type="button" class="btn btn-sm btn-outline-secondary" (click)="addMore(line)">
+                        One More<span class="visually-hidden"> {{ line.productName }}</span>
+                      </button>
+                      @if (line.outstanding > 0) {
+                        <button type="button" class="btn btn-sm btn-outline-success" [attr.aria-expanded]="isPanel('serve', line.id)"
+                          [attr.aria-controls]="'pos-order-serve-' + line.id" (click)="openPanel({ kind: 'serve', lineId: line.id }, line)">
+                          Serve<span class="visually-hidden"> {{ line.productName }}</span>
+                        </button>
+                      }
+                      @if (line.quantity > 0) {
+                        @if (r.canVoid) {
+                          <button type="button" class="btn btn-sm btn-outline-danger" [attr.aria-expanded]="isPanel('discard', line.id)"
+                            [attr.aria-controls]="'pos-order-discard-' + line.id" (click)="openPanel({ kind: 'discard', lineId: line.id }, line)">
+                            Discard<span class="visually-hidden"> {{ line.productName }}</span>
+                          </button>
+                        }
+                      }
+                    </div>
+                    @if (isPanel('serve', line.id)) {
+                      <form class="pos-panel" [id]="'pos-order-serve-' + line.id" (submit)="$event.preventDefault(); confirmPanel()">
+                        <label class="form-label small mb-1" for="pos-order-panel-first">Served now (of {{ line.outstanding }} still to serve)</label>
+                        <input class="form-control form-control-sm pos-qty mb-2" id="pos-order-panel-first" type="number" min="1"
+                          [max]="line.outstanding" [value]="panelQuantity()" (input)="onPanelQuantity($event)" />
+                        <app-status-banner [message]="panelError()" spacing="mb-2" [small]="true" />
+                        <div class="d-flex gap-2">
+                          <button type="submit" class="btn btn-sm btn-success" [disabled]="busy()">Mark Served</button>
+                          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePanel()">Cancel</button>
+                        </div>
+                      </form>
+                    }
+                    @if (isPanel('discard', line.id)) {
+                      <form class="pos-panel" [id]="'pos-order-discard-' + line.id" (submit)="$event.preventDefault(); confirmPanel()">
+                        <label class="form-label small mb-1" for="pos-order-panel-first">Discard (of {{ line.quantity }} on the order)</label>
+                        <input class="form-control form-control-sm pos-qty mb-2" id="pos-order-panel-first" type="number" min="1"
+                          [max]="line.quantity" [value]="panelQuantity()" (input)="onPanelQuantity($event)" />
+                        <label class="form-label small mb-1" for="pos-order-discard-reason">Reason (required)</label>
+                        <input class="form-control form-control-sm mb-2" id="pos-order-discard-reason" type="text" maxlength="200"
+                          [attr.aria-invalid]="panelError() ? true : null" (input)="onPanelReason($event)" />
+                        <app-status-banner [message]="panelError()" spacing="mb-2" [small]="true" />
+                        <div class="d-flex gap-2">
+                          <button type="submit" class="btn btn-sm btn-danger" [disabled]="busy()">Discard</button>
+                          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePanel()">Cancel</button>
+                        </div>
+                      </form>
+                    }
+                  }
+                </li>
+              }
+            </ul>
+            @if (!r.canVoid && o.status === 'Open') {
+              <p class="small text-body-secondary">Discarding what the kitchen was sent needs the Pos.Order.Void permission.</p>
+            }
+
+            <dl class="pos-totals small">
+              <dt>Amount</dt><dd>{{ o.amount | amount }}</dd>
+              @if (o.serviceCharge > 0) {
+                <dt>Service charge</dt><dd>{{ o.serviceCharge | amount }}</dd>
+              }
+              <dt>VAT</dt><dd>{{ o.vat | amount }}</dd>
+              <dt class="fw-bold">Estimate</dt><dd class="fw-bold">{{ o.total | amount }}</dd>
+            </dl>
+            <p class="small text-body-secondary">The bill rounds to the rupee when it is settled.</p>
+          }
+
+          @if (isOpen()) {
+            <h3 class="h6 fw-bold mt-3">To send ({{ pendingCount() }})</h3>
+            @if (pending().length === 0) {
+              <p class="text-body-secondary small">Tap a dish to add it, or One More on a line already sent.</p>
+            } @else {
+              <ul class="list-unstyled pos-lines">
+                @for (item of pending(); track item.key) {
+                  <li class="pos-line">
+                    <div class="d-flex align-items-center justify-content-between gap-2">
+                      <span class="fw-bold">{{ item.productName }}{{ item.kind === 'more' ? ' (more)' : '' }}</span>
+                      <span class="d-flex align-items-center gap-1">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="changeQuantity(item.key, -1)">
+                          <span aria-hidden="true">−</span><span class="visually-hidden">One fewer {{ item.productName }}</span>
+                        </button>
+                        <span class="px-1" aria-live="polite">{{ item.quantity }}</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="changeQuantity(item.key, 1)">
+                          <span aria-hidden="true">+</span><span class="visually-hidden">One more {{ item.productName }}</span>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" (click)="removePending(item.key)">
+                          <i class="bi bi-x-lg" aria-hidden="true"></i><span class="visually-hidden">Remove {{ item.productName }}</span>
+                        </button>
+                      </span>
+                    </div>
+                    @if (item.kind === 'new') {
+                      <label class="visually-hidden" [for]="'pos-order-note-' + item.key">Kitchen note for {{ item.productName }}</label>
+                      <input class="form-control form-control-sm mt-1" type="text" maxlength="200" placeholder="Kitchen note, e.g. less spicy"
+                        [id]="'pos-order-note-' + item.key" [value]="item.note" (input)="setNote(item.key, $event)" />
+                    }
+                  </li>
+                }
+              </ul>
+            }
+            <button type="button" class="btn btn-primary fw-bold w-100 mt-2"
+              [disabled]="pending().length === 0 || busy() || needsCustomer()"
+              [attr.aria-describedby]="needsCustomer() ? 'pos-order-customer-needed' : null"
+              (click)="send()">
+              Send to Kitchen
+            </button>
+          }
+
+          @if (order(); as o) {
+            @if (o.tickets.length > 0) {
+              <h3 class="h6 fw-bold mt-4">Kitchen tickets</h3>
+              <ul class="list-unstyled pos-lines">
+                @for (ticket of o.tickets; track ticket.id) {
+                  <li class="pos-line">
+                    <div class="d-flex justify-content-between align-items-center gap-2">
+                      <span>
+                        <strong>{{ ticket.number }}</strong> &middot; {{ ticket.kitchenStationName }}
+                        @if (ticket.isCancellation) {
+                          <span class="badge text-bg-danger">Cancellation</span>
+                        }
+                      </span>
+                      <button type="button" class="btn btn-sm btn-outline-secondary" (click)="printTickets([ticket])">
+                        {{ ticket.printCount > 0 ? 'Reprint' : 'Print' }}<span class="visually-hidden"> ticket {{ ticket.number }} {{ ticket.kitchenStationName }}</span>
+                      </button>
+                    </div>
+                    <p class="small text-body-secondary mb-0">
+                      {{ ticket.createdAt | nepaliDate: 'datetime' }} &middot; {{ ticket.createdByName }}
+                      @if (ticket.printCount > 0) {
+                        &middot; printed {{ ticket.printCount }}×
+                      }
+                    </p>
+                    <ul class="small mb-0">
+                      @for (row of ticket.lines; track row.orderLineId) {
+                        <li>{{ row.quantity }} × {{ row.productName }}</li>
+                      }
+                    </ul>
+                    @if (ticket.reason) {
+                      <p class="small mb-0">Reason: {{ ticket.reason }}</p>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+          }
+        </section>
+      </div>
+    }
+  </div>
+</div>
+
+<div class="pos-print-root">
+  @if (order(); as o) {
+    @if (printed().length > 0) {
+      <app-pos-kot [order]="o" [tickets]="printed()" />
+    }
+  }
+</div>

@@ -69,6 +69,17 @@
               </button>
             </div>
           </div>
+          @if (current.posMode === 'Restaurant') {
+            <!-- Phase 64 -- the restaurant's own configuration: its floor, and where its kitchen tickets go. -->
+            <div class="d-flex flex-wrap gap-2 mt-3">
+              <a class="btn btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'configuration', 'pos-floor-plan', current.locationId]">
+                Floor Plan
+              </a>
+              <a class="btn btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'configuration', 'kitchen-stations']">
+                Kitchen Stations
+              </a>
+            </div>
+          }
         </div>
       </div>
 

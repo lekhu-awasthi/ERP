@@ -781,6 +781,16 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminPosSessionViewAllId = Guid.Parse("00000000-0000-0000-0002-0000000001e5");
     private static readonly Guid MemberPosSessionViewAllId = Guid.Parse("00000000-0000-0000-0002-0000000001e6");
 
+    // Phase 64 -- the restaurant's four keys (derived in PermissionKeys.PosOrderOperate).
+    private static readonly Guid AdminPosOrderOperateId = Guid.Parse("00000000-0000-0000-0002-0000000001e7");
+    private static readonly Guid MemberPosOrderOperateId = Guid.Parse("00000000-0000-0000-0002-0000000001e8");
+    private static readonly Guid AdminPosOrderVoidId = Guid.Parse("00000000-0000-0000-0002-0000000001e9");
+    private static readonly Guid MemberPosOrderVoidId = Guid.Parse("00000000-0000-0000-0002-0000000001ea");
+    private static readonly Guid AdminPosOrderViewId = Guid.Parse("00000000-0000-0000-0002-0000000001eb");
+    private static readonly Guid MemberPosOrderViewId = Guid.Parse("00000000-0000-0000-0002-0000000001ec");
+    private static readonly Guid AdminPosFloorPlanManageId = Guid.Parse("00000000-0000-0000-0002-0000000001ed");
+    private static readonly Guid MemberPosFloorPlanManageId = Guid.Parse("00000000-0000-0000-0002-0000000001ee");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1380,6 +1390,14 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminPosSessionOperateId, Role.AdminId, PermissionKeys.PosSessionOperate, true),
             RolePermission.Create(MemberPosSessionOperateId, Role.MemberId, PermissionKeys.PosSessionOperate, true),
             RolePermission.Create(AdminPosSessionViewAllId, Role.AdminId, PermissionKeys.PosSessionViewAll, true),
-            RolePermission.Create(MemberPosSessionViewAllId, Role.MemberId, PermissionKeys.PosSessionViewAll, false));
+            RolePermission.Create(MemberPosSessionViewAllId, Role.MemberId, PermissionKeys.PosSessionViewAll, false),
+            RolePermission.Create(AdminPosOrderOperateId, Role.AdminId, PermissionKeys.PosOrderOperate, true),
+            RolePermission.Create(MemberPosOrderOperateId, Role.MemberId, PermissionKeys.PosOrderOperate, true),
+            RolePermission.Create(AdminPosOrderVoidId, Role.AdminId, PermissionKeys.PosOrderVoid, true),
+            RolePermission.Create(MemberPosOrderVoidId, Role.MemberId, PermissionKeys.PosOrderVoid, false),
+            RolePermission.Create(AdminPosOrderViewId, Role.AdminId, PermissionKeys.PosOrderView, true),
+            RolePermission.Create(MemberPosOrderViewId, Role.MemberId, PermissionKeys.PosOrderView, true),
+            RolePermission.Create(AdminPosFloorPlanManageId, Role.AdminId, PermissionKeys.PosFloorPlanManage, true),
+            RolePermission.Create(MemberPosFloorPlanManageId, Role.MemberId, PermissionKeys.PosFloorPlanManage, false));
     }
 }

@@ -66,6 +66,21 @@ public sealed class Product
     /// <para>Read by nothing in the ERP; phase 61's POS sale engine is its consumer.</para>
     /// </summary>
     public bool ServiceChargeApplicable { get; private set; }
+
+    /// <summary>
+    /// Phase 64 -- the kitchen station (the vendor's <i>Print Profile</i>) a restaurant order line of
+    /// this product is sent to. Null is the till's Default station. This reopens phase 47's drop of
+    /// <c>PrintProfileId</c>, which was right about the ERP -- nothing there acts on it -- and wrong
+    /// about the field: the POS routes kitchen tickets by it (phase 59 Decision F).
+    ///
+    /// <para><b>Written by <see cref="AssignKitchenStation"/> alone</b>, from the station's own screen,
+    /// and deliberately not a parameter of <see cref="Create"/> or <see cref="Update"/>: those two have
+    /// 57 callers across the product form, the variant editor and the importers, and phase 60 found
+    /// that every trailing optional parameter added to them was silently dropped by some caller
+    /// (docs/phase-64-status.md Decision G).</para>
+    /// </summary>
+    public Guid? KitchenStationId { get; private set; }
+
     public decimal SellingPrice { get; private set; }
     public decimal PurchasePrice { get; private set; }
     public VatRate VatRate { get; private set; }
@@ -282,6 +297,22 @@ public sealed class Product
                 $"{dimension} needs Track Inventory switched on -- it is a dimension of the stock "
                 + "ledger, and without inventory tracking there are no layers to carry it.");
         }
+    }
+
+    /// <summary>
+    /// Phase 64 -- routes this product's restaurant order lines to <paramref name="kitchenStationId"/>,
+    /// or to the Default station when null. A variant parent is refused: it is never on an order line
+    /// (phase 24), so a station on it would route nothing.
+    /// </summary>
+    public void AssignKitchenStation(Guid? kitchenStationId)
+    {
+        if (kitchenStationId is not null && HasVariants)
+        {
+            throw new InvalidOperationException(
+                $"'{Name}' is a variant parent, which is never ordered; assign its variants to a kitchen station instead.");
+        }
+
+        KitchenStationId = kitchenStationId;
     }
 
     /// <summary>Promotes an ordinary product to a variant parent. Idempotent.</summary>

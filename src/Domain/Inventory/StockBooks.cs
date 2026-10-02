@@ -93,5 +93,7 @@ public static class StockBooks
             [DocumentType.WorkTask] = "A CRM record.",
             [DocumentType.PosSession] =
                 "A till's cash drawer (phase 61). Its sales are Invoices, which move stock as Invoices.",
+            [DocumentType.PosOrder] =
+                "A restaurant's open order (phase 64). It reserves nothing; it is billed as Invoices, which move stock.",
         };
 }

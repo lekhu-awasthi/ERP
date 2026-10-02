@@ -111,6 +111,20 @@ describe('PosCart', () => {
     expect(cart.bill().grandTotal).toBe(226);
   });
 
+  // Phase 64 -- the vendor's restaurant till charges it on Dine In only (248.60 vs 226.00 for the Momo),
+  // and so does the server's PosServiceCharge.RateFor; the cart follows, or the screen's total is not the server's.
+  it('charges no service charge on a Delivery bill, and charges it again when switched back', () => {
+    const cart = new PosCart(till(), ORG, 'ses-1', new MemoryStorage());
+    cart.add(momo);
+
+    cart.setOrderType('Delivery');
+    expect(cart.bill().serviceCharge).toBe(0);
+    expect(cart.bill().grandTotal).toBe(226);
+
+    cart.setOrderType('Retail');
+    expect(cart.bill().serviceCharge).toBe(20);
+  });
+
   it('re-prices a line at the catalogue rate of the unit it is changed to, and sends that unit', () => {
     const cart = new PosCart(till(), ORG, 'ses-1', new MemoryStorage());
     cart.add(coke);

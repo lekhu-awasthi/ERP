@@ -28,10 +28,15 @@
               <p class="text-body-secondary small mb-3">{{ till.locationCode }} &middot; {{ modeLabels[till.posMode] }}</p>
 
               @if (till.posMode === 'Restaurant') {
-                <p class="mb-0">
-                  The restaurant till (tables, kitchen orders and bill splitting) is not built yet. This location's
-                  sales are rung up from the ERP until it is.
+                <!-- Phase 64 -- the floor, orders and kitchen tickets. Billing an order (the estimate, splits and
+                     payment) is phase 65's, and the card says so rather than letting a waiter look for it. -->
+                <p>Seat tables, take orders and send them to the kitchen.</p>
+                <p class="small text-body-secondary">
+                  Billing an order (estimate, split and payment) is not built yet, so an order stays open on the floor.
                 </p>
+                <a class="btn btn-primary fw-bold" [routerLink]="['/organizations', organizationId, 'pos', 'restaurant', till.locationId]">
+                  Open Floor
+                </a>
               } @else if (till.mySessionId) {
                 <p>
                   Your session <strong>{{ till.mySessionCode }}</strong> has been open since

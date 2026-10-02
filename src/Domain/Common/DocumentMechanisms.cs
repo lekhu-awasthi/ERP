@@ -378,5 +378,10 @@ public static class DocumentMechanisms
                 "Its location is a column of its own that is always set, so it needs no " +
                 "LocationScopeMode, and the sales it carries are Invoices, which already carry " +
                 "every mechanism.",
+            [DocumentType.PosOrder] =
+                "A restaurant's open order (Phase 64), not a document: opened, sent to the kitchen and " +
+                "settled or voided, never drafted or approved, and numbered from the tenant's counter. It " +
+                "posts nothing and moves no stock; what it becomes is Invoices (phase 65), which already " +
+                "carry every mechanism. Its location is a column of its own that is always set.",
         };
 }

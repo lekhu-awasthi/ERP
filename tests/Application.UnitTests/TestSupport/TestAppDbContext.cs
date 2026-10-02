@@ -56,6 +56,13 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<PosLocationPaymentMode> PosLocationPaymentModes => Set<PosLocationPaymentMode>();
     public DbSet<PosSession> PosSessions => Set<PosSession>();
     public DbSet<PosCashMovement> PosCashMovements => Set<PosCashMovement>();
+    public DbSet<PosArea> PosAreas => Set<PosArea>();
+    public DbSet<PosTable> PosTables => Set<PosTable>();
+    public DbSet<KitchenStation> KitchenStations => Set<KitchenStation>();
+    public DbSet<PosOrder> PosOrders => Set<PosOrder>();
+    public DbSet<PosOrderLine> PosOrderLines => Set<PosOrderLine>();
+    public DbSet<KitchenTicket> KitchenTickets => Set<KitchenTicket>();
+    public DbSet<KitchenTicketLine> KitchenTicketLines => Set<KitchenTicketLine>();
 
     public DbSet<Bank> Banks => Set<Bank>();
 
@@ -268,6 +275,8 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<InvoiceLine>().Ignore(x => x.TaxableAmount);
         modelBuilder.Entity<InvoiceLine>().Ignore(x => x.LineTotal);
         modelBuilder.Entity<PosSession>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<PosOrder>().Ignore(x => x.RowVersion);
+        modelBuilder.Entity<KitchenTicket>().Ignore(x => x.IsCancellation);
         modelBuilder.Entity<PosCashMovement>().Ignore(x => x.SignedAmount);
         modelBuilder.Entity<SalesOrder>().Ignore(x => x.RowVersion);
         modelBuilder.Entity<CreditNote>().Ignore(x => x.RowVersion);
@@ -437,6 +446,20 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
         modelBuilder.Entity<PosSession>()
             .Property(x => x.ClosingCount)
             .HasConversion(v => v!.Serialize(), v => CashCount.Parse(v));
+
+        // Phase 64 -- the restaurant's encapsulated collections, restated (no ApplyConfigurationsFromAssembly here).
+        modelBuilder.Entity<PosArea>().HasMany(x => x.Tables).WithOne().HasForeignKey(x => x.PosAreaId);
+        modelBuilder.Entity<PosArea>().Metadata.FindNavigation(nameof(PosArea.Tables))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+        modelBuilder.Entity<PosOrder>().HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.PosOrderId);
+        modelBuilder.Entity<PosOrder>().Metadata.FindNavigation(nameof(PosOrder.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+        modelBuilder.Entity<PosOrder>().HasMany(x => x.Tickets).WithOne().HasForeignKey(x => x.PosOrderId);
+        modelBuilder.Entity<PosOrder>().Metadata.FindNavigation(nameof(PosOrder.Tickets))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+        modelBuilder.Entity<KitchenTicket>().HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.KitchenTicketId);
+        modelBuilder.Entity<KitchenTicket>().Metadata.FindNavigation(nameof(KitchenTicket.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
 
         modelBuilder.Entity<SalesOrder>().HasMany(x => x.Lines).WithOne().HasForeignKey("SalesOrderId");
         modelBuilder.Entity<SalesOrder>()

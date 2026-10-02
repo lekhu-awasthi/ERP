@@ -48,6 +48,15 @@ public interface IAppDbContext
     DbSet<PosLocationPaymentMode> PosLocationPaymentModes { get; }
     DbSet<PosSession> PosSessions { get; }
     DbSet<PosCashMovement> PosCashMovements { get; }
+
+    // Phase 64 -- the restaurant.
+    DbSet<PosArea> PosAreas { get; }
+    DbSet<PosTable> PosTables { get; }
+    DbSet<KitchenStation> KitchenStations { get; }
+    DbSet<PosOrder> PosOrders { get; }
+    DbSet<PosOrderLine> PosOrderLines { get; }
+    DbSet<KitchenTicket> KitchenTickets { get; }
+    DbSet<KitchenTicketLine> KitchenTicketLines { get; }
     DbSet<Bank> Banks { get; }
     DbSet<CustomStatus> CustomStatuses { get; }
     DbSet<CostTerm> CostTerms { get; }

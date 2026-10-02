@@ -69,7 +69,7 @@ internal sealed class PosTestTill
     /// is a tax invoice at all. A real Organization row is seeded for it, which phase 61's tests never
     /// needed.</param>
     public static async Task<PosTestTill> CreateAsync(
-        string[]? grantedKeys = null, int cokeInStock = 20, bool vatRegistered = true)
+        string[]? grantedKeys = null, int cokeInStock = 20, bool vatRegistered = true, bool restaurant = false)
     {
         var db = TestAppDbContext.Create();
 
@@ -84,7 +84,7 @@ internal sealed class PosTestTill
 
         await TenantFeatureSeed.SeedAsync(db, organizationId, new AccountingFeatureSelections(
             TrackInventory: true, MultipleLocations: true, MultipleWarehouses: false,
-            MultiCurrency: false, Manufacturing: false, PosRetail: true, PosRestaurant: false));
+            MultiCurrency: false, Manufacturing: false, PosRetail: true, PosRestaurant: restaurant));
 
         var user = Domain.Identity.User.Register("Sita Cashier", $"sita-{Guid.NewGuid():N}@example.com", "9800000000", "hash");
         db.Users.Add(user);
@@ -110,7 +110,9 @@ internal sealed class PosTestTill
         settings.SetPosDefaults(serviceCharge.Id, rounding.Id, overShort.Id);
 
         var location = BillingLocation.CreateHeadOffice(organizationId);
-        location.SetPosMode(PosMode.Retail);
+        // Phase 64 -- the same till as a Restaurant location, for the order tests.
+        var mode = restaurant ? PosMode.Restaurant : PosMode.Retail;
+        location.SetPosMode(mode);
         db.BillingLocations.Add(location);
 
         var cashMode = PaymentMode.Create(organizationId, "Cash", kind: PaymentModeKind.Cash, accountId: cash.Id);
@@ -122,7 +124,7 @@ internal sealed class PosTestTill
 
         var posSettings = PosLocationSettings.CreateDefault(organizationId, location.Id);
         posSettings.Update(
-            PosMode.Retail, serviceChargeEnabled: true, serviceChargeRate: 10m, serviceChargeAccountId: null,
+            mode, serviceChargeEnabled: true, serviceChargeRate: 10m, serviceChargeAccountId: null,
             roundOffEnabled: true, roundOffAccountId: null, cashVerificationRequired: false,
             denominations: PosLocationSettings.DefaultDenominations, defaultTab: null,
             printEstimateBill: true, printInvoice: true, printCreditNote: true, printKot: false,

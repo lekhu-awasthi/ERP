@@ -123,7 +123,10 @@ public class ListSortIndexCorrespondenceTests(ModelFixture fixture)
         //
         // Seventeen and eighteen are phase 58's ListDeliveryNotesQuery and ListGoodsReceivedNotesQuery,
         // both on the same terms: each aggregate carries Date, so both orderings are derived indexes.
-        Assert.Equal(18, queries.Count);
+        //
+        // Nineteen is phase 64's ListPosOrdersQuery, the ERP's POS Orders list. PosOrder carries Date
+        // (the Nepal day it was opened) for exactly this reason, so it too is indexed by derivation.
+        Assert.Equal(19, queries.Count);
         Assert.All(queries, q => Assert.NotNull(EntityFor(q)));
     }
 

@@ -4057,3 +4057,41 @@ runs. A TypeScript copy would have agreed with the server until the second refun
 together, the second build fails with `CS2012` (the file is locked by `VBCSCompiler`), and a run
 filtered on `Passed!|Failed!` prints nothing, which reads like a hung suite. Run the .NET suites one at
 a time.
+
+## A validator that registers one member under two types throws when it is built (phase 64)
+
+`PosOrderValidationRules.ValidateItems` registered `RuleFor(x => x.Items)` with the expression typed
+`Expression<Func<T, IEnumerable<PosOrderItemInput>>>` (what `RuleForEach` needs), and the command's own
+validator then added `RuleFor(x => x.Items).Must(...)`, which C# typed `IReadOnlyList<PosOrderItemInput>`.
+FluentValidation's `AccessorCache` keys a compiled accessor by member, so the second registration got
+the first's `Func<T, IEnumerable<…>>` and failed to cast it: `InvalidCastException` in the validator's
+constructor. Every endpoint the validator guards is then a 500, and no handler test sees it, because a
+handler test never builds the validator. The fix keeps every rule on a list in the helper, from one
+expression (the count rules became parameters), and `PosValidatorConstructionTests` builds and runs all
+31 POS validators over an empty request. It was proven to bite by putting the second registration back.
+
+## A drag that listens for the release on its own container never ends (phase 64)
+
+The floor-plan editor started a drag on a table's `pointerdown` and listened for `pointermove` and
+`pointerup` on the canvas. In the browser pane the release did not arrive there, so the drag never
+ended, and every later movement over the canvas kept applying — to the *selected* table, because the
+move went through the same `update()` the form uses. The keyboard had put R1 at (120, 50); the server
+stored (34, 30). The spec had passed, because it dispatched the release where the code listened. Now
+the drag names the table it grabbed, listens on the document from press to release, and moves nothing
+until the pointer has travelled 4 px, so a click never nudges a table.
+
+## A cancelled radio stays checked (phase 64)
+
+The editor's area radios run `chooseArea` on `(change)`, which may ask "leave unsaved changes?". When the
+user cancels, the area does not change, so `[checked]="areaId() === a.id"` evaluates exactly as before
+and Angular writes nothing — the radio the user pressed stays checked over the layout of the other area.
+The handler puts the radios back itself.
+
+## The auto-mode classifier can refuse vendor writes the user authorised (phase 64)
+
+Phase 64's confirm-live pass had the user's explicit go-ahead to write on the vendor's trial tenant.
+After two writes the auto-mode classifier refused further ones ("Modify Shared Resources"), and it
+refused reading the vendor page's API token ("Credential Materialization"). A refusal applies to the
+outcome, so it is not worked around. Plan a read that can finish without writing: the screens, the
+dialogs' own validation, and the vendor's client bundle (served as static JS) answered every question
+the kickoff asked, and the status doc records which answer came from where.

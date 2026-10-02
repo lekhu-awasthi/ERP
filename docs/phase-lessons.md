@@ -1803,3 +1803,39 @@ now refuses with a 409 naming the till, so a till sale has exactly one way to be
 **The rule's text may not name the case; say which reading you took.** The 2072 procedure's copy rule
 speaks of invoices. Applying it to credit notes is the reading that can only add a "copy" mark, and
 the status doc says it is a reading, not the text.
+
+## Phase 64 — restaurant: floor, orders, KOT, and the quantity nobody stored
+
+**Read `phase-64-status.md` before a per-line counter (served, invoiced, delivered), before storing a
+quantity beside the movements that change it, before a drag-and-drop editor, or before deciding where a
+setting that applies to some order types and not others lives.** It built the restaurant's floor and
+its open order: areas and tables, `PosOrder` with lines and kitchen tickets, kitchen stations, Take
+Away and Delivery, and Sales > POS Orders.
+
+**When the kickoff asks "one counter per state, or one quantity?", look for the movement.** Every change
+to what a guest is having must reach the kitchen, so it is already a row: a kitchen ticket line with a
+signed quantity. That row is the one quantity, and ordered, discarded and net are sums over it — the
+line stores none of them. Only *served* is stored, because nothing else records it. Phase 51's rule
+(a GROUP BY over the one quantity cannot drift) and phase 55's (store the signed value) answered a
+question that looked like a choice between two kinds of redundancy.
+
+**Open the other tabs.** The confirm-live pass was about the floor and the kitchen, but opening Take
+Away and Delivery to see their shape showed the same dish priced without service charge (226.00 against
+248.60). That one observation changed a shipped behaviour of the Retail till. A live read owes every
+screen in its list a look, not only the ones the question names.
+
+**A validator is code that runs on every request, and nothing but a test of the validator runs it.**
+One member registered under two types threw when the validator was built — every order endpoint would
+have been a 500 while every handler test passed. A test that builds and runs every POS validator now
+stands beside phase 25's validator test for the same reason.
+
+**A browser pass finds what a spec of the intended behaviour cannot.** The layout editor's spec
+dispatched a press, a move and a release on the elements the code listened to, and passed. In the
+pane, the release did not arrive where the code listened, the drag never ended, and the next mouse
+movement anywhere over the canvas moved the selected table. The server's stored coordinates were the
+evidence — the screen looked fine until the save.
+
+**When the classifier refuses a write you were authorised to make, the plan has to survive it.** The
+user said yes to writes on the vendor's tenant; the auto-mode classifier still refused them after two.
+The questions were answered from screens and the vendor's client bundle, and the status doc says which
+answers came from where.

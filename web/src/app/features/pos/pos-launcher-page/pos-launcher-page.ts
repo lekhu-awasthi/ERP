@@ -14,9 +14,9 @@ import { DenominationCountInput } from '../denomination-count/denomination-count
  * own open session at each, and a Start Session form that counts the float the way the location
  * asks -- an amount, or note by note when it requires cash verification.
  *
- * <p>A Restaurant till is listed, not offered: its screens (tables, kitchen orders) are phases 64-65,
- * and a till that opened onto the Retail grid would be a different product pretending to be it. The
- * card says so rather than hiding the location (phase 49: a chosen gap owes a surface).</p>
+ * <p>A Restaurant till opens onto its floor (phase 64): tables, orders and kitchen tickets. Billing an
+ * order is phase 65's, and the card says so rather than hiding it (phase 49: a chosen gap owes a
+ * surface); it no longer offers a drawer, because nothing at a restaurant till takes money yet.</p>
  */
 @Component({
   selector: 'app-pos-launcher-page',

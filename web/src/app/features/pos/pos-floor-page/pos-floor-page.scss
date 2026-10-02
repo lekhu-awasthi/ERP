@@ -1,0 +1,86 @@
+// Phase 64 -- the floor. The shell has no chrome under /pos (App.tillMode), so the page owns the viewport.
+.pos-floor {
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.pos-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: #fff;
+  border-bottom: 1px solid #dee2e6;
+}
+
+// Below 576px the canvas is a grid in floor order: a scaled 1100 x 800 plan is unreadable at 320px
+// (WCAG 1.4.10). At 576px and up each table sits where the floor plan put it, by custom properties.
+.pos-floor-canvas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+}
+
+.pos-floor-table,
+.pos-floor-order {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  width: 100%;
+  height: 100%;
+  min-height: 4.5rem;
+  padding: 0.35rem;
+  color: #212529;
+  text-align: center;
+  text-decoration: none;
+  background: #fff;
+  border: 2px solid #6c757d;
+  border-radius: 0.5rem;
+
+  &:hover {
+    border-color: #0a58ca;
+  }
+
+  &.is-taken {
+    background: #fff3cd;
+    border-color: #997404;
+  }
+}
+
+.pos-floor-order {
+  align-items: flex-start;
+  text-align: left;
+}
+
+@media (min-width: 576px) {
+  .pos-floor-canvas {
+    position: relative;
+    display: block;
+    width: 100%;
+    background: #e9ecef;
+    border: 1px solid #ced4da;
+    border-radius: 0.5rem;
+  }
+
+  .pos-floor-slot {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: var(--w);
+    height: var(--h);
+  }
+
+  .pos-floor-table {
+    min-height: 0;
+    overflow: hidden;
+
+    &.is-round {
+      border-radius: 50%;
+    }
+  }
+}

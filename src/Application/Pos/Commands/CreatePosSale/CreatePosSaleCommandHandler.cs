@@ -244,10 +244,10 @@ public sealed class CreatePosSaleCommandHandler(
             var line = request.Lines[i];
             var product = products[line.ProductId];
 
-            // The location's rule times the product's flag (phase 59 Decision G), frozen on the line.
-            var serviceChargeRate = till.Settings.ServiceChargeEnabled && product.ServiceChargeApplicable
-                ? till.Settings.ServiceChargeRate
-                : 0m;
+            // The location's rule times the product's flag (phase 59 Decision G), and never on a Take Away
+            // or Delivery (phase 64's live read), frozen on the line.
+            var serviceChargeRate = PosServiceCharge.RateFor(
+                till.Settings, product.ServiceChargeApplicable, ResolveOrderType(request, till));
 
             invoice.AddPosLine(
                 line.ProductId, line.Quantity, line.Rate, line.VatRate ?? product.VatRate, line.DiscountPct,

@@ -7,6 +7,8 @@ using ErpApp.Application.Common.Security;
 using ErpApp.Application.UnitTests.TestSupport;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
+using ErpApp.Domain.Common;
+using ErpApp.Domain.Pos;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
@@ -272,8 +274,10 @@ public class SortSweepGuardTests
         string? parentName = null,
         Guid parentId = default)
     {
+        // Phase 64 -- a restaurant order is opened, not created (PosSession's verb), so the harness
+        // takes either name; the list it seeds is as much a document list as the fifteen before it.
         var factory = entityType.GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .Where(m => m.Name == "Create" && m.ReturnType == entityType)
+            .Where(m => m.Name is "Create" or "Open" && m.ReturnType == entityType)
             .OrderBy(m => m.GetParameters().Length)
             .First();
 
@@ -433,6 +437,20 @@ public class SortSweepGuardTests
         if (parameter.ParameterType == typeof(DateOnly))
         {
             return date;
+        }
+
+        // Phase 64 -- PosOrder takes the instant it was opened and derives its Nepal date from it, so
+        // the instant is noon in Kathmandu on the date the row should carry.
+        if (parameter.ParameterType == typeof(DateTimeOffset))
+        {
+            return new DateTimeOffset(date.ToDateTime(new TimeOnly(12, 0)), NepalTime.Offset);
+        }
+
+        // ...and an order type, named rather than defaulted: default(PosTab) is no tab at all, and
+        // Take Away is the one type that needs neither a table nor a customer.
+        if (parameter.ParameterType == typeof(PosTab))
+        {
+            return PosTab.TakeAway;
         }
 
         if (parameter.ParameterType == typeof(decimal))

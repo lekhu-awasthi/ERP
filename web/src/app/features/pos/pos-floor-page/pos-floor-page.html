@@ -1,0 +1,121 @@
+<div class="pos-floor">
+  <header class="pos-bar">
+    <div class="me-auto">
+      <h1 class="h5 fw-bold mb-0">{{ restaurant()?.locationName ?? 'Restaurant' }}</h1>
+      <p class="small text-body-secondary mb-0">Floor &amp; orders</p>
+    </div>
+
+    @if (tabs().length > 1) {
+      <fieldset class="d-flex align-items-center gap-1 mb-0">
+        <legend class="visually-hidden">Order type</legend>
+        @for (t of tabs(); track t) {
+          <input type="radio" class="btn-check" name="pos-floor-tab" [id]="'pos-floor-tab-' + t"
+            [checked]="tab() === t" (change)="chooseTab(t)" />
+          <label class="btn btn-sm btn-outline-primary" [for]="'pos-floor-tab-' + t">{{ tabLabels[t] }}</label>
+        }
+      </fieldset>
+    }
+
+    <nav aria-label="Restaurant" class="d-flex gap-2">
+      <button type="button" class="btn btn-sm btn-outline-secondary" (click)="refresh()">
+        <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Refresh
+      </button>
+      <a class="btn btn-sm btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'pos']">Exit</a>
+    </nav>
+  </header>
+
+  <div class="px-3">
+    <app-status-banner [message]="errorMessage()" spacing="mt-2 mb-0" />
+  </div>
+
+  @if (loading()) {
+    <p class="p-3 text-body-secondary">Loading the floor…</p>
+  } @else if (restaurant(); as r) {
+    <main class="p-3">
+      @if (tab() === 'DineIn') {
+        <h2 class="visually-hidden">Dine In</h2>
+        @if (r.areas.length === 0) {
+          <p>
+            This location has no tables yet. An Admin lays out its floor under
+            <a [routerLink]="['/organizations', organizationId, 'configuration', 'pos-floor-plan', r.locationId]">Configurations &gt; Point of Sale &gt; Floor plan</a>.
+          </p>
+        } @else {
+          @if (r.areas.length > 1) {
+            <fieldset class="d-flex flex-wrap gap-1 mb-2">
+              <legend class="visually-hidden">Area</legend>
+              @for (a of r.areas; track a.id) {
+                <input type="radio" class="btn-check" name="pos-floor-area" [id]="'pos-floor-area-' + a.id"
+                  [checked]="area()?.id === a.id" (change)="chooseArea(a.id)" />
+                <label class="btn btn-sm btn-outline-secondary" [for]="'pos-floor-area-' + a.id">{{ a.name }}</label>
+              }
+            </fieldset>
+          }
+
+          @if (area(); as a) {
+            <h3 class="h6 fw-bold">{{ a.name }}</h3>
+            @if (a.tables.length === 0) {
+              <p class="text-body-secondary">No active table on this area.</p>
+            } @else {
+              <ul class="pos-floor-canvas list-unstyled" [style.aspect-ratio]="r.canvasWidth + ' / ' + r.canvasHeight">
+                @for (table of a.tables; track table.id) {
+                  <li class="pos-floor-slot" [style]="placement(table)">
+                    @if (table.order; as order) {
+                      <a class="pos-floor-table is-taken" [class.is-round]="table.shape === 'Circle'"
+                        [routerLink]="['/organizations', organizationId, 'pos', 'orders', order.id]">
+                        <span class="fw-bold">{{ table.name }}</span>
+                        <span class="visually-hidden">, taken, order</span>
+                        <span class="small">{{ order.code }} &middot; {{ order.covers }} guest(s)</span>
+                        <span class="small">{{ order.total | amount }}</span>
+                        @if (order.outstanding > 0) {
+                          <span class="badge text-bg-warning">{{ order.outstanding }} to serve</span>
+                        } @else {
+                          <span class="badge text-bg-success">Served</span>
+                        }
+                      </a>
+                    } @else {
+                      <a class="pos-floor-table" [class.is-round]="table.shape === 'Circle'"
+                        [routerLink]="['/organizations', organizationId, 'pos', 'orders', 'new']"
+                        [queryParams]="newOrderQuery(table.id)">
+                        <span class="fw-bold">{{ table.name }}</span>
+                        <span class="visually-hidden">, free, new order.</span>
+                        <span class="small">Seats {{ table.capacity }}</span>
+                      </a>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+          }
+        }
+      } @else {
+        <h2 class="h6 fw-bold">{{ tabLabels[tab()] }} orders</h2>
+        <a class="btn btn-primary fw-bold mb-3" [routerLink]="['/organizations', organizationId, 'pos', 'orders', 'new']"
+          [queryParams]="newOrderQuery(null)">
+          New {{ tabLabels[tab()] }} Order
+        </a>
+        @if (ordersOfTab().length === 0) {
+          <p class="text-body-secondary">No {{ tabLabels[tab()] }} order is open.</p>
+        } @else {
+          <ul class="list-unstyled row g-2">
+            @for (order of ordersOfTab(); track order.id) {
+              <li class="col-12 col-md-6 col-xl-4">
+                <a class="pos-floor-order"
+                  [routerLink]="['/organizations', organizationId, 'pos', 'orders', order.id]">
+                  <span class="fw-bold">{{ order.code }}</span>
+                  <span>{{ order.contactName }}</span>
+                  <span class="small text-body-secondary">{{ order.createdAt | nepaliDate: 'datetime' }}</span>
+                  <span>{{ order.total | amount }}</span>
+                  @if (order.outstanding > 0) {
+                    <span class="badge text-bg-warning">{{ order.outstanding }} to serve</span>
+                  } @else {
+                    <span class="badge text-bg-success">Ready</span>
+                  }
+                </a>
+              </li>
+            }
+          </ul>
+        }
+      }
+    </main>
+  }
+</div>

@@ -140,3 +140,28 @@ beside a 200 from the same user, and create a fresh Organization per phase.
     paid out of, not the sale's), `Reason`, `RoundOff`; payouts are in `sales.CreditNotePayouts`; prints
     in `sales.CreditNotePrints`; and it posts up to two `GlJournalEntries` rows
     (`SourceDocumentType = 'CreditNote'`): the note, and the payout (none for a credit sale).
+
+- The restaurant (phase 64), all under `/{org}/pos`:
+  - Configuration: `GET /locations/{id}/floor-plan`; `POST /locations/{id}/areas {name}`;
+    `PUT /areas/{id} {name, isActive}`; `PUT /areas/{id}/layout {tables: [{id|null, name, capacity, shape:
+    Rectangle|Circle, x, y, width, height, isActive}]}` (every existing table must be in it, or 400 naming
+    `Tables`; the canvas is 1100 x 800). Kitchen stations: `GET|POST /kitchen-stations {name}`,
+    `PUT /kitchen-stations/{id} {name, isActive}`, `PUT /kitchen-stations/{id}/products {productIds}` (the
+    whole list; a product left off goes back to Default). A station called "Default" is a 400.
+  - The till: `GET /restaurants/{locationId}` (floor + open orders + `canVoid`),
+    `GET /restaurants/{locationId}/products`, `POST /orders {locationId, orderType: DineIn|TakeAway|Delivery,
+    tableId, covers, contactId, items: [{productId, quantity, unitId, note}]}` (no rate: the catalogue prices
+    it), `GET|PUT /orders/{id}` (`PUT` takes `{tableId, covers, contactId}`), `POST /orders/{id}/items
+    {newItems, moreOf: [{lineId, quantity}]}`, `POST /orders/{id}/serve {items}`, `POST /orders/{id}/discard
+    {items, reason}`, `POST /orders/{id}/void {reason}`, `POST /orders/{id}/tickets/{ticketId}/prints` (no body).
+  - The ERP list: `GET /orders?status=&orderType=&page=&pageSize=&search=&fromDate=&toDate=&locationId=&sort=`.
+  - A location must be in Restaurant mode (`PUT /locations/{id}/mode {posMode: "Restaurant"}`) on an
+    organization created with `posRestaurant: true`; every order request also needs `Sales.Invoice.Create`
+    at the location (handler). A Delivery needs a named, non-walk-in `contactId`.
+  - In SQL: `pos.PosOrders` (Code `ORD0001`, Status `Open`/`Voided`), `pos.PosOrderLines` (no quantity
+    column; `ServedQuantity` only), `pos.KitchenTickets` (SendNumber, KitchenStationId NULL = Default,
+    Reason on a cancellation, PrintCount), `pos.KitchenTicketLines` (signed Quantity). A line's net quantity is
+    `SUM(KitchenTicketLines.Quantity)` grouped by `PosOrderLineId`. An order posts nothing: no
+    `GlJournalEntries`, `StockMovements` or `Invoices` row names it.
+  - The 403-not-404 pair: `POST /orders/{nonexistent}/discard` is **404** "Order not found." as Admin and
+    **403 naming `Pos.Order.Void`** from a role holding `Pos.Order.Operate` but not `.Void` (phase-64).

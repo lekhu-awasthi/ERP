@@ -1,5 +1,6 @@
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
+using ErpApp.Domain.Pos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -60,6 +61,13 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.HasOne<Product>()
             .WithMany()
             .HasForeignKey(x => x.ParentProductId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Phase 64 -- the kitchen station a restaurant order line goes to; null is Default. Restrict:
+        // a station with products is refused deactivation (KitchenStation), and nothing deletes one.
+        builder.HasOne<KitchenStation>()
+            .WithMany()
+            .HasForeignKey(x => x.KitchenStationId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne<ProductCategory>()

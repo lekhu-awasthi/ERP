@@ -109,8 +109,16 @@ export class PosCart {
     this.restore();
   }
 
-  /** The service charge rate a line carries: the location's, when it charges and the product is flagged. */
+  /**
+   * The service charge rate a line carries: the location's, when it charges and the product is flagged,
+   * and never on a Take Away or Delivery bill -- service charge is a dine-in charge (phase 64's live read;
+   * the server's `PosServiceCharge.RateFor`, which this mirrors, so the bill on screen stays the server's).
+   */
   serviceChargeRateOf(product: CartProduct): number {
+    const orderType = this.orderType();
+    if (orderType === 'TakeAway' || orderType === 'Delivery') {
+      return 0;
+    }
     return this.till.serviceChargeEnabled && product.serviceChargeApplicable ? this.till.serviceChargeRate : 0;
   }
 

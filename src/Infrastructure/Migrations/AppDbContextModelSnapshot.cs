@@ -568,6 +568,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<Guid?>("KitchenStationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -640,6 +643,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
+
+                    b.HasIndex("KitchenStationId");
 
                     b.HasIndex("ParentProductId");
 
@@ -3867,6 +3872,130 @@ namespace ErpApp.Infrastructure.Migrations
                     b.ToTable("PaymentAllocations", "payments");
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Pos.KitchenStation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("KitchenStations", "pos");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Pos.KitchenTicket", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("KitchenStationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PosOrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("PrintCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("SendNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("KitchenStationId");
+
+                    b.HasIndex("PosOrderId", "SendNumber", "KitchenStationId")
+                        .IsUnique();
+
+                    b.ToTable("KitchenTickets", "pos");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Pos.KitchenTicketLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("KitchenTicketId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PosOrderLineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("KitchenTicketId");
+
+                    b.HasIndex("PosOrderLineId");
+
+                    b.ToTable("KitchenTicketLines", "pos");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Pos.PosArea", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BillingLocationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillingLocationId");
+
+                    b.HasIndex("OrganizationId", "BillingLocationId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("PosAreas", "pos");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Pos.PosCashMovement", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4009,6 +4138,154 @@ namespace ErpApp.Infrastructure.Migrations
                     b.ToTable("PosLocationSettings", "pos");
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Pos.PosOrder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BillingLocationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<Guid?>("ContactId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Covers")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("LastActivityAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("OrderType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("PosTableId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("VoidReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset?>("VoidedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillingLocationId");
+
+                    b.HasIndex("ContactId");
+
+                    b.HasIndex("PosTableId");
+
+                    b.HasIndex("OrganizationId", "Code");
+
+                    b.HasIndex("OrganizationId", "CreatedAt")
+                        .IsDescending(false, true);
+
+                    b.HasIndex("OrganizationId", "Date");
+
+                    b.HasIndex("OrganizationId", "PosTableId")
+                        .IsUnique()
+                        .HasFilter("[Status] = 'Open' AND [PosTableId] IS NOT NULL");
+
+                    b.HasIndex("OrganizationId", "BillingLocationId", "Status");
+
+                    b.ToTable("PosOrders", "pos");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Pos.PosOrderLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("ConversionFactor")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<Guid?>("KitchenStationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("LineNo")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("PosOrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Rate")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("ServedQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("ServiceChargeRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<Guid?>("UnitId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("VatRate")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("KitchenStationId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("UnitId");
+
+                    b.HasIndex("PosOrderId", "LineNo")
+                        .IsUnique();
+
+                    b.ToTable("PosOrderLines", "pos");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Pos.PosSession", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4094,6 +4371,64 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasFilter("[Status] = 'Open'");
 
                     b.ToTable("PosSessions", "pos");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Pos.PosTable", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BillingLocationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Capacity")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PosAreaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Shape")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("int");
+
+                    b.Property<int>("X")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Y")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillingLocationId");
+
+                    b.HasIndex("PosAreaId");
+
+                    b.HasIndex("OrganizationId", "BillingLocationId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("PosTables", "pos");
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Purchasing.DebitNote", b =>
@@ -9852,6 +10187,62 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = false,
                             PermissionKey = "Pos.Session.ViewAll",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001e7"),
+                            IsGranted = true,
+                            PermissionKey = "Pos.Order.Operate",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001e8"),
+                            IsGranted = true,
+                            PermissionKey = "Pos.Order.Operate",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001e9"),
+                            IsGranted = true,
+                            PermissionKey = "Pos.Order.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001ea"),
+                            IsGranted = false,
+                            PermissionKey = "Pos.Order.Void",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001eb"),
+                            IsGranted = true,
+                            PermissionKey = "Pos.Order.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001ec"),
+                            IsGranted = true,
+                            PermissionKey = "Pos.Order.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001ed"),
+                            IsGranted = true,
+                            PermissionKey = "Pos.FloorPlan.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001ee"),
+                            IsGranted = false,
+                            PermissionKey = "Pos.FloorPlan.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 
@@ -10580,6 +10971,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("ErpApp.Domain.Pos.KitchenStation", null)
+                        .WithMany()
+                        .HasForeignKey("KitchenStationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Catalog.Product", null)
                         .WithMany()
                         .HasForeignKey("ParentProductId")
@@ -11279,6 +11675,44 @@ namespace ErpApp.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Pos.KitchenTicket", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Pos.KitchenStation", null)
+                        .WithMany()
+                        .HasForeignKey("KitchenStationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ErpApp.Domain.Pos.PosOrder", null)
+                        .WithMany("Tickets")
+                        .HasForeignKey("PosOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Pos.KitchenTicketLine", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Pos.KitchenTicket", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("KitchenTicketId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Pos.PosOrderLine", null)
+                        .WithMany()
+                        .HasForeignKey("PosOrderLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Pos.PosArea", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("BillingLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Pos.PosCashMovement", b =>
                 {
                     b.HasOne("ErpApp.Domain.Accounting.Account", null)
@@ -11328,6 +11762,50 @@ namespace ErpApp.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Pos.PosOrder", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("BillingLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Contacts.Contact", null)
+                        .WithMany()
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ErpApp.Domain.Pos.PosTable", null)
+                        .WithMany()
+                        .HasForeignKey("PosTableId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Pos.PosOrderLine", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Pos.KitchenStation", null)
+                        .WithMany()
+                        .HasForeignKey("KitchenStationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ErpApp.Domain.Pos.PosOrder", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("PosOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Catalog.UnitOfMeasurement", null)
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Pos.PosSession", b =>
                 {
                     b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
@@ -11340,6 +11818,21 @@ namespace ErpApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("CashAccountId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Pos.PosTable", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("BillingLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Pos.PosArea", null)
+                        .WithMany("Tables")
+                        .HasForeignKey("PosAreaId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
@@ -12082,6 +12575,23 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Navigation("Expenses");
 
                     b.Navigation("RawMaterials");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Pos.KitchenTicket", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Pos.PosArea", b =>
+                {
+                    b.Navigation("Tables");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Pos.PosOrder", b =>
+                {
+                    b.Navigation("Lines");
+
+                    b.Navigation("Tickets");
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Pos.PosSession", b =>

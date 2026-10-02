@@ -1,0 +1,167 @@
+<div class="container py-4">
+  <nav aria-label="Breadcrumb" class="mb-2">
+    <a [routerLink]="['/organizations', organizationId, 'configuration', 'pos']">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i> Point of Sale
+    </a>
+  </nav>
+  <h1 class="h3 fw-bold">Floor plan{{ plan() ? ' · ' + plan()!.locationName : '' }}</h1>
+  <p class="text-body-secondary">
+    Areas and the tables on them. A waiter seats an order at a table from the restaurant till's floor. Tables are
+    made inactive rather than deleted, because an order names its table.
+  </p>
+
+  <app-status-banner [message]="errorMessage()" />
+  <app-status-banner [message]="noticeMessage()" tone="success" [small]="true" />
+
+  @if (loading()) {
+    <p class="text-body-secondary">Loading the floor plan…</p>
+  } @else if (plan(); as p) {
+    <section class="card border-0 shadow-sm mb-3" aria-labelledby="floor-areas-heading">
+      <div class="card-body">
+        <h2 class="h6 fw-bold" id="floor-areas-heading">Areas</h2>
+        @if (p.areas.length === 0) {
+          <p class="text-body-secondary">No area yet. Add one, such as Ground Floor.</p>
+        } @else {
+          <fieldset class="d-flex flex-wrap gap-1 mb-2">
+            <legend class="visually-hidden">Area to lay out</legend>
+            @for (a of p.areas; track a.id) {
+              <input type="radio" class="btn-check" name="floor-area" [id]="'floor-area-' + a.id"
+                [checked]="areaId() === a.id" (change)="chooseArea(a.id, $event)" />
+              <label class="btn btn-sm btn-outline-primary" [for]="'floor-area-' + a.id">
+                {{ a.name }}{{ a.isActive ? '' : ' (inactive)' }}
+              </label>
+            }
+          </fieldset>
+        }
+
+        <form class="d-flex flex-wrap align-items-end gap-2" (submit)="$event.preventDefault(); addArea()">
+          <div>
+            <label class="form-label small mb-1" for="floor-new-area">New area</label>
+            <input class="form-control form-control-sm" id="floor-new-area" type="text" maxlength="60"
+              [value]="newAreaName()" (input)="onNewAreaName($event)" />
+          </div>
+          <button type="submit" class="btn btn-sm btn-outline-primary">Add Area</button>
+          @if (area()) {
+            <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-expanded]="areaFormOpen()"
+              aria-controls="floor-area-form" (click)="openAreaForm()">Rename / Deactivate Area</button>
+          }
+        </form>
+
+        @if (areaFormOpen() && area()) {
+          <form id="floor-area-form" class="d-flex flex-wrap align-items-end gap-2 mt-2" (submit)="$event.preventDefault(); saveArea()">
+            <div>
+              <label class="form-label small mb-1" for="floor-area-name">Area name</label>
+              <input class="form-control form-control-sm" id="floor-area-name" type="text" maxlength="60"
+                [value]="areaName()" (input)="onAreaName($event)" />
+            </div>
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="checkbox" id="floor-area-active" [checked]="areaActive()" (change)="onAreaActive($event)" />
+              <label class="form-check-label" for="floor-area-active">Active</label>
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary">Save Area</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="areaFormOpen.set(false)">Cancel</button>
+          </form>
+        }
+      </div>
+    </section>
+
+    @if (area(); as a) {
+      <section class="card border-0 shadow-sm" aria-labelledby="floor-layout-heading">
+        <div class="card-body">
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <h2 class="h6 fw-bold mb-0 me-auto" id="floor-layout-heading">Layout · {{ a.name }}</h2>
+            <div class="form-check mb-0">
+              <input class="form-check-input" type="checkbox" id="floor-show-inactive" [checked]="showInactive()"
+                (change)="showInactive.set($any($event.target).checked)" />
+              <label class="form-check-label small" for="floor-show-inactive">Show inactive tables</label>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary" (click)="addTable()">Add Table</button>
+            <button type="button" class="btn btn-sm btn-primary fw-bold" [disabled]="!dirty() || saving()" (click)="save()">
+              Save Layout
+            </button>
+          </div>
+          <p class="small text-body-secondary" id="floor-move-help">
+            Select a table to edit it. Drag it, or use the arrow keys (Shift for a bigger step) to move it.
+            @if (dirty()) {
+              <strong>Unsaved changes.</strong>
+            }
+          </p>
+
+          <div class="row g-3">
+            <div class="col-lg-8">
+              <ul #canvas class="floor-canvas list-unstyled" [style.aspect-ratio]="p.canvasWidth + ' / ' + p.canvasHeight">
+                @for (table of visibleTables(); track table.key) {
+                  <li class="floor-slot" [style]="placement(table)">
+                    <button type="button" class="floor-table" [class.is-round]="table.shape === 'Circle'"
+                      [class.is-inactive]="!table.isActive" [class.is-selected]="selectedKey() === table.key"
+                      [attr.aria-pressed]="selectedKey() === table.key" aria-describedby="floor-move-help"
+                      (click)="select(table.key)" (keydown)="onTableKey($event, table.key)"
+                      (pointerdown)="onPointerDown($event, table.key)">
+                      <span class="fw-bold">{{ table.name }}</span>
+                      <span class="small">Seats {{ table.capacity }}{{ table.isActive ? '' : ' · inactive' }}{{ table.isOccupied ? ' · in use' : '' }}</span>
+                    </button>
+                  </li>
+                }
+              </ul>
+            </div>
+
+            <div class="col-lg-4">
+              @if (selected(); as t) {
+                <form class="floor-form" aria-labelledby="floor-table-heading" (submit)="$event.preventDefault()">
+                  <h3 class="h6 fw-bold" id="floor-table-heading">Table {{ t.name }}{{ t.id ? '' : ' (new)' }}</h3>
+                  <label class="form-label small mb-1" for="floor-table-name">Name</label>
+                  <input class="form-control form-control-sm mb-2" id="floor-table-name" type="text" maxlength="60"
+                    [value]="t.name" (input)="setField('name', $event)" />
+                  <label class="form-label small mb-1" for="floor-table-capacity">Capacity (1–{{ p.maxCapacity }})</label>
+                  <input class="form-control form-control-sm mb-2" id="floor-table-capacity" type="number" min="1" [max]="p.maxCapacity"
+                    [value]="t.capacity" (change)="setField('capacity', $event)" />
+                  <fieldset class="mb-2">
+                    <legend class="form-label small mb-1">Shape</legend>
+                    <div class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="floor-table-shape" id="floor-table-rect"
+                        [checked]="t.shape === 'Rectangle'" (change)="setShape('Rectangle')" />
+                      <label class="form-check-label" for="floor-table-rect">Rectangle</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="floor-table-shape" id="floor-table-circle"
+                        [checked]="t.shape === 'Circle'" (change)="setShape('Circle')" />
+                      <label class="form-check-label" for="floor-table-circle">Circle</label>
+                    </div>
+                  </fieldset>
+                  <div class="row g-2 mb-2">
+                    <div class="col-6">
+                      <label class="form-label small mb-1" for="floor-table-x">Left (0–{{ p.canvasWidth }})</label>
+                      <input class="form-control form-control-sm" id="floor-table-x" type="number" min="0" [value]="t.x" (change)="setField('x', $event)" />
+                    </div>
+                    <div class="col-6">
+                      <label class="form-label small mb-1" for="floor-table-y">Top (0–{{ p.canvasHeight }})</label>
+                      <input class="form-control form-control-sm" id="floor-table-y" type="number" min="0" [value]="t.y" (change)="setField('y', $event)" />
+                    </div>
+                    <div class="col-6">
+                      <label class="form-label small mb-1" for="floor-table-width">Width</label>
+                      <input class="form-control form-control-sm" id="floor-table-width" type="number" min="40" [value]="t.width" (change)="setField('width', $event)" />
+                    </div>
+                    <div class="col-6">
+                      <label class="form-label small mb-1" for="floor-table-height">Height</label>
+                      <input class="form-control form-control-sm" id="floor-table-height" type="number" min="40" [value]="t.height" (change)="setField('height', $event)" />
+                    </div>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="floor-table-active" [checked]="t.isActive"
+                      [disabled]="t.isOccupied && t.isActive" (change)="setActive($event)" aria-describedby="floor-table-active-help" />
+                    <label class="form-check-label" for="floor-table-active">Active</label>
+                  </div>
+                  <p class="form-text" id="floor-table-active-help">
+                    {{ t.isOccupied ? 'An order is seated here, so it stays active until that order is settled or moved.' : 'An inactive table is hidden from the floor.' }}
+                  </p>
+                </form>
+              } @else {
+                <p class="text-body-secondary small">Select a table, or add one.</p>
+              }
+            </div>
+          </div>
+        </div>
+      </section>
+    }
+  }
+</div>

@@ -121,6 +121,20 @@ export const routes: Routes = [
     canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
   },
   {
+    // Phase 64 -- a Restaurant location's floor plan (areas and tables), reached from Point of Sale.
+    path: 'organizations/:id/configuration/pos-floor-plan/:locationId',
+    loadComponent: () =>
+      import('./features/configuration/pos-floor-plan-page/pos-floor-plan-page').then((m) => m.PosFloorPlanPage),
+    canActivate: [authGuard, featureGuard('PosRestaurant')],
+  },
+  {
+    // Phase 64 -- the kitchen stations (the vendor's Print Profiles) and the products each one cooks.
+    path: 'organizations/:id/configuration/kitchen-stations',
+    loadComponent: () =>
+      import('./features/configuration/kitchen-stations-page/kitchen-stations-page').then((m) => m.KitchenStationsPage),
+    canActivate: [authGuard, featureGuard('PosRestaurant')],
+  },
+  {
     // Phase 62 -- the till, a lazy full-screen route tree of its own (phase 59 Decision A). The shell
     // drops its chrome for every url under `pos` (App.tillMode), and each screen is its own lazy
     // chunk, so none of it reaches the initial bundle (build-budget.spec.ts).
@@ -145,6 +159,19 @@ export const routes: Routes = [
     path: 'organizations/:id/pos/sessions/:sessionId',
     loadComponent: () => import('./features/pos/pos-session-page/pos-session-page').then((m) => m.PosSessionPage),
     canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
+  },
+  {
+    // Phase 64 -- the restaurant till: its floor (Dine In tables, Take Away and Delivery lists) and one
+    // order. Lazy like every till screen, and gated on the Restaurant entitlement alone.
+    path: 'organizations/:id/pos/restaurant/:locationId',
+    loadComponent: () => import('./features/pos/pos-floor-page/pos-floor-page').then((m) => m.PosFloorPage),
+    canActivate: [authGuard, featureGuard('PosRestaurant')],
+  },
+  {
+    // Serves `new` (with ?locationId=&type=&tableId=) and an order's id from one component (phase 3).
+    path: 'organizations/:id/pos/orders/:orderId',
+    loadComponent: () => import('./features/pos/pos-order-page/pos-order-page').then((m) => m.PosOrderPage),
+    canActivate: [authGuard, featureGuard('PosRestaurant')],
   },
   {
     path: 'organizations/:id/configuration/banks',
@@ -536,6 +563,14 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/sales/credit-note-detail-page/credit-note-detail-page').then((m) => m.CreditNoteDetailPage),
     canActivate: [authGuard],
+  },
+  {
+    // Phase 64 -- the back office's view of every restaurant order (phase 49: a divergence owes a
+    // surface). Read-only, so no detail route: a row expands in place.
+    path: 'organizations/:id/sales/pos-orders',
+    loadComponent: () =>
+      import('./features/sales/pos-order-list-page/pos-order-list-page').then((m) => m.PosOrderListPage),
+    canActivate: [authGuard, featureGuard('PosRestaurant')],
   },
   {
     path: 'organizations/:id/payments',

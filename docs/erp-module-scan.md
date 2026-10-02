@@ -2375,3 +2375,54 @@ Cash Customer 100, VAT 33.80. Refund: Coke 60 + 7.8 → 68. Session: opening 1,0
 refunds −68; cash out −100; expected 1,249; counted 1,240; *short by Rs. 9.00*. Day Report the same day:
 No. of Sales 2, Returns 1, Sessions 2, SC 20, Taxable 540, VAT 70.20, **Total Sales 610.20**;
 Payments Credit 194, Cash 349.
+
+## Restaurant, read live (2026-10-02, phase 64) — the floor, orders and KOT
+
+Same tenant (*Hamro Samaan*, 7 trial days left), entered through *Open Pos* with the handoff URL captured
+from `window.open` (never recorded). The user authorised writes; the auto-mode classifier blocked them
+after the first two, so the rest is read from screens that open without writing and from the client
+bundle (static JS). Writes made: area **Rooftop** at POS Restaurant, table **T3** (capacity 1000) on
+Ground Floor. Decisions are in `phase-64-status.md`.
+
+### Floor plan (`/location/details/floor-plan?id=<location>&floor=<area>`)
+
+- **Areas**: *Add new* opens *New Area* with **Name\*** only → `POST /pos/areas {location_id, name}`. The
+  areas row's ⋮ and each area's pencil edit it. `GET /pos/areas?location_id&inactive=false`.
+- **Layout**: a fixed canvas (`width:1100, height:800` on every save), *Add New* table, *Save Changes*,
+  and a ⋮ with **View Inactive**. *New Table*: **Name\***, **Capacity\***, **Shape** (`Rectangle` |
+  `Circle`). The edit dialog adds **Make Inactive** — there is no delete.
+- Validation: an empty name or capacity is "Field is required!"; capacity **0** is treated as empty;
+  capacity **1000** is accepted (no upper bound). A **duplicate name** passes the dialog and is refused
+  by the server on *Save Changes*: `400 {"message":"table name must be unique"}`.
+- `POST /pos/floorplans {area_id, width, height, table:[{id, name, capacity, shape, x, y, width, height,
+  fill:"white"}]}` replaces the area's whole table set; a new table's `id` is a client UUID v1. Default
+  sizes: rectangle 250 × 100, circle 100 × 100.
+
+### Orders and kitchen tickets (client bundle, chunks `1295-…` and `9113-…`)
+
+- **Line counters**: `quantity, served_quantity, discarded_quantity, takeaway_quantity,
+  transferred_quantity`. Still to serve = `quantity − served − transferred − discarded`.
+- **Line menu**: *Edit Item*; *Mark as Take Away* (hidden once all of it is take-away);
+  *Mark as Served* (Dine In only, hidden once all is served); **Discard Order** while
+  `quantity − discarded − transferred > 0` — so a **served item can be discarded**.
+- **Discard**: dialog "Discard this order?" with a quantity stepper (`min 1`, `max quantity −
+  transferred − discarded`) and **Reason\*** (`discard_reason`, "Reason is required!"). It writes the
+  change into the edit state (`quantity: −v`), sent with the next update; the KOT renders a line with a
+  **negative quantity**, and a whole-order discard is `POST /pos/orders-discard {ids:[order], void_reason}`.
+  *Remove this item?* is a separate `{id, reason}` call.
+- **Serve**: `POST /pos/kots/mark-as-served {items:[{id, quantity, batch_id}]}` — per item, partial,
+  defaulting to what is outstanding; `batch_id` is the KOT. *Mark as Take Away* is `POST /pos/orders/update-takeaway`.
+- **KOT board** (`/kot/list`): tabs Pending / Served / All; filters KOT Type, Area, Table; one card per
+  KOT with `print_items` per station; served/take-away badges per line; the line's note shown; a KOT
+  can be **cancelled** or **archived**.
+- **Orders list** (`/orders/list`): Pending / Processed / All; filters Order Type, Area, Table.
+
+### Take Away and Delivery
+
+- **Take Away** is the order screen without a table: grid + cart, customer chip (*Cash Customer*),
+  *Save Orders* or *Proceed to Payment*.
+- **Delivery** lists open delivery orders as cards (filtered by `partner_id`) with *Add New*; its order
+  screen adds a **delivery-partner chip**, which reads **"undefined"** when none is chosen (a small
+  vendor defect).
+- **Service charge is Dine In only.** The service-charge-applicable Chicken Momo (200, 10%, 13% VAT) is a
+  **Rs 226.00** tile on Take Away and Delivery (200 × 1.13) against **Rs 248.60** on Dine In (phase 59).

@@ -139,4 +139,13 @@ public enum DocumentType
     /// not a drawer's. Appended last, so no persisted ordinal moves.
     /// </summary>
     PosSession,
+
+    /// <summary>
+    /// Phase 64 -- a restaurant's open order (<c>Domain.Pos.PosOrder</c>): a table's tab, a parcel or a
+    /// delivery being cooked. Not a document: no approval, no ledger number (its <c>ORD0001</c> comes
+    /// from the tenant's counter), and it posts nothing. It is a member so the numbering generator can
+    /// count it and so <c>AuditBehavior</c> can name it: opening an order and discarding what the
+    /// kitchen was already cooking are audited. Appended last, so no persisted ordinal moves.
+    /// </summary>
+    PosOrder,
 }

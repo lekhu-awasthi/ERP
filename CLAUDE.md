@@ -95,6 +95,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 61: POS sale engine (a till sale is an Invoice created approved, tenders a second GL entry on it, `PosSession` drawer posts cash movements and over/short, one session/day reader; service charge inside the VAT base, its 2023 ban stated on screen). Before a second entry on a document, a second approving door, or a value-dependent permission — `docs/phase-61-status.md`
 - Phase 62: Retail till UI (lazy full-screen `/pos`: launcher, grid + scan, cart, multi-tender payment, session X/Z, cash in/out, close); abbreviated tax invoice and reprint-copy rules settled from the statutes. Before a figure a cashier pays against, a printed count, or a browser-held draft — `docs/phase-62-status.md`
 - Phase 63: returns at the till (a refund is a Credit Note created approved; its payout is a second entry out of the open drawer after clearing what is still owed; one planner prices the preview and the refund; the ERP's conversion of a till sale refused). Before a reversal priced before it posts, or a second way to return a sale — `docs/phase-63-status.md`
+- Phase 64: restaurant floor, orders and KOT (`PosOrder` its own aggregate; the kitchen ticket line is the one signed quantity, served the one stored counter; a ticket per send × station; service charge Dine In only; Sales > POS Orders). Before a per-line counter, a second quantity beside a movement, or a drag-and-drop editor — `docs/phase-64-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -150,6 +151,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `IOptions<T>` caches at first resolution and never sees a later `dotnet user-secrets set`; restart the Api (long-lived singletons should use `IOptionsMonitor`).
 - MediatR 12.4.1's `RequestHandlerDelegate<TResponse>` is parameterless — call `next()`, not `next(cancellationToken)`.
 - A FluentValidation rule built from a captured `Func` selector 500s every endpoint it guards (`Could not infer property name`) and no handler test can see it; take `Expression<Func<T, IEnumerable<TElement>>>` and cover it with a validator test (phase-25).
+- …and one member registered under two types (`IEnumerable<T>` in a helper, `IReadOnlyList<T>` in the validator) throws `InvalidCastException` when the validator is built: every endpoint 500s. Build every validator in a test (phase-64).
 - `AuditBehavior` writes a row only for a Create/Update/Approve/Void/Extract-prefixed request; `IAuditableRequest` on any other verb (Open, Close) is present-and-ignored (phase-61).
 
 **EF Core, migrations and the InMemory provider**
@@ -375,6 +377,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A backtick inside a comment inside an inline `template:` literal terminates the template; the compiler blames the `@Component` decorator (phase-40).
 - A `computed()` records only the signals it actually **read**, so a `&&` short-circuiting past the signal on the first evaluation leaves it dependency-free and frozen; every test that calls the setter before reading passes (phase-47).
 - A control nested in an `<a>` is invalid HTML no handler repairs: row a `<div>`, link a `stretched-link`, controls siblings at `position-relative z-2` (the overlay is z-index 1), and the ring moves to the row via `:has()` (phase-47).
+- A drag that listens for the release on its own container never ends when the pointer lets go elsewhere, and keeps moving things; listen on the document, bind the drag to what was grabbed, and add a threshold (phase-64).
+- A radio whose `(change)` is cancelled stays checked: the `[checked]` binding did not change, so Angular never puts it back. Restore it by hand (phase-64).
 
 **Multi-way switches on a document-attached mechanism**
 - A shared UI panel is not evidence of a shared model: email templates are their own resource, so `EmailTemplate` is its own aggregate and `CustomTemplateType.Email` was deleted (phase-30).
@@ -467,34 +471,34 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - For a feature whose output is money, confirm-live **writes through to the ledger** and reads the GL: the vendor's split-bill defect and its drawer-never-posts gap show only as numbers afterwards (phase 59).
 - Read the scan's next row before modelling from one: phase 60's "round to the rupee" had 316.40 → 317, a ceiling, two lines down. We round to nearest by choice (phase-61).
 - The vendor's POS and ERP keep separate sessions; drive both by capturing the organisation list's `window.open` URL, and never record its `hash`/`identity` (phase 59).
+- The auto-mode classifier can refuse writes on the vendor's tenant even after the user says yes; plan a confirm-live read that can finish from screens and the client bundle alone (phase-64).
 
 ## Current status
 
-**Phases 0-63 are complete. The forward plan is phases 64–66: POS Restaurant.** Each phase's story is
-in its `docs/phase-N-status.md`, and finished planning entries are archived in `docs/roadmap-history.md`.
+**Phases 0-64 are complete. The forward plan is phases 65–66: POS Restaurant billing, then reports.**
+Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
+`docs/roadmap-history.md`.
 
-**Phase 63 built returns at the till.** It added:
+**Phase 64 built the restaurant's floor, orders and kitchen tickets.** It added:
 
-- a refund that is an ordinary Credit Note created approved against the till sale, returning service
-  charge and VAT in proportion (`PosLineArithmetic`, shared with the sale line), with stock back at the
-  cost it left at;
-- a payout posted as a second entry on the note, out of the caller's **open** drawer (yesterday's sale
-  refunds into today's session), after the refund has cleared what the customer still owes;
-- `PosRefundPlanner`, the one computation behind both `POST /pos/refunds/preview` and the refund;
-- `CreditNotePrint` (a sibling of `InvoicePrint`) and an 80 mm credit note laid out to VAT Rules Rule 20;
-- refunds in `PosSalesReader` (X/Z, day summary, expected cash) and every reader of what is owed;
-- the ERP's *Convert to Credit Note* refused on a till sale.
+- the floor: areas and tables on a fixed 1100 × 800 canvas, with a keyboard-operable layout editor;
+- `PosOrder`, its own aggregate (`ORD0001` from the tenant's counter, posts and reserves nothing), whose
+  lines store no quantity: ordered, discarded and net are sums over the signed `KitchenTicketLine`s;
+- a `KitchenTicket` per send × kitchen station (the product's station, frozen on the line; none is
+  *Default*), cancellations with their reason, and REPRINT marking from the server's count;
+- `PosServiceCharge.RateFor`: no service charge on Take Away or Delivery, in the order, the sale engine
+  and the Retail cart;
+- four keys (`Pos.Order.Operate/View/Void`, `Pos.FloorPlan.Manage`) and Sales > POS Orders.
 
-**Next: phase 64, Restaurant: floor, orders, KOT.** Areas and tables with a layout editor, `PosOrder`
-with per-line counters, `KitchenTicket` per send × station, Take Away and Delivery, and an ERP *POS
-Orders* list. Carried: phase 62 § 5 (the ERP PDF's tax-invoice heading and copy marking, now for credit
-notes too; serial-tracked products at the till; the unmeasured barcode index) and phase 63 § 5
-(cross-branch returns, split payouts on screen).
+**Next: phase 65, Kitchen display and settling.** A live KOT board (`Pos.Kitchen.Operate`), the estimate
+bill, split by item / quantity / equally with the service charge preserved (the vendor's defect 1 is the
+regression test), and settling an order into Invoices, with invoiced quantity a sum over invoice lines
+naming the order line. Carried: *Mark as Take Away* and item transfer (phase 64 § 5), phase 62 § 5 and
+phase 63 § 5.
 
-Tests: Domain **842**, Application.UnitTests **1464**, Infrastructure.UnitTests 13,
-Api.IntegrationTests **30**, Angular **697**. Everything was green at phase 63's close with Docker up.
-The bundle sits at **647.29 kB** against `build-budget.spec.ts`'s 680 kB; the till and the refund
-screen are lazy.
+Tests: Domain **863**, Application.UnitTests **1515**, Infrastructure.UnitTests 13,
+Api.IntegrationTests **30**, Angular **714**. Everything was green at phase 64's close with Docker up.
+The bundle sits at **649.75 kB** against `build-budget.spec.ts`'s 680 kB; every till screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests
   fail in their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like

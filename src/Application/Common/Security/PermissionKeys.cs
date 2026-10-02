@@ -1100,4 +1100,30 @@ public static class PermissionKeys
     // owner may sell.
     public const string PosSessionOperate = "Pos.Session.Operate";
     public const string PosSessionViewAll = "Pos.Session.ViewAll";
+
+    // Phase 64 (Restaurant: floor, orders, KOT) -- four keys, each arriving with the requests it gates
+    // (docs/phase-64-status.md Decision F). Derived per feature, not defaulted:
+    //
+    // - Pos.Order.Operate (Admin+Member): seat a table, open an order, send it to the kitchen, mark
+    //   what was served, move the table, print a kitchen ticket, and the restaurant till's reads.
+    //   Routine daily working data, exactly as a Member already rings up a sale. Like
+    //   Pos.Session.Operate it is organization-wide; the branch boundary is that every order request
+    //   re-checks Sales.Invoice.Create at the order's location, because an order is billed as an
+    //   Invoice there (phase 61's open-a-drawer-only-where-you-sell rule).
+    // - Pos.Order.Void (Admin-only): discard what the kitchen was already sent, or a whole order. It
+    //   takes food off a bill after it was cooked -- a restaurant's classic void -- so it is the review
+    //   a send does not need, where phase 61 put credit and phase 63 put refunds. An Admin can grant it
+    //   to a head waiter's role.
+    // - Pos.Order.View (Admin+Member): the ERP's POS Orders list, the back office's view of every open
+    //   tab (phase 49's rule: a divergence owes a surface). A bounded working list, not a register,
+    //   and scoped to the locations where the caller may view invoices.
+    // - Pos.FloorPlan.Manage (Admin-only): areas, tables and their layout. Configuration, as phase 59
+    //   Decision J derived it. Kitchen stations are POS settings and ride Pos.Settings.Manage.
+    //
+    // Pos.Kitchen.Operate (phase 59 Decision J) does not ship: the kitchen board is phase 65's, and a
+    // key with nothing behind it is present-and-ignored.
+    public const string PosOrderOperate = "Pos.Order.Operate";
+    public const string PosOrderVoid = "Pos.Order.Void";
+    public const string PosOrderView = "Pos.Order.View";
+    public const string PosFloorPlanManage = "Pos.FloorPlan.Manage";
 }

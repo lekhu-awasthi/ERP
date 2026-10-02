@@ -77,7 +77,7 @@ describe('PosLauncherPage', () => {
     };
   }
 
-  it('offers the till, its open session, and says why a restaurant till is not offered', () => {
+  it('offers the till, its open session, and the floor of a restaurant till', () => {
     const p = page([
       summary({ mySessionId: 'ses-1', mySessionCode: 'SES0001', mySessionOpenedAt: '2026-10-01T03:00:00Z' }),
       summary({ locationId: 'loc-2', locationCode: '1002', locationName: 'Ground Floor', posMode: 'Restaurant' }),
@@ -85,7 +85,9 @@ describe('PosLauncherPage', () => {
 
     expect(p.text()).toContain('Your session SES0001 has been open since');
     expect(p.element.querySelector('a[href="/organizations/org-1/pos/till/loc-1"]')).not.toBeNull();
-    expect(p.text()).toContain('The restaurant till (tables, kitchen orders and bill splitting) is not built yet.');
+    // Phase 64 -- a restaurant opens onto its floor, and says billing an order is still to come.
+    expect(p.element.querySelector('a[href="/organizations/org-1/pos/restaurant/loc-2"]')).not.toBeNull();
+    expect(p.text()).toContain('Billing an order (estimate, split and payment) is not built yet');
     expect(p.element.querySelectorAll('button').length).toBe(0);
   });
 
