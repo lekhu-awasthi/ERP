@@ -54,10 +54,16 @@ public sealed class VoidPosOrderItemsCommandHandler(IAppDbContext db, ICurrentUs
         var (order, _) = await PosRestaurant.LoadOrderForActionAsync(
             db, request.OrganizationId, currentUser.UserId, request.OrderId, cancellationToken);
 
+        // Phase 65 -- never what is billed; and discarding the unbilled rest of a part-billed order settles it.
+        var invoiced = (await PosOrderBilling.LoadAsync(db, request.OrganizationId, order.Id, cancellationToken)).Invoiced;
+
         var tickets = PosOrderCommands.Run(() => order.Discard(
             [.. request.Items.Select(x => new PosOrderLineQuantity(x.LineId, x.Quantity))],
             request.Reason,
-            currentUser.UserId));
+            currentUser.UserId,
+            invoiced));
+
+        order.SettleIfFullyBilled(invoiced, DateTimeOffset.UtcNow);
 
         db.KitchenTickets.AddRange(tickets);
         await db.SaveChangesAsync(cancellationToken);

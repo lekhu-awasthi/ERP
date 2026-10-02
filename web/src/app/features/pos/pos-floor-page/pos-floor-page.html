@@ -2,7 +2,19 @@
   <header class="pos-bar">
     <div class="me-auto">
       <h1 class="h5 fw-bold mb-0">{{ restaurant()?.locationName ?? 'Restaurant' }}</h1>
-      <p class="small text-body-secondary mb-0">Floor &amp; orders</p>
+      <p class="small text-body-secondary mb-0">
+        Floor &amp; orders
+        @if (restaurant(); as r) {
+          &middot;
+          @if (r.mySessionId) {
+            your drawer
+            <a [routerLink]="['/organizations', organizationId, 'pos', 'sessions', r.mySessionId]">{{ r.mySessionCode }}</a>
+            is open
+          } @else {
+            no drawer of yours is open, so you cannot take payment here
+          }
+        }
+      </p>
     </div>
 
     @if (tabs().length > 1) {
@@ -17,6 +29,9 @@
     }
 
     <nav aria-label="Restaurant" class="d-flex gap-2">
+      @if (restaurant()?.canKitchen) {
+        <a class="btn btn-sm btn-outline-primary" [routerLink]="['/organizations', organizationId, 'pos', 'kitchen', locationId]">Kitchen</a>
+      }
       <button type="button" class="btn btn-sm btn-outline-secondary" (click)="refresh()">
         <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Refresh
       </button>
@@ -66,6 +81,9 @@
                         <span class="visually-hidden">, taken, order</span>
                         <span class="small">{{ order.code }} &middot; {{ order.covers }} guest(s)</span>
                         <span class="small">{{ order.total | amount }}</span>
+                        @if (order.billed > 0) {
+                          <span class="small">{{ order.billed | amount }} paid</span>
+                        }
                         @if (order.outstanding > 0) {
                           <span class="badge text-bg-warning">{{ order.outstanding }} to serve</span>
                         } @else {
@@ -104,7 +122,7 @@
                   <span class="fw-bold">{{ order.code }}</span>
                   <span>{{ order.contactName }}</span>
                   <span class="small text-body-secondary">{{ order.createdAt | nepaliDate: 'datetime' }}</span>
-                  <span>{{ order.total | amount }}</span>
+                  <span>{{ order.total | amount }}{{ order.billed > 0 ? ' (' + order.billed + ' paid)' : '' }}</span>
                   @if (order.outstanding > 0) {
                     <span class="badge text-bg-warning">{{ order.outstanding }} to serve</span>
                   } @else {

@@ -1,4 +1,14 @@
 using ErpApp.Application.Common.Security;
+using ErpApp.Application.Inventory.Stock;
+using ErpApp.Application.Pos.Commands.CreatePosOrderInvoice;
+using ErpApp.Application.Pos.Commands.CreatePosSale;
+using ErpApp.Application.Pos.Commands.ServeKitchenTicket;
+using ErpApp.Application.Pos.Queries.GetPosKitchenBoard;
+using ErpApp.Application.Pos.Queries.GetPosOrder;
+using ErpApp.Application.Pos.Queries.PreviewPosOrderBill;
+using ErpApp.Application.Sales.Credit;
+using ErpApp.Application.Sales.Posting;
+using ErpApp.Application.Sales.Stock;
 using ErpApp.Application.Pos.Commands.AddPosOrderItems;
 using ErpApp.Application.Pos.Commands.CreateKitchenStation;
 using ErpApp.Application.Pos.Commands.CreatePosArea;
@@ -38,7 +48,7 @@ internal sealed class PosTestRestaurant
         .. PosTestTill.CashierKeys,
         PermissionKeys.InvoiceView,
         PermissionKeys.PosOrderOperate, PermissionKeys.PosOrderVoid, PermissionKeys.PosOrderView,
-        PermissionKeys.PosFloorPlanManage, PermissionKeys.PosSettingsManage,
+        PermissionKeys.PosFloorPlanManage, PermissionKeys.PosSettingsManage, PermissionKeys.PosKitchenOperate,
     ];
 
     public static async Task<PosTestRestaurant> CreateAsync(string[]? grantedKeys = null)
@@ -46,6 +56,10 @@ internal sealed class PosTestRestaurant
         var till = await PosTestTill.CreateAsync(grantedKeys ?? WaiterKeys, restaurant: true);
         var db = till.Db;
         var orgId = till.OrganizationId;
+
+        // Phase 65 -- a bill takes stock from the location's own warehouse (an order names none).
+        till.Location.Update(till.Location.Code, till.Location.Name, till.Location.Address, till.Seed.WarehouseId, true);
+        await db.SaveChangesAsync();
 
         var floor = await new CreatePosAreaCommandHandler(db).Handle(
             new CreatePosAreaCommand(orgId, till.Location.Id, "Ground Floor"), CancellationToken.None);
@@ -128,6 +142,55 @@ internal sealed class PosTestRestaurant
     public Task<PosFloorPlanDto> FloorAsync() =>
         new GetPosFloorPlanQueryHandler(Till.Db).Handle(
             new GetPosFloorPlanQuery(OrganizationId, LocationId), CancellationToken.None);
+
+    // ---- Phase 65: billing and the kitchen board ----------------------------------------------------
+
+    public Task<PosOrderBillPreviewDto> PreviewAsync(
+        Guid orderId, PosOrderSplit split, IReadOnlyList<PosOrderLineQuantityInput>? items = null, int? parts = null,
+        Guid? userId = null) =>
+        new PreviewPosOrderBillQueryHandler(Till.Db, CurrentUser(userId)).Handle(
+            new PreviewPosOrderBillQuery(OrganizationId, orderId, split, items ?? [], parts), CancellationToken.None);
+
+    public CreatePosOrderInvoiceCommandHandler BillHandler(Guid? userId = null)
+    {
+        var ledger = new StockLedgerService(Till.Db);
+        return new CreatePosOrderInvoiceCommandHandler(
+            Till.Db, Till.Seed.NumberGenerator, CurrentUser(userId), new InvoicePostingRule(),
+            new InvoiceTenderPostingRule(), new FifoStockAvailabilityPolicy(Till.Db, ledger), ledger,
+            new ContactCreditLimitPolicy(Till.Db));
+    }
+
+    public Task<CreatePosOrderInvoiceResult> BillAsync(
+        Guid sessionId,
+        Guid orderId,
+        PosOrderSplit split,
+        IReadOnlyList<PosTenderInput> tenders,
+        IReadOnlyList<PosOrderLineQuantityInput>? items = null,
+        int? parts = null,
+        decimal change = 0m,
+        Guid? contactId = null,
+        Guid? userId = null) =>
+        BillHandler(userId).Handle(
+            new CreatePosOrderInvoiceCommand(
+                OrganizationId, sessionId, LocationId, orderId, split, items ?? [], parts, tenders, change, contactId,
+                OverrideStockWarning: true),
+            CancellationToken.None);
+
+    public Task<PosKitchenBoardDto> BoardAsync(
+        PosKitchenBoardView view = PosKitchenBoardView.Pending, Guid? stationId = null, bool defaultStation = false,
+        PosTab? orderType = null) =>
+        new GetPosKitchenBoardQueryHandler(Till.Db).Handle(
+            new GetPosKitchenBoardQuery(OrganizationId, LocationId, view, stationId, defaultStation, orderType),
+            CancellationToken.None);
+
+    public Task<ServeKitchenTicketResult> ServeTicketAsync(
+        Guid orderId, Guid ticketId, params PosOrderLineQuantityInput[] items) =>
+        new ServeKitchenTicketCommandHandler(Till.Db).Handle(
+            new ServeKitchenTicketCommand(OrganizationId, orderId, ticketId, items), CancellationToken.None);
+
+    public Task<PosOrderDto> GetAsync(Guid orderId) =>
+        new GetPosOrderQueryHandler(Till.Db, CurrentUser()).Handle(
+            new GetPosOrderQuery(OrganizationId, orderId), CancellationToken.None);
 
     public static PosOrderLineQuantityInput Line(PosOrderDto order, string productName, decimal quantity) =>
         new(order.Lines.Single(x => x.ProductName == productName).Id, quantity);

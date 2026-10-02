@@ -14,9 +14,8 @@ import { DenominationCountInput } from '../denomination-count/denomination-count
  * own open session at each, and a Start Session form that counts the float the way the location
  * asks -- an amount, or note by note when it requires cash verification.
  *
- * <p>A Restaurant till opens onto its floor (phase 64): tables, orders and kitchen tickets. Billing an
- * order is phase 65's, and the card says so rather than hiding it (phase 49: a chosen gap owes a
- * surface); it no longer offers a drawer, because nothing at a restaurant till takes money yet.</p>
+ * <p>A Restaurant till opens onto its floor (phase 64) and its kitchen board (phase 65), and offers the
+ * cashier's drawer again: billing an order is a till sale, paid into the cashier's own session.</p>
  */
 @Component({
   selector: 'app-pos-launcher-page',
@@ -98,7 +97,9 @@ export class PosLauncherPage {
       .subscribe({
         next: () => {
           this.submitting.set(false);
-          void this.router.navigate(['/organizations', this.organizationId, 'pos', 'till', till.locationId]);
+          // Phase 65 -- a restaurant's drawer is billed from its floor; the Retail grid is not its till.
+          const screen = till.posMode === 'Restaurant' ? 'restaurant' : 'till';
+          void this.router.navigate(['/organizations', this.organizationId, 'pos', screen, till.locationId]);
         },
         error: (err: unknown) => {
           this.submitting.set(false);

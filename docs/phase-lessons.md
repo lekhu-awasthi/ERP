@@ -1839,3 +1839,32 @@ evidence — the screen looked fine until the save.
 user said yes to writes on the vendor's tenant; the auto-mode classifier still refused them after two.
 The questions were answered from screens and the vendor's client bundle, and the status doc says which
 answers came from where.
+
+## Phase 65 — kitchen display and settling, and a bill that moves quantities, never rates
+
+**Read `phase-65-status.md` before billing anything in parts, before a figure that must add up across
+several documents, before a status that a void must undo, or before a live screen.** It built the kitchen
+board, the estimate bill, and billing an order whole, by item and quantity, or equally, each part an
+ordinary approved till Invoice.
+
+**When parts must add up, give the last part what is left, and round the running total.** A part bills
+the last of a line by taking exactly what is left of the line's amount, service charge and VAT; and a
+part comes to the running total rounded, less what is already billed. Each bill is a whole rupee, each
+round-off is under a rupee, and the parts sum to the order's own rounded total with no special case. The
+same rule answers phase 63's halves of 633 (316, then 317).
+
+**A counter a void must give back is better as a sum.** Invoiced quantity is the sum of invoice lines
+naming the order line on invoices not voided, so a void gives the quantity back by changing one status.
+Reopening a settled order needed only a state change and a check that its table is still free.
+
+**Lift the engine; do not copy it.** The bill for an order is phase 61's sale with different lines, so
+the work after the lines moved into `PosSaleCompletion` and both doors call it; the guards that assume
+one door were taught the second by name.
+
+**Read the badge's source before building the action.** The vendor's KOT "Archived" looked like an
+action to copy; the bundle showed a five-hour client-side age test that hides a forgotten dish. Our board
+keeps it pending, oldest first, with how long it has waited.
+
+**Plan the live read to finish without writing, even when writes are authorised.** The classifier
+refused the first vendor write after the user's go-ahead, as in phase 64; every question but one had
+already been answered from the bundle, and that one belongs to a feature this phase deferred.

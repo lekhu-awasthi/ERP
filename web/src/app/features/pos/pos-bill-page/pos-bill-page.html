@@ -1,0 +1,255 @@
+<div class="pos-screen-root">
+  <div class="pos-bill">
+    <header class="pos-bar">
+      <div class="me-auto">
+        <h1 class="h5 fw-bold mb-0" id="pos-bill-heading">
+          Bill {{ order()?.code ?? '' }}{{ order()?.tableName ? ' · ' + order()!.tableName : '' }}
+        </h1>
+        @if (order(); as o) {
+          <p class="small text-body-secondary mb-0">
+            {{ tabLabels[o.orderType] }} &middot; {{ o.covers }} guest(s) &middot; {{ o.contactName }}
+            @if (o.billed > 0) {
+              &middot; billed so far {{ o.billed | amount }}
+            }
+          </p>
+        }
+      </div>
+      <nav aria-label="Bill" class="d-flex gap-2">
+        @if (order(); as o) {
+          <a class="btn btn-sm btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'pos', 'orders', o.id]">Back to Order</a>
+          <a class="btn btn-sm btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'pos', 'restaurant', o.locationId]">Floor</a>
+        }
+      </nav>
+    </header>
+
+    <div class="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{{ announcement() }}</div>
+    <div class="px-3">
+      <app-status-banner [message]="errorMessage()" spacing="mt-2 mb-0" />
+    </div>
+
+    @if (loading()) {
+      <p class="p-3 text-body-secondary">Opening the bill…</p>
+    } @else if (order(); as o) {
+      @if (lastBill(); as done) {
+        <section class="pos-done px-3 pt-3" aria-labelledby="pos-bill-done">
+          <h2 class="h5 fw-bold" id="pos-bill-done" tabindex="-1">Bill {{ done.code }} paid: {{ done.grandTotal | amount }}</h2>
+          @if (done.changeAmount > 0) {
+            <p class="fs-4 fw-bold mb-1">Change {{ done.changeAmount | amount }}</p>
+          }
+          <p class="mb-2">
+            @if (done.orderStatus === 'Settled') {
+              The order is settled and the table is free.
+            } @else {
+              {{ done.orderToBill | amount }} of the order is still to bill.
+            }
+          </p>
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="print(done.id)">Reprint {{ done.code }}</button>
+        </section>
+      }
+
+      @if (o.status !== 'Open' || o.toBill === 0) {
+        <div class="p-3">
+          <p>Nothing on {{ o.code }} is left to bill.</p>
+          <a class="btn btn-primary fw-bold" [routerLink]="['/organizations', organizationId, 'pos', 'restaurant', o.locationId]">Back to the Floor</a>
+        </div>
+      } @else if (!restaurant()?.mySessionId) {
+        <div class="p-3">
+          <p>
+            Taking payment needs your own open session at this till, and you have none.
+            Start one from the Point of Sale page, then come back to this bill.
+          </p>
+          <a class="btn btn-primary fw-bold" [routerLink]="['/organizations', organizationId, 'pos']">Start a Session</a>
+        </div>
+      } @else {
+        <div class="pos-bill-body">
+          <!-- ===================== The part ===================== -->
+          <section class="pos-bill-part" aria-labelledby="pos-bill-part-heading">
+            <h2 class="h6 fw-bold" id="pos-bill-part-heading">What goes on this bill</h2>
+
+            <fieldset class="mb-3">
+              <legend class="small fw-bold mb-1">Split</legend>
+              <div class="d-flex flex-wrap gap-1">
+                <input type="radio" class="btn-check" name="pos-bill-split" id="pos-bill-split-whole"
+                  [checked]="split() === 'Whole'" (change)="chooseSplit('Whole')" />
+                <label class="btn btn-outline-primary" for="pos-bill-split-whole">Everything</label>
+                <input type="radio" class="btn-check" name="pos-bill-split" id="pos-bill-split-items"
+                  [checked]="split() === 'Items'" (change)="chooseSplit('Items')" />
+                <label class="btn btn-outline-primary" for="pos-bill-split-items">By item</label>
+                <input type="radio" class="btn-check" name="pos-bill-split" id="pos-bill-split-equal"
+                  [checked]="split() === 'Equal'" (change)="chooseSplit('Equal')" />
+                <label class="btn btn-outline-primary" for="pos-bill-split-equal">Equally</label>
+              </div>
+            </fieldset>
+
+            @if (split() === 'Items') {
+              <table class="table table-sm align-middle">
+                <caption class="visually-hidden">Items still to bill: tick each one for this bill, and how many</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Item</th>
+                    <th scope="col" class="text-end">To bill</th>
+                    <th scope="col" class="text-end">On this bill</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of billable(); track line.id) {
+                    <tr>
+                      <td>
+                        <div class="form-check mb-0">
+                          <input class="form-check-input" type="checkbox" [id]="'pos-bill-item-' + line.id"
+                            [checked]="isChecked(line)" (change)="toggleItem(line, $event)" />
+                          <label class="form-check-label" [for]="'pos-bill-item-' + line.id">
+                            {{ line.productName }}{{ line.note ? ' (' + line.note + ')' : '' }}
+                          </label>
+                        </div>
+                      </td>
+                      <td class="text-end">{{ line.toBill }}</td>
+                      <td class="text-end">
+                        <label class="visually-hidden" [for]="'pos-bill-qty-' + line.id">How many {{ line.productName }} on this bill, at most {{ line.toBill }}</label>
+                        <input class="form-control form-control-sm pos-qty" type="number" min="0" step="any" inputmode="decimal"
+                          [id]="'pos-bill-qty-' + line.id" [max]="line.toBill" [value]="quantityOf(line)"
+                          (change)="setItemQuantity(line, $event)" />
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            } @else if (split() === 'Equal') {
+              <label class="form-label small fw-bold mb-1" for="pos-bill-parts">
+                Split what is left into this many equal parts (this one included)
+              </label>
+              <input class="form-control pos-qty mb-1" id="pos-bill-parts" type="number" min="1" max="100" step="1"
+                inputmode="numeric" [value]="parts()" (change)="setParts($event)" />
+              <p class="small text-body-secondary">
+                Each part takes the same share of every item; the last part takes exactly what is left.
+              </p>
+            } @else {
+              <p class="small text-body-secondary">Everything still to bill, on one bill.</p>
+            }
+
+            <app-status-banner [message]="previewError()" tone="warning" spacing="mt-2 mb-0" [small]="true" />
+
+            @if (preview(); as p) {
+              <h3 class="h6 fw-bold mt-3">This bill</h3>
+              <table class="table table-sm">
+                <caption class="visually-hidden">The lines on this bill, priced by the server</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Item</th>
+                    <th scope="col" class="text-end">Qty</th>
+                    <th scope="col" class="text-end">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of p.lines; track line.orderLineId) {
+                    <tr>
+                      <td>{{ line.productName }}</td>
+                      <td class="text-end">{{ line.quantity }}</td>
+                      <td class="text-end">{{ line.amount | amount }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+              <dl class="pos-totals small">
+                <dt>Sub total</dt><dd>{{ p.amount | amount }}</dd>
+                @if (p.serviceCharge > 0) {
+                  <dt>Service charge</dt><dd>{{ p.serviceCharge | amount }}</dd>
+                }
+                <dt>VAT</dt><dd>{{ p.vat | amount }}</dd>
+                @if (p.roundOff !== 0) {
+                  <dt>Round off</dt><dd>{{ p.roundOff | amount }}</dd>
+                }
+                <dt class="fw-bold fs-5">This bill</dt><dd class="fw-bold fs-5">{{ p.total | amount }}</dd>
+              </dl>
+              <p class="small text-body-secondary mb-0">
+                The order comes to {{ p.orderTotal | amount }}.
+                @if (p.billedBefore > 0) {
+                  {{ p.billedBefore | amount }} is already paid.
+                }
+                @if (!p.billsTheRest) {
+                  {{ p.leftAfter | amount }} will be left for later bills.
+                } @else {
+                  This bill settles the order.
+                }
+              </p>
+            }
+          </section>
+
+          <!-- ===================== Payment ===================== -->
+          <section class="pos-bill-pay" aria-labelledby="pos-bill-pay-heading">
+            <h2 class="h6 fw-bold" id="pos-bill-pay-heading">Payment</h2>
+            <p class="fs-4 mb-2">Due <strong>{{ fromPaisa(totalPaisa()) | amount }}</strong></p>
+
+            @if (till(); as t) {
+              <fieldset class="mb-2">
+                <legend class="small fw-bold mb-1">Paid with</legend>
+                <div class="d-flex flex-wrap gap-1">
+                  @for (mode of t.paymentModes; track mode.id) {
+                    <input type="radio" class="btn-check" name="pos-bill-mode" [id]="'pos-bill-mode-' + mode.id"
+                      [checked]="selectedModeId() === mode.id" (change)="chooseMode(mode.id)" />
+                    <label class="btn btn-outline-primary" [for]="'pos-bill-mode-' + mode.id">{{ mode.name }}</label>
+                  }
+                </div>
+              </fieldset>
+            }
+
+            <label class="form-label mb-1 d-block" for="pos-bill-amount">
+              Amount handed over
+              <span class="d-block form-text mt-0">Enter adds it. When nothing is left to pay, Enter again takes the payment.</span>
+            </label>
+            <div class="input-group mb-2">
+              <input class="form-control form-control-lg" id="pos-bill-amount" type="text" inputmode="decimal" autocomplete="off"
+                [value]="amountText()" (input)="onAmountInput($event)"
+                [class.is-invalid]="fieldError.is('pos-bill-amount')"
+                [attr.aria-invalid]="fieldError.invalid('pos-bill-amount')"
+                [attr.aria-describedby]="fieldError.describedBy('pos-bill-amount')"
+                (keydown.enter)="$event.preventDefault(); addTender()" />
+              <button type="button" class="btn btn-primary" (click)="addTender()">Add</button>
+            </div>
+            <app-field-error [state]="fieldError" control="pos-bill-amount" />
+
+            @if (tenders().length > 0) {
+              <ul class="list-unstyled mb-2">
+                @for (tender of tenders(); track tender.key) {
+                  <li class="d-flex align-items-center gap-2">
+                    <span class="me-auto">{{ tender.mode.name }}</span>
+                    <span>{{ fromPaisa(tender.paisa) | amount }}</span>
+                    <button type="button" class="btn btn-sm btn-outline-danger" [attr.aria-label]="'Remove ' + tender.mode.name + ' tender'"
+                      (click)="removeTender(tender.key)"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                  </li>
+                }
+              </ul>
+            }
+            <dl class="pos-totals small">
+              <dt>Tendered</dt><dd>{{ fromPaisa(tenderedPaisa()) | amount }}</dd>
+              @if (remainingPaisa() > 0) {
+                <dt>Still to pay</dt><dd class="fw-bold">{{ fromPaisa(remainingPaisa()) | amount }}</dd>
+              } @else {
+                <dt class="fs-5">Change</dt><dd class="fs-5 fw-bold">{{ fromPaisa(changePaisa()) | amount }}</dd>
+              }
+            </dl>
+            @if (changeError(); as why) {
+              <p class="small text-danger">{{ why }}</p>
+            }
+
+            <app-status-banner [message]="payError()" spacing="mt-2 mb-0" />
+            <app-status-banner [message]="warning()?.message" tone="warning" spacing="mt-2 mb-0" [spread]="true">
+              <button bannerAction type="button" class="btn btn-sm btn-warning" (click)="confirmWarning()">Bill Anyway</button>
+            </app-status-banner>
+
+            <button type="button" class="btn btn-success fw-bold w-100 mt-2" [disabled]="!canPay()" (click)="pay()">
+              Take Payment
+            </button>
+            <p class="small text-body-secondary mt-1 mb-0">Into session {{ restaurant()?.mySessionCode }}.</p>
+          </section>
+        </div>
+      }
+    }
+  </div>
+</div>
+
+<div class="pos-print-root">
+  @if (printing(); as receipt) {
+    <app-pos-receipt [receipt]="receipt" />
+  }
+</div>

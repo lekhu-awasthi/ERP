@@ -178,6 +178,13 @@ public sealed class Invoice
     /// </summary>
     public bool IsAbbreviatedTaxInvoice { get; private set; }
 
+    /// <summary>
+    /// Phase 65 -- the restaurant order this till sale bills (all or part of), or null. Every line of such
+    /// an invoice names the order line it bills (<see cref="InvoiceLine.PosOrderLineId"/>); this header
+    /// copy is what finds an order's bills, and what a void reads to give the order its quantities back.
+    /// </summary>
+    public Guid? PosOrderId { get; private set; }
+
     public IReadOnlyList<InvoiceLine> Lines => _lines;
 
     /// <summary>Phase 61 -- how a till sale was paid. Empty on every ERP invoice, which is settled
@@ -374,6 +381,80 @@ public sealed class Invoice
 
         // A line added after a rounding would leave the bill rounded to the wrong rupee.
         RoundOff = 0m;
+    }
+
+    /// <summary>
+    /// Phase 65 -- makes this till sale a bill for (part of) a restaurant order. Set before any line, so
+    /// an invoice is either all order lines or none.
+    /// </summary>
+    public void BillPosOrder(Guid posOrderId)
+    {
+        EnsureDraft();
+        EnsurePos();
+
+        if (posOrderId == Guid.Empty || _lines.Count > 0 || PosOrderId is not null)
+        {
+            throw new InvalidOperationException("A bill names its order once, before its first line.");
+        }
+
+        PosOrderId = posOrderId;
+    }
+
+    /// <summary>Phase 65 -- adds a line billing part of an order line, priced by the order's bill planner.
+    /// See <see cref="InvoiceLine.CreatePosOrderPart"/>.</summary>
+    public void AddPosOrderLine(
+        Guid posOrderLineId, Guid productId, decimal quantity, decimal rate, VatRate vatRate, Guid? unitId,
+        decimal conversionFactor, decimal serviceChargeRate, PosLineArithmetic.Figures figures)
+    {
+        EnsureDraft();
+        EnsurePos();
+        EnsureUnsettled();
+
+        if (PosOrderId is null)
+        {
+            throw new InvalidOperationException("Only a bill for an order carries order lines.");
+        }
+
+        if (quantity <= 0 || rate < 0)
+        {
+            throw new InvalidOperationException("An invoice line needs a positive Quantity and a non-negative Rate.");
+        }
+
+        if (DiscountPct != 0m)
+        {
+            throw new InvalidOperationException("A bill for an order carries no discount.");
+        }
+
+        _lines.Add(InvoiceLine.CreatePosOrderPart(
+            Id, posOrderLineId, productId, quantity, rate, vatRate, unitId, conversionFactor, serviceChargeRate,
+            figures));
+
+        RoundOff = 0m;
+    }
+
+    /// <summary>
+    /// Phase 65 -- a round-off the caller decided, for a bill whose rounding depends on other documents:
+    /// an order paid in parts rounds its running total, so each part's round-off is set by the order's
+    /// bill planner (<c>PosOrderBill</c>), never by this bill alone. Whole paisa, under a rupee either
+    /// way, and never below zero.
+    /// </summary>
+    public void SetPosRoundOff(decimal roundOff)
+    {
+        EnsureDraft();
+        EnsurePos();
+        EnsureUnsettled();
+
+        if (decimal.Round(roundOff, PosMoneyScale) != roundOff || Math.Abs(roundOff) >= 1m)
+        {
+            throw new InvalidOperationException("A round-off is whole paisa and under a rupee either way.");
+        }
+
+        if (_lines.Sum(x => x.LineTotal) + roundOff < 0m)
+        {
+            throw new InvalidOperationException("A round-off cannot take a bill below zero.");
+        }
+
+        RoundOff = roundOff;
     }
 
     /// <summary>

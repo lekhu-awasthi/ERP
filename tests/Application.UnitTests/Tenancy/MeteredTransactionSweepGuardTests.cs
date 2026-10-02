@@ -1,5 +1,6 @@
 using System.Reflection;
 using ErpApp.Application.Common.Security;
+using ErpApp.Application.Pos.Commands.CreatePosOrderInvoice;
 using ErpApp.Application.Pos.Commands.CreatePosRefund;
 using ErpApp.Application.Pos.Commands.CreatePosSale;
 using ErpApp.Domain.Common;
@@ -47,6 +48,9 @@ public class MeteredTransactionSweepGuardTests
         [typeof(CreatePosRefundCommand)] =
             "Phase 63 -- a till refund is a Credit Note created Approved in one command, so it spends the same "
             + "allowance ApproveCreditNoteCommand does, and SubscriptionUsageReader counts every credit note that posted.",
+        [typeof(CreatePosOrderInvoiceCommand)] =
+            "Phase 65 -- a bill for a restaurant order is a till sale (an Invoice created Approved) whose lines "
+            + "come from the order, so it spends the allowance ApproveInvoiceCommand does, like CreatePosSaleCommand.",
     };
 
     /// <summary>The Approve-shaped commands: one per metered type, the set the list is checked against.</summary>

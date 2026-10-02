@@ -15,7 +15,7 @@ describe('PosFloorPage', () => {
 
   const seated: PosOpenOrder = {
     id: 'ord-1', code: 'ORD0001', orderType: 'DineIn', tableId: 't2', covers: 2, contactName: 'Cash Customer',
-    createdAt: '2026-10-02T04:00:00Z', outstanding: 1, total: 565,
+    createdAt: '2026-10-02T04:00:00Z', outstanding: 1, total: 565, billed: 0, toBill: 3,
   };
   const parcel: PosOpenOrder = { ...seated, id: 'ord-2', code: 'ORD0002', orderType: 'TakeAway', tableId: null, covers: 0, outstanding: 0 };
 
@@ -33,6 +33,8 @@ describe('PosFloorPage', () => {
       ] },
     ],
     orders: [seated, parcel], canVoid: true,
+    roundOffEnabled: true, printEstimateBill: true, printInvoice: true, mySessionId: null, mySessionCode: null,
+    canKitchen: true,
   };
 
   function page() {

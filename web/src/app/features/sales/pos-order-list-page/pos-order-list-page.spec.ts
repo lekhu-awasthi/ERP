@@ -16,9 +16,10 @@ describe('PosOrderListPage', () => {
     status: 'Open', tableId: 't1', tableName: 'T1', areaId: 'gf', areaName: 'Ground Floor', covers: 2, contactId: null,
     contactName: 'Cash Customer', date: '2026-10-02', createdAt: '2026-10-02T04:00:00Z', createdByName: 'Sita',
     voidReason: null, voidedAt: null, voidedByName: null, amount: 400, serviceCharge: 40, vat: 57.2, total: 497.2, outstanding: 1,
+    settledAt: null, billed: 0, toBill: 2, invoices: [],
     lines: [{ id: 'l1', lineNo: 1, productId: 'momo', productCode: 'P0002', productName: 'Chicken Momo', unitId: null, unitName: null,
       rate: 200, vatRate: 'ThirteenPercentVat', serviceChargeRate: 10, note: 'less spicy', kitchenStationId: 'k',
-      kitchenStationName: 'Kitchen', ordered: 3, discarded: 1, quantity: 2, served: 1, outstanding: 1, amount: 400,
+      kitchenStationName: 'Kitchen', ordered: 3, discarded: 1, quantity: 2, served: 1, outstanding: 1, invoiced: 0, toBill: 2, amount: 400,
       serviceChargeAmount: 40, vatAmount: 57.2, total: 497.2 }],
     tickets: [],
   };

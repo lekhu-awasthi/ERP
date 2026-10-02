@@ -45,7 +45,11 @@ public sealed class VoidPosOrderCommandHandler(IAppDbContext db, ICurrentUserSer
         var (order, _) = await PosRestaurant.LoadOrderForActionAsync(
             db, request.OrganizationId, currentUser.UserId, request.OrderId, cancellationToken);
 
-        var tickets = PosOrderCommands.Run(() => order.Void(request.Reason, currentUser.UserId, DateTimeOffset.UtcNow));
+        // Phase 65 -- refused once any of it is billed (PosOrder.Void).
+        var invoiced = (await PosOrderBilling.LoadAsync(db, request.OrganizationId, order.Id, cancellationToken)).Invoiced;
+
+        var tickets = PosOrderCommands.Run(
+            () => order.Void(request.Reason, currentUser.UserId, DateTimeOffset.UtcNow, invoiced));
 
         db.KitchenTickets.AddRange(tickets);
         await db.SaveChangesAsync(cancellationToken);

@@ -98,6 +98,14 @@ public sealed class InvoiceLine
     public decimal ConversionFactor { get; private set; }
 
     /// <summary>
+    /// Phase 65 -- the restaurant order line this line bills, or null. What makes an order line's
+    /// <b>invoiced</b> quantity a sum over the invoice lines naming it, on invoices not voided, rather
+    /// than a counter on the order (phase 64 Decision B; phase 6's caps net of reversals): a void gives the
+    /// quantity back by changing the invoice's status, and nothing else has to be written.
+    /// </summary>
+    public Guid? PosOrderLineId { get; private set; }
+
+    /// <summary>
     /// This line's quantity in the product's primary unit -- the only quantity
     /// <c>IStockLedgerService</c>, the GL and every stock report will accept. Derived from two
     /// values frozen on this same row, so it reads nothing that can change underneath it.
@@ -181,6 +189,45 @@ public sealed class InvoiceLine
             ServiceChargeAmount = figures.ServiceChargeAmount,
             VatAmount = figures.VatAmount,
             BatchId = batchId,
+        };
+    }
+
+    /// <summary>
+    /// Phase 65 -- a till line billing part of a restaurant order line, carrying the figures the order's
+    /// bill planner (<c>PosOrderBill</c>) priced. The planner, not this factory, owns them because the
+    /// part that bills the last of an order line takes exactly what is left of that line's money, which
+    /// depends on the order's other invoices; any other part is priced by the same
+    /// <see cref="PosLineArithmetic"/> this factory's sibling calls. There is never a discount: the order
+    /// line's rate is the catalogue's, frozen when it was sent (phase 64 Decision C).
+    /// </summary>
+    internal static InvoiceLine CreatePosOrderPart(
+        Guid invoiceId, Guid posOrderLineId, Guid productId, decimal quantity, decimal rate, VatRate vatRate,
+        Guid? unitId, decimal conversionFactor, decimal serviceChargeRate, PosLineArithmetic.Figures figures)
+    {
+        foreach (var value in new[] { figures.Amount, figures.ServiceChargeAmount, figures.VatAmount })
+        {
+            if (value < 0m || decimal.Round(value, Invoice.PosMoneyScale) != value)
+            {
+                throw new InvalidOperationException("A till line's figures are whole paisa and never negative.");
+            }
+        }
+
+        return new InvoiceLine
+        {
+            Id = Guid.NewGuid(),
+            InvoiceId = invoiceId,
+            ProductId = productId,
+            UnitId = unitId,
+            ConversionFactor = UnitConversion.Validate(conversionFactor),
+            Quantity = quantity,
+            Rate = rate,
+            VatRate = vatRate,
+            DiscountPct = 0m,
+            Amount = figures.Amount,
+            ServiceChargeRate = serviceChargeRate,
+            ServiceChargeAmount = figures.ServiceChargeAmount,
+            VatAmount = figures.VatAmount,
+            PosOrderLineId = posOrderLineId,
         };
     }
 

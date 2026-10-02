@@ -3,8 +3,11 @@ using ErpApp.Application.Pos.Commands.AddPosOrderItems;
 using ErpApp.Application.Pos.Commands.CreateKitchenStation;
 using ErpApp.Application.Pos.Commands.CreatePosArea;
 using ErpApp.Application.Pos.Commands.CreatePosOrder;
+using ErpApp.Application.Pos.Commands.CreatePosOrderInvoice;
+using ErpApp.Application.Pos.Commands.CreatePosSale;
 using ErpApp.Application.Pos.Commands.PrintPosKitchenTicket;
 using ErpApp.Application.Pos.Commands.SavePosAreaLayout;
+using ErpApp.Application.Pos.Commands.ServeKitchenTicket;
 using ErpApp.Application.Pos.Commands.ServePosOrderItems;
 using ErpApp.Application.Pos.Commands.SetKitchenStationProducts;
 using ErpApp.Application.Pos.Commands.UpdateKitchenStation;
@@ -13,12 +16,14 @@ using ErpApp.Application.Pos.Commands.UpdatePosOrder;
 using ErpApp.Application.Pos.Commands.VoidPosOrder;
 using ErpApp.Application.Pos.Commands.VoidPosOrderItems;
 using ErpApp.Application.Pos.Queries.GetPosFloorPlan;
+using ErpApp.Application.Pos.Queries.GetPosKitchenBoard;
 using ErpApp.Application.Pos.Queries.GetPosOrder;
 using ErpApp.Application.Pos.Queries.GetPosRestaurant;
 using ErpApp.Application.Pos.Queries.ListKitchenStations;
 using ErpApp.Application.Pos.Queries.ListPosOrderProducts;
 using ErpApp.Application.Pos.Queries.ListPosOrders;
 using ErpApp.Application.Pos.Queries.ListPosProducts;
+using ErpApp.Application.Pos.Queries.PreviewPosOrderBill;
 using ErpApp.Application.Pos.Restaurant;
 using ErpApp.Domain.Pos;
 using MediatR;
@@ -135,6 +140,60 @@ public static class PosRestaurantEndpoints
             Guid organizationId, Guid orderId, Guid ticketId, ISender sender, CancellationToken ct) =>
             Results.Ok(await sender.Send(new PrintPosKitchenTicketCommand(organizationId, orderId, ticketId), ct)));
 
+        // ---- Phase 65: billing an order (the preview under Pos.Order.Operate; the bill is a till sale) ---
+
+        // A POST because the part is a body; nothing is written. Also what the estimate bill prints.
+        group.MapPost("/orders/{orderId:guid}/bill/preview", async (
+            Guid organizationId, Guid orderId, PosOrderBillRequest request, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(
+                new PreviewPosOrderBillQuery(organizationId, orderId, request.Split, request.Items ?? [], request.Parts),
+                ct)));
+
+        group.MapPost("/orders/{orderId:guid}/invoices", async (
+            Guid organizationId, Guid orderId, CreatePosOrderInvoiceRequest request, ISender sender,
+            CancellationToken ct) =>
+            Results.Ok(await sender.Send(
+                new CreatePosOrderInvoiceCommand(
+                    organizationId, request.SessionId, request.LocationId, orderId, request.Split, request.Items ?? [],
+                    request.Parts, request.Tenders ?? [], request.ChangeAmount, request.ContactId,
+                    request.OverrideStockWarning, request.OverrideCreditLimitWarning),
+                ct)));
+
+        // ---- Phase 65: the kitchen board (Pos.Kitchen.Operate) -------------------------------------------
+
+        // `station` is a station's id, or "default" for the tickets that go to no station.
+        group.MapGet("/kitchen/{locationId:guid}", async (
+            Guid organizationId, Guid locationId, PosKitchenBoardView? view, string? station, PosTab? orderType,
+            ISender sender, CancellationToken ct) =>
+        {
+            var isDefault = string.Equals(station, "default", StringComparison.OrdinalIgnoreCase);
+            Guid? stationId = null;
+            if (!isDefault && !string.IsNullOrWhiteSpace(station))
+            {
+                if (!Guid.TryParse(station, out var parsed))
+                {
+                    return Results.ValidationProblem(new Dictionary<string, string[]>
+                    {
+                        ["Station"] = ["A station is a kitchen station's id, or \"default\"."],
+                    });
+                }
+
+                stationId = parsed;
+            }
+
+            return Results.Ok(await sender.Send(
+                new GetPosKitchenBoardQuery(
+                    organizationId, locationId, view ?? PosKitchenBoardView.Pending, stationId, isDefault, orderType),
+                ct));
+        });
+
+        // An empty list serves everything the ticket still has to cook.
+        group.MapPost("/orders/{orderId:guid}/tickets/{ticketId:guid}/serve", async (
+            Guid organizationId, Guid orderId, Guid ticketId, ServeKitchenTicketRequest request, ISender sender,
+            CancellationToken ct) =>
+            Results.Ok(await sender.Send(
+                new ServeKitchenTicketCommand(organizationId, orderId, ticketId, request.Items ?? []), ct)));
+
         // ---- The ERP's POS Orders list (Pos.Order.View) -----------------------------------------------
 
         group.MapGet("/orders", async (
@@ -179,4 +238,21 @@ public static class PosRestaurantEndpoints
     private sealed record VoidPosOrderItemsRequest(IReadOnlyList<PosOrderLineQuantityInput>? Items, string? Reason);
 
     private sealed record VoidPosOrderRequest(string? Reason);
+
+    private sealed record PosOrderBillRequest(
+        PosOrderSplit Split, IReadOnlyList<PosOrderLineQuantityInput>? Items, int? Parts);
+
+    private sealed record CreatePosOrderInvoiceRequest(
+        Guid SessionId,
+        Guid? LocationId,
+        PosOrderSplit Split,
+        IReadOnlyList<PosOrderLineQuantityInput>? Items,
+        int? Parts,
+        IReadOnlyList<PosTenderInput>? Tenders,
+        decimal ChangeAmount,
+        Guid? ContactId,
+        bool OverrideStockWarning,
+        bool OverrideCreditLimitWarning);
+
+    private sealed record ServeKitchenTicketRequest(IReadOnlyList<PosOrderLineQuantityInput>? Items);
 }

@@ -11,6 +11,8 @@ import {
   KitchenTicket,
   PosKitchenTicketPrint,
   PosOrder,
+  PosOrderBillPreview,
+  PosOrderBillRequest,
   PosOrderItemInput,
   PosOrderLineQuantityInput,
   PosRestaurant,
@@ -42,6 +44,8 @@ describe('PosOrderPage', () => {
       { id: 't2', name: 'T2', capacity: 2, shape: 'Circle', x: 450, y: 100, width: 100, height: 100, order: null },
     ] }],
     orders: [], canVoid: true,
+    roundOffEnabled: true, printEstimateBill: true, printInvoice: true, mySessionId: null, mySessionCode: null,
+    canKitchen: true,
     ...overrides,
   });
 
@@ -57,14 +61,15 @@ describe('PosOrderPage', () => {
     status: 'Open', tableId: 't1', tableName: 'T1', areaId: 'gf', areaName: 'Ground Floor', covers: 2, contactId: null,
     contactName: 'Cash Customer', date: '2026-10-02', createdAt: '2026-10-02T04:00:00Z', createdByName: 'Sita',
     voidReason: null, voidedAt: null, voidedByName: null, amount: 460, serviceCharge: 40, vat: 65, total: 565, outstanding: 3,
+    settledAt: null, billed: 0, toBill: 3, invoices: [],
     lines: [
       { id: 'l-Chicken Momo', lineNo: 1, productId: 'momo', productCode: 'P0002', productName: 'Chicken Momo', unitId: 'plate',
         unitName: 'plt', rate: 200, vatRate: 'ThirteenPercentVat', serviceChargeRate: 10, note: null, kitchenStationId: 'kitchen',
-        kitchenStationName: 'Kitchen', ordered: 2, discarded: 0, quantity: 2, served: 0, outstanding: 2, amount: 400,
+        kitchenStationName: 'Kitchen', ordered: 2, discarded: 0, quantity: 2, served: 0, outstanding: 2, invoiced: 0, toBill: 2, amount: 400,
         serviceChargeAmount: 40, vatAmount: 57.2, total: 497.2 },
       { id: 'l-Coke 250ml', lineNo: 2, productId: 'coke', productCode: 'P0003', productName: 'Coke 250ml', unitId: 'plate',
         unitName: 'plt', rate: 60, vatRate: 'ThirteenPercentVat', serviceChargeRate: 0, note: null, kitchenStationId: null,
-        kitchenStationName: 'Default', ordered: 1, discarded: 0, quantity: 1, served: 0, outstanding: 1, amount: 60,
+        kitchenStationName: 'Default', ordered: 1, discarded: 0, quantity: 1, served: 0, outstanding: 1, invoiced: 0, toBill: 1, amount: 60,
         serviceChargeAmount: 0, vatAmount: 7.8, total: 67.8 },
     ],
     tickets: [ticket(1, 'Kitchen', [['Chicken Momo', 2]]), ticket(1, 'Default', [['Coke 250ml', 1]])],
@@ -76,6 +81,7 @@ describe('PosOrderPage', () => {
     const added: { newItems: PosOrderItemInput[]; moreOf: PosOrderLineQuantityInput[] }[] = [];
     const discarded: { items: PosOrderLineQuantityInput[]; reason: string }[] = [];
     const printed: string[] = [];
+    const previews: PosOrderBillRequest[] = [];
     let latest = options.order ?? order();
     const service = {
       getRestaurant: (): Observable<PosRestaurant> => of(options.restaurant ?? restaurant()),
@@ -95,6 +101,16 @@ describe('PosOrderPage', () => {
       discard: (_o: string, _id: string, items: PosOrderLineQuantityInput[], reason: string): Observable<PosOrder> => {
         discarded.push({ items, reason });
         return of(order());
+      },
+      previewBill: (_o: string, _id: string, request: PosOrderBillRequest): Observable<PosOrderBillPreview> => {
+        previews.push(request);
+        return of({
+          orderId: 'ord-1', orderCode: 'ORD0001', amount: 460, serviceCharge: 40, vat: 65, unrounded: 565, roundOff: 0,
+          total: 565, billsTheRest: true, orderTotal: 565, billedBefore: 0, leftAfter: 0,
+          lines: [{ orderLineId: 'l-Chicken Momo', lineNo: 1, productName: 'Chicken Momo', unitName: 'plt', note: null,
+            quantity: 2, rate: 200, serviceChargeRate: 10, amount: 400, serviceChargeAmount: 40, vatAmount: 57.2,
+            total: 497.2, remainingAfter: 0 }],
+        });
       },
       printTicket: (_o: string, _id: string, ticketId: string): Observable<PosKitchenTicketPrint> => {
         printed.push(ticketId);
@@ -132,7 +148,7 @@ describe('PosOrderPage', () => {
     render();
 
     return {
-      element, created, added, discarded, printed, navigate,
+      element, created, added, discarded, printed, previews, navigate,
       text: () => element.textContent?.replace(/\s+/g, ' ') ?? '',
       press: (label: string) => {
         [...element.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim().startsWith(label))!.click();
@@ -217,6 +233,33 @@ describe('PosOrderPage', () => {
 
     expect(p.printed).toEqual(['k-2-Default']);
     expect(window.print).toHaveBeenCalled();
+  });
+
+  it('prints the estimate from the server\'s preview, saying it is not a tax invoice, and links to the bill', () => {
+    const p = page({ orderId: 'ord-1' });
+
+    const bill = p.element.querySelector<HTMLAnchorElement>('a[href$="/pos/orders/ord-1/bill"]');
+    expect(bill?.textContent).toContain('Bill & Pay');
+
+    p.press('Print Estimate');
+
+    expect(p.previews).toEqual([{ split: 'Whole', items: [], parts: null }]);
+    const paper = p.element.querySelector('.pos-print-root')!.textContent!.replace(/\s+/g, ' ');
+    expect(paper).toContain('Estimate Bill');
+    expect(paper).toContain('NOT A TAX INVOICE');
+    expect(paper).toContain('Estimated Total565.00');
+    expect(window.print).toHaveBeenCalled();
+  });
+
+  it('offers no estimate where the location does not print one', () => {
+    const p = page({ orderId: 'ord-1', restaurant: restaurant({ printEstimateBill: false }) });
+    expect(p.text()).not.toContain('Print Estimate');
+  });
+
+  it('offers nothing to bill on a settled order', () => {
+    const settled = page({ orderId: 'ord-1', order: order({ status: 'Settled', settledAt: '2026-10-02T05:00:00Z', toBill: 0 }) });
+    expect(settled.text()).toContain('Settled');
+    expect(settled.element.querySelector('a[href$="/bill"]')).toBeNull();
   });
 
   it('will not send a delivery without a named customer', () => {

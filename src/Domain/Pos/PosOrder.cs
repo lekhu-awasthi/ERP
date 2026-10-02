@@ -8,6 +8,11 @@ public enum PosOrderStatus
 {
     Open = 1,
     Voided = 2,
+
+    /// <summary>Phase 65 -- everything the guests are having has been billed, so the table is free. A
+    /// paid order may still have food to come (a Take Away is paid before it is cooked), so the kitchen
+    /// can still serve it; nothing else changes it, unless voiding one of its invoices reopens it.</summary>
+    Settled = 3,
 }
 
 /// <summary>A line a send adds to an order, priced and routed by the caller from the catalogue.</summary>
@@ -34,6 +39,34 @@ public sealed record PosOrderLineQuantities(decimal Ordered, decimal Discarded, 
     /// <summary>What the kitchen still owes the table.</summary>
     public decimal Outstanding => Net - Served;
 }
+
+/// <summary>
+/// Phase 65 -- one send ticket's line on the kitchen board: what it asked for, and how much of that has
+/// since been served, cancelled, or is still to cook. Derived, never stored (see
+/// <see cref="PosOrder.TicketProgress"/>).
+/// </summary>
+public sealed record KitchenTicketLineProgress(Guid OrderLineId, decimal Sent, decimal Served, decimal Cancelled)
+{
+    public decimal Pending => Sent - Served - Cancelled;
+}
+
+public enum KitchenTicketState
+{
+    /// <summary>A send with something still to cook.</summary>
+    Pending = 1,
+
+    /// <summary>A send whose every item was served (or served in part and the rest cancelled).</summary>
+    Served = 2,
+
+    /// <summary>A send all of which was cancelled before any of it was served.</summary>
+    Cancelled = 3,
+
+    /// <summary>A cancellation ticket itself: the negative lines and the reason.</summary>
+    Cancellation = 4,
+}
+
+public sealed record KitchenTicketProgress(
+    Guid TicketId, KitchenTicketState State, IReadOnlyList<KitchenTicketLineProgress> Lines);
 
 /// <summary>
 /// Phase 64 -- a restaurant's open order: a table's tab, a parcel being packed, a delivery being
@@ -105,6 +138,10 @@ public sealed class PosOrder
     public string? VoidReason { get; private set; }
     public DateTimeOffset? VoidedAt { get; private set; }
     public Guid? VoidedByUserId { get; private set; }
+
+    /// <summary>Phase 65 -- when the last of the order was billed; null while open, and again if a void
+    /// of one of its invoices reopens it.</summary>
+    public DateTimeOffset? SettledAt { get; private set; }
 
     public DateTimeOffset LastActivityAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
@@ -224,7 +261,8 @@ public sealed class PosOrder
     /// vendor's <c>mark-as-served</c> takes a quantity per item). Never more than is outstanding.</summary>
     public void Serve(IReadOnlyList<PosOrderLineQuantity> items)
     {
-        EnsureOpen();
+        // Phase 65 -- a settled order may still be cooking: a Take Away is paid before it is packed.
+        EnsureNotVoided();
         EnsureNotEmpty(items, "Choose what was served.");
         EnsureDistinct(items);
 
@@ -254,8 +292,14 @@ public sealed class PosOrder
     /// <para>A discard may take back food already served -- a dish sent back -- as the vendor's does.
     /// It cancels what is unserved first; only beyond that does the served count come down, so served
     /// never exceeds what the guest is having.</para>
+    ///
+    /// <para>Phase 65 -- never what is already billed: <paramref name="invoiced"/> is each line's
+    /// quantity on invoices not voided (see <see cref="RemainingToBill"/>). Food on a tax invoice is
+    /// returned with a refund, not discarded off the tab.</para>
     /// </summary>
-    public IReadOnlyList<KitchenTicket> Discard(IReadOnlyList<PosOrderLineQuantity> items, string reason, Guid userId)
+    public IReadOnlyList<KitchenTicket> Discard(
+        IReadOnlyList<PosOrderLineQuantity> items, string reason, Guid userId,
+        IReadOnlyDictionary<Guid, decimal> invoiced)
     {
         EnsureOpen();
         EnsureNotEmpty(items, "Choose what to discard.");
@@ -268,11 +312,14 @@ public sealed class PosOrder
             var line = FindLine(item.LineId);
             var quantity = RequireQuantity(item.Quantity);
             var net = QuantitiesOf(line).Net;
+            var billed = invoiced.GetValueOrDefault(line.Id);
 
-            if (quantity > net)
+            if (quantity > net - billed)
             {
-                throw new InvalidOperationException(
-                    $"Line {line.LineNo} has {net:0.####} on the order, so {quantity:0.####} cannot be discarded.");
+                throw new InvalidOperationException(billed > 0m
+                    ? $"Line {line.LineNo} has {net:0.####} on the order and {billed:0.####} of it billed, so at most "
+                      + $"{net - billed:0.####} can be discarded. What is billed is refunded, not discarded."
+                    : $"Line {line.LineNo} has {net:0.####} on the order, so {quantity:0.####} cannot be discarded.");
             }
 
             changes.Add((line, -quantity));
@@ -285,10 +332,22 @@ public sealed class PosOrder
     /// Discards the whole order with a reason: every line's remaining quantity is cancelled to the
     /// kitchen, and the table is free again. The order and its tickets stay, so the ERP's POS Orders
     /// list shows what was cooked and why it was not billed.
+    ///
+    /// <para>Phase 65 -- refused once any of it is billed: voiding the order would leave invoices for
+    /// an order that says it was never served. Discard what is left instead; the order settles when
+    /// nothing unbilled remains.</para>
     /// </summary>
-    public IReadOnlyList<KitchenTicket> Void(string reason, Guid userId, DateTimeOffset now)
+    public IReadOnlyList<KitchenTicket> Void(
+        string reason, Guid userId, DateTimeOffset now, IReadOnlyDictionary<Guid, decimal> invoiced)
     {
         EnsureOpen();
+
+        if (invoiced.Values.Any(x => x > 0m))
+        {
+            throw new InvalidOperationException(
+                $"Part of order {Code} is already billed, so the order cannot be voided. Discard what is left "
+                + "instead, and the order settles once nothing unbilled remains.");
+        }
 
         var why = RequireReason(reason);
         var changes = _lines
@@ -374,6 +433,141 @@ public sealed class PosOrder
         return new PosOrderLineQuantities(ordered, discarded, ordered - discarded, line.ServedQuantity);
     }
 
+    /// <summary>
+    /// Phase 65 -- what of this line is still to be billed: its net quantity less what is on invoices not
+    /// voided. <paramref name="invoiced"/> is a sum over invoice lines naming the order line, read by the
+    /// caller (phase 64 Decision B: invoiced is not a column here, so it cannot drift from the invoices,
+    /// and a voided invoice gives its quantity back without anyone writing a counter).
+    /// </summary>
+    public decimal RemainingToBill(PosOrderLine line, IReadOnlyDictionary<Guid, decimal> invoiced) =>
+        QuantitiesOf(line).Net - invoiced.GetValueOrDefault(line.Id);
+
+    /// <summary>
+    /// Phase 65 -- settles the order when nothing unbilled remains and something was billed, which frees
+    /// its table (the one-open-order index is on <see cref="PosOrderStatus.Open"/>). Called after every
+    /// bill and every discard. An order with nothing on it and no bill stays open: the waiter may still
+    /// add to it, or void it.
+    /// </summary>
+    /// <returns>Whether this call settled it.</returns>
+    public bool SettleIfFullyBilled(IReadOnlyDictionary<Guid, decimal> invoiced, DateTimeOffset now)
+    {
+        if (Status != PosOrderStatus.Open)
+        {
+            return false;
+        }
+
+        var anyBilled = _lines.Any(x => invoiced.GetValueOrDefault(x.Id) > 0m);
+        var anyLeft = _lines.Any(x => RemainingToBill(x, invoiced) != 0m);
+
+        if (!anyBilled || anyLeft)
+        {
+            return false;
+        }
+
+        Status = PosOrderStatus.Settled;
+        SettledAt = now;
+        Touch();
+        return true;
+    }
+
+    /// <summary>
+    /// Phase 65 -- a void of one of a settled order's invoices gives its quantities back, so the order is
+    /// open again, to be billed anew (or discarded). Whether its table is still free is the caller's
+    /// question, because only the database can answer it.
+    /// </summary>
+    public void Reopen()
+    {
+        if (Status != PosOrderStatus.Settled)
+        {
+            return;
+        }
+
+        Status = PosOrderStatus.Open;
+        SettledAt = null;
+        Touch();
+    }
+
+    /// <summary>
+    /// Phase 65 -- where each send ticket stands on the kitchen board, derived from the one quantity and
+    /// the one counter the order already stores (phase 64 Decision B): a line's served count is given to
+    /// its <b>earliest</b> sends, because the kitchen cooks in the order it was told; and what was
+    /// discarded is taken from its <b>latest</b> unserved sends, because a discard cancels unserved food
+    /// first and the newest is the least likely to be on the stove. Nothing here is stored, so the board
+    /// can never disagree with the order. The vendor instead hides a ticket unserved for five hours
+    /// ("Archived", a client-side age test), which is a dish silently forgotten.
+    /// </summary>
+    public IReadOnlyList<KitchenTicketProgress> TicketProgress()
+    {
+        var sends = _tickets
+            .Where(x => !x.IsCancellation)
+            .OrderBy(x => x.SendNumber)
+            .ThenBy(x => x.CreatedAt)
+            .ToList();
+
+        var allocated = new Dictionary<(Guid TicketId, Guid LineId), (decimal Served, decimal Cancelled)>();
+
+        foreach (var line in _lines)
+        {
+            var rows = sends
+                .SelectMany(t => t.Lines.Where(r => r.PosOrderLineId == line.Id).Select(r => (Ticket: t, Row: r)))
+                .ToList();
+
+            var q = QuantitiesOf(line);
+            var served = q.Served;
+            var cancelled = q.Discarded;
+            var cut = new Dictionary<Guid, (decimal Served, decimal Cancelled)>();
+
+            foreach (var (ticket, row) in rows)
+            {
+                var take = Math.Min(row.Quantity, served);
+                served -= take;
+                cut[ticket.Id] = (take, 0m);
+            }
+
+            for (var i = rows.Count - 1; i >= 0; i--)
+            {
+                var (ticket, row) = rows[i];
+                var (s, _) = cut[ticket.Id];
+                var take = Math.Min(row.Quantity - s, cancelled);
+                cancelled -= take;
+                cut[ticket.Id] = (s, take);
+            }
+
+            foreach (var (ticketId, value) in cut)
+            {
+                allocated[(ticketId, line.Id)] = value;
+            }
+        }
+
+        return _tickets
+            .OrderBy(x => x.SendNumber)
+            .ThenBy(x => x.CreatedAt)
+            .Select(ticket =>
+            {
+                if (ticket.IsCancellation)
+                {
+                    return new KitchenTicketProgress(
+                        ticket.Id, KitchenTicketState.Cancellation,
+                        [.. ticket.Lines.Select(r => new KitchenTicketLineProgress(r.PosOrderLineId, r.Quantity, 0m, 0m))]);
+                }
+
+                var lines = ticket.Lines
+                    .Select(r =>
+                    {
+                        var (s, c) = allocated.GetValueOrDefault((ticket.Id, r.PosOrderLineId));
+                        return new KitchenTicketLineProgress(r.PosOrderLineId, r.Quantity, s, c);
+                    })
+                    .ToList();
+
+                var state = lines.Any(x => x.Pending > 0m) ? KitchenTicketState.Pending
+                    : lines.All(x => x.Served == 0m) ? KitchenTicketState.Cancelled
+                    : KitchenTicketState.Served;
+
+                return new KitchenTicketProgress(ticket.Id, state, lines);
+            })
+            .ToList();
+    }
+
     /// <summary>The order's running figures before any bill: each line's net quantity priced by phase
     /// 63's <see cref="PosLineArithmetic"/>. Unrounded to the rupee -- the bill (phase 65) rounds.</summary>
     public PosLineArithmetic.Figures Estimate()
@@ -439,7 +633,18 @@ public sealed class PosOrder
         }
     }
 
-    private void Touch() => LastActivityAt = DateTimeOffset.UtcNow;
+    private void EnsureNotVoided()
+    {
+        if (Status == PosOrderStatus.Voided)
+        {
+            throw new InvalidOperationException($"Order {Code} is voided, so it cannot change.");
+        }
+    }
+
+    /// <summary>Phase 65 -- marks the order as changed, so its rowversion moves: a bill touches it before
+    /// saving, and two cashiers billing one order at once cannot both be counted against the same
+    /// remainder (the second save is a concurrency 409).</summary>
+    public void Touch() => LastActivityAt = DateTimeOffset.UtcNow;
 
     private static void EnsureCovers(PosTab orderType, int covers)
     {

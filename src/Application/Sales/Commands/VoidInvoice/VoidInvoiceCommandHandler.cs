@@ -84,6 +84,8 @@ public sealed class VoidInvoiceCommandHandler(IAppDbContext db, ICurrentUserServ
             throw new ConflictException("Cannot void this invoice -- void the payment(s) allocated against it first.");
         }
 
+        await ReopenBilledOrderAsync(invoice, cancellationToken);
+
         invoice.Void(currentUser.UserId);
 
         // Phase 37 -- reversed before the restock, and across every entry rather than the one this
@@ -113,5 +115,48 @@ public sealed class VoidInvoiceCommandHandler(IAppDbContext db, ICurrentUserServ
         await db.SaveChangesAsync(cancellationToken);
 
         return new VoidInvoiceResult(invoice.Id, invoice.Code, invoice.Status, invoice.VoidedAt);
+    }
+
+    /// <summary>
+    /// Phase 65 -- a bill for a restaurant order gives its quantities back when voided, because an order
+    /// line's invoiced quantity is a sum over invoices not voided (Decision C of docs/phase-65-status.md).
+    /// So a settled order is open again, to be billed anew or discarded -- unless its table has since
+    /// seated another order, which would be two open orders on one table (409, before anything moves).
+    /// </summary>
+    private async Task ReopenBilledOrderAsync(Invoice invoice, CancellationToken cancellationToken)
+    {
+        if (invoice.PosOrderId is not { } orderId)
+        {
+            return;
+        }
+
+        var order = await db.PosOrders.SingleAsync(
+            x => x.Id == orderId && x.OrganizationId == invoice.OrganizationId, cancellationToken);
+
+        if (order.Status != PosOrderStatus.Settled)
+        {
+            // Open: the quantities simply become billable again. Voided cannot happen: a billed order
+            // cannot be voided.
+            order.Touch();
+            return;
+        }
+
+        if (order.PosTableId is { } tableId)
+        {
+            var seated = await db.PosOrders
+                .Where(x => x.OrganizationId == invoice.OrganizationId && x.PosTableId == tableId
+                    && x.Status == PosOrderStatus.Open && x.Id != order.Id)
+                .Select(x => x.Code)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (seated is not null)
+            {
+                throw new ConflictException(
+                    $"Voiding {invoice.Code} would reopen order {order.Code}, but its table now has order {seated} open. "
+                    + "Settle or move that order first, or refund this bill with a credit note instead.");
+            }
+        }
+
+        order.Reopen();
     }
 }

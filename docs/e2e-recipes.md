@@ -165,3 +165,23 @@ beside a 200 from the same user, and create a fresh Organization per phase.
     `GlJournalEntries`, `StockMovements` or `Invoices` row names it.
   - The 403-not-404 pair: `POST /orders/{nonexistent}/discard` is **404** "Order not found." as Admin and
     **403 naming `Pos.Order.Void`** from a role holding `Pos.Order.Operate` but not `.Void` (phase-64).
+
+- Billing a restaurant order (phase 65), under `/{org}/pos`:
+  - `POST /orders/{id}/bill/preview {split: Whole|Items|Equal, items: [{lineId, quantity}], parts}` prices a part
+    (Pos.Order.Operate). `parts` is "one of N parts of what is left"; `items` is `[]` unless `split` is Items.
+  - `POST /orders/{id}/invoices {sessionId, locationId, split, items, parts, tenders: [{paymentModeId, amount}],
+    changeAmount, contactId, overrideStockWarning, overrideCreditLimitWarning}` bills it as a till sale
+    (Sales.Invoice.Create, your own open session at the order's location). Returns `{id, code, grandTotal,
+    serviceCharge, roundOff, ..., orderStatus, orderToBill}`. The location needs a default warehouse.
+  - `GET /kitchen/{locationId}?view=Pending|Served|All&station=<id>|default&orderType=` is the board
+    (Pos.Kitchen.Operate); `POST /orders/{id}/tickets/{ticketId}/serve {items}` serves (`[]` = everything pending).
+  - In SQL: `sales.Invoices.PosOrderId`, `sales.InvoiceLines.PosOrderLineId`; an order line's invoiced quantity is
+    `SUM(InvoiceLines.Quantity)` over Approved invoices; `pos.PosOrders.Status = 'Settled'` with `SettledAt`.
+  - The 403-not-404 pair: `GET /kitchen/{nonexistent}` is **404** "Billing location not found." as Admin and
+    **403 naming `Pos.Kitchen.Operate`** from a role holding `Pos.Order.Operate`, beside its 200 on
+    `GET /restaurants/{loc}` (phase-65).
+- `LineNo` is a T-SQL keyword (`LINENO`): `pos.PosOrderLines.LineNo` must be bracketed, `ol.[LineNo]`, or the
+  whole batch fails (phase-65).
+- In the Browser pane a Bootstrap `.btn-check` radio clicked by its ref hits the hidden input and changes nothing;
+  click its `<label>` ref instead (phase-65).
+- The audit table is `workflow.Audits` (`Action`, `DocumentType`, `LocationId`), not `tenancy.AuditEntries` (phase-65).

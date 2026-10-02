@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
@@ -30,7 +30,7 @@ type StatusFilter = PosOrderStatus | 'All';
  */
 @Component({
   selector: 'app-pos-order-list-page',
-  imports: [StatusBanner, AmountPipe, NepaliDatePipe, ReportLocationFilter, ListChrome, PaginationControl],
+  imports: [RouterLink, StatusBanner, AmountPipe, NepaliDatePipe, ReportLocationFilter, ListChrome, PaginationControl],
   templateUrl: './pos-order-list-page.html',
 })
 export class PosOrderListPage {
@@ -42,7 +42,7 @@ export class PosOrderListPage {
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
   protected readonly typeLabels = POS_TAB_LABELS;
   protected readonly orderTypes = POS_ORDER_TYPES;
-  protected readonly statuses: StatusFilter[] = ['All', 'Open', 'Voided'];
+  protected readonly statuses: StatusFilter[] = ['All', 'Open', 'Settled', 'Voided'];
   protected readonly sortOptions = documentSortOptions('Order date');
 
   protected readonly loading = signal(true);

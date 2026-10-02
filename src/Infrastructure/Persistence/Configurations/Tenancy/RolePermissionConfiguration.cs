@@ -791,6 +791,10 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminPosFloorPlanManageId = Guid.Parse("00000000-0000-0000-0002-0000000001ed");
     private static readonly Guid MemberPosFloorPlanManageId = Guid.Parse("00000000-0000-0000-0002-0000000001ee");
 
+    // Phase 65 -- the kitchen board's key (derived in PermissionKeys.PosKitchenOperate).
+    private static readonly Guid AdminPosKitchenOperateId = Guid.Parse("00000000-0000-0000-0002-0000000001ef");
+    private static readonly Guid MemberPosKitchenOperateId = Guid.Parse("00000000-0000-0000-0002-0000000001f0");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1398,6 +1402,8 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminPosOrderViewId, Role.AdminId, PermissionKeys.PosOrderView, true),
             RolePermission.Create(MemberPosOrderViewId, Role.MemberId, PermissionKeys.PosOrderView, true),
             RolePermission.Create(AdminPosFloorPlanManageId, Role.AdminId, PermissionKeys.PosFloorPlanManage, true),
-            RolePermission.Create(MemberPosFloorPlanManageId, Role.MemberId, PermissionKeys.PosFloorPlanManage, false));
+            RolePermission.Create(MemberPosFloorPlanManageId, Role.MemberId, PermissionKeys.PosFloorPlanManage, false),
+            RolePermission.Create(AdminPosKitchenOperateId, Role.AdminId, PermissionKeys.PosKitchenOperate, true),
+            RolePermission.Create(MemberPosKitchenOperateId, Role.MemberId, PermissionKeys.PosKitchenOperate, true));
     }
 }

@@ -10,6 +10,7 @@ import {
   KitchenTicket,
   POS_ORDER_TYPES,
   PosOrder,
+  PosOrderBillPreview,
   PosOrderLine,
   PosOrderType,
   PosRestaurant,
@@ -19,6 +20,7 @@ import { PosRestaurantService } from '../../../core/pos/pos-restaurant.service';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { PosEstimateView } from '../pos-estimate/pos-estimate';
 import { PosKotView, PrintedTicket } from '../pos-kot/pos-kot';
 
 /** Something the waiter has added and not yet sent: a new item, or more of a line already sent. */
@@ -58,13 +60,17 @@ const PAGE_SIZE = 48;
  * <p><b>Kitchen tickets print themselves</b> after a send when the location prints KOTs, one page per
  * station; every print is counted by the server, and a second one prints as a REPRINT.</p>
  *
+ * <p><b>Phase 65 -- billing.</b> <i>Bill</i> opens the split-and-pay screen; <i>Print Estimate</i> prints
+ * what the order still comes to, priced by the server's bill planner (the estimate bill, which says it
+ * is not a tax invoice). A line shows how much of it is billed, and the order lists its bills.</p>
+ *
  * <p>Serves <code>pos/orders/new</code> and <code>pos/orders/:orderId</code> from one component, so the
  * id is read from the route's <code>paramMap</code> on every emission (phase 3 bug #1): a new order's
  * first send navigates to its own URL and the component stays.</p>
  */
 @Component({
   selector: 'app-pos-order-page',
-  imports: [RouterLink, StatusBanner, AmountPipe, NepaliDatePipe, PosKotView],
+  imports: [RouterLink, StatusBanner, AmountPipe, NepaliDatePipe, PosKotView, PosEstimateView],
   templateUrl: './pos-order-page.html',
   styleUrl: './pos-order-page.scss',
 })
@@ -121,6 +127,9 @@ export class PosOrderPage {
 
   // ---- Printing ----
   protected readonly printed = signal<PrintedTicket[]>([]);
+  /** Phase 65 -- the estimate bill being printed, and when; the print root shows it or the tickets. */
+  protected readonly estimate = signal<PosOrderBillPreview | null>(null);
+  protected readonly estimateAt = signal('');
 
   protected readonly isNew = computed(() => this.order() === null);
   protected readonly orderType = computed<PosOrderType>(() => this.order()?.orderType ?? this.newType());
@@ -382,6 +391,7 @@ export class PosOrderPage {
         next: (results) => {
           const latest = results[results.length - 1].order;
           this.order.set(latest);
+          this.estimate.set(null);
           this.printed.set(results.flatMap((r) => {
             const ticket = latest.tickets.find((t) => t.id === r.ticketId);
             return ticket ? [{ ticket, printNumber: r.printNumber }] : [];
@@ -390,6 +400,25 @@ export class PosOrderPage {
         },
         error: (err: unknown) => this.errorMessage.set(extractErrorMessage(err) ?? 'Could not print the kitchen ticket.'),
       });
+  }
+
+  /**
+   * Phase 65 -- prints the estimate bill: everything still to be billed, priced by the server's bill
+   * planner. Not a tax invoice and not a print of one, so nothing is counted.
+   */
+  protected printEstimate(): void {
+    const order = this.order();
+    if (!order) return;
+
+    this.restaurantService.previewBill(this.organizationId, order.id, { split: 'Whole', items: [], parts: null }).subscribe({
+      next: (preview) => {
+        this.printed.set([]);
+        this.estimateAt.set(new Date().toISOString());
+        this.estimate.set(preview);
+        afterNextRender(() => window.print(), { injector: this.injector });
+      },
+      error: (err: unknown) => this.errorMessage.set(extractErrorMessage(err) ?? 'Could not price the estimate.'),
+    });
   }
 
   // ---- Inline actions ----
@@ -506,6 +535,7 @@ export class PosOrderPage {
   protected lineSummary(line: PosOrderLine): string {
     const parts = [`${line.quantity} on the order`, `${line.served} served`];
     if (line.discarded > 0) parts.push(`${line.discarded} discarded`);
+    if (line.invoiced > 0) parts.push(`${line.invoiced} billed`);
     return parts.join(' · ');
   }
 

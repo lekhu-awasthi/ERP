@@ -7,11 +7,18 @@ import { PagedResult } from '../common/paged-result';
 import { ListQueryOptions, applyListOptions } from '../../shared/pagination/list-query-options';
 import { PosProduct } from './pos.models';
 import {
+  CreatePosOrderInvoiceRequest,
+  CreatePosOrderInvoiceResult,
   CreatePosOrderRequest,
   KitchenStation,
   PosFloorPlan,
   PosKitchenTicketPrint,
   PosOrder,
+  PosKitchenBoard,
+  PosKitchenBoardView,
+  PosKitchenServeResult,
+  PosOrderBillPreview,
+  PosOrderBillRequest,
   PosOrderItemInput,
   PosOrderLineQuantityInput,
   PosOrderStatus,
@@ -151,6 +158,49 @@ export class PosRestaurantService {
   printTicket(organizationId: string, orderId: string, ticketId: string): Observable<PosKitchenTicketPrint> {
     return this.http.post<PosKitchenTicketPrint>(
       `${this.orderUrl(organizationId, orderId)}/tickets/${ticketId}/prints`, {}, { withCredentials: true });
+  }
+
+  // ---- Phase 65: billing an order --------------------------------------------------------------
+
+  /** The server's price for a part of the order (and, for the whole remainder, the estimate bill). */
+  previewBill(organizationId: string, orderId: string, request: PosOrderBillRequest): Observable<PosOrderBillPreview> {
+    return this.http.post<PosOrderBillPreview>(`${this.orderUrl(organizationId, orderId)}/bill/preview`, request, {
+      withCredentials: true,
+    });
+  }
+
+  /** Bills a part as a till sale in the caller's open session. */
+  billOrder(
+    organizationId: string, orderId: string, request: CreatePosOrderInvoiceRequest,
+  ): Observable<CreatePosOrderInvoiceResult> {
+    return this.http.post<CreatePosOrderInvoiceResult>(`${this.orderUrl(organizationId, orderId)}/invoices`, request, {
+      withCredentials: true,
+    });
+  }
+
+  // ---- Phase 65: the kitchen board --------------------------------------------------------------
+
+  /** `station` is a station's id, `'default'`, or null for every station. */
+  getKitchenBoard(
+    organizationId: string,
+    locationId: string,
+    filter: { view: PosKitchenBoardView; station: string | null; orderType: PosOrderType | null },
+  ): Observable<PosKitchenBoard> {
+    const params: Record<string, string> = { view: filter.view };
+    if (filter.station) params['station'] = filter.station;
+    if (filter.orderType) params['orderType'] = filter.orderType;
+    return this.http.get<PosKitchenBoard>(`${this.baseUrl(organizationId)}/kitchen/${locationId}`, {
+      withCredentials: true,
+      params,
+    });
+  }
+
+  /** Serves what the ticket names, or everything it still has to cook when `items` is empty. */
+  serveTicket(
+    organizationId: string, orderId: string, ticketId: string, items: PosOrderLineQuantityInput[],
+  ): Observable<PosKitchenServeResult> {
+    return this.http.post<PosKitchenServeResult>(
+      `${this.orderUrl(organizationId, orderId)}/tickets/${ticketId}/serve`, { items }, { withCredentials: true });
   }
 
   // ---- The ERP's POS Orders list --------------------------------------------------------------

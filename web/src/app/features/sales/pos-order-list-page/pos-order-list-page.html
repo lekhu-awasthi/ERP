@@ -78,6 +78,8 @@
                   <span class="fw-bold">{{ order.total | amount }}</span>
                   @if (order.status === 'Open') {
                     <span class="badge bg-warning-subtle text-warning-emphasis">Open</span>
+                  } @else if (order.status === 'Settled') {
+                    <span class="badge bg-success-subtle text-success-emphasis">Settled</span>
                   } @else {
                     <span class="badge bg-secondary-subtle text-secondary-emphasis">Voided</span>
                   }
@@ -99,6 +101,7 @@
                           <th scope="col" class="text-end">Discarded</th>
                           <th scope="col" class="text-end">On order</th>
                           <th scope="col" class="text-end">Served</th>
+                          <th scope="col" class="text-end">Billed</th>
                           <th scope="col" class="text-end">Amount</th>
                         </tr>
                       </thead>
@@ -110,12 +113,24 @@
                             <td class="text-end">{{ line.discarded }}</td>
                             <td class="text-end">{{ line.quantity }}</td>
                             <td class="text-end">{{ line.served }}</td>
+                            <td class="text-end">{{ line.invoiced }}</td>
                             <td class="text-end">{{ line.total | amount }}</td>
                           </tr>
                         }
                       </tbody>
                     </table>
                   </div>
+                  @if (order.invoices.length > 0) {
+                    <h3 class="h6 fw-bold">Bills</h3>
+                    <ul class="small">
+                      @for (invoice of order.invoices; track invoice.id) {
+                        <li>
+                          <a [routerLink]="['/organizations', organizationId, 'sales', 'invoices', invoice.id]">{{ invoice.code }}</a>
+                          · {{ invoice.grandTotal | amount }}{{ invoice.isVoided ? ' · voided' : '' }}
+                        </li>
+                      }
+                    </ul>
+                  }
                   <h3 class="h6 fw-bold">Kitchen tickets</h3>
                   <ul class="small mb-0">
                     @for (ticket of order.tickets; track ticket.id) {

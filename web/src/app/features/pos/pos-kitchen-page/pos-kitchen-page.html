@@ -1,0 +1,153 @@
+<div class="pos-kitchen">
+  <header class="pos-bar">
+    <div class="me-auto">
+      <h1 class="h5 fw-bold mb-0" id="pos-kitchen-heading" tabindex="-1">Kitchen{{ board() ? ' · ' + board()!.locationName : '' }}</h1>
+      @if (board(); as b) {
+        <p class="small text-body-secondary mb-0">Updated {{ b.readAt | nepaliDate: 'datetime-seconds' }}; it refreshes itself every 10 seconds.</p>
+      }
+    </div>
+    <nav aria-label="Kitchen" class="d-flex gap-2">
+      <button type="button" class="btn btn-sm btn-outline-primary" (click)="refresh()">
+        <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Refresh
+      </button>
+      <a class="btn btn-sm btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'pos', 'restaurant', locationId]">Floor</a>
+    </nav>
+  </header>
+
+  <div class="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{{ announcement() }}</div>
+
+  <div class="pos-kitchen-filters px-3 pt-2">
+    <fieldset>
+      <legend class="visually-hidden">Show</legend>
+      <div class="d-flex flex-wrap gap-1">
+        @for (v of views; track v) {
+          <input type="radio" class="btn-check" name="pos-kitchen-view" [id]="'pos-kitchen-view-' + v"
+            [checked]="view() === v" (change)="chooseView(v)" />
+          <label class="btn btn-sm btn-outline-primary" [for]="'pos-kitchen-view-' + v">{{ viewLabel(v) }}</label>
+        }
+      </div>
+    </fieldset>
+    <div class="d-flex flex-wrap gap-2">
+      <div>
+        <label class="form-label small fw-bold mb-0" for="pos-kitchen-station">Station</label>
+        <select class="form-select form-select-sm" id="pos-kitchen-station" (change)="onStation($event)">
+          <option value="" [selected]="station() === ''">Every station</option>
+          @for (s of board()?.stations ?? []; track s.name) {
+            <option [value]="s.id ?? 'default'" [selected]="station() === (s.id ?? 'default')">{{ s.name }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="form-label small fw-bold mb-0" for="pos-kitchen-type">Order type</label>
+        <select class="form-select form-select-sm" id="pos-kitchen-type" (change)="onOrderType($event)">
+          <option value="" [selected]="orderType() === ''">Every type</option>
+          @for (t of orderTypes; track t) {
+            <option [value]="t" [selected]="orderType() === t">{{ tabLabels[t] }}</option>
+          }
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="px-3">
+    <app-status-banner [message]="errorMessage()" spacing="mt-2 mb-0" />
+  </div>
+
+  @if (loading()) {
+    <p class="p-3 text-body-secondary">Reading the kitchen board…</p>
+  } @else if (board(); as b) {
+    <div class="pos-kitchen-body">
+      <section aria-labelledby="pos-kitchen-tickets">
+        <h2 class="visually-hidden" id="pos-kitchen-tickets">Kitchen tickets</h2>
+        @if (tickets().length === 0) {
+          <p class="text-body-secondary">{{ view() === 'Pending' ? 'Nothing is waiting to be cooked.' : 'No tickets today.' }}</p>
+        } @else {
+          <ul class="pos-kitchen-cards list-unstyled">
+            @for (ticket of tickets(); track ticket.id) {
+              <li>
+                <article class="pos-kot-card" [class.is-cancellation]="ticket.state === 'Cancellation'"
+                  [attr.aria-labelledby]="'pos-kot-' + ticket.id">
+                  <header class="d-flex justify-content-between gap-2">
+                    <div>
+                      <h3 class="h5 fw-bold mb-0" [id]="'pos-kot-' + ticket.id" tabindex="-1">
+                        {{ ticket.label }}<span class="visually-hidden">, ticket {{ ticket.number }}</span>
+                      </h3>
+                      <p class="small mb-0">
+                        {{ ticket.areaName ? ticket.areaName + ' · ' : '' }}{{ tabLabels[ticket.orderType] }} &middot; {{ ticket.kitchenStationName }}
+                      </p>
+                    </div>
+                    <div class="text-end small">
+                      <p class="mb-0 fw-bold">{{ ticket.number }}</p>
+                      @switch (ticket.state) {
+                        @case ('Pending') { <span class="badge text-bg-warning">Waiting {{ waited(ticket) }}</span> }
+                        @case ('Served') { <span class="badge text-bg-success">Served</span> }
+                        @case ('Cancelled') { <span class="badge text-bg-secondary">Cancelled</span> }
+                        @case ('Cancellation') { <span class="badge text-bg-danger">Cancellation</span> }
+                      }
+                      @if (ticket.orderStatus === 'Settled') {
+                        <span class="badge text-bg-light border">Paid</span>
+                      }
+                    </div>
+                  </header>
+                  <ul class="list-unstyled mb-2 mt-2">
+                    @for (line of ticket.lines; track line.orderLineId) {
+                      <li class="pos-kot-line">
+                        <div class="d-flex align-items-center justify-content-between gap-2">
+                          <span class="fw-bold" [class.text-decoration-line-through]="ticket.state !== 'Cancellation' && line.pending === 0 && line.served === 0">
+                            {{ line.sent }} × {{ line.productName }}{{ line.unitName ? ' (' + line.unitName + ')' : '' }}
+                          </span>
+                          @if (ticket.state !== 'Cancellation' && line.pending > 0) {
+                            <button type="button" class="btn btn-sm btn-outline-success" [disabled]="busyTicketId() === ticket.id"
+                              (click)="serve(ticket, line)">
+                              Serve<span class="visually-hidden"> {{ line.pending }} {{ line.productName }} on {{ ticket.number }}</span>
+                            </button>
+                          }
+                        </div>
+                        @if (line.note) {
+                          <p class="small mb-0">» {{ line.note }}</p>
+                        }
+                        @if (ticket.state !== 'Cancellation' && (line.served > 0 || line.cancelled > 0)) {
+                          <p class="small text-body-secondary mb-0">
+                            {{ line.served }} served{{ line.cancelled > 0 ? ' · ' + line.cancelled + ' cancelled' : '' }}{{ line.pending > 0 ? ' · ' + line.pending + ' to cook' : '' }}
+                          </p>
+                        }
+                      </li>
+                    }
+                  </ul>
+                  @if (ticket.reason) {
+                    <p class="small mb-2">Reason: {{ ticket.reason }}</p>
+                  }
+                  <footer class="d-flex align-items-center justify-content-between gap-2">
+                    <span class="small text-body-secondary">{{ ticket.createdAt | nepaliDate: 'datetime' }} &middot; {{ ticket.createdByName }}</span>
+                    @if (ticket.state === 'Pending') {
+                      <button type="button" class="btn btn-sm btn-success fw-bold" [disabled]="busyTicketId() === ticket.id"
+                        (click)="serve(ticket)">
+                        All Served<span class="visually-hidden">: {{ ticket.number }}, {{ ticket.label }}</span>
+                      </button>
+                    }
+                  </footer>
+                </article>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <aside class="pos-kitchen-summary" aria-labelledby="pos-kitchen-summary-heading">
+        <h2 class="h6 fw-bold" id="pos-kitchen-summary-heading">To cook</h2>
+        @if (b.summary.length === 0) {
+          <p class="small text-body-secondary">Nothing waiting.</p>
+        } @else {
+          <ul class="list-unstyled small mb-0">
+            @for (item of b.summary; track item.productName + (item.unitName ?? '')) {
+              <li class="d-flex justify-content-between gap-2">
+                <span>{{ item.productName }}{{ item.unitName ? ' (' + item.unitName + ')' : '' }}</span>
+                <strong>{{ item.pending }}</strong>
+              </li>
+            }
+          </ul>
+        }
+      </aside>
+    </div>
+  }
+</div>

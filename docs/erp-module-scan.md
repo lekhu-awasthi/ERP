@@ -2426,3 +2426,51 @@ Ground Floor. Decisions are in `phase-64-status.md`.
   vendor defect).
 - **Service charge is Dine In only.** The service-charge-applicable Chicken Momo (200, 10%, 13% VAT) is a
   **Rs 226.00** tile on Take Away and Delivery (200 × 1.13) against **Rs 248.60** on Dine In (phase 59).
+
+## Kitchen board and split, read live (2026-10-02, phase 65)
+
+Same tenant (*Hamro Samaan*), entered through *Open Pos*. **Read-only**: the board was empty (no open orders
+anywhere), so its states, the split dialog, *Mark as Take Away* and transfer were read from the client bundle
+(`9113-…` holds the board, `1295-…` the order and payment screens). The user then authorised writes; the
+auto-mode classifier refused the first (starting a session at POS Restaurant), so nothing was written.
+Decisions are in `phase-65-status.md`.
+
+### KOT board (`/kot/list?objState=pending|served|all`)
+
+- `GET /pos/kots?location_id&limit=100[&status=pending|served][&type&area_id&table_id]`, `cacheTime: 0`,
+  **no refetch interval**: a manual refresh button only. Cards come from `print_items` (one per station).
+- Filters: **KOT Type** (the order type), **Area** and **Table** (Dine In only).
+- Per item: "n/m Served" and **Mark as Served** -> `POST /pos/kots/mark-as-served {items:[{id, quantity,
+  default_quantity, batch_id}]}` (`batch_id` is the KOT). A card's **Served** button opens a dialog with a
+  checkbox and quantity stepper per item and serves them in one call ("Order served!"). A cancelled KOT
+  refuses ("Order is cancelled").
+- **Cancelled** and **Archived** are badges, not actions. Cancelled is read from the ticket's status fields;
+  **Archived is a client-side age test**: unserved and `created_at` more than `18e6` ms (5 hours) ago, which
+  also removes it from the Pending count.
+- **Order Summary**: `GET /pos/kots/items-summary?location_id&status=pending` -> the first 20 `{item_name,
+  quantity}`.
+
+### Estimate bill
+
+- The order's menu offers **Print Estimate bill** only when the location's `estimate_bill` setting is on and
+  the order is saved ("To print estimate bill, the order needs to be saved first.").
+
+### Split Bill (payment screen)
+
+- One dialog, **Split Bill**, primary button **Pay**: a checkbox per line and a quantity stepper (`min 1`,
+  `max` the line's quantity, fractions only when the unit `accepts_fraction`). Ticking everything in full is
+  refused: "Please split partial order only." Each split is paid as one invoice
+  (`POST /pos/invoices/{order}/split-bill`, phase 59).
+- **There is no equal split** anywhere in the bundle.
+- The payment screen's menu: **Split Bill**, **Disable Service Charge** (sets every line's
+  `service_charge_applicable: false`), Discount, Note.
+
+### Mark as Take Away and transfer
+
+- **Mark as Take Away**: an *Update Takeaway* dialog with a quantity; stored as `is_take_away` and
+  `takeaway_quantity` on the line (`POST /pos/orders/update-takeaway`), shown as a take-away count. Hidden
+  once `quantity - discarded - takeaway - transferred` is 0. The client's price helper never reads
+  `is_take_away`, so the screen does not reprice; the server's pricing could not be observed.
+- **Transfer Items** (Dine In, from the order menu's *Transfer List*): choose a table other than this one,
+  tick items with quantities -> `POST /pos/orders/items-transfer {order_id, table_id, area_id, items:[{id,
+  quantity}]}`.

@@ -174,6 +174,18 @@ export const routes: Routes = [
     canActivate: [authGuard, featureGuard('PosRestaurant')],
   },
   {
+    // Phase 65 -- billing an order: the split, the server's price for it, payment and the tax invoice.
+    path: 'organizations/:id/pos/orders/:orderId/bill',
+    loadComponent: () => import('./features/pos/pos-bill-page/pos-bill-page').then((m) => m.PosBillPage),
+    canActivate: [authGuard, featureGuard('PosRestaurant')],
+  },
+  {
+    // Phase 65 -- the kitchen board (Pos.Kitchen.Operate): a location's tickets, polled while on screen.
+    path: 'organizations/:id/pos/kitchen/:locationId',
+    loadComponent: () => import('./features/pos/pos-kitchen-page/pos-kitchen-page').then((m) => m.PosKitchenPage),
+    canActivate: [authGuard, featureGuard('PosRestaurant')],
+  },
+  {
     path: 'organizations/:id/configuration/banks',
     loadComponent: () =>
       import('./features/configuration/bank-list-page/bank-list-page').then((m) => m.BankListPage),

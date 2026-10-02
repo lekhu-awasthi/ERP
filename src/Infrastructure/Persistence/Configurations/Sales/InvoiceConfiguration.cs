@@ -83,6 +83,13 @@ public sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
             .HasForeignKey(x => x.PosSessionId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Phase 65 -- the restaurant order a till sale bills. Restrict: an order with bills is history,
+        // never deleted. The FK's own index is what finds an order's bills.
+        builder.HasOne<PosOrder>()
+            .WithMany()
+            .HasForeignKey(x => x.PosOrderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasMany(x => x.Tenders)
             .WithOne()
             .HasForeignKey(x => x.InvoiceId)

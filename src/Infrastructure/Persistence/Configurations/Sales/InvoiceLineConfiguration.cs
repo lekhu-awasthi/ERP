@@ -1,5 +1,6 @@
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Catalog;
+using ErpApp.Domain.Pos;
 using ErpApp.Domain.Sales;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -54,6 +55,11 @@ public sealed class InvoiceLineConfiguration : IEntityTypeConfiguration<InvoiceL
         // Derived from Quantity and ConversionFactor, both on this row -- a column would be a
         // second quantity able to contradict them (phase 51's ProductBatch argument).
         builder.Ignore(x => x.PrimaryQuantity);
+
+        // Phase 65 -- the order line this line bills; an order line's invoiced quantity is a sum over
+        // these on invoices not voided (phase 64 Decision B). Null on every other line.
+        builder.HasOne<PosOrderLine>().WithMany().HasForeignKey(x => x.PosOrderLineId)
+            .OnDelete(DeleteBehavior.Restrict);
 
     }
 }

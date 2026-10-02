@@ -81,7 +81,7 @@ API), reuses Invoice/Credit Note, and adds aggregates only for what an ERP lacks
 | **62 — Retail till** ✅ *done 2026-10-01, `phase-62-status.md`* | the `/pos` shell, session picker, product grid + search + barcode, cart and line edit, payment screen (multi-tender, change), hold/recall, 80 mm receipt with the correct header and separate service-charge and round-off lines, reprint marked as a copy |
 | **63 — Returns at the till** ✅ *done 2026-10-02, `phase-63-status.md`* | a refund is a Credit Note created approved against the till sale, returning service charge and VAT in proportion; its payout is a second entry out of the caller's open drawer, after clearing what the customer still owes; one planner for the preview and the refund; the ERP's conversion of a till sale refused; refunds in the X/Z report and every reader of what is owed |
 | **64 — Restaurant: floor, orders, KOT** ✅ *done 2026-10-02, `phase-64-status.md`* | areas and tables with a layout editor; `PosOrder` with per-line invoiced/served/discarded counters (E); `KitchenTicket` per send × station (F); Take Away and Delivery; an ERP *POS Orders* list (the divergence's surface) |
-| **65 — Kitchen display and settling** | a live KOT board; estimate bill; split by item/qty and equal split that **preserve the service charge** (the vendor's defect 1 is the regression test); settle to Invoice(s) |
+| **65 — Kitchen display and settling** ✅ *done 2026-10-02, `phase-65-status.md`* | a polled KOT board (`Pos.Kitchen.Operate`); the estimate bill; whole, by item/qty and equal split, every part from the order lines' frozen rates (defect 1's regression test), the last of a line taking what is left and rounding on the running total; each part an approved till Invoice; Settled frees the table, a void reopens it |
 | **66 — POS reports and dashboard** | Day Report, Payment Summary, Order Report, Product/Customer Sales, Sales Master/Summary, POS activity; the home dashboard, with every figure reconciling to the session reader and the Sales Register |
 
 **Reopened from phase 47's Dropped list, with evidence:** `Product.PrintProfileId` (the KOT station,
@@ -105,9 +105,11 @@ The two rules apply to every tax invoice, and the ERP's own PDF print follows ne
 column (now for credit notes too). The ERP credit note against a till sale is settled by phase 63:
 the ERP may no longer convert one, and the till's refund returns the service charge.
 
-**Carried from phase 64** (§ 5 there): *Mark as Take Away* on a dine-in line and item transfer between
-orders (the vendor's `takeaway_quantity` / `transferred_quantity`), both with phase 65's splitting; a
-live floor (occupancy is read on load and on Refresh until the live board).
+**Carried from phases 64 and 65** (§ 5 in each): *Mark as Take Away* on a dine-in line and item transfer
+between orders, now read live (`erp-module-scan.md`, "Kitchen board and split"). Both are quantity moves; Mark
+as Take Away also asks whether a parcelled dish loses its service charge (phase 64 Decision H) against the
+rule that rates never move, which is the user's question. Also: a discount and credit on a restaurant bill,
+per-part customers. The live floor shipped in phase 65 (polled).
 
 **Carried from phase 63** (§ 5 there): cross-branch returns; split payouts on the refund screen (the
 API takes several); a fully refunded bill still listed in the refund search.

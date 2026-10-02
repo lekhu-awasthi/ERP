@@ -30,6 +30,8 @@ public class PosRestaurantTests
 
     private static PosOrderLineQuantity Of(PosOrderLine line, decimal quantity) => new(line.Id, quantity);
 
+    private static readonly IReadOnlyDictionary<Guid, decimal> NothingBilled = new Dictionary<Guid, decimal>();
+
     [Fact]
     public void A_dine_in_order_is_seated_at_a_table_with_guests_and_the_other_two_types_are_not()
     {
@@ -122,9 +124,9 @@ public class PosRestaurantTests
         order.Send([Momo(2)], [], User);
         var momo = order.Lines.Single();
 
-        Assert.Throws<InvalidOperationException>(() => order.Discard([Of(momo, 1m)], "  ", User));
+        Assert.Throws<InvalidOperationException>(() => order.Discard([Of(momo, 1m)], "  ", User, NothingBilled));
 
-        var ticket = Assert.Single(order.Discard([Of(momo, 1m)], "Guest changed their mind", User));
+        var ticket = Assert.Single(order.Discard([Of(momo, 1m)], "Guest changed their mind", User, NothingBilled));
 
         Assert.True(ticket.IsCancellation);
         Assert.Equal("Guest changed their mind", ticket.Reason);
@@ -140,9 +142,9 @@ public class PosRestaurantTests
         order.Send([Momo(2)], [], User);
         var momo = order.Lines.Single();
 
-        Assert.Throws<InvalidOperationException>(() => order.Discard([Of(momo, 3m)], "typo", User));
-        order.Discard([Of(momo, 2m)], "typo", User);
-        Assert.Throws<InvalidOperationException>(() => order.Discard([Of(momo, 1m)], "again", User));
+        Assert.Throws<InvalidOperationException>(() => order.Discard([Of(momo, 3m)], "typo", User, NothingBilled));
+        order.Discard([Of(momo, 2m)], "typo", User, NothingBilled);
+        Assert.Throws<InvalidOperationException>(() => order.Discard([Of(momo, 1m)], "again", User, NothingBilled));
     }
 
     [Fact]
@@ -154,10 +156,10 @@ public class PosRestaurantTests
         var momo = order.Lines.Single();
         order.Serve([Of(momo, 2m)]);
 
-        order.Discard([Of(momo, 1m)], "never cooked", User);
+        order.Discard([Of(momo, 1m)], "never cooked", User, NothingBilled);
         Assert.Equal(new PosOrderLineQuantities(3m, 1m, 2m, 2m), order.QuantitiesOf(momo));
 
-        order.Discard([Of(momo, 1m)], "sent back cold", User);
+        order.Discard([Of(momo, 1m)], "sent back cold", User, NothingBilled);
         Assert.Equal(new PosOrderLineQuantities(3m, 2m, 1m, 1m), order.QuantitiesOf(momo));
         Assert.Equal(0m, order.QuantitiesOf(momo).Outstanding);
     }
@@ -168,9 +170,9 @@ public class PosRestaurantTests
         var order = DineIn();
         order.Send([Momo(2), Coke(1)], [], User);
         var momo = order.Lines.Single(x => x.Rate == 200m);
-        order.Discard([Of(momo, 1m)], "typo", User);
+        order.Discard([Of(momo, 1m)], "typo", User, NothingBilled);
 
-        var tickets = order.Void("Guests left", User, DateTimeOffset.UtcNow);
+        var tickets = order.Void("Guests left", User, DateTimeOffset.UtcNow, NothingBilled);
 
         Assert.Equal(2, tickets.Count);
         Assert.All(tickets, t => Assert.True(t.IsCancellation));
@@ -178,7 +180,7 @@ public class PosRestaurantTests
         Assert.Equal(PosOrderStatus.Voided, order.Status);
         Assert.Equal("Guests left", order.VoidReason);
         Assert.Throws<InvalidOperationException>(() => order.Send([Coke(1)], [], User));
-        Assert.Throws<InvalidOperationException>(() => order.Void("again", User, DateTimeOffset.UtcNow));
+        Assert.Throws<InvalidOperationException>(() => order.Void("again", User, DateTimeOffset.UtcNow, NothingBilled));
     }
 
     [Fact]

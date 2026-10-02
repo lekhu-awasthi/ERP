@@ -8,6 +8,8 @@
             {{ o.covers }} guest(s) &middot; {{ o.contactName }} &middot; opened {{ o.createdAt | nepaliDate: 'datetime' }} by {{ o.createdByName }}
             @if (o.status === 'Voided') {
               &middot; <span class="badge text-bg-secondary">Voided</span>
+            } @else if (o.status === 'Settled') {
+              &middot; <span class="badge text-bg-success">Settled</span>
             }
           </p>
         }
@@ -113,6 +115,14 @@
           } @else if (order(); as o) {
             @if (o.status === 'Open') {
               <div class="d-flex flex-wrap gap-2 mb-2">
+                @if (o.toBill > 0) {
+                  <a class="btn btn-sm btn-success fw-bold" [routerLink]="['/organizations', organizationId, 'pos', 'orders', o.id, 'bill']">
+                    Bill &amp; Pay
+                  </a>
+                  @if (r.printEstimateBill) {
+                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="printEstimate()">Print Estimate</button>
+                  }
+                }
                 <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-expanded]="isPanel('details')"
                   aria-controls="pos-order-details-panel" (click)="openPanel({ kind: 'details' })">
                   {{ o.orderType === 'DineIn' ? 'Move Table / Guests' : 'Guests' }}
@@ -159,6 +169,8 @@
                   </div>
                 </form>
               }
+            } @else if (o.status === 'Settled') {
+              <p class="small">Settled {{ o.settledAt | nepaliDate: 'datetime' }}: every item is billed and the table is free.</p>
             } @else {
               <p class="small">Voided {{ o.voidedAt | nepaliDate: 'datetime' }} by {{ o.voidedByName }}: {{ o.voidReason }}</p>
             }
@@ -241,6 +253,24 @@
               <dt class="fw-bold">Estimate</dt><dd class="fw-bold">{{ o.total | amount }}</dd>
             </dl>
             <p class="small text-body-secondary">The bill rounds to the rupee when it is settled.</p>
+
+            @if (o.invoices.length > 0) {
+              <h3 class="h6 fw-bold mt-3">Bills</h3>
+              <ul class="list-unstyled small mb-1">
+                @for (invoice of o.invoices; track invoice.id) {
+                  <li>
+                    <strong>{{ invoice.code }}</strong> &middot; {{ invoice.grandTotal | amount }}
+                    @if (invoice.serviceCharge > 0) {
+                      (service charge {{ invoice.serviceCharge | amount }})
+                    }
+                    @if (invoice.isVoided) {
+                      <span class="badge text-bg-secondary">Voided</span>
+                    }
+                  </li>
+                }
+              </ul>
+              <p class="small">Billed {{ o.billed | amount }}{{ o.toBill > 0 ? '; ' + o.toBill + ' item(s) still to bill.' : '.' }}</p>
+            }
           }
 
           @if (isOpen()) {
@@ -329,6 +359,8 @@
   @if (order(); as o) {
     @if (printed().length > 0) {
       <app-pos-kot [order]="o" [tickets]="printed()" />
+    } @else if (estimate(); as preview) {
+      <app-pos-estimate [order]="o" [preview]="preview" [printedAt]="estimateAt()" />
     }
   }
 </div>

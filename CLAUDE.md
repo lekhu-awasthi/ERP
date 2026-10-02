@@ -96,6 +96,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 62: Retail till UI (lazy full-screen `/pos`: launcher, grid + scan, cart, multi-tender payment, session X/Z, cash in/out, close); abbreviated tax invoice and reprint-copy rules settled from the statutes. Before a figure a cashier pays against, a printed count, or a browser-held draft — `docs/phase-62-status.md`
 - Phase 63: returns at the till (a refund is a Credit Note created approved; its payout is a second entry out of the open drawer after clearing what is still owed; one planner prices the preview and the refund; the ERP's conversion of a till sale refused). Before a reversal priced before it posts, or a second way to return a sale — `docs/phase-63-status.md`
 - Phase 64: restaurant floor, orders and KOT (`PosOrder` its own aggregate; the kitchen ticket line is the one signed quantity, served the one stored counter; a ticket per send × station; service charge Dine In only; Sales > POS Orders). Before a per-line counter, a second quantity beside a movement, or a drag-and-drop editor — `docs/phase-64-status.md`
+- Phase 65: kitchen board and settling (a bill is a till sale whose lines come from the order: frozen rates, the last of a line takes what is left, rounding on the running total; invoiced is a sum over invoices not voided; the board polls and archives nothing). Before billing in parts, a figure that must add up across documents, or a status a void must undo — `docs/phase-65-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -259,6 +260,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Changing what a document does to the **stock** ledger changes what its Void owes: giving Approve a new warehouse source left Void restocking from the old one, so stock went out and never came back (phase-43).
 - A standalone Debit Note credited the Inventory *account* while the FIFO ledger never moved; a standalone Credit Note posts no Inventory leg at all, so only one of the two was ever a divergence (phase-43).
 - A bill's tax-invoice heading is decided at the sale and **stored** (`IsAbbreviatedTaxInvoice`), and a reprint's "printed N times" is a server row, never a browser counter: both must survive another till (phase-62).
+- Parts that must sum to a whole: the last of a line takes what is left of each figure, and a part is `R(billed + part) − billed`; rounding each part alone bills 11+11+0 for 21.20 (phase-65).
+- A quantity a void must give back is a **sum over the documents not voided** (invoiced = Σ invoice lines naming the order line), never a counter written back (phase-65).
 
 - Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
 - A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
@@ -378,6 +381,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A `computed()` records only the signals it actually **read**, so a `&&` short-circuiting past the signal on the first evaluation leaves it dependency-free and frozen; every test that calls the setter before reading passes (phase-47).
 - A control nested in an `<a>` is invalid HTML no handler repairs: row a `<div>`, link a `stretched-link`, controls siblings at `position-relative z-2` (the overlay is z-index 1), and the ring moves to the row via `:has()` (phase-47).
 - A drag that listens for the release on its own container never ends when the pointer lets go elsewhere, and keeps moving things; listen on the document, bind the drag to what was grabbed, and add a threshold (phase-64).
+- A Bootstrap `.btn-check` radio is a hidden input; in the Browser pane click its `<label>`, or nothing changes (phase-65).
 - A radio whose `(change)` is cancelled stays checked: the `[checked]` binding did not change, so Angular never puts it back. Restore it by hand (phase-64).
 
 **Multi-way switches on a document-attached mechanism**
@@ -475,30 +479,28 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-64 are complete. The forward plan is phases 65–66: POS Restaurant billing, then reports.**
+**Phases 0-65 are complete. The forward plan is phase 66: POS reports and dashboard.**
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 64 built the restaurant's floor, orders and kitchen tickets.** It added:
+**Phase 65 built the kitchen board and billing a restaurant order.** It added:
 
-- the floor: areas and tables on a fixed 1100 × 800 canvas, with a keyboard-operable layout editor;
-- `PosOrder`, its own aggregate (`ORD0001` from the tenant's counter, posts and reserves nothing), whose
-  lines store no quantity: ordered, discarded and net are sums over the signed `KitchenTicketLine`s;
-- a `KitchenTicket` per send × kitchen station (the product's station, frozen on the line; none is
-  *Default*), cancellations with their reason, and REPRINT marking from the server's count;
-- `PosServiceCharge.RateFor`: no service charge on Take Away or Delivery, in the order, the sale engine
-  and the Retail cart;
-- four keys (`Pos.Order.Operate/View/Void`, `Pos.FloorPlan.Manage`) and Sales > POS Orders.
+- the kitchen board (`/pos/kitchen/:locationId`, `Pos.Kitchen.Operate`), polled every 10 s while visible,
+  each ticket's served / cancelled / pending derived from the line's one served counter, nothing archived by age;
+- the estimate bill (not a tax invoice, not counted), priced by the same planner as the bill;
+- the bill screen: whole, by item and quantity, or one of N equal parts (fractional lines), each part an
+  approved till Invoice through `PosSaleCompletion` (phase 61's engine, lifted), priced by `PosOrderBill.Plan`:
+  frozen rates, the last of a line takes what is left, rounding on the running total;
+- `InvoiceLine.PosOrderLineId` / `Invoice.PosOrderId`: invoiced is a sum over invoices not voided; an order
+  settles (freeing its table) when nothing unbilled is left, and voiding a bill reopens it.
 
-**Next: phase 65, Kitchen display and settling.** A live KOT board (`Pos.Kitchen.Operate`), the estimate
-bill, split by item / quantity / equally with the service charge preserved (the vendor's defect 1 is the
-regression test), and settling an order into Invoices, with invoiced quantity a sum over invoice lines
-naming the order line. Carried: *Mark as Take Away* and item transfer (phase 64 § 5), phase 62 § 5 and
-phase 63 § 5.
+**Next: phase 66, POS reports and dashboard** (roadmap). Carried: *Mark as Take Away* and item transfer
+(a product question about repricing a parcelled dish; phase 65 § 5), discount and credit on a restaurant
+bill, phase 62 § 5 and phase 63 § 5.
 
-Tests: Domain **863**, Application.UnitTests **1515**, Infrastructure.UnitTests 13,
-Api.IntegrationTests **30**, Angular **714**. Everything was green at phase 64's close with Docker up.
-The bundle sits at **649.75 kB** against `build-budget.spec.ts`'s 680 kB; every till screen is lazy.
+Tests: Domain **874**, Application.UnitTests **1529**, Infrastructure.UnitTests 13,
+Api.IntegrationTests **30**, Angular **727**. Everything was green at phase 65's close with Docker up.
+The bundle sits at **650.06 kB** against `build-budget.spec.ts`'s 680 kB; every till screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests
   fail in their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like

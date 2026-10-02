@@ -1119,11 +1119,17 @@ public static class PermissionKeys
     //   and scoped to the locations where the caller may view invoices.
     // - Pos.FloorPlan.Manage (Admin-only): areas, tables and their layout. Configuration, as phase 59
     //   Decision J derived it. Kitchen stations are POS settings and ride Pos.Settings.Manage.
-    //
-    // Pos.Kitchen.Operate (phase 59 Decision J) does not ship: the kitchen board is phase 65's, and a
-    // key with nothing behind it is present-and-ignored.
     public const string PosOrderOperate = "Pos.Order.Operate";
     public const string PosOrderVoid = "Pos.Order.Void";
     public const string PosOrderView = "Pos.Order.View";
     public const string PosFloorPlanManage = "Pos.FloorPlan.Manage";
+
+    // Phase 65 (Kitchen display and settling) -- Pos.Kitchen.Operate (Admin+Member), phase 59 Decision
+    // J's key, arriving with the board it gates (docs/phase-65-status.md Decision G): read a location's
+    // kitchen board and mark what left the pass as served. Routine daily working data, like a waiter's
+    // Serve. It carries no money and no customer beyond a Take Away's name, and it needs no
+    // Sales.Invoice key, because a cook bills nothing; so it is organization-wide, like
+    // Pos.Session.Operate, and a kitchen role can hold it alone. Billing an order needs no key of its
+    // own: it is a till sale, Sales.Invoice.Create at the location, in the caller's open session.
+    public const string PosKitchenOperate = "Pos.Kitchen.Operate";
 }

@@ -1,0 +1,65 @@
+.pos-kitchen {
+  min-height: 100vh;
+  background: var(--bs-tertiary-bg);
+}
+
+.pos-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--bs-body-bg);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.pos-kitchen-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.pos-kitchen-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 15rem;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.pos-kitchen-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 0.75rem;
+}
+
+.pos-kot-card {
+  height: 100%;
+  padding: 0.75rem;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.5rem;
+
+  &.is-cancellation {
+    border-color: var(--bs-danger);
+  }
+}
+
+.pos-kot-line + .pos-kot-line {
+  margin-top: 0.4rem;
+}
+
+.pos-kitchen-summary {
+  align-self: start;
+  padding: 0.75rem;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.5rem;
+}
+
+// The summary moves under the cards on a narrow screen; nothing is clipped (WCAG 1.4.10).
+@media (max-width: 767.98px) {
+  .pos-kitchen-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
@@ -14,13 +14,17 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
+/** How often the floor reads its tables again while it is on screen. */
+export const FLOOR_POLL_MS = 15_000;
+
 /**
  * Phase 64 -- the restaurant till's floor: the Dine In tab draws each area's tables where the floor
  * plan put them, a taken table carrying its order; Take Away and Delivery list their open orders.
  *
- * <p><b>Occupancy is the server's</b>: a table is taken exactly when an open order names it, read on
- * load and on Refresh. A live board is phase 65's; until then the vendor's own KOT board has a refresh
- * button too.</p>
+ * <p><b>Occupancy is the server's</b>: a table is taken exactly when an open order names it. Phase 65
+ * made the floor live the board's way: it reads again every fifteen seconds while it is on screen (and
+ * on Refresh), so two waiters see each other's tables without asking. It also says whose drawer is open
+ * here (billing needs one) and links to the kitchen board for those who may use it.</p>
  *
  * <p><b>Every table is a link</b>, positioned on a canvas scaled to the screen: a free table opens a
  * new order for it, a taken one opens its order. Its accessible name says which (phase 40: a click
@@ -36,6 +40,7 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 export class PosFloorPage {
   private readonly route = inject(ActivatedRoute);
   private readonly restaurantService = inject(PosRestaurantService);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
   protected readonly locationId = this.route.snapshot.paramMap.get('locationId')!;
@@ -61,6 +66,19 @@ export class PosFloorPage {
 
   constructor() {
     this.load(true);
+
+    // Phase 65 -- a live floor: read again while on screen, at once when the tab comes back.
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') this.load(false);
+    }, FLOOR_POLL_MS);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') this.load(false);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    this.destroyRef.onDestroy(() => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    });
   }
 
   protected refresh(): void {

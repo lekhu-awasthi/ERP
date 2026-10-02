@@ -29,6 +29,8 @@ public sealed record PosOrderLineDto(
     decimal Quantity,
     decimal Served,
     decimal Outstanding,
+    decimal Invoiced,
+    decimal ToBill,
     decimal Amount,
     decimal ServiceChargeAmount,
     decimal VatAmount,
@@ -54,7 +56,8 @@ public sealed record KitchenTicketDto(
 /// <summary>
 /// An order as the restaurant till and the ERP list show it. <paramref name="Total"/> is the estimate
 /// before any bill: the lines' amount, service charge and VAT, not yet rounded to the rupee (the bill
-/// rounds, phase 65).
+/// rounds, phase 65). Phase 65: <paramref name="Billed"/> is what its invoices not voided came to, and
+/// <paramref name="Invoices"/> lists every bill, voided ones included.
 /// </summary>
 public sealed record PosOrderDto(
     Guid Id,
@@ -82,8 +85,12 @@ public sealed record PosOrderDto(
     decimal Vat,
     decimal Total,
     decimal Outstanding,
+    DateTimeOffset? SettledAt,
+    decimal Billed,
+    decimal ToBill,
     IReadOnlyList<PosOrderLineDto> Lines,
-    IReadOnlyList<KitchenTicketDto> Tickets);
+    IReadOnlyList<KitchenTicketDto> Tickets,
+    IReadOnlyList<PosOrderInvoiceDto> Invoices);
 
 /// <summary>
 /// Phase 64 -- builds <see cref="PosOrderDto"/>s: one order for the till, or a page of them for the ERP
@@ -154,11 +161,17 @@ internal static class PosOrderView
             .Where(x => userIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => x.FullName, cancellationToken);
 
+        var billing = await PosOrderBilling.LoadManyAsync(
+            db, organizationId, [.. orders.Select(o => o.Id)], cancellationToken);
+
         string StationName(Guid? id) => id is { } s ? stations.GetValueOrDefault(s, "") : KitchenStation.DefaultName;
         string? UnitName(Guid? id) => id is { } u ? units.GetValueOrDefault(u) : null;
 
         return orders.Select(order =>
         {
+            var billed = billing.GetValueOrDefault(order.Id) ?? PosOrderBilledState.Nothing;
+            var invoiced = billed.Invoiced;
+
             var lines = order.Lines
                 .OrderBy(x => x.LineNo)
                 .Select(line =>
@@ -172,6 +185,7 @@ internal static class PosOrderView
                         line.UnitId, UnitName(line.UnitId), line.Rate, line.VatRate, line.ServiceChargeRate,
                         line.Note, line.KitchenStationId, StationName(line.KitchenStationId),
                         q.Ordered, q.Discarded, q.Net, q.Served, q.Outstanding,
+                        invoiced.GetValueOrDefault(line.Id), order.RemainingToBill(line, invoiced),
                         figures.Amount, figures.ServiceChargeAmount, figures.VatAmount,
                         figures.Amount + figures.ServiceChargeAmount + figures.VatAmount);
                 })
@@ -236,8 +250,12 @@ internal static class PosOrderView
                 estimate.VatAmount,
                 estimate.Amount + estimate.ServiceChargeAmount + estimate.VatAmount,
                 lines.Sum(x => x.Outstanding),
+                order.SettledAt,
+                billed.Totals.GrandTotal,
+                lines.Sum(x => x.ToBill),
                 lines,
-                tickets);
+                tickets,
+                billed.Invoices);
         }).ToList();
     }
 }

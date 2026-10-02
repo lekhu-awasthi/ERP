@@ -28,24 +28,30 @@
               <p class="text-body-secondary small mb-3">{{ till.locationCode }} &middot; {{ modeLabels[till.posMode] }}</p>
 
               @if (till.posMode === 'Restaurant') {
-                <!-- Phase 64 -- the floor, orders and kitchen tickets. Billing an order (the estimate, splits and
-                     payment) is phase 65's, and the card says so rather than letting a waiter look for it. -->
-                <p>Seat tables, take orders and send them to the kitchen.</p>
-                <p class="small text-body-secondary">
-                  Billing an order (estimate, split and payment) is not built yet, so an order stays open on the floor.
-                </p>
-                <a class="btn btn-primary fw-bold" [routerLink]="['/organizations', organizationId, 'pos', 'restaurant', till.locationId]">
-                  Open Floor
-                </a>
-              } @else if (till.mySessionId) {
+                <!-- Phase 64 -- the floor, orders and kitchen tickets; phase 65 -- the kitchen board and billing, which
+                     takes payment into the cashier's own drawer, so the card offers one again below. -->
+                <p>Seat tables, take orders, send them to the kitchen and bill them.</p>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                  <a class="btn btn-primary fw-bold" [routerLink]="['/organizations', organizationId, 'pos', 'restaurant', till.locationId]">
+                    Open Floor
+                  </a>
+                  <a class="btn btn-outline-primary" [routerLink]="['/organizations', organizationId, 'pos', 'kitchen', till.locationId]">
+                    Kitchen Board
+                  </a>
+                </div>
+                <h3 class="h6 fw-bold">Your drawer</h3>
+              }
+              @if (till.mySessionId) {
                 <p>
                   Your session <strong>{{ till.mySessionCode }}</strong> has been open since
                   {{ till.mySessionOpenedAt | nepaliDate: 'datetime' }}.
                 </p>
                 <div class="d-flex flex-wrap gap-2">
-                  <a class="btn btn-primary fw-bold" [routerLink]="['/organizations', organizationId, 'pos', 'till', till.locationId]">
-                    Open Till
-                  </a>
+                  @if (till.posMode !== 'Restaurant') {
+                    <a class="btn btn-primary fw-bold" [routerLink]="['/organizations', organizationId, 'pos', 'till', till.locationId]">
+                      Open Till
+                    </a>
+                  }
                   <a class="btn btn-outline-secondary" [routerLink]="['/organizations', organizationId, 'pos', 'sessions', till.mySessionId]">
                     Session &amp; Cash
                   </a>
@@ -73,8 +79,9 @@
                   </div>
                 </form>
               } @else {
-                <p>You have no session open here.</p>
-                <button type="button" class="btn btn-primary fw-bold" (click)="beginStart(till.locationId)">
+                <p>You have no session open here{{ till.posMode === 'Restaurant' ? '; billing an order takes payment into one' : '' }}.</p>
+                <button type="button" class="btn fw-bold" [class.btn-primary]="till.posMode !== 'Restaurant'"
+                  [class.btn-outline-primary]="till.posMode === 'Restaurant'" (click)="beginStart(till.locationId)">
                   Start Session
                 </button>
               }

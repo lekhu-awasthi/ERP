@@ -4187,6 +4187,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
+                    b.Property<DateTimeOffset?>("SettledAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -5911,6 +5914,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("PosOrderId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("PosSessionId")
                         .HasColumnType("uniqueidentifier");
 
@@ -5959,6 +5965,8 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasIndex("LocationId");
 
+                    b.HasIndex("PosOrderId");
+
                     b.HasIndex("PosSessionId");
 
                     b.HasIndex("WarehouseId");
@@ -6005,6 +6013,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid>("InvoiceId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("PosOrderLineId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uniqueidentifier");
 
@@ -6043,6 +6054,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("BatchId");
 
                     b.HasIndex("InvoiceId");
+
+                    b.HasIndex("PosOrderLineId");
 
                     b.HasIndex("ProductId");
 
@@ -10243,6 +10256,20 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = false,
                             PermissionKey = "Pos.FloorPlan.Manage",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001ef"),
+                            IsGranted = true,
+                            PermissionKey = "Pos.Kitchen.Operate",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001f0"),
+                            IsGranted = true,
+                            PermissionKey = "Pos.Kitchen.Operate",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 
@@ -12220,6 +12247,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("LocationId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("ErpApp.Domain.Pos.PosOrder", null)
+                        .WithMany()
+                        .HasForeignKey("PosOrderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Pos.PosSession", null)
                         .WithMany()
                         .HasForeignKey("PosSessionId")
@@ -12244,6 +12276,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("InvoiceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Pos.PosOrderLine", null)
+                        .WithMany()
+                        .HasForeignKey("PosOrderLineId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("ErpApp.Domain.Catalog.Product", null)
                         .WithMany()

@@ -13,6 +13,8 @@ namespace ErpApp.Application.Pos.Queries.GetPosRestaurant;
 
 /// <summary>An open order as the floor and the Take Away / Delivery lists show it.</summary>
 /// <param name="Outstanding">Items still to come from the kitchen; zero means everything was served.</param>
+/// <param name="Billed">Phase 65 -- what its bills not voided came to; non-zero on a part-paid tab.</param>
+/// <param name="ToBill">Phase 65 -- items not yet on a bill.</param>
 public sealed record PosOpenOrderDto(
     Guid Id,
     string Code,
@@ -22,7 +24,9 @@ public sealed record PosOpenOrderDto(
     string ContactName,
     DateTimeOffset CreatedAt,
     decimal Outstanding,
-    decimal Total);
+    decimal Total,
+    decimal Billed,
+    decimal ToBill);
 
 /// <param name="Order">The open order seated here; null when the table is free.</param>
 public sealed record PosRestaurantTableDto(
@@ -33,6 +37,10 @@ public sealed record PosRestaurantAreaDto(Guid Id, string Name, IReadOnlyList<Po
 /// <param name="Orders">Every open order here: the Dine In ones are also on their tables.</param>
 /// <param name="CanVoid">Whether the caller holds <c>Pos.Order.Void</c>, so the order screen can say who
 /// may discard before a waiter tries (phase 62's say-it-before-Pay rule).</param>
+/// <param name="MySessionId">Phase 65 -- the caller's open drawer here, which billing an order needs; null
+/// when they have none (a waiter), so the screen says so before Pay.</param>
+/// <param name="CanKitchen">Phase 65 -- whether the caller holds <c>Pos.Kitchen.Operate</c>, so the floor
+/// links to the kitchen board only for those it would not refuse.</param>
 public sealed record PosRestaurantDto(
     Guid LocationId,
     string LocationCode,
@@ -48,7 +56,13 @@ public sealed record PosRestaurantDto(
     IReadOnlyList<PosTillCategoryDto> Categories,
     IReadOnlyList<PosRestaurantAreaDto> Areas,
     IReadOnlyList<PosOpenOrderDto> Orders,
-    bool CanVoid);
+    bool CanVoid,
+    bool RoundOffEnabled,
+    bool PrintEstimateBill,
+    bool PrintInvoice,
+    Guid? MySessionId,
+    string? MySessionCode,
+    bool CanKitchen);
 
 /// <summary>
 /// Phase 64 -- the restaurant till's own read of its location: the floor with which tables are taken,
@@ -103,7 +117,8 @@ public sealed class GetPosRestaurantQueryHandler(IAppDbContext db, ICurrentUserS
         var views = await PosOrderView.ReadManyAsync(db, request.OrganizationId, openOrders, cancellationToken);
         var orders = views
             .Select(v => new PosOpenOrderDto(
-                v.Id, v.Code, v.OrderType, v.TableId, v.Covers, v.ContactName, v.CreatedAt, v.Outstanding, v.Total))
+                v.Id, v.Code, v.OrderType, v.TableId, v.Covers, v.ContactName, v.CreatedAt, v.Outstanding, v.Total,
+                v.Billed, v.ToBill))
             .ToList();
         var byTable = orders.Where(x => x.TableId != null).ToDictionary(x => x.TableId!.Value);
 
@@ -128,6 +143,16 @@ public sealed class GetPosRestaurantQueryHandler(IAppDbContext db, ICurrentUserS
         var canVoid = await GrantedPermissionReader.IsGrantedAtLocationAsync(
             db, request.OrganizationId, currentUser.UserId, PermissionKeys.PosOrderVoid, location.Id, cancellationToken);
 
+        var mySession = await db.PosSessions
+            .AsNoTracking()
+            .Where(x => x.OrganizationId == request.OrganizationId && x.BillingLocationId == location.Id
+                && x.UserId == currentUser.UserId && x.Status == PosSessionStatus.Open)
+            .Select(x => new { x.Id, x.Code })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        var canKitchen = await GrantedPermissionReader.IsGrantedAtLocationAsync(
+            db, request.OrganizationId, currentUser.UserId, PermissionKeys.PosKitchenOperate, location.Id, cancellationToken);
+
         return new PosRestaurantDto(
             location.Id,
             location.Code,
@@ -150,6 +175,12 @@ public sealed class GetPosRestaurantQueryHandler(IAppDbContext db, ICurrentUserS
                     .Select(t => new PosRestaurantTableDto(
                         t.Id, t.Name, t.Capacity, t.Shape, t.X, t.Y, t.Width, t.Height, byTable.GetValueOrDefault(t.Id)))]))],
             orders,
-            canVoid);
+            canVoid,
+            till.Settings.RoundOffEnabled,
+            till.Settings.PrintEstimateBill,
+            till.Settings.PrintInvoice,
+            mySession?.Id,
+            mySession?.Code,
+            canKitchen);
     }
 }

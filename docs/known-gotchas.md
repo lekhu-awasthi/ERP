@@ -4095,3 +4095,25 @@ refused reading the vendor page's API token ("Credential Materialization"). A re
 outcome, so it is not worked around. Plan a read that can finish without writing: the screens, the
 dialogs' own validation, and the vendor's client bundle (served as static JS) answered every question
 the kickoff asked, and the status doc records which answer came from where.
+
+## Parts of a whole round on the running total, and the last of a line takes what is left (phase 65)
+
+Rounding each bill of a split on its own does not add up: three items of 10.50, 10.50 and 0.20 round to
+11 + 11 + 0 = 22 for an order of 21.20 (21). And pricing every part fresh leaves a line's parts a paisa
+off the whole line. `PosOrderBill.Plan` prices the part that bills the last of a line as what is left of
+each of its figures, and makes a part `R(billed unrounded + part) - billed`, so the bills are whole
+rupees, each round-off is under a rupee, and they sum to the order's rounded total (11 + 10 + 0). After a
+voided part the formula can drift by a rupee; it then rounds that part on its own.
+
+## A `.btn-check` radio is clicked through its label (phase 65)
+
+Bootstrap's `.btn-check` hides the native radio and styles its `<label>` as the button. In the Browser
+pane, clicking the radio's ref lands on the hidden input's box and nothing changes; the screen looked
+unresponsive until the label's ref was clicked. Keyboard users are unaffected (the radio takes focus and
+the arrows move it).
+
+## A launcher that serves two modes must route each to its own till (phase 65)
+
+After *Start Session* the launcher navigated to `pos/till/:id` for every location, so a Restaurant cashier
+landed on the Retail grid — a different product pretending to be the restaurant's till (phase 62 Decision
+H's own words). Only the browser pass showed it; every spec had used a Retail till.
