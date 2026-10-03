@@ -8,5 +8,6 @@ public sealed class SalesMasterReportQueryValidator : AbstractValidator<SalesMas
     public SalesMasterReportQueryValidator()
     {
         this.ValidatePaging(x => x.Page, x => x.PageSize);
+        this.RuleFor(x => x.Channel).IsInEnum();
     }
 }

@@ -90,8 +90,9 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   is a 409, and change beyond the cash tendered is a 400 naming `Tenders` (phase-61).
 - The `Pos.Session.*` 403-not-404 pair: `GET /pos/sessions/{nonexistent}` (or `POST .../close`) is
   **404** "Session not found." as Admin. From a role granting only `Tenancy.BillingLocation.View` it
-  is **403 naming `Pos.Session.Operate`**, beside a 200 on `GET /billing-locations`. `GET
-  /pos/day-summary?date=` is **403 naming `Pos.Session.ViewAll`** from the same role (phase-61).
+  is **403 naming `Pos.Session.Operate`**, beside a 200 on `GET /billing-locations`. The day's
+  figures (phase 66: `GET /pos/reports/day?fromDate=&toDate=`, which replaced `/pos/day-summary?date=`) are
+  **403 naming `Pos.Session.ViewAll`** from the same role (phase-61).
 - In SQL a till sale is `sales.Invoices.Channel = 'Pos'` with `PosSessionId`, tenders in
   `sales.InvoiceTenders`, and two `GlJournalEntries` rows (`SourceDocumentType = 'Invoice'`). A
   session's own postings are `SourceDocumentType = 'PosSession'`. Drawer counts are text such as
@@ -185,3 +186,23 @@ beside a 200 from the same user, and create a fresh Organization per phase.
 - In the Browser pane a Bootstrap `.btn-check` radio clicked by its ref hits the hidden input and changes nothing;
   click its `<label>` ref instead (phase-65).
 - The audit table is `workflow.Audits` (`Action`, `DocumentType`, `LocationId`), not `tenancy.AuditEntries` (phase-65).
+- POS reports (phase 66), under `/{org}`, every one taking `fromDate`, `toDate` (both required, at most 366 days)
+  and an optional `locationId` (an unknown one is a 404 "Billing location not found."):
+  - `GET /pos/reports/day` (+ `/export`), `GET /pos/dashboard`, `GET /pos/sessions?status=Open|Closed&search=&page=`
+    (+ `/export`) -- `Pos.Session.ViewAll`.
+  - `GET /pos/reports/orders?status=Open|Settled|Voided&orderType=&page=` (+ `/export?full=`) -- `Pos.Order.View`,
+    PosRestaurant.
+  - `GET /reports/pos-payment-summary?type=Cash|Card|EPayment|Other|Credit&paymentModeId=&page=` (+ `/export?full=`)
+    -- `Reports.PosPaymentSummary.View`.
+  - `channel=Pos|Erp` on `/reports/sales-by-item`, `/sales-by-customer`, `/sales-summary`, `/sales-master-report`,
+    `/sales-register`, `/system-audit` and their exports; a purchase-side report with a channel is a 400 naming
+    `Channel`. In SQL `sales.Invoices.Status` is `Void`, not `Voided` (and the same on `CreditNotes`).
+  - The identities to check in SQL: register total (Σ lines `Amount + ServiceChargeAmount + VatAmount`, invoices less
+    credit notes) = the day's `netSales - netRoundOff`; the GL Rounding account's credit − debit = `netRoundOff`.
+  - The 403-not-404 pair: `GET /reports/pos-payment-summary?...&locationId=<nonexistent>` is **404** as Admin and
+    **403 naming `Reports.PosPaymentSummary.View`** from a role holding `Reports.SalesRegister.View`, beside its 200 on
+    `/reports/sales-register` (phase-66).
+- The till applies service charge on Retail and on a sale with no order type; only Take Away and Delivery are exempt
+  (phase 64 H). A seed that tenders a Retail momo at 200 + VAT is 22 short and refused (phase-66).
+- The bill preview's figure is `total`, not `grandTotal` (`POST /pos/orders/{id}/bill/preview`); the bill itself
+  returns `grandTotal` (phase-66).

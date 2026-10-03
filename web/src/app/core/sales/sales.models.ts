@@ -687,6 +687,10 @@ export interface SalesMasterReportRowDto {
   vatType: VatRate;
   vatAmount: number;
   totalAmount: number;
+  /** Phase 66 -- the till's three columns, null on every ERP row. */
+  orderType: PosTab | null;
+  cashier: string | null;
+  paymentModes: string | null;
 }
 
 export interface SalesMasterReportDto {
@@ -696,7 +700,12 @@ export interface SalesMasterReportDto {
   page: number;
   pageSize: number;
   totalCount: number;
+  /** Every row's total added up, returns included as listed (positive) -- a register's activity. */
   totalAmount: number;
+  /** Phase 66 -- the same by type, and their net: what the Sales Register totals. */
+  salesTotal: number;
+  returnsTotal: number;
+  netTotal: number;
 }
 
 // --- Annex 5 Report (Phase 8f) ---

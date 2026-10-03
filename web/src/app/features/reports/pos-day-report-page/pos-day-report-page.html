@@ -1,0 +1,210 @@
+<div class="container py-5" style="max-width: 1200px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i aria-hidden="true" class="bi bi-calendar3 fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">POS Day Report</h1>
+          <p class="text-muted small mb-0">The tills' takings for a period, from the reader every session's X and Z report reads</p>
+        </div>
+      </div>
+      <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting() || !report()" (click)="export()">
+        <i aria-hidden="true" class="bi bi-download"></i> Export
+      </button>
+    </div>
+  </div>
+
+  <app-status-banner [message]="errorMessage()" />
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <app-pos-period-filter idPrefix="pos-day-report-period" [fromDate]="period().fromDate" [toDate]="period().toDate"
+        (periodChange)="onPeriodChange($event)" />
+      <div class="row g-3 mt-1">
+        <div class="col-12 col-sm-6 col-lg-3">
+          <app-report-location-filter [organizationId]="organizationId" [controlId]="'pos-day-report-page-billing-location'"
+            (locationChange)="onLocationChange($event)" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <p class="text-muted">Loading the Day Report…</p>
+  } @else if (report(); as r) {
+    <p class="text-muted small">
+      {{ r.fromDate | nepaliDate }}@if (r.toDate !== r.fromDate) { to {{ r.toDate | nepaliDate }} }
+    </p>
+    <div class="row g-4">
+      <section class="col-lg-6" aria-labelledby="pos-day-report-counts">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body p-4">
+            <h2 id="pos-day-report-counts" class="h5 fw-bold">Activity</h2>
+            <table class="table table-sm mb-0">
+              <caption class="visually-hidden">Counts for the period</caption>
+              <tbody>
+                <tr><th scope="row" class="fw-normal">Sales</th><td class="text-end">{{ r.sales.salesCount }}</td></tr>
+                <tr><th scope="row" class="fw-normal">Refunds</th><td class="text-end">{{ r.sales.refunds.refundsCount }}</td></tr>
+                <tr><th scope="row" class="fw-normal">Sessions</th><td class="text-end">{{ r.sessions.length }}</td></tr>
+                <tr><th scope="row" class="fw-normal">Voided sales (not in any figure)</th><td class="text-end">{{ r.voidedSales }}</td></tr>
+                <tr><th scope="row" class="fw-normal">Voided refunds (not in any figure)</th><td class="text-end">{{ r.voidedRefunds }}</td></tr>
+                <tr><th scope="row" class="fw-normal">Voided restaurant orders</th><td class="text-end">{{ r.voidedOrders }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="col-lg-6" aria-labelledby="pos-day-report-net">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body p-4">
+            <h2 id="pos-day-report-net" class="h5 fw-bold">Net sales</h2>
+            <table class="table table-sm mb-0">
+              <caption class="visually-hidden">Net sales and the Sales Register</caption>
+              <tbody>
+                <tr><th scope="row" class="fw-normal">Total sales</th><td class="text-end">{{ r.sales.grandTotal | amount }}</td></tr>
+                <tr><th scope="row" class="fw-normal">less total refunds</th><td class="text-end">{{ r.sales.refunds.grandTotal | amount }}</td></tr>
+                <tr><th scope="row">Net sales</th><td class="text-end fw-bold">{{ r.sales.netSales | amount }}</td></tr>
+                <tr><th scope="row" class="fw-normal">of which round off (sales less refunds)</th><td class="text-end">{{ r.sales.netRoundOff | amount }}</td></tr>
+                <tr>
+                  <th scope="row" class="fw-normal">
+                    Net sales in the
+                    <a [routerLink]="['/organizations', organizationId, 'reports', 'sales-register']" [queryParams]="{ channel: 'Pos' }">Sales Register</a>
+                    <span class="d-block small text-body-secondary">The register lists supplies, and a round off is not one.</span>
+                  </th>
+                  <td class="text-end">{{ (r.sales.netSales - r.sales.netRoundOff) | amount }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="col-lg-6" aria-labelledby="pos-day-report-sales">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body p-4">
+            <h2 id="pos-day-report-sales" class="h5 fw-bold">Sales</h2>
+            <table class="table table-sm mb-0">
+              <caption class="visually-hidden">Sales for the period</caption>
+              <tbody>
+                <tr><th scope="row" class="fw-normal">Sub total (after discount)</th><td class="text-end">{{ r.sales.subTotal | amount }}</td></tr>
+                <tr><th scope="row" class="fw-normal">Service charge</th><td class="text-end">{{ r.sales.serviceCharge | amount }}</td></tr>
+                <tr><th scope="row" class="fw-normal">Non-taxable</th><td class="text-end">{{ r.sales.nonTaxable | amount }}</td></tr>
+                <tr><th scope="row" class="fw-normal">Taxable</th><td class="text-end">{{ r.sales.taxable | amount }}</td></tr>
+                <tr><th scope="row" class="fw-normal">VAT</th><td class="text-end">{{ r.sales.vat | amount }}</td></tr>
+                <tr><th scope="row" class="fw-normal">Round off</th><td class="text-end">{{ r.sales.roundOff | amount }}</td></tr>
+                <tr><th scope="row">Total sales</th><td class="text-end fw-bold">{{ r.sales.grandTotal | amount }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="col-lg-6" aria-labelledby="pos-day-report-refunds">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body p-4">
+            <h2 id="pos-day-report-refunds" class="h5 fw-bold">Refunds</h2>
+            <table class="table table-sm mb-0">
+              <caption class="visually-hidden">Refunds for the period</caption>
+              <tbody>
+                <tr><th scope="row" class="fw-normal">Sub total</th><td class="text-end">{{ r.sales.refunds.subTotal | amount }}</td></tr>
+                <tr><th scope="row" class="fw-normal">Service charge returned</th><td class="text-end">{{ r.sales.refunds.serviceCharge | amount }}</td></tr>
+                <tr><th scope="row" class="fw-normal">Non-taxable</th><td class="text-end">{{ r.sales.refunds.nonTaxable | amount }}</td></tr>
+                <tr><th scope="row" class="fw-normal">Taxable</th><td class="text-end">{{ r.sales.refunds.taxable | amount }}</td></tr>
+                <tr><th scope="row" class="fw-normal">VAT returned</th><td class="text-end">{{ r.sales.refunds.vat | amount }}</td></tr>
+                <tr><th scope="row" class="fw-normal">Round off</th><td class="text-end">{{ r.sales.refunds.roundOff | amount }}</td></tr>
+                <tr><th scope="row">Total refunds</th><td class="text-end fw-bold">{{ r.sales.refunds.grandTotal | amount }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="col-12" aria-labelledby="pos-day-report-payments">
+        <div class="card border-0 shadow-sm">
+          <div class="card-body p-4">
+            <h2 id="pos-day-report-payments" class="h5 fw-bold">Payments</h2>
+            <p class="small text-body-secondary">Where net sales went. Each mode's net, less the change handed back, plus what stayed on customers' accounts, is net sales. The <a [routerLink]="['/organizations', organizationId, 'reports', 'pos-payment-summary']">Payment Summary</a> lists every payment.</p>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0">
+                <caption class="visually-hidden">Payments by mode</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Mode</th>
+                    <th scope="col" class="text-end">Received</th>
+                    <th scope="col" class="text-end">Paid back</th>
+                    <th scope="col" class="text-end">Net</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (mode of r.payments.modes; track mode.paymentModeId) {
+                    <tr>
+                      <th scope="row" class="fw-normal">{{ mode.paymentModeName }}</th>
+                      <td class="text-end">{{ mode.received | amount }}</td>
+                      <td class="text-end">{{ mode.paidBack | amount }}</td>
+                      <td class="text-end">{{ mode.net | amount }}</td>
+                    </tr>
+                  }
+                  <tr><th scope="row" class="fw-normal">Change given</th><td></td><td></td><td class="text-end">{{ -r.payments.change | amount }}</td></tr>
+                  <tr><th scope="row" class="fw-normal">Left on customers' accounts</th><td></td><td></td><td class="text-end">{{ r.payments.credit | amount }}</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr class="fw-bold"><th scope="row">Net sales</th><td></td><td></td><td class="text-end">{{ r.payments.total | amount }}</td></tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="col-12" aria-labelledby="pos-day-report-sessions">
+        <div class="card border-0 shadow-sm">
+          <div class="card-body p-4">
+            <h2 id="pos-day-report-sessions" class="h5 fw-bold">Sessions</h2>
+            @if (r.sessions.length === 0) {
+              <p class="text-muted small mb-0">No drawer was opened or worked in this period.</p>
+            } @else {
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <caption class="visually-hidden">Drawers that worked in the period</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Session</th>
+                      <th scope="col">Location</th>
+                      <th scope="col">Cashier</th>
+                      <th scope="col">Opened</th>
+                      <th scope="col">Closed</th>
+                      <th scope="col" class="text-end">Float</th>
+                      <th scope="col" class="text-end">Cash in</th>
+                      <th scope="col" class="text-end">Cash out</th>
+                      <th scope="col" class="text-end">Counted</th>
+                      <th scope="col" class="text-end">Over / (short)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (session of r.sessions; track session.id) {
+                      <tr>
+                        <td><a [routerLink]="['/organizations', organizationId, 'pos', 'sessions', session.id]">{{ session.code }}</a></td>
+                        <td>{{ session.locationName }}</td>
+                        <td>{{ session.userName }}</td>
+                        <td>{{ session.openedAt | nepaliDate: 'datetime' }}</td>
+                        <td>{{ session.closedAt ? (session.closedAt | nepaliDate: 'datetime') : 'Open' }}</td>
+                        <td class="text-end">{{ session.openingFloat | amount }}</td>
+                        <td class="text-end">{{ session.cashIn | amount }}</td>
+                        <td class="text-end">{{ session.cashOut | amount }}</td>
+                        <td class="text-end">{{ session.countedCash === null ? '—' : (session.countedCash | amount) }}</td>
+                        <td class="text-end">{{ session.cashDifference === null ? '—' : (session.cashDifference | amount) }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        </div>
+      </section>
+    </div>
+  }
+</div>

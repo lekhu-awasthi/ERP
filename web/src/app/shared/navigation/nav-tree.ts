@@ -76,6 +76,9 @@ export const REPORT_CATEGORY_ORDER: readonly string[] = [
   'Tax & Statutory',
   'Inventory',
   'Manufacturing',
+  // Phase 66 -- the till's own reports. The rest of the vendor's POS catalogue is the ERP's reports
+  // read with Channel = Point of Sale, so it lives under Sales, Tax and Accounting as before.
+  'Point of Sale',
 ];
 
 /**
@@ -150,6 +153,10 @@ export const REPORT_CATEGORIES: Readonly<Record<string, string>> = {
   'production-planning': 'Manufacturing',
   'production-summary': 'Manufacturing',
   'production-variance': 'Manufacturing',
+
+  'pos-day-report': 'Point of Sale',
+  'pos-payment-summary': 'Point of Sale',
+  'pos-order-report': 'Point of Sale',
 };
 
 /**

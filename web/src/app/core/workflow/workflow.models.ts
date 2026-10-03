@@ -154,7 +154,7 @@ export type SystemAuditAction = 'Create' | 'Update' | 'Approve' | 'Void' | 'Extr
  * TransactionApprovalDocumentType already names, reused here rather than duplicated -- plus
  * 'DocumentExtraction' (Phase 22), which is not a transaction at all and therefore has no detail
  * route to open. */
-export type SystemAuditDocumentType = TransactionApprovalDocumentType | 'DocumentExtraction';
+export type SystemAuditDocumentType = TransactionApprovalDocumentType | 'DocumentExtraction' | 'PosOrder';
 
 /** Phase 23: the Home dashboard's recent-activity feed. The five tabs the live product shows. */
 export type RecentTransactionFilter = 'All' | 'Sales' | 'Purchase' | 'Payment' | 'Receipt';

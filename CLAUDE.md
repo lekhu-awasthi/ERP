@@ -97,6 +97,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 63: returns at the till (a refund is a Credit Note created approved; its payout is a second entry out of the open drawer after clearing what is still owed; one planner prices the preview and the refund; the ERP's conversion of a till sale refused). Before a reversal priced before it posts, or a second way to return a sale — `docs/phase-63-status.md`
 - Phase 64: restaurant floor, orders and KOT (`PosOrder` its own aggregate; the kitchen ticket line is the one signed quantity, served the one stored counter; a ticket per send × station; service charge Dine In only; Sales > POS Orders). Before a per-line counter, a second quantity beside a movement, or a drag-and-drop editor — `docs/phase-64-status.md`
 - Phase 65: kitchen board and settling (a bill is a till sale whose lines come from the order: frozen rates, the last of a line takes what is left, rounding on the running total; invoiced is a sum over invoices not voided; the board polls and archives nothing). Before billing in parts, a figure that must add up across documents, or a status a void must undo — `docs/phase-65-status.md`
+- Phase 66: POS reports and dashboard (Day Report, Payment Summary, Order Report, POS Sessions, the launcher's overview; the ERP sales reports and System Audit take `channel`; every figure from `PosSalesReader`/`TradeLineReader`; the round-off the one line to the Sales Register). Before a report that must agree with another, a dashboard, or a chart beside a figure — `docs/phase-66-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -261,6 +262,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A standalone Debit Note credited the Inventory *account* while the FIFO ledger never moved; a standalone Credit Note posts no Inventory leg at all, so only one of the two was ever a divergence (phase-43).
 - A bill's tax-invoice heading is decided at the sale and **stored** (`IsAbbreviatedTaxInvoice`), and a reprint's "printed N times" is a server row, never a browser counter: both must survive another till (phase-62).
 - Parts that must sum to a whole: the last of a line takes what is left of each figure, and a part is `R(billed + part) − billed`; rounding each part alone bills 11+11+0 for 21.20 (phase-65).
+- A till's net sales and the Sales Register differ by exactly the net round-off (a register lists supplies); print that line on every POS screen, or two reports disagree by it (phase-66).
 - A quantity a void must give back is a **sum over the documents not voided** (invoiced = Σ invoice lines naming the order line), never a counter written back (phase-65).
 
 - Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
@@ -334,6 +336,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A statutory register folds its **lines**, in the **shared reader**, **in memory after `ToListAsync`** — the last because `ToBase` is a static call SQL Server cannot translate (phase-43/44).
 - `SetLocation` is draft-only by design, so backfilling approved history needs its own narrower mutator (`BackfillLocation`: fills a null, refuses to move one) (phase-44).
 - A stamped audit column records where a document **was when the action happened**; do not backfill it when you backfill the documents (phase-44).
+- Net + VAT is no total once a line carries service charge (its VAT is in the VAT): `TradeLineReader` carries service charge as its own measure, total = net + SC + VAT (phase-66).
+- A filter that cuts instants into days uses Nepal midnights: System Audit's UTC bounds filed every 00:00–05:45 action under yesterday (phase-66, phase 48's rule on the filter side).
 
 **Angular**
 - A component serving both `.../new` and `.../:id` must read the id from `route.paramMap` (an Observable) and re-derive "is new" on every emission (phase-3 bug #1).
@@ -383,6 +387,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A drag that listens for the release on its own container never ends when the pointer lets go elsewhere, and keeps moving things; listen on the document, bind the drag to what was grabbed, and add a threshold (phase-64).
 - A Bootstrap `.btn-check` radio is a hidden input; in the Browser pane click its `<label>`, or nothing changes (phase-65).
 - A radio whose `(change)` is cancelled stays checked: the `[checked]` binding did not change, so Angular never puts it back. Restore it by hand (phase-64).
+- A visually-hidden caption inside `.table-responsive` overhangs by 1px and grows a scrollbar; `styles.scss` pins it. Measure scrollHeight against clientHeight (phase-66).
+- A component with a `@defer` block has async metadata: its TestBed spec must `await compileComponents()`, or every test fails "unresolved metadata" (phase-66).
 
 **Multi-way switches on a document-attached mechanism**
 - A shared UI panel is not evidence of a shared model: email templates are their own resource, so `EmailTemplate` is its own aggregate and `CustomTemplateType.Email` was deleted (phase-30).
@@ -409,6 +415,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A command that creates a document *approved* is a second door: guards premised on one Approve per type (metered, location marker, stock books) must name it with a reason, not exempt it (phase-61).
 - A guard whose predicate is a **method name** catches a same-named method on another service (`PosService.listProducts`); teach it the receiver (does the file import the service?) and pin the allow-list still matches (phase-62).
 - A negative-permission role driven through the till must also hold `Tenancy.Subscription.View`: the feature route guard reads the subscription and redirects Home before the page's own 403 can show (phase-62).
+- Pick fixture numbers so the term under test is non-zero: round-offs netting to 0 pass a register identity that ignores them. And `textContent` runs table cells together; read text nodes (phase-66).
 - A guard whose predicate names a **type** silently stops covering anything solved before that type existed: `SearchSweepGuardTests` recognised only `PagedResult<T>`, so the two list queries that predate it were invisible — and were exactly the two the phase had to fix (phase-39).
 - …and a predicate naming a **file extension** does the same: `a11y-sweep-guard`'s glob missed five inline-`template:` components for six phases. Widening it found nothing wrong, which is the honest result and not the same as never having looked (phase-40).
 - A guard that accepts two spellings on one side must accept both on the other: it recognised `[for]` and `[attr.for]` on a label but only `[id]` on a control, so a control naming itself `[attr.id]` read as unnamed (phase-40).
@@ -479,28 +486,30 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-65 are complete. The forward plan is phase 66: POS reports and dashboard.**
+**Phases 0-66 are complete. The POS sequence (60-66) is finished; phase 67 is not yet planned.**
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 65 built the kitchen board and billing a restaurant order.** It added:
+**Phase 66 built the POS reports and the dashboard.** It added:
 
-- the kitchen board (`/pos/kitchen/:locationId`, `Pos.Kitchen.Operate`), polled every 10 s while visible,
-  each ticket's served / cancelled / pending derived from the line's one served counter, nothing archived by age;
-- the estimate bill (not a tax invoice, not counted), priced by the same planner as the bill;
-- the bill screen: whole, by item and quantity, or one of N equal parts (fractional lines), each part an
-  approved till Invoice through `PosSaleCompletion` (phase 61's engine, lifted), priced by `PosOrderBill.Plan`:
-  frozen rates, the last of a line takes what is left, rounding on the running total;
-- `InvoiceLine.PosOrderLineId` / `Invoice.PosOrderId`: invoiced is a sum over invoices not voided; an order
-  settles (freeing its table) when nothing unbilled is left, and voiding a bill reopens it.
+- the POS Day Report, Payment Summary and Order Report (Reports > *Point of Sale*), POS Sessions (Sales), and
+  the overview on the POS launcher (`@defer`), all lazy;
+- one reader for every till figure (`PosSalesReader.ForPeriodAsync`, with its series) and `TradeLineReader`
+  for products, with service charge now a measure of its own there;
+- a `channel` filter on Sales by Item / Customer, Sales Summary, Sales Master, the Sales Register and System
+  Audit ("POS activity"), in place of POS copies of those reports;
+- one key, `Reports.PosPaymentSummary.View` (Admin-only); the rest ride `Pos.Session.ViewAll` and `Pos.Order.View`.
 
-**Next: phase 66, POS reports and dashboard** (roadmap). Carried: *Mark as Take Away* and item transfer
-(a product question about repricing a parcelled dish; phase 65 § 5), discount and credit on a restaurant
-bill, phase 62 § 5 and phase 63 § 5.
+The round-off is the one line between a till figure and the Sales Register; every POS screen prints it.
 
-Tests: Domain **874**, Application.UnitTests **1529**, Infrastructure.UnitTests 13,
-Api.IntegrationTests **30**, Angular **727**. Everything was green at phase 65's close with Docker up.
-The bundle sits at **650.06 kB** against `build-budget.spec.ts`'s 680 kB; every till screen is lazy.
+**Next: plan phase 67** (roadmap, "The POS sequence (60–66) is complete"). The candidates are the ERP invoice
+and credit-note PDF (title and reprint count, carried since phase 62), and *Mark as Take Away* / item transfer,
+which wait on the user's answer about repricing a parcelled dish. Also carried: phase 66 § 5, phase 62 § 5
+and phase 63 § 5.
+
+Tests: Domain 874, Application.UnitTests **1547**, Infrastructure.UnitTests 13,
+Api.IntegrationTests 30, Angular **750**. Everything was green at phase 66's close with Docker up.
+The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests
   fail in their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like

@@ -2,6 +2,7 @@ using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Sales;
 using MediatR;
 
 namespace ErpApp.Application.Sales.Queries.SalesRegister;
@@ -42,7 +43,11 @@ public sealed record SalesRegisterQuery(
     // item's name, quantity and unit added as three columns: on Moonbeam 2026-09-11 the same period
     // went from 27 rows to 50 and the footer total did not move, which is the property the
     // implementation keeps -- a line's magnitudes sum to its document's.
-    bool GroupByBill = true)
+    bool GroupByBill = true,
+    // Phase 66 -- the sales channel: null is the whole register, Pos the till's documents alone. The
+    // vendor's POS reports list carries its Sales Register read with channel=POS; the Day Report's
+    // figures reconcile to this, less the net round-off (phase-66-status.md Decision B).
+    SalesChannel? Channel = null)
     : IRequest<SalesRegisterDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.SalesRegisterView;

@@ -15,6 +15,8 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { SalesChannelFilter, initialSalesChannel } from '../../../shared/sales/sales-channel-filter';
+import { SalesChannel } from '../../../core/sales/sales.models';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
@@ -25,7 +27,10 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
  */
 @Component({
   selector: 'app-sales-register-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter, StatusBanner],
+  imports: [
+    RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter, SalesChannelFilter,
+    StatusBanner,
+  ],
   templateUrl: './sales-register-page.html',
 })
 export class SalesRegisterPage {
@@ -38,6 +43,10 @@ export class SalesRegisterPage {
 
   /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
   protected readonly locationId = signal('');
+
+  /** Phase 66 -- the Sales Channel filter; null is every channel, and a POS screen links here with
+   *  ?channel=Pos. */
+  protected readonly channel = signal<SalesChannel | null>(initialSalesChannel(this.route));
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -145,7 +154,7 @@ export class SalesRegisterPage {
       .exportSalesRegister(
         this.organizationId, this.fromDate(), this.toDate(), this.contactId() || null,
         this.selectedTagOptionIds(), full, page, pageSize, this.includeCreditNotes(),
-        this.locationId(), this.groupByBill(),
+        this.locationId(), this.groupByBill(), this.channel(),
       )
       .subscribe({
         next: (blob) => {
@@ -157,6 +166,12 @@ export class SalesRegisterPage {
           this.errorMessage.set(extractErrorMessage(err) ?? 'Could not export the Sales Register.');
         },
       });
+  }
+
+  protected onChannelChange(channel: SalesChannel | null): void {
+    this.channel.set(channel);
+    this.page.set(1);
+    this.load();
   }
 
   protected onLocationChange(value: string): void {
@@ -175,7 +190,7 @@ export class SalesRegisterPage {
       .getSalesRegister(
         this.organizationId, this.fromDate(), this.toDate(), this.contactId() || null,
         this.selectedTagOptionIds(), this.page(), this.pageSize(), this.includeCreditNotes(),
-        this.locationId(), this.groupByBill(),
+        this.locationId(), this.groupByBill(), this.channel(),
       )
       .subscribe({
         next: (report) => {

@@ -51,6 +51,12 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db, ICurrentUserServ
             // See the Purchase Register's copy of this comment for why the sweep guard missed it.
             invoiceQuery = invoiceQuery.AtLocations(request.LocationId, reportLocations);
 
+            // Phase 66 -- the channel, on this half and (below, through SalesReturnReader) the other.
+            if (request.Channel is { } onlyChannel)
+            {
+                invoiceQuery = invoiceQuery.Where(x => x.Channel == onlyChannel);
+            }
+
             var invoices = await invoiceQuery
                 .Select(x => new
                 {
@@ -211,7 +217,7 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db, ICurrentUserServ
             // register renders them positive.
             var creditNotes = await SalesReturnReader.LoadAsync(
                 db, request.OrganizationId, request.FromDate, request.ToDate, request.ContactId, cancellationToken,
-                request.LocationId, reportLocations);
+                request.LocationId, reportLocations, request.Channel);
 
             // Phase 42 -- the tenant's contacts, for the reason recorded on the invoice half.
             var creditNoteContacts = await db.Contacts

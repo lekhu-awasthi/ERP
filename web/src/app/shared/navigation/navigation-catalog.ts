@@ -119,6 +119,11 @@ const TITLE_OVERRIDES: Readonly<Record<string, string>> = {
   pos: 'Till',
   // Phase 64 -- the de-kebab rule would say "Pos Orders".
   'sales/pos-orders': 'POS Orders',
+  // Phase 66 -- the de-kebab rule would say "Pos Sessions", "Pos Day Report" and so on.
+  'sales/pos-sessions': 'POS Sessions',
+  'reports/pos-day-report': 'POS Day Report',
+  'reports/pos-payment-summary': 'POS Payment Summary',
+  'reports/pos-order-report': 'POS Order Report',
   'configuration/pos-floor-plan': 'Floor Plan',
   'pos/restaurant': 'Restaurant',
   features: 'Subscription & Features',

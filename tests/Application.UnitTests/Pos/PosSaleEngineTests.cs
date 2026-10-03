@@ -2,7 +2,7 @@ using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Contacts.Queries.ContactStatement;
 using ErpApp.Application.Contacts.Queries.DocumentAge;
 using ErpApp.Application.Pos.Commands.CreatePosSale;
-using ErpApp.Application.Pos.Queries.GetPosDaySummary;
+using ErpApp.Application.Pos.Queries.GetPosDayReport;
 using ErpApp.Application.Pos.Queries.GetPosSession;
 using ErpApp.Application.Sales.Queries.GetInvoice;
 using ErpApp.Application.Common.Security;
@@ -356,8 +356,8 @@ public sealed class PosSaleEngineTests
 
         var sessionView = await new GetPosSessionQueryHandler(till.Db, till.CurrentUser()).Handle(
             new GetPosSessionQuery(till.OrganizationId, session.Id), CancellationToken.None);
-        var day = await new GetPosDaySummaryQueryHandler(till.Db).Handle(
-            new GetPosDaySummaryQuery(till.OrganizationId, PosTestTill.Today, till.Location.Id), CancellationToken.None);
+        var day = await new GetPosDayReportQueryHandler(till.Db).Handle(
+            new GetPosDayReportQuery(till.OrganizationId, PosTestTill.Today, PosTestTill.Today, till.Location.Id), CancellationToken.None);
 
         var s = sessionView.Sales;
         var d = day.Sales;

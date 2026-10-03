@@ -3,7 +3,7 @@ using ErpApp.Application.Common.Security;
 using ErpApp.Application.Contacts.Queries.ContactStatement;
 using ErpApp.Application.Contacts.Queries.DocumentAge;
 using ErpApp.Application.Pos.Commands.CreatePosRefund;
-using ErpApp.Application.Pos.Queries.GetPosDaySummary;
+using ErpApp.Application.Pos.Queries.GetPosDayReport;
 using ErpApp.Application.Pos.Queries.GetPosRefundableSale;
 using ErpApp.Application.Pos.Queries.GetPosSession;
 using ErpApp.Application.Pos.Queries.ListPosSessionRefunds;
@@ -398,8 +398,8 @@ public sealed class PosRefundTests
 
         var s = (await new GetPosSessionQueryHandler(till.Db, till.CurrentUser()).Handle(
             new GetPosSessionQuery(till.OrganizationId, session.Id), CancellationToken.None)).Sales.Refunds;
-        var d = (await new GetPosDaySummaryQueryHandler(till.Db).Handle(
-            new GetPosDaySummaryQuery(till.OrganizationId, PosTestTill.Today, till.Location.Id), CancellationToken.None))
+        var d = (await new GetPosDayReportQueryHandler(till.Db).Handle(
+            new GetPosDayReportQuery(till.OrganizationId, PosTestTill.Today, PosTestTill.Today, till.Location.Id), CancellationToken.None))
             .Sales.Refunds;
 
         Assert.Equal(2, s.RefundsCount);

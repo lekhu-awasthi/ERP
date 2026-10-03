@@ -325,3 +325,17 @@ body {
 .stretched-link:focus-visible {
   outline: none !important;
 }
+
+/*
+  Phase 66 -- a visually-hidden caption inside a `.table-responsive` (phase 34a's captions on every
+  data table). Bootstrap's `.visually-hidden` is an absolutely placed 1px box at margin -1px, left at
+  its static position, and inside the wrapper's `overflow: auto` that box overhangs by exactly one
+  pixel: every such table grew a vertical scrollbar a pixel deep (measured on the POS Day Report,
+  scrollHeight 198 against clientHeight 197; the same on six earlier screens). Pinned to the corner
+  with no margin, it overhangs nothing and is still read out.
+*/
+.table-responsive > table > caption.visually-hidden {
+  top: 0;
+  left: 0;
+  margin: 0 !important;
+}

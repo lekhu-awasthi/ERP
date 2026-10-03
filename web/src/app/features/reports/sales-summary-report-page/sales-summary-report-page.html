@@ -54,6 +54,13 @@
             (locationChange)="onLocationChange($event)"
           />
         </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <app-sales-channel-filter
+            [controlId]="'sales-summary-report-page-channel'"
+            [value]="channel()"
+            (channelChange)="onChannelChange($event)"
+          />
+        </div>
         <div class="col-12 col-sm-6 col-lg-3 d-flex align-items-end">
           <div class="form-check">
             <input
@@ -73,11 +80,6 @@
           </div>
         </div>
       </div>
-      <p class="text-muted small mb-0 mt-3">
-        <i aria-hidden="true" class="bi bi-info-circle"></i>
-        The reference product's <strong>Service Charge</strong> column is not shown: it is driven by a
-        product-level flag this system does not model, so an always-empty column would be misleading.
-      </p>
     </div>
   </div>
 
@@ -104,6 +106,7 @@
                   }
                   <th scope="col" class="text-end">Sub Total</th>
                   <th scope="col" class="text-end">Discount</th>
+                  <th scope="col" class="text-end">Service Charge</th>
                   <th scope="col" class="text-end">Non Taxable Sales</th>
                   <th scope="col" class="text-end">Taxable Sales</th>
                   <th scope="col" class="text-end">VAT</th>
@@ -124,6 +127,7 @@
                     }
                     <td class="text-end">{{ (row.subTotal | amount) }}</td>
                     <td class="text-end">{{ (row.discount | amount) }}</td>
+                    <td class="text-end">{{ (row.serviceCharge | amount) }}</td>
                     <td class="text-end">{{ (row.nonTaxableSales | amount) }}</td>
                     <td class="text-end">{{ (row.taxableSales | amount) }}</td>
                     <td class="text-end">{{ (row.vat | amount) }}</td>

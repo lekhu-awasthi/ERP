@@ -11,6 +11,8 @@ import { PaginationControl } from '../../../shared/pagination/pagination-control
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { SalesChannelFilter, initialSalesChannel } from '../../../shared/sales/sales-channel-filter';
+import { SalesChannel } from '../../../core/sales/sales.models';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
@@ -30,6 +32,9 @@ const DOCUMENT_TYPES: SystemAuditDocumentType[] = [
   // Phase 22 -- so an Admin can filter the audit trail down to "which documents were sent to the
   // extraction service, by whom", which is the reason that row is written at all.
   'DocumentExtraction',
+  // Phase 66 -- a restaurant order's Create/Update/Void and its discards are audited (phase 64); the
+  // POS channel shows them, so the filter offers them.
+  'PosOrder',
 ];
 
 /**
@@ -42,7 +47,7 @@ const DOCUMENT_TYPES: SystemAuditDocumentType[] = [
  */
 @Component({
   selector: 'app-system-audit-report-page',
-  imports: [RouterLink, PaginationControl, BsDateInput, ReportLocationFilter, StatusBanner, NepaliDatePipe],
+  imports: [RouterLink, PaginationControl, BsDateInput, ReportLocationFilter, SalesChannelFilter, StatusBanner, NepaliDatePipe],
   templateUrl: './system-audit-report-page.html',
 })
 export class SystemAuditReportPage {
@@ -68,6 +73,10 @@ export class SystemAuditReportPage {
   /** Phase 44 (35b carried item #2) -- the Billing Location filter this report was the last
    *  of the 43 to lack, now that AuditBehavior stamps a location on every row it writes. */
   protected readonly locationId = signal<string>('');
+
+  /** Phase 66 -- the Sales Channel filter; null is every channel, and a POS screen links here with
+   *  ?channel=Pos. */
+  protected readonly channel = signal<SalesChannel | null>(initialSalesChannel(this.route));
 
   protected readonly page = signal(1);
   protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
@@ -138,13 +147,20 @@ export class SystemAuditReportPage {
     this.load();
   }
 
+  /** Phase 66 -- Point of Sale is POS activity: actions on till sales, refunds and restaurant orders. */
+  protected onChannelChange(channel: SalesChannel | null): void {
+    this.channel.set(channel);
+    this.page.set(1);
+    this.load();
+  }
+
   private runExport(full: boolean, page: number, pageSize: number): void {
     this.exporting.set(true);
     this.workflowService
       .exportSystemAuditReport(
         this.organizationId, this.userId() || null, this.action() || null, this.documentType() || null,
         this.fromDate() || null, this.toDate() || null, full, page, pageSize,
-        this.locationId() || null,
+        this.locationId() || null, this.channel(),
       )
       .subscribe({
         next: (blob) => {
@@ -166,7 +182,7 @@ export class SystemAuditReportPage {
       .getSystemAuditReport(
         this.organizationId, this.userId() || null, this.action() || null, this.documentType() || null,
         this.fromDate() || null, this.toDate() || null, this.page(), this.pageSize(),
-        this.locationId() || null,
+        this.locationId() || null, this.channel(),
       )
       .subscribe({
         next: (report) => {
@@ -222,6 +238,10 @@ export class SystemAuditReportPage {
       // with no per-document route, so there is nothing honest to link to. Degrades to plain text
       // exactly as SalesOrder does above.
       case 'DocumentExtraction':
+        return null;
+      // Phase 66 -- a restaurant order's page is the till's working screen, not a record view, and the
+      // back office reads orders in Sales > POS Orders, which has no per-order route. Plain text, as above.
+      case 'PosOrder':
         return null;
     }
   }

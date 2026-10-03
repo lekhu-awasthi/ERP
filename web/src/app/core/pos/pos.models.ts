@@ -202,6 +202,16 @@ export interface PosSalesSummary {
   refunds: PosRefundsSummary;
   /** Phase 63 -- grand total less the refunds' grand total. */
   netSales: number;
+  /** Phase 66 -- sub-total and service charge on the lines with VAT, and on those without (the Sales
+   *  Register's two buckets, split by its own rule). */
+  taxable: number;
+  nonTaxable: number;
+  /** Phase 66 -- the round-off kept, net of the refunds': the one line between a till figure and the
+   *  Sales Register, whose total is netSales less this. */
+  netRoundOff: number;
+  /** Phase 66 -- cash the drawers kept (cash sales less cash refunds), and credit still on accounts. */
+  netCash: number;
+  netCredit: number;
 }
 
 /** Phase 63 -- the refunds half of PosSalesReader's shape. */
@@ -216,6 +226,8 @@ export interface PosRefundsSummary {
   paidOut: number;
   toAccount: number;
   cashRefunds: number;
+  taxable: number;
+  nonTaxable: number;
 }
 
 export interface PosCashMovement {

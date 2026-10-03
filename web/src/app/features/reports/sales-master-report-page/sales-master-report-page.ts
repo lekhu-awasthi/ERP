@@ -17,6 +17,9 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { SalesChannelFilter, initialSalesChannel } from '../../../shared/sales/sales-channel-filter';
+import { SalesChannel } from '../../../core/sales/sales.models';
+import { PosTab } from '../../../core/pos/pos.models';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
@@ -28,7 +31,10 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
  */
 @Component({
   selector: 'app-sales-master-report-page',
-  imports: [RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter, StatusBanner],
+  imports: [
+    RouterLink, PaginationControl, AmountPipe, BsDateInput, NepaliDatePipe, ReportLocationFilter, SalesChannelFilter,
+    StatusBanner,
+  ],
   templateUrl: './sales-master-report-page.html',
 })
 export class SalesMasterReportPage {
@@ -42,6 +48,10 @@ export class SalesMasterReportPage {
 
   /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
   protected readonly locationId = signal('');
+
+  /** Phase 66 -- the Sales Channel filter; null is every channel, and a POS screen links here with
+   *  ?channel=Pos. */
+  protected readonly channel = signal<SalesChannel | null>(initialSalesChannel(this.route));
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -60,6 +70,13 @@ export class SalesMasterReportPage {
   protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
   protected readonly totalCount = signal(0);
   protected readonly totalAmount = signal(0);
+  /** Phase 66 -- what was sold, what came back, and the net: the Sales Register's total. */
+  protected readonly salesTotal = signal(0);
+  protected readonly returnsTotal = signal(0);
+  protected readonly netTotal = signal(0);
+  protected readonly orderTypeLabels: Readonly<Record<PosTab, string>> = {
+    Retail: 'Retail', DineIn: 'Dine In', TakeAway: 'Take Away', Delivery: 'Delivery',
+  };
 
   protected readonly exporting = signal(false);
 
@@ -131,6 +148,7 @@ export class SalesMasterReportPage {
         this.contactId() || null, this.productId() || null, this.warehouseId() || null,
         full, page, pageSize,
         this.locationId(),
+        this.channel(),
       )
       .subscribe({
         next: (blob) => {
@@ -142,6 +160,12 @@ export class SalesMasterReportPage {
           this.errorMessage.set(extractErrorMessage(err) ?? 'Could not export the Sales Master Report.');
         },
       });
+  }
+
+  protected onChannelChange(channel: SalesChannel | null): void {
+    this.channel.set(channel);
+    this.page.set(1);
+    this.load();
   }
 
   protected onLocationChange(value: string): void {
@@ -167,12 +191,16 @@ export class SalesMasterReportPage {
         this.page(),
         this.pageSize(),
         this.locationId(),
+        this.channel(),
       )
       .subscribe({
         next: (report) => {
           this.rows.set(report.rows);
           this.totalCount.set(report.totalCount);
           this.totalAmount.set(report.totalAmount);
+          this.salesTotal.set(report.salesTotal);
+          this.returnsTotal.set(report.returnsTotal);
+          this.netTotal.set(report.netTotal);
           this.loading.set(false);
         },
         error: (err: unknown) => {

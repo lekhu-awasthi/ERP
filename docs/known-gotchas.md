@@ -4117,3 +4117,46 @@ the arrows move it).
 After *Start Session* the launcher navigated to `pos/till/:id` for every location, so a Restaurant cashier
 landed on the Retail grid — a different product pretending to be the restaurant's till (phase 62 Decision
 H's own words). Only the browser pass showed it; every spec had used a Retail till.
+
+## A till figure and the Sales Register differ by the net round-off, exactly (phase 66)
+
+A till bill is rounded to the rupee and the round-off posts to its own account (phase 61), but a statutory
+register lists supplies, and a round-off is not a supply. So for the same documents the register's total
+is the tills' net sales **less the net round-off** (the sales' round-off less the refunds'), never equal to
+it. The vendor's reports printed no round-off at all and disagreed with its own dashboard by it (610.20 under
+611). Every POS screen here prints the line, the Day Report prints "Net sales in the Sales Register" beneath
+it, and `PosReportsTests` pins the identity with numbers whose round-off does not cancel.
+
+## A total of net + VAT is wrong as soon as a line has a service charge (phase 66)
+
+`TradeLineReader` summed a line's net amount and its VAT, and since phase 61 a till line's VAT includes the
+VAT on its service charge, which the net amount deliberately excludes. Every Sales by Item, by Customer and
+Sales Summary total over a till sale was then neither the product's revenue nor the bill. Nothing compared
+those reports with the register until this phase gave them a channel filter and a test that reads both.
+Service charge is now a measure of its own and the total is net + service charge + VAT.
+
+## Cut an instant into days at Nepal midnight, on a filter too (phase 66)
+
+Phase 48 made every *displayed* instant a Nepal date. System Audit's *filter* still built its day bounds as
+UTC midnights, so an action at 00:30 in Nepal (18:45 UTC the day before) was listed under yesterday. A
+filter that turns a date into an instant range must use `NepalTime.Offset`, like the pipe that prints it.
+
+## A hidden caption inside `.table-responsive` grows a 1px scrollbar (phase 66)
+
+Bootstrap's `.visually-hidden` is an absolutely placed 1px box with a −1px margin, left at its static
+position. Inside a `.table-responsive` (overflow: auto) it overhangs by one pixel, so every such table had a
+vertical scrollbar a pixel deep (scrollHeight 198, clientHeight 197; seven screens). One rule in
+`styles.scss` pins the caption to the corner with no margin. Measure with `scrollHeight` against
+`clientHeight` before believing a scrollbar is the table's own.
+
+## A component with a `@defer` block needs `await TestBed.compileComponents()` (phase 66)
+
+A deferred dependency makes the host component's metadata resolve asynchronously. Every synchronous spec of
+the launcher failed with "Component has unresolved metadata" once the overview was deferred. The spec's
+helper becomes async and awaits `compileComponents()` before `createComponent`; nothing else changes.
+
+## `textContent` runs table cells together (phase 66)
+
+A spec that asserts `textContent` sees "Net sales949.00", because cells have no whitespace between them. The
+POS report specs read text node by node, joined with spaces (`visibleText` in `pos-reports.testing.ts`),
+which is also how a reader hears the row.

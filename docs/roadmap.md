@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–62)
+## Completed phases (0–66)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -48,6 +48,10 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 60 | POS foundation: `PosMode`, per-location settings, payment modes with kind + account, walk-in, POS default accounts |
 | 61 | POS sale engine: a till sale is an Invoice created approved, tenders a second GL entry, `PosSession` drawer posts, one session/day reader |
 | 62 | Retail till UI (lazy full-screen `/pos`); abbreviated tax invoice and reprint-copy rules settled from the statutes |
+| 63 | Returns at the till: a refund is a credit note created approved, its payout a second entry out of the drawer |
+| 64 | Restaurant floor, orders and KOT: `PosOrder`, kitchen tickets per send × station, Sales > POS Orders |
+| 65 | Kitchen board and settling: whole/by item/equal bills from frozen rates, rounding on the running total |
+| 66 | POS reports and dashboard: Day Report, Payment Summary, Order Report, POS Sessions, the overview; the ERP sales reports and System Audit read with a Channel filter; every figure from one reader, the round-off the one line to the Sales Register |
 
 ---
 
@@ -82,7 +86,7 @@ API), reuses Invoice/Credit Note, and adds aggregates only for what an ERP lacks
 | **63 — Returns at the till** ✅ *done 2026-10-02, `phase-63-status.md`* | a refund is a Credit Note created approved against the till sale, returning service charge and VAT in proportion; its payout is a second entry out of the caller's open drawer, after clearing what the customer still owes; one planner for the preview and the refund; the ERP's conversion of a till sale refused; refunds in the X/Z report and every reader of what is owed |
 | **64 — Restaurant: floor, orders, KOT** ✅ *done 2026-10-02, `phase-64-status.md`* | areas and tables with a layout editor; `PosOrder` with per-line invoiced/served/discarded counters (E); `KitchenTicket` per send × station (F); Take Away and Delivery; an ERP *POS Orders* list (the divergence's surface) |
 | **65 — Kitchen display and settling** ✅ *done 2026-10-02, `phase-65-status.md`* | a polled KOT board (`Pos.Kitchen.Operate`); the estimate bill; whole, by item/qty and equal split, every part from the order lines' frozen rates (defect 1's regression test), the last of a line taking what is left and rounding on the running total; each part an approved till Invoice; Settled frees the table, a void reopens it |
-| **66 — POS reports and dashboard** | Day Report, Payment Summary, Order Report, Product/Customer Sales, Sales Master/Summary, POS activity; the home dashboard, with every figure reconciling to the session reader and the Sales Register |
+| **66 — POS reports and dashboard** ✅ *done 2026-10-02, `phase-66-status.md`* | Day Report, Payment Summary, Order Report, Product/Customer Sales, Sales Master/Summary, POS activity; the home dashboard, with every figure reconciling to the session reader and the Sales Register |
 
 **Reopened from phase 47's Dropped list, with evidence:** `Product.PrintProfileId` (the KOT station,
 phase 64) and the Service Charge column (a location rule × product flag, phases 60–61). Both were
@@ -105,6 +109,14 @@ The two rules apply to every tax invoice, and the ERP's own PDF print follows ne
 column (now for credit notes too). The ERP credit note against a till sale is settled by phase 63:
 the ERP may no longer convert one, and the till's refund returns the service charge.
 
+**The POS sequence (60–66) is complete.** Phase 67 is not yet planned; its candidates are the carried items
+below, chiefly the ERP invoice and credit-note PDF (title and reprint count, a statutory item carried since phase 62
+that phase 66 did not take), and Mark as Take Away and transfer once the user answers the repricing question.
+
+**Carried from phase 66** (§ 5 there): a from/to *time* on the Day Report (a shift across midnight as one report;
+a reader change, not a screen change); the vendor's Delivery Partner Statement (delivery partners are outside
+the sequence).
+
 **Carried from phases 64 and 65** (§ 5 in each): *Mark as Take Away* on a dine-in line and item transfer
 between orders, now read live (`erp-module-scan.md`, "Kitchen board and split"). Both are quantity moves; Mark
 as Take Away also asks whether a parcelled dish loses its service charge (phase 64 Decision H) against the
@@ -119,7 +131,8 @@ API takes several); a fully refunded bill still listed in the refund search.
 - **The ERP invoice PDF** titles every invoice "Invoice", and neither counts nor marks a reprint;
   phase 63 adds the ERP credit-note PDF to the same item. Making the GET print write print rows is a
   decision, because the email pipeline renders the same PDF. Scheduled, not done, in phase 63: it
-  belongs with phase 66's print and report surface or a phase of its own.
+  belongs with phase 66's print and report surface or a phase of its own. Phase 66 did not take it
+  (`phase-66-status.md` § 5): it needs a phase of its own.
 - **Serial-tracked products** cannot be sold at the till yet: the cart sends no serials.
 - **The barcode lookup is unindexed**; measure it on `tools/scale` before indexing.
 

@@ -102,9 +102,20 @@ public static partial class ReportSpreadsheetExporter
                 ("VAT Type", r => r.VatType.ToString()),
                 ("VAT Amount", r => r.VatAmount),
                 ("Total Amount", r => r.TotalAmount),
+                // Phase 66 -- the till's three columns, after Total so every index before it is unmoved.
+                ("Order Type", r => r.OrderType?.ToString()),
+                ("Cashier", r => r.Cashier),
+                ("Payment Modes", r => r.PaymentModes),
             ],
             report.Rows,
-            sheet => WriteTotalRow(sheet, report.Rows.Count, "Total Amount", 20, report.TotalAmount));
+            sheet =>
+            {
+                // Phase 66 -- sales, returns and the net of the two, which is the Sales Register's total
+                // for the same documents; the old single "Total Amount" added returns in as sales.
+                WriteTotalRow(sheet, report.Rows.Count, "Sales", 20, report.SalesTotal);
+                WriteTotalRow(sheet, report.Rows.Count + 1, "Returns", 20, report.ReturnsTotal);
+                WriteTotalRow(sheet, report.Rows.Count + 2, "Net", 20, report.NetTotal);
+            });
 
     public static IResult ExportPurchaseMasterReport(PurchaseMasterReportDto report, DateOnly fromDate, DateOnly toDate) =>
         ExportTable(
@@ -927,6 +938,8 @@ public static partial class ReportSpreadsheetExporter
                 ("Amount", r => r.Amount),
                 ("Discount", r => r.Discount),
                 (NetLabel(report.Side), r => r.NetAmount),
+                // Phase 66 -- a till line's service charge (zero on every purchase row).
+                ("Service Charge", r => r.ServiceCharge),
                 ("Vat Amount", r => r.VatAmount),
                 ("Total Amount", r => r.TotalAmount),
             ],
@@ -939,8 +952,9 @@ public static partial class ReportSpreadsheetExporter
                 WriteNumericCell(sheet, row, 4, report.TotalAmount);
                 WriteNumericCell(sheet, row, 5, report.TotalDiscount);
                 WriteNumericCell(sheet, row, 6, report.TotalNetAmount);
-                WriteNumericCell(sheet, row, 7, report.TotalVatAmount);
-                WriteNumericCell(sheet, row, 8, report.TotalTotalAmount);
+                WriteNumericCell(sheet, row, 7, report.TotalServiceCharge);
+                WriteNumericCell(sheet, row, 8, report.TotalVatAmount);
+                WriteNumericCell(sheet, row, 9, report.TotalTotalAmount);
             });
 
     /// <summary>The Quantity column is deliberately absent from the total row -- see
@@ -957,6 +971,8 @@ public static partial class ReportSpreadsheetExporter
                 ("Amount", r => r.Amount),
                 ("Discount", r => r.Discount),
                 (NetLabel(report.Side), r => r.NetAmount),
+                // Phase 66 -- a till line's service charge (zero on every purchase row).
+                ("Service Charge", r => r.ServiceCharge),
                 ("Vat Amount", r => r.VatAmount),
                 ("Total Amount", r => r.TotalAmount),
             ],
@@ -969,8 +985,9 @@ public static partial class ReportSpreadsheetExporter
                 WriteNumericCell(sheet, row, 4, report.TotalAmount);
                 WriteNumericCell(sheet, row, 5, report.TotalDiscount);
                 WriteNumericCell(sheet, row, 6, report.TotalNetAmount);
-                WriteNumericCell(sheet, row, 7, report.TotalVatAmount);
-                WriteNumericCell(sheet, row, 8, report.TotalTotalAmount);
+                WriteNumericCell(sheet, row, 7, report.TotalServiceCharge);
+                WriteNumericCell(sheet, row, 8, report.TotalVatAmount);
+                WriteNumericCell(sheet, row, 9, report.TotalTotalAmount);
             });
 
     public static IResult ExportTradeByContactMonthly(
@@ -1014,6 +1031,8 @@ public static partial class ReportSpreadsheetExporter
                 ("Date", (SalesSummaryRowDto r) => (object?)(r.Label ?? RequestCalendar.Format(r.Date))),
                 ("Sub Total", r => r.SubTotal),
                 ("Discount", r => r.Discount),
+                // Phase 66 -- the live column phase 26b omitted; see SalesSummaryRowDto.ServiceCharge.
+                ("Service Charge", r => r.ServiceCharge),
                 ("Non Taxable Sales", r => r.NonTaxableSales),
                 ("Taxable Sales", r => r.TaxableSales),
                 ("VAT", r => r.Vat),

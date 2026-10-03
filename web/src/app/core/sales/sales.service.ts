@@ -40,6 +40,7 @@ import {
   QuotationDetail,
   QuotationRequest,
   QuotationStatus,
+  SalesChannel,
   SalesMasterReportDto,
   SalesRegisterDto,
   SalesOrder,
@@ -275,9 +276,11 @@ export class SalesService {
     page = 1,
     pageSize = 50,
     locationId?: string,
+    channel: SalesChannel | null = null,
   ): Observable<SalesMasterReportDto> {
     const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
     if (locationId) params['locationId'] = locationId;
+    if (channel) params['channel'] = channel;
     if (contactId) params['contactId'] = contactId;
     if (productId) params['productId'] = productId;
     if (warehouseId) params['warehouseId'] = warehouseId;
@@ -299,6 +302,7 @@ export class SalesService {
     page: number,
     pageSize: number,
     locationId?: string,
+    channel: SalesChannel | null = null,
   ): Observable<Blob> {
     const params: Record<string, string> = {
       fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
@@ -307,6 +311,7 @@ export class SalesService {
     if (productId) params['productId'] = productId;
     if (warehouseId) params['warehouseId'] = warehouseId;
     if (locationId) params['locationId'] = locationId;
+    if (channel) params['channel'] = channel;
 
     return this.http.get(`${this.baseUrl(organizationId)}/reports/sales-master-report/export`, {
       withCredentials: true,
@@ -345,6 +350,7 @@ export class SalesService {
   getSalesRegister(
     organizationId: string, fromDate: string, toDate: string, contactId: string | null, tagOptionIds: string[],
     page = 1, pageSize = 50, includeCreditNotes = true, locationId?: string, groupByBill = true,
+    channel: SalesChannel | null = null,
   ): Observable<SalesRegisterDto> {
     const params: Record<string, string | string[]> = {
       fromDate, toDate, page: String(page), pageSize: String(pageSize), includeCreditNotes: String(includeCreditNotes),
@@ -355,6 +361,7 @@ export class SalesService {
     if (locationId) params['locationId'] = locationId;
     if (contactId) params['contactId'] = contactId;
     if (tagOptionIds.length > 0) params['tagOptionIds'] = tagOptionIds;
+    if (channel) params['channel'] = channel;
 
     return this.http.get<SalesRegisterDto>(`${this.baseUrl(organizationId)}/reports/sales-register`, {
       withCredentials: true,
@@ -365,6 +372,7 @@ export class SalesService {
   exportSalesRegister(
     organizationId: string, fromDate: string, toDate: string, contactId: string | null, tagOptionIds: string[],
     full: boolean, page: number, pageSize: number, includeCreditNotes = true, locationId?: string, groupByBill = true,
+    channel: SalesChannel | null = null,
   ): Observable<Blob> {
     const params: Record<string, string | string[]> = {
       fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
@@ -373,6 +381,7 @@ export class SalesService {
     if (locationId) params['locationId'] = locationId;
     if (contactId) params['contactId'] = contactId;
     if (tagOptionIds.length > 0) params['tagOptionIds'] = tagOptionIds;
+    if (channel) params['channel'] = channel;
 
     return this.http.get(`${this.baseUrl(organizationId)}/reports/sales-register/export`, {
       withCredentials: true,

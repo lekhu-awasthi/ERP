@@ -12,6 +12,8 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { SalesChannelFilter, initialSalesChannel } from '../../../shared/sales/sales-channel-filter';
+import { SalesChannel } from '../../../core/sales/sales.models';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
@@ -25,7 +27,7 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
  */
 @Component({
   selector: 'app-sales-by-customer-page',
-  imports: [PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter, StatusBanner],
+  imports: [PaginationControl, AmountPipe, BsDateInput, ReportLocationFilter, SalesChannelFilter, StatusBanner],
   templateUrl: './sales-by-customer-page.html',
 })
 export class SalesByCustomerPage {
@@ -37,6 +39,10 @@ export class SalesByCustomerPage {
 
   /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
   protected readonly locationId = signal('');
+
+  /** Phase 66 -- the Sales Channel filter; null is every channel, and a POS screen links here with
+   *  ?channel=Pos. */
+  protected readonly channel = signal<SalesChannel | null>(initialSalesChannel(this.route));
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -95,6 +101,11 @@ export class SalesByCustomerPage {
     this.reload();
   }
 
+  protected onChannelChange(channel: SalesChannel | null): void {
+    this.channel.set(channel);
+    this.reload();
+  }
+
   private reload(): void {
     this.page.set(1);
     this.load();
@@ -105,7 +116,7 @@ export class SalesByCustomerPage {
     this.reports
       .exportTradeByContact(
         this.organizationId, 'sales-by-customer', this.fromDate(), this.toDate(),
-        this.contactGroupId() || null, full, page, pageSize, this.locationId())
+        this.contactGroupId() || null, full, page, pageSize, this.locationId(), this.channel())
       .subscribe({
         next: (blob) => {
           this.exporting.set(false);
@@ -125,7 +136,7 @@ export class SalesByCustomerPage {
     this.reports
       .getTradeByContact(
         this.organizationId, 'sales-by-customer', this.fromDate(), this.toDate(),
-        this.contactGroupId() || null, this.page(), this.pageSize(), this.locationId())
+        this.contactGroupId() || null, this.page(), this.pageSize(), this.locationId(), this.channel())
       .subscribe({
         next: (report) => {
           this.report.set(report);

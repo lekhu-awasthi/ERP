@@ -1,0 +1,230 @@
+@if (!refused()) {
+  <section class="mt-4" aria-labelledby="pos-dashboard-heading">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <h2 id="pos-dashboard-heading" class="h4 fw-bold mb-0">Overview</h2>
+      <div class="d-flex flex-wrap gap-2 small">
+        <a [routerLink]="['/organizations', organizationId(), 'reports', 'pos-day-report']">Day Report</a>
+        <span aria-hidden="true">&middot;</span>
+        <a [routerLink]="['/organizations', organizationId(), 'reports', 'pos-payment-summary']">Payment Summary</a>
+        <span aria-hidden="true">&middot;</span>
+        <a [routerLink]="['/organizations', organizationId(), 'sales', 'pos-sessions']">Sessions</a>
+      </div>
+    </div>
+
+    <app-status-banner [message]="errorMessage()" />
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-3">
+        <app-pos-period-filter idPrefix="pos-dashboard-period" [fromDate]="period().fromDate" [toDate]="period().toDate"
+          (periodChange)="onPeriodChange($event)" />
+        <div class="row g-3 mt-1">
+          <div class="col-12 col-sm-6 col-lg-3">
+            <app-report-location-filter [organizationId]="organizationId()" [controlId]="'pos-dashboard-location'"
+              (locationChange)="onLocationChange($event)" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    @if (loading() && !dashboard()) {
+      <p class="text-body-secondary">Loading the overview…</p>
+    } @else if (dashboard(); as d) {
+      <!-- ===================== Tiles ===================== -->
+      <ul class="list-unstyled row g-3 mb-3">
+        <li class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm h-100"><div class="card-body">
+            <p class="small text-body-secondary mb-1">Net sales</p>
+            <p class="h4 fw-bold mb-1">{{ d.sales.netSales | amount }}</p>
+            <p class="small mb-0">{{ d.sales.salesCount }} sale(s) {{ d.sales.grandTotal | amount }}, refunds {{ d.sales.refunds.grandTotal | amount }}</p>
+          </div></div>
+        </li>
+        <li class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm h-100"><div class="card-body">
+            <p class="small text-body-secondary mb-1">Cash kept</p>
+            <p class="h4 fw-bold mb-1">{{ d.sales.netCash | amount }}</p>
+            <p class="small mb-0">Cash taken less change and cash refunds</p>
+          </div></div>
+        </li>
+        <li class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm h-100"><div class="card-body">
+            <p class="small text-body-secondary mb-1">Left on credit</p>
+            <p class="h4 fw-bold mb-1">{{ d.sales.netCredit | amount }}</p>
+            <p class="small mb-0">On named customers' accounts</p>
+          </div></div>
+        </li>
+        <li class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm h-100"><div class="card-body">
+            <p class="small text-body-secondary mb-1">Open orders</p>
+            <p class="h4 fw-bold mb-1">{{ d.openOrders }}</p>
+            <p class="small mb-0">
+              {{ d.openOrdersToBill | amount }} still to bill
+              @if (d.openOrders > 0) {
+                &middot; <a [routerLink]="['/organizations', organizationId(), 'sales', 'pos-orders']">POS Orders</a>
+              }
+            </p>
+          </div></div>
+        </li>
+      </ul>
+
+      <!-- ===================== Sales figure ===================== -->
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+          <h3 class="h6 fw-bold">Sales figure, {{ d.bucket === 'Hour' ? 'by hour' : 'by day' }}</h3>
+          <div class="d-flex align-items-stretch gap-2">
+            <div class="d-flex flex-column justify-content-between small text-muted text-end" style="min-width: 4rem;" aria-hidden="true">
+              <span>{{ chartMax() | amount }}</span>
+              <span>0.00</span>
+            </div>
+            <div class="flex-grow-1 position-relative border-bottom" style="height: 10rem;" aria-hidden="true">
+              <div class="d-flex h-100 gap-1">
+                @for (bar of bars(); track $index) {
+                  <div class="flex-grow-1 position-relative h-100">
+                    @if (bar.height > 0) {
+                      <div class="position-absolute start-0 end-0 rounded-1" [class.bg-primary]="!bar.negative" [class.bg-danger]="bar.negative"
+                        [style.top.%]="bar.top" [style.height.%]="bar.height"></div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+          <div class="d-flex gap-1 small text-muted mt-1" style="margin-left: 4.5rem;" aria-hidden="true">
+            @for (bar of bars(); track $index) {
+              <div class="flex-grow-1 text-center text-truncate" style="flex-basis: 0;">
+                @if (bar.showLabel) {
+                  {{ bar.point.hour !== null ? bar.label : (bar.point.date | nepaliDate) }}
+                }
+              </div>
+            }
+          </div>
+          <table class="visually-hidden">
+            <caption>Net sales {{ d.bucket === 'Hour' ? 'per hour' : 'per day' }}: {{ d.sales.netSales | amount }} in all</caption>
+            <thead>
+              <tr>
+                <th scope="col">{{ d.bucket === 'Hour' ? 'Hour' : 'Day' }}</th>
+                <th scope="col">Sales</th>
+                <th scope="col">Refunds</th>
+                <th scope="col">Net</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (bar of bars(); track $index) {
+                <tr>
+                  <td>{{ bar.point.hour !== null ? bar.label : (bar.point.date | nepaliDate) }}</td>
+                  <td>{{ bar.point.sales | amount }}</td>
+                  <td>{{ bar.point.refunds | amount }}</td>
+                  <td>{{ bar.point.net | amount }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="row g-3">
+        <!-- ===================== Products ===================== -->
+        <div class="col-lg-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+              <h3 class="h6 fw-bold">Sales by product</h3>
+              <table class="table table-sm mb-2">
+                <caption class="visually-hidden">Net sales by product, adding up to net sales</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Product</th>
+                    <th scope="col" class="text-end">Quantity</th>
+                    <th scope="col" class="text-end">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (product of d.topProducts; track product.productId) {
+                    <tr>
+                      <th scope="row" class="fw-normal">{{ product.name }}</th>
+                      <td class="text-end">{{ product.quantity | amount }} {{ product.unit }}</td>
+                      <td class="text-end">{{ product.total | amount }}</td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="3" class="text-muted small">Nothing sold in this period.</td></tr>
+                  }
+                  @if (d.otherProducts !== 0) {
+                    <tr><th scope="row" class="fw-normal">Other products</th><td></td><td class="text-end">{{ d.otherProducts | amount }}</td></tr>
+                  }
+                  <tr><th scope="row" class="fw-normal">Round off</th><td></td><td class="text-end">{{ d.sales.netRoundOff | amount }}</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr class="fw-bold"><th scope="row">Net sales</th><td></td><td class="text-end">{{ d.sales.netSales | amount }}</td></tr>
+                </tfoot>
+              </table>
+              <a class="small" [routerLink]="['/organizations', organizationId(), 'reports', 'sales-by-item']" [queryParams]="{ channel: 'Pos' }">All products: Sales by Item</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================== Payments ===================== -->
+        <div class="col-lg-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+              <h3 class="h6 fw-bold">Sales by payment mode</h3>
+              <table class="table table-sm mb-2">
+                <caption class="visually-hidden">Where net sales went, by payment mode</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Mode</th>
+                    <th scope="col" class="text-end">Net</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (mode of d.payments.modes; track mode.paymentModeId) {
+                    <tr><th scope="row" class="fw-normal">{{ mode.paymentModeName }}</th><td class="text-end">{{ mode.net | amount }}</td></tr>
+                  } @empty {
+                    <tr><td colspan="2" class="text-muted small">No payments in this period.</td></tr>
+                  }
+                  <tr><th scope="row" class="fw-normal">Change given</th><td class="text-end">{{ -d.payments.change | amount }}</td></tr>
+                  <tr><th scope="row" class="fw-normal">Left on credit</th><td class="text-end">{{ d.payments.credit | amount }}</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr class="fw-bold"><th scope="row">Net sales</th><td class="text-end">{{ d.payments.total | amount }}</td></tr>
+                </tfoot>
+              </table>
+              <a class="small" [routerLink]="['/organizations', organizationId(), 'reports', 'pos-payment-summary']">Every payment: Payment Summary</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================== Drawers open now ===================== -->
+        <div class="col-12">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body">
+              <h3 class="h6 fw-bold">Drawers open now</h3>
+              @if (d.openSessions.length === 0) {
+                <p class="text-muted small mb-0">No session is open.</p>
+              } @else {
+                <table class="table table-sm mb-0">
+                  <caption class="visually-hidden">Sessions open now</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Session</th>
+                      <th scope="col">Location</th>
+                      <th scope="col">Cashier</th>
+                      <th scope="col">Opened</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (session of d.openSessions; track session.id) {
+                      <tr>
+                        <td><a [routerLink]="['/organizations', organizationId(), 'pos', 'sessions', session.id]">{{ session.code }}</a></td>
+                        <td>{{ session.locationName }}</td>
+                        <td>{{ session.userName }}</td>
+                        <td>{{ session.openedAt | nepaliDate: 'datetime' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+  </section>
+}

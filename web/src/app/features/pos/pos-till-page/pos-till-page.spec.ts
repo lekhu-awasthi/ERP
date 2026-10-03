@@ -62,7 +62,8 @@ describe('PosTillPage', () => {
     sales: {
       salesCount: 0, subTotal: 0, serviceCharge: 0, vat: 0, roundOff: 0, grandTotal: 0, tenders: [], tendered: 0,
       change: 0, settled: 0, credit: 0, cashSales: 0,
-      refunds: { refundsCount: 0, subTotal: 0, serviceCharge: 0, vat: 0, roundOff: 0, grandTotal: 0, payouts: [], paidOut: 0, toAccount: 0, cashRefunds: 0 }, netSales: 0,
+      refunds: { refundsCount: 0, subTotal: 0, serviceCharge: 0, vat: 0, roundOff: 0, grandTotal: 0, payouts: [], paidOut: 0, toAccount: 0, cashRefunds: 0, taxable: 0, nonTaxable: 0 }, netSales: 0,
+      taxable: 0, nonTaxable: 0, netRoundOff: 0, netCash: 0, netCredit: 0,
     },
     cashMovements: [], cashIn: 0, cashOut: 0, expectedCash: 1000, countedCash: null, closingCount: null,
     cashDifference: null, closingNote: null,

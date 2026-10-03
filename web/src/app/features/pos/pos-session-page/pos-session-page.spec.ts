@@ -37,7 +37,8 @@ describe('PosSessionPage', () => {
         { paymentModeId: 'm-cash', paymentModeName: 'Cash', kind: 'Cash', amount: 1300 },
         { paymentModeId: 'm-card', paymentModeName: 'Card', kind: 'Card', amount: 116 },
       ], tendered: 1416, change: 367, settled: 1049, credit: 149, cashSales: 933,
-      refunds: { refundsCount: 0, subTotal: 0, serviceCharge: 0, vat: 0, roundOff: 0, grandTotal: 0, payouts: [], paidOut: 0, toAccount: 0, cashRefunds: 0 }, netSales: 1198,
+      refunds: { refundsCount: 0, subTotal: 0, serviceCharge: 0, vat: 0, roundOff: 0, grandTotal: 0, payouts: [], paidOut: 0, toAccount: 0, cashRefunds: 0, taxable: 0, nonTaxable: 0 }, netSales: 1198,
+      taxable: 1060, nonTaxable: 0, netRoundOff: 0.2, netCash: 933, netCredit: 149,
     },
     cashMovements: [], cashIn: 0, cashOut: 0, expectedCash: 1933, countedCash: null, closingCount: null,
     cashDifference: null, closingNote: null,
@@ -217,7 +218,7 @@ describe('PosSessionPage', () => {
         refunds: {
           refundsCount: 1, subTotal: 60, serviceCharge: 0, vat: 7.8, roundOff: 0.2, grandTotal: 68,
           payouts: [{ paymentModeId: 'm-cash', paymentModeName: 'Cash', kind: 'Cash', amount: 68 }],
-          paidOut: 68, toAccount: 0, cashRefunds: 68,
+          paidOut: 68, toAccount: 0, cashRefunds: 68, taxable: 60, nonTaxable: 0,
         },
         netSales: 1130,
       },

@@ -31,6 +31,19 @@ namespace ErpApp.Application.Trade;
 ///
 /// <para>Each document type is loaded with its own concrete <c>Where</c>, never a generic helper
 /// parameterised by a captured <c>Func</c> -- phase-9 bug #1.</para>
+///
+/// <para><b>Phase 66 -- service charge is a measure of its own.</b> Phase 61 Decision J left this
+/// reader without it on purpose: a service charge is income of its own account, not the momo's, so a
+/// product's revenue (<c>NetAmount</c>) must not carry it. That stays true. But the VAT figure already
+/// carried the VAT charged <i>on</i> the service charge, so every total here (net + VAT) was neither the
+/// product's revenue nor the bill: a till sale's total read 590.20 where the Sales Register read 610.20.
+/// The vendor's Product Sales and Customer Sales both print a Service Charge column (read live
+/// 2026-10-02). So each fact now carries its line's service charge beside the product's revenue, and
+/// <c>TotalAmount</c> is net + service charge + VAT, which is the register's total for the same lines.
+/// The monthly crosstabs measure <c>NetAmount</c> and are unchanged.</para>
+///
+/// <para><b>Phase 66 -- the channel.</b> The vendor's POS reports are its ERP reports read with
+/// <c>channel=POS</c>; ours take the same filter, on the sales side only (a purchase has no channel).</para>
 /// </summary>
 internal static class TradeLineReader
 {
@@ -54,9 +67,13 @@ internal static class TradeLineReader
         // this reader ignores the field. Null where the document carries no location -- a document
         // written while its type was out of LocationScopeMode, which is a real state and renders as
         // its own group rather than being dropped.
-        Guid? LocationId = null)
+        Guid? LocationId = null,
+        // Phase 66 -- a till line's service charge, signed like the rest (zero on every ERP line and
+        // every purchase line). See the class comment: it is its own measure, never folded into
+        // NetAmount, and it is in TotalAmount so a total here equals the Sales Register's.
+        decimal ServiceCharge = 0m)
     {
-        public decimal TotalAmount => NetAmount + VatAmount;
+        public decimal TotalAmount => NetAmount + ServiceCharge + VatAmount;
     }
 
     /// <para><b>Phase 35b</b> -- <paramref name="locationId"/> is the report's own Billing Location
@@ -71,37 +88,52 @@ internal static class TradeLineReader
         DateOnly toDate,
         CancellationToken cancellationToken,
         Guid? locationId = null,
-        IReadOnlyList<Guid>? reportLocations = null) =>
+        IReadOnlyList<Guid>? reportLocations = null,
+        SalesChannel? channel = null) =>
         side == TradeSide.Sales
-            ? LoadSalesAsync(db, organizationId, fromDate, toDate, cancellationToken, locationId, reportLocations)
-            : LoadPurchaseAsync(db, organizationId, fromDate, toDate, cancellationToken, locationId, reportLocations);
+            ? LoadSalesAsync(db, organizationId, fromDate, toDate, cancellationToken, locationId, reportLocations, channel)
+            : channel is null
+                ? LoadPurchaseAsync(db, organizationId, fromDate, toDate, cancellationToken, locationId, reportLocations)
+                : throw new ArgumentException("A purchase has no sales channel.", nameof(channel));
 
     private static async Task<List<Fact>> LoadSalesAsync(
         IAppDbContext db, Guid organizationId, DateOnly fromDate, DateOnly toDate, CancellationToken cancellationToken,
-        Guid? locationId, IReadOnlyList<Guid>? reportLocations)
+        Guid? locationId, IReadOnlyList<Guid>? reportLocations, SalesChannel? channel)
     {
-        var invoices = await db.Invoices
+        var invoiceQuery = db.Invoices
             .Where(x => x.OrganizationId == organizationId && x.Status == InvoiceStatus.Approved
                 && x.Date >= fromDate && x.Date <= toDate)
-            .AtLocations(locationId, reportLocations)
+            .AtLocations(locationId, reportLocations);
+        if (channel is { } onlyChannel)
+        {
+            invoiceQuery = invoiceQuery.Where(x => x.Channel == onlyChannel);
+        }
+
+        var invoices = await invoiceQuery
             .Select(x => new { x.Id, x.ContactId, x.Date, x.LocationId })
             .ToListAsync(cancellationToken);
         var invoiceIds = invoices.Select(x => x.Id).ToList();
         var invoiceLines = await db.InvoiceLines
             .Where(x => invoiceIds.Contains(x.InvoiceId))
-            .Select(x => new { x.InvoiceId, x.ProductId, x.Quantity, x.Rate, x.DiscountPct, x.Amount, x.VatAmount, x.VatRate })
+            .Select(x => new { x.InvoiceId, x.ProductId, x.Quantity, x.Rate, x.DiscountPct, x.Amount, x.VatAmount, x.VatRate, x.ServiceChargeAmount })
             .ToListAsync(cancellationToken);
 
-        var creditNotes = await db.CreditNotes
+        var creditNoteQuery = db.CreditNotes
             .Where(x => x.OrganizationId == organizationId && x.Status == CreditNoteStatus.Approved
                 && x.Date >= fromDate && x.Date <= toDate)
-            .AtLocations(locationId, reportLocations)
+            .AtLocations(locationId, reportLocations);
+        if (channel is { } onlyNoteChannel)
+        {
+            creditNoteQuery = creditNoteQuery.Where(x => x.Channel == onlyNoteChannel);
+        }
+
+        var creditNotes = await creditNoteQuery
             .Select(x => new { x.Id, x.ContactId, x.Date, x.LocationId })
             .ToListAsync(cancellationToken);
         var creditNoteIds = creditNotes.Select(x => x.Id).ToList();
         var creditNoteLines = await db.CreditNoteLines
             .Where(x => creditNoteIds.Contains(x.CreditNoteId))
-            .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, x.Rate, x.DiscountPct, x.Amount, x.VatAmount, x.VatRate })
+            .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, x.Rate, x.DiscountPct, x.Amount, x.VatAmount, x.VatRate, x.ServiceChargeAmount })
             .ToListAsync(cancellationToken);
 
         var invoicesById = invoices.ToDictionary(x => x.Id);
@@ -115,7 +147,7 @@ internal static class TradeLineReader
             facts.Add(BuildFact(
                 document.ContactId, line.ProductId, document.Date,
                 line.VatRate, line.Quantity, line.Rate, line.DiscountPct, line.Amount, line.VatAmount, sign: 1,
-                document.LocationId));
+                document.LocationId, line.ServiceChargeAmount));
         }
 
         foreach (var line in creditNoteLines)
@@ -124,7 +156,7 @@ internal static class TradeLineReader
             facts.Add(BuildFact(
                 document.ContactId, line.ProductId, document.Date,
                 line.VatRate, line.Quantity, line.Rate, line.DiscountPct, line.Amount, line.VatAmount, sign: -1,
-                document.LocationId));
+                document.LocationId, line.ServiceChargeAmount));
         }
 
         return facts;
@@ -187,7 +219,7 @@ internal static class TradeLineReader
     private static Fact BuildFact(
         Guid contactId, Guid productId, DateOnly date, VatRate vatRate,
         decimal quantity, decimal rate, decimal discountPct, decimal netAmount, decimal vatAmount, int sign,
-        Guid? locationId = null)
+        Guid? locationId = null, decimal serviceCharge = 0m)
     {
         var gross = quantity * rate;
         var itemDiscount = gross * discountPct / 100m;
@@ -210,6 +242,7 @@ internal static class TradeLineReader
             sign * (itemDiscount + transactionDiscount),
             sign * netAmount,
             sign * vatAmount,
-            locationId);
+            locationId,
+            sign * serviceCharge);
     }
 }

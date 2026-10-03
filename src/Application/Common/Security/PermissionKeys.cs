@@ -1132,4 +1132,21 @@ public static class PermissionKeys
     // Pos.Session.Operate, and a kitchen role can hold it alone. Billing an order needs no key of its
     // own: it is a till sale, Sales.Invoice.Create at the location, in the caller's open session.
     public const string PosKitchenOperate = "Pos.Kitchen.Operate";
+
+    // Phase 66 (POS reports and dashboard) -- one new key, derived per report (docs/phase-66-status.md
+    // Decision G). Every other POS report rides a key it already had:
+    //
+    // - the Day Report, the dashboard and the POS Sessions list ride Pos.Session.ViewAll (Admin-only):
+    //   phase 59 Decision J and phase 61 derived it for "the day report" -- they sum every cashier's
+    //   drawer and say whose was short;
+    // - the Order Report rides Pos.Order.View (Admin+Member), the POS Orders list's key: the same orders,
+    //   a bounded working view, scoped to where the caller may view invoices;
+    // - Product/Customer Sales, Sales Master and Sales Summary keep their own keys and gain a Channel
+    //   filter; POS activity is System Audit read with Channel = Pos.
+    //
+    // PosPaymentSummaryView (Admin-only): the Payment Summary, one row per tender, change, credit and
+    // payout, naming the customer -- a flat per-transaction register, the Sales Master Report's bar
+    // (phase-8b-status.md's discriminator). A key of its own rather than Pos.Session.ViewAll so an Admin
+    // can hand an accountant the payments without the drawers.
+    public const string PosPaymentSummaryView = "Reports.PosPaymentSummary.View";
 }

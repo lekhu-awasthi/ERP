@@ -56,12 +56,12 @@ public static class WorkflowEndpoints
         group.MapGet("/reports/system-audit", async (
             Guid organizationId, Guid? userId, string? action, DocumentType? documentType,
             DateOnly? fromDate, DateOnly? toDate, int? page, int? pageSize, Guid? locationId,
-            ISender sender, CancellationToken ct) =>
+            ErpApp.Domain.Sales.SalesChannel? channel, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SystemAuditReportQuery(
                     organizationId, userId, action, documentType, fromDate, toDate,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId, Channel: channel),
                 ct);
             return Results.Ok(result);
         });
@@ -69,13 +69,13 @@ public static class WorkflowEndpoints
         group.MapGet("/reports/system-audit/export", async (
             Guid organizationId, Guid? userId, string? action, DocumentType? documentType,
             DateOnly? fromDate, DateOnly? toDate, bool full, int? page, int? pageSize, Guid? locationId,
-            ISender sender, CancellationToken ct) =>
+            ErpApp.Domain.Sales.SalesChannel? channel, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SystemAuditReportQuery(
                     organizationId, userId, action, documentType, fromDate, toDate,
                     page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full,
-                    LocationId: locationId),
+                    LocationId: locationId, Channel: channel),
                 ct);
             return ReportSpreadsheetExporter.ExportSystemAuditReport(result);
         });

@@ -3,6 +3,8 @@ using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Pos;
+using ErpApp.Domain.Sales;
 using MediatR;
 
 namespace ErpApp.Application.Sales.Queries.SalesMasterReport;
@@ -42,7 +44,10 @@ public sealed record SalesMasterReportQuery(
     // tenant as a first-class control on this report's own filter bar (date range, Billing Location,
     // Contact, Product, GENERATE) under that label, not a reuse of the Warehouse picker. Optional and
     // trailing: null is "All", which is the live default and what every earlier caller keeps getting.
-    Guid? LocationId = null)
+    Guid? LocationId = null,
+    // Phase 66 -- the sales channel: null is every sale, Pos the till's alone. The vendor's POS Sales
+    // Master is its ERP Sales Master read with channel=POS (read live 2026-10-02).
+    SalesChannel? Channel = null)
     : IRequest<SalesMasterReportDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.SalesMasterReportView;
@@ -89,7 +94,14 @@ public sealed record SalesMasterReportRowDto(
     decimal ServiceCharge,
     VatRate VatType,
     decimal VatAmount,
-    decimal TotalAmount);
+    decimal TotalAmount,
+    // Phase 66 -- the three columns the vendor's POS Sales Master adds, filled for till documents and
+    // null on every ERP row: the order type a sale was rung up as, the cashier whose session took it (a
+    // refund's is the session that paid it out), and the modes it was paid (or paid back) in, with
+    // "Credit" when part was left on (or taken off) the customer's account.
+    PosTab? OrderType = null,
+    string? Cashier = null,
+    string? PaymentModes = null);
 
 /// <summary>
 /// TotalAmount is the grand total across every filtered row, not just the current page -- computed
@@ -104,4 +116,13 @@ public sealed record SalesMasterReportDto(
     int Page,
     int PageSize,
     int TotalCount,
-    decimal TotalAmount);
+    // The sum of every row's TotalAmount, returns included as they are listed (positive, Type
+    // CreditNote) -- a register's activity, kept for every caller written before phase 66.
+    decimal TotalAmount,
+    // Phase 66 -- the same split by type, so the footer says what was sold, what came back and the net
+    // of the two, which is what the Sales Register totals for the same documents.
+    decimal SalesTotal = 0m,
+    decimal ReturnsTotal = 0m)
+{
+    public decimal NetTotal => SalesTotal - ReturnsTotal;
+}

@@ -585,6 +585,13 @@ export const routes: Routes = [
     canActivate: [authGuard, featureGuard('PosRestaurant')],
   },
   {
+    // Phase 66 -- every drawer opened in a period (Pos.Session.ViewAll), beside POS Orders.
+    path: 'organizations/:id/sales/pos-sessions',
+    loadComponent: () =>
+      import('./features/sales/pos-session-list-page/pos-session-list-page').then((m) => m.PosSessionListPage),
+    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
+  },
+  {
     path: 'organizations/:id/payments',
     loadComponent: () =>
       import('./features/sales/payment-list-page/payment-list-page').then((m) => m.PaymentListPage),
@@ -1010,6 +1017,26 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/reports/sales-summary-report-page/sales-summary-report-page').then((m) => m.SalesSummaryReportPage),
     canActivate: [authGuard],
+  },
+  {
+    // Phase 66 -- the POS reports. Product/Customer Sales, Sales Master, Sales Summary and POS activity
+    // are the ERP reports above with their Sales Channel filter set to Point of Sale.
+    path: 'organizations/:id/reports/pos-day-report',
+    loadComponent: () =>
+      import('./features/reports/pos-day-report-page/pos-day-report-page').then((m) => m.PosDayReportPage),
+    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
+  },
+  {
+    path: 'organizations/:id/reports/pos-payment-summary',
+    loadComponent: () =>
+      import('./features/reports/pos-payment-summary-page/pos-payment-summary-page').then((m) => m.PosPaymentSummaryPage),
+    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
+  },
+  {
+    path: 'organizations/:id/reports/pos-order-report',
+    loadComponent: () =>
+      import('./features/reports/pos-order-report-page/pos-order-report-page').then((m) => m.PosOrderReportPage),
+    canActivate: [authGuard, featureGuard('PosRestaurant')],
   },
   {
     // Phase 26a -- Reports > Accounting. Journal report / Detail GL / GL Master are Admin-only;

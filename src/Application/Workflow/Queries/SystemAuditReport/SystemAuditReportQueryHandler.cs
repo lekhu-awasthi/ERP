@@ -3,6 +3,7 @@ using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Sales;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -58,19 +59,44 @@ public sealed class SystemAuditReportQueryHandler(IAppDbContext db, ICurrentUser
             query = query.Where(x => x.LocationId == locationId);
         }
 
+        // Phase 66 -- the channel. An audit row names a (type, id) and nothing else, so a sale's or a
+        // refund's channel is read from the document by key -- an EXISTS per candidate row, not a join
+        // that could multiply rows. A restaurant order is a till document by definition.
+        if (request.Channel == SalesChannel.Pos)
+        {
+            query = query.Where(x => x.DocumentType == DocumentType.PosOrder
+                || (x.DocumentType == DocumentType.Invoice
+                    && db.Invoices.Any(i => i.Id == x.DocumentId && i.Channel == SalesChannel.Pos))
+                || (x.DocumentType == DocumentType.CreditNote
+                    && db.CreditNotes.Any(c => c.Id == x.DocumentId && c.Channel == SalesChannel.Pos)));
+        }
+        else if (request.Channel == SalesChannel.Erp)
+        {
+            query = query.Where(x => x.DocumentType != DocumentType.PosOrder
+                && !(x.DocumentType == DocumentType.Invoice
+                    && db.Invoices.Any(i => i.Id == x.DocumentId && i.Channel == SalesChannel.Pos))
+                && !(x.DocumentType == DocumentType.CreditNote
+                    && db.CreditNotes.Any(c => c.Id == x.DocumentId && c.Channel == SalesChannel.Pos)));
+        }
+
         // Business-day filters against CreatedAt (a system timestamp, not a document Date field
-        // like every other report) -- bounds are built as explicit UTC instants rather than
-        // comparing DateOnly to DateTimeOffset directly, which EF Core can't translate.
+        // like every other report) -- bounds are built as explicit instants rather than comparing
+        // DateOnly to DateTimeOffset directly, which EF Core can't translate.
+        //
+        // Phase 66 -- the bounds are **Nepal** midnights. They were UTC midnights, so an action between
+        // 00:00 and 05:45 in Nepal fell on the previous day's page -- a till that opens early or a
+        // restaurant that bills after midnight had its activity filed a day early. The row's time
+        // already renders as a Nepal time (phase 48); the filter now cuts the day the same way.
         if (request.FromDate is { } fromDate)
         {
-            var fromUtc = new DateTimeOffset(fromDate.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
-            query = query.Where(x => x.CreatedAt >= fromUtc);
+            var fromNepal = new DateTimeOffset(fromDate.ToDateTime(TimeOnly.MinValue), NepalTime.Offset);
+            query = query.Where(x => x.CreatedAt >= fromNepal);
         }
 
         if (request.ToDate is { } toDate)
         {
-            var toExclusiveUtc = new DateTimeOffset(toDate.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
-            query = query.Where(x => x.CreatedAt < toExclusiveUtc);
+            var toExclusiveNepal = new DateTimeOffset(toDate.AddDays(1).ToDateTime(TimeOnly.MinValue), NepalTime.Offset);
+            query = query.Where(x => x.CreatedAt < toExclusiveNepal);
         }
 
         var entries = await query

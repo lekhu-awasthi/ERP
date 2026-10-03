@@ -14,5 +14,7 @@ public sealed class SalesSummaryReportQueryValidator : AbstractValidator<SalesSu
         this.RuleFor(x => x.FiscalYear)
             .GreaterThan(0)
             .WithMessage("FiscalYear must be a Bikram Sambat year.");
+
+        this.RuleFor(x => x.Channel).IsInEnum();
     }
 }

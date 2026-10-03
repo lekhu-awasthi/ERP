@@ -8,5 +8,6 @@ public sealed class SystemAuditReportQueryValidator : AbstractValidator<SystemAu
     public SystemAuditReportQueryValidator()
     {
         this.ValidatePaging(x => x.Page, x => x.PageSize);
+        this.RuleFor(x => x.Channel).IsInEnum();
     }
 }

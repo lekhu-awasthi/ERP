@@ -66,6 +66,13 @@
             (locationChange)="onLocationChange($event)"
           />
         </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <app-sales-channel-filter
+            [controlId]="'sales-by-item-page-channel'"
+            [value]="channel()"
+            (channelChange)="onChannelChange($event)"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -92,6 +99,7 @@
                   <th scope="col" class="text-end">Amount</th>
                   <th scope="col" class="text-end">Discount</th>
                   <th scope="col" class="text-end">Net Sales</th>
+                  <th scope="col" class="text-end">Service Charge</th>
                   <th scope="col" class="text-end">Vat Amount</th>
                   <th scope="col" class="text-end">Total Amount</th>
                 </tr>
@@ -109,6 +117,7 @@
                     <td class="text-end">{{ (row.amount | amount) }}</td>
                     <td class="text-end">{{ (row.discount | amount) }}</td>
                     <td class="text-end">{{ (row.netAmount | amount) }}</td>
+                    <td class="text-end">{{ (row.serviceCharge | amount) }}</td>
                     <td class="text-end">{{ (row.vatAmount | amount) }}</td>
                     <td class="text-end fw-bold">{{ (row.totalAmount | amount) }}</td>
                   </tr>
@@ -124,6 +133,7 @@
                   <td class="text-end">{{ (r.totalAmount | amount) }}</td>
                   <td class="text-end">{{ (r.totalDiscount | amount) }}</td>
                   <td class="text-end">{{ (r.totalNetAmount | amount) }}</td>
+                  <td class="text-end">{{ (r.totalServiceCharge | amount) }}</td>
                   <td class="text-end">{{ (r.totalVatAmount | amount) }}</td>
                   <td class="text-end">{{ (r.totalTotalAmount | amount) }}</td>
                 </tr>

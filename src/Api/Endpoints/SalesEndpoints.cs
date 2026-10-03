@@ -310,24 +310,27 @@ public static class SalesEndpoints
     {
         group.MapGet("/reports/sales-master-report", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid? productId, Guid? warehouseId,
-            Guid? locationId, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            Guid? locationId, int? page, int? pageSize, ErpApp.Domain.Sales.SalesChannel? channel,
+            ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesMasterReportQuery(
                     organizationId, fromDate, toDate, contactId, productId, warehouseId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId, Channel: channel),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/sales-master-report/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid? productId, Guid? warehouseId,
-            Guid? locationId, bool full, int? page, int? pageSize, ISender sender, CancellationToken ct) =>
+            Guid? locationId, bool full, int? page, int? pageSize, ErpApp.Domain.Sales.SalesChannel? channel,
+            ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesMasterReportQuery(
                     organizationId, fromDate, toDate, contactId, productId, warehouseId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId,
+                    Channel: channel),
                 ct);
             return ReportSpreadsheetExporter.ExportSalesMasterReport(result, fromDate, toDate);
         });
@@ -335,14 +338,14 @@ public static class SalesEndpoints
         group.MapGet("/reports/sales-register", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid[]? tagOptionIds,
             bool? includeCreditNotes, bool? groupByBill, int? page, int? pageSize, Guid? locationId,
-            ISender sender, CancellationToken ct) =>
+            ErpApp.Domain.Sales.SalesChannel? channel, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesRegisterQuery(
                     organizationId, fromDate, toDate, contactId, tagOptionIds,
                     page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize,
                     IncludeCreditNotes: includeCreditNotes ?? true, LocationId: locationId,
-                    GroupByBill: groupByBill ?? true),
+                    GroupByBill: groupByBill ?? true, Channel: channel),
                 ct);
             return Results.Ok(result);
         });
@@ -350,14 +353,14 @@ public static class SalesEndpoints
         group.MapGet("/reports/sales-register/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactId, Guid[]? tagOptionIds,
             bool full, bool? includeCreditNotes, bool? groupByBill, int? page, int? pageSize, Guid? locationId,
-            ISender sender, CancellationToken ct) =>
+            ErpApp.Domain.Sales.SalesChannel? channel, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesRegisterQuery(
                     organizationId, fromDate, toDate, contactId, tagOptionIds,
                     page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full,
                     IncludeCreditNotes: includeCreditNotes ?? true, LocationId: locationId,
-                    GroupByBill: groupByBill ?? true),
+                    GroupByBill: groupByBill ?? true, Channel: channel),
                 ct);
             return ReportSpreadsheetExporter.ExportSalesRegister(result);
         });

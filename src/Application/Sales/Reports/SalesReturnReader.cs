@@ -48,11 +48,19 @@ internal static class SalesReturnReader
         Guid? contactId,
         CancellationToken cancellationToken,
         Guid? locationId = null,
-        IReadOnlyList<Guid>? reportLocations = null)
+        IReadOnlyList<Guid>? reportLocations = null,
+        SalesChannel? channel = null)
     {
         var query = db.CreditNotes.Where(x =>
             x.OrganizationId == organizationId && x.Status == CreditNoteStatus.Approved
             && x.Date >= fromDate && x.Date <= toDate);
+
+        // Phase 66 -- the sales channel, so the register read with Channel = Pos narrows its return half
+        // as well as its invoice half (phase 44: a filter applied to one half is worse than none).
+        if (channel is { } onlyChannel)
+        {
+            query = query.Where(x => x.Channel == onlyChannel);
+        }
         if (contactId is { } filter)
         {
             query = query.Where(x => x.ContactId == filter);

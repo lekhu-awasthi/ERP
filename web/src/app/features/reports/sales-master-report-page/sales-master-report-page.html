@@ -75,6 +75,13 @@
             (locationChange)="onLocationChange($event)"
           />
         </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <app-sales-channel-filter
+            [controlId]="'sales-master-report-page-channel'"
+            [value]="channel()"
+            (channelChange)="onChannelChange($event)"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -119,6 +126,11 @@
                 <th scope="col">VAT Type</th>
                 <th scope="col" class="text-end">VAT Amount</th>
                 <th scope="col" class="text-end">Total Amount</th>
+                <!-- Phase 66 -- the till's three columns (the vendor's POS Sales Master adds them);
+                     empty on every ERP row. -->
+                <th scope="col">Order Type</th>
+                <th scope="col">Cashier</th>
+                <th scope="col">Payment Modes</th>
               </tr>
             </thead>
             <tbody>
@@ -149,13 +161,30 @@
                   <td>{{ row.vatType }}</td>
                   <td class="text-end">{{ (row.vatAmount | amount) }}</td>
                   <td class="text-end fw-bold">{{ (row.totalAmount | amount) }}</td>
+                  <td>{{ row.orderType ? orderTypeLabels[row.orderType] : '—' }}</td>
+                  <td>{{ row.cashier || '—' }}</td>
+                  <td>{{ row.paymentModes || '—' }}</td>
                 </tr>
               }
             </tbody>
+            <!-- Phase 66 -- sales, returns and their net. A credit note is listed positive with its type,
+                 so the old single "Total" added returns in as if they were sales; the net is what
+                 the Sales Register totals for the same documents. -->
             <tfoot>
               <tr class="fw-bold border-top">
-                <td colspan="18">Total</td>
-                <td class="text-end">{{ (totalAmount() | amount) }}</td>
+                <td colspan="18">Sales</td>
+                <td class="text-end">{{ (salesTotal() | amount) }}</td>
+                <td colspan="3"></td>
+              </tr>
+              <tr class="fw-bold">
+                <td colspan="18">Returns</td>
+                <td class="text-end">{{ (returnsTotal() | amount) }}</td>
+                <td colspan="3"></td>
+              </tr>
+              <tr class="fw-bold">
+                <td colspan="18">Net (sales less returns)</td>
+                <td class="text-end">{{ (netTotal() | amount) }}</td>
+                <td colspan="3"></td>
               </tr>
             </tfoot>
           </table>

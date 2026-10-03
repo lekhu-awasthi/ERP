@@ -6,6 +6,7 @@ using ErpApp.Application.Trade.Queries.TradeByContact;
 using ErpApp.Application.Trade.Queries.TradeByContactMonthly;
 using ErpApp.Application.Trade.Queries.TradeByItem;
 using ErpApp.Application.Trade.Queries.TradeByItemMonthly;
+using ErpApp.Domain.Sales;
 using MediatR;
 
 namespace ErpApp.Api.Endpoints;
@@ -33,24 +34,25 @@ public static class TradeReportEndpoints
 
         group.MapGet("/reports/sales-by-customer", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactGroupId,
-            int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
+            int? page, int? pageSize, Guid? locationId, SalesChannel? channel, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new TradeByContactQuery(
                     organizationId, TradeSide.Sales, fromDate, toDate, contactGroupId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId, Channel: channel),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/sales-by-customer/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, Guid? contactGroupId,
-            bool full, int? page, int? pageSize, Guid? locationId, ISender sender, CancellationToken ct) =>
+            bool full, int? page, int? pageSize, Guid? locationId, SalesChannel? channel, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new TradeByContactQuery(
                     organizationId, TradeSide.Sales, fromDate, toDate, contactGroupId,
-                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId),
+                    page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId,
+                    Channel: channel),
                 ct);
             return ReportSpreadsheetExporter.ExportTradeByContact(result, "Customer", "Sales By Customer");
         });
@@ -82,12 +84,13 @@ public static class TradeReportEndpoints
         group.MapGet("/reports/sales-by-item", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, TradeItemGrouping? groupBy,
             Guid? productCategoryId, Guid? productId, int? page, int? pageSize,
-            Guid? locationId, ISender sender, CancellationToken ct) =>
+            Guid? locationId, SalesChannel? channel, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new TradeByItemQuery(
                     organizationId, TradeSide.Sales, fromDate, toDate, groupBy ?? TradeItemGrouping.Item,
-                    productCategoryId, productId, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId),
+                    productCategoryId, productId, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId,
+                    Channel: channel),
                 ct);
             return Results.Ok(result);
         });
@@ -95,13 +98,13 @@ public static class TradeReportEndpoints
         group.MapGet("/reports/sales-by-item/export", async (
             Guid organizationId, DateOnly fromDate, DateOnly toDate, TradeItemGrouping? groupBy,
             Guid? productCategoryId, Guid? productId, bool full, int? page, int? pageSize,
-            Guid? locationId, ISender sender, CancellationToken ct) =>
+            Guid? locationId, SalesChannel? channel, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new TradeByItemQuery(
                     organizationId, TradeSide.Sales, fromDate, toDate, groupBy ?? TradeItemGrouping.Item,
                     productCategoryId, productId, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize,
-                    ExportAll: full, LocationId: locationId),
+                    ExportAll: full, LocationId: locationId, Channel: channel),
                 ct);
             return ReportSpreadsheetExporter.ExportTradeByItem(result, "Sales By Item");
         });
@@ -233,26 +236,26 @@ public static class TradeReportEndpoints
         // live catalogue.
         group.MapGet("/reports/sales-summary", async (
             Guid organizationId, int fiscalYear, SalesSummaryMode? mode, int? page, int? pageSize,
-            Guid? locationId, bool? groupWiseLocation, ISender sender, CancellationToken ct) =>
+            Guid? locationId, bool? groupWiseLocation, SalesChannel? channel, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesSummaryReportQuery(
                     organizationId, fiscalYear, mode ?? SalesSummaryMode.Month,
                     page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, LocationId: locationId,
-                    GroupWiseLocation: groupWiseLocation ?? false),
+                    GroupWiseLocation: groupWiseLocation ?? false, Channel: channel),
                 ct);
             return Results.Ok(result);
         });
 
         group.MapGet("/reports/sales-summary/export", async (
             Guid organizationId, int fiscalYear, SalesSummaryMode? mode, bool full, int? page, int? pageSize,
-            Guid? locationId, bool? groupWiseLocation, ISender sender, CancellationToken ct) =>
+            Guid? locationId, bool? groupWiseLocation, SalesChannel? channel, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
                 new SalesSummaryReportQuery(
                     organizationId, fiscalYear, mode ?? SalesSummaryMode.Month,
                     page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize, ExportAll: full, LocationId: locationId,
-                    GroupWiseLocation: groupWiseLocation ?? false),
+                    GroupWiseLocation: groupWiseLocation ?? false, Channel: channel),
                 ct);
             return ReportSpreadsheetExporter.ExportSalesSummaryReport(result);
         });

@@ -45,7 +45,7 @@ public sealed class SalesSummaryReportQueryHandler(IAppDbContext db, ICurrentUse
 
         var facts = await TradeLineReader.LoadAsync(
             db, request.OrganizationId, TradeSide.Sales, fromDate, toDate, cancellationToken,
-            request.LocationId, reportLocations);
+            request.LocationId, reportLocations, request.Channel);
 
         // Phase 44 -- "Group Wise location". Read live on Cadehi 2026-09-15: ticking it inserts a
         // Location column immediately after Date and turns one period into one row per location --
@@ -132,7 +132,7 @@ public sealed class SalesSummaryReportQueryHandler(IAppDbContext db, ICurrentUse
     ];
 
     private static bool IsNonZero(SalesSummaryRowDto row) =>
-        row.SubTotal != 0 || row.Discount != 0 || row.NonTaxableSales != 0
+        row.SubTotal != 0 || row.Discount != 0 || row.ServiceCharge != 0 || row.NonTaxableSales != 0
         || row.TaxableSales != 0 || row.Vat != 0 || row.Total != 0;
 
     private static SalesSummaryRowDto Summarise(
@@ -140,12 +140,14 @@ public sealed class SalesSummaryReportQueryHandler(IAppDbContext db, ICurrentUse
     {
         var subTotal = facts.Sum(x => x.Amount);
         var discount = facts.Sum(x => x.Discount);
-        var taxable = facts.Where(x => x.VatRate == VatRate.ThirteenPercentVat).Sum(x => x.NetAmount);
-        var nonTaxable = facts.Where(x => x.VatRate != VatRate.ThirteenPercentVat).Sum(x => x.NetAmount);
+        // Phase 66 -- a line's service charge is in the VAT base (phase 61 Decision A), so it lands in
+        // the same bucket as the line it was charged on, as the Sales Register counts it.
+        var taxable = facts.Where(x => x.VatRate == VatRate.ThirteenPercentVat).Sum(x => x.NetAmount + x.ServiceCharge);
+        var nonTaxable = facts.Where(x => x.VatRate != VatRate.ThirteenPercentVat).Sum(x => x.NetAmount + x.ServiceCharge);
         var vat = facts.Sum(x => x.VatAmount);
 
         return new SalesSummaryRowDto(
             date, label, Location: null, subTotal, discount, nonTaxable, taxable, vat,
-            nonTaxable + taxable + vat);
+            nonTaxable + taxable + vat, facts.Sum(x => x.ServiceCharge));
     }
 }

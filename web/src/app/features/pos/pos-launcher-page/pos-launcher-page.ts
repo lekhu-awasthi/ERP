@@ -7,6 +7,7 @@ import { PosService } from '../../../core/pos/pos.service';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { DenominationCountInput } from '../denomination-count/denomination-count';
+import { PosDashboardPanel } from '../pos-dashboard/pos-dashboard';
 
 /**
  * Phase 62 -- where a cashier starts: the tills they may open a drawer at
@@ -16,10 +17,14 @@ import { DenominationCountInput } from '../denomination-count/denomination-count
  *
  * <p>A Restaurant till opens onto its floor (phase 64) and its kitchen board (phase 65), and offers the
  * cashier's drawer again: billing an order is a till sale, paid into the cashier's own session.</p>
+ *
+ * <p>Phase 66 -- below the tills, the overview (the vendor's POS home is its location cards over one),
+ * deferred until it scrolls into view so a cashier's launcher pays nothing for it, and shown only to a
+ * user who may read every drawer.</p>
  */
 @Component({
   selector: 'app-pos-launcher-page',
-  imports: [RouterLink, StatusBanner, NepaliDatePipe, DenominationCountInput],
+  imports: [RouterLink, StatusBanner, NepaliDatePipe, DenominationCountInput, PosDashboardPanel],
   templateUrl: './pos-launcher-page.html',
 })
 export class PosLauncherPage {

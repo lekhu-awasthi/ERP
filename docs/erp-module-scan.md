@@ -2474,3 +2474,128 @@ Decisions are in `phase-65-status.md`.
 - **Transfer Items** (Dine In, from the order menu's *Transfer List*): choose a table other than this one,
   tick items with quantities -> `POST /pos/orders/items-transfer {order_id, table_id, area_id, items:[{id,
   quantity}]}`.
+
+## POS reports and dashboard, read live (2026-10-02, phase 66)
+
+Same tenant (*Hamro Samaan*, 7 trial days left), entered through *Open Pos* with the handoff URL followed
+inside the page (never recorded). **Read-only.** The user authorised writes; the auto-mode classifier refused
+the first (*Start New Session* at POS Retail, to ring up and void one sale), so **no voided document exists
+on the tenant and the vendor's handling of a void in these reports was not observed**. The data is phase 59's
+service on 2026-09-28: INV0002 317 (cash 500, change 183), INV0003 294 (credit 194 + cash 100, the split that
+dropped its service charge), the refund CN0002 68 (Coke, cash), and SO0004 293.80, a Retail cart parked as an
+approved Sales Order. Decisions are in `phase-66-status.md`.
+
+### How the reports are fetched
+
+- Every POS report is `POST /report?report_id=<id>&channel=POS` with a JSON filter body (dates `DD-MM-YYYY`).
+  **The report ids are the ERP's** (`report-sales-master`, `report-sales-summary`, `report-sales-by-item`, ...):
+  the POS reports are the ERP's reports read through `channel=POS`, plus the POS-only ones below.
+- One permission key per report, all `view`: `report-transaction-list`, `report-order-summary`,
+  `report-day-summary`, `report-payment-summary`, `report-delivery-partner-statement`, `report-sales-by-item`,
+  `report-sales-by-customer`, `report-sales-master`, `report-sales-summary`, `report-sales-register`,
+  `report-sales-return-register`, `report-annex-five-reporting`, `report-activity-log`.
+- Every report has **Print** and **Options > Export Current View / Export Full List** (`POST /report` with
+  `is_export: true`, which returns a file URL). An org setting `enable_branch_wise_report` scopes the location
+  filter per report.
+- The shared filter body: `include_credit_note`, `mode`, `group_by_category`, `group_by_location`,
+  `order_type`, `status[]`, `location_id[]`, `contact_id[]`, `created_by_id[]`, `user_id[]`, `sources[]`,
+  `delivery_partner_id[]`, `total_amount_$gte`, `fiscal_year`.
+
+### The reports index (`/reports/list`)
+
+General: Transaction List, Order Report, Day Report, Payment Summary Report, Delivery Partner Statement.
+Sales: Product Sales, Customer Sales, Sales Master, Sales Summary. Tax: Sales Register, Sales Return
+Register, Annex 5 Materialized View, **Activity Log**. Inventory: Product Batch, Product Serial No.
+Migration: Sales Register, Purchase Register.
+
+### Day Report (`report-day-summary`)
+
+- Filter: a **date range with a from/to time** (15-minute steps; "From date and time cannot be after to date
+  and time"), periods Today / Yesterday / Last 7 / Last 30 Days; Location (multi). URL `?from=DD-MM-YYYY&to=...`.
+- Sections: *Day Report* (No. of Sales, No. of Return, No. of Session, No. of Cancelled Order — rendered
+  `2.00`), *Sales* (Sub Total, Discount, Service Charge, Non Taxable Sales, Taxable Sales, VAT, Total
+  Sales), *Sales Return Summary* (the same seven), *Payments* (per payment type, with each payment mode as a
+  child row; Credit's "mode" is the customer's name).
+- 28-09: Sales 2, Return 1, Session 2, Cancelled 0; Sub 520, SC 20, Taxable 540, VAT 70.20, **Total 610.20**;
+  Returns Sub 60, Taxable 60, VAT 7.80, **Total 67.80** (68 was paid out); Payments **Cash 349** (417 − 68,
+  net of the refund), **Credit 194**. **No round-off anywhere**, so the day's figures are unrounded.
+
+### Payment Summary Report (`report-payment-summary`)
+
+- Columns: Date, Txn Type, Txn Code, Txn Status, Location, Customer Name, Payment Type, Payment Mode, Payment
+  Account, Delivery Partner, Reference No, Payment Amount. Filters: Date, Location, Customer, Payment Account,
+  Payment Type (Cash / Card / E-Payment / Credit / Delivery / Other), Payment Mode.
+- One row per payment: INV0002 Cash **317** (the 500 tendered less 183 change, netted into the row), INV0003
+  Credit 194 and Cash 100, CN0002 Cash **−68**. The credit part of a sale is a payment row whose account is
+  the customer.
+
+### Order Report (`report-order-summary`)
+
+- Columns: Order No., Order Status, Invoice No., Customer Name, Order Type, Delivery Partner Name, Location,
+  Area, Table No, Customer Count, Item Name, Quantity, Total Amount, Remarks. Filters: Date, Status (Active /
+  Billed / Cancelled), Order Type (Dine In / Take Away / Delivery / Retail), Location, User.
+- Rows: SO0003 *Billed* (INV0002, Dine In, T1, 316.40), SO0004 *Active* (Retail, no invoice, 293.80) — the
+  parked cart is an order. SO0002, the split's source, is not listed.
+
+### Product Sales / Customer Sales (`report-sales-by-item`, `report-sales-by-customer`)
+
+- Product Sales: Report Mode **Item | Category** (category mode is a tree with subtotals and drops the
+  Service Charge column); columns Quantity, Subtotal, Discount, Service Charge, Net Sales, VAT, Total;
+  **Include Credit Note in Calculation** (off by default).
+- Off: Momo 2 × 400, SC 20, VAT 54.60, 474.60; Coke 2, 120, VAT 15.60, 135.60; total **610.20 (refund not
+  deducted)**. On: Coke 1, 60, 67.80; total 542.40.
+- Customer Sales: Customer, PAN, Subtotal, Discount, Service Charge, Nontaxable Sales, VAT, Total; filters
+  Location, Include Credit Note, Amount Range. Off 610.20, on 542.40.
+
+### Sales Summary (`report-sales-summary`)
+
+- Report Mode **Date | Month | Fiscal Year**, **Group By Location**; columns Date, Location, Subtotal,
+  Discount, Service Charge, Non Taxable Sales, Taxable Sales, VAT, Total.
+- 28-09: Sub 460, SC 20, Taxable 480, VAT 62.40, **Total 542.40 — net of the refund whatever
+  `include_credit_note` says**. So Product/Customer Sales default to 610.20 and Sales Summary says 542.40
+  for the same day.
+
+### Sales Master (`report-sales-master`)
+
+- One row per line: Customer, Transaction Type, Entry No., Reference No, Entry Date, Product Code, Product,
+  Quantity, Rate, Subtotal, Discount, Service Charge, Non Taxable Sales, Taxable Sales, VAT Type, VAT, Total,
+  **Payment Mode** (the document's modes, e.g. `["Credit","Cash"]`), **User**, **Order Type**, **Delivery
+  Partner**, **Table No.** Filters: Date, Customer, Location.
+- A refund line is negative (quantity −1, total −67.80), its Reference No the invoice, its note the refund
+  reason.
+
+### Activity Log (`report-activity-log`) and Transaction List
+
+- Activity Log: User, Action (CREATE / UPDATE / APPROVE), Log Source (SalesOrder / Invoice / CreditNote),
+  Source Code, DateTime (`+05:45`), with before/after snapshots. Filters: Date, User, Location, Transaction
+  Type (Invoice / Credit Note).
+- Transaction List: Transaction Date, Txn Type, Transaction No., Customer Name, Payment Mode, Amount (rounded:
+  317, 294, 68), User, Created Date, Location, Status; filters Status (Active / Inactive), Location, User,
+  Transaction Type (Invoice / Credit Note / Sales Order).
+
+### The home dashboard (`/pos`, and `/location/details/dashboard?id=` per location)
+
+- Period: **Today / Last 7 / Last 15 / Last 30 Days**; Location (one). Tiles: **Total Sales**, **Cash
+  Sales**, **Credit Sales**, **Pending Orders** (count and amount). Then *Sales Figure*, *Sales By Products*
+  and *Sales By Payment Mode*. The location page adds *Current Sessions* (Opened By, Opening Date, Run Time)
+  and *Current Orders* (Order No, Order Mode, Time, Opened By, Total Amount), and its tabs are Dashboard,
+  Sessions, Orders, Invoices, Refunds, Floorplan, Activity (the location record's comments), Settings.
+- `GET /pos/sales-stats` → `{total_amount 611, total_cash_amount 417, total_credit_amount 194}` for 25-09..02-10:
+  **rounded, and the refund is not deducted**. `GET /pos/order-stats` → `{count 1, amount 293.80, kot_count 0}`:
+  the parked cart, counted only while it falls inside the period.
+- `GET /pos/sales-figure` → per **day** for a range, per **hour 00:00–23:00** (Nepal time: the 12:07 sale is
+  in 12:00) for one day, each `{amount, cumulative_amount, label}`. The chart draws both as a
+  **`type: "basis"` spline**, which does not pass through its points: the 611 day is drawn peaking near 400.
+- `GET /pos/payment-stats` → `[{Type: Cash, amount 417, times_used 2}, {Type: Credit, amount 194}]`, gross of
+  the refund; the panel has six fixed buckets (Cash, Card, Credit, E-Payment, Delivery, Others).
+- `GET /pos/top-product-stats` → `top_products [{name, amount (incl. SC and VAT), unit, times_sold}]` and
+  `total_amount 610.20`; the panel adds an **Other Products** row of `max(total − Σ top, 0)` — a clamp that
+  would hide a negative mismatch.
+- **Defect 7, on one screen:** Total Sales 611 above Sales By Products' 610.20; the Day Report it links to
+  says 610.20 for sales and Cash 349 against the tile's 417.
+
+### Sessions (`/location/details/sessions?id=`)
+
+- Columns Opened By, Opening Date, Closing Date (date and time), Status — which prints the cash difference
+  (**9.00**) — and View. One session at POS Restaurant; the Day Report counts 2 for the day (the other at POS
+  Retail).

@@ -1,6 +1,7 @@
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
+using ErpApp.Domain.Sales;
 using MediatR;
 
 namespace ErpApp.Application.Trade.Queries.TradeByContact;
@@ -26,7 +27,10 @@ public sealed record TradeByContactQuery(
     int PageSize = PagingDefaults.DefaultPageSize,
     bool ExportAll = false,
     // Phase 35b -- the Billing Location filter; null is "All locations". See ILocationFilteredReport.
-    Guid? LocationId = null)
+    Guid? LocationId = null,
+    // Phase 66 -- the sales channel: null is every sale, Pos the till's alone (the vendor's POS reports
+    // are its ERP reports read with channel=POS). Sales side only; a purchase has no channel.
+    SalesChannel? Channel = null)
     : IRequest<TradeByContactDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey =>
@@ -42,7 +46,9 @@ public sealed record TradeByContactRowDto(
     decimal Discount,
     decimal NetAmount,
     decimal VatAmount,
-    decimal TotalAmount);
+    decimal TotalAmount,
+    // Phase 66 -- see TradeByItemRowDto.ServiceCharge.
+    decimal ServiceCharge = 0m);
 
 /// <summary>Total* fields span every filtered row, not just the current page (phase-16c).</summary>
 public sealed record TradeByContactDto(
@@ -57,4 +63,5 @@ public sealed record TradeByContactDto(
     decimal TotalDiscount,
     decimal TotalNetAmount,
     decimal TotalVatAmount,
-    decimal TotalTotalAmount);
+    decimal TotalTotalAmount,
+    decimal TotalServiceCharge = 0m);

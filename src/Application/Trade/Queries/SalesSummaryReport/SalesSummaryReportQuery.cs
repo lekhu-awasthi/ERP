@@ -1,6 +1,7 @@
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
+using ErpApp.Domain.Sales;
 using MediatR;
 
 namespace ErpApp.Application.Trade.Queries.SalesSummaryReport;
@@ -39,7 +40,10 @@ public sealed record SalesSummaryReportQuery(
     // filter and is the only group-*by*-location control in the whole report catalogue (Cadehi,
     // 2026-09-15). It composes with the filter rather than replacing it: the filter chooses which
     // locations are in scope, this chooses whether the period's figures are split across them.
-    bool GroupWiseLocation = false)
+    bool GroupWiseLocation = false,
+    // Phase 66 -- the sales channel: null is every sale, Pos the till's alone (the vendor's POS reports
+    // are its ERP reports read with channel=POS).
+    SalesChannel? Channel = null)
     : IRequest<SalesSummaryReportDto>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.SalesSummaryReportView;
@@ -80,7 +84,12 @@ public sealed record SalesSummaryRowDto(
     decimal NonTaxableSales,
     decimal TaxableSales,
     decimal Vat,
-    decimal Total);
+    decimal Total,
+    // Phase 66 -- the till's service charge, the live column phase 26b omitted because nothing wrote
+    // it then. It is inside the VAT base, so it is in TaxableSales (or NonTaxableSales, on a line
+    // without VAT), as the Sales Register counts it: SubTotal - Discount + ServiceCharge =
+    // NonTaxableSales + TaxableSales.
+    decimal ServiceCharge = 0m);
 
 public sealed record SalesSummaryReportDto(
     int FiscalYear,

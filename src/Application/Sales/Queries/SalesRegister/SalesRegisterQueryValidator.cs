@@ -8,5 +8,6 @@ public sealed class SalesRegisterQueryValidator : AbstractValidator<SalesRegiste
     public SalesRegisterQueryValidator()
     {
         this.ValidatePaging(x => x.Page, x => x.PageSize);
+        this.RuleFor(x => x.Channel).IsInEnum();
     }
 }

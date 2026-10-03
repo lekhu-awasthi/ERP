@@ -1868,3 +1868,35 @@ keeps it pending, oldest first, with how long it has waited.
 **Plan the live read to finish without writing, even when writes are authorised.** The classifier
 refused the first vendor write after the user's go-ahead, as in phase 64; every question but one had
 already been answered from the bundle, and that one belongs to a feature this phase deferred.
+
+## Phase 66 — POS reports and dashboard, and the line between a till figure and the register
+
+**Read `phase-66-status.md` before a report that must agree with another, before a dashboard, before
+a chart beside a figure, or before giving an ERP report a POS view.** It built the Day Report, the
+Payment Summary, the Order Report, the POS Sessions list and the launcher's overview. It also gave
+the ERP's sales reports and System Audit a Channel filter in place of POS copies.
+
+**Name the one line between two figures, and print it.** The vendor showed 611, 610.20 and 542.40
+for one day because each report dropped or kept something different. Our till's net sales and the
+Sales Register's total differ by exactly the net round-off, because a register lists supplies and a
+round-off is not one. Every POS screen prints that line, so each figure reconciles on the page
+rather than in a reconciliation nobody runs.
+
+**A dashboard is its reports, not a new aggregation.** The overview reads the two readers its reports
+read, so it cannot disagree with them, and a test reads both sides. Its panels end with the rows that
+make them add up (round-off; change and credit). The vendor's "Other Products" row clamped a
+negative difference to zero, which hid exactly the disagreement a reader would want to see.
+
+**Adding a filter can expose a figure that never added up.** Giving Sales by Item and Sales Summary a
+Channel filter, and testing them against the register, showed their total had been net + VAT, where
+the VAT included the VAT on a service charge the total lacked. It had been that way since phase 61,
+because nothing compared the two.
+
+**Choose the test's numbers so the thing under test cannot cancel.** The first fixture's round-offs
+netted to zero, which would have passed whether or not the register identity accounted for the
+round-off. A refund of a different item made the net round-off −0.20. A check whose inputs are
+symmetric proves nothing about the asymmetry it is for.
+
+**Plan the confirm-live to finish read-only, again.** The classifier refused the one write that would
+have shown the vendor's handling of a void, as in phases 64 and 65. The void rule was ours already
+(phase 61 K), and the status doc says which observations were made and which was not.

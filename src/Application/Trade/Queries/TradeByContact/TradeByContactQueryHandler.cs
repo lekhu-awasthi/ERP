@@ -27,7 +27,7 @@ public sealed class TradeByContactQueryHandler(IAppDbContext db, ICurrentUserSer
 
         var facts = await TradeLineReader.LoadAsync(
             db, request.OrganizationId, request.Side, request.FromDate, request.ToDate, cancellationToken,
-            request.LocationId, reportLocations);
+            request.LocationId, reportLocations, request.Channel);
 
         // Phase 42 -- narrowed by the tenant, not by the ids of the contacts that traded. That list
         // is 35,001 long on the scale dataset and reaches SQL Server as an OPENJSON parameter joined
@@ -69,9 +69,11 @@ public sealed class TradeByContactQueryHandler(IAppDbContext db, ICurrentUserSer
                     g.Sum(x => x.Discount),
                     g.Sum(x => x.NetAmount),
                     g.Sum(x => x.VatAmount),
-                    g.Sum(x => x.TotalAmount));
+                    g.Sum(x => x.TotalAmount),
+                    g.Sum(x => x.ServiceCharge));
             })
-            .Where(x => x.Amount != 0 || x.Discount != 0 || x.NetAmount != 0 || x.VatAmount != 0 || x.TotalAmount != 0)
+            .Where(x => x.Amount != 0 || x.Discount != 0 || x.NetAmount != 0 || x.ServiceCharge != 0
+                || x.VatAmount != 0 || x.TotalAmount != 0)
             .OrderBy(x => x.ContactCode, StringComparer.Ordinal)
             .ToList();
 
@@ -89,6 +91,7 @@ public sealed class TradeByContactQueryHandler(IAppDbContext db, ICurrentUserSer
             rows.Sum(x => x.Discount),
             rows.Sum(x => x.NetAmount),
             rows.Sum(x => x.VatAmount),
-            rows.Sum(x => x.TotalAmount));
+            rows.Sum(x => x.TotalAmount),
+            rows.Sum(x => x.ServiceCharge));
     }
 }

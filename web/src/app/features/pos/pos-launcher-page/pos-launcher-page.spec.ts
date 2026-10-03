@@ -28,7 +28,7 @@ describe('PosLauncherPage', () => {
     categories: [], canSellOnCredit: false, printCreditNote: true, canRefund: false,
   });
 
-  function page(tills: PosTillSummary[], verification = false, posMode: PosTill['posMode'] = 'Retail') {
+  async function page(tills: PosTillSummary[], verification = false, posMode: PosTill['posMode'] = 'Retail') {
     const opened: OpenPosSessionRequest[] = [];
     const service = {
       listTills: (): Observable<PosTillSummary[]> => of(tills),
@@ -50,6 +50,8 @@ describe('PosLauncherPage', () => {
       ],
     });
 
+    // Phase 66 -- the overview is a @defer block, so the component's metadata resolves asynchronously.
+    await TestBed.compileComponents();
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const fixture = TestBed.createComponent(PosLauncherPage);
     fixture.detectChanges();
@@ -77,8 +79,8 @@ describe('PosLauncherPage', () => {
     };
   }
 
-  it('offers the till, its open session, and the floor of a restaurant till', () => {
-    const p = page([
+  it('offers the till, its open session, and the floor of a restaurant till', async () => {
+    const p = await page([
       summary({ mySessionId: 'ses-1', mySessionCode: 'SES0001', mySessionOpenedAt: '2026-10-01T03:00:00Z' }),
       summary({ locationId: 'loc-2', locationCode: '1002', locationName: 'Ground Floor', posMode: 'Restaurant' }),
     ]);
@@ -93,8 +95,8 @@ describe('PosLauncherPage', () => {
     expect([...p.element.querySelectorAll('button')].map((b) => b.textContent?.trim())).toEqual(['Start Session']);
   });
 
-  it('starts a session with an amount where the till does not count notes', () => {
-    const p = page([summary({})]);
+  it('starts a session with an amount where the till does not count notes', async () => {
+    const p = await page([summary({})]);
 
     p.press('Start Session');
     p.type('pos-open-amount', '1000');
@@ -105,8 +107,8 @@ describe('PosLauncherPage', () => {
   });
 
   // Phase 65 bug -- a restaurant's new drawer opened the Retail grid; its till is the floor.
-  it('opens the floor, not the Retail grid, once a restaurant drawer is started', () => {
-    const p = page([summary({ posMode: 'Restaurant' })], false, 'Restaurant');
+  it('opens the floor, not the Retail grid, once a restaurant drawer is started', async () => {
+    const p = await page([summary({ posMode: 'Restaurant' })], false, 'Restaurant');
 
     p.press('Start Session');
     p.type('pos-open-amount', '1000');
@@ -115,8 +117,8 @@ describe('PosLauncherPage', () => {
     expect(p.navigate).toHaveBeenCalledWith(['/organizations', organizationId, 'pos', 'restaurant', 'loc-1']);
   });
 
-  it('counts the float note by note where the till requires cash verification', () => {
-    const p = page([summary({})], true);
+  it('counts the float note by note where the till requires cash verification', async () => {
+    const p = await page([summary({})], true);
 
     p.press('Start Session');
     expect(p.element.querySelector('#pos-open-amount')).toBeNull();
@@ -127,12 +129,12 @@ describe('PosLauncherPage', () => {
     expect(p.opened).toEqual([{ locationId: 'loc-1', openingAmount: null, denominations: [{ value: 500, count: 2 }] }]);
   });
 
-  it('explains an empty list rather than showing nothing', () => {
-    const p = page([]);
+  it('explains an empty list rather than showing nothing', async () => {
+    const p = await page([]);
     expect(p.text()).toContain('No location runs a till you can open.');
   });
 
-  it('shows a refused load as the refusal alone, naming the key, with no empty-list reason under it', () => {
+  it('shows a refused load as the refusal alone, naming the key, with no empty-list reason under it', async () => {
     TestBed.configureTestingModule({
       imports: [PosLauncherPage],
       providers: [
@@ -152,6 +154,7 @@ describe('PosLauncherPage', () => {
       ],
     });
 
+    await TestBed.compileComponents();
     const fixture = TestBed.createComponent(PosLauncherPage);
     fixture.detectChanges();
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';

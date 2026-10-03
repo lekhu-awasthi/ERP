@@ -11,6 +11,8 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { currentFiscalYear, fiscalYearLabel, supportedFiscalYears } from '../../../shared/formatting/bs-fiscal-year';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
+import { SalesChannelFilter, initialSalesChannel } from '../../../shared/sales/sales-channel-filter';
+import { SalesChannel } from '../../../core/sales/sales.models';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
@@ -23,14 +25,14 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
  * Only periods with activity appear, which is the live behaviour and the opposite of the Monthly
  * crosstabs' fixed twelve columns: a crosstab's columns are an axis, a summary's rows are its data.
  *
- * **The live Service Charge column is omitted.** It is driven by a product-level
- * `service_charge_applicable` flag this codebase does not model, and it printed "-" on every row of
- * both modes even on the reference tenant. A column of hard zeroes would look like an answer; see
- * docs/phase-26b-status.md.
+ * **Phase 66 -- the Service Charge column is back.** Phase 26b omitted it because nothing wrote a
+ * service charge then; the till has since phase 61, and without the column a till sale's total read
+ * the bill less its service charge. It sits inside the taxable bucket of its line, as the Sales
+ * Register counts it, and the Sales Channel filter reads the till's sales alone.
  */
 @Component({
   selector: 'app-sales-summary-report-page',
-  imports: [PaginationControl, AmountPipe, NepaliDatePipe, ReportLocationFilter, StatusBanner],
+  imports: [PaginationControl, AmountPipe, NepaliDatePipe, ReportLocationFilter, SalesChannelFilter, StatusBanner],
   templateUrl: './sales-summary-report-page.html',
 })
 export class SalesSummaryReportPage {
@@ -41,6 +43,10 @@ export class SalesSummaryReportPage {
 
   /** Phase 35b -- the Billing Location filter; empty is "All locations", the live default. */
   protected readonly locationId = signal('');
+
+  /** Phase 66 -- the Sales Channel filter; null is every channel, and a POS screen links here with
+   *  ?channel=Pos. */
+  protected readonly channel = signal<SalesChannel | null>(initialSalesChannel(this.route));
   protected readonly fiscalYears = supportedFiscalYears();
   protected readonly fiscalYearLabel = fiscalYearLabel;
 
@@ -107,6 +113,11 @@ export class SalesSummaryReportPage {
     this.reload();
   }
 
+  protected onChannelChange(channel: SalesChannel | null): void {
+    this.channel.set(channel);
+    this.reload();
+  }
+
   private reload(): void {
     this.page.set(1);
     this.load();
@@ -117,7 +128,7 @@ export class SalesSummaryReportPage {
     this.reports
       .exportSalesSummaryReport(
         this.organizationId, this.fiscalYear(), this.mode(), full, page, pageSize, this.locationId(),
-        this.groupWiseLocation())
+        this.groupWiseLocation(), this.channel())
       .subscribe({
         next: (blob) => {
           this.exporting.set(false);
@@ -137,7 +148,7 @@ export class SalesSummaryReportPage {
     this.reports
       .getSalesSummaryReport(
         this.organizationId, this.fiscalYear(), this.mode(), this.page(), this.pageSize(), this.locationId(),
-        this.groupWiseLocation())
+        this.groupWiseLocation(), this.channel())
       .subscribe({
         next: (report) => {
           this.report.set(report);

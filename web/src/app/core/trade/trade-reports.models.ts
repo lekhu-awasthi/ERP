@@ -108,6 +108,8 @@ export interface TradeByContactRowDto {
   netAmount: number;
   vatAmount: number;
   totalAmount: number;
+  /** Phase 66 -- a till line's service charge (zero on purchases); totalAmount includes it. */
+  serviceCharge: number;
 }
 
 export interface TradeByContactDto {
@@ -123,6 +125,7 @@ export interface TradeByContactDto {
   totalNetAmount: number;
   totalVatAmount: number;
   totalTotalAmount: number;
+  totalServiceCharge: number;
 }
 
 // ---- Sales/Purchase By Item ------------------------------------------------------------------
@@ -139,6 +142,8 @@ export interface TradeByItemRowDto {
   netAmount: number;
   vatAmount: number;
   totalAmount: number;
+  /** Phase 66 -- a till line's service charge (zero on purchases); totalAmount includes it. */
+  serviceCharge: number;
 }
 
 /** There is no total quantity: the rows are products in different units of measure. */
@@ -156,6 +161,7 @@ export interface TradeByItemDto {
   totalNetAmount: number;
   totalVatAmount: number;
   totalTotalAmount: number;
+  totalServiceCharge: number;
 }
 
 // ---- The four BS fiscal-year Monthly crosstabs ----------------------------------------------
@@ -246,6 +252,8 @@ export interface SalesSummaryRowDto {
   taxableSales: number;
   vat: number;
   total: number;
+  /** Phase 66 -- the till's service charge, inside the taxable (or non-taxable) bucket of its line. */
+  serviceCharge: number;
 }
 
 export interface SalesSummaryReportDto {

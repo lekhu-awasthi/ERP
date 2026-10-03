@@ -795,6 +795,10 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminPosKitchenOperateId = Guid.Parse("00000000-0000-0000-0002-0000000001ef");
     private static readonly Guid MemberPosKitchenOperateId = Guid.Parse("00000000-0000-0000-0002-0000000001f0");
 
+    // Phase 66 -- the Payment Summary's key (derived in PermissionKeys.PosPaymentSummaryView).
+    private static readonly Guid AdminPosPaymentSummaryViewId = Guid.Parse("00000000-0000-0000-0002-0000000001f1");
+    private static readonly Guid MemberPosPaymentSummaryViewId = Guid.Parse("00000000-0000-0000-0002-0000000001f2");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1404,6 +1408,8 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminPosFloorPlanManageId, Role.AdminId, PermissionKeys.PosFloorPlanManage, true),
             RolePermission.Create(MemberPosFloorPlanManageId, Role.MemberId, PermissionKeys.PosFloorPlanManage, false),
             RolePermission.Create(AdminPosKitchenOperateId, Role.AdminId, PermissionKeys.PosKitchenOperate, true),
-            RolePermission.Create(MemberPosKitchenOperateId, Role.MemberId, PermissionKeys.PosKitchenOperate, true));
+            RolePermission.Create(MemberPosKitchenOperateId, Role.MemberId, PermissionKeys.PosKitchenOperate, true),
+            RolePermission.Create(AdminPosPaymentSummaryViewId, Role.AdminId, PermissionKeys.PosPaymentSummaryView, true),
+            RolePermission.Create(MemberPosPaymentSummaryViewId, Role.MemberId, PermissionKeys.PosPaymentSummaryView, false));
     }
 }

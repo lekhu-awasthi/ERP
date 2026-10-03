@@ -1,0 +1,140 @@
+<div class="container py-5" style="max-width: 1500px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i aria-hidden="true" class="bi bi-receipt fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">POS Order Report</h1>
+          <p class="text-muted small mb-0">Restaurant orders with their bills, and what is still to bill</p>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportCurrentView()">
+          <i aria-hidden="true" class="bi bi-download"></i> Export Current View
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm fw-bold" [disabled]="exporting()" (click)="exportFullDataset()">
+          <i aria-hidden="true" class="bi bi-download"></i> Export Full Dataset
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <app-status-banner [message]="errorMessage()" />
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <app-pos-period-filter idPrefix="pos-order-report-period" [fromDate]="period().fromDate" [toDate]="period().toDate"
+        (periodChange)="onPeriodChange($event)" />
+      <div class="row g-3 mt-1">
+        <div class="col-12 col-sm-6 col-lg-3">
+          <app-report-location-filter [organizationId]="organizationId" [controlId]="'pos-order-report-page-billing-location'"
+            (locationChange)="onLocationChange($event)" />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold" for="pos-order-report-page-status">Status</label>
+          <select id="pos-order-report-page-status" class="form-select" (change)="onStatusChange($event)">
+            <option value="" [selected]="!status()">Every status</option>
+            @for (option of statuses; track option) {
+              <option [value]="option" [selected]="status() === option">{{ option }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold" for="pos-order-report-page-order-type">Order Type</label>
+          <select id="pos-order-report-page-order-type" class="form-select" (change)="onOrderTypeChange($event)">
+            <option value="" [selected]="!orderType()">Every order type</option>
+            @for (option of orderTypes; track option) {
+              <option [value]="option" [selected]="orderType() === option">{{ orderTypeLabels[option] }}</option>
+            }
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <p class="text-muted mb-0">Loading the Order Report…</p>
+      } @else if (report(); as r) {
+        <p class="small mb-3">
+          {{ r.totalCount }} order(s): {{ r.openCount }} open, {{ r.settledCount }} settled, {{ r.voidedCount }} voided.
+        </p>
+        @if (r.items.length === 0) {
+          <p class="text-muted small mb-0">No restaurant order is dated in this period.</p>
+        } @else {
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <caption class="visually-hidden">Restaurant orders</caption>
+              <thead>
+                <tr class="text-muted small">
+                  <th scope="col">Date</th>
+                  <th scope="col">Order</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Location</th>
+                  <th scope="col">Table</th>
+                  <th scope="col" class="text-end">Covers</th>
+                  <th scope="col">Customer</th>
+                  <th scope="col">Taken by</th>
+                  <th scope="col">Bills</th>
+                  <th scope="col" class="text-end">Order value</th>
+                  <th scope="col" class="text-end">Billed</th>
+                  <th scope="col" class="text-end">Still to bill</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of r.items; track row.id) {
+                  <tr>
+                    <td>{{ row.date | nepaliDate }}</td>
+                    <td>{{ row.code }}</td>
+                    <td>
+                      {{ row.status }}
+                      @if (row.voidReason) {
+                        <span class="d-block small text-body-secondary">{{ row.voidReason }}</span>
+                      }
+                    </td>
+                    <td>{{ orderTypeLabels[row.orderType] }}</td>
+                    <td>{{ row.locationName }}</td>
+                    <td>{{ row.tableName ? (row.areaName ? row.areaName + ' / ' : '') + row.tableName : '—' }}</td>
+                    <td class="text-end">{{ row.covers || '—' }}</td>
+                    <td>{{ row.contactName }}</td>
+                    <td>{{ row.createdByName }}</td>
+                    <td>
+                      @for (bill of row.invoices; track bill.id) {
+                        <a class="d-block" [routerLink]="['/organizations', organizationId, 'sales', 'invoices', bill.id]">
+                          {{ bill.code }}@if (bill.isVoided) { <span class="small text-body-secondary">(void)</span> }
+                        </a>
+                      } @empty {
+                        —
+                      }
+                    </td>
+                    <td class="text-end">{{ row.orderValue | amount }}</td>
+                    <td class="text-end">{{ row.billed | amount }}</td>
+                    <td class="text-end">{{ row.toBill | amount }}</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr class="fw-bold border-top">
+                  <th scope="row" colspan="11">Billed (all orders in the filter)</th>
+                  <td class="text-end">{{ r.billed | amount }}</td>
+                  <td></td>
+                </tr>
+                <tr class="fw-bold">
+                  <th scope="row" colspan="11">Still to bill (open orders)</th>
+                  <td></td>
+                  <td class="text-end">{{ r.toBill | amount }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <app-pagination-control [page]="page()" [pageSize]="pageSize()" [totalCount]="r.totalCount"
+            (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)" />
+        }
+      }
+    </div>
+  </div>
+</div>

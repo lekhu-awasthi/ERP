@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 
 import { PagedResult } from '../common/paged-result';
 import { environment } from '../../../environments/environment';
+import { SalesChannel } from '../sales/sales.models';
 import {
   AuditRowDto,
   CreateTaskRequest,
@@ -119,10 +120,11 @@ export class WorkflowService {
     page = 1,
     pageSize = 50,
     locationId: string | null = null,
+    channel: SalesChannel | null = null,
   ): Observable<PagedResult<AuditRowDto>> {
     return this.http.get<PagedResult<AuditRowDto>>(`${this.baseUrl(organizationId)}/reports/system-audit`, {
       withCredentials: true,
-      params: this.systemAuditParams(userId, action, documentType, fromDate, toDate, page, pageSize, locationId),
+      params: this.systemAuditParams(userId, action, documentType, fromDate, toDate, page, pageSize, locationId, channel),
     });
   }
 
@@ -137,11 +139,12 @@ export class WorkflowService {
     page: number,
     pageSize: number,
     locationId: string | null = null,
+    channel: SalesChannel | null = null,
   ): Observable<Blob> {
     return this.http.get(`${this.baseUrl(organizationId)}/reports/system-audit/export`, {
       withCredentials: true,
       params: {
-        ...this.systemAuditParams(userId, action, documentType, fromDate, toDate, page, pageSize, locationId),
+        ...this.systemAuditParams(userId, action, documentType, fromDate, toDate, page, pageSize, locationId, channel),
         full: String(full),
       },
       responseType: 'blob',
@@ -230,10 +233,15 @@ export class WorkflowService {
     page: number,
     pageSize: number,
     locationId: string | null = null,
+    channel: SalesChannel | null = null,
   ): Record<string, string> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
     if (locationId) {
       params['locationId'] = locationId;
+    }
+    // Phase 66 -- POS activity: the register read with channel=Pos.
+    if (channel) {
+      params['channel'] = channel;
     }
     if (userId) {
       params['userId'] = userId;

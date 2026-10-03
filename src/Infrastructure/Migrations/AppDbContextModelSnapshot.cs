@@ -10270,6 +10270,20 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = true,
                             PermissionKey = "Pos.Kitchen.Operate",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001f1"),
+                            IsGranted = true,
+                            PermissionKey = "Reports.PosPaymentSummary.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001f2"),
+                            IsGranted = false,
+                            PermissionKey = "Reports.PosPaymentSummary.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 

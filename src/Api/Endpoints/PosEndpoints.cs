@@ -11,7 +11,6 @@ using ErpApp.Application.Pos.Commands.UpdatePosLocationSettings;
 using ErpApp.Application.Pos.Queries.FindPosSales;
 using ErpApp.Application.Pos.Queries.GetMyOpenPosSession;
 using ErpApp.Application.Pos.Queries.GetPosConfiguration;
-using ErpApp.Application.Pos.Queries.GetPosDaySummary;
 using ErpApp.Application.Pos.Queries.GetPosLocationSettings;
 using ErpApp.Application.Pos.Queries.GetPosSession;
 using ErpApp.Application.Pos.Queries.GetPosRefundableSale;
@@ -137,9 +136,7 @@ public static class PosEndpoints
                     request.OverrideCreditLimitWarning),
                 ct)));
 
-        group.MapGet("/day-summary", async (
-            Guid organizationId, DateOnly date, Guid? locationId, ISender sender, CancellationToken ct) =>
-            Results.Ok(await sender.Send(new GetPosDaySummaryQuery(organizationId, date, locationId), ct)));
+        // Phase 66 -- phase 61's /day-summary became the Day Report over a period (PosReportEndpoints).
 
         // ---- Phase 62: what the till screen reads, and its receipt -------------------------------
 

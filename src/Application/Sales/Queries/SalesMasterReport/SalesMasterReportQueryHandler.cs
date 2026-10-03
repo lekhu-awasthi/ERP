@@ -40,9 +40,17 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
         // scope), so there is no referrer lookup to fall back on. Phase 35b moved the two conditions
         // into ReportLocationFilter, which is now the one place 27 reports state them.
         invoiceQuery = invoiceQuery.AtLocations(request.LocationId, reportLocations);
+        if (request.Channel is { } invoiceChannel)
+        {
+            invoiceQuery = invoiceQuery.Where(x => x.Channel == invoiceChannel);
+        }
 
         var invoices = await invoiceQuery
-            .Select(x => new { x.Id, x.ContactId, x.WarehouseId, x.LocationId, x.Code, x.Reference, x.Date })
+            .Select(x => new
+            {
+                x.Id, x.ContactId, x.WarehouseId, x.LocationId, x.Code, x.Reference, x.Date,
+                x.Channel, x.OrderType, x.PosSessionId,
+            })
             .ToListAsync(cancellationToken);
         var invoiceIds = invoices.Select(x => x.Id).ToList();
 
@@ -65,9 +73,17 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
         }
 
         creditNoteQuery = creditNoteQuery.AtLocations(request.LocationId, reportLocations);
+        if (request.Channel is { } creditNoteChannel)
+        {
+            creditNoteQuery = creditNoteQuery.Where(x => x.Channel == creditNoteChannel);
+        }
 
         var creditNotes = await creditNoteQuery
-            .Select(x => new { x.Id, x.ContactId, x.LocationId, x.Code, x.Reference, x.Date, x.ReferrerType, x.ReferrerId })
+            .Select(x => new
+            {
+                x.Id, x.ContactId, x.LocationId, x.Code, x.Reference, x.Date, x.ReferrerType, x.ReferrerId,
+                x.Channel, x.PosSessionId,
+            })
             .ToListAsync(cancellationToken);
         var creditNoteIds = creditNotes.Select(x => x.Id).ToList();
 
@@ -140,6 +156,20 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
         var invoicesById = invoices.ToDictionary(x => x.Id);
         var creditNotesById = creditNotes.ToDictionary(x => x.Id);
 
+        // Phase 66 -- the till's three columns, read only for till documents: the cashier is the
+        // session's user, and the modes are the sale's tenders (a refund's payouts), joined to the
+        // document *queries* rather than to a list of ids (phase 42).
+        var tillColumns = await PosColumnsAsync(
+            invoiceQuery.Where(x => x.Channel == SalesChannel.Pos),
+            creditNoteQuery.Where(x => x.Channel == SalesChannel.Pos),
+            [
+                .. invoices.Where(x => x.PosSessionId != null).Select(x => x.PosSessionId!.Value)
+                    .Concat(creditNotes.Where(x => x.PosSessionId != null).Select(x => x.PosSessionId!.Value))
+                    .Distinct(),
+            ],
+            request.OrganizationId,
+            cancellationToken);
+
         var rows = new List<SalesMasterReportRowDto>();
 
         foreach (var line in invoiceLines)
@@ -162,7 +192,10 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
                 product.Id, product.Code, product.Name,
                 line.Quantity, line.Rate, netAfterLineDiscount, itemDiscount, transactionDiscount, line.Amount,
                 line.ServiceChargeAmount, line.VatRate, line.VatAmount,
-                line.Amount + line.ServiceChargeAmount + line.VatAmount));
+                line.Amount + line.ServiceChargeAmount + line.VatAmount,
+                invoice.Channel == SalesChannel.Pos ? invoice.OrderType : null,
+                invoice.PosSessionId is { } saleSession ? tillColumns.Cashiers.GetValueOrDefault(saleSession) : null,
+                tillColumns.SaleModes.GetValueOrDefault(invoice.Id)));
         }
 
         foreach (var line in creditNoteLines)
@@ -199,7 +232,10 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
                 line.Quantity, line.Rate, netAfterLineDiscount, itemDiscount, transactionDiscount, line.Amount,
                 // Phase 63 -- a till refund line's service charge, in the column the sale's sits in.
                 line.ServiceChargeAmount, line.VatRate, line.VatAmount,
-                line.Amount + line.ServiceChargeAmount + line.VatAmount));
+                line.Amount + line.ServiceChargeAmount + line.VatAmount,
+                null,
+                creditNote.PosSessionId is { } refundSession ? tillColumns.Cashiers.GetValueOrDefault(refundSession) : null,
+                tillColumns.RefundModes.GetValueOrDefault(creditNote.Id)));
         }
 
         var orderedRows = rows.OrderBy(x => x.EntryDate).ThenBy(x => x.EntryNo).ToList();
@@ -209,6 +245,87 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
         var totalAmount = orderedRows.Sum(x => x.TotalAmount);
 
         return new SalesMasterReportDto(
-            request.FromDate, request.ToDate, paged.Items, paged.Page, paged.PageSize, paged.TotalCount, totalAmount);
+            request.FromDate, request.ToDate, paged.Items, paged.Page, paged.PageSize, paged.TotalCount, totalAmount,
+            orderedRows.Where(x => x.Type == DocumentType.Invoice).Sum(x => x.TotalAmount),
+            orderedRows.Where(x => x.Type == DocumentType.CreditNote).Sum(x => x.TotalAmount));
+    }
+
+    private sealed record TillColumns(
+        Dictionary<Guid, string> Cashiers, Dictionary<Guid, string> SaleModes, Dictionary<Guid, string> RefundModes);
+
+    /// <summary>
+    /// Phase 66 -- who rang each till document up and how it was settled. A sale's modes are its
+    /// tenders' modes, plus "Credit" when the tenders (less change) settled less than the bill; a
+    /// refund's are its payouts' modes, or "Credit" when it was all taken off the customer's account.
+    /// </summary>
+    private async Task<TillColumns> PosColumnsAsync(
+        IQueryable<Invoice> tillSales,
+        IQueryable<CreditNote> tillRefunds,
+        List<Guid> sessionIds,
+        Guid organizationId,
+        CancellationToken cancellationToken)
+    {
+        if (sessionIds.Count == 0)
+        {
+            return new TillColumns(new(), new(), new());
+        }
+
+        var cashiers = await (
+                from session in db.PosSessions
+                where session.OrganizationId == organizationId && sessionIds.Contains(session.Id)
+                join user in db.Users on session.UserId equals user.Id
+                select new { session.Id, user.FullName })
+            .ToDictionaryAsync(x => x.Id, x => x.FullName, cancellationToken);
+
+        var modeNames = await db.PaymentModes
+            .Where(x => x.OrganizationId == organizationId)
+            .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+
+        var tenders = await (
+                from tender in db.InvoiceTenders
+                join invoice in tillSales on tender.InvoiceId equals invoice.Id
+                select new { tender.InvoiceId, tender.PaymentModeId, tender.Amount })
+            .ToListAsync(cancellationToken);
+        var saleTotals = await (
+                from line in db.InvoiceLines
+                join invoice in tillSales on line.InvoiceId equals invoice.Id
+                group line by line.InvoiceId into g
+                select new { InvoiceId = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount) })
+            .ToDictionaryAsync(x => x.InvoiceId, x => x.Total, cancellationToken);
+        var saleHeaders = await tillSales
+            .Select(x => new { x.Id, x.RoundOff, x.ChangeAmount })
+            .ToListAsync(cancellationToken);
+
+        var tendersBySale = tenders.ToLookup(x => x.InvoiceId);
+        var saleModes = new Dictionary<Guid, string>();
+        foreach (var sale in saleHeaders)
+        {
+            var paid = tendersBySale[sale.Id].ToList();
+            var names = paid.Select(x => modeNames.GetValueOrDefault(x.PaymentModeId, "")).Distinct().ToList();
+            var owed = saleTotals.GetValueOrDefault(sale.Id) + sale.RoundOff;
+            if (owed - (paid.Sum(x => x.Amount) - sale.ChangeAmount) > 0m)
+            {
+                names.Add("Credit");
+            }
+
+            saleModes[sale.Id] = string.Join(", ", names);
+        }
+
+        var payouts = await (
+                from payout in db.CreditNotePayouts
+                join note in tillRefunds on payout.CreditNoteId equals note.Id
+                select new { payout.CreditNoteId, payout.PaymentModeId })
+            .ToListAsync(cancellationToken);
+        var payoutsByRefund = payouts.ToLookup(x => x.CreditNoteId);
+        var refundIds = await tillRefunds.Select(x => x.Id).ToListAsync(cancellationToken);
+        var refundModes = refundIds.ToDictionary(
+            id => id,
+            id =>
+            {
+                var names = payoutsByRefund[id].Select(x => modeNames.GetValueOrDefault(x.PaymentModeId, "")).Distinct().ToList();
+                return names.Count == 0 ? "Credit" : string.Join(", ", names);
+            });
+
+        return new TillColumns(cashiers, saleModes, refundModes);
     }
 }

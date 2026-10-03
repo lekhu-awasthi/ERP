@@ -91,4 +91,11 @@
       }
     </ul>
   }
+
+  <!-- Phase 66 -- the overview: its own chunk, loaded when it scrolls into view. -->
+  @defer (on viewport) {
+    <app-pos-dashboard [organizationId]="organizationId" />
+  } @placeholder {
+    <div style="min-height: 4rem;"></div>
+  }
 </div>

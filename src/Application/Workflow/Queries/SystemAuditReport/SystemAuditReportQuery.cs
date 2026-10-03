@@ -3,6 +3,7 @@ using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Payments;
+using ErpApp.Domain.Sales;
 using MediatR;
 
 namespace ErpApp.Application.Workflow.Queries.SystemAuditReport;
@@ -31,7 +32,12 @@ public sealed record SystemAuditReportQuery(
     bool ExportAll = false,
     // Phase 44 (35b carried item #2) -- the Billing Location filter this report was the last to
     // lack. Null is "All locations", like every other ILocationFilteredReport.
-    Guid? LocationId = null)
+    Guid? LocationId = null,
+    // Phase 66 -- POS activity. Null is every action; Pos keeps the till's: actions on a till sale or
+    // refund and on a restaurant order (the vendor's POS Activity Log is this register read with
+    // channel=POS). Erp is the rest. A drawer's own events -- open, cash in and out, close -- write no
+    // audit row (phase 61 Decision M); the POS Sessions list is their record.
+    SalesChannel? Channel = null)
     : IRequest<PagedResult<AuditRowDto>>, IRequirePermission, IOrganizationScoped, ILocationFilteredReport
 {
     public string PermissionKey => PermissionKeys.SystemAuditView;

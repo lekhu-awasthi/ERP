@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { SalesChannel } from '../sales/sales.models';
 import {
   AgeableDocumentType,
   ContactBalanceSummaryDto,
@@ -147,10 +148,12 @@ export class TradeReportsService {
     page = 1,
     pageSize = 50,
     locationId?: string,
+    channel: SalesChannel | null = null,
   ): Observable<TradeByContactDto> {
     const params: Record<string, string> = { fromDate, toDate, page: String(page), pageSize: String(pageSize) };
     if (contactGroupId) params['contactGroupId'] = contactGroupId;
     if (locationId) params['locationId'] = locationId;
+    if (channel) params['channel'] = channel;
     return this.http.get<TradeByContactDto>(`${this.baseUrl(organizationId)}/reports/${route}`, {
       withCredentials: true,
       params,
@@ -167,12 +170,14 @@ export class TradeReportsService {
     page: number,
     pageSize: number,
     locationId?: string,
+    channel: SalesChannel | null = null,
   ): Observable<Blob> {
     const params: Record<string, string> = {
       fromDate, toDate, full: String(full), page: String(page), pageSize: String(pageSize),
     };
     if (contactGroupId) params['contactGroupId'] = contactGroupId;
     if (locationId) params['locationId'] = locationId;
+    if (channel) params['channel'] = channel;
     return this.http.get(`${this.baseUrl(organizationId)}/reports/${route}/export`, {
       withCredentials: true,
       params,
@@ -193,10 +198,12 @@ export class TradeReportsService {
     page = 1,
     pageSize = 50,
     locationId?: string,
+    channel: SalesChannel | null = null,
   ): Observable<TradeByItemDto> {
     return this.http.get<TradeByItemDto>(`${this.baseUrl(organizationId)}/reports/${route}`, {
       withCredentials: true,
-      params: this.itemParams(fromDate, toDate, groupBy, productCategoryId, productId, page, pageSize, locationId ?? null),
+      params: this.itemParams(
+        fromDate, toDate, groupBy, productCategoryId, productId, page, pageSize, locationId ?? null, channel),
     });
   }
 
@@ -212,8 +219,10 @@ export class TradeReportsService {
     page: number,
     pageSize: number,
     locationId?: string,
+    channel: SalesChannel | null = null,
   ): Observable<Blob> {
-    const params = this.itemParams(fromDate, toDate, groupBy, productCategoryId, productId, page, pageSize, locationId ?? null);
+    const params = this.itemParams(
+      fromDate, toDate, groupBy, productCategoryId, productId, page, pageSize, locationId ?? null, channel);
     params['full'] = String(full);
     return this.http.get(`${this.baseUrl(organizationId)}/reports/${route}/export`, {
       withCredentials: true,
@@ -231,6 +240,7 @@ export class TradeReportsService {
     page: number,
     pageSize: number,
     locationId: string | null,
+    channel: SalesChannel | null,
   ): Record<string, string> {
     const params: Record<string, string> = {
       fromDate, toDate, groupBy, page: String(page), pageSize: String(pageSize),
@@ -238,6 +248,7 @@ export class TradeReportsService {
     if (productCategoryId) params['productCategoryId'] = productCategoryId;
     if (productId) params['productId'] = productId;
     if (locationId) params['locationId'] = locationId;
+    if (channel) params['channel'] = channel;
     return params;
   }
 
@@ -333,12 +344,14 @@ export class TradeReportsService {
     pageSize = 50,
     locationId?: string,
     groupWiseLocation = false,
+    channel: SalesChannel | null = null,
   ): Observable<SalesSummaryReportDto> {
     const params: Record<string, string> = {
       fiscalYear: String(fiscalYear), mode, page: String(page), pageSize: String(pageSize),
       groupWiseLocation: String(groupWiseLocation),
     };
     if (locationId) params['locationId'] = locationId;
+    if (channel) params['channel'] = channel;
     return this.http.get<SalesSummaryReportDto>(`${this.baseUrl(organizationId)}/reports/sales-summary`, {
       withCredentials: true,
       params,
@@ -354,12 +367,14 @@ export class TradeReportsService {
     pageSize: number,
     locationId?: string,
     groupWiseLocation = false,
+    channel: SalesChannel | null = null,
   ): Observable<Blob> {
     const params: Record<string, string> = {
       fiscalYear: String(fiscalYear), mode, full: String(full), page: String(page), pageSize: String(pageSize),
       groupWiseLocation: String(groupWiseLocation),
     };
     if (locationId) params['locationId'] = locationId;
+    if (channel) params['channel'] = channel;
     return this.http.get(`${this.baseUrl(organizationId)}/reports/sales-summary/export`, {
       withCredentials: true,
       params,
