@@ -1,6 +1,8 @@
 using ErpApp.Api.Printing;
+using ErpApp.Application.Printing.Commands.IssueDocumentPrint;
 using ErpApp.Application.Printing.Queries.PrintDocument;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Sales;
 using MediatR;
 
 namespace ErpApp.Api.Endpoints;
@@ -17,6 +19,19 @@ public static class PrintingEndpoints
             Guid organizationId, DocumentType documentType, Guid documentId, ISender sender, CancellationToken ct) =>
         {
             var dto = await sender.Send(new PrintDocumentQuery(organizationId, documentType, documentId), ct);
+            var pdfBytes = DocumentPdfRenderer.Render(dto);
+            return Results.File(pdfBytes, "application/pdf", $"{documentType}_{dto.Code}.pdf");
+        })
+        .WithTags("Printing")
+        .RequireAuthorization();
+
+        // Phase 67 -- the counted print of an invoice or a credit note (phase-67-status.md Decisions B
+        // and C). A POST because it writes the print row; the GET above refuses those two types.
+        app.MapPost("/api/organizations/{organizationId:guid}/print/{documentType}/{documentId:guid}", async (
+            Guid organizationId, DocumentType documentType, Guid documentId, ISender sender, CancellationToken ct) =>
+        {
+            var dto = await sender.Send(
+                new IssueDocumentPrintCommand(organizationId, documentType, documentId, PrintMedium.Pdf), ct);
             var pdfBytes = DocumentPdfRenderer.Render(dto);
             return Results.File(pdfBytes, "application/pdf", $"{documentType}_{dto.Code}.pdf");
         })

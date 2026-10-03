@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–66)
+## Completed phases (0–67)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -52,6 +52,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 64 | Restaurant floor, orders and KOT: `PosOrder`, kitchen tickets per send × station, Sales > POS Orders |
 | 65 | Kitchen board and settling: whole/by item/equal bills from frozen rates, rounding on the running total |
 | 66 | POS reports and dashboard: Day Report, Payment Summary, Order Report, POS Sessions, the overview; the ERP sales reports and System Audit read with a Channel filter; every figure from one reader, the round-off the one line to the Sales Register |
+| 67 | The ERP invoice and credit-note PDF: the heading the bill is (English and Nepali), every copy counted across till, PDF and email, copies marked; a counted print is a POST |
 
 ---
 
@@ -103,15 +104,36 @@ correctly dead *from the ERP side*. The POS is where they act.
   - a reprint must say "copy of original" and how many times the bill has been printed (the 2072
     computerised-invoicing procedure, §6).
 
-The two rules apply to every tax invoice, and the ERP's own PDF print follows neither yet (below).
+The two rules apply to every tax invoice; phase 67 brought the ERP's own PDF and its emailed copy under both.
 
 **Carried from phase 61** (§ 5 there): the full-tenant export has no service-charge or round-off
 column (now for credit notes too). The ERP credit note against a till sale is settled by phase 63:
 the ERP may no longer convert one, and the till's refund returns the service charge.
 
-**The POS sequence (60–66) is complete.** Phase 67 is not yet planned; its candidates are the carried items
-below, chiefly the ERP invoice and credit-note PDF (title and reprint count, a statutory item carried since phase 62
-that phase 66 did not take), and Mark as Take Away and transfer once the user answers the repricing question.
+**The POS sequence (60–66) is complete, and so is phase 67**, the ERP invoice and credit-note PDF: the heading
+the bill is, in English and Nepali, and every copy counted across the till, the Print button and email, with
+copies marked (`phase-67-status.md`). **Next: phase 68, Mark as Take Away and item transfer**, scheduled by the
+user on 2026-10-03, with the repricing question answered (below).
+
+**Before phase 68's own work, a small statutory fix (scheduled by the user, 2026-10-03): the buyer's PAN on the ERP
+PDF.** VAT Rules Schedule 5 asks a tax invoice for the buyer's PAN when the buyer is registered. The ERP invoice
+and credit-note PDFs print the customer's name and address and never the PAN, so a VAT-registered buyer gets an
+invoice they cannot claim input tax on. Print "PAN: …" in the customer block **only when the contact has one**.
+PAN stays optional on a contact, so a retail customer without one prints exactly as today, and the till already
+behaves this way (phase 62: an abbreviated bill omits the buyer block, a named customer gets name, address and PAN
+when present). Open question for the tax advisor, not to be guessed: whether IRD expects a buyer PAN on a
+high-value sale to an unregistered buyer. If it does, it would be a warning on approve, never a block.
+
+**Also raised 2026-10-03, not yet scheduled: real printing templates.** Phase 20d kept `PrintingTemplate` as a
+name and a default flag, by the user's decision; every type prints one shared layout, where the vendor offers
+about 20 per type plus a toggle editor. A middle ground is a handful of fixed layouts (Standard, Compact/Retail,
+Classic) with per-type toggles for organization fields, custom fields and the date system. The law fixes the
+content and the audit trail, not the look, so this is a product choice, not a statutory one.
+
+**Carried from phase 67** (§ 5 there): a standalone ERP credit note names no invoice, which VAT Rule 20(1) asks
+for (a product decision: require the reference, or refuse the standalone note on a VAT-registered tenant); the
+print race on both print tables is still unraced on SQL Server; the count note beside Print at phone width was
+not looked at.
 
 **Carried from phase 66** (§ 5 there): a from/to *time* on the Day Report (a shift across midnight as one report;
 a reader change, not a screen change); the vendor's Delivery Partner Statement (delivery partners are outside
@@ -120,19 +142,21 @@ the sequence).
 **Carried from phases 64 and 65** (§ 5 in each): *Mark as Take Away* on a dine-in line and item transfer
 between orders, now read live (`erp-module-scan.md`, "Kitchen board and split"). Both are quantity moves; Mark
 as Take Away also asks whether a parcelled dish loses its service charge (phase 64 Decision H) against the
-rule that rates never move, which is the user's question. Also: a discount and credit on a restaurant bill,
-per-part customers. The live floor shipped in phase 65 (polled).
+rule that rates never move. **Answered by the user, 2026-10-03:** marking take-away outranks the frozen rate. A
+per-location setting, *Service charge on take-away* (On / Off), decides whether the parcelled quantity keeps the
+line's service charge. The product's existing `ServiceChargeApplicable` flag still exempts an item on its own,
+and the choice is **frozen on the line when it is marked**, so a later settings change reprices nothing. Read
+from the vendor's POS bundle the same day: it has a location switch, a per-product flag and a per-line override,
+its client never reprices a take-away quantity, and it has **no packaging fee**. A packaging fee (flat line /
+percentage / none, per location, inside the VAT base, its own account) was asked for and is **carried
+separately**, not part of phase 68. VAT stays in code; only fees are settings. Also: a discount and credit on a
+restaurant bill, per-part customers. The live floor shipped in phase 65 (polled).
 
 **Carried from phase 63** (§ 5 there): cross-branch returns; split payouts on the refund screen (the
 API takes several); a fully refunded bill still listed in the refund search.
 
 **Carried from phase 62** (§ 5 there):
 
-- **The ERP invoice PDF** titles every invoice "Invoice", and neither counts nor marks a reprint;
-  phase 63 adds the ERP credit-note PDF to the same item. Making the GET print write print rows is a
-  decision, because the email pipeline renders the same PDF. Scheduled, not done, in phase 63: it
-  belongs with phase 66's print and report surface or a phase of its own. Phase 66 did not take it
-  (`phase-66-status.md` § 5): it needs a phase of its own.
 - **Serial-tracked products** cannot be sold at the till yet: the cart sends no serials.
 - **The barcode lookup is unindexed**; measure it on `tools/scale` before indexing.
 

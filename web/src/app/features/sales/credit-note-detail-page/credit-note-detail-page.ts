@@ -512,6 +512,8 @@ export class CreditNoteDetailPage {
     this.printingService.printDocument(this.organizationId, 'CreditNote', this.routeCreditNoteId).subscribe({
       next: (blob) => {
         this.printing.set(false);
+        // Phase 67 -- the server wrote one print row; the note beside Print says so without a reload.
+        this.creditNote.update((note) => (note ? { ...note, printCount: note.printCount + 1 } : note));
         openBlobInNewTab(blob, tab);
       },
       error: (err: unknown) => {

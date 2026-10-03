@@ -27,7 +27,14 @@ namespace ErpApp.Application.Printing.Queries.PrintDocument;
 /// is the classification, and a guard test fails the build if a transactional type is left
 /// unwired.</para>
 /// </summary>
-public sealed record PrintDocumentQuery(Guid OrganizationId, DocumentType DocumentType, Guid DocumentId)
+public sealed record PrintDocumentQuery(
+    Guid OrganizationId,
+    DocumentType DocumentType,
+    Guid DocumentId,
+    // Phase 67 -- the counted print this rendering is, for the two types whose copies are counted.
+    // Only IssueDocumentPrintCommand sets it, after writing the row; the GET leaves it null, and for an
+    // invoice or a credit note the handler then refuses (409), so no route renders an uncounted copy.
+    DocumentPrintIssue? Issue = null)
     : IRequest<PrintableDocumentDto>, IRequirePermission, IOrganizationScoped, ILocationScopedDocument
 {
     public string PermissionKey => PrintDocumentPermissions.ViewPermissionFor(DocumentType);
@@ -36,6 +43,17 @@ public sealed record PrintDocumentQuery(Guid OrganizationId, DocumentType Docume
     /// a location-scoped caller must hold it at the parent&#39;s location. When the parent is a Contact the
     /// key is not location-scopable and the check never runs.</summary>
     public Guid LocationDocumentId => DocumentId;
+}
+
+/// <summary>Phase 67 -- one counted print: its number (1 is the original), who and when.</summary>
+public sealed record DocumentPrintIssue(int PrintNumber, Guid PrintedByUserId, DateTimeOffset PrintedAt);
+
+/// <summary>Phase 67 -- which printable types count their copies (the 2072 procedure, §6), and so
+/// print only through <c>IssueDocumentPrintCommand</c>.</summary>
+public static class CountedPrints
+{
+    public static bool Applies(DocumentType documentType) =>
+        documentType is DocumentType.Invoice or DocumentType.CreditNote;
 }
 
 /// <summary>Each document type's own View key -- printing never widens what a role may see. The
@@ -122,7 +140,20 @@ public sealed record PrintableDocumentDto(
     /// The renderer prefixes the emphasised summary line with it, exactly as the reference
     /// product's Net Total does; nothing else in the layout is currency-aware, because nothing
     /// else in the reference layout is either.</summary>
-    string CurrencyCode = "NPR");
+    string CurrencyCode = "NPR",
+    /// <summary>Phase 67 -- the heading in Nepali, printed under the English one: कर बीजक, संक्षिप्त कर
+    /// बीजक, बीजक, क्रेडिट नोट. Null for every type that has none.</summary>
+    string? TitleNepali = null,
+    /// <summary>Phase 67 -- set on a counted print. A copy (number above 1) is boxed "COPY OF ORIGINAL ·
+    /// printed N times" top and bottom, and every counted print names who printed it and when.</summary>
+    PrintedCopyDto? PrintedCopy = null);
+
+/// <summary>Phase 67 -- what the paper says about this copy. <paramref name="PrintedAtText"/> is the Nepal
+/// wall-clock date (in the request's calendar) and time.</summary>
+public sealed record PrintedCopyDto(int PrintNumber, string PrintedBy, string PrintedAtText)
+{
+    public bool IsCopy => PrintNumber > 1;
+}
 
 /// <summary>A label/value pair -- the header block under the title, and the summary block at the
 /// foot. <paramref name="Emphasise"/> is the one bold line a summary usually ends on (Grand Total,

@@ -67,7 +67,9 @@ public sealed class GetCreditNoteQueryHandler(IAppDbContext db) : IRequestHandle
             creditNote.CurrencyCode,
             creditNote.ExchangeRate,
             creditNote.LocationId,
-            await ReadPosRefundAsync(creditNote, cancellationToken));
+            await ReadPosRefundAsync(creditNote, cancellationToken),
+            await db.CreditNotePrints.CountAsync(
+                x => x.OrganizationId == request.OrganizationId && x.CreditNoteId == creditNote.Id, cancellationToken));
     }
 
     private async Task<CreditNotePosRefundDto?> ReadPosRefundAsync(CreditNote creditNote, CancellationToken cancellationToken)

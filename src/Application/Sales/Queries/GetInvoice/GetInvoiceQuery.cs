@@ -110,4 +110,7 @@ public sealed record InvoiceDetailDto(
     decimal ExchangeRate,
     // Phase 61 -- which front end raised it, and the till's own figures when that was the POS.
     SalesChannel Channel,
-    InvoicePosSaleDto? PosSale);
+    InvoicePosSaleDto? PosSale,
+    // Phase 67 -- how many copies have left the system, by any medium (till, PDF, email). The page shows
+    // it beside Print, so whoever prints knows the next copy is marked "COPY OF ORIGINAL".
+    int PrintCount);

@@ -37,7 +37,7 @@ public sealed class PrintPosReceiptCommandHandler(IAppDbContext db, ICurrentUser
         var printsSoFar = await db.InvoicePrints.CountAsync(
             x => x.OrganizationId == request.OrganizationId && x.InvoiceId == invoice.Id, cancellationToken);
 
-        var print = InvoicePrint.Record(invoice, printsSoFar, currentUser.UserId, DateTimeOffset.UtcNow);
+        var print = InvoicePrint.Record(invoice, printsSoFar, currentUser.UserId, DateTimeOffset.UtcNow, PrintMedium.TillReceipt);
         db.InvoicePrints.Add(print);
 
         try
@@ -128,9 +128,7 @@ public sealed class PrintPosReceiptCommandHandler(IAppDbContext db, ICurrentUser
         var taxable = invoice.Lines.Where(x => x.VatRate == VatRate.ThirteenPercentVat).Sum(x => x.TaxableAmount);
         var nonTaxable = invoice.Lines.Where(x => x.VatRate != VatRate.ThirteenPercentVat).Sum(x => x.TaxableAmount);
 
-        var title = !organization.IsVatRegistered
-            ? PosReceiptTitle.Invoice
-            : invoice.IsAbbreviatedTaxInvoice ? PosReceiptTitle.AbbreviatedTaxInvoice : PosReceiptTitle.TaxInvoice;
+        var title = InvoiceHeadings.For(organization.IsVatRegistered, invoice.IsAbbreviatedTaxInvoice);
 
         return new PosReceiptDto(
             invoice.Id,

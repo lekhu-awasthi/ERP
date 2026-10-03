@@ -3,25 +3,11 @@ using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Pos;
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using MediatR;
 
 namespace ErpApp.Application.Pos.Commands.PrintPosReceipt;
-
-/// <summary>
-/// The heading a receipt prints, decided by the seller and the bill (phase-62-status.md Decision A).
-/// </summary>
-public enum PosReceiptTitle
-{
-    /// <summary>The seller is not VAT-registered, so no bill of theirs is a tax invoice.</summary>
-    Invoice = 1,
-
-    /// <summary>The full tax invoice, VAT Rules Rule 17 (Schedule 5).</summary>
-    TaxInvoice = 2,
-
-    /// <summary>VAT Rules Rule 18 (Schedule 6): permitted, retail, at most Rs 10,000.</summary>
-    AbbreviatedTaxInvoice = 3,
-}
 
 public sealed record PosReceiptLineDto(
     string ProductName,
@@ -51,7 +37,7 @@ public sealed record PosReceiptTenderDto(string PaymentModeName, PaymentModeKind
 public sealed record PosReceiptDto(
     Guid InvoiceId,
     string Code,
-    PosReceiptTitle Title,
+    InvoiceHeading Title,
     int PrintNumber,
     DateTimeOffset PrintedAt,
     string PrintedByName,

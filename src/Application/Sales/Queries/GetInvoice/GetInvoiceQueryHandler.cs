@@ -89,7 +89,9 @@ public sealed class GetInvoiceQueryHandler(IAppDbContext db) : IRequestHandler<G
             invoice.CurrencyCode,
             invoice.ExchangeRate,
             invoice.Channel,
-            await ReadPosSaleAsync(invoice, cancellationToken));
+            await ReadPosSaleAsync(invoice, cancellationToken),
+            await db.InvoicePrints.CountAsync(
+                x => x.OrganizationId == request.OrganizationId && x.InvoiceId == invoice.Id, cancellationToken));
     }
 
     private async Task<InvoicePosSaleDto?> ReadPosSaleAsync(Invoice invoice, CancellationToken cancellationToken)

@@ -37,7 +37,7 @@ public sealed class PrintPosRefundReceiptCommandHandler(IAppDbContext db, ICurre
         var printsSoFar = await db.CreditNotePrints.CountAsync(
             x => x.OrganizationId == request.OrganizationId && x.CreditNoteId == note.Id, cancellationToken);
 
-        var print = CreditNotePrint.Record(note, printsSoFar, currentUser.UserId, DateTimeOffset.UtcNow);
+        var print = CreditNotePrint.Record(note, printsSoFar, currentUser.UserId, DateTimeOffset.UtcNow, PrintMedium.TillReceipt);
         db.CreditNotePrints.Add(print);
 
         try

@@ -1900,3 +1900,28 @@ symmetric proves nothing about the asymmetry it is for.
 **Plan the confirm-live to finish read-only, again.** The classifier refused the one write that would
 have shown the vendor's handling of a void, as in phases 64 and 65. The void rule was ours already
 (phase 61 K), and the status doc says which observations were made and which was not.
+
+## Phase 67 — The ERP invoice and credit note on paper: the heading the bill is, and every copy counted
+
+**Read `phase-67-status.md` before printing, emailing or exporting an invoice or a credit note, or before
+adding a document type whose copies the law counts.**
+
+**A rule that two surfaces print belongs in the Domain, and a count two surfaces write belongs in one
+table.** The till had the heading rule and the print log since phase 62; the ERP PDF had neither. Moving
+the heading to `InvoiceHeadings` and letting the PDF write the till's own print rows made "one bill, one
+count" a property of the schema, where a second table would have needed a reconciliation.
+
+**Every medium counts, by the user's choice.** The first copy out, paper or email, is the original. The
+question to ask of any new way a document leaves the system (an export, a share link, an API download) is
+whether it is a copy; if it is, it goes through `IssueDocumentPrintCommand`.
+
+**A GET that would have to write is a POST, and the GET refuses.** The tempting middle, a GET that renders
+without counting, is exactly the unmarked copy the rule forbids. The service picks the verb, so no page can
+reach the wrong one.
+
+**Read the vendor's paper, not only its counter.** It counts prints on the server and marks none of them,
+and heads a VAT-registered tenant's invoice "Estimate Bill" until IRD is enabled. Its behaviour was a fact
+to record and a choice to put to the user, not a spec.
+
+**Assert on what the PDF says.** `TestSupport/PdfText` reads a QuestPDF file back to its text, and the Read
+tool renders a PDF page for a look. Use the second for Devanagari, which the first returns in glyph order.

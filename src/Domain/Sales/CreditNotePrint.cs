@@ -28,18 +28,23 @@ public sealed class CreditNotePrint
     public Guid PrintedByUserId { get; private set; }
     public DateTimeOffset PrintedAt { get; private set; }
 
+    /// <summary>Phase 67 -- how this copy left the system; see <see cref="InvoicePrint.Medium"/>.</summary>
+    public PrintMedium Medium { get; private set; }
+
     public bool IsCopy => PrintNumber > 1;
 
     private CreditNotePrint()
     {
     }
 
+    /// <summary>Phase 67: the ERP's PDF and email write here too (one note, one count); only the till
+    /// receipt stays till-only, as <see cref="InvoicePrint.Record"/> explains.</summary>
     public static CreditNotePrint Record(
-        CreditNote creditNote, int printsSoFar, Guid printedByUserId, DateTimeOffset printedAt)
+        CreditNote creditNote, int printsSoFar, Guid printedByUserId, DateTimeOffset printedAt, PrintMedium medium)
     {
         ArgumentNullException.ThrowIfNull(creditNote);
 
-        if (creditNote.Channel != SalesChannel.Pos)
+        if (medium == PrintMedium.TillReceipt && creditNote.Channel != SalesChannel.Pos)
         {
             throw new InvalidOperationException(
                 "Only a till refund prints a receipt; an ERP credit note is printed from its own page.");
@@ -50,7 +55,7 @@ public sealed class CreditNotePrint
             throw new InvalidOperationException(
                 creditNote.Status == CreditNoteStatus.Void
                     ? $"Credit note {creditNote.Code} has been voided, so it is no longer a note to hand anyone."
-                    : "A receipt is printed for an approved refund.");
+                    : $"Credit note {creditNote.Code} is a draft. It has no number until it is approved, so it cannot be printed.");
         }
 
         if (printsSoFar < 0)
@@ -71,6 +76,7 @@ public sealed class CreditNotePrint
             PrintNumber = printsSoFar + 1,
             PrintedByUserId = printedByUserId,
             PrintedAt = printedAt,
+            Medium = medium,
         };
     }
 }

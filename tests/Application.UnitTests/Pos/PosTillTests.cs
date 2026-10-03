@@ -205,7 +205,7 @@ public class PosTillTests
         var sale = await till.SellAsync(session.Id, [till.Coke(1)], [till.Cash(68m)]);
 
         Assert.True(sale.IsAbbreviatedTaxInvoice);
-        Assert.Equal(PosReceiptTitle.AbbreviatedTaxInvoice, (await PrintAsync(till, sale.Id)).Title);
+        Assert.Equal(InvoiceHeading.AbbreviatedTaxInvoice, (await PrintAsync(till, sale.Id)).Title);
     }
 
     [Fact]
@@ -221,7 +221,7 @@ public class PosTillTests
 
         Assert.False(sale.IsAbbreviatedTaxInvoice);
         var receipt = await PrintAsync(till, sale.Id);
-        Assert.Equal(PosReceiptTitle.TaxInvoice, receipt.Title);
+        Assert.Equal(InvoiceHeading.TaxInvoice, receipt.Title);
         Assert.False(receipt.IsWalkIn);
         Assert.Equal("301234567", receipt.CustomerPan);
     }
@@ -250,7 +250,7 @@ public class PosTillTests
         var sale = await till.SellAsync(session.Id, [till.Coke(1)], [till.Cash(68m)]);
 
         Assert.False(sale.IsAbbreviatedTaxInvoice);
-        Assert.Equal(PosReceiptTitle.TaxInvoice, (await PrintAsync(till, sale.Id)).Title);
+        Assert.Equal(InvoiceHeading.TaxInvoice, (await PrintAsync(till, sale.Id)).Title);
     }
 
     [Fact]
@@ -263,7 +263,7 @@ public class PosTillTests
         var sale = await till.SellAsync(session.Id, [till.Coke(1)], [till.Cash(68m)]);
 
         Assert.False(sale.IsAbbreviatedTaxInvoice);
-        Assert.Equal(PosReceiptTitle.Invoice, (await PrintAsync(till, sale.Id)).Title);
+        Assert.Equal(InvoiceHeading.Invoice, (await PrintAsync(till, sale.Id)).Title);
     }
 
     // ---- Decision B: the original, then marked copies -----------------------------------------

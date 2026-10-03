@@ -206,3 +206,16 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   (phase 64 H). A seed that tenders a Retail momo at 200 + VAT is 22 short and refused (phase-66).
 - The bill preview's figure is `total`, not `grandTotal` (`POST /pos/orders/{id}/bill/preview`); the bill itself
   returns `grandTotal` (phase-66).
+
+- The counted print (phase 67) is `POST /{org}/print/{Invoice|CreditNote}/{id}` with no body, returning the
+  PDF. The `GET` on those two types is a **409**; a draft or a voided document is a 409, and any other type on
+  the POST is a 400 naming `DocumentType`. Rows are in `sales.InvoicePrints` / `sales.CreditNotePrints` with
+  `PrintNumber` and `Medium` (`TillReceipt`/`Pdf`/`Email`), shared with the till's `.../prints` routes. The
+  detail DTOs carry `printCount`.
+- An email is `POST /{org}/emails` as a **form** (`application/x-www-form-urlencoded` works when there are
+  no files): `requestId`, `documentType`, `parentId`, `to`, `subject`, `body`, `attachDocumentPdf=true`.
+  It returns 202 and the job sends within seconds; `communications.EmailSendLogs.Status` goes to `Sent`. The
+  dev environment sends through **SMTP**, not the file drop, so address it to a reserved `.test` domain.
+- Reading a PDF's text in an E2E: inflate each stream (`zlib`), map glyphs through `/ToUnicode`, parsing
+  `bfrange` and `bfchar` only inside their own sections (phase 67's `e2e67_lib.pdf_text`, the Python twin of
+  `TestSupport/PdfText`). Print it with `PYTHONIOENCODING=utf-8`, or Devanagari kills the script.

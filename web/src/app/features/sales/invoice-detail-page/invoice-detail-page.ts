@@ -706,6 +706,8 @@ Approve anyway?`)) {
     this.printingService.printDocument(this.organizationId, 'Invoice', this.routeInvoiceId).subscribe({
       next: (blob) => {
         this.printing.set(false);
+        // Phase 67 -- the server wrote one print row; the note beside Print says so without a reload.
+        this.invoice.update((invoice) => (invoice ? { ...invoice, printCount: invoice.printCount + 1 } : invoice));
         openBlobInNewTab(blob, tab);
       },
       error: (err: unknown) => {

@@ -19,6 +19,16 @@ public sealed class CreditNotePrintConfiguration : IEntityTypeConfiguration<Cred
         builder.Property(x => x.PrintedAt).IsRequired();
         builder.Ignore(x => x.IsCopy);
 
+        // Phase 67: every row before it was a till receipt, so the default is true of them all and the
+        // NOT NULL column needs no backfill. ValueGeneratedNever, or EF would send nothing for the
+        // CLR default and let the database decide (the known enum-default gotcha).
+        builder.Property(x => x.Medium)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired()
+            .HasDefaultValue(PrintMedium.TillReceipt)
+            .ValueGeneratedNever();
+
         builder.HasIndex(x => new { x.OrganizationId, x.CreditNoteId, x.PrintNumber }).IsUnique();
 
         builder.HasOne<CreditNote>()

@@ -30,6 +30,10 @@ public sealed class InvoicePrint
     public Guid PrintedByUserId { get; private set; }
     public DateTimeOffset PrintedAt { get; private set; }
 
+    /// <summary>Phase 67 -- how this copy left the system. Recorded, never consulted: every medium
+    /// counts toward the same number (phase-67-status.md Decision B).</summary>
+    public PrintMedium Medium { get; private set; }
+
     /// <summary>True for every print after the first: the one the rule says must be marked.</summary>
     public bool IsCopy => PrintNumber > 1;
 
@@ -40,12 +44,17 @@ public sealed class InvoicePrint
     /// <summary>
     /// Records the next print of <paramref name="invoice"/>. <paramref name="printsSoFar"/> is how
     /// many rows already exist; the caller reads it, and the unique index refuses a stale read.
+    ///
+    /// <para>Phase 67: the ERP's PDF and its email attachment write here too, so a till sale printed at
+    /// the till and again from the invoice page is one count (Decision D). Only the till receipt is
+    /// still till-only, because it is a receipt's layout, not a statutory rule.</para>
     /// </summary>
-    public static InvoicePrint Record(Invoice invoice, int printsSoFar, Guid printedByUserId, DateTimeOffset printedAt)
+    public static InvoicePrint Record(
+        Invoice invoice, int printsSoFar, Guid printedByUserId, DateTimeOffset printedAt, PrintMedium medium)
     {
         ArgumentNullException.ThrowIfNull(invoice);
 
-        if (invoice.Channel != SalesChannel.Pos)
+        if (medium == PrintMedium.TillReceipt && invoice.Channel != SalesChannel.Pos)
         {
             throw new InvalidOperationException(
                 "Only a till sale prints a receipt; an ERP invoice is printed from its own page.");
@@ -56,7 +65,7 @@ public sealed class InvoicePrint
             throw new InvalidOperationException(
                 invoice.Status == InvoiceStatus.Void
                     ? $"Invoice {invoice.Code} has been voided, so it is no longer a bill to hand anyone."
-                    : "A receipt is printed for an approved sale.");
+                    : $"Invoice {invoice.Code} is a draft. It has no number until it is approved, so it cannot be printed.");
         }
 
         if (printsSoFar < 0)
@@ -77,6 +86,7 @@ public sealed class InvoicePrint
             PrintNumber = printsSoFar + 1,
             PrintedByUserId = printedByUserId,
             PrintedAt = printedAt,
+            Medium = medium,
         };
     }
 }

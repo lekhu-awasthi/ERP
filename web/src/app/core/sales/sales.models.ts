@@ -258,6 +258,9 @@ export interface InvoiceDetail extends Invoice {
   /** Phase 61 -- the channel, and the till's own figures when it was the POS. */
   channel: SalesChannel;
   posSale: InvoicePosSaleDto | null;
+  /** Phase 67 -- copies that have left the system, by any medium (till, PDF, email). The next print is
+   * marked "COPY OF ORIGINAL" whenever this is above zero. */
+  printCount: number;
 }
 
 export interface InvoiceRequest {
@@ -592,6 +595,8 @@ export interface CreditNoteDetail extends CreditNote {
   lines: CreditNoteLineDto[];
   glLines: PostedGlLineDto[] | null;
   posRefund: CreditNotePosRefundDto | null;
+  /** Phase 67 -- copies that have left the system, by any medium; see InvoiceDetail.printCount. */
+  printCount: number;
 }
 
 export interface CreditNoteRequest {

@@ -2599,3 +2599,29 @@ Migration: Sales Register, Purchase Register.
 - Columns Opened By, Opening Date, Closing Date (date and time), Status — which prints the cash difference
   (**9.00**) — and View. One session at POS Restaurant; the Day Report counts 2 for the day (the other at POS
   Retail).
+
+## ERP invoice and credit-note print, read live (phase 67, 2026-10-03)
+
+*Hamro Samaan* trial, ERP side (its own sign-in, separate from the POS). Two print previews, then, **with the
+user's authorisation, two prints** of INV0001/HO (the only write: Tigg's `print_count` on that invoice, 0 to 2). The tenant is `vat_registered=true`, `is_ird_enabled=false`,
+`is_ird_verified=false`, organization PAN blank.
+
+- **The approved ERP invoice INV0001/HO/83-84 previews as "ESTIMATE BILL"** on a VAT-registered tenant. The
+  heading follows IRD enablement, not VAT registration (phase 59's defect 4 was the same heading on the till
+  receipt). No copy mark and no printing info on the page.
+- **Credit note CN0001/HO/83-84 previews as "CREDIT NOTE"**, with `Note No`, `Date` and `Ref: INV0001/HO/83-84`:
+  the invoice's number, **not its date** (VAT Rule 20(1) asks for both). No copy mark.
+- **Three requests, not one.** *View Print Preview* is server-rendered HTML in an iframe
+  (`GET /collection-report-link` returns a signed `collection-report-html?claims=` URL; the claims say
+  `preview:false, channel:"ERP"`). *Print* fetches `get_pdf_url` (`/printing-template-pdf-link`) with
+  `preview:true` and calls `print()` on the blob; *Download* fetches the same URL without `preview` and opens it.
+- **The count is the server's**: the detail carries `print_count`, and templates have a *Printing Info* group
+  (Printed By, Print Date, Print Time, Print Copies). **Print increments it** (0, 1, 2 after two prints; the detail
+  also carries `print_id`, the last printer's user id). Previewing does not (still 0 after two previews).
+  Download was not exercised.
+- **The reprint is not marked.** The second print's PDF (wkhtmltopdf, DejaVu Sans) still reads ESTIMATE BILL
+  with no "copy of original" and no count; its footer is `Page 1 of 1 / <user>, 03-10-2026, 08:49:05`. The
+  vendor counts prints and prints neither mark the 2072 procedure (§6) asks for.
+- **Email is gated on the count**: Attach PDF is disabled when `print_count <= 1` **and** the tenant is
+  IRD-enabled or IRD-verified. On an IRD tenant the emailed PDF therefore cannot come before the printed
+  original.

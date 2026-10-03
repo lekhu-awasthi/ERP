@@ -22,13 +22,20 @@
         <span class="badge bg-warning-subtle text-warning-emphasis">Draft</span>
       }
       @if (cn.status === 'Approved') {
-        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold ms-auto" [disabled]="printing()" (click)="print()">
+        <!-- Phase 67: every copy is counted, and the count says whether the next one is marked. -->
+        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold ms-auto" [disabled]="printing()" (click)="print()"
+          [attr.aria-describedby]="cn.printCount > 0 ? 'credit-note-print-count' : null">
           @if (printing()) {
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
           } @else {
             <i aria-hidden="true" class="bi bi-printer"></i> Print
           }
         </button>
+        @if (cn.printCount > 0) {
+          <span id="credit-note-print-count" class="small text-body-secondary">
+            Printed {{ cn.printCount }} {{ cn.printCount === 1 ? 'time' : 'times' }}; the next is a copy
+          </span>
+        }
       <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" (click)="emailDialog.show()">
         <i aria-hidden="true" class="bi bi-envelope"></i> Send Email
       </button>

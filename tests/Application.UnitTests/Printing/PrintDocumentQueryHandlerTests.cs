@@ -42,7 +42,8 @@ public class PrintDocumentQueryHandlerTests
 
         Assert.Equal("Moonbeam Trading", dto.OrganizationName);
         Assert.Equal("Standard", dto.PrintingTemplateName);
-        Assert.Equal("Invoice", dto.Title);
+        // Phase 67: Moonbeam is VAT-registered, so its invoice is a tax invoice.
+        Assert.Equal("Tax Invoice", dto.Title);
         Assert.Equal("Bill To", dto.PartyHeading);
         Assert.Equal("C-001 — Acme Traders", dto.PartyLabel);
         Assert.Equal("2026-08-01", dto.DateText);
@@ -245,7 +246,13 @@ public class PrintDocumentQueryHandlerTests
     private static async Task<PrintableDocumentDto> Print(
         IAppDbContext db, Guid organizationId, DocumentType documentType, Guid documentId) =>
         await new PrintDocumentQueryHandler(db, new FakeFileStorage()).Handle(
-            new PrintDocumentQuery(organizationId, documentType, documentId), CancellationToken.None);
+            new PrintDocumentQuery(
+                organizationId,
+                documentType,
+                documentId,
+                // Phase 67: an invoice or credit note renders only as a counted print.
+                CountedPrints.Applies(documentType) ? new DocumentPrintIssue(1, Guid.NewGuid(), DateTimeOffset.UtcNow) : null),
+            CancellationToken.None);
 
     private static Organization NewOrganization(IAppDbContext db)
     {

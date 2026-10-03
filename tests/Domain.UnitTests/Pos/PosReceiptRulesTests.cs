@@ -84,7 +84,7 @@ public class PosReceiptRulesTests
     [Fact]
     public void The_first_print_is_number_one_and_not_a_copy()
     {
-        var print = InvoicePrint.Record(ApprovedSale(), 0, Guid.NewGuid(), DateTimeOffset.UtcNow);
+        var print = InvoicePrint.Record(ApprovedSale(), 0, Guid.NewGuid(), DateTimeOffset.UtcNow, PrintMedium.TillReceipt);
 
         Assert.Equal(1, print.PrintNumber);
         Assert.False(print.IsCopy);
@@ -94,7 +94,7 @@ public class PosReceiptRulesTests
     public void Four_copies_later_the_bill_says_it_has_been_printed_five_times()
     {
         // The procedure's own example: after four "copy of original", the last one indicates five prints.
-        var print = InvoicePrint.Record(ApprovedSale(), 4, Guid.NewGuid(), DateTimeOffset.UtcNow);
+        var print = InvoicePrint.Record(ApprovedSale(), 4, Guid.NewGuid(), DateTimeOffset.UtcNow, PrintMedium.TillReceipt);
 
         Assert.Equal(5, print.PrintNumber);
         Assert.True(print.IsCopy);
@@ -105,21 +105,21 @@ public class PosReceiptRulesTests
     {
         var voided = ApprovedSale();
         voided.Void(Guid.NewGuid());
-        Assert.Throws<InvalidOperationException>(() => InvoicePrint.Record(voided, 0, Guid.NewGuid(), DateTimeOffset.UtcNow));
+        Assert.Throws<InvalidOperationException>(() => InvoicePrint.Record(voided, 0, Guid.NewGuid(), DateTimeOffset.UtcNow, PrintMedium.TillReceipt));
 
         var erp = Invoice.Create(
             Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), new DateOnly(2026, 10, 1), null, null, null,
             new DateOnly(2026, 10, 1));
         erp.AddLine(Guid.NewGuid(), 1, 100m, VatRate.NoVat, 0, null, 1m);
         erp.Approve(Guid.NewGuid(), "INV0002");
-        Assert.Throws<InvalidOperationException>(() => InvoicePrint.Record(erp, 0, Guid.NewGuid(), DateTimeOffset.UtcNow));
+        Assert.Throws<InvalidOperationException>(() => InvoicePrint.Record(erp, 0, Guid.NewGuid(), DateTimeOffset.UtcNow, PrintMedium.TillReceipt));
     }
 
     [Fact]
     public void An_unapproved_sale_prints_no_receipt()
     {
         var draft = Sale(100m);
-        Assert.Throws<InvalidOperationException>(() => InvoicePrint.Record(draft, 0, Guid.NewGuid(), DateTimeOffset.UtcNow));
+        Assert.Throws<InvalidOperationException>(() => InvoicePrint.Record(draft, 0, Guid.NewGuid(), DateTimeOffset.UtcNow, PrintMedium.TillReceipt));
     }
 
     // ---- Amount in words ----------------------------------------------------------------------

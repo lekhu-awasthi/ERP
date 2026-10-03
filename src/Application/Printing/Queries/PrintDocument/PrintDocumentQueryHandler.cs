@@ -3,6 +3,7 @@ using ErpApp.Application.Common.Formatting;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -31,6 +32,16 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
 {
     public async Task<PrintableDocumentDto> Handle(PrintDocumentQuery request, CancellationToken cancellationToken)
     {
+        // Phase 67 (Decision C) -- an invoice's or credit note's copies are counted, so it renders only
+        // as a counted print. A GET that wrote the row would be a GET that writes; one that did not
+        // would hand out an unmarked, uncounted copy.
+        if (CountedPrints.Applies(request.DocumentType) && request.Issue is null)
+        {
+            throw new ConflictException(
+                $"Every copy of this {DocumentLabel(request.DocumentType).ToLowerInvariant()} is counted, so it is printed " +
+                $"with POST /print/{request.DocumentType}/{{id}}, which records the print.");
+        }
+
         var organization = await db.Organizations.SingleAsync(x => x.Id == request.OrganizationId, cancellationToken);
 
         var templateName = await db.PrintingTemplates
@@ -128,10 +139,15 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             }
         }
 
-        return await BuildProductDocumentAsync(
-            request, organization, templateName, "Invoice", document.Code, document.Date, document.Reference,
+        // Phase 67 (Decision A) -- the heading the bill is, by the same rule as the till's receipt.
+        var heading = InvoiceHeadings.For(organization.IsVatRegistered, document.IsAbbreviatedTaxInvoice);
+
+        var dto = await BuildProductDocumentAsync(
+            request, organization, templateName, InvoiceHeadings.English(heading), document.Code, document.Date, document.Reference,
             document.ContactId, "Bill To", header, lines, document.DiscountPct, document.Terms, ct,
             currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate, roundOff: document.RoundOff);
+
+        return dto with { TitleNepali = InvoiceHeadings.Nepali(heading), PrintedCopy = await PrintedCopyAsync(request, ct) };
     }
 
     private async Task<PrintableDocumentDto> BuildCreditNoteAsync(
@@ -150,10 +166,46 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             })
             .ToList();
 
-        return await BuildProductDocumentAsync(
+        // Phase 67 (Decision F) -- VAT Rule 20(1) asks a credit note for the number and date of the tax
+        // invoice it relates to. A note raised from an invoice knows it; a standalone note does not, and
+        // prints its Reference as before rather than an invented link.
+        var header = new List<PrintableFieldDto>();
+        if (document.ReferrerType == DocumentType.Invoice && document.ReferrerId is { } invoiceId)
+        {
+            var invoice = await db.Invoices
+                .Where(x => x.Id == invoiceId && x.OrganizationId == request.OrganizationId)
+                .Select(x => new { x.Code, x.Date })
+                .SingleOrDefaultAsync(ct);
+            if (invoice is not null)
+            {
+                header.Add(new PrintableFieldDto("Against Invoice", $"{invoice.Code} dated {RequestCalendar.Format(invoice.Date)}"));
+            }
+        }
+
+        var dto = await BuildProductDocumentAsync(
             request, organization, templateName, "Credit Note", document.Code, document.Date, document.Reference,
-            document.ContactId, "Credit To", [], lines, document.DiscountPct, document.Terms, ct,
+            document.ContactId, "Credit To", header, lines, document.DiscountPct, document.Terms, ct,
             currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate, roundOff: document.RoundOff);
+
+        return dto with { TitleNepali = InvoiceHeadings.CreditNoteNepali, PrintedCopy = await PrintedCopyAsync(request, ct) };
+    }
+
+    /// <summary>Phase 67 -- the counted print's number, printer and Nepal wall-clock time, or null for an
+    /// uncounted type. The time is Nepal's whatever the server's zone, as every tenant-facing time is.</summary>
+    private async Task<PrintedCopyDto?> PrintedCopyAsync(PrintDocumentQuery request, CancellationToken ct)
+    {
+        if (request.Issue is not { } issue)
+        {
+            return null;
+        }
+
+        var printedBy = await db.Users
+            .Where(x => x.Id == issue.PrintedByUserId)
+            .Select(x => x.FullName)
+            .SingleOrDefaultAsync(ct) ?? "";
+
+        var at = $"{RequestCalendar.Format(NepalTime.LocalDate(issue.PrintedAt))} {NepalTime.LocalTimeOfDay(issue.PrintedAt).ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture)}";
+        return new PrintedCopyDto(issue.PrintNumber, printedBy, at);
     }
 
     /// <summary>Two sections, matching the reference product's Customer Receipt layout read live:

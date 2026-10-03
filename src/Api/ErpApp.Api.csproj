@@ -19,6 +19,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Phase 67: Noto Sans Devanagari (SIL OFL, licence beside it) for the PDF's Nepali headings.
+         Embedded, so the font travels inside the assembly and no deployment can lose it. -->
+    <EmbeddedResource Include="Printing\Fonts\*.ttf" LogicalName="ErpApp.Api.Printing.Fonts.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Application\ErpApp.Application.csproj" />
     <ProjectReference Include="..\Infrastructure\ErpApp.Infrastructure.csproj" />
   </ItemGroup>

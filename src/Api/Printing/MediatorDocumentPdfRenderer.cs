@@ -1,5 +1,7 @@
 using ErpApp.Application.Communications;
+using ErpApp.Application.Printing.Commands.IssueDocumentPrint;
 using ErpApp.Application.Printing.Queries.PrintDocument;
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Common;
 using MediatR;
 using ErpApp.Application.Contacts.Queries.PrintBalanceConfirmation;
@@ -33,7 +35,14 @@ public sealed class MediatorDocumentPdfRenderer(ISender sender) : IDocumentPdfRe
         Guid documentId,
         CancellationToken cancellationToken = default)
     {
-        var dto = await sender.Send(new PrintDocumentQuery(organizationId, documentType, documentId), cancellationToken);
+        // Phase 67 (Decision B) -- an emailed invoice or credit note is a counted copy like a printed
+        // one, so the first copy out is the original whichever way it left, and an emailed original and a
+        // paper original cannot both exist unmarked. The send job claims each send exactly once and a
+        // resend is a new row, so one send is at most one print.
+        var dto = CountedPrints.Applies(documentType)
+            ? await sender.Send(
+                new IssueDocumentPrintCommand(organizationId, documentType, documentId, PrintMedium.Email), cancellationToken)
+            : await sender.Send(new PrintDocumentQuery(organizationId, documentType, documentId), cancellationToken);
 
         // Same name PrintingEndpoints gives the download, so a recipient's attachment and the
         // sender's own printout are indistinguishable.

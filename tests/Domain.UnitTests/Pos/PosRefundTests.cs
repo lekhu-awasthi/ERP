@@ -131,8 +131,8 @@ public class PosRefundTests
         refund.PayOut([Cash(248.60m)], 248.60m);
         refund.Approve(Guid.NewGuid(), "CN0001");
 
-        var first = CreditNotePrint.Record(refund, 0, Guid.NewGuid(), DateTimeOffset.UtcNow);
-        var fifth = CreditNotePrint.Record(refund, 4, Guid.NewGuid(), DateTimeOffset.UtcNow);
+        var first = CreditNotePrint.Record(refund, 0, Guid.NewGuid(), DateTimeOffset.UtcNow, PrintMedium.TillReceipt);
+        var fifth = CreditNotePrint.Record(refund, 4, Guid.NewGuid(), DateTimeOffset.UtcNow, PrintMedium.TillReceipt);
         Assert.False(first.IsCopy);
         Assert.Equal(5, fifth.PrintNumber);
         Assert.True(fifth.IsCopy);
@@ -140,9 +140,9 @@ public class PosRefundTests
         var erp = CreditNote.Create(Guid.NewGuid(), Guid.NewGuid(), new DateOnly(2026, 10, 1), null, null, null);
         erp.AddLine(Momo, 1, 200m, VatRate.ThirteenPercentVat, 0, null, 1);
         erp.Approve(Guid.NewGuid(), "CN0002");
-        Assert.Throws<InvalidOperationException>(() => CreditNotePrint.Record(erp, 0, Guid.NewGuid(), DateTimeOffset.UtcNow));
+        Assert.Throws<InvalidOperationException>(() => CreditNotePrint.Record(erp, 0, Guid.NewGuid(), DateTimeOffset.UtcNow, PrintMedium.TillReceipt));
 
         refund.Void(Guid.NewGuid());
-        Assert.Throws<InvalidOperationException>(() => CreditNotePrint.Record(refund, 2, Guid.NewGuid(), DateTimeOffset.UtcNow));
+        Assert.Throws<InvalidOperationException>(() => CreditNotePrint.Record(refund, 2, Guid.NewGuid(), DateTimeOffset.UtcNow, PrintMedium.TillReceipt));
     }
 }

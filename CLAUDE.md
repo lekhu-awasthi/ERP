@@ -98,6 +98,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 64: restaurant floor, orders and KOT (`PosOrder` its own aggregate; the kitchen ticket line is the one signed quantity, served the one stored counter; a ticket per send × station; service charge Dine In only; Sales > POS Orders). Before a per-line counter, a second quantity beside a movement, or a drag-and-drop editor — `docs/phase-64-status.md`
 - Phase 65: kitchen board and settling (a bill is a till sale whose lines come from the order: frozen rates, the last of a line takes what is left, rounding on the running total; invoiced is a sum over invoices not voided; the board polls and archives nothing). Before billing in parts, a figure that must add up across documents, or a status a void must undo — `docs/phase-65-status.md`
 - Phase 66: POS reports and dashboard (Day Report, Payment Summary, Order Report, POS Sessions, the launcher's overview; the ERP sales reports and System Audit take `channel`; every figure from `PosSalesReader`/`TradeLineReader`; the round-off the one line to the Sales Register). Before a report that must agree with another, a dashboard, or a chart beside a figure — `docs/phase-66-status.md`
+- Phase 67: the ERP invoice and credit-note PDF (the heading the bill is, English and Nepali; every copy counted across till, PDF and email; a counted print is a POST, the GET refuses). Before a new way a document leaves the system, or Nepali in a PDF — `docs/phase-67-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -264,6 +265,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Parts that must sum to a whole: the last of a line takes what is left of each figure, and a part is `R(billed + part) − billed`; rounding each part alone bills 11+11+0 for 21.20 (phase-65).
 - A till's net sales and the Sales Register differ by exactly the net round-off (a register lists supplies); print that line on every POS screen, or two reports disagree by it (phase-66).
 - A quantity a void must give back is a **sum over the documents not voided** (invoiced = Σ invoice lines naming the order line), never a counter written back (phase-65).
+- Every copy of an invoice or credit note that leaves counts (till, PDF, email) in one table; the counted print is a POST and the GET refuses those types, never a GET that writes (phase-67).
 
 - Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
 - A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
@@ -316,6 +318,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Sync-only writers (ClosedXML `SaveAs`) cannot target the live response stream; write to a `MemoryStream`, then `CopyToAsync` (`ReportSpreadsheetExporter.WriteWorkbookAsync`, phase-16c bug #3).
 - A Minimal API endpoint binding `IFormFile` gets antiforgery metadata automatically and 500s unless it calls `.DisableAntiforgery()` (phase-18 bug #1).
 - Read an uploaded image's format and size from its bytes (`Domain/Common/ImageHeader`), never its content type; QuestPDF throws for an undecodable image after composition (phase-39).
+- QuestPDF's default font has no Devanagari: Nepali needs the embedded Noto (`PdfFonts`), and tests set `CheckIfAllTextGlyphsAreAvailable` so a missing glyph throws (phase-67).
+- A PDF's text is deflated glyph ids, not bytes you can search; assert through `TestSupport/PdfText` (CMap sections parsed separately), and look at Devanagari with the Read tool (phase-67).
 - Executing `Results.Stream` against a bare `DefaultHttpContext` needs a `ServiceProvider` with `AddLogging()` (`MigratedRegisterTemplateRoundTripTests`).
 - A `MultipartFormDataContent` under `using` in a helper that returns the `Task` unawaited is disposed mid-send (`ObjectDisposedException` from `TestHost`); await inside the helper (phase-22).
 - ClosedXML returns empty text for hand-rolled `inlineStr` cells and ignores `<si>` past a stale `uniqueCount`; build import fixtures by filling the app's own generated template (phase-21a).
@@ -389,6 +393,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A radio whose `(change)` is cancelled stays checked: the `[checked]` binding did not change, so Angular never puts it back. Restore it by hand (phase-64).
 - A visually-hidden caption inside `.table-responsive` overhangs by 1px and grows a scrollbar; `styles.scss` pins it. Measure scrollHeight against clientHeight (phase-66).
 - A component with a `@defer` block has async metadata: its TestBed spec must `await compileComponents()`, or every test fails "unresolved metadata" (phase-66).
+- A `responseType: 'blob'` request's error body is a Blob, so `extractErrorMessage` reads nothing and every refusal shows the fallback; parse it back to JSON (`PrintingService`, phase-67).
 
 **Multi-way switches on a document-attached mechanism**
 - A shared UI panel is not evidence of a shared model: email templates are their own resource, so `EmailTemplate` is its own aggregate and `CustomTemplateType.Email` was deleted (phase-30).
@@ -486,29 +491,27 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-66 are complete. The POS sequence (60-66) is finished; phase 67 is not yet planned.**
+**Phases 0-67 are complete. Next: phase 68, Mark as Take Away and item transfer.**
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 66 built the POS reports and the dashboard.** It added:
+**Phase 67 put the ERP's invoice and credit-note PDF under the two statutory rules the till already followed.**
+It added:
 
-- the POS Day Report, Payment Summary and Order Report (Reports > *Point of Sale*), POS Sessions (Sales), and
-  the overview on the POS launcher (`@defer`), all lazy;
-- one reader for every till figure (`PosSalesReader.ForPeriodAsync`, with its series) and `TradeLineReader`
-  for products, with service charge now a measure of its own there;
-- a `channel` filter on Sales by Item / Customer, Sales Summary, Sales Master, the Sales Register and System
-  Audit ("POS activity"), in place of POS copies of those reports;
-- one key, `Reports.PosPaymentSummary.View` (Admin-only); the rest ride `Pos.Session.ViewAll` and `Pos.Order.View`.
+- the heading the bill is, in English and Nepali (`InvoiceHeadings`, one Domain rule for the till and the PDF;
+  Noto Sans Devanagari embedded for the PDF);
+- every copy counted in the till's own `InvoicePrints`/`CreditNotePrints`, whatever the medium (till receipt,
+  PDF, email), and every copy after the first boxed "COPY OF ORIGINAL · printed N times";
+- `POST /print/{Invoice|CreditNote}/{id}` as the only way to print those two types (the GET refuses), and
+  "Printed N times" beside Print on both detail pages;
+- "Against Invoice: <number> dated <date>" on a credit note raised from an invoice.
 
-The round-off is the one line between a till figure and the Sales Register; every POS screen prints it.
+**Next: phase 68** (roadmap, "Carried from phases 64 and 65"): Mark as Take Away and item transfer, with the
+user's answer recorded there (a per-location On/Off for service charge on take-away, frozen on the line when
+marked; the packaging fee carried separately). Also carried: phase 67 § 5, phase 66 § 5, phase 63 § 5.
 
-**Next: plan phase 67** (roadmap, "The POS sequence (60–66) is complete"). The candidates are the ERP invoice
-and credit-note PDF (title and reprint count, carried since phase 62), and *Mark as Take Away* / item transfer,
-which wait on the user's answer about repricing a parcelled dish. Also carried: phase 66 § 5, phase 62 § 5
-and phase 63 § 5.
-
-Tests: Domain 874, Application.UnitTests **1547**, Infrastructure.UnitTests 13,
-Api.IntegrationTests 30, Angular **750**. Everything was green at phase 66's close with Docker up.
+Tests: Domain **882**, Application.UnitTests **1565**, Infrastructure.UnitTests 13,
+Api.IntegrationTests **39**, Angular **755**. Everything was green at phase 67's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

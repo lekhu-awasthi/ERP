@@ -85,4 +85,6 @@ public sealed record CreditNoteDetailDto(
     // picker's default over a stored location on every edit. Fourteen instances of phase-32's own
     // carried gotcha.
     Guid? LocationId,
-    CreditNotePosRefundDto? PosRefund = null);
+    CreditNotePosRefundDto? PosRefund,
+    // Phase 67 -- how many copies have left the system, by any medium; see InvoiceDetailDto.PrintCount.
+    int PrintCount);

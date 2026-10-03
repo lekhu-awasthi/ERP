@@ -4160,3 +4160,41 @@ helper becomes async and awaits `compileComponents()` before `createComponent`; 
 A spec that asserts `textContent` sees "Net sales949.00", because cells have no whitespace between them. The
 POS report specs read text node by node, joined with spaces (`visibleText` in `pos-reports.testing.ts`),
 which is also how a reader hears the row.
+
+## A blob request's error body is a Blob (phase 67)
+
+`HttpClient` with `responseType: 'blob'` delivers an error's body as a `Blob` too, so `extractErrorMessage`
+finds no ProblemDetails in it and every refusal reads as the page's generic fallback. Every print had done
+this since phase 20d. It mattered once refusals carried instructions ("printed somewhere else at the same
+moment, print it again"). `PrintingService` now parses the blob back into JSON before rethrowing. Do the
+same in any other blob-returning service whose errors a user should read.
+
+## QuestPDF's default font has no Devanagari (phase 67)
+
+Nepali text in a PDF prints as missing glyphs unless a font that has them is registered. Noto Sans
+Devanagari is embedded in the Api assembly and registered once by `PdfFonts.EnsureRegistered`. Only the text
+that needs it names the family, so no other document changes. In tests, set
+`QuestPDF.Settings.CheckIfAllTextGlyphsAreAvailable = true`, so a missing glyph throws instead of rendering
+a box that every byte-level assertion passes.
+
+## A PDF's text is not in its bytes (phase 67)
+
+QuestPDF deflates every content stream and shows glyph ids, not characters, so searching the bytes for
+"COPY OF ORIGINAL" finds nothing whether or not it is printed. `tests/Api.IntegrationTests/TestSupport/
+PdfText.cs` inflates the streams and maps each glyph through the font's `/ToUnicode` table. Parse each
+CMap section inside its own `begin…end`: a range pattern let loose on a `bfchar` block reads two one-glyph
+lines as one range and garbles everything. Devanagari comes back in glyph order (a pre-base vowel sign
+moves), so assert the font and look at the page; the Read tool renders a PDF.
+
+## A GET that would have to write is a POST, and the GET must refuse (phase 67)
+
+An invoice's copies are counted by law. A GET that wrote the print row would be unsafe under every cache,
+prefetcher and retry. A GET that did not would hand out an uncounted, unmarked copy. So
+`PrintDocumentQuery` refuses an invoice or a credit note unless `IssueDocumentPrintCommand` hands it the
+committed print row, and the Angular service chooses the verb by type.
+
+## The vendor counts prints and marks none (phase 67)
+
+Tigg's ERP increments `print_count` on Print (not on the preview), stamps "printed by" in the footer, and
+prints no "copy of original" on a reprint. It heads an approved invoice "ESTIMATE BILL" on a tenant that is
+VAT-registered but not IRD-enabled. Both are recorded in `erp-module-scan.md`; neither is ours.

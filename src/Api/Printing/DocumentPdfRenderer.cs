@@ -28,8 +28,11 @@ namespace ErpApp.Api.Printing;
 /// </summary>
 public static class DocumentPdfRenderer
 {
-    public static byte[] Render(PrintableDocumentDto dto) =>
-        Document.Create(container =>
+    public static byte[] Render(PrintableDocumentDto dto)
+    {
+        PdfFonts.EnsureRegistered();
+
+        return Document.Create(container =>
         {
             container.Page(page =>
             {
@@ -42,6 +45,17 @@ public static class DocumentPdfRenderer
                 page.Footer().Element(footer => RenderFooter(footer, dto));
             });
         }).GeneratePdf();
+    }
+
+    /// <summary>
+    /// Phase 67 -- the reprint mark the Procedure Related to Computerized Invoicing, 2072, §6 asks for:
+    /// a visible "copy of original" with how many times the document has been printed. Boxed, at the top
+    /// and the bottom of every page, in the till receipt's own words (phase 62), so one bill's copies
+    /// read alike on a till roll and on A4.
+    /// </summary>
+    private static void RenderCopyMark(IContainer container, PrintedCopyDto copy) =>
+        container.AlignCenter().Border(1).PaddingVertical(2).PaddingHorizontal(8)
+            .Text($"COPY OF ORIGINAL · printed {copy.PrintNumber} times").Bold().FontSize(10);
 
     /// <summary>Organization block on the left, document title and number on the right -- the
     /// arrangement the reference product prints for every document type.</summary>
@@ -117,7 +131,20 @@ public static class DocumentPdfRenderer
 
             header.Item().PaddingTop(8).Column(column =>
             {
+                if (dto.PrintedCopy is { IsCopy: true } copy)
+                {
+                    column.Item().PaddingBottom(4).Element(item => RenderCopyMark(item, copy));
+                }
+
                 column.Item().AlignCenter().Text(dto.Title.ToUpperInvariant()).Bold().FontSize(16);
+
+                // Phase 67 -- the heading in Nepali, as the till receipt prints it. Only this line
+                // names the Devanagari family; the rest of the page keeps the default font.
+                if (dto.TitleNepali is { } nepali)
+                {
+                    column.Item().AlignCenter().Text(nepali).FontFamily(PdfFonts.Devanagari).Bold().FontSize(13);
+                }
+
                 column.Item().AlignCenter().Text(dto.Code).FontSize(11);
                 column.Item().AlignCenter().Text($"Date: {dto.DateText}").FontSize(9);
 
@@ -304,6 +331,18 @@ public static class DocumentPdfRenderer
             }
 
             column.Item().AlignCenter().Text($"Template: {dto.PrintingTemplateName}").FontSize(8);
+
+            // Phase 67 -- who printed this copy and when (the 2072 procedure's print record, which the
+            // reference product's footer also carries), and the copy mark again at the foot.
+            if (dto.PrintedCopy is { } printed)
+            {
+                column.Item().AlignCenter().Text($"Printed by {printed.PrintedBy} on {printed.PrintedAtText}").FontSize(8);
+
+                if (printed.IsCopy)
+                {
+                    column.Item().PaddingTop(3).Element(item => RenderCopyMark(item, printed));
+                }
+            }
         });
     }
 }
