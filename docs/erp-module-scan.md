@@ -2475,6 +2475,21 @@ Decisions are in `phase-65-status.md`.
   tick items with quantities -> `POST /pos/orders/items-transfer {order_id, table_id, area_id, items:[{id,
   quantity}]}`.
 
+### The two dialogs, opened live (2026-10-08, phase 68)
+
+Same tenant (1 trial day left), POS Restaurant. One write with the user's authorisation: a dine-in order saved on
+**T2** (Chicken Momo × 3, Coke 250ml × 1; two KOTs, Kitchen and Default), left open. Decisions are in
+`phase-68-status.md`.
+
+- A sent dine-in line's menu is **Edit Item / Mark as Take Away / Mark as Served** (no Discard there; the order's
+  *Options* menu holds Discount, Add Note, Disable Service Charge, **Transfer List**, Discard, Print Estimate bill).
+- **Mark TakeAway**: one row per line opened from (a checkbox, then a − / quantity / + stepper defaulting to the
+  whole line, minimum 1), *Cancel* and *Confirm*; Confirm is disabled until the row is ticked. Its Confirm was
+  refused by the auto-mode classifier, so the server's pricing of a take-away quantity is still unobserved.
+- **Transfer Items**: every line with a checkbox and a stepper defaulting to its whole quantity; *Transfer to*:
+  **Area\*** then **Table\***; the table list leaves out the order's own table (T2 offered T1 and T3, both free);
+  *Transfer* disabled until valid. Nothing was transferred.
+
 ## POS reports and dashboard, read live (2026-10-02, phase 66)
 
 Same tenant (*Hamro Samaan*, 7 trial days left), entered through *Open Pos* with the handoff URL followed

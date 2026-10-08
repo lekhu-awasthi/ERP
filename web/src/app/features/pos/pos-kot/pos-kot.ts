@@ -43,7 +43,7 @@ export interface PrintedTicket {
     @for (printed of tickets(); track printed.ticket.id) {
       @let ticket = printed.ticket;
       <article class="pos-receipt pos-kot" [attr.aria-label]="'Kitchen ticket ' + ticket.number">
-        <p class="r-center r-title">{{ ticket.isCancellation ? 'Cancellation' : 'Kitchen Order' }}</p>
+        <p class="r-center r-title">{{ title(ticket) }}</p>
         <p class="r-center r-strong">{{ ticket.kitchenStationName }}</p>
         @if (printed.printNumber > 1) {
           <p class="r-copy">REPRINT ({{ printed.printNumber }})</p>
@@ -59,11 +59,17 @@ export interface PrintedTicket {
         }
         <p class="r-row"><span>Sent</span><span>{{ ticket.createdAt | nepaliDate: 'datetime' }}</span></p>
         <p class="r-row"><span>By</span><span>{{ ticket.createdByName }}</span></p>
+        @if (ticket.kind === 'Transfer' && ticket.counterpartOrderCode) {
+          <p class="r-row"><span>From</span><span class="r-strong">{{ ticket.counterpartOrderCode }}</span></p>
+        }
         <div class="r-rule"></div>
-        @for (line of ticket.lines; track line.orderLineId) {
-          <p class="k-line">{{ line.quantity }} × {{ line.productName }}{{ line.unitName ? ' (' + line.unitName + ')' : '' }}</p>
-          @if (line.note) {
-            <p class="r-indent">» {{ line.note }}</p>
+        <!-- A take-away ticket prints what to pack; its minus line is the table's half of the move. -->
+        @for (line of ticket.lines; track $index) {
+          @if (ticket.kind !== 'TakeAway' || line.quantity > 0) {
+            <p class="k-line">{{ line.quantity }} × {{ line.productName }}{{ line.unitName ? ' (' + line.unitName + ')' : '' }}{{ line.isTakeAway ? ' · TAKE AWAY' : '' }}</p>
+            @if (line.note) {
+              <p class="r-indent">» {{ line.note }}</p>
+            }
           }
         }
         @if (ticket.reason) {
@@ -81,4 +87,18 @@ export class PosKotView {
   readonly tickets = input.required<PrintedTicket[]>();
 
   protected readonly typeLabels = POS_TAB_LABELS;
+
+  /** Phase 68 -- the paper says what the kitchen is to do with it. */
+  protected title(ticket: KitchenTicket): string {
+    switch (ticket.kind) {
+      case 'Cancellation':
+        return 'Cancellation';
+      case 'TakeAway':
+        return 'Take Away: pack to go';
+      case 'Transfer':
+        return 'Transferred to this table';
+      default:
+        return 'Kitchen Order';
+    }
+  }
 }

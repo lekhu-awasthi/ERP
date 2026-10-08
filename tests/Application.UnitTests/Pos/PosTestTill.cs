@@ -125,7 +125,7 @@ internal sealed class PosTestTill
         var posSettings = PosLocationSettings.CreateDefault(organizationId, location.Id);
         posSettings.Update(
             mode, serviceChargeEnabled: true, serviceChargeRate: 10m, serviceChargeAccountId: null,
-            roundOffEnabled: true, roundOffAccountId: null, cashVerificationRequired: false,
+            serviceChargeOnTakeAway: true, roundOffEnabled: true, roundOffAccountId: null, cashVerificationRequired: false,
             denominations: PosLocationSettings.DefaultDenominations, defaultTab: null,
             printEstimateBill: true, printInvoice: true, printCreditNote: true, printKot: false,
             abbreviatedTaxInvoiceEnabled: false);

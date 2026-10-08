@@ -20,7 +20,7 @@ describe('PosOrderListPage', () => {
     lines: [{ id: 'l1', lineNo: 1, productId: 'momo', productCode: 'P0002', productName: 'Chicken Momo', unitId: null, unitName: null,
       rate: 200, vatRate: 'ThirteenPercentVat', serviceChargeRate: 10, note: 'less spicy', kitchenStationId: 'k',
       kitchenStationName: 'Kitchen', ordered: 3, discarded: 1, quantity: 2, served: 1, outstanding: 1, invoiced: 0, toBill: 2, amount: 400,
-      serviceChargeAmount: 40, vatAmount: 57.2, total: 497.2 }],
+      serviceChargeAmount: 40, vatAmount: 57.2, total: 497.2, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0 }],
     tickets: [],
   };
 

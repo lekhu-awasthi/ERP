@@ -183,6 +183,19 @@ beside a 200 from the same user, and create a fresh Organization per phase.
     `GET /restaurants/{loc}` (phase-65).
 - `LineNo` is a T-SQL keyword (`LINENO`): `pos.PosOrderLines.LineNo` must be bracketed, `ol.[LineNo]`, or the
   whole batch fails (phase-65).
+- Mark as Take Away and transfer (phase 68), under `/{org}/pos`:
+  - `POST /orders/{id}/take-away {lineId, quantity}` returns the order; the parcel is a new line with `isTakeAway: true`
+    and `parcelledFromLineId`, at the rate `PUT /locations/{id}/settings`'s **14th field `serviceChargeOnTakeAway`**
+    gave it when marked (absent from the PUT reads as On). Only a Dine In order, only food not yet served and not yet billed.
+  - `POST /orders/{id}/transfers {tableId, items: [{lineId, quantity}]}` returns `{source, target, targetCreated}`;
+    a free table gets a new Dine In order (1 guest, walk-in). Its own table is a 400 naming `TableId`; a Take Away
+    source is a 409. A transfer that empties an unbilled source voids it ("All items transferred to ORD…").
+  - In SQL: `pos.KitchenTickets.Kind` (`Send`/`Cancellation`/`TakeAway`/`Transfer`) and `CounterpartOrderId`;
+    `pos.PosOrderLines.IsTakeAway`, `ParcelledFromLineId`; a line's net is still `SUM(KitchenTicketLines.Quantity)`.
+    An invoice's grand total is **not a column**: rebuild it as `SUM(Amount + ServiceChargeAmount + VatAmount) + RoundOff`.
+  - The 403-not-404 pair: both endpoints against a nonexistent order are **404** "Order not found." as Admin and
+    **403 naming `Pos.Order.Operate`** from a role holding `Pos.Order.View` + `Tenancy.BillingLocation.View`,
+    beside a 200 on `GET /billing-locations`. Send a valid body: validation runs before authorization (phase-68).
 - In the Browser pane a Bootstrap `.btn-check` radio clicked by its ref hits the hidden input and changes nothing;
   click its `<label>` ref instead (phase-65).
 - The audit table is `workflow.Audits` (`Action`, `DocumentType`, `LocationId`), not `tenancy.AuditEntries` (phase-65).

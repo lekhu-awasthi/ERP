@@ -21,6 +21,7 @@ import {
   PosOrderBillRequest,
   PosOrderItemInput,
   PosOrderLineQuantityInput,
+  PosOrderTransferResult,
   PosOrderStatus,
   PosOrderType,
   PosRestaurant,
@@ -138,6 +139,21 @@ export class PosRestaurantService {
     return this.http.post<PosOrder>(`${this.orderUrl(organizationId, orderId)}/serve`, { items }, {
       withCredentials: true,
     });
+  }
+
+  /** Phase 68 -- parcels part of a dine-in line at the location's take-away service-charge rule. */
+  markTakeAway(organizationId: string, orderId: string, lineId: string, quantity: number): Observable<PosOrder> {
+    return this.http.post<PosOrder>(`${this.orderUrl(organizationId, orderId)}/take-away`, { lineId, quantity }, {
+      withCredentials: true,
+    });
+  }
+
+  /** Phase 68 -- moves items to another table's open order, or to a new one opened there. */
+  transferItems(
+    organizationId: string, orderId: string, tableId: string, items: PosOrderLineQuantityInput[],
+  ): Observable<PosOrderTransferResult> {
+    return this.http.post<PosOrderTransferResult>(
+      `${this.orderUrl(organizationId, orderId)}/transfers`, { tableId, items }, { withCredentials: true });
   }
 
   discard(

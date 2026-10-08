@@ -180,6 +180,11 @@ public static class DocumentPdfRenderer
                         {
                             party.Item().Text(dto.PartyAddress).FontSize(9);
                         }
+
+                        if (!string.IsNullOrWhiteSpace(dto.PartyPan))
+                        {
+                            party.Item().Text($"PAN: {dto.PartyPan}").FontSize(9);
+                        }
                     });
 
                     row.RelativeItem().Column(fields =>

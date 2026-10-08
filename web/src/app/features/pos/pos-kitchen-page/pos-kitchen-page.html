@@ -75,6 +75,13 @@
                       <p class="small mb-0">
                         {{ ticket.areaName ? ticket.areaName + ' · ' : '' }}{{ tabLabels[ticket.orderType] }} &middot; {{ ticket.kitchenStationName }}
                       </p>
+                      @if (ticket.kind === 'TakeAway') {
+                        <p class="small fw-bold mb-0">Pack to go</p>
+                      } @else if (ticket.kind === 'Transfer') {
+                        <p class="small fw-bold mb-0">
+                          {{ ticket.state === 'Moved' ? 'Moved to ' : 'Transferred from ' }}{{ ticket.counterpartOrderCode }}
+                        </p>
+                      }
                     </div>
                     <div class="text-end small">
                       <p class="mb-0 fw-bold">{{ ticket.number }}</p>
@@ -83,6 +90,7 @@
                         @case ('Served') { <span class="badge text-bg-success">Served</span> }
                         @case ('Cancelled') { <span class="badge text-bg-secondary">Cancelled</span> }
                         @case ('Cancellation') { <span class="badge text-bg-danger">Cancellation</span> }
+                        @case ('Moved') { <span class="badge text-bg-secondary">Moved</span> }
                       }
                       @if (ticket.orderStatus === 'Settled') {
                         <span class="badge text-bg-light border">Paid</span>
@@ -90,13 +98,18 @@
                     </div>
                   </header>
                   <ul class="list-unstyled mb-2 mt-2">
-                    @for (line of ticket.lines; track line.orderLineId) {
+                    @for (line of ticket.lines; track $index) {
+                      <!-- A take-away card's minus line is the dine-in half of the move: nothing to cook. -->
+                      @if (line.sent > 0 || ticket.state === 'Cancellation' || ticket.state === 'Moved') {
                       <li class="pos-kot-line">
                         <div class="d-flex align-items-center justify-content-between gap-2">
                           <span class="fw-bold" [class.text-decoration-line-through]="ticket.state !== 'Cancellation' && line.pending === 0 && line.served === 0">
                             {{ line.sent }} × {{ line.productName }}{{ line.unitName ? ' (' + line.unitName + ')' : '' }}
+                            @if (line.isTakeAway) {
+                              <span class="badge text-bg-info">Take away</span>
+                            }
                           </span>
-                          @if (ticket.state !== 'Cancellation' && line.pending > 0) {
+                          @if (ticket.state !== 'Cancellation' && ticket.state !== 'Moved' && line.pending > 0) {
                             <button type="button" class="btn btn-sm btn-outline-success" [disabled]="busyTicketId() === ticket.id"
                               (click)="serve(ticket, line)">
                               Serve<span class="visually-hidden"> {{ line.pending }} {{ line.productName }} on {{ ticket.number }}</span>
@@ -106,12 +119,13 @@
                         @if (line.note) {
                           <p class="small mb-0">» {{ line.note }}</p>
                         }
-                        @if (ticket.state !== 'Cancellation' && (line.served > 0 || line.cancelled > 0)) {
+                        @if (ticket.state !== 'Cancellation' && (line.served > 0 || line.cancelled > 0 || line.moved > 0)) {
                           <p class="small text-body-secondary mb-0">
-                            {{ line.served }} served{{ line.cancelled > 0 ? ' · ' + line.cancelled + ' cancelled' : '' }}{{ line.pending > 0 ? ' · ' + line.pending + ' to cook' : '' }}
+                            {{ line.served }} served{{ line.cancelled > 0 ? ' · ' + line.cancelled + ' cancelled' : '' }}{{ line.moved > 0 ? ' · ' + line.moved + ' moved' : '' }}{{ line.pending > 0 ? ' · ' + line.pending + ' to cook' : '' }}
                           </p>
                         }
                       </li>
+                      }
                     }
                   </ul>
                   @if (ticket.reason) {

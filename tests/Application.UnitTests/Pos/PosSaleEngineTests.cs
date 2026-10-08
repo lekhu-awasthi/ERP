@@ -88,7 +88,7 @@ public sealed class PosSaleEngineTests
         var till = await PosTestTill.CreateAsync();
         var settings = await till.Db.PosLocationSettings.SingleAsync();
         settings.Update(
-            PosMode.Retail, false, 0m, null, false, null, false, PosLocationSettings.DefaultDenominations, null,
+            PosMode.Retail, false, 0m, null, true, false, null, false, PosLocationSettings.DefaultDenominations, null,
             true, true, true, false, false);
         await till.Db.SaveChangesAsync();
         var session = await till.OpenAsync();
@@ -116,7 +116,7 @@ public sealed class PosSaleEngineTests
         // The location's own account, once set, is used without any tenant default.
         var posSettings = await till.Db.PosLocationSettings.SingleAsync();
         posSettings.Update(
-            PosMode.Retail, true, 10m, till.VegetablesAccountId, true, null, false,
+            PosMode.Retail, true, 10m, till.VegetablesAccountId, true, true, null, false,
             PosLocationSettings.DefaultDenominations, null, true, true, true, false, false);
         await till.Db.SaveChangesAsync();
 
@@ -401,7 +401,7 @@ public sealed class PosSaleEngineTests
         var till = await PosTestTill.CreateAsync();
         var settings = await till.Db.PosLocationSettings.SingleAsync();
         settings.Update(
-            PosMode.Retail, true, 10m, null, true, null, cashVerificationRequired: true,
+            PosMode.Retail, true, 10m, null, true, true, null, cashVerificationRequired: true,
             [1000, 500, 100], null, true, true, true, false, false);
         await till.Db.SaveChangesAsync();
 

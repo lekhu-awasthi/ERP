@@ -15,6 +15,7 @@ import {
   PosOrderBillRequest,
   PosOrderItemInput,
   PosOrderLineQuantityInput,
+  PosOrderTransferResult,
   PosRestaurant,
 } from '../../../core/pos/pos-restaurant.models';
 import { PosRestaurantService } from '../../../core/pos/pos-restaurant.service';
@@ -45,15 +46,16 @@ describe('PosOrderPage', () => {
     ] }],
     orders: [], canVoid: true,
     roundOffEnabled: true, printEstimateBill: true, printInvoice: true, mySessionId: null, mySessionCode: null,
-    canKitchen: true,
+    canKitchen: true, serviceChargeOnTakeAway: true,
     ...overrides,
   });
 
   const ticket = (sendNumber: number, station: string, lines: [string, number][]): KitchenTicket => ({
     id: `k-${sendNumber}-${station}`, sendNumber, number: `ORD0001-${sendNumber}`, kitchenStationId: station === 'Default' ? null : 'kitchen',
     kitchenStationName: station, isCancellation: lines.every(([, q]) => q < 0), reason: null, createdAt: '2026-10-02T04:00:00Z',
-    createdByName: 'Sita', printCount: 0,
-    lines: lines.map(([name, quantity], i) => ({ orderLineId: `l-${name}`, lineNo: i + 1, productName: name, unitName: 'plt', quantity, note: null })),
+    createdByName: 'Sita', printCount: 0, kind: lines.every(([, q]) => q < 0) ? 'Cancellation' : 'Send', counterpartOrderCode: null,
+    lines: lines.map(([name, quantity], i) => ({
+      orderLineId: `l-${name}`, lineNo: i + 1, productName: name, unitName: 'plt', quantity, note: null, isTakeAway: false })),
   });
 
   const order = (overrides: Partial<PosOrder> = {}): PosOrder => ({
@@ -66,11 +68,11 @@ describe('PosOrderPage', () => {
       { id: 'l-Chicken Momo', lineNo: 1, productId: 'momo', productCode: 'P0002', productName: 'Chicken Momo', unitId: 'plate',
         unitName: 'plt', rate: 200, vatRate: 'ThirteenPercentVat', serviceChargeRate: 10, note: null, kitchenStationId: 'kitchen',
         kitchenStationName: 'Kitchen', ordered: 2, discarded: 0, quantity: 2, served: 0, outstanding: 2, invoiced: 0, toBill: 2, amount: 400,
-        serviceChargeAmount: 40, vatAmount: 57.2, total: 497.2 },
+        serviceChargeAmount: 40, vatAmount: 57.2, total: 497.2, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0 },
       { id: 'l-Coke 250ml', lineNo: 2, productId: 'coke', productCode: 'P0003', productName: 'Coke 250ml', unitId: 'plate',
         unitName: 'plt', rate: 60, vatRate: 'ThirteenPercentVat', serviceChargeRate: 0, note: null, kitchenStationId: null,
         kitchenStationName: 'Default', ordered: 1, discarded: 0, quantity: 1, served: 0, outstanding: 1, invoiced: 0, toBill: 1, amount: 60,
-        serviceChargeAmount: 0, vatAmount: 7.8, total: 67.8 },
+        serviceChargeAmount: 0, vatAmount: 7.8, total: 67.8, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0 },
     ],
     tickets: [ticket(1, 'Kitchen', [['Chicken Momo', 2]]), ticket(1, 'Default', [['Coke 250ml', 1]])],
     ...overrides,
@@ -82,6 +84,8 @@ describe('PosOrderPage', () => {
     const discarded: { items: PosOrderLineQuantityInput[]; reason: string }[] = [];
     const printed: string[] = [];
     const previews: PosOrderBillRequest[] = [];
+    const marked: { lineId: string; quantity: number }[] = [];
+    const transfers: { tableId: string; items: PosOrderLineQuantityInput[] }[] = [];
     let latest = options.order ?? order();
     const service = {
       getRestaurant: (): Observable<PosRestaurant> => of(options.restaurant ?? restaurant()),
@@ -97,6 +101,24 @@ describe('PosOrderPage', () => {
         const base = order();
         latest = { ...base, tickets: [...base.tickets, ticket(2, 'Default', [['Coke 250ml', 1]])] };
         return of(latest);
+      },
+      markTakeAway: (_o: string, _id: string, lineId: string, quantity: number): Observable<PosOrder> => {
+        marked.push({ lineId, quantity });
+        const base = order();
+        const parcel: KitchenTicket = {
+          ...ticket(2, 'Kitchen', [['Chicken Momo', -1], ['Chicken Momo', 1]]), id: 'k-take-away', kind: 'TakeAway', isCancellation: false,
+        };
+        latest = { ...base, tickets: [...base.tickets, parcel] };
+        return of(latest);
+      },
+      transferItems: (_o: string, _id: string, tableId: string, items: PosOrderLineQuantityInput[]): Observable<PosOrderTransferResult> => {
+        transfers.push({ tableId, items });
+        const emptied = items.length === 2;
+        const target = order({
+          id: 'ord-2', code: 'ORD0002', tableId, tableName: 'T2',
+          tickets: [{ ...ticket(1, 'Kitchen', [['Chicken Momo', 1]]), id: 'k-in', kind: 'Transfer', counterpartOrderCode: 'ORD0001' }],
+        });
+        return of({ source: order(emptied ? { status: 'Voided' } : {}), target, targetCreated: true });
       },
       discard: (_o: string, _id: string, items: PosOrderLineQuantityInput[], reason: string): Observable<PosOrder> => {
         discarded.push({ items, reason });
@@ -148,7 +170,7 @@ describe('PosOrderPage', () => {
     render();
 
     return {
-      element, created, added, discarded, printed, previews, navigate,
+      element, created, added, discarded, printed, previews, navigate, marked, transfers,
       text: () => element.textContent?.replace(/\s+/g, ' ') ?? '',
       press: (label: string) => {
         [...element.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim().startsWith(label))!.click();
@@ -260,6 +282,103 @@ describe('PosOrderPage', () => {
     const settled = page({ orderId: 'ord-1', order: order({ status: 'Settled', settledAt: '2026-10-02T05:00:00Z', toBill: 0 }) });
     expect(settled.text()).toContain('Settled');
     expect(settled.element.querySelector('a[href$="/bill"]')).toBeNull();
+  });
+
+  // ---- Phase 68: Mark as Take Away and Transfer Items ----------------------------------------------
+
+  it('marks part of a dine-in line take away, saying first what happens to its service charge', () => {
+    const p = page({ orderId: 'ord-1' });
+
+    p.press('Take Away Chicken Momo');
+    const quantity = p.element.querySelector<HTMLInputElement>('#pos-order-panel-first')!;
+    expect(quantity.value).toBe('2');
+    expect(quantity.getAttribute('aria-describedby')).toBe('pos-order-take-away-note');
+    expect(p.text()).toContain('The parcel keeps its 10% service charge');
+
+    p.type('pos-order-panel-first', '1');
+    p.submitPanel();
+
+    expect(p.marked).toEqual([{ lineId: 'l-Chicken Momo', quantity: 1 }]);
+    expect(p.text()).toContain('Marked as take away');
+  });
+
+  it('says a parcel carries no service charge where the location switched it off', () => {
+    const p = page({ orderId: 'ord-1', restaurant: restaurant({ serviceChargeOnTakeAway: false }) });
+
+    p.press('Take Away Chicken Momo');
+    expect(p.text()).toContain('carries no service charge (this location\'s setting)');
+  });
+
+  it('prints the take-away ticket for the kitchen where the location prints KOTs', () => {
+    const p = page({ orderId: 'ord-1', restaurant: restaurant({ printKot: true }) });
+
+    p.press('Take Away Chicken Momo');
+    p.submitPanel();
+
+    expect(p.printed).toEqual(['k-take-away']);
+    const paper = p.element.querySelector('.pos-print-root')!.textContent!.replace(/\s+/g, ' ');
+    expect(paper).toContain('Take Away: pack to go');
+  });
+
+  it('offers no Take Away on a Take Away order, or on a line already parcelled', () => {
+    const parcel = page({ orderId: 'ord-1', order: order({ orderType: 'TakeAway', tableId: null, tableName: null }) });
+    expect([...parcel.element.querySelectorAll('button')].some((b) => b.textContent?.trim().startsWith('Take Away'))).toBe(false);
+    TestBed.resetTestingModule();
+
+    const base = order();
+    const marked = page({
+      orderId: 'ord-1',
+      order: order({ lines: base.lines.map((l) => ({ ...l, isTakeAway: true })) }),
+    });
+    expect([...marked.element.querySelectorAll('button')].some((b) => b.textContent?.trim().startsWith('Take Away'))).toBe(false);
+    expect(marked.text()).toContain('Take away');
+  });
+
+  it('transfers ticked items to the chosen table, and asks for both first', () => {
+    const p = page({ orderId: 'ord-1', restaurant: restaurant({ printKot: true }) });
+
+    p.press('Transfer Items');
+    p.submitPanel();
+    expect(p.transfers).toEqual([]);
+    expect(p.text()).toContain('Choose the table to transfer to.');
+
+    const select = p.element.querySelector<HTMLSelectElement>('#pos-order-panel-first')!;
+    expect([...select.options].map((o) => o.textContent?.trim())).toEqual([
+      'Choose a table', 'T2 (Ground Floor) · free: opens a new order',
+    ]);
+    select.value = 't2';
+    select.dispatchEvent(new Event('change'));
+    p.submitPanel();
+    expect(p.transfers).toEqual([]);
+    expect(p.text()).toContain('Tick at least one item to transfer.');
+
+    const pick = p.element.querySelector<HTMLInputElement>('#pos-order-transfer-pick-l-Chicken\\ Momo')!;
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+    p.type('pos-order-transfer-qty-l-Chicken\\ Momo', '1');
+    p.submitPanel();
+
+    expect(p.transfers).toEqual([{ tableId: 't2', items: [{ lineId: 'l-Chicken Momo', quantity: 1 }] }]);
+    expect(p.text()).toContain('Moved 1 item(s) to T2 (ORD0002, a new order).');
+    expect(p.printed).toEqual(['k-in']);
+    expect(p.navigate).not.toHaveBeenCalled();
+  });
+
+  it('follows the food to the other table when a transfer emptied this order', () => {
+    const p = page({ orderId: 'ord-1' });
+
+    p.press('Transfer Items');
+    const select = p.element.querySelector<HTMLSelectElement>('#pos-order-panel-first')!;
+    select.value = 't2';
+    select.dispatchEvent(new Event('change'));
+    for (const box of p.element.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')) {
+      box.checked = true;
+      box.dispatchEvent(new Event('change'));
+    }
+    p.submitPanel();
+
+    expect(p.navigate).toHaveBeenCalledWith(['/organizations', organizationId, 'pos', 'orders', 'ord-2'], { replaceUrl: true });
+    expect(p.text()).toContain('ORD0001 is closed');
   });
 
   it('will not send a delivery without a named customer', () => {

@@ -60,6 +60,8 @@ export class PosSettingsPage {
   protected readonly serviceChargeEnabled = signal(false);
   protected readonly serviceChargeRate = signal(0);
   protected readonly serviceChargeAccountId = signal('');
+  /** Phase 68 -- on by default: a parcelled dine-in item keeps the charge it was ordered with. */
+  protected readonly serviceChargeOnTakeAway = signal(true);
   protected readonly roundOffEnabled = signal(false);
   protected readonly roundOffAccountId = signal('');
   protected readonly cashVerificationRequired = signal(false);
@@ -135,6 +137,7 @@ export class PosSettingsPage {
         serviceChargeEnabled: this.serviceChargeEnabled(),
         serviceChargeRate: this.serviceChargeEnabled() ? this.serviceChargeRate() : 0,
         serviceChargeAccountId: this.serviceChargeEnabled() ? this.serviceChargeAccountId() || null : null,
+        serviceChargeOnTakeAway: this.serviceChargeOnTakeAway(),
         roundOffEnabled: this.roundOffEnabled(),
         roundOffAccountId: this.roundOffEnabled() ? this.roundOffAccountId() || null : null,
         cashVerificationRequired: this.cashVerificationRequired(),
@@ -219,6 +222,7 @@ export class PosSettingsPage {
     this.serviceChargeEnabled.set(settings.serviceChargeEnabled);
     this.serviceChargeRate.set(settings.serviceChargeRate);
     this.serviceChargeAccountId.set(settings.serviceChargeAccountId ?? '');
+    this.serviceChargeOnTakeAway.set(settings.serviceChargeOnTakeAway);
     this.roundOffEnabled.set(settings.roundOffEnabled);
     this.roundOffAccountId.set(settings.roundOffAccountId ?? '');
     this.cashVerificationRequired.set(settings.cashVerificationRequired);

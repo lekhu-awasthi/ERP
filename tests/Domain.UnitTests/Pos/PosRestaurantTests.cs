@@ -232,7 +232,7 @@ public class PosRestaurantTests
         var settings = PosLocationSettings.CreateDefault(Organization, Location);
         settings.Update(
             PosMode.Restaurant, serviceChargeEnabled: true, serviceChargeRate: 10m, serviceChargeAccountId: null,
-            roundOffEnabled: false, roundOffAccountId: null, cashVerificationRequired: false,
+            serviceChargeOnTakeAway: true, roundOffEnabled: false, roundOffAccountId: null, cashVerificationRequired: false,
             denominations: PosLocationSettings.DefaultDenominations, defaultTab: null, printEstimateBill: true,
             printInvoice: true, printCreditNote: true, printKot: true, abbreviatedTaxInvoiceEnabled: false);
 

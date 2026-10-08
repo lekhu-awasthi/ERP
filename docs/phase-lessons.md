@@ -1925,3 +1925,29 @@ to record and a choice to put to the user, not a spec.
 
 **Assert on what the PDF says.** `TestSupport/PdfText` reads a QuestPDF file back to its text, and the Read
 tool renders a PDF page for a look. Use the second for Devanagari, which the first returns in glyph order.
+
+## Phase 68 — Mark as Take Away and item transfer: a move is a ticket, and the parcel's rate is decided once
+
+**Read `phase-68-status.md` before moving a quantity between lines or orders, or before letting a setting change
+what a line is charged.**
+
+**A move is a ticket, never a counter.** A take-away mark is one ticket, minus on the dine-in line and plus on the
+parcel; a transfer is a ticket on each order, each naming the other. Net is still a sum over ticket lines. The
+cost was storing the ticket's **kind**: phase 64 told a send from a cancellation by its signs, and a move has
+both, so anything reading "ordered" or "discarded" from signs alone would have counted a move as either.
+
+**"Outranks the frozen rate" means "decide the rate once, at the action".** The parcel copies the dine-in line's
+frozen terms and takes service charge from the setting at the moment of the mark, then freezes. A product
+exemption carries over because the source rate was already zero; nothing re-reads the catalogue. A later
+change to the setting reprices nothing, which a second parcel line at the other rate makes visible.
+
+**Bound a move by what is unbilled and a void needs no rule.** A bill names the line it bills and a transfer
+never moves billed quantity, so a void after a transfer gives back to the right line by construction.
+
+**A required parameter, not an optional one.** `PosLocationSettings.Update` grew `serviceChargeOnTakeAway` as a
+required parameter, so the compiler listed all eight existing callers; the Api's request record carries it as `bool?`
+defaulting to On, so an older client cannot switch it off by omission.
+
+**Run the keyboard pass on the rebuilt bundle, at a human's pace.** The pass found a focus theft no test saw
+(a reload re-focused the search box, since phase 64), and also produced two false findings: one on a bundle the
+dev server replaced mid-test, one where keypresses outran a zoneless render.

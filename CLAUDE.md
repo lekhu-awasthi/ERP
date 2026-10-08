@@ -99,6 +99,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 65: kitchen board and settling (a bill is a till sale whose lines come from the order: frozen rates, the last of a line takes what is left, rounding on the running total; invoiced is a sum over invoices not voided; the board polls and archives nothing). Before billing in parts, a figure that must add up across documents, or a status a void must undo — `docs/phase-65-status.md`
 - Phase 66: POS reports and dashboard (Day Report, Payment Summary, Order Report, POS Sessions, the launcher's overview; the ERP sales reports and System Audit take `channel`; every figure from `PosSalesReader`/`TradeLineReader`; the round-off the one line to the Sales Register). Before a report that must agree with another, a dashboard, or a chart beside a figure — `docs/phase-66-status.md`
 - Phase 67: the ERP invoice and credit-note PDF (the heading the bill is, English and Nepali; every copy counted across till, PDF and email; a counted print is a POST, the GET refuses). Before a new way a document leaves the system, or Nepali in a PDF — `docs/phase-67-status.md`
+- Phase 68: Mark as Take Away and item transfer (a parcel is a split line moved by a take-away ticket, its service charge decided once at the mark by the location's setting; a transfer is a ticket on each order at the same rates; an emptied tab closes) + the buyer's PAN on the ERP PDF. Before moving a quantity between lines or orders, or a setting that changes a line's charge — `docs/phase-68-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -266,6 +267,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A till's net sales and the Sales Register differ by exactly the net round-off (a register lists supplies); print that line on every POS screen, or two reports disagree by it (phase-66).
 - A quantity a void must give back is a **sum over the documents not voided** (invoiced = Σ invoice lines naming the order line), never a counter written back (phase-65).
 - Every copy of an invoice or credit note that leaves counts (till, PDF, email) in one table; the counted print is a POST and the GET refuses those types, never a GET that writes (phase-67).
+- A move is a kitchen ticket with a stored **kind**: a take-away mark has both signs and a transfer's half is negative without being a discard, so signs alone miscount both (phase-68).
+- A rate a setting decides is decided **once, at the action**, and frozen on the line it creates; changing the setting later reprices nothing (phase-68's take-away service charge).
 
 - Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
 - A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
@@ -394,6 +397,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A visually-hidden caption inside `.table-responsive` overhangs by 1px and grows a scrollbar; `styles.scss` pins it. Measure scrollHeight against clientHeight (phase-66).
 - A component with a `@defer` block has async metadata: its TestBed spec must `await compileComponents()`, or every test fails "unresolved metadata" (phase-66).
 - A `responseType: 'blob'` request's error body is a Blob, so `extractErrorMessage` reads nothing and every refusal shows the fallback; parse it back to JSON (`PrintingService`, phase-67).
+- A load helper that sets focus steals it after every action that reloads through it; take a `focusSearch` flag and pass `false` after an action (phase-68).
 
 **Multi-way switches on a document-attached mechanism**
 - A shared UI panel is not evidence of a shared model: email templates are their own resource, so `EmailTemplate` is its own aggregate and `CustomTemplateType.Email` was deleted (phase-30).
@@ -488,30 +492,28 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Read the scan's next row before modelling from one: phase 60's "round to the rupee" had 316.40 → 317, a ceiling, two lines down. We round to nearest by choice (phase-61).
 - The vendor's POS and ERP keep separate sessions; drive both by capturing the organisation list's `window.open` URL, and never record its `hash`/`identity` (phase 59).
 - The auto-mode classifier can refuse writes on the vendor's tenant even after the user says yes; plan a confirm-live read that can finish from screens and the client bundle alone (phase-64).
+- A keyboard pass right after a dev-server rebuild measures the old bundle, and keys batched in one task outrun a zoneless render; check the served chunk, and pace keys as a person would (phase-68).
 
 ## Current status
 
-**Phases 0-67 are complete. Next: phase 68, Mark as Take Away and item transfer.**
+**Phases 0-68 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 67 put the ERP's invoice and credit-note PDF under the two statutory rules the till already followed.**
-It added:
+**Phase 68 shipped Mark as Take Away and item transfer on the restaurant till**, after the buyer's PAN on the
+ERP invoice and credit-note PDF ("PAN: …" only when the contact has one). It added:
 
-- the heading the bill is, in English and Nepali (`InvoiceHeadings`, one Domain rule for the till and the PDF;
-  Noto Sans Devanagari embedded for the PDF);
-- every copy counted in the till's own `InvoicePrints`/`CreditNotePrints`, whatever the medium (till receipt,
-  PDF, email), and every copy after the first boxed "COPY OF ORIGINAL · printed N times";
-- `POST /print/{Invoice|CreditNote}/{id}` as the only way to print those two types (the GET refuses), and
-  "Printed N times" beside Print on both detail pages;
-- "Against Invoice: <number> dated <date>" on a credit note raised from an invoice.
+- a take-away mark: the quantity moves to a parcel line through a `TakeAway` kitchen ticket, its service
+  charge decided once, at the mark, by the location's new *Service charge on take-away* (On by default);
+- a transfer: a `Transfer` ticket on each order at the same rates, to the table's open order or a new one;
+  a transfer that empties an unbilled tab voids it, one that leaves it fully billed settles it;
+- the ticket's kind stored (`KitchenTicket.Kind`), so a move is neither ordered nor discarded.
 
-**Next: phase 68** (roadmap, "Carried from phases 64 and 65"): Mark as Take Away and item transfer, with the
-user's answer recorded there (a per-location On/Off for service charge on take-away, frozen on the line when
-marked; the packaging fee carried separately). Also carried: phase 67 § 5, phase 66 § 5, phase 63 § 5.
+**Next:** not yet scheduled. Carried: the packaging fee, discount and credit on a restaurant bill, per-part
+customers (phase 68 § 5), phase 67 § 5 (a standalone credit note names no invoice), real printing templates.
 
-Tests: Domain **882**, Application.UnitTests **1565**, Infrastructure.UnitTests 13,
-Api.IntegrationTests **39**, Angular **755**. Everything was green at phase 67's close with Docker up.
+Tests: Domain **897**, Application.UnitTests **1575**, Infrastructure.UnitTests 13,
+Api.IntegrationTests **43**, Angular **762**. Everything was green at phase 68's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

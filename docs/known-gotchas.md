@@ -4198,3 +4198,29 @@ committed print row, and the Angular service chooses the verb by type.
 Tigg's ERP increments `print_count` on Print (not on the preview), stamps "printed by" in the footer, and
 prints no "copy of original" on a reprint. It heads an approved invoice "ESTIMATE BILL" on a tenant that is
 VAT-registered but not IRD-enabled. Both are recorded in `erp-module-scan.md`; neither is ours.
+
+## A move cannot be told from its signs (phase 68)
+
+Phase 64 read a kitchen ticket's meaning from its signs: all positive was a send, all negative a cancellation,
+and a line's *ordered* and *discarded* quantities were the positive and negative sums. A take-away mark is one
+ticket with both signs (minus on the dine-in line, plus on the parcel), and a transfer's outgoing ticket is all
+negative without being a discard. Read by signs, the first breaks `IsCancellation` and the second inflates
+*discarded*. So `KitchenTicket.Kind` is stored (`Send`/`Cancellation`/`TakeAway`/`Transfer`), backfilled from
+`Reason` (exactly the cancellations carry one), and `QuantitiesOf` counts a move as `MovedIn`/`MovedOut`, never
+as ordered or discarded.
+
+## A reload that focuses on load steals focus after every action (phase 68)
+
+The restaurant order page's `loadRestaurant` focused the menu search box in an `afterNextRender`, which is
+right when the page opens. It was also called after *Move Table / Guests* (phase 64) and after a transfer, so
+focus left the button that opened the panel the moment the floor reloaded, which is phase 40's rule broken by a
+helper rather than by a panel. The keyboard pass found it; no test did. A load helper that sets focus takes a
+`focusSearch` flag, and reloads after an action pass `false`.
+
+## Two false findings in a keyboard pass (phase 68)
+
+Both looked like bugs. First, a check ran seconds after the dev server finished a rebuild and sent a page
+reload, so it measured the old bundle and then a freshly loaded page whose search box takes focus on load.
+Check the served chunk for a string from the edit before believing a result. Second, a `browser_batch` pressed
+Space then Tab in the same task; the zoneless render that enables the quantity input had not run, so Tab
+skipped it. With a half-second between the two presses, Tab lands on it. Pace a census as a person would.

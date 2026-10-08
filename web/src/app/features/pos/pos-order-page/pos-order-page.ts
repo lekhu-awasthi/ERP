@@ -38,7 +38,9 @@ interface PendingItem {
 type Panel =
   | { kind: 'serve'; lineId: string }
   | { kind: 'discard'; lineId: string }
+  | { kind: 'takeAway'; lineId: string }
   | { kind: 'details' }
+  | { kind: 'transfer' }
   | { kind: 'void' };
 
 const PAGE_SIZE = 48;
@@ -63,6 +65,11 @@ const PAGE_SIZE = 48;
  * <p><b>Phase 65 -- billing.</b> <i>Bill</i> opens the split-and-pay screen; <i>Print Estimate</i> prints
  * what the order still comes to, priced by the server's bill planner (the estimate bill, which says it
  * is not a tax invoice). A line shows how much of it is billed, and the order lists its bills.</p>
+ *
+ * <p><b>Phase 68 -- Mark as Take Away and Transfer Items.</b> A dine-in line's unserved, unbilled food can
+ * be parcelled: it moves to a take-away line whose service charge the location's setting decides, once,
+ * when it is marked. <i>Transfer Items</i> moves food to another table's open order, or opens one there,
+ * at the same rates. Both reach the kitchen as tickets of their own.</p>
  *
  * <p>Serves <code>pos/orders/new</code> and <code>pos/orders/:orderId</code> from one component, so the
  * id is read from the route's <code>paramMap</code> on every emission (phase 3 bug #1): a new order's
@@ -122,6 +129,10 @@ export class PosOrderPage {
   protected readonly panelTableId = signal<string | null>(null);
   protected readonly panelError = signal<string | null>(null);
 
+  /** Phase 68 -- the transfer panel: the quantity chosen per line, and which lines are ticked. */
+  protected readonly transferQuantities = signal<Record<string, number>>({});
+  protected readonly transferPicked = signal<Record<string, boolean>>({});
+
   /** The control that opened the panel, where focus goes back when it closes (phase 40). */
   private panelOpener: HTMLElement | null = null;
 
@@ -130,6 +141,8 @@ export class PosOrderPage {
   /** Phase 65 -- the estimate bill being printed, and when; the print root shows it or the tickets. */
   protected readonly estimate = signal<PosOrderBillPreview | null>(null);
   protected readonly estimateAt = signal('');
+  /** Phase 68 -- a transfer's ticket belongs to the other order, so the print root shows that one. */
+  protected readonly printOrder = signal<PosOrder | null>(null);
 
   protected readonly isNew = computed(() => this.order() === null);
   protected readonly orderType = computed<PosOrderType>(() => this.order()?.orderType ?? this.newType());
@@ -146,6 +159,18 @@ export class PosOrderPage {
 
   /** Tables an order could move to: free ones, on any area of this floor. */
   protected readonly freeTables = computed(() => this.tables().filter((x) => x.table.order === null));
+
+  /** Phase 68 -- tables items can be transferred to: every other table, free or with an open order. */
+  protected readonly transferTables = computed(() => {
+    const here = this.order()?.tableId;
+    return this.tables().filter((x) => x.table.id !== here);
+  });
+
+  /** Phase 68 -- the lines with something still to bill, which is what a transfer can move. */
+  protected readonly transferableLines = computed(() => (this.order()?.lines ?? []).filter((l) => l.toBill > 0));
+
+  protected readonly transferCount = computed(() =>
+    this.transferableLines().filter((l) => this.transferPicked()[l.id]).length);
 
   protected readonly heading = computed(() => {
     const seat = this.seatedAt();
@@ -195,7 +220,9 @@ export class PosOrderPage {
     });
   }
 
-  private loadRestaurant(locationId: string): void {
+  /** <code>focusSearch</code> is for opening the page; a reload after an action leaves focus where the
+   * action put it (back on the control that opened the panel, phase 40). */
+  private loadRestaurant(locationId: string, focusSearch = true): void {
     this.restaurantService.getRestaurant(this.organizationId, locationId).subscribe({
       next: (restaurant) => {
         this.restaurant.set(restaurant);
@@ -205,7 +232,9 @@ export class PosOrderPage {
         }
         this.loading.set(false);
         this.loadProducts();
-        afterNextRender(() => this.searchBox()?.nativeElement.focus(), { injector: this.injector });
+        if (focusSearch) {
+          afterNextRender(() => this.searchBox()?.nativeElement.focus(), { injector: this.injector });
+        }
       },
       error: (err: unknown) => this.fail(err, 'Could not load the restaurant.'),
     });
@@ -378,8 +407,8 @@ export class PosOrderPage {
   }
 
   /** Records each printing on the server, then prints them all, one page per station. */
-  protected printTickets(tickets: KitchenTicket[]): void {
-    const order = this.order();
+  protected printTickets(tickets: KitchenTicket[], forOrder?: PosOrder): void {
+    const order = forOrder ?? this.order();
     if (!order || tickets.length === 0) return;
 
     from(tickets)
@@ -390,7 +419,12 @@ export class PosOrderPage {
       .subscribe({
         next: (results) => {
           const latest = results[results.length - 1].order;
-          this.order.set(latest);
+          if (forOrder && forOrder.id !== this.order()?.id) {
+            this.printOrder.set(latest);
+          } else {
+            this.printOrder.set(null);
+            this.order.set(latest);
+          }
           this.estimate.set(null);
           this.printed.set(results.flatMap((r) => {
             const ticket = latest.tickets.find((t) => t.id === r.ticketId);
@@ -428,8 +462,14 @@ export class PosOrderPage {
     this.panel.set(panel);
     this.panelError.set(null);
     this.panelReason.set('');
-    this.panelQuantity.set(panel.kind === 'serve' ? (line?.outstanding ?? 1) : 1);
-    this.panelTableId.set(this.order()?.tableId ?? null);
+    // Serve and take-away default to the whole of what they can act on, as the vendor's dialogs do.
+    this.panelQuantity.set(
+      panel.kind === 'serve' ? (line?.outstanding ?? 1) : panel.kind === 'takeAway' && line ? this.markable(line) : 1);
+    this.panelTableId.set(panel.kind === 'transfer' ? null : (this.order()?.tableId ?? null));
+    if (panel.kind === 'transfer') {
+      this.transferPicked.set({});
+      this.transferQuantities.set(Object.fromEntries(this.transferableLines().map((l) => [l.id, l.toBill])));
+    }
     if (panel.kind === 'details') {
       this.covers.set(this.order()?.covers ?? 1);
     }
@@ -474,6 +514,11 @@ export class PosOrderPage {
     const order = this.order();
     if (!panel || !order || this.busy()) return;
 
+    if (panel.kind === 'transfer') {
+      this.confirmTransfer(order);
+      return;
+    }
+
     if ((panel.kind === 'discard' || panel.kind === 'void') && !this.panelReason().trim()) {
       this.panelError.set('A discard needs a reason.');
       document.getElementById(panel.kind === 'discard' ? 'pos-order-discard-reason' : 'pos-order-panel-first')?.focus();
@@ -486,6 +531,8 @@ export class PosOrderPage {
         : panel.kind === 'discard'
           ? this.restaurantService.discard(
               this.organizationId, order.id, [{ lineId: panel.lineId, quantity: this.panelQuantity() }], this.panelReason().trim())
+          : panel.kind === 'takeAway'
+            ? this.restaurantService.markTakeAway(this.organizationId, order.id, panel.lineId, this.panelQuantity())
           : panel.kind === 'void'
             ? this.restaurantService.voidOrder(this.organizationId, order.id, this.panelReason().trim())
             : this.restaurantService.updateOrder(this.organizationId, order.id, {
@@ -497,7 +544,6 @@ export class PosOrderPage {
     this.busy.set(true);
     request$.subscribe({
       next: (saved) => {
-        const before = order.tickets.length;
         this.order.set(saved);
         this.busy.set(false);
         this.panel.set(null);
@@ -505,11 +551,12 @@ export class PosOrderPage {
         this.noticeMessage.set(this.panelNotice(panel.kind, saved));
         if (panel.kind === 'details') {
           // The move freed one table and took another; the floor's own read says which.
-          this.loadRestaurant(saved.locationId);
+          this.loadRestaurant(saved.locationId, false);
         }
-        const cancellations = saved.tickets.slice(before);
-        if (cancellations.length > 0 && this.restaurant()?.printKot) {
-          this.printTickets(cancellations);
+        // A cancellation or a take-away ticket goes to the kitchen that was cooking it.
+        const newTickets = saved.tickets.filter((t) => !order.tickets.some((o) => o.id === t.id));
+        if (newTickets.length > 0 && this.restaurant()?.printKot) {
+          this.printTickets(newTickets);
         }
       },
       error: (err: unknown) => {
@@ -519,8 +566,91 @@ export class PosOrderPage {
     });
   }
 
+  /**
+   * Phase 68 -- moves the ticked lines to the chosen table. Its own request, because the answer is both
+   * orders rather than one (phase 4: never share a request variable across result types). When the
+   * transfer emptied this order it is voided, so the till follows the food to the other table.
+   */
+  private confirmTransfer(order: PosOrder): void {
+    const tableId = this.panelTableId();
+    const items = this.transferableLines()
+      .filter((l) => this.transferPicked()[l.id])
+      .map((l) => ({ lineId: l.id, quantity: this.transferQuantities()[l.id] ?? 0 }));
+
+    if (!tableId) {
+      this.panelError.set('Choose the table to transfer to.');
+      document.getElementById('pos-order-panel-first')?.focus();
+      return;
+    }
+
+    if (items.length === 0) {
+      this.panelError.set('Tick at least one item to transfer.');
+      document.getElementById(`pos-order-transfer-pick-${this.transferableLines()[0]?.id}`)?.focus();
+      return;
+    }
+
+    this.busy.set(true);
+    this.restaurantService.transferItems(this.organizationId, order.id, tableId, items).subscribe({
+      next: (result) => {
+        this.busy.set(false);
+        this.panel.set(null);
+        this.restoreFocus();
+        const where = this.tables().find((x) => x.table.id === tableId)?.table.name ?? 'the other table';
+        this.loadRestaurant(result.source.locationId, false);
+
+        if (result.source.status === 'Voided') {
+          this.noticeMessage.set(`Everything moved to ${where} (${result.target.code}); ${order.code} is closed.`);
+          this.order.set(result.target);
+          void this.router.navigate(['/organizations', this.organizationId, 'pos', 'orders', result.target.id], { replaceUrl: true });
+        } else {
+          this.order.set(result.source);
+          this.noticeMessage.set(
+            `Moved ${items.length} item(s) to ${where} (${result.target.code}${result.targetCreated ? ', a new order' : ''}).`);
+        }
+
+        // The kitchen is told where the food now goes: the incoming ticket, on the other order.
+        const incoming = result.target.tickets.filter((t) => t.kind === 'Transfer' && t.counterpartOrderCode === order.code);
+        const latest = incoming.length > 0 ? Math.max(...incoming.map((t) => t.sendNumber)) : 0;
+        if (latest > 0 && this.restaurant()?.printKot) {
+          this.printTickets(incoming.filter((t) => t.sendNumber === latest), result.target);
+        }
+      },
+      error: (err: unknown) => {
+        this.busy.set(false);
+        this.panelError.set(extractErrorMessage(err) ?? 'Could not transfer the items.');
+      },
+    });
+  }
+
+  protected onTransferPick(lineId: string, event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    this.transferPicked.update((picked) => ({ ...picked, [lineId]: checked }));
+  }
+
+  protected onTransferQuantity(lineId: string, event: Event): void {
+    const value = Number((event.target as HTMLInputElement).value) || 0;
+    this.transferQuantities.update((q) => ({ ...q, [lineId]: value }));
+  }
+
+  /** Phase 68 -- what of a dine-in line can be parcelled: not yet served and not yet billed. */
+  protected markable(line: PosOrderLine): number {
+    return Math.max(0, Math.min(line.outstanding, line.toBill));
+  }
+
+  /** Phase 68 -- what marking this line will do to its service charge, said before it is done. */
+  protected takeAwayChargeNote(line: PosOrderLine): string {
+    if (line.serviceChargeRate === 0) {
+      return 'This item carries no service charge, so the bill is unchanged.';
+    }
+    return this.restaurant()?.serviceChargeOnTakeAway
+      ? `The parcel keeps its ${line.serviceChargeRate}% service charge (this location's setting).`
+      : 'The parcel carries no service charge (this location\'s setting), so the bill comes down.';
+  }
+
   private panelNotice(kind: Panel['kind'], saved: PosOrder): string {
     switch (kind) {
+      case 'takeAway':
+        return 'Marked as take away; the kitchen has a ticket to pack it.';
       case 'serve':
         return 'Marked as served.';
       case 'discard':
@@ -535,11 +665,35 @@ export class PosOrderPage {
   protected lineSummary(line: PosOrderLine): string {
     const parts = [`${line.quantity} on the order`, `${line.served} served`];
     if (line.discarded > 0) parts.push(`${line.discarded} discarded`);
+    if (line.movedOut > 0) parts.push(`${line.movedOut} moved off`);
+    if (line.movedIn > 0) parts.push(`${line.movedIn} moved in`);
     if (line.invoiced > 0) parts.push(`${line.invoiced} billed`);
     return parts.join(' · ');
   }
 
   protected tableOption(entry: { table: PosRestaurantTable; areaName: string }): string {
     return `${entry.table.name} (${entry.areaName}, seats ${entry.table.capacity})`;
+  }
+
+  /** Phase 68 -- a transfer target says whether its items join an open order or start one. */
+  protected transferOption(entry: { table: PosRestaurantTable; areaName: string }): string {
+    const order = entry.table.order;
+    return `${entry.table.name} (${entry.areaName}) · ${order ? `joins ${order.code}` : 'free: opens a new order'}`;
+  }
+
+  /** Phase 68 -- what a kitchen ticket is, in words, for the order's ticket list. */
+  protected ticketKindLabel(ticket: KitchenTicket): string | null {
+    switch (ticket.kind) {
+      case 'Cancellation':
+        return 'Cancellation';
+      case 'TakeAway':
+        return 'Take Away';
+      case 'Transfer':
+        return ticket.lines.every((l) => l.quantity < 0)
+          ? `Moved to ${ticket.counterpartOrderCode ?? 'another order'}`
+          : `From ${ticket.counterpartOrderCode ?? 'another order'}`;
+      default:
+        return null;
+    }
   }
 }

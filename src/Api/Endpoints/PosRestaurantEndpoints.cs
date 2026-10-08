@@ -4,6 +4,7 @@ using ErpApp.Application.Pos.Commands.CreateKitchenStation;
 using ErpApp.Application.Pos.Commands.CreatePosArea;
 using ErpApp.Application.Pos.Commands.CreatePosOrder;
 using ErpApp.Application.Pos.Commands.CreatePosOrderInvoice;
+using ErpApp.Application.Pos.Commands.CreatePosOrderTransfer;
 using ErpApp.Application.Pos.Commands.CreatePosSale;
 using ErpApp.Application.Pos.Commands.PrintPosKitchenTicket;
 using ErpApp.Application.Pos.Commands.SavePosAreaLayout;
@@ -13,6 +14,7 @@ using ErpApp.Application.Pos.Commands.SetKitchenStationProducts;
 using ErpApp.Application.Pos.Commands.UpdateKitchenStation;
 using ErpApp.Application.Pos.Commands.UpdatePosArea;
 using ErpApp.Application.Pos.Commands.UpdatePosOrder;
+using ErpApp.Application.Pos.Commands.UpdatePosOrderTakeAway;
 using ErpApp.Application.Pos.Commands.VoidPosOrder;
 using ErpApp.Application.Pos.Commands.VoidPosOrderItems;
 using ErpApp.Application.Pos.Queries.GetPosFloorPlan;
@@ -131,6 +133,18 @@ public static class PosRestaurantEndpoints
             Results.Ok(await sender.Send(
                 new VoidPosOrderItemsCommand(organizationId, orderId, request.Items ?? [], request.Reason ?? ""), ct)));
 
+        // Phase 68 -- part of a dine-in line parcelled, at the location's take-away service-charge rule.
+        group.MapPost("/orders/{orderId:guid}/take-away", async (
+            Guid organizationId, Guid orderId, UpdatePosOrderTakeAwayRequest request, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(
+                new UpdatePosOrderTakeAwayCommand(organizationId, orderId, request.LineId ?? Guid.Empty, request.Quantity ?? 0m), ct)));
+
+        // Phase 68 -- items moved to another table's open order, or to a new one opened there.
+        group.MapPost("/orders/{orderId:guid}/transfers", async (
+            Guid organizationId, Guid orderId, CreatePosOrderTransferRequest request, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(
+                new CreatePosOrderTransferCommand(organizationId, orderId, request.TableId ?? Guid.Empty, request.Items ?? []), ct)));
+
         group.MapPost("/orders/{orderId:guid}/void", async (
             Guid organizationId, Guid orderId, VoidPosOrderRequest request, ISender sender, CancellationToken ct) =>
             Results.Ok(await sender.Send(new VoidPosOrderCommand(organizationId, orderId, request.Reason ?? ""), ct)));
@@ -238,6 +252,10 @@ public static class PosRestaurantEndpoints
     private sealed record VoidPosOrderItemsRequest(IReadOnlyList<PosOrderLineQuantityInput>? Items, string? Reason);
 
     private sealed record VoidPosOrderRequest(string? Reason);
+
+    private sealed record UpdatePosOrderTakeAwayRequest(Guid? LineId, decimal? Quantity);
+
+    private sealed record CreatePosOrderTransferRequest(Guid? TableId, IReadOnlyList<PosOrderLineQuantityInput>? Items);
 
     private sealed record PosOrderBillRequest(
         PosOrderSplit Split, IReadOnlyList<PosOrderLineQuantityInput>? Items, int? Parts);

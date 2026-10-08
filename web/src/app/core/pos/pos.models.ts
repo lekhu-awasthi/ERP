@@ -56,6 +56,8 @@ export interface PosLocationSettings {
   serviceChargeEnabled: boolean;
   serviceChargeRate: number;
   serviceChargeAccountId: string | null;
+  /** Phase 68 -- whether food parcelled from a dine-in line keeps its service charge. */
+  serviceChargeOnTakeAway: boolean;
   roundOffEnabled: boolean;
   roundOffAccountId: string | null;
   cashVerificationRequired: boolean;
@@ -76,6 +78,8 @@ export interface UpdatePosLocationSettingsRequest {
   serviceChargeEnabled: boolean;
   serviceChargeRate: number;
   serviceChargeAccountId: string | null;
+  /** Phase 68 -- whether food parcelled from a dine-in line keeps its service charge. */
+  serviceChargeOnTakeAway: boolean;
   roundOffEnabled: boolean;
   roundOffAccountId: string | null;
   cashVerificationRequired: boolean;

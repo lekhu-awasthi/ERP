@@ -57,6 +57,8 @@ public static class PosEndpoints
                     request.ServiceChargeEnabled,
                     request.ServiceChargeRate,
                     request.ServiceChargeAccountId,
+                    // Phase 68 -- absent reads as the default (On), never as a silent Off.
+                    request.ServiceChargeOnTakeAway ?? true,
                     request.RoundOffEnabled,
                     request.RoundOffAccountId,
                     request.CashVerificationRequired,
@@ -214,6 +216,7 @@ public static class PosEndpoints
         bool ServiceChargeEnabled,
         decimal ServiceChargeRate,
         Guid? ServiceChargeAccountId,
+        bool? ServiceChargeOnTakeAway,
         bool RoundOffEnabled,
         Guid? RoundOffAccountId,
         bool CashVerificationRequired,

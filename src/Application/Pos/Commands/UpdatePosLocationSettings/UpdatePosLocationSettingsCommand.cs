@@ -18,6 +18,7 @@ public sealed record UpdatePosLocationSettingsCommand(
     bool ServiceChargeEnabled,
     decimal ServiceChargeRate,
     Guid? ServiceChargeAccountId,
+    bool ServiceChargeOnTakeAway,
     bool RoundOffEnabled,
     Guid? RoundOffAccountId,
     bool CashVerificationRequired,

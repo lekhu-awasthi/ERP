@@ -32,6 +32,7 @@ describe('PosSettingsPage', () => {
     serviceChargeEnabled: false,
     serviceChargeRate: 0,
     serviceChargeAccountId: null,
+    serviceChargeOnTakeAway: true,
     roundOffEnabled: false,
     roundOffAccountId: null,
     cashVerificationRequired: false,
@@ -173,6 +174,7 @@ describe('PosSettingsPage', () => {
       serviceChargeEnabled: true,
       serviceChargeRate: 10,
       serviceChargeAccountId: null,
+      serviceChargeOnTakeAway: true,
       roundOffEnabled: true,
       roundOffAccountId: null,
       cashVerificationRequired: true,
@@ -185,6 +187,21 @@ describe('PosSettingsPage', () => {
       abbreviatedTaxInvoiceEnabled: true,
     });
     expect(p.text()).toContain('Settings saved for HeadOffice.');
+  });
+
+  it('sends service charge on take-away as unticked at a restaurant, and shows it nowhere else', () => {
+    const p = page();
+
+    p.tick('pos-settings-service-charge');
+    expect(p.input('pos-settings-service-charge-take-away').checked).toBe(true);
+    p.tick('pos-settings-service-charge-take-away');
+    p.press('Save Settings');
+    expect(p.service.saved?.serviceChargeOnTakeAway).toBe(false);
+
+    TestBed.resetTestingModule();
+    const retail = page('Retail');
+    retail.tick('pos-settings-service-charge');
+    expect(retail.element.querySelector('#pos-settings-service-charge-take-away')).toBeNull();
   });
 
   it('keeps denominations largest first and refuses a duplicate', () => {

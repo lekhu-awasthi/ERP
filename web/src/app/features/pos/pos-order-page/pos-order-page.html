@@ -127,6 +127,10 @@
                   aria-controls="pos-order-details-panel" (click)="openPanel({ kind: 'details' })">
                   {{ o.orderType === 'DineIn' ? 'Move Table / Guests' : 'Guests' }}
                 </button>
+                @if (o.orderType === 'DineIn' && transferableLines().length > 0) {
+                  <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-expanded]="isPanel('transfer')"
+                    aria-controls="pos-order-transfer-panel" (click)="openPanel({ kind: 'transfer' })">Transfer Items</button>
+                }
                 @if (r.canVoid) {
                   <button type="button" class="btn btn-sm btn-outline-danger" [attr.aria-expanded]="isPanel('void')"
                     aria-controls="pos-order-void-panel" (click)="openPanel({ kind: 'void' })">Void Order</button>
@@ -156,6 +160,42 @@
                   </div>
                 </form>
               }
+              @if (isPanel('transfer')) {
+                <form id="pos-order-transfer-panel" class="pos-panel" (submit)="$event.preventDefault(); confirmPanel()">
+                  <p class="small mb-1">Moves items to another table at the same rates. A free table gets a new order.</p>
+                  <label class="form-label small mb-1" for="pos-order-panel-first">Transfer to</label>
+                  <select class="form-select form-select-sm mb-2" id="pos-order-panel-first" (change)="onPanelTable($event)">
+                    <option value="" [selected]="panelTableId() === null">Choose a table</option>
+                    @for (entry of transferTables(); track entry.table.id) {
+                      <option [value]="entry.table.id" [selected]="panelTableId() === entry.table.id">{{ transferOption(entry) }}</option>
+                    }
+                  </select>
+                  <fieldset class="mb-2">
+                    <legend class="form-label small mb-1">Items ({{ transferCount() }} ticked)</legend>
+                    @for (line of transferableLines(); track line.id) {
+                      <div class="d-flex align-items-center gap-2 mb-1">
+                        <div class="form-check mb-0 flex-grow-1">
+                          <input class="form-check-input" type="checkbox" [id]="'pos-order-transfer-pick-' + line.id"
+                            [checked]="!!transferPicked()[line.id]" (change)="onTransferPick(line.id, $event)" />
+                          <label class="form-check-label small" [for]="'pos-order-transfer-pick-' + line.id">
+                            {{ line.productName }}{{ line.isTakeAway ? ' (take away)' : '' }}
+                          </label>
+                        </div>
+                        <label class="visually-hidden" [for]="'pos-order-transfer-qty-' + line.id">Quantity of {{ line.productName }} to transfer, of {{ line.toBill }}</label>
+                        <input class="form-control form-control-sm pos-qty" type="number" min="1" [max]="line.toBill"
+                          [id]="'pos-order-transfer-qty-' + line.id" [value]="transferQuantities()[line.id]"
+                          [disabled]="!transferPicked()[line.id]" (input)="onTransferQuantity(line.id, $event)" />
+                        <span class="small text-body-secondary">of {{ line.toBill }}</span>
+                      </div>
+                    }
+                  </fieldset>
+                  <app-status-banner [message]="panelError()" spacing="mb-2" [small]="true" />
+                  <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy()">Transfer</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePanel()">Cancel</button>
+                  </div>
+                </form>
+              }
               @if (isPanel('void')) {
                 <form id="pos-order-void-panel" class="pos-panel" (submit)="$event.preventDefault(); confirmPanel()">
                   <p class="small mb-1">Voiding cancels everything still on the order to the kitchen and frees the table.</p>
@@ -180,7 +220,12 @@
               @for (line of o.lines; track line.id) {
                 <li class="pos-line">
                   <div class="d-flex justify-content-between gap-2">
-                    <span class="fw-bold">{{ line.quantity }} × {{ line.productName }}</span>
+                    <span class="fw-bold">
+                      {{ line.quantity }} × {{ line.productName }}
+                      @if (line.isTakeAway) {
+                        <span class="badge text-bg-info">Take away</span>
+                      }
+                    </span>
                     <span>{{ line.total | amount }}</span>
                   </div>
                   <p class="small text-body-secondary mb-1">
@@ -200,6 +245,12 @@
                           Serve<span class="visually-hidden"> {{ line.productName }}</span>
                         </button>
                       }
+                      @if (o.orderType === 'DineIn' && !line.isTakeAway && markable(line) > 0) {
+                        <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-expanded]="isPanel('takeAway', line.id)"
+                          [attr.aria-controls]="'pos-order-take-away-' + line.id" (click)="openPanel({ kind: 'takeAway', lineId: line.id }, line)">
+                          Take Away<span class="visually-hidden"> {{ line.productName }}</span>
+                        </button>
+                      }
                       @if (line.quantity > 0) {
                         @if (r.canVoid) {
                           <button type="button" class="btn btn-sm btn-outline-danger" [attr.aria-expanded]="isPanel('discard', line.id)"
@@ -217,6 +268,20 @@
                         <app-status-banner [message]="panelError()" spacing="mb-2" [small]="true" />
                         <div class="d-flex gap-2">
                           <button type="submit" class="btn btn-sm btn-success" [disabled]="busy()">Mark Served</button>
+                          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePanel()">Cancel</button>
+                        </div>
+                      </form>
+                    }
+                    @if (isPanel('takeAway', line.id)) {
+                      <form class="pos-panel" [id]="'pos-order-take-away-' + line.id" (submit)="$event.preventDefault(); confirmPanel()">
+                        <label class="form-label small mb-1" for="pos-order-panel-first">Pack to go (of {{ markable(line) }} not yet served or billed)</label>
+                        <input class="form-control form-control-sm pos-qty mb-2" id="pos-order-panel-first" type="number" min="1"
+                          [max]="markable(line)" [value]="panelQuantity()" aria-describedby="pos-order-take-away-note"
+                          (input)="onPanelQuantity($event)" />
+                        <p class="small mb-2" id="pos-order-take-away-note">{{ takeAwayChargeNote(line) }}</p>
+                        <app-status-banner [message]="panelError()" spacing="mb-2" [small]="true" />
+                        <div class="d-flex gap-2">
+                          <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy()">Mark as Take Away</button>
                           <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePanel()">Cancel</button>
                         </div>
                       </form>
@@ -322,8 +387,8 @@
                     <div class="d-flex justify-content-between align-items-center gap-2">
                       <span>
                         <strong>{{ ticket.number }}</strong> &middot; {{ ticket.kitchenStationName }}
-                        @if (ticket.isCancellation) {
-                          <span class="badge text-bg-danger">Cancellation</span>
+                        @if (ticketKindLabel(ticket); as kind) {
+                          <span class="badge" [class.text-bg-danger]="ticket.isCancellation" [class.text-bg-info]="!ticket.isCancellation">{{ kind }}</span>
                         }
                       </span>
                       <button type="button" class="btn btn-sm btn-outline-secondary" (click)="printTickets([ticket])">
@@ -337,8 +402,8 @@
                       }
                     </p>
                     <ul class="small mb-0">
-                      @for (row of ticket.lines; track row.orderLineId) {
-                        <li>{{ row.quantity }} × {{ row.productName }}</li>
+                      @for (row of ticket.lines; track $index) {
+                        <li>{{ row.quantity }} × {{ row.productName }}{{ row.isTakeAway ? ' (take away)' : '' }}</li>
                       }
                     </ul>
                     @if (ticket.reason) {
@@ -358,7 +423,7 @@
 <div class="pos-print-root">
   @if (order(); as o) {
     @if (printed().length > 0) {
-      <app-pos-kot [order]="o" [tickets]="printed()" />
+      <app-pos-kot [order]="printOrder() ?? o" [tickets]="printed()" />
     } @else if (estimate(); as preview) {
       <app-pos-estimate [order]="o" [preview]="preview" [printedAt]="estimateAt()" />
     }

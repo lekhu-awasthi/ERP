@@ -139,6 +139,8 @@ export interface PosRestaurant {
   mySessionCode: string | null;
   /** Phase 65 -- whether this user holds Pos.Kitchen.Operate, so the floor can link to the board. */
   canKitchen: boolean;
+  /** Phase 68 -- whether food parcelled from a dine-in line keeps its service charge here. */
+  serviceChargeOnTakeAway: boolean;
 }
 
 export interface PosOrderLine {
@@ -169,16 +171,26 @@ export interface PosOrderLine {
   serviceChargeAmount: number;
   vatAmount: number;
   total: number;
+  /** Phase 68 -- parcelled from a dine-in line; its service charge was decided when it was marked. */
+  isTakeAway: boolean;
+  parcelledFromLineId: string | null;
+  /** Phase 68 -- what a take-away mark or a transfer moved onto or off this line. */
+  movedIn: number;
+  movedOut: number;
 }
+
+/** Phase 68 -- what a kitchen ticket is: food to cook, a cancellation, a parcel, or a transfer. */
+export type KitchenTicketKind = 'Send' | 'Cancellation' | 'TakeAway' | 'Transfer';
 
 export interface KitchenTicketLine {
   orderLineId: string;
   lineNo: number;
   productName: string;
   unitName: string | null;
-  /** Positive on a send, negative on a cancellation. */
+  /** Positive on a send, negative on a cancellation; a move is minus where it left and plus where it went. */
   quantity: number;
   note: string | null;
+  isTakeAway: boolean;
 }
 
 export interface KitchenTicket {
@@ -194,6 +206,9 @@ export interface KitchenTicket {
   createdByName: string;
   printCount: number;
   lines: KitchenTicketLine[];
+  kind: KitchenTicketKind;
+  /** Phase 68 -- on a transfer, the other order's code. */
+  counterpartOrderCode: string | null;
 }
 
 export interface PosOrder {
@@ -254,6 +269,13 @@ export interface PosOrderItemInput {
 export interface PosOrderLineQuantityInput {
   lineId: string;
   quantity: number;
+}
+
+/** Phase 68 -- both orders after a transfer; the source comes back voided when it was emptied. */
+export interface PosOrderTransferResult {
+  source: PosOrder;
+  target: PosOrder;
+  targetCreated: boolean;
 }
 
 export interface CreatePosOrderRequest {
@@ -354,7 +376,8 @@ export interface CreatePosOrderInvoiceResult {
 // ---- Phase 65: the kitchen board (Pos.Kitchen.Operate) ----------------------------------------------
 
 export type PosKitchenBoardView = 'Pending' | 'Served' | 'All';
-export type KitchenTicketState = 'Pending' | 'Served' | 'Cancelled' | 'Cancellation';
+/** Phase 68 adds Moved: food that left this ticket for a parcel or another table before it was served. */
+export type KitchenTicketState = 'Pending' | 'Served' | 'Cancelled' | 'Cancellation' | 'Moved';
 
 export interface PosKitchenBoardLine {
   orderLineId: string;
@@ -365,6 +388,10 @@ export interface PosKitchenBoardLine {
   served: number;
   cancelled: number;
   pending: number;
+  /** Phase 68 -- moved off unserved, to a parcel or another table. */
+  moved: number;
+  /** Phase 68 -- packed to go, not plated. */
+  isTakeAway: boolean;
 }
 
 export interface PosKitchenBoardTicket {
@@ -385,6 +412,8 @@ export interface PosKitchenBoardTicket {
   createdAt: string;
   createdByName: string;
   lines: PosKitchenBoardLine[];
+  kind: KitchenTicketKind;
+  counterpartOrderCode: string | null;
 }
 
 export interface PosKitchenSummary {

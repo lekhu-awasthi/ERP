@@ -45,6 +45,16 @@ public sealed class PosLocationSettings
 
     public Guid? ServiceChargeAccountId { get; private set; }
 
+    /// <summary>
+    /// Phase 68 -- whether food parcelled from a dine-in line keeps that line's service charge (the user's
+    /// answer of 2026-10-03). On by default, which is what a dine-in line carried before marking existed.
+    /// Read once, when a quantity is marked, and frozen on the take-away line, so changing it reprices
+    /// nothing already marked. Meaningful only while <see cref="ServiceChargeEnabled"/> is on; stored
+    /// regardless, so switching service charge off and on again loses nothing. A Take Away <i>order</i>
+    /// never carries service charge whatever this says (phase 64 Decision H).
+    /// </summary>
+    public bool ServiceChargeOnTakeAway { get; private set; }
+
     /// <summary>The vendor's "Round off": the till rounds a bill to the rupee and books the difference
     /// to <see cref="RoundOffAccountId"/> (live: 632.80 billed as 633, the 0.20 credited to the
     /// account the location names). The rounding rule itself is phase 61's.</summary>
@@ -101,6 +111,7 @@ public sealed class PosLocationSettings
             ServiceChargeEnabled = false,
             ServiceChargeRate = 0m,
             ServiceChargeAccountId = null,
+            ServiceChargeOnTakeAway = true,
             RoundOffEnabled = false,
             RoundOffAccountId = null,
             CashVerificationRequired = false,
@@ -124,6 +135,7 @@ public sealed class PosLocationSettings
         bool serviceChargeEnabled,
         decimal serviceChargeRate,
         Guid? serviceChargeAccountId,
+        bool serviceChargeOnTakeAway,
         bool roundOffEnabled,
         Guid? roundOffAccountId,
         bool cashVerificationRequired,
@@ -149,6 +161,7 @@ public sealed class PosLocationSettings
         ServiceChargeEnabled = serviceChargeEnabled;
         ServiceChargeRate = serviceChargeEnabled ? decimal.Round(serviceChargeRate, 2) : 0m;
         ServiceChargeAccountId = serviceChargeEnabled ? serviceChargeAccountId : null;
+        ServiceChargeOnTakeAway = serviceChargeOnTakeAway;
         RoundOffEnabled = roundOffEnabled;
         RoundOffAccountId = roundOffEnabled ? roundOffAccountId : null;
         CashVerificationRequired = cashVerificationRequired;

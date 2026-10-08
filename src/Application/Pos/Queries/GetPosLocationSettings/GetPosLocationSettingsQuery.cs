@@ -32,6 +32,7 @@ public sealed record PosLocationSettingsDto(
     bool ServiceChargeEnabled,
     decimal ServiceChargeRate,
     Guid? ServiceChargeAccountId,
+    bool ServiceChargeOnTakeAway,
     bool RoundOffEnabled,
     Guid? RoundOffAccountId,
     bool CashVerificationRequired,

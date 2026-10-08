@@ -30,7 +30,7 @@ describe('PosBillPage', () => {
     defaultTab: 'DineIn', serviceChargeEnabled: true, serviceChargeRate: 10, printKot: false, canvasWidth: 1100,
     canvasHeight: 800, walkInCustomer: null, categories: [], areas: [], orders: [], canVoid: true,
     roundOffEnabled: true, printEstimateBill: true, printInvoice: false, mySessionId: 'ses-1', mySessionCode: 'SES0001',
-    canKitchen: true,
+    canKitchen: true, serviceChargeOnTakeAway: true,
     ...overrides,
   });
 
@@ -47,7 +47,7 @@ describe('PosBillPage', () => {
     id, lineNo: 1, productId: id, productCode: 'P', productName: name, unitId: null, unitName: null, rate: 200,
     vatRate: 'ThirteenPercentVat' as const, serviceChargeRate: 10, note: null, kitchenStationId: null,
     kitchenStationName: 'Default', ordered: quantity, discarded: 0, quantity, served: 0, outstanding: quantity,
-    invoiced: 0, toBill: quantity, amount: 0, serviceChargeAmount: 0, vatAmount: 0, total: 0,
+    invoiced: 0, toBill: quantity, amount: 0, serviceChargeAmount: 0, vatAmount: 0, total: 0, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0,
   });
 
   const order = (overrides: Partial<PosOrder> = {}): PosOrder => ({

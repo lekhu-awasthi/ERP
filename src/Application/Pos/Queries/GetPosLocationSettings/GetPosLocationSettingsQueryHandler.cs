@@ -55,6 +55,7 @@ internal static class PosLocationSettingsReader
             settings.ServiceChargeEnabled,
             settings.ServiceChargeRate,
             settings.ServiceChargeAccountId,
+            settings.ServiceChargeOnTakeAway,
             settings.RoundOffEnabled,
             settings.RoundOffAccountId,
             settings.CashVerificationRequired,

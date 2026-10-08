@@ -56,9 +56,11 @@ public sealed class ServeKitchenTicketCommandHandler(IAppDbContext db)
         var progress = order.TicketProgress().SingleOrDefault(x => x.TicketId == request.TicketId)
             ?? throw new NotFoundException("Kitchen ticket not found.");
 
-        if (progress.State == KitchenTicketState.Cancellation)
+        if (progress.State is KitchenTicketState.Cancellation or KitchenTicketState.Moved)
         {
-            throw new ConflictException("A cancellation ticket has nothing to serve.");
+            throw new ConflictException(progress.State == KitchenTicketState.Moved
+                ? "That food was parcelled or moved to another table; serve it from the ticket that moved it."
+                : "A cancellation ticket has nothing to serve.");
         }
 
         var pending = progress.Lines.ToDictionary(x => x.OrderLineId, x => x.Pending);

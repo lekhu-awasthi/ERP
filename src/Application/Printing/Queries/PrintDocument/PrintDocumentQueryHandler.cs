@@ -147,7 +147,12 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             document.ContactId, "Bill To", header, lines, document.DiscountPct, document.Terms, ct,
             currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate, roundOff: document.RoundOff);
 
-        return dto with { TitleNepali = InvoiceHeadings.Nepali(heading), PrintedCopy = await PrintedCopyAsync(request, ct) };
+        return dto with
+        {
+            TitleNepali = InvoiceHeadings.Nepali(heading),
+            PrintedCopy = await PrintedCopyAsync(request, ct),
+            PartyPan = await PartyPanAsync(document.ContactId, ct),
+        };
     }
 
     private async Task<PrintableDocumentDto> BuildCreditNoteAsync(
@@ -187,7 +192,22 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             document.ContactId, "Credit To", header, lines, document.DiscountPct, document.Terms, ct,
             currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate, roundOff: document.RoundOff);
 
-        return dto with { TitleNepali = InvoiceHeadings.CreditNoteNepali, PrintedCopy = await PrintedCopyAsync(request, ct) };
+        return dto with
+        {
+            TitleNepali = InvoiceHeadings.CreditNoteNepali,
+            PrintedCopy = await PrintedCopyAsync(request, ct),
+            PartyPan = await PartyPanAsync(document.ContactId, ct),
+        };
+    }
+
+    /// <summary>The buyer's PAN for the two statutory documents, or null when the contact has none -- PAN
+    /// stays optional on a contact, so a retail customer prints exactly as before (the till's rule, phase 62).
+    /// Whether IRD expects one on a high-value sale to an unregistered buyer is a tax-advisor question, and
+    /// would be a warning on approve, never a block here.</summary>
+    private async Task<string?> PartyPanAsync(Guid contactId, CancellationToken ct)
+    {
+        var pan = await db.Contacts.Where(x => x.Id == contactId).Select(x => x.Pan).SingleOrDefaultAsync(ct);
+        return string.IsNullOrWhiteSpace(pan) ? null : pan.Trim();
     }
 
     /// <summary>Phase 67 -- the counted print's number, printer and Nepal wall-clock time, or null for an

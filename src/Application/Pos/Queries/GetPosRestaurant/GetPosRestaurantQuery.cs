@@ -62,7 +62,8 @@ public sealed record PosRestaurantDto(
     bool PrintInvoice,
     Guid? MySessionId,
     string? MySessionCode,
-    bool CanKitchen);
+    bool CanKitchen,
+    bool ServiceChargeOnTakeAway = true);
 
 /// <summary>
 /// Phase 64 -- the restaurant till's own read of its location: the floor with which tables are taken,
@@ -181,6 +182,7 @@ public sealed class GetPosRestaurantQueryHandler(IAppDbContext db, ICurrentUserS
             till.Settings.PrintInvoice,
             mySession?.Id,
             mySession?.Code,
-            canKitchen);
+            canKitchen,
+            till.Settings.ServiceChargeOnTakeAway);
     }
 }

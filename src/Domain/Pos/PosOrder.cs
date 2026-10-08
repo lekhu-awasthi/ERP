@@ -33,11 +33,41 @@ public sealed record PosOrderLineQuantity(Guid LineId, decimal Quantity);
 /// <summary>What a send created, for the caller to add through its own sets (phase 24).</summary>
 public sealed record PosOrderSendResult(IReadOnlyList<PosOrderLine> NewLines, IReadOnlyList<KitchenTicket> NewTickets);
 
-/// <summary>A line's quantities, every one but <see cref="Served"/> a sum over its kitchen ticket lines.</summary>
-public sealed record PosOrderLineQuantities(decimal Ordered, decimal Discarded, decimal Net, decimal Served)
+/// <summary>Phase 68 -- what a take-away mark or a transfer created on one order, for the caller to add
+/// through its own sets (phase 24).</summary>
+public sealed record PosOrderMoveResult(IReadOnlyList<PosOrderLine> NewLines, IReadOnlyList<KitchenTicket> NewTickets);
+
+/// <summary>Phase 68 -- both halves of a transfer, and whether it emptied (and so voided) the source.</summary>
+public sealed record PosOrderTransferResult(PosOrderMoveResult Source, PosOrderMoveResult Target, bool SourceEmptied);
+
+/// <summary>A line's quantities, every one but <see cref="Served"/> a sum over its kitchen ticket lines.
+/// Phase 68: <see cref="MovedIn"/> and <see cref="MovedOut"/> are what a take-away mark or a transfer
+/// moved onto or off the line; they are neither ordered nor discarded.</summary>
+public sealed record PosOrderLineQuantities(
+    decimal Ordered, decimal Discarded, decimal Net, decimal Served, decimal MovedIn = 0m, decimal MovedOut = 0m)
 {
     /// <summary>What the kitchen still owes the table.</summary>
     public decimal Outstanding => Net - Served;
+}
+
+/// <summary>
+/// Phase 68 -- what a kitchen ticket is. Phase 64 told a send from a cancellation by its signs; a move
+/// has both signs on one ticket (a take-away mark) or tells the kitchen of food leaving one table for
+/// another, so the kind is stored.
+/// </summary>
+public enum KitchenTicketKind
+{
+    /// <summary>Food to cook: every line positive.</summary>
+    Send = 1,
+
+    /// <summary>A discard or a void: every line negative, with the reason.</summary>
+    Cancellation = 2,
+
+    /// <summary>Part of a dine-in line parcelled: minus on the dine-in line, plus on its take-away line.</summary>
+    TakeAway = 3,
+
+    /// <summary>Food moved to or from another order: one sign per ticket, naming the other order.</summary>
+    Transfer = 4,
 }
 
 /// <summary>
@@ -45,9 +75,10 @@ public sealed record PosOrderLineQuantities(decimal Ordered, decimal Discarded, 
 /// since been served, cancelled, or is still to cook. Derived, never stored (see
 /// <see cref="PosOrder.TicketProgress"/>).
 /// </summary>
-public sealed record KitchenTicketLineProgress(Guid OrderLineId, decimal Sent, decimal Served, decimal Cancelled)
+public sealed record KitchenTicketLineProgress(
+    Guid OrderLineId, decimal Sent, decimal Served, decimal Cancelled, decimal Moved = 0m)
 {
-    public decimal Pending => Sent - Served - Cancelled;
+    public decimal Pending => Sent - Served - Cancelled - Moved;
 }
 
 public enum KitchenTicketState
@@ -63,6 +94,9 @@ public enum KitchenTicketState
 
     /// <summary>A cancellation ticket itself: the negative lines and the reason.</summary>
     Cancellation = 4,
+
+    /// <summary>Phase 68 -- a transfer's outgoing ticket: food that left for another table.</summary>
+    Moved = 5,
 }
 
 public sealed record KitchenTicketProgress(
@@ -253,7 +287,7 @@ public sealed class PosOrder
 
         _lines.AddRange(created);
 
-        var tickets = Ticket(changes, userId, reason: null);
+        var tickets = Ticket(changes, userId, reason: null, KitchenTicketKind.Send);
         return new PosOrderSendResult(created, tickets);
     }
 
@@ -325,7 +359,7 @@ public sealed class PosOrder
             changes.Add((line, -quantity));
         }
 
-        return Ticket(changes, userId, RequireReason(reason));
+        return Ticket(changes, userId, RequireReason(reason), KitchenTicketKind.Cancellation);
     }
 
     /// <summary>
@@ -355,7 +389,7 @@ public sealed class PosOrder
             .Where(x => x.Quantity != 0m)
             .ToList();
 
-        var tickets = changes.Count == 0 ? [] : Ticket(changes, userId, why);
+        var tickets = changes.Count == 0 ? [] : Ticket(changes, userId, why, KitchenTicketKind.Cancellation);
 
         Status = PosOrderStatus.Voided;
         VoidReason = why;
@@ -364,6 +398,166 @@ public sealed class PosOrder
         Touch();
 
         return tickets;
+    }
+
+    /// <summary>
+    /// Phase 68 -- parcels part of a dine-in line: the quantity moves to the line's take-away sibling,
+    /// told to the kitchen as one ticket carrying minus on the dine-in line and plus on the sibling, so the
+    /// kitchen packs it rather than plates it. The line still stores no quantity (phase 64 Decision B); the
+    /// vendor's <c>takeaway_quantity</c> counter is the second view this avoids.
+    ///
+    /// <para><b>The service charge is decided here and frozen on the sibling</b> (the user's answer of
+    /// 2026-10-03): it keeps the dine-in line's rate when the location's <i>Service charge on take-away</i>
+    /// is on, and none when it is off. A product exempt from service charge was already at zero on the
+    /// dine-in line, so it stays exempt without the catalogue being read again. A later change of the
+    /// setting reprices nothing: a second mark at a different rate makes a second sibling.</para>
+    ///
+    /// <para><b>Only food not yet served and not yet billed.</b> Packing a plate already eaten from would
+    /// take the service charge off food the table was served; and a billed quantity is on a tax invoice at
+    /// its rate.</para>
+    /// </summary>
+    public PosOrderMoveResult MarkTakeAway(
+        Guid lineId, decimal quantity, bool serviceChargeOnTakeAway, Guid userId,
+        IReadOnlyDictionary<Guid, decimal> invoiced)
+    {
+        EnsureOpen();
+
+        if (OrderType != PosTab.DineIn)
+        {
+            throw new InvalidOperationException(
+                $"A {Describe(OrderType)} order is parcelled already; only a Dine In order has items to mark as take away.");
+        }
+
+        var line = FindLine(lineId);
+        if (line.IsTakeAway)
+        {
+            throw new InvalidOperationException($"Line {line.LineNo} is already take away.");
+        }
+
+        var q = RequireQuantity(quantity);
+        var quantities = QuantitiesOf(line);
+        var billed = invoiced.GetValueOrDefault(line.Id);
+        var markable = Math.Min(quantities.Outstanding, quantities.Net - billed);
+
+        if (q > markable)
+        {
+            throw new InvalidOperationException(
+                $"Line {line.LineNo} has {Math.Max(markable, 0m):0.####} not yet served or billed, so {q:0.####} cannot be "
+                + "marked as take away. Served or billed food stays as it was.");
+        }
+
+        var rate = serviceChargeOnTakeAway ? line.ServiceChargeRate : 0m;
+        var created = new List<PosOrderLine>();
+        var parcel = _lines.FirstOrDefault(x => x.ParcelledFromLineId == line.Id && x.ServiceChargeRate == rate);
+
+        if (parcel is null)
+        {
+            EnsureRoomFor(1);
+            parcel = PosOrderLine.CopyOf(Id, NextLineNo(), line, isTakeAway: true, rate, parcelledFromLineId: line.Id);
+            _lines.Add(parcel);
+            created.Add(parcel);
+        }
+
+        var tickets = Ticket([(line, -q), (parcel, q)], userId, reason: null, KitchenTicketKind.TakeAway);
+        return new PosOrderMoveResult(created, tickets);
+    }
+
+    /// <summary>
+    /// Phase 68 -- moves quantities from one Dine In order to another at the same location: the vendor's
+    /// <i>Transfer Items</i>. Each order records it as a transfer ticket naming the other, minus on the
+    /// source and plus on the target, so both orders' quantities stay sums over their own tickets.
+    ///
+    /// <para><b>Rates travel with the quantity.</b> The target's line copies the source line's frozen
+    /// rate, VAT, service charge, unit, station and note (merging into a target line whose every term is
+    /// the same), so a dish costs the same on either tab.</para>
+    ///
+    /// <para><b>Never more than is unbilled</b>, so the source can never fall below what its own invoices
+    /// name, and a void of any bill gives its quantity back to the line that bill names. Unserved food moves
+    /// first; any served food that moves takes its served count with it.</para>
+    ///
+    /// <para>A transfer that leaves the source with nothing on it and nothing billed voids it ("All items
+    /// transferred to ORD…"), which frees its table; one that leaves it fully billed is settled by the
+    /// caller (<see cref="SettleIfFullyBilled"/>).</para>
+    /// </summary>
+    public static PosOrderTransferResult Transfer(
+        PosOrder source, PosOrder target, IReadOnlyList<PosOrderLineQuantity> items, Guid userId,
+        IReadOnlyDictionary<Guid, decimal> sourceInvoiced, DateTimeOffset now)
+    {
+        if (source.Id == target.Id)
+        {
+            throw new InvalidOperationException("Choose another table: items are transferred to a different order.");
+        }
+
+        source.EnsureOpen();
+        target.EnsureOpen();
+
+        if (source.OrderType != PosTab.DineIn || target.OrderType != PosTab.DineIn)
+        {
+            throw new InvalidOperationException("Items are transferred between Dine In orders only.");
+        }
+
+        if (source.OrganizationId != target.OrganizationId || source.BillingLocationId != target.BillingLocationId)
+        {
+            throw new InvalidOperationException("Items are transferred between tables at the same location.");
+        }
+
+        EnsureNotEmpty(items, "Choose what to transfer.");
+        EnsureDistinct(items);
+
+        var outgoing = new List<(PosOrderLine Line, decimal Quantity)>();
+        var incoming = new List<(PosOrderLine Line, decimal Quantity)>();
+        var servedMoving = new List<(PosOrderLine Line, decimal Served)>();
+        var created = new List<PosOrderLine>();
+
+        foreach (var item in items)
+        {
+            var line = source.FindLine(item.LineId);
+            var q = RequireQuantity(item.Quantity);
+            var quantities = source.QuantitiesOf(line);
+            var transferable = quantities.Net - sourceInvoiced.GetValueOrDefault(line.Id);
+
+            if (q > transferable)
+            {
+                throw new InvalidOperationException(
+                    $"Line {line.LineNo} has {Math.Max(transferable, 0m):0.####} not yet billed, so {q:0.####} cannot be transferred.");
+            }
+
+            var destination = target._lines.FirstOrDefault(x => x.HasSameTermsAs(line));
+            if (destination is null)
+            {
+                target.EnsureRoomFor(1);
+                destination = PosOrderLine.CopyOf(
+                    target.Id, target.NextLineNo(), line, line.IsTakeAway, line.ServiceChargeRate, parcelledFromLineId: null);
+                target._lines.Add(destination);
+                created.Add(destination);
+            }
+
+            outgoing.Add((line, -q));
+            incoming.Add((destination, q));
+            servedMoving.Add((destination, Math.Max(0m, q - quantities.Outstanding)));
+        }
+
+        var sourceTickets = source.Ticket(outgoing, userId, reason: null, KitchenTicketKind.Transfer, target.Id);
+        var targetTickets = target.Ticket(incoming, userId, reason: null, KitchenTicketKind.Transfer, source.Id);
+
+        foreach (var (line, served) in servedMoving.Where(x => x.Served > 0m))
+        {
+            line.AddServed(served);
+        }
+
+        var emptied = source._lines.All(x => source.QuantitiesOf(x).Net == 0m)
+            && sourceInvoiced.Values.All(x => x == 0m);
+
+        if (emptied)
+        {
+            source.Status = PosOrderStatus.Voided;
+            source.VoidReason = $"All items transferred to {target.Code}";
+            source.VoidedAt = now;
+            source.VoidedByUserId = userId;
+        }
+
+        return new PosOrderTransferResult(
+            new PosOrderMoveResult([], sourceTickets), new PosOrderMoveResult(created, targetTickets), emptied);
     }
 
     /// <summary>Moves a Dine In order to another table, as the vendor's table transfer does.</summary>
@@ -408,7 +602,7 @@ public sealed class PosOrder
 
     public PosOrderLineQuantities QuantitiesOf(PosOrderLine line)
     {
-        decimal ordered = 0m, discarded = 0m;
+        decimal ordered = 0m, discarded = 0m, movedIn = 0m, movedOut = 0m;
 
         foreach (var ticket in _tickets)
         {
@@ -419,9 +613,23 @@ public sealed class PosOrder
                     continue;
                 }
 
+                // Phase 68 -- a move is neither ordered nor discarded: it is the same food on another line.
+                var isMove = ticket.Kind is KitchenTicketKind.TakeAway or KitchenTicketKind.Transfer;
+
                 if (row.Quantity > 0m)
                 {
-                    ordered += row.Quantity;
+                    if (isMove)
+                    {
+                        movedIn += row.Quantity;
+                    }
+                    else
+                    {
+                        ordered += row.Quantity;
+                    }
+                }
+                else if (isMove)
+                {
+                    movedOut -= row.Quantity;
                 }
                 else
                 {
@@ -430,7 +638,8 @@ public sealed class PosOrder
             }
         }
 
-        return new PosOrderLineQuantities(ordered, discarded, ordered - discarded, line.ServedQuantity);
+        return new PosOrderLineQuantities(
+            ordered, discarded, ordered + movedIn - discarded - movedOut, line.ServedQuantity, movedIn, movedOut);
     }
 
     /// <summary>
@@ -498,39 +707,43 @@ public sealed class PosOrder
     /// </summary>
     public IReadOnlyList<KitchenTicketProgress> TicketProgress()
     {
-        var sends = _tickets
-            .Where(x => !x.IsCancellation)
+        // Phase 68 -- what brought food onto a line: a send, or the incoming half of a take-away mark or a
+        // transfer. What took it off unserved: a discard (cancelled), or the outgoing half of a move (moved).
+        var inOrder = _tickets
             .OrderBy(x => x.SendNumber)
             .ThenBy(x => x.CreatedAt)
             .ToList();
 
-        var allocated = new Dictionary<(Guid TicketId, Guid LineId), (decimal Served, decimal Cancelled)>();
+        var allocated = new Dictionary<(Guid TicketId, Guid LineId), (decimal Served, decimal Cancelled, decimal Moved)>();
 
         foreach (var line in _lines)
         {
-            var rows = sends
-                .SelectMany(t => t.Lines.Where(r => r.PosOrderLineId == line.Id).Select(r => (Ticket: t, Row: r)))
+            var rows = inOrder
+                .SelectMany(t => t.Lines.Where(r => r.PosOrderLineId == line.Id && r.Quantity > 0m).Select(r => (Ticket: t, Row: r)))
                 .ToList();
 
             var q = QuantitiesOf(line);
             var served = q.Served;
             var cancelled = q.Discarded;
-            var cut = new Dictionary<Guid, (decimal Served, decimal Cancelled)>();
+            var moved = q.MovedOut;
+            var cut = new Dictionary<Guid, (decimal Served, decimal Cancelled, decimal Moved)>();
 
             foreach (var (ticket, row) in rows)
             {
                 var take = Math.Min(row.Quantity, served);
                 served -= take;
-                cut[ticket.Id] = (take, 0m);
+                cut[ticket.Id] = (take, 0m, 0m);
             }
 
             for (var i = rows.Count - 1; i >= 0; i--)
             {
                 var (ticket, row) = rows[i];
-                var (s, _) = cut[ticket.Id];
-                var take = Math.Min(row.Quantity - s, cancelled);
-                cancelled -= take;
-                cut[ticket.Id] = (s, take);
+                var (s, _, _) = cut[ticket.Id];
+                var c = Math.Min(row.Quantity - s, cancelled);
+                cancelled -= c;
+                var m = Math.Min(row.Quantity - s - c, moved);
+                moved -= m;
+                cut[ticket.Id] = (s, c, m);
             }
 
             foreach (var (ticketId, value) in cut)
@@ -544,24 +757,33 @@ public sealed class PosOrder
             .ThenBy(x => x.CreatedAt)
             .Select(ticket =>
             {
-                if (ticket.IsCancellation)
+                if (ticket.Lines.All(r => r.Quantity < 0m))
                 {
                     return new KitchenTicketProgress(
-                        ticket.Id, KitchenTicketState.Cancellation,
+                        ticket.Id,
+                        ticket.Kind == KitchenTicketKind.Cancellation ? KitchenTicketState.Cancellation : KitchenTicketState.Moved,
                         [.. ticket.Lines.Select(r => new KitchenTicketLineProgress(r.PosOrderLineId, r.Quantity, 0m, 0m))]);
                 }
 
+                // A take-away ticket's minus line (the dine-in half) is shown for what it is and owes nothing.
                 var lines = ticket.Lines
                     .Select(r =>
                     {
-                        var (s, c) = allocated.GetValueOrDefault((ticket.Id, r.PosOrderLineId));
-                        return new KitchenTicketLineProgress(r.PosOrderLineId, r.Quantity, s, c);
+                        if (r.Quantity < 0m)
+                        {
+                            return new KitchenTicketLineProgress(r.PosOrderLineId, r.Quantity, 0m, 0m);
+                        }
+
+                        var (s, c, m) = allocated.GetValueOrDefault((ticket.Id, r.PosOrderLineId));
+                        return new KitchenTicketLineProgress(r.PosOrderLineId, r.Quantity, s, c, m);
                     })
                     .ToList();
 
-                var state = lines.Any(x => x.Pending > 0m) ? KitchenTicketState.Pending
-                    : lines.All(x => x.Served == 0m) ? KitchenTicketState.Cancelled
-                    : KitchenTicketState.Served;
+                var owed = lines.Where(x => x.Sent > 0m).ToList();
+                var state = owed.Any(x => x.Pending > 0m) ? KitchenTicketState.Pending
+                    : owed.All(x => x.Served == 0m)
+                        ? (owed.All(x => x.Cancelled == 0m) && owed.Any(x => x.Moved > 0m) ? KitchenTicketState.Moved : KitchenTicketState.Cancelled)
+                        : KitchenTicketState.Served;
 
                 return new KitchenTicketProgress(ticket.Id, state, lines);
             })
@@ -593,7 +815,9 @@ public sealed class PosOrder
         _ => orderType.ToString(),
     };
 
-    private List<KitchenTicket> Ticket(List<(PosOrderLine Line, decimal Quantity)> changes, Guid userId, string? reason)
+    private List<KitchenTicket> Ticket(
+        List<(PosOrderLine Line, decimal Quantity)> changes, Guid userId, string? reason, KitchenTicketKind kind,
+        Guid? counterpartOrderId = null)
     {
         var sendNumber = _tickets.Count == 0 ? 1 : _tickets.Max(x => x.SendNumber) + 1;
         var now = DateTimeOffset.UtcNow;
@@ -602,7 +826,7 @@ public sealed class PosOrder
             .GroupBy(x => x.Line.KitchenStationId)
             .OrderBy(g => g.Key is null ? 1 : 0)
             .Select(g => KitchenTicket.Create(
-                Id, sendNumber, g.Key, [.. g.Select(x => (x.Line.Id, x.Quantity))], userId, reason, now))
+                Id, sendNumber, g.Key, [.. g.Select(x => (x.Line.Id, x.Quantity))], userId, reason, now, kind, counterpartOrderId))
             .ToList();
 
         _tickets.AddRange(tickets);
@@ -619,6 +843,16 @@ public sealed class PosOrder
 
         Touch();
         return tickets;
+    }
+
+    private int NextLineNo() => _lines.Count == 0 ? 1 : _lines.Max(x => x.LineNo) + 1;
+
+    private void EnsureRoomFor(int newLines)
+    {
+        if (_lines.Count + newLines > MaxLines)
+        {
+            throw new InvalidOperationException($"An order holds at most {MaxLines} lines.");
+        }
     }
 
     private PosOrderLine FindLine(Guid lineId) =>
@@ -746,6 +980,15 @@ public sealed class PosOrderLine
     /// <summary>How much has left the kitchen for the table. The one quantity stored on a line.</summary>
     public decimal ServedQuantity { get; private set; }
 
+    /// <summary>Phase 68 -- parcelled, not plated: a dine-in order's take-away line (see
+    /// <see cref="PosOrder.MarkTakeAway"/>). Its <see cref="ServiceChargeRate"/> was decided when it was
+    /// marked.</summary>
+    public bool IsTakeAway { get; private set; }
+
+    /// <summary>Phase 68 -- the dine-in line a take-away line was parcelled from, on the same order; null for
+    /// every other line, including a take-away line that arrived by transfer.</summary>
+    public Guid? ParcelledFromLineId { get; private set; }
+
     private PosOrderLine()
     {
     }
@@ -783,6 +1026,39 @@ public sealed class PosOrderLine
             KitchenStationId = row.KitchenStationId,
         };
     }
+
+    /// <summary>Phase 68 -- a new line carrying another's frozen terms: a take-away sibling (its own service
+    /// charge rate), or a transfer's destination on another order (the same rate).</summary>
+    internal static PosOrderLine CopyOf(
+        Guid orderId, int lineNo, PosOrderLine source, bool isTakeAway, decimal serviceChargeRate, Guid? parcelledFromLineId) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            PosOrderId = orderId,
+            LineNo = lineNo,
+            ProductId = source.ProductId,
+            UnitId = source.UnitId,
+            ConversionFactor = source.ConversionFactor,
+            Rate = source.Rate,
+            VatRate = source.VatRate,
+            ServiceChargeRate = serviceChargeRate,
+            Note = source.Note,
+            KitchenStationId = source.KitchenStationId,
+            IsTakeAway = isTakeAway,
+            ParcelledFromLineId = parcelledFromLineId,
+        };
+
+    /// <summary>Phase 68 -- whether a transferred quantity can join this line: every frozen term the same.</summary>
+    internal bool HasSameTermsAs(PosOrderLine other) =>
+        ProductId == other.ProductId
+        && UnitId == other.UnitId
+        && ConversionFactor == other.ConversionFactor
+        && Rate == other.Rate
+        && VatRate == other.VatRate
+        && ServiceChargeRate == other.ServiceChargeRate
+        && Note == other.Note
+        && KitchenStationId == other.KitchenStationId
+        && IsTakeAway == other.IsTakeAway;
 
     /// <summary>This line's money at <paramref name="quantity"/>, by the till's one arithmetic.</summary>
     public PosLineArithmetic.Figures Figures(decimal quantity) =>
@@ -823,9 +1099,15 @@ public sealed class KitchenTicket
     /// <summary>Prints recorded so far; the next print is number <c>PrintCount + 1</c>.</summary>
     public int PrintCount { get; private set; }
 
+    /// <summary>Phase 68 -- what the ticket is. Stored, because a move cannot be told from its signs.</summary>
+    public KitchenTicketKind Kind { get; private set; }
+
+    /// <summary>Phase 68 -- on a transfer ticket, the other order (where the food went, or came from).</summary>
+    public Guid? CounterpartOrderId { get; private set; }
+
     public IReadOnlyList<KitchenTicketLine> Lines => _lines;
 
-    public bool IsCancellation => _lines.Count > 0 && _lines.All(x => x.Quantity < 0m);
+    public bool IsCancellation => Kind == KitchenTicketKind.Cancellation;
 
     private KitchenTicket()
     {
@@ -838,7 +1120,9 @@ public sealed class KitchenTicket
         IReadOnlyList<(Guid LineId, decimal Quantity)> lines,
         Guid userId,
         string? reason,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        KitchenTicketKind kind = KitchenTicketKind.Send,
+        Guid? counterpartOrderId = null)
     {
         var ticket = new KitchenTicket
         {
@@ -849,6 +1133,8 @@ public sealed class KitchenTicket
             CreatedAt = now,
             CreatedByUserId = userId,
             Reason = reason,
+            Kind = kind,
+            CounterpartOrderId = counterpartOrderId,
         };
 
         foreach (var (lineId, quantity) in lines)
@@ -856,9 +1142,22 @@ public sealed class KitchenTicket
             ticket._lines.Add(KitchenTicketLine.Create(ticket.Id, lineId, quantity));
         }
 
-        if (ticket.IsCancellation != (reason is not null))
+        var rows = ticket._lines;
+        var valid = kind switch
         {
-            throw new InvalidOperationException("A kitchen ticket is a send or a cancellation with its reason, not both.");
+            KitchenTicketKind.Send => rows.All(x => x.Quantity > 0m) && reason is null && counterpartOrderId is null,
+            KitchenTicketKind.Cancellation => rows.All(x => x.Quantity < 0m) && reason is not null && counterpartOrderId is null,
+            // A take-away mark moves food between two lines of one order, so it nets to zero.
+            KitchenTicketKind.TakeAway => rows.Sum(x => x.Quantity) == 0m && reason is null && counterpartOrderId is null,
+            KitchenTicketKind.Transfer => (rows.All(x => x.Quantity > 0m) || rows.All(x => x.Quantity < 0m))
+                && reason is null && counterpartOrderId is not null && counterpartOrderId != orderId,
+            _ => false,
+        };
+
+        if (rows.Count == 0 || !valid)
+        {
+            throw new InvalidOperationException(
+                "A kitchen ticket is a send, a cancellation with its reason, a take-away mark, or a transfer naming the other order.");
         }
 
         return ticket;

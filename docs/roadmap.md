@@ -53,6 +53,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 65 | Kitchen board and settling: whole/by item/equal bills from frozen rates, rounding on the running total |
 | 66 | POS reports and dashboard: Day Report, Payment Summary, Order Report, POS Sessions, the overview; the ERP sales reports and System Audit read with a Channel filter; every figure from one reader, the round-off the one line to the Sales Register |
 | 67 | The ERP invoice and credit-note PDF: the heading the bill is (English and Nepali), every copy counted across till, PDF and email, copies marked; a counted print is a POST |
+| 68 | Mark as Take Away and item transfer: a parcel is a split line moved by a take-away ticket, its service charge decided once at the mark by the location's setting; a transfer is a ticket on each order at the same rates; plus the buyer's PAN on the ERP PDF |
 
 ---
 
@@ -110,19 +111,17 @@ The two rules apply to every tax invoice; phase 67 brought the ERP's own PDF and
 column (now for credit notes too). The ERP credit note against a till sale is settled by phase 63:
 the ERP may no longer convert one, and the till's refund returns the service charge.
 
-**The POS sequence (60–66) is complete, and so is phase 67**, the ERP invoice and credit-note PDF: the heading
-the bill is, in English and Nepali, and every copy counted across the till, the Print button and email, with
-copies marked (`phase-67-status.md`). **Next: phase 68, Mark as Take Away and item transfer**, scheduled by the
-user on 2026-10-03, with the repricing question answered (below).
+**The POS sequence (60–66) is complete, and so are phases 67 and 68.** Phase 67 put the ERP invoice and
+credit-note PDF under the till's two statutory rules (`phase-67-status.md`). Phase 68 shipped *Mark as Take Away*
+and item transfer on the restaurant till (`phase-68-status.md`): a parcel is a split line moved by a take-away
+kitchen ticket, its service charge decided once, at the mark, by the location's *Service charge on take-away*;
+a transfer is a ticket on each order at the same rates, and one that empties a tab closes it. Ahead of it, the
+ERP PDF now prints the buyer's "PAN: …" when the contact has one (VAT Rules Schedule 5). **Next: not yet
+scheduled**; the candidates are the carried items below (the packaging fee, discount and credit on a restaurant
+bill, per-part customers, phase 67's standalone credit note) and real printing templates.
 
-**Before phase 68's own work, a small statutory fix (scheduled by the user, 2026-10-03): the buyer's PAN on the ERP
-PDF.** VAT Rules Schedule 5 asks a tax invoice for the buyer's PAN when the buyer is registered. The ERP invoice
-and credit-note PDFs print the customer's name and address and never the PAN, so a VAT-registered buyer gets an
-invoice they cannot claim input tax on. Print "PAN: …" in the customer block **only when the contact has one**.
-PAN stays optional on a contact, so a retail customer without one prints exactly as today, and the till already
-behaves this way (phase 62: an abbreviated bill omits the buyer block, a named customer gets name, address and PAN
-when present). Open question for the tax advisor, not to be guessed: whether IRD expects a buyer PAN on a
-high-value sale to an unregistered buyer. If it does, it would be a warning on approve, never a block.
+Open question for the tax advisor, not to be guessed (carried from the PAN fix): whether IRD expects a buyer PAN
+on a high-value sale to an unregistered buyer. If it does, it would be a warning on approve, never a block.
 
 **Also raised 2026-10-03, not yet scheduled: real printing templates.** Phase 20d kept `PrintingTemplate` as a
 name and a default flag, by the user's decision; every type prints one shared layout, where the vendor offers
@@ -139,18 +138,11 @@ not looked at.
 a reader change, not a screen change); the vendor's Delivery Partner Statement (delivery partners are outside
 the sequence).
 
-**Carried from phases 64 and 65** (§ 5 in each): *Mark as Take Away* on a dine-in line and item transfer
-between orders, now read live (`erp-module-scan.md`, "Kitchen board and split"). Both are quantity moves; Mark
-as Take Away also asks whether a parcelled dish loses its service charge (phase 64 Decision H) against the
-rule that rates never move. **Answered by the user, 2026-10-03:** marking take-away outranks the frozen rate. A
-per-location setting, *Service charge on take-away* (On / Off), decides whether the parcelled quantity keeps the
-line's service charge. The product's existing `ServiceChargeApplicable` flag still exempts an item on its own,
-and the choice is **frozen on the line when it is marked**, so a later settings change reprices nothing. Read
-from the vendor's POS bundle the same day: it has a location switch, a per-product flag and a per-line override,
-its client never reprices a take-away quantity, and it has **no packaging fee**. A packaging fee (flat line /
-percentage / none, per location, inside the VAT base, its own account) was asked for and is **carried
-separately**, not part of phase 68. VAT stays in code; only fees are settings. Also: a discount and credit on a
-restaurant bill, per-part customers. The live floor shipped in phase 65 (polled).
+**Carried from phases 64, 65 and 68** (§ 5 in each): *Mark as Take Away* and item transfer shipped in phase 68
+with the user's 2026-10-03 answer. Still carried: **a packaging fee** (flat line / percentage / none, per
+location, inside the VAT base, its own account; asked for and carried separately by the user; the vendor has
+none); **a discount and credit on a restaurant bill**; **per-part customers**. VAT stays in code; only fees are
+settings.
 
 **Carried from phase 63** (§ 5 there): cross-branch returns; split payouts on the refund screen (the
 API takes several); a fully refunded bill still listed in the refund search.

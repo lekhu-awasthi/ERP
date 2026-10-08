@@ -31,7 +31,10 @@ public sealed record PosKitchenBoardLineDto(
     decimal Sent,
     decimal Served,
     decimal Cancelled,
-    decimal Pending);
+    decimal Pending,
+    // Phase 68 -- moved off unserved (parcelled or transferred), and whether this line is packed to go.
+    decimal Moved = 0m,
+    bool IsTakeAway = false);
 
 /// <param name="Number">The paper's number: the order's code and the send, <c>ORD0007-2</c>.</param>
 /// <param name="Label">What the card is headed with: the table, or the customer of a Take Away or Delivery.</param>
@@ -51,7 +54,10 @@ public sealed record PosKitchenBoardTicketDto(
     string? Reason,
     DateTimeOffset CreatedAt,
     string CreatedByName,
-    IReadOnlyList<PosKitchenBoardLineDto> Lines);
+    IReadOnlyList<PosKitchenBoardLineDto> Lines,
+    // Phase 68 -- a take-away mark or a transfer, and the other order a transfer names.
+    KitchenTicketKind Kind = KitchenTicketKind.Send,
+    string? CounterpartOrderCode = null);
 
 /// <summary>The vendor's Order Summary: what is still to cook, summed across the pending tickets shown.</summary>
 public sealed record PosKitchenSummaryDto(string ProductName, string? UnitName, decimal Pending);
@@ -157,7 +163,7 @@ public sealed class GetPosKitchenBoardQueryHandler(IAppDbContext db)
         {
             PosKitchenBoardView.Pending => pending.OrderBy(x => x.Ticket.CreatedAt).ToList(),
             PosKitchenBoardView.Served => all
-                .Where(x => x.Progress.State is KitchenTicketState.Served or KitchenTicketState.Cancelled
+                .Where(x => x.Progress.State is KitchenTicketState.Served or KitchenTicketState.Cancelled or KitchenTicketState.Moved
                     && NepalTime.LocalDate(x.Ticket.CreatedAt) == today)
                 .OrderByDescending(x => x.Ticket.CreatedAt).Take(GetPosKitchenBoardQuery.MaxDoneTickets).ToList(),
             _ => all
@@ -193,7 +199,10 @@ public sealed class GetPosKitchenBoardQueryHandler(IAppDbContext db)
                         .OrderBy(l => l.Line.LineNo)
                         .Select(l => new PosKitchenBoardLineDto(
                             l.Line.Id, l.Line.ProductName, l.Line.UnitName, l.Line.Note,
-                            l.Progress.Sent, l.Progress.Served, l.Progress.Cancelled, l.Progress.Pending))]);
+                            l.Progress.Sent, l.Progress.Served, l.Progress.Cancelled, l.Progress.Pending,
+                            l.Progress.Moved, l.Line.IsTakeAway))],
+                    x.Ticket.Kind,
+                    order.Tickets.Single(t => t.Id == x.Ticket.Id).CounterpartOrderCode);
             })
             .ToList();
 

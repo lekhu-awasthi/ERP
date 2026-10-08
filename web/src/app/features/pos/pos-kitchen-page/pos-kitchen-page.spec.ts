@@ -20,9 +20,9 @@ describe('PosKitchenPage', () => {
     id, number: `ORD0001-${id}`, orderId: 'ord-1', orderCode: 'ORD0001', orderType: 'DineIn', orderStatus: 'Open',
     label: 'T1', areaName: 'Ground Floor', covers: 2, kitchenStationId: 'kitchen', kitchenStationName: 'Kitchen',
     state: pending > 0 ? 'Pending' : 'Served', reason: null, createdAt: new Date(Date.now() - 12 * 60_000).toISOString(),
-    createdByName: 'Sita',
+    createdByName: 'Sita', kind: 'Send', counterpartOrderCode: null,
     lines: [{ orderLineId: 'momo', productName: 'Chicken Momo', unitName: null, note: 'less spicy', sent: 2, served: 2 - pending,
-      cancelled: 0, pending }],
+      cancelled: 0, pending, moved: 0, isTakeAway: false }],
     ...overrides,
   });
 

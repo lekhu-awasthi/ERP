@@ -133,6 +133,20 @@
                   </p>
                 </div>
               </div>
+              @if (current.posMode === 'Restaurant') {
+                <!-- Phase 68 -- read when a dine-in item is marked take away, and frozen on it then. -->
+                <div class="form-check mt-3">
+                  <input class="form-check-input" type="checkbox" id="pos-settings-service-charge-take-away"
+                    aria-describedby="pos-settings-service-charge-take-away-help"
+                    [checked]="serviceChargeOnTakeAway()" (change)="serviceChargeOnTakeAway.set(checkedOf($event))" />
+                  <label class="form-check-label" for="pos-settings-service-charge-take-away">Service charge on take-away</label>
+                </div>
+                <p id="pos-settings-service-charge-take-away-help" class="form-text mb-0">
+                  When a dine-in item is marked take away, it keeps its service charge if this is ticked and carries
+                  none if it is not. Decided when the item is marked, so changing this later reprices nothing already
+                  marked. A Take Away or Delivery order never carries service charge.
+                </p>
+              }
             }
           </fieldset>
 

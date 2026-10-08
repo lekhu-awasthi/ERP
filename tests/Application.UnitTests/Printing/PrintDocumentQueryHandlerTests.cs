@@ -61,6 +61,42 @@ public class PrintDocumentQueryHandlerTests
     }
 
     [Fact]
+    public async Task Handle_carries_the_buyer_pan_on_an_invoice_and_a_credit_note_only_when_the_contact_has_one()
+    {
+        var db = TestAppDbContext.Create();
+        var organizationId = NewOrganization(db).Id;
+
+        var registered = Contact.Create(organizationId, ContactType.Customer, "Acme Traders", "C-001", null, " 609876543 ", null, null, null, 0);
+        var retail = Contact.Create(organizationId, ContactType.Customer, "Walk-in Buyer", "C-002", null, null, null, null, null, 0);
+        var product = Product.Create(
+            organizationId, ProductType.Service, "Repair", "S-001", Guid.NewGuid(), Guid.NewGuid(), null, true, 100, 80, VatRate.NoVat, 0, true);
+        db.Contacts.AddRange(registered, retail);
+        db.Products.Add(product);
+
+        var invoice = Invoice.Create(organizationId, registered.Id, Guid.NewGuid(), new DateOnly(2026, 8, 1), null, null, null);
+        invoice.AddLine(product.Id, 1, 100, VatRate.NoVat, 0, null, 1m);
+        var retailInvoice = Invoice.Create(organizationId, retail.Id, Guid.NewGuid(), new DateOnly(2026, 8, 1), null, null, null);
+        retailInvoice.AddLine(product.Id, 1, 100, VatRate.NoVat, 0, null, 1m);
+        var note = CreditNote.Create(organizationId, registered.Id, new DateOnly(2026, 8, 2), null, null, null);
+        note.AddLine(product.Id, 1, 100, VatRate.NoVat, 0, null, 1m);
+        var retailNote = CreditNote.Create(organizationId, retail.Id, new DateOnly(2026, 8, 2), null, null, null);
+        retailNote.AddLine(product.Id, 1, 100, VatRate.NoVat, 0, null, 1m);
+        var quotation = Quotation.Create(organizationId, registered.Id, new DateOnly(2026, 8, 1), null, null);
+        quotation.AddLine(product.Id, 1, 100, VatRate.NoVat, 0, null, 1m);
+        db.Invoices.AddRange(invoice, retailInvoice);
+        db.CreditNotes.AddRange(note, retailNote);
+        db.Quotations.Add(quotation);
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        Assert.Equal("609876543", (await Print(db, organizationId, DocumentType.Invoice, invoice.Id)).PartyPan);
+        Assert.Equal("609876543", (await Print(db, organizationId, DocumentType.CreditNote, note.Id)).PartyPan);
+        Assert.Null((await Print(db, organizationId, DocumentType.Invoice, retailInvoice.Id)).PartyPan);
+        Assert.Null((await Print(db, organizationId, DocumentType.CreditNote, retailNote.Id)).PartyPan);
+        // The statutory rule is the tax invoice's; every other document's party block is unchanged.
+        Assert.Null((await Print(db, organizationId, DocumentType.Quotation, quotation.Id)).PartyPan);
+    }
+
+    [Fact]
     public async Task Handle_falls_back_to_a_default_template_name_when_none_is_configured()
     {
         var db = TestAppDbContext.Create();

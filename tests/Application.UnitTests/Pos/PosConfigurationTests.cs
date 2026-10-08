@@ -62,6 +62,7 @@ public class PosConfigurationTests
         ServiceChargeEnabled: true,
         ServiceChargeRate: 10m,
         ServiceChargeAccountId: null,
+        ServiceChargeOnTakeAway: true,
         RoundOffEnabled: true,
         RoundOffAccountId: null,
         CashVerificationRequired: true,

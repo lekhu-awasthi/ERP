@@ -58,6 +58,7 @@ public sealed class UpdatePosLocationSettingsCommandHandler(IAppDbContext db)
             request.ServiceChargeEnabled,
             request.ServiceChargeRate,
             request.ServiceChargeAccountId,
+            request.ServiceChargeOnTakeAway,
             request.RoundOffEnabled,
             request.RoundOffAccountId,
             request.CashVerificationRequired,

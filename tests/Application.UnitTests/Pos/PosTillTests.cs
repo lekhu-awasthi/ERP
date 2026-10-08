@@ -418,7 +418,7 @@ public class PosTillTests
     {
         var settings = await till.Db.PosLocationSettings.SingleAsync();
         settings.Update(
-            PosMode.Retail, true, 10m, null, true, null, false, PosLocationSettings.DefaultDenominations, null,
+            PosMode.Retail, true, 10m, null, true, true, null, false, PosLocationSettings.DefaultDenominations, null,
             true, true, true, false, abbreviatedTaxInvoiceEnabled: true);
         await till.Db.SaveChangesAsync();
     }

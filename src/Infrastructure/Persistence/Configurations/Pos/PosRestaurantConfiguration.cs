@@ -156,8 +156,16 @@ public sealed class PosOrderLineConfiguration : IEntityTypeConfiguration<PosOrde
         builder.Property(x => x.ServiceChargeRate).HasPrecision(5, 2).IsRequired();
         builder.Property(x => x.Note).HasMaxLength(PosOrder.MaxNoteLength);
         builder.Property(x => x.ServedQuantity).HasPrecision(18, 4).IsRequired();
+        builder.Property(x => x.IsTakeAway).IsRequired();
 
         builder.HasIndex(x => new { x.PosOrderId, x.LineNo }).IsUnique();
+
+        // Phase 68 -- a take-away line points at the dine-in line it was parcelled from, on the same order.
+        // Restrict: the order already cascades to every line, and a second path is one SQL Server refuses.
+        builder.HasOne<PosOrderLine>()
+            .WithMany()
+            .HasForeignKey(x => x.ParcelledFromLineId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne<Product>()
             .WithMany()
@@ -187,7 +195,15 @@ public sealed class KitchenTicketConfiguration : IEntityTypeConfiguration<Kitche
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.Reason).HasMaxLength(PosOrder.MaxReasonLength);
         builder.Property(x => x.PrintCount).IsRequired();
+        builder.Property(x => x.Kind).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Ignore(x => x.IsCancellation);
+
+        // Phase 68 -- a transfer ticket names the other order. Restrict, so neither order can be deleted
+        // out from under the other's history (nothing deletes an order today).
+        builder.HasOne<PosOrder>()
+            .WithMany()
+            .HasForeignKey(x => x.CounterpartOrderId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // One ticket per send per station. Null is the Default station and is a real value here, so
         // the index is deliberately unfiltered: SQL Server treats NULLs as equal in a unique index,

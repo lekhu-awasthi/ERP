@@ -146,7 +146,11 @@ public sealed record PrintableDocumentDto(
     string? TitleNepali = null,
     /// <summary>Phase 67 -- set on a counted print. A copy (number above 1) is boxed "COPY OF ORIGINAL ·
     /// printed N times" top and bottom, and every counted print names who printed it and when.</summary>
-    PrintedCopyDto? PrintedCopy = null);
+    PrintedCopyDto? PrintedCopy = null,
+    /// <summary>The buyer's PAN, printed "PAN: …" under the party address. Set only on an invoice or credit
+    /// note whose contact has one (VAT Rules Schedule 5 asks a tax invoice for a registered buyer's PAN);
+    /// null everywhere else, which prints the party block exactly as before.</summary>
+    string? PartyPan = null);
 
 /// <summary>Phase 67 -- what the paper says about this copy. <paramref name="PrintedAtText"/> is the Nepal
 /// wall-clock date (in the request's calendar) and time.</summary>

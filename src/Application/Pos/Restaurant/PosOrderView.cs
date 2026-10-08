@@ -34,10 +34,17 @@ public sealed record PosOrderLineDto(
     decimal Amount,
     decimal ServiceChargeAmount,
     decimal VatAmount,
-    decimal Total);
+    decimal Total,
+    // Phase 68 -- a take-away line, the dine-in line it was parcelled from, and what moves brought onto
+    // or took off the line (a take-away mark or a transfer): neither ordered nor discarded.
+    bool IsTakeAway = false,
+    Guid? ParcelledFromLineId = null,
+    decimal MovedIn = 0m,
+    decimal MovedOut = 0m);
 
 public sealed record KitchenTicketLineDto(
-    Guid OrderLineId, int LineNo, string ProductName, string? UnitName, decimal Quantity, string? Note);
+    Guid OrderLineId, int LineNo, string ProductName, string? UnitName, decimal Quantity, string? Note,
+    bool IsTakeAway = false);
 
 /// <param name="Number">What the paper prints: the order's code and the send, <c>ORD0007-2</c>.</param>
 public sealed record KitchenTicketDto(
@@ -51,7 +58,10 @@ public sealed record KitchenTicketDto(
     DateTimeOffset CreatedAt,
     string CreatedByName,
     int PrintCount,
-    IReadOnlyList<KitchenTicketLineDto> Lines);
+    IReadOnlyList<KitchenTicketLineDto> Lines,
+    // Phase 68 -- what the ticket is, and on a transfer the other order's code.
+    KitchenTicketKind Kind = KitchenTicketKind.Send,
+    string? CounterpartOrderCode = null);
 
 /// <summary>
 /// An order as the restaurant till and the ERP list show it. <paramref name="Total"/> is the estimate
@@ -161,6 +171,16 @@ internal static class PosOrderView
             .Where(x => userIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => x.FullName, cancellationToken);
 
+        var counterpartIds = orders
+            .SelectMany(o => o.Tickets.Where(t => t.CounterpartOrderId != null).Select(t => t.CounterpartOrderId!.Value))
+            .Distinct()
+            .ToList();
+        var counterparts = counterpartIds.Count == 0
+            ? []
+            : await db.PosOrders
+                .Where(x => x.OrganizationId == organizationId && counterpartIds.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
+
         var billing = await PosOrderBilling.LoadManyAsync(
             db, organizationId, [.. orders.Select(o => o.Id)], cancellationToken);
 
@@ -187,7 +207,8 @@ internal static class PosOrderView
                         q.Ordered, q.Discarded, q.Net, q.Served, q.Outstanding,
                         invoiced.GetValueOrDefault(line.Id), order.RemainingToBill(line, invoiced),
                         figures.Amount, figures.ServiceChargeAmount, figures.VatAmount,
-                        figures.Amount + figures.ServiceChargeAmount + figures.VatAmount);
+                        figures.Amount + figures.ServiceChargeAmount + figures.VatAmount,
+                        line.IsTakeAway, line.ParcelledFromLineId, q.MovedIn, q.MovedOut);
                 })
                 .ToList();
 
@@ -214,10 +235,12 @@ internal static class PosOrderView
                             var line = lineNos[row.PosOrderLineId];
                             return new KitchenTicketLineDto(
                                 line.Id, line.LineNo, products.GetValueOrDefault(line.ProductId)?.Name ?? "",
-                                UnitName(line.UnitId), row.Quantity, line.Note);
+                                UnitName(line.UnitId), row.Quantity, line.Note, line.IsTakeAway);
                         })
                         .OrderBy(x => x.LineNo)
-                        .ToList()))
+                        .ToList(),
+                    ticket.Kind,
+                    ticket.CounterpartOrderId is { } other ? counterparts.GetValueOrDefault(other) : null))
                 .ToList();
 
             var location = locations.GetValueOrDefault(order.BillingLocationId);
