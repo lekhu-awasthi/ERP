@@ -63,6 +63,23 @@ public sealed class UpdateCreditNoteCommandHandler(IAppDbContext db)
                 units[i].UnitId, units[i].ConversionFactor);
         }
 
+        // Phase 69 -- a converted draft is still a return of its invoice's lines: edited through the API it
+        // must stay within what is left of each line, keep the customer and discount, and stay in the
+        // invoice's currency. The Create handler checked all of that once; until this phase an edit
+        // checked none of it, and the form's locked fields were the only guard.
+        if (creditNote.IsConversionFromInvoice)
+        {
+            await SalesValidation.EnsureCreditNoteLinesWithinInvoiceRemainingAsync(
+                db, request.OrganizationId, creditNote.ReferrerId!.Value, request.ContactId, request.DiscountPct,
+                request.Lines, cancellationToken, excludingCreditNoteId: creditNote.Id);
+        }
+
+        creditNote.SetReason(request.Reason);
+        await CreditNoteInvoiceReferences.ApplyAsync(
+            db, creditNote, request.AgainstInvoiceId, request.AgainstInvoiceNumber, request.AgainstInvoiceDate,
+            cancellationToken);
+        await CreditNoteInvoiceReferences.EnsureConversionMatchesAsync(db, creditNote, cancellationToken);
+
         db.CreditNoteLines.RemoveRange(oldLines);
         db.CreditNoteLines.AddRange(creditNote.Lines);
 

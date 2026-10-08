@@ -178,12 +178,22 @@ internal static class PurchasingValidation
     /// DiscountPct) quadruple a line was actually billed at, not ProductId alone.</summary>
     public static async Task<Dictionary<(Guid ProductId, decimal Rate, VatRate VatRate, decimal DiscountPct, Guid? UnitId), decimal>>
         GetPurchaseBillRemainingByLineAsync(
-            IAppDbContext db, Guid organizationId, PurchaseBill purchaseBill, CancellationToken cancellationToken)
+            IAppDbContext db, Guid organizationId, PurchaseBill purchaseBill, CancellationToken cancellationToken,
+            Guid? excludingDebitNoteId = null)
     {
-        var debitedLines = await db.DebitNotes
+        var notes = db.DebitNotes
             .Where(x => x.OrganizationId == organizationId
                 && x.ReferrerType == DocumentType.PurchaseBill && x.ReferrerId == purchaseBill.Id
-                && x.Status != DebitNoteStatus.Void)
+                && x.Status != DebitNoteStatus.Void);
+
+        // Phase 69 -- the draft being edited, whose own saved lines are about to be replaced (the
+        // credit note's mirror, SalesValidation.GetInvoiceRemainingByLineAsync).
+        if (excludingDebitNoteId is { } excluded)
+        {
+            notes = notes.Where(x => x.Id != excluded);
+        }
+
+        var debitedLines = await notes
             .SelectMany(x => x.Lines)
             .Select(x => new { x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.UnitId, x.Quantity })
             .ToListAsync(cancellationToken);
@@ -195,6 +205,34 @@ internal static class PurchasingValidation
         return purchaseBill.Lines
             .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.UnitId))
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity) - debitedByLine.GetValueOrDefault(g.Key));
+    }
+
+    /// <summary>
+    /// Phase 69 -- a debit note converted from a purchase bill stays in the bill's currency, the mirror
+    /// of the credit note's rule (Sales.CreditNoteInvoiceReferences.EnsureConversionMatchesAsync). Until
+    /// this phase the conversion template carried no currency, so a USD bill's return arrived as an NPR
+    /// note at rate 1 and debited the supplier the foreign amount as rupees. Called after SetCurrency.
+    /// </summary>
+    public static async Task EnsureDebitNoteInBillCurrencyAsync(
+        IAppDbContext db, DebitNote debitNote, CancellationToken cancellationToken)
+    {
+        if (debitNote.ReferrerType != DocumentType.PurchaseBill || debitNote.ReferrerId is not { } purchaseBillId)
+        {
+            return;
+        }
+
+        var bill = await db.PurchaseBills
+            .Where(x => x.Id == purchaseBillId && x.OrganizationId == debitNote.OrganizationId)
+            .Select(x => new { x.Code, x.CurrencyCode })
+            .SingleOrDefaultAsync(cancellationToken)
+            ?? throw new NotFoundException("Purchase bill not found.");
+
+        if (bill.CurrencyCode != debitNote.CurrencyCode)
+        {
+            throw new ConflictException(
+                $"Purchase bill {bill.Code} is in {bill.CurrencyCode}, so a debit note against it is in "
+                + $"{bill.CurrencyCode} too (this one is in {debitNote.CurrencyCode}).");
+        }
     }
 
     /// <summary>Mirror of Sales.SalesValidation.EnsureCreditNoteLinesWithinInvoiceRemainingAsync
@@ -214,7 +252,8 @@ internal static class PurchasingValidation
         Guid? tdsTypeId,
         decimal discountPct,
         IReadOnlyList<DebitNoteLineInput> requestedLines,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? excludingDebitNoteId = null)
     {
         var purchaseBill = await db.PurchaseBills
             .Include(x => x.Lines)
@@ -237,7 +276,8 @@ internal static class PurchasingValidation
                 "A debit note converted from a Purchase Bill must keep the same transaction-level Discount% as the source purchase bill.");
         }
 
-        var remainingByLine = await GetPurchaseBillRemainingByLineAsync(db, organizationId, purchaseBill, cancellationToken);
+        var remainingByLine = await GetPurchaseBillRemainingByLineAsync(
+            db, organizationId, purchaseBill, cancellationToken, excludingDebitNoteId);
 
         var requestedByLine = requestedLines
             .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.UnitId))

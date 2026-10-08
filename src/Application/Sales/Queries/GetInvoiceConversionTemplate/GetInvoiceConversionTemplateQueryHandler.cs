@@ -41,6 +41,8 @@ public sealed class GetInvoiceConversionTemplateQueryHandler(IAppDbContext db)
             quotation.DiscountPct,
             lines,
             quotation.LocationId,
-            quotation.Terms);
+            quotation.Terms,
+            quotation.CurrencyCode,
+            quotation.ExchangeRate);
     }
 }

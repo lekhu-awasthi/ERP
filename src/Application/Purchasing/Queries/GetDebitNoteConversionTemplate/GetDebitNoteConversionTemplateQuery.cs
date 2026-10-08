@@ -29,4 +29,11 @@ public sealed record DebitNoteConversionTemplateDto(
     // fact the conversion already knows. The server defaults to this value anyway when the command
     // arrives with a null warehouse, so the prefill is what makes the form honest rather than what
     // makes it correct.
-    Guid WarehouseId);
+    Guid WarehouseId,
+
+    // Phase 69 -- the source document's currency and rate, carried into the prefill. The comment on
+    // LocationId above (phase 35a) took the currency to be carried already; it never was, so a USD
+    // source converted to a base-currency document at rate 1 and booked its foreign amounts as
+    // rupees. The reference product carries both verbatim (erp-module-scan.md:413).
+    string CurrencyCode,
+    decimal ExchangeRate);

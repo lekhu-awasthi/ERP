@@ -11,7 +11,8 @@
       [organizationId]="organizationId"
       documentType="CreditNote"
       [disabled]="!isDraft()"
-      [(locationId)]="locationId"
+      [locationId]="locationId()"
+      (locationIdChange)="onLocationChange($event)"
     />
     @if (creditNote(); as cn) {
       @if (cn.status === 'Approved') {
@@ -91,7 +92,7 @@
               [attr.aria-describedby]="fieldError.describedBy('credit-note-detail-page-customer')"
               class="form-select"
               [value]="contactId()"
-              (change)="contactId.set($any($event.target).value)"
+              (change)="onContactChange($event)"
               [disabled]="!isDraft() || isLinkedToSource()"
             >
               <option value="" disabled>Select a customer</option>
@@ -121,6 +122,114 @@
               placeholder="Optional reference note"
             />
           </div>
+          <!-- Phase 69 -- the tax invoice this note relates to (VAT Rules Rule 20(1)(e)): one from the list,
+               or one issued before this system, typed. A conversion names its invoice already. -->
+          @if (isDraft() && !isLinkedToSource()) {
+            <div class="col-12">
+              <fieldset class="border rounded p-3" aria-describedby="credit-note-invoice-hint">
+                <legend class="form-label small fw-semibold float-none w-auto px-1 mb-1">Against invoice</legend>
+                <p id="credit-note-invoice-hint" class="small text-body-secondary mb-2">
+                  The tax invoice this note relates to. A VAT-registered business names it before approving (VAT Rules, Rule 20).
+                </p>
+                <div class="d-flex flex-wrap gap-3 mb-2">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="credit-note-invoice-mode"
+                      id="credit-note-invoice-mode-list"
+                      [checked]="invoiceMode() === 'list'"
+                      (change)="setInvoiceMode('list')" />
+                    <label class="form-check-label" for="credit-note-invoice-mode-list">An invoice in this system</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="credit-note-invoice-mode"
+                      id="credit-note-invoice-mode-typed"
+                      [checked]="invoiceMode() === 'typed'"
+                      (change)="setInvoiceMode('typed')" />
+                    <label class="form-check-label" for="credit-note-invoice-mode-typed">One issued before this system</label>
+                  </div>
+                </div>
+                @if (invoiceMode() === 'list') {
+                  <div class="row g-2">
+                    <div class="col-12 col-sm-5">
+                      <label class="form-label small" for="credit-note-detail-page-invoice-search">Find by number</label>
+                      <input id="credit-note-detail-page-invoice-search"
+                        type="search"
+                        class="form-control"
+                        [value]="invoiceSearch()"
+                        (change)="invoiceSearch.set($any($event.target).value.trim())"
+                        [disabled]="!contactId()" />
+                    </div>
+                    <div class="col-12 col-sm-7">
+                      <label class="form-label small" for="credit-note-detail-page-invoice">Invoice</label>
+                      <select id="credit-note-detail-page-invoice"
+                        class="form-select"
+                        (change)="onInvoicePicked($event)"
+                        [disabled]="!contactId()">
+                        <option value="" [selected]="!pickedInvoice()">
+                          {{ contactId() ? 'Choose an invoice' : 'Choose the customer first' }}
+                        </option>
+                        @for (invoice of invoiceOptions(); track invoice.id) {
+                          <option [value]="invoice.id"
+                            [selected]="invoice.id === pickedInvoice()?.id"
+                            [disabled]="invoice.remainingTotal === 0 && invoice.id !== pickedInvoice()?.id">
+                            {{ invoice.code }} · {{ (invoice.date | nepaliDate) }} · {{ invoice.currencyCode }} {{ (invoice.grandTotal | amount) }}@if (invoice.remainingTotal !== null) { · @if (invoice.remainingTotal > 0) {{{ (invoice.remainingTotal | amount) }} left} @else {fully credited}}
+                          </option>
+                        }
+                      </select>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="row g-2">
+                    <div class="col-12 col-sm-5">
+                      <label class="form-label small" for="credit-note-detail-page-invoice-number">Invoice number</label>
+                      <input id="credit-note-detail-page-invoice-number"
+                        type="text"
+                        maxlength="50"
+                        class="form-control"
+                        [class.is-invalid]="fieldError.is('credit-note-detail-page-invoice-number')"
+                        [attr.aria-invalid]="fieldError.invalid('credit-note-detail-page-invoice-number')"
+                        [attr.aria-describedby]="fieldError.describedBy('credit-note-detail-page-invoice-number')"
+                        [value]="typedInvoiceNumber()"
+                        (input)="typedInvoiceNumber.set($any($event.target).value)" />
+                      <app-field-error [state]="fieldError" control="credit-note-detail-page-invoice-number" />
+                    </div>
+                    <div class="col-12 col-sm-7">
+                      <label class="form-label small" for="credit-note-detail-page-invoice-date">Invoice date</label>
+                      <app-bs-date-input [inputId]="'credit-note-detail-page-invoice-date'"
+                        [inputClass]="'form-control'"
+                        [value]="typedInvoiceDate() || null"
+                        (valueChange)="typedInvoiceDate.set($event)" />
+                    </div>
+                  </div>
+                }
+              </fieldset>
+            </div>
+          } @else if (creditNote(); as cn) {
+            <div class="col-12">
+              <span class="form-label small fw-semibold d-block">Against invoice</span>
+              @if (cn.relatedInvoice; as related) {
+                <a [routerLink]="['/organizations', organizationId, 'sales', 'invoices', related.id]">{{ related.code }}</a>
+                dated {{ (related.date | nepaliDate) }}
+              } @else if (cn.againstInvoiceNumber) {
+                {{ cn.againstInvoiceNumber }} dated {{ (cn.againstInvoiceDate | nepaliDate) }}
+                <span class="text-body-secondary small">(issued before this system)</span>
+              } @else {
+                <span class="text-body-secondary">None named</span>
+              }
+            </div>
+          }
+          @if (!posRefund()) {
+            <div class="col-12">
+              <label class="form-label small fw-semibold" for="credit-note-detail-page-reason">Reason</label>
+              <textarea id="credit-note-detail-page-reason"
+                class="form-control"
+                rows="2"
+                maxlength="500"
+                [value]="reason()"
+                (input)="reason.set($any($event.target).value)"
+                [disabled]="!isDraft()"
+                placeholder="Optional; printed on the credit note"></textarea>
+            </div>
+          }
           <!-- Phase 28 (FR-2.5): Currency + Exchange Rate To NPR, as the live form lays them out --
                beside the header fields, with the rate disabled and pinned to 1 while the currency is
                the base one. See shared/currency/currency-rate-fields. -->
@@ -129,7 +238,7 @@
               [organizationId]="organizationId"
               [(currencyCode)]="currencyCode"
               [(exchangeRate)]="exchangeRate"
-              [disabled]="!isDraft()"
+              [disabled]="!isDraft() || isLinkedToSource() || !!pickedInvoice()"
             />
           </div>
         </div>

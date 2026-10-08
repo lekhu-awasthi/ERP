@@ -1,11 +1,11 @@
-import { Component, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
 import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { SalesService } from '../../../core/sales/sales.service';
-import { CreditNoteDetail, CreditNoteLineInput, DocumentType } from '../../../core/sales/sales.models';
+import { CreditableInvoice, CreditNoteDetail, CreditNoteLineInput, DocumentType } from '../../../core/sales/sales.models';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact } from '../../../core/contacts/contacts.models';
 import { CatalogService } from '../../../core/catalog/catalog.service';
@@ -48,6 +48,19 @@ interface EditableLine {
 }
 
 let nextLineKey = 1;
+
+/**
+ * Phase 69 -- the invoice a standalone note names, as the picker shows it. `remainingTotal` is null for an
+ * invoice read back from a saved draft, whose remainder the picker has not been asked for.
+ */
+interface PickedInvoice {
+  id: string;
+  code: string;
+  date: string;
+  currencyCode: string;
+  grandTotal: number;
+  remainingTotal: number | null;
+}
 
 /** Same chrome as invoice-detail-page (see that component's doc comment), minus the Warehouse
  * field -- CreditNote doesn't move stock this phase, same "planning document" treatment as
@@ -116,6 +129,35 @@ export class CreditNoteDetailPage {
   private referrerType: DocumentType | null = null;
   private referrerId: string | null = null;
 
+  /**
+   * Phase 69 -- the tax invoice a standalone note relates to (VAT Rules Rule 20(1)(e)): one picked from
+   * this system, or one issued before it, typed as a number and a date. A conversion names its invoice
+   * already and shows it read-only. The server refuses Approve on a VAT-registered tenant while a note
+   * names none, and refuses a picked invoice that is not this customer's, in this currency, at this
+   * location, or with nothing left to credit (CreditNoteInvoiceReferences).
+   */
+  protected readonly invoiceMode = signal<'list' | 'typed'>('list');
+  protected readonly pickedInvoice = signal<PickedInvoice | null>(null);
+  protected readonly typedInvoiceNumber = signal('');
+  protected readonly typedInvoiceDate = signal('');
+  protected readonly invoiceSearch = signal('');
+  protected readonly creditableInvoices = signal<CreditableInvoice[]>([]);
+  private creditableRequest = 0;
+
+  /** Phase 69 -- why the credit is given: optional on an ERP note, printed on the PDF when present. */
+  protected readonly reason = signal('');
+
+  /** The picker's options: the loaded page, with the picked invoice kept in front when a search or a
+   * page boundary would otherwise drop it from under the selection. */
+  protected readonly invoiceOptions = computed<PickedInvoice[]>(() => {
+    const loaded: PickedInvoice[] = this.creditableInvoices().map((x) => ({
+      id: x.id, code: x.code, date: x.date, currencyCode: x.currencyCode, grandTotal: x.grandTotal,
+      remainingTotal: x.remainingTotal,
+    }));
+    const picked = this.pickedInvoice();
+    return picked && !loaded.some((x) => x.id === picked.id) ? [picked, ...loaded] : loaded;
+  });
+
   protected readonly vatRates: VatRate[] = ['NoVat', 'ZeroVat', 'ThirteenPercentVat'];
 
   protected readonly printing = signal(false);
@@ -181,6 +223,17 @@ export class CreditNoteDetailPage {
     locationAwareProducts(this.organizationId, this.locationId, this.products);
     this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
 
+    // Phase 69 -- the picker follows the customer, the header location and the search. An effect because
+    // the location can change from a control this page does not own; the load is untracked so that
+    // writing its answer does not run the effect again.
+    effect(() => {
+      const contactId = this.contactId();
+      const locationId = this.locationId();
+      const search = this.invoiceSearch();
+      const open = this.isDraft() && !this.isLinkedToSource() && this.invoiceMode() === 'list';
+      untracked(() => this.loadCreditableInvoices(open ? contactId : '', locationId, search));
+    });
+
     this.route.paramMap.subscribe((params) => {
       this.routeCreditNoteId = params.get('creditNoteId')!;
       const isNew = this.routeCreditNoteId === 'new';
@@ -190,6 +243,7 @@ export class CreditNoteDetailPage {
       this.referrerType = null;
       this.referrerId = null;
       this.isLinkedToSource.set(false);
+      this.resetInvoiceReference();
 
       if (isNew) {
         this.loading.set(false);
@@ -201,6 +255,10 @@ export class CreditNoteDetailPage {
           // Phase 35a -- a conversion keeps the source document's branch. Without this the new
           // form's picker would fall back to the tenant default and move the document silently.
           this.locationId.set(template.locationId ?? '');
+          // Phase 69 -- and its currency and rate: until now the template carried neither, so a foreign
+          // source converted to a base-currency document at rate 1 (and the form kept whatever it last held).
+          this.currencyCode.set(template.currencyCode);
+          this.exchangeRate.set(template.exchangeRate);
           this.referrerType = template.referrerType;
           this.referrerId = template.referrerId;
           this.isLinkedToSource.set(true);
@@ -290,6 +348,84 @@ export class CreditNoteDetailPage {
     this.discountPct.set(Number.isFinite(discountPct) ? discountPct : 0);
   }
 
+  /** Phase 69 -- a different customer's invoices are not this note's to name. */
+  protected onContactChange(event: Event): void {
+    this.contactId.set((event.target as HTMLSelectElement).value);
+    this.pickedInvoice.set(null);
+  }
+
+  /** Phase 69 -- nor are another branch's: a note is raised at its invoice's location. */
+  protected onLocationChange(locationId: string): void {
+    this.locationId.set(locationId);
+    this.pickedInvoice.set(null);
+  }
+
+  protected setInvoiceMode(mode: 'list' | 'typed'): void {
+    this.invoiceMode.set(mode);
+    if (mode === 'typed') {
+      this.pickedInvoice.set(null);
+    } else {
+      this.typedInvoiceNumber.set('');
+      this.typedInvoiceDate.set('');
+    }
+  }
+
+  /**
+   * Phase 69 -- picking an invoice takes its currency and rate too: a price adjustment is in the
+   * currency of the supply it adjusts, which the server enforces, so the currency control is locked
+   * while an invoice is picked rather than left to disagree with it.
+   */
+  protected onInvoicePicked(event: Event): void {
+    const id = (event.target as HTMLSelectElement).value;
+    const invoice = this.creditableInvoices().find((x) => x.id === id);
+    if (!invoice) {
+      this.pickedInvoice.set(null);
+      return;
+    }
+
+    this.pickedInvoice.set({
+      id: invoice.id, code: invoice.code, date: invoice.date, currencyCode: invoice.currencyCode,
+      grandTotal: invoice.grandTotal, remainingTotal: invoice.remainingTotal,
+    });
+    this.currencyCode.set(invoice.currencyCode);
+    this.exchangeRate.set(invoice.exchangeRate);
+  }
+
+  private loadCreditableInvoices(contactId: string, locationId: string, search: string): void {
+    const request = ++this.creditableRequest;
+    if (!contactId) {
+      this.creditableInvoices.set([]);
+      return;
+    }
+
+    this.salesService
+      .listCreditableInvoices(
+        this.organizationId, contactId, locationId || null, search || null, this.isNew() ? null : this.routeCreditNoteId,
+      )
+      .subscribe({
+        // A slower answer for an earlier customer or search must not overwrite a newer one.
+        next: (page) => {
+          if (request === this.creditableRequest) {
+            this.creditableInvoices.set(page.items);
+          }
+        },
+        error: () => {
+          if (request === this.creditableRequest) {
+            this.creditableInvoices.set([]);
+          }
+        },
+      });
+  }
+
+  private resetInvoiceReference(): void {
+    this.invoiceMode.set('list');
+    this.pickedInvoice.set(null);
+    this.typedInvoiceNumber.set('');
+    this.typedInvoiceDate.set('');
+    this.invoiceSearch.set('');
+    this.reason.set('');
+  }
+
   protected addLine(): void {
     this.lines.update((lines) => [...lines, this.newLine()]);
   }
@@ -309,6 +445,15 @@ export class CreditNoteDetailPage {
       return;
     }
 
+    // Phase 69 -- a typed invoice is its number and its date; one without the other names nothing.
+    const typed = !this.isLinkedToSource() && this.invoiceMode() === 'typed';
+    const typedNumber = typed ? this.typedInvoiceNumber().trim() : '';
+    const typedDate = typed ? this.typedInvoiceDate() : '';
+    if (Boolean(typedNumber) !== Boolean(typedDate)) {
+      this.fieldError.fail('credit-note-detail-page-invoice-number', "Type both the invoice's number and its date.");
+      return;
+    }
+
     this.saving.set(true);
     this.errorMessage.set(null);
 
@@ -325,6 +470,10 @@ export class CreditNoteDetailPage {
       referrerId: this.referrerId,
       lines,
       discountPct: this.discountPct(),
+      againstInvoiceId: !this.isLinkedToSource() && this.invoiceMode() === 'list' ? (this.pickedInvoice()?.id ?? null) : null,
+      againstInvoiceNumber: typedNumber || null,
+      againstInvoiceDate: typedDate || null,
+      reason: this.reason().trim() || null,
     };
 
     if (this.isNew()) {
@@ -476,6 +625,20 @@ export class CreditNoteDetailPage {
         this.referrerType = creditNote.referrerType;
         this.referrerId = creditNote.referrerId;
         this.isLinkedToSource.set(creditNote.referrerId !== null);
+        // Phase 69 -- the invoice it names and why, read back so an edit does not clear them.
+        this.reason.set(creditNote.reason ?? '');
+        this.invoiceMode.set(creditNote.againstInvoiceNumber ? 'typed' : 'list');
+        this.typedInvoiceNumber.set(creditNote.againstInvoiceNumber ?? '');
+        this.typedInvoiceDate.set(creditNote.againstInvoiceDate ?? '');
+        const named = creditNote.againstInvoiceId ? creditNote.relatedInvoice : null;
+        this.pickedInvoice.set(
+          named
+            ? {
+                id: named.id, code: named.code, date: named.date, currencyCode: named.currencyCode,
+                grandTotal: named.grandTotal, remainingTotal: null,
+              }
+            : null,
+        );
         this.discountPct.set(creditNote.discountPct);
         this.lines.set(
           creditNote.lines.length > 0

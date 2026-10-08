@@ -62,6 +62,16 @@ public sealed class CreditNoteConfiguration : IEntityTypeConfiguration<CreditNot
         builder.Property(x => x.RoundOff).HasPrecision(18, 4).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
         builder.Property(x => x.Reason).HasMaxLength(CreditNote.MaxReasonLength);
 
+        // Phase 69 -- the invoice a price adjustment names, and the typed reference to one issued before
+        // the system. Restrict like every other document pointer: an invoice a note relates to must not
+        // vanish under it (voiding it is refused instead). All three null on every existing row.
+        builder.HasOne<Invoice>().WithMany().HasForeignKey(x => x.AgainstInvoiceId).OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.AgainstInvoiceNumber).HasMaxLength(CreditNote.MaxAgainstInvoiceNumberLength);
+        builder.Property(x => x.AgainstInvoiceDate);
+        builder.Ignore(x => x.IsConversionFromInvoice);
+        builder.Ignore(x => x.RelatedInvoiceId);
+        builder.Ignore(x => x.NamesAnInvoice);
+
         builder.HasOne<PosSession>()
             .WithMany()
             .HasForeignKey(x => x.PosSessionId)

@@ -87,4 +87,27 @@ public sealed record CreditNoteDetailDto(
     Guid? LocationId,
     CreditNotePosRefundDto? PosRefund,
     // Phase 67 -- how many copies have left the system, by any medium; see InvoiceDetailDto.PrintCount.
-    int PrintCount);
+    int PrintCount)
+{
+    /// <summary>Phase 69 -- the invoice a price adjustment names (null on a return, which names its
+    /// invoice through <see cref="ReferrerId"/>).</summary>
+    public Guid? AgainstInvoiceId { get; init; }
+
+    /// <summary>Phase 69 -- a typed invoice issued before the system: its number and date.</summary>
+    public string? AgainstInvoiceNumber { get; init; }
+
+    /// <inheritdoc cref="AgainstInvoiceNumber"/>
+    public DateOnly? AgainstInvoiceDate { get; init; }
+
+    /// <summary>Phase 69 -- why the credit is given: optional on an ERP note, required on a till refund
+    /// (where <see cref="PosRefund"/> carries it too).</summary>
+    public string? Reason { get; init; }
+
+    /// <summary>Phase 69 -- the invoice in this system the note relates to, as a return or as a price
+    /// adjustment, so the page can show and link it the way the reference product's card does.</summary>
+    public RelatedInvoiceDto? RelatedInvoice { get; init; }
+}
+
+/// <summary>Phase 69 -- the tax invoice a credit note relates to, as Rule 20(1)(e) asks it named: its
+/// number and date, plus its total for the page's card.</summary>
+public sealed record RelatedInvoiceDto(Guid Id, string Code, DateOnly Date, decimal GrandTotal, string CurrencyCode);

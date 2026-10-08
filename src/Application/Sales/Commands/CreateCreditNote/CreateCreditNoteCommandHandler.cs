@@ -74,6 +74,14 @@ public sealed class CreateCreditNoteCommandHandler(IAppDbContext db)
                 units[i].UnitId, units[i].ConversionFactor);
         }
 
+        // Phase 69 -- the invoice the note relates to (VAT Rules Rule 20(1)(e)) and why. Last, because the
+        // checks read the customer, date, currency, location and lines set above.
+        creditNote.SetReason(request.Reason);
+        await CreditNoteInvoiceReferences.ApplyAsync(
+            db, creditNote, request.AgainstInvoiceId, request.AgainstInvoiceNumber, request.AgainstInvoiceDate,
+            cancellationToken);
+        await CreditNoteInvoiceReferences.EnsureConversionMatchesAsync(db, creditNote, cancellationToken);
+
         db.CreditNotes.Add(creditNote);
         await db.SaveChangesAsync(cancellationToken);
 

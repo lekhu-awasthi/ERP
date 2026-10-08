@@ -95,6 +95,38 @@ public sealed class CreditNote
 
     public const int MaxReasonLength = 500;
 
+    /// <summary>
+    /// Phase 69 -- the invoice a <b>price adjustment</b> names: a note that is not a return of the
+    /// invoice's lines but still relates to it, as VAT Rules Rule 20(1) asks every credit note to
+    /// (the number and date of the tax invoice). A conversion names its invoice through
+    /// <see cref="ReferrerId"/> and never sets this, so the two cannot disagree; read
+    /// <see cref="RelatedInvoiceId"/> for "the invoice this note relates to" whichever way it names it.
+    /// </summary>
+    public Guid? AgainstInvoiceId { get; private set; }
+
+    /// <summary>
+    /// Phase 69 -- an invoice issued before the tenant used this system, typed because there is no
+    /// row to pick (phase-69-status.md Decision C). Set together with <see cref="AgainstInvoiceDate"/>
+    /// or not at all, and never beside a picked or converted invoice.
+    /// </summary>
+    public string? AgainstInvoiceNumber { get; private set; }
+
+    /// <inheritdoc cref="AgainstInvoiceNumber"/>
+    public DateOnly? AgainstInvoiceDate { get; private set; }
+
+    public const int MaxAgainstInvoiceNumberLength = 50;
+
+    /// <summary>Phase 69 -- a return of the invoice's own lines: Convert to Credit Note, or a till refund.</summary>
+    public bool IsConversionFromInvoice => ReferrerType == DocumentType.Invoice && ReferrerId is not null;
+
+    /// <summary>Phase 69 -- the invoice in this system the note relates to, as a return or as a price
+    /// adjustment; null for a note naming a typed invoice or none.</summary>
+    public Guid? RelatedInvoiceId => IsConversionFromInvoice ? ReferrerId : AgainstInvoiceId;
+
+    /// <summary>Phase 69 -- whether the note carries the particular Rule 20(1)(e) asks for, in any of
+    /// its three forms.</summary>
+    public bool NamesAnInvoice => RelatedInvoiceId is not null || AgainstInvoiceNumber is not null;
+
     private readonly List<CreditNotePayout> _payouts = [];
 
     public IReadOnlyList<CreditNoteLine> Lines => _lines;
@@ -367,6 +399,91 @@ public sealed class CreditNote
         // "<p><br></p>" to null, which is what the editor emits for an empty field.
         Terms = RichText.Sanitize(terms);
     }
+
+    /// <summary>
+    /// Phase 69 -- names the invoice a standalone note relates to: one picked from this system
+    /// (<paramref name="invoiceId"/>), or one issued before it, typed as a number and a date. All null
+    /// clears it. A conversion already names its invoice, so it takes neither.
+    ///
+    /// <para>Only the shape is checked here. Whether the picked invoice is the customer's, in the
+    /// note's currency, and not already credited in full needs the database, so the handler refuses
+    /// those first with a 409; this is the backstop.</para>
+    /// </summary>
+    public void SetInvoiceReference(Guid? invoiceId, string? invoiceNumber, DateOnly? invoiceDate)
+    {
+        EnsureDraft();
+
+        var number = string.IsNullOrWhiteSpace(invoiceNumber) ? null : invoiceNumber.Trim();
+        var names = invoiceId is not null || number is not null || invoiceDate is not null;
+
+        if (names && IsConversionFromInvoice)
+        {
+            throw new InvalidOperationException("A credit note converted from an invoice already names that invoice.");
+        }
+
+        if (invoiceId == Guid.Empty)
+        {
+            throw new InvalidOperationException("An invoice reference needs a real invoice id.");
+        }
+
+        if (invoiceId is not null && (number is not null || invoiceDate is not null))
+        {
+            throw new InvalidOperationException("A credit note names either an invoice in the system or a typed one, not both.");
+        }
+
+        if ((number is null) != (invoiceDate is null))
+        {
+            throw new InvalidOperationException("A typed invoice reference needs both the invoice's number and its date.");
+        }
+
+        if (number is { Length: > MaxAgainstInvoiceNumberLength })
+        {
+            throw new InvalidOperationException(
+                $"An invoice number is at most {MaxAgainstInvoiceNumberLength} characters.");
+        }
+
+        AgainstInvoiceId = invoiceId;
+        AgainstInvoiceNumber = number;
+        AgainstInvoiceDate = invoiceDate;
+    }
+
+    /// <summary>Phase 69 -- the reason on an ERP note, optional there (phase-69-status.md Decision D). A
+    /// till refund's reason is required and set when the refund is made, so it is not changed here.</summary>
+    public void SetReason(string? reason)
+    {
+        EnsureDraft();
+
+        if (Channel == SalesChannel.Pos)
+        {
+            throw new InvalidOperationException("A till refund's reason is set when the refund is made.");
+        }
+
+        var trimmed = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+        if (trimmed is { Length: > MaxReasonLength })
+        {
+            throw new InvalidOperationException($"A reason is at most {MaxReasonLength} characters.");
+        }
+
+        Reason = trimmed;
+    }
+
+    /// <summary>
+    /// Phase 69 -- VAT Rules Rule 20(1)(e): a VAT-registered seller's credit note carries the number and
+    /// date of the tax invoice it relates to. Checked at Approve, when the note is numbered and issued; a
+    /// draft may be saved without it (phase-69-status.md Decision A). The handler refuses first with a
+    /// 409 that says how to fix it.
+    /// </summary>
+    public void EnsureNamesInvoiceFor(bool sellerIsVatRegistered)
+    {
+        if (sellerIsVatRegistered && !NamesAnInvoice)
+        {
+            throw new InvalidOperationException(MissingInvoiceReferenceMessage);
+        }
+    }
+
+    public const string MissingInvoiceReferenceMessage =
+        "A VAT-registered seller's credit note names the tax invoice it relates to (VAT Rules, Rule 20). Choose the "
+        + "invoice, or type the number and date of one issued before you started using this system.";
 
     /// <summary>
     /// Sets this document's transaction currency and its rate to the base currency. A separate

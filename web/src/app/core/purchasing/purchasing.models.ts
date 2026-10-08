@@ -378,6 +378,9 @@ export interface PurchaseBillConversionTemplate {
   /** Phase 35a -- the source document's billing location, so a conversion keeps its branch
    * instead of silently landing on the tenant default. */
   locationId: string | null;
+  /** Phase 69 -- the source's currency and rate, carried verbatim as the reference product does. */
+  currencyCode: string;
+  exchangeRate: number;
 }
 
 // --- Expense ---
@@ -576,6 +579,9 @@ export interface DebitNoteConversionTemplate {
   /** Phase 35a -- the source document's billing location, so a conversion keeps its branch
    * instead of silently landing on the tenant default. */
   locationId: string | null;
+  /** Phase 69 -- the source's currency and rate, carried verbatim as the reference product does. */
+  currencyCode: string;
+  exchangeRate: number;
 }
 
 // --- Purchase Master Report (Phase 8b) ---

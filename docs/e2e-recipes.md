@@ -232,3 +232,16 @@ beside a 200 from the same user, and create a fresh Organization per phase.
 - Reading a PDF's text in an E2E: inflate each stream (`zlib`), map glyphs through `/ToUnicode`, parsing
   `bfrange` and `bfchar` only inside their own sections (phase 67's `e2e67_lib.pdf_text`, the Python twin of
   `TestSupport/PdfText`). Print it with `PYTHONIOENCODING=utf-8`, or Devanagari kills the script.
+- A credit note's invoice (phase 69): `POST|PUT /credit-notes` take `againstInvoiceId` (a price adjustment) **or**
+  `againstInvoiceNumber` + `againstInvoiceDate` (one issued before the system), plus `reason`. A typed date on or after
+  the tenant's first non-draft invoice is a **400 naming `AgainstInvoiceDate`**; a mismatch with the picked invoice
+  (customer, currency, location, date, nothing left) is a **409**. Approve on a VAT-registered organization with
+  nothing named is a 409 citing Rule 20. `POST /currencies {code: "USD"}` activates a currency for a USD invoice.
+- The picker is `GET /credit-notes/creditable-invoices?contactId=&locationId=&search=&excludingCreditNoteId=`, a
+  `PagedResult` of `{id, code, date, currencyCode, exchangeRate, grandTotal, creditedTotal, remainingTotal}`. A list
+  answers a nonexistent contact with **200** and no rows, so its 403-not-404 pair is that 200 as Admin, then **403
+  naming `Sales.CreditNote.Create`** from a role holding only `Sales.CreditNote.View`, beside its 200 on
+  `GET /credit-notes`. In SQL: `sales.CreditNotes.AgainstInvoiceId`, `AgainstInvoiceNumber`, `AgainstInvoiceDate`,
+  `Reason`; a conversion keeps `ReferrerType = 'Invoice'` and a null `AgainstInvoiceId` (phase-69).
+- A fresh organization's invoice codes have no prefix (`0001`), so match codes from the approve response, never a
+  literal `INV…` (phase-69).

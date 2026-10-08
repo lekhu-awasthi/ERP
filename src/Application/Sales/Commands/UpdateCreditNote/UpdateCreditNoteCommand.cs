@@ -34,6 +34,19 @@ public sealed record UpdateCreditNoteCommand(
     public Guid? LocationId { get; init; }
     public DocumentType AuditDocumentType => DocumentType.CreditNote;
     public Guid AuditDocumentId => Id;
+
+    /// <summary>Phase 69 -- see CreateCreditNoteCommand.AgainstInvoiceId. Replaced wholesale like every
+    /// other header field: an update that omits it clears it.</summary>
+    public Guid? AgainstInvoiceId { get; init; }
+
+    /// <inheritdoc cref="CreateCreditNote.CreateCreditNoteCommand.AgainstInvoiceNumber"/>
+    public string? AgainstInvoiceNumber { get; init; }
+
+    /// <inheritdoc cref="CreateCreditNote.CreateCreditNoteCommand.AgainstInvoiceNumber"/>
+    public DateOnly? AgainstInvoiceDate { get; init; }
+
+    /// <inheritdoc cref="CreateCreditNote.CreateCreditNoteCommand.Reason"/>
+    public string? Reason { get; init; }
 }
 
 public sealed record UpdateCreditNoteResult(Guid Id, string Code, CreditNoteStatus Status);

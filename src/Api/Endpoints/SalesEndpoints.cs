@@ -23,6 +23,7 @@ using ErpApp.Application.Sales.Queries.GetInvoice;
 using ErpApp.Application.Sales.Queries.GetInvoiceConversionTemplate;
 using ErpApp.Application.Sales.Queries.GetQuotation;
 using ErpApp.Application.Sales.Queries.GetSalesOrder;
+using ErpApp.Application.Sales.Queries.ListCreditableInvoices;
 using ErpApp.Application.Sales.Queries.ListCreditNotes;
 using ErpApp.Application.Sales.Queries.ListInvoices;
 using ErpApp.Application.Sales.Queries.ListQuotations;
@@ -268,7 +269,12 @@ public static class SalesEndpoints
             var result = await sender.Send(
                 new CreateCreditNoteCommand(
                     organizationId, request.ContactId, request.Date, request.Reference, request.Lines,
-                    request.ReferrerType, request.ReferrerId, request.DiscountPct, request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
+                    request.ReferrerType, request.ReferrerId, request.DiscountPct, request.Terms)
+                {
+                    CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId,
+                    AgainstInvoiceId = request.AgainstInvoiceId, AgainstInvoiceNumber = request.AgainstInvoiceNumber,
+                    AgainstInvoiceDate = request.AgainstInvoiceDate, Reason = request.Reason,
+                },
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/credit-notes/{result.Id}", result);
         });
@@ -279,7 +285,26 @@ public static class SalesEndpoints
             var result = await sender.Send(
                 new UpdateCreditNoteCommand(
                     organizationId, id, request.ContactId, request.Date, request.Reference, request.Lines, request.DiscountPct,
-                    request.Terms) { CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId },
+                    request.Terms)
+                {
+                    CurrencyCode = request.CurrencyCode, ExchangeRate = request.ExchangeRate, LocationId = request.LocationId,
+                    AgainstInvoiceId = request.AgainstInvoiceId, AgainstInvoiceNumber = request.AgainstInvoiceNumber,
+                    AgainstInvoiceDate = request.AgainstInvoiceDate, Reason = request.Reason,
+                },
+                ct);
+            return Results.Ok(result);
+        });
+
+        // Phase 69 -- the form's invoice picker: one customer's approved ERP invoices and what is left to
+        // credit on each. Under credit-notes because it is part of creating one (Sales.CreditNote.Create).
+        group.MapGet("/credit-notes/creditable-invoices", async (
+            Guid organizationId, Guid contactId, Guid? locationId, string? search, int? page, int? pageSize,
+            Guid? excludingCreditNoteId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListCreditableInvoicesQuery(
+                    organizationId, contactId, locationId, search, page ?? 1, pageSize ?? PagingDefaults.DefaultPageSize,
+                    excludingCreditNoteId),
                 ct);
             return Results.Ok(result);
         });
@@ -486,5 +511,9 @@ public static class SalesEndpoints
         // Phase 32 (FR-2.3/FR-3.3) -- the billing location the document is raised from. Same shape and
         // the same reason as the currency pair above: optional, trailing, and carried on the request
         // record itself rather than only on the command.
-        Guid? LocationId = null);
+        Guid? LocationId = null,
+        // Phase 69 -- the invoice the note relates to (picked, or typed for one issued before the
+        // system) and the reason. On the request record for the reason the currency pair is.
+        Guid? AgainstInvoiceId = null, string? AgainstInvoiceNumber = null, DateOnly? AgainstInvoiceDate = null,
+        string? Reason = null);
 }

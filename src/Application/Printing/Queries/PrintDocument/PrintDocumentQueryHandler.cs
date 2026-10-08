@@ -172,10 +172,11 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             .ToList();
 
         // Phase 67 (Decision F) -- VAT Rule 20(1) asks a credit note for the number and date of the tax
-        // invoice it relates to. A note raised from an invoice knows it; a standalone note does not, and
-        // prints its Reference as before rather than an invented link.
+        // invoice it relates to. Phase 69 -- however the note names it: the invoice it returns, the one a
+        // price adjustment names, or one issued before the system and typed. A note naming none (only an
+        // older draft or a non-VAT tenant's) prints its Reference as before rather than an invented link.
         var header = new List<PrintableFieldDto>();
-        if (document.ReferrerType == DocumentType.Invoice && document.ReferrerId is { } invoiceId)
+        if (document.RelatedInvoiceId is { } invoiceId)
         {
             var invoice = await db.Invoices
                 .Where(x => x.Id == invoiceId && x.OrganizationId == request.OrganizationId)
@@ -185,6 +186,17 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             {
                 header.Add(new PrintableFieldDto("Against Invoice", $"{invoice.Code} dated {RequestCalendar.Format(invoice.Date)}"));
             }
+        }
+        else if (document.AgainstInvoiceNumber is { } typedNumber && document.AgainstInvoiceDate is { } typedDate)
+        {
+            header.Add(new PrintableFieldDto("Against Invoice", $"{typedNumber} dated {RequestCalendar.Format(typedDate)}"));
+        }
+
+        // Phase 69 (Decision D) -- Rule 20(1)(f)'s "details of ... the credit": the reason, when there is
+        // one. Required on a till refund, optional on an ERP note; neither printed it until now.
+        if (document.Reason is { } reason)
+        {
+            header.Add(new PrintableFieldDto("Reason", reason));
         }
 
         var dto = await BuildProductDocumentAsync(

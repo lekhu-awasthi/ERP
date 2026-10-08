@@ -60,10 +60,12 @@ public sealed class VoidInvoiceCommandHandler(IAppDbContext db, ICurrentUserServ
             session.RecordActivity();
         }
 
-        var hasNonVoidCreditNote = await db.CreditNotes.AnyAsync(
-            x => x.OrganizationId == request.OrganizationId && x.ReferrerType == DocumentType.Invoice
-                && x.ReferrerId == invoice.Id && x.Status != CreditNoteStatus.Void,
-            cancellationToken);
+        // Phase 69 -- a price adjustment naming this invoice holds it as a return does: voiding the invoice
+        // would leave a note relating to a tax invoice that no longer stands.
+        var hasNonVoidCreditNote = await db.CreditNotes
+            .Where(x => x.OrganizationId == request.OrganizationId && x.Status != CreditNoteStatus.Void)
+            .Where(CreditNoteInvoiceReferences.RelatesTo(invoice.Id))
+            .AnyAsync(cancellationToken);
         if (hasNonVoidCreditNote)
         {
             throw new ConflictException("Cannot void this invoice -- void the credit note(s) issued against it first.");

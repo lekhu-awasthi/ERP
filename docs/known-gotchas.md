@@ -4224,3 +4224,36 @@ reload, so it measured the old bundle and then a freshly loaded page whose searc
 Check the served chunk for a string from the edit before believing a result. Second, a `browser_batch` pressed
 Space then Tab in the same task; the zoneless render that enables the quantity input had not run, so Tab
 skipped it. With a half-second between the two presses, Tab lands on it. Pace a census as a person would.
+
+## A reference a user may type needs its own guard (phase 69)
+
+A credit note names its tax invoice either by picking one (a price adjustment, capped by the invoice's remaining
+value and VAT) or, for an invoice issued before the tenant used the system, by typing its number and date. The
+picked path has a row to check against; the typed path has none, so without a rule of its own it is a way round
+every check the picker enforces: type any number and credit anything. The rule chosen is that a typed invoice is
+dated **before the first invoice the system has issued** (`Status != Draft`), which is exactly what "issued before
+this system" means and is decidable in one query. A tenant with no invoice yet may type any date.
+
+## Create was guarded and Update was not (phase 69)
+
+`CreateCreditNoteCommandHandler` capped a converted note's lines against what was left on the invoice and
+refused another customer or discount; `UpdateCreditNoteCommandHandler` checked none of it, and its debit-note
+mirror was the same. The form locks a converted note's product, rate and discount, which is why nobody noticed:
+the only guard was the client. Through the API a two-unit return edited to five saved. Re-check on Update with the
+draft's **own saved lines excluded** (they are about to be replaced), or the draft is counted against itself and
+every legitimate edit to the full remainder is refused.
+
+## A comment that a field "already" rides a flow is a claim, not a check (phase 69)
+
+Phase 35a added `LocationId` to the five conversion-template DTOs with a comment calling it "the same shape as the
+currency the conversion flow already carries verbatim". None of the four templates it sat in carried the currency;
+the reference product does (`erp-module-scan.md:413`), and the comment recorded that reading as a fact about ours.
+A USD invoice's credit note arrived in NPR at rate 1. Grep the DTO for the field before trusting a sentence that
+says it is there.
+
+## Python's text mode hides CRLF from the check meant to catch it (phase 69)
+
+`open(p, encoding='utf-8').read()` translates `\r\n` to `\n`, so a patch script's `assert '\r\n' not in d` passes on
+a CRLF file and `open(p, 'w', newline='\n')` writes it back LF. Fourteen files flipped before git's "LF will be
+replaced by CRLF" warnings showed it; `core.autocrlf` kept the commits clean, so it cost a restore and nothing more.
+Read the bytes (`open(p, 'rb')`) to learn the file's newline, and write with `newline=''` after normalising to it.

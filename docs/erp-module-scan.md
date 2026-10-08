@@ -2640,3 +2640,33 @@ user's authorisation, two prints** of INV0001/HO (the only write: Tigg's `print_
 - **Email is gated on the count**: Attach PDF is disabled when `print_count <= 1` **and** the tenant is
   IRD-enabled or IRD-verified. On an IRD tenant the emailed PDF therefore cannot come before the printed
   original.
+
+## ERP credit-note form, read live (phase 69, 2026-10-08)
+
+*Hamro Samaan* trial (1 day left), ERP side. **Read-only**: the add form was opened and filled in client-side
+only; one Save was pressed with the Customer left empty so the client's own validation would answer, and no
+request was sent (the list still showed CN0001 and CN0002 afterwards). The 2026-09-02 pass had recorded the
+list's *Reference No* column only.
+
+- **`/sales/credit-notes/add`**: Customer Name\*, **Reference No**, #Note (DRAFT), Date\*, Currency, Exchange
+  Rate To NPR\*, Warehouse\* (Main Warehouse), the product table, + Add Terms and Conditions, + Add Reporting
+  Tags. **No reason or remarks field** on the ERP note (the till's refund carries `note`/`description`).
+- **Reference No is required on every note**: Save with it empty shows **"Invoice Ref# Name is required"**
+  beside "Customer Name is required". So the vendor allows no credit note that names nothing.
+- **It is a text input with a picker**: a search icon inside the field opens a popover (Search, a date filter,
+  columns Date / Entry No / Type / Amount) loaded from
+  `GET /invoices?items=true&referred=false&contact_id=<customer>&status=Approved`: the chosen customer's
+  approved invoices that are **not yet referred**. On this tenant it listed nothing for either customer:
+  INV0001 (P58) already has CN0001 although that note credits only 169.50 of 339.00, so **an invoice credited
+  once cannot be picked again**; INV0003 (Cash Customer, a till sale converted from SO0002) was absent too,
+  for a reason that could not be told apart (its channel, or its own referrer).
+- **Picking converts** (from the bundle; no invoice was pickable): the field's `affecting_data` copies the
+  invoice's `items` into the note (`GET_ITEMS_FROM_RECORD_DATA`), sets `referrer_id` to the invoice's id, and
+  copies its `additional_charge`. Typing sets the field's value client-side, so free text satisfies the
+  required rule in the browser; whether the server accepts a reference naming no invoice was not tested (it
+  would take a save).
+- **The detail of a converted note** (CN0001) shows a linked-invoice card in its left panel: the invoice's
+  number, total (339.00), "Invoice" and **its date** (24-09-2026). The print still carries the number only
+  (phase 67).
+- The bundle holds an older detail-page edit schema as well (`"Invoice Ref#"`, type `reference`, not
+  required); the add form served at the route is the newer one above.

@@ -69,7 +69,30 @@ public sealed class GetCreditNoteQueryHandler(IAppDbContext db) : IRequestHandle
             creditNote.LocationId,
             await ReadPosRefundAsync(creditNote, cancellationToken),
             await db.CreditNotePrints.CountAsync(
-                x => x.OrganizationId == request.OrganizationId && x.CreditNoteId == creditNote.Id, cancellationToken));
+                x => x.OrganizationId == request.OrganizationId && x.CreditNoteId == creditNote.Id, cancellationToken))
+        {
+            AgainstInvoiceId = creditNote.AgainstInvoiceId,
+            AgainstInvoiceNumber = creditNote.AgainstInvoiceNumber,
+            AgainstInvoiceDate = creditNote.AgainstInvoiceDate,
+            Reason = creditNote.Reason,
+            RelatedInvoice = await ReadRelatedInvoiceAsync(creditNote, cancellationToken),
+        };
+    }
+
+    private async Task<RelatedInvoiceDto?> ReadRelatedInvoiceAsync(CreditNote creditNote, CancellationToken cancellationToken)
+    {
+        if (creditNote.RelatedInvoiceId is not { } invoiceId)
+        {
+            return null;
+        }
+
+        var invoice = await db.Invoices
+            .Include(x => x.Lines)
+            .SingleOrDefaultAsync(x => x.Id == invoiceId && x.OrganizationId == creditNote.OrganizationId, cancellationToken);
+
+        return invoice is null
+            ? null
+            : new RelatedInvoiceDto(invoice.Id, invoice.Code, invoice.Date, invoice.GrandTotal, invoice.CurrencyCode);
     }
 
     private async Task<CreditNotePosRefundDto?> ReadPosRefundAsync(CreditNote creditNote, CancellationToken cancellationToken)

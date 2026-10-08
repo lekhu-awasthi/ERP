@@ -32,4 +32,11 @@ public sealed record PurchaseBillConversionTemplateDto(
     // Quotation raised at a branch converted to an Invoice at HeadOffice, silently, because the new
     // form's picker falls back to the tenant default. Same shape as the currency the conversion
     // flow already carries verbatim.
-    Guid? LocationId);
+    Guid? LocationId,
+
+    // Phase 69 -- the source document's currency and rate, carried into the prefill. The comment on
+    // LocationId above (phase 35a) took the currency to be carried already; it never was, so a USD
+    // source converted to a base-currency document at rate 1 and booked its foreign amounts as
+    // rupees. The reference product carries both verbatim (erp-module-scan.md:413).
+    string CurrencyCode,
+    decimal ExchangeRate);

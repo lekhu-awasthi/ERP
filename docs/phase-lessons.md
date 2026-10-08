@@ -1951,3 +1951,23 @@ defaulting to On, so an older client cannot switch it off by omission.
 **Run the keyboard pass on the rebuilt bundle, at a human's pace.** The pass found a focus theft no test saw
 (a reload re-focused the search box, since phase 64), and also produced two false findings: one on a bundle the
 dev server replaced mid-test, one where keypresses outran a zoneless render.
+
+## Phase 69 — A credit note names its invoice: a picked one is capped, a typed one is older than the system
+
+**Read `phase-69-status.md` before linking one document to another, before a field a user may either pick or
+type, or before editing a converted draft.**
+
+**Two ways to name one fact need two guards.** A picked invoice is checked against its row (customer, currency,
+location, date) and capped by value and VAT across every note that names it; a typed one has no row, so it is
+accepted only when dated before the system's first invoice. Without that, typing is a way round the picker.
+
+**Store the second link only where the first is absent.** A conversion names its invoice through `ReferrerId`; a
+price adjustment through `AgainstInvoiceId`, null on a conversion. One expression (`RelatesTo`) reads both, so the
+void guard, the cap and the picker can never count one kind and miss the other.
+
+**Ask Update what Create asks.** A converted draft edited through the API skipped every line cap since phase 6,
+because the form's locked fields were the only guard. Re-check on edit and exclude the draft's own saved lines,
+or it is counted against itself.
+
+**A comment that says a field already rides a flow is a claim to check.** Four conversion templates carried no
+currency while phase 35a's comments said they did; derive the sweep's N (seven templates, three already right).

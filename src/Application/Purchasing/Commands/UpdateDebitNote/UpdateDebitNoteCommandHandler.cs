@@ -78,6 +78,18 @@ public sealed class UpdateDebitNoteCommandHandler(IAppDbContext db)
                 units[i].UnitId, units[i].ConversionFactor);
         }
 
+        // Phase 69 -- a converted draft is still a return of its bill's lines, so an edit is held to what
+        // Create checked: the remaining quantity of each line, the supplier, TDS type and discount, and the
+        // bill's currency. Until this phase an edit checked none of it (the credit note's mirror).
+        if (debitNote.ReferrerType == DocumentType.PurchaseBill && debitNote.ReferrerId is { } purchaseBillId)
+        {
+            await PurchasingValidation.EnsureDebitNoteLinesWithinPurchaseBillRemainingAsync(
+                db, request.OrganizationId, purchaseBillId, request.ContactId, request.TdsTypeId, request.DiscountPct,
+                request.Lines, cancellationToken, excludingDebitNoteId: debitNote.Id);
+        }
+
+        await PurchasingValidation.EnsureDebitNoteInBillCurrencyAsync(db, debitNote, cancellationToken);
+
         db.DebitNoteLines.RemoveRange(oldLines);
         db.DebitNoteLines.AddRange(debitNote.Lines);
 

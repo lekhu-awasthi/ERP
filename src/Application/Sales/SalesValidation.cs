@@ -59,12 +59,24 @@ internal static class SalesValidation
     /// across every line of the one source Invoice being credited against; it's checked separately
     /// in EnsureCreditNoteLinesWithinInvoiceRemainingAsync below.</summary>
     public static async Task<Dictionary<(Guid ProductId, decimal Rate, VatRate VatRate, decimal DiscountPct, Guid? UnitId), decimal>>
-        GetInvoiceRemainingByLineAsync(IAppDbContext db, Guid organizationId, Invoice invoice, CancellationToken cancellationToken)
+        GetInvoiceRemainingByLineAsync(
+            IAppDbContext db, Guid organizationId, Invoice invoice, CancellationToken cancellationToken,
+            Guid? excludingCreditNoteId = null)
     {
-        var creditedLines = await db.CreditNotes
+        // Phase 69 -- a return's lines only: a price adjustment naming the invoice gives back no
+        // quantity (it is capped by value instead, in CreditNoteInvoiceReferences). The exclusion is the
+        // draft being edited, whose own saved lines are about to be replaced.
+        var notes = db.CreditNotes
             .Where(x => x.OrganizationId == organizationId
                 && x.ReferrerType == DocumentType.Invoice && x.ReferrerId == invoice.Id
-                && x.Status != CreditNoteStatus.Void)
+                && x.Status != CreditNoteStatus.Void);
+
+        if (excludingCreditNoteId is { } excluded)
+        {
+            notes = notes.Where(x => x.Id != excluded);
+        }
+
+        var creditedLines = await notes
             .SelectMany(x => x.Lines)
             .Select(x => new { x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.UnitId, x.Quantity })
             .ToListAsync(cancellationToken);
@@ -107,7 +119,8 @@ internal static class SalesValidation
         Guid contactId,
         decimal discountPct,
         IReadOnlyList<CreditNoteLineInput> requestedLines,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? excludingCreditNoteId = null)
     {
         var invoice = await db.Invoices
             .Include(x => x.Lines)
@@ -125,7 +138,8 @@ internal static class SalesValidation
                 "A credit note converted from an Invoice must keep the same transaction-level Discount% as the source invoice.");
         }
 
-        var remainingByLine = await GetInvoiceRemainingByLineAsync(db, organizationId, invoice, cancellationToken);
+        var remainingByLine = await GetInvoiceRemainingByLineAsync(
+            db, organizationId, invoice, cancellationToken, excludingCreditNoteId);
 
         var requestedByLine = requestedLines
             .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.UnitId))

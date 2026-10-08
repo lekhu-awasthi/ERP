@@ -39,6 +39,8 @@ public sealed class GetPurchaseBillConversionTemplateQueryHandler(IAppDbContext 
             purchaseOrder.Id,
             purchaseOrder.DiscountPct,
             lines,
-            purchaseOrder.LocationId);
+            purchaseOrder.LocationId,
+            purchaseOrder.CurrencyCode,
+            purchaseOrder.ExchangeRate);
     }
 }

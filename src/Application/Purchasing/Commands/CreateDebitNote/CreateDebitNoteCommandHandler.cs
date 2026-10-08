@@ -74,6 +74,9 @@ public sealed class CreateDebitNoteCommandHandler(IAppDbContext db)
                 units[i].UnitId, units[i].ConversionFactor);
         }
 
+        // Phase 69 -- a return stays in its bill's currency (the credit note's mirror).
+        await PurchasingValidation.EnsureDebitNoteInBillCurrencyAsync(db, debitNote, cancellationToken);
+
         db.DebitNotes.Add(debitNote);
         await db.SaveChangesAsync(cancellationToken);
 

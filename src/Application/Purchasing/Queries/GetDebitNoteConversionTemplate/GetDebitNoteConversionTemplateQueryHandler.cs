@@ -50,6 +50,8 @@ public sealed class GetDebitNoteConversionTemplateQueryHandler(IAppDbContext db)
             purchaseBill.DiscountPct,
             lines,
             purchaseBill.LocationId,
-            purchaseBill.WarehouseId);
+            purchaseBill.WarehouseId,
+            purchaseBill.CurrencyCode,
+            purchaseBill.ExchangeRate);
     }
 }

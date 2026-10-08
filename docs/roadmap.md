@@ -111,14 +111,18 @@ The two rules apply to every tax invoice; phase 67 brought the ERP's own PDF and
 column (now for credit notes too). The ERP credit note against a till sale is settled by phase 63:
 the ERP may no longer convert one, and the till's refund returns the service charge.
 
-**The POS sequence (60–66) is complete, and so are phases 67 and 68.** Phase 67 put the ERP invoice and
+**The POS sequence (60–66) is complete, and so are phases 67, 68 and 69.** Phase 67 put the ERP invoice and
 credit-note PDF under the till's two statutory rules (`phase-67-status.md`). Phase 68 shipped *Mark as Take Away*
 and item transfer on the restaurant till (`phase-68-status.md`): a parcel is a split line moved by a take-away
 kitchen ticket, its service charge decided once, at the mark, by the location's *Service charge on take-away*;
 a transfer is a ticket on each order at the same rates, and one that empties a tab closes it. Ahead of it, the
-ERP PDF now prints the buyer's "PAN: …" when the contact has one (VAT Rules Schedule 5). **Next: not yet
-scheduled**; the candidates are the carried items below (the packaging fee, discount and credit on a restaurant
-bill, per-part customers, phase 67's standalone credit note) and real printing templates.
+ERP PDF now prints the buyer's "PAN: …" when the contact has one (VAT Rules Schedule 5). Phase 69 made every ERP
+credit note able to name its tax invoice (`phase-69-status.md`): a picked one makes a standalone note a price
+adjustment capped by the invoice's value and VAT, a typed one must predate the first invoice here, and a
+VAT-registered seller cannot approve a note naming none; it also put the source's currency on four conversion
+templates and re-checked the line caps on an edit of a converted note. **Next: not yet scheduled**; the candidates
+are the carried items below (the packaging fee, discount and credit on a restaurant bill, per-part customers) and
+real printing templates.
 
 Open question for the tax advisor, not to be guessed (carried from the PAN fix): whether IRD expects a buyer PAN
 on a high-value sale to an unregistered buyer. If it does, it would be a warning on approve, never a block.
@@ -129,10 +133,12 @@ about 20 per type plus a toggle editor. A middle ground is a handful of fixed la
 Classic) with per-type toggles for organization fields, custom fields and the date system. The law fixes the
 content and the audit trail, not the look, so this is a product choice, not a statutory one.
 
-**Carried from phase 67** (§ 5 there): a standalone ERP credit note names no invoice, which VAT Rule 20(1) asks
-for (a product decision: require the reference, or refuse the standalone note on a VAT-registered tenant); the
-print race on both print tables is still unraced on SQL Server; the count note beside Print at phone width was
-not looked at.
+**Carried from phase 67** (§ 5 there): the print race on both print tables is still unraced on SQL Server. The
+standalone credit note was settled by phase 69, and the count note beside Print was looked at in phase 69 (it
+wraps under Print at 375 px, legible, still described-by).
+
+**Carried from phase 69** (§ 5 there): older standalone notes name nothing (no backfill is possible); two drafts can
+race for one invoice's remainder, as the line caps always could; the export has no invoice column.
 
 **Carried from phase 66** (§ 5 there): a from/to *time* on the Day Report (a shift across midnight as one report;
 a reader change, not a screen change); the vendor's Delivery Partner Statement (delivery partners are outside

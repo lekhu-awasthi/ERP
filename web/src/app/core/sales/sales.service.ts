@@ -26,6 +26,7 @@ import {
   CreateSalesOrderResult,
   CreditNote,
   CreditNoteConversionTemplate,
+  CreditableInvoice,
   CreditNoteDetail,
   CreditNoteRequest,
   CreditNoteStatus,
@@ -240,6 +241,28 @@ export class SalesService {
 
   getCreditNote(organizationId: string, id: string): Observable<CreditNoteDetail> {
     return this.http.get<CreditNoteDetail>(`${this.baseUrl(organizationId)}/credit-notes/${id}`, { withCredentials: true });
+  }
+
+  /** Phase 69 -- the credit-note form's invoice picker: one customer's approved ERP invoices, newest
+   * first, each with what is left to credit. Rides Sales.CreditNote.Create, not the invoice list's key. */
+  listCreditableInvoices(
+    organizationId: string,
+    contactId: string,
+    locationId: string | null,
+    search: string | null,
+    excludingCreditNoteId: string | null,
+    page = 1,
+    pageSize = 20,
+  ): Observable<PagedResult<CreditableInvoice>> {
+    const params: Record<string, string> = { contactId, page: String(page), pageSize: String(pageSize) };
+    if (locationId) params['locationId'] = locationId;
+    if (search) params['search'] = search;
+    // The draft being edited does not count against the invoice it names (the server's cap agrees).
+    if (excludingCreditNoteId) params['excludingCreditNoteId'] = excludingCreditNoteId;
+    return this.http.get<PagedResult<CreditableInvoice>>(`${this.baseUrl(organizationId)}/credit-notes/creditable-invoices`, {
+      withCredentials: true,
+      params,
+    });
   }
 
   createCreditNote(organizationId: string, request: CreditNoteRequest): Observable<CreateCreditNoteResult> {

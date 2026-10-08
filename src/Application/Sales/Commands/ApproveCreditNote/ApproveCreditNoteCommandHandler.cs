@@ -51,6 +51,18 @@ public sealed class ApproveCreditNoteCommandHandler(
             throw new ConflictException("A credit note needs at least one line to be approved.");
         }
 
+        // Phase 69 (Decision A) -- VAT Rules Rule 20(1)(e): a VAT-registered seller's note names the tax
+        // invoice it relates to, checked here because this is when the note is numbered and issued. A
+        // missing organization row reads as not registered, as InvoiceHeadings' callers already do.
+        var sellerIsVatRegistered = await db.Organizations
+            .AnyAsync(x => x.Id == request.OrganizationId && x.IsVatRegistered, cancellationToken);
+        if (sellerIsVatRegistered && !creditNote.NamesAnInvoice)
+        {
+            throw new ConflictException(CreditNote.MissingInvoiceReferenceMessage);
+        }
+
+        creditNote.EnsureNamesInvoiceFor(sellerIsVatRegistered);
+
         // Phase 63 -- the approve core moved to CreditNoteApprovalPosting, which the till's refund
         // also calls; see the doc comment above for what it does to stock.
         await CreditNoteApprovalPosting.ApproveAndPostAsync(

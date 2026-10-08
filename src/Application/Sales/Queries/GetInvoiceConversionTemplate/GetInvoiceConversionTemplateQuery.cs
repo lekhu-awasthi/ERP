@@ -41,4 +41,11 @@ public sealed record InvoiceConversionTemplateDto(
     // is the one phase 30 used for Send Email: a conversion carries Terms exactly when *both* ends
     // have the field, which is true of these two pairs and of no other conversion in the codebase
     // -- Purchase Bill, Debit Note and Production Journal have no Terms to receive.
-    string? Terms);
+    string? Terms,
+
+    // Phase 69 -- the source document's currency and rate, carried into the prefill. The comment on
+    // LocationId above (phase 35a) took the currency to be carried already; it never was, so a USD
+    // source converted to a base-currency document at rate 1 and booked its foreign amounts as
+    // rupees. The reference product carries both verbatim (erp-module-scan.md:413).
+    string CurrencyCode,
+    decimal ExchangeRate);

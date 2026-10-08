@@ -36,6 +36,21 @@ public sealed record CreateCreditNoteCommand(
     /// <see cref="ILocationBearingCommand"/>.</summary>
     public Guid? LocationId { get; init; }
     public DocumentType AuditDocumentType => DocumentType.CreditNote;
+
+    /// <summary>Phase 69 -- the invoice a standalone note (a price adjustment) relates to, picked from
+    /// this system. Never sent with a <see cref="ReferrerId"/>: a conversion already names its invoice.
+    /// See <see cref="CreditNoteInvoiceReferences"/>.</summary>
+    public Guid? AgainstInvoiceId { get; init; }
+
+    /// <summary>Phase 69 -- the number of an invoice issued before the system, typed; sent with
+    /// <see cref="AgainstInvoiceDate"/> or not at all.</summary>
+    public string? AgainstInvoiceNumber { get; init; }
+
+    /// <inheritdoc cref="AgainstInvoiceNumber"/>
+    public DateOnly? AgainstInvoiceDate { get; init; }
+
+    /// <summary>Phase 69 -- why the credit is given; optional on an ERP note, printed when present.</summary>
+    public string? Reason { get; init; }
 }
 
 public sealed record CreateCreditNoteResult(Guid Id, string Code, CreditNoteStatus Status);

@@ -336,6 +336,9 @@ export interface InvoiceConversionTemplate {
    * with. Phase 27b left this open; the rule is that a conversion carries Terms exactly when both
    * ends have the field, which is true only of Quotation->Invoice and Invoice->Credit Note. */
   terms: string | null;
+  /** Phase 69 -- the quotation's currency and rate, carried verbatim as the reference product does. */
+  currencyCode: string;
+  exchangeRate: number;
 }
 
 export interface SalesOrderLineInput {
@@ -550,6 +553,13 @@ export interface CreditNote {
   /** Phase 27b -- free text seeded from a TermsAndConditions CustomTemplate, stored on the document. */
   terms: string | null;
   locationId: string | null;
+  /** Phase 69 -- the invoice a price adjustment names (null on a return, which names its invoice
+   * through referrerId), or a typed one issued before the system: its number and date. */
+  againstInvoiceId: string | null;
+  againstInvoiceNumber: string | null;
+  againstInvoiceDate: string | null;
+  /** Phase 69 -- why the credit is given. Optional on an ERP note, required on a till refund. */
+  reason: string | null;
 }
 
 export interface CreditNoteLineDto extends CreditNoteLineInput {
@@ -597,6 +607,32 @@ export interface CreditNoteDetail extends CreditNote {
   posRefund: CreditNotePosRefundDto | null;
   /** Phase 67 -- copies that have left the system, by any medium; see InvoiceDetail.printCount. */
   printCount: number;
+  /** Phase 69 -- the invoice in this system the note relates to, as a return or as a price
+   * adjustment: its number and date (VAT Rules Rule 20(1)(e)) and its total. */
+  relatedInvoice: RelatedInvoice | null;
+}
+
+/** Phase 69 -- the tax invoice a credit note relates to. */
+export interface RelatedInvoice {
+  id: string;
+  code: string;
+  date: string;
+  grandTotal: number;
+  currencyCode: string;
+}
+
+/** Phase 69 -- one row of the credit-note form's invoice picker: an approved ERP invoice of the chosen
+ * customer, with what the notes against it already credit and what is left. */
+export interface CreditableInvoice {
+  id: string;
+  code: string;
+  date: string;
+  locationId: string | null;
+  currencyCode: string;
+  exchangeRate: number;
+  grandTotal: number;
+  creditedTotal: number;
+  remainingTotal: number;
 }
 
 export interface CreditNoteRequest {
@@ -615,6 +651,13 @@ export interface CreditNoteRequest {
   /** Phase 32/35a -- omitting it (or null) means "the tenant's default location", which the server
    * resolves to HeadOffice, or to nothing when this document type is out of the tenant's scope. */
   locationId?: string | null;
+  /** Phase 69 -- the invoice a standalone note relates to, picked; or one issued before the system,
+   * typed as a number and a date. At most one of the two, and never on a conversion. */
+  againstInvoiceId?: string | null;
+  againstInvoiceNumber?: string | null;
+  againstInvoiceDate?: string | null;
+  /** Phase 69 -- optional on an ERP note; printed on the PDF when present. */
+  reason?: string | null;
 }
 
 export interface CreateCreditNoteResult {
@@ -659,6 +702,9 @@ export interface CreditNoteConversionTemplate {
    * with. Phase 27b left this open; the rule is that a conversion carries Terms exactly when both
    * ends have the field, which is true only of Quotation->Invoice and Invoice->Credit Note. */
   terms: string | null;
+  /** Phase 69 -- the invoice's currency and rate: a return is in the currency of what it returns. */
+  currencyCode: string;
+  exchangeRate: number;
 }
 
 // --- Sales Master Report (Phase 8b) ---

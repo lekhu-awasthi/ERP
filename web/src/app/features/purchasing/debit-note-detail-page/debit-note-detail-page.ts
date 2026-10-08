@@ -189,6 +189,10 @@ export class DebitNoteDetailPage {
           // Phase 35a -- a conversion keeps the source document's branch. Without this the new
           // form's picker would fall back to the tenant default and move the document silently.
           this.locationId.set(template.locationId ?? '');
+          // Phase 69 -- and its currency and rate: until now the template carried neither, so a foreign
+          // source converted to a base-currency document at rate 1 (and the form kept whatever it last held).
+          this.currencyCode.set(template.currencyCode);
+          this.exchangeRate.set(template.exchangeRate);
           this.tdsTypeId.set(template.tdsTypeId ?? '');
           this.referrerType = template.referrerType;
           this.referrerId = template.referrerId;

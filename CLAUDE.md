@@ -100,6 +100,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 66: POS reports and dashboard (Day Report, Payment Summary, Order Report, POS Sessions, the launcher's overview; the ERP sales reports and System Audit take `channel`; every figure from `PosSalesReader`/`TradeLineReader`; the round-off the one line to the Sales Register). Before a report that must agree with another, a dashboard, or a chart beside a figure — `docs/phase-66-status.md`
 - Phase 67: the ERP invoice and credit-note PDF (the heading the bill is, English and Nepali; every copy counted across till, PDF and email; a counted print is a POST, the GET refuses). Before a new way a document leaves the system, or Nepali in a PDF — `docs/phase-67-status.md`
 - Phase 68: Mark as Take Away and item transfer (a parcel is a split line moved by a take-away ticket, its service charge decided once at the mark by the location's setting; a transfer is a ticket on each order at the same rates; an emptied tab closes) + the buyer's PAN on the ERP PDF. Before moving a quantity between lines or orders, or a setting that changes a line's charge — `docs/phase-68-status.md`
+- Phase 69: a credit note names its invoice (Rule 20(1)(e)): a picked one makes it a price adjustment capped by value and VAT, a typed one must predate the first invoice, and Approve refuses none on a VAT tenant; conversion templates carry currency. Before linking one document to another, or editing a converted draft — `docs/phase-69-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -202,6 +203,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - EF refuses a set operation *after a client projection*, so `Concat`-ing two `select new SomeRecord(...)` queries throws at run time on SQL Server as well as InMemory; concatenate while both halves are still anonymous and build the record from the materialised page (phase-38).
 - A store-side aggregate (`GroupBy...Count()`) must run after the `SaveChangesAsync` that persists what it counts; tracked-but-unsaved rows are invisible to it (phase-21a).
 - A Domain factory/mutator can stay `internal` only while its sole caller is in the Domain assembly (phase-7 bug #1).
+- A reference a user may type needs its own guard: a typed invoice is accepted only if older than the first invoice here, or typing is a way round the picker's cap (phase-69).
+- A Create-only guard is half a guard: Update of a converted draft skipped every line cap for 60 phases. Re-check on edit, excluding the draft's own saved lines (phase-69).
 - An enum setting whose member 0 means something must be projected nullable: `InventoryTrackingMode` 0 is *Physical*, so a missing row flips the default (phase-58).
 - An uncovered composite can lose to a narrower FK index plus lookups: the physical balance's index was never chosen (318 either way) until INCLUDE made it 5 (phase-58).
 - Never name a Domain type after a common BCL word (`Task` → `WorkTask`) (phase-13).
@@ -333,6 +336,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A Minimal API binds an **array** parameter from the *body* on a POST, so a repeated query string arrives `null` and a "choose what to export" feature silently exports everything; `[FromQuery]` is load-bearing, and the simple types beside it bind without help, which is what hides it (phase-38).
 - A list query returning the aggregate exposes a new field for free, but a detail DTO drops it silently and the form can never show it (phase-32's `GetInvoiceQuery`).
 - Adding a field to many aggregates owes three assertions, write, read and every prefill between: 14 of 15 detail DTOs and all 5 conversion templates dropped `LocationId` (phase-35a).
+- A comment saying a field "already" rides a flow is a claim: phase 35a's said conversions carried the currency verbatim; four of seven templates never did (phase-69).
 
 **Report filters and live-read semantics**
 - A sweep guard over *query records* cannot see whether a **handler** applies the filter it accepts; both statutory registers narrowed only their return half for three phases. Pin it behaviourally, per report (phase-44).
@@ -469,6 +473,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A script inserting an import after "the last `\nimport ` line" lands *inside* a multi-line `import { … }` block; anchor on the statement's closing line (phase-35a).
 - A scripted insert *before* a method lands between it and its doc comment; the unit to anchor on is the comment plus the declaration (phase-47, phase-35a's rule in mirror).
 - git-bash `grep -c $'\r$'` reports 0 on a CRLF file; count bytes with Python `open(p, 'rb')` before trusting any newline check (phase-58).
+- …and Python's text-mode `open()` reads CRLF as LF, so `assert '\r\n' not in d` passes and `newline='\n'` writes the file back LF; detect from the bytes (phase-69).
 - One sweep can span two newline conventions — three of 42 files were LF in a CRLF repo; detect per file, and let the asserted anchor count abort rather than rewrite three files invisibly (phase-47).
 - A lazy `.*?` between two anchors spans the instances between them; exclude the closing marker (`((?:(?!</label>).)*?)`) and derive the expected count a second way (phase-34a).
 - …and a **greedy** `.*` picks the last match: `.*logical reads \([0-9]*\)` reads `lob logical reads 0`. Anchor on what precedes the number (phase-54).
@@ -496,24 +501,25 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-68 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-69 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 68 shipped Mark as Take Away and item transfer on the restaurant till**, after the buyer's PAN on the
-ERP invoice and credit-note PDF ("PAN: …" only when the contact has one). It added:
+**Phase 69 made every ERP credit note able to name its tax invoice** (VAT Rules Rule 20(1)(e)), and a
+VAT-registered seller can no longer approve one that names none. It added:
 
-- a take-away mark: the quantity moves to a parcel line through a `TakeAway` kitchen ticket, its service
-  charge decided once, at the mark, by the location's new *Service charge on take-away* (On by default);
-- a transfer: a `Transfer` ticket on each order at the same rates, to the table's open order or a new one;
-  a transfer that empties an unbilled tab voids it, one that leaves it fully billed settles it;
-- the ticket's kind stored (`KitchenTicket.Kind`), so a move is neither ordered nor discarded.
+- a picked invoice on a standalone note (a price adjustment: same customer, currency and location, dated on or
+  after it), capped with every other note against it by the invoice's total and VAT;
+- a typed invoice (number and date) for one issued before the system, dated before the first invoice here;
+- the Reason on the ERP note, and "Against Invoice … dated …" plus the reason on every credit-note PDF;
+- the source's currency and rate on four conversion templates, and the line caps re-checked on an edit of a
+  converted credit or debit note (both bugs found in planning).
 
 **Next:** not yet scheduled. Carried: the packaging fee, discount and credit on a restaurant bill, per-part
-customers (phase 68 § 5), phase 67 § 5 (a standalone credit note names no invoice), real printing templates.
+customers (phase 68 § 5), real printing templates, and the smaller items in phase 69 § 5.
 
-Tests: Domain **897**, Application.UnitTests **1575**, Infrastructure.UnitTests 13,
-Api.IntegrationTests **43**, Angular **762**. Everything was green at phase 68's close with Docker up.
+Tests: Domain **907**, Application.UnitTests **1607**, Infrastructure.UnitTests 13,
+Api.IntegrationTests **43**, Angular **769**. Everything was green at phase 69's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests
