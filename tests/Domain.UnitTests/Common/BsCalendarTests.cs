@@ -316,4 +316,26 @@ public class BsCalendarTests
     {
         Assert.Equal(expected, BsCalendar.IsValid(new BsDate(year, month, day)));
     }
+
+    /// <summary>Months are 1-based while <c>MonthNames</c> is a 0-based array, so month 4 is
+    /// Shrawan -- which is also <see cref="BsCalendar.FiscalYearStartMonth"/>, making this more
+    /// than a dropdown's lookup table.</summary>
+    [Theory]
+    [InlineData(1, "Baisakh")]
+    [InlineData(4, "Shrawan")]
+    [InlineData(12, "Chaitra")]
+    public void MonthName_maps_a_one_based_month_to_its_name(int month, string expected)
+    {
+        Assert.Equal(expected, BsCalendar.MonthName(month));
+    }
+
+    /// <summary>Where the valid range ends: 12 is the last real month, so 0 and 13 name nothing
+    /// rather than throwing or wrapping round.</summary>
+    [Fact]
+    public void MonthName_is_null_outside_one_to_twelve()
+    {
+        Assert.Null(BsCalendar.MonthName(0));
+        Assert.Null(BsCalendar.MonthName(13));
+        Assert.NotNull(BsCalendar.MonthName(12));
+    }
 }
