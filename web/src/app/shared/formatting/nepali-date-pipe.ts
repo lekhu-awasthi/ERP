@@ -15,7 +15,17 @@ import { instantToNepal, isInstant } from './nepal-time';
  * reading the sign-in log with the calendar set to BS saw Gregorian dates, in the one report where
  * being sure which day something happened on matters most.</p>
  */
-export type NepaliDateMode = 'date' | 'datetime' | 'datetime-seconds';
+export type NepaliDateMode = 'date' | 'datetime' | 'datetime-seconds' | 'time';
+
+/**
+ * Which calendar to render in. `'preference'` (the default) is the viewer's toggle. `'bill'` is phase 71's rule for a
+ * tax document — the till's sale and refund receipts: BS with AD beside it, labelled (`16-04-2083 BS (01-08-2026 AD)`),
+ * whatever the toggle says. It is the client half of the server's `BillDate`; see `docs/phase-71-status.md` § 0 for
+ * why a bill is not a display preference.
+ *
+ * <p>An argument on this pipe and not a second pipe, by phase 48's rule: one calendar table, one pipe.</p>
+ */
+export type NepaliDateCalendar = 'preference' | 'bill';
 
 /**
  * NFR-1.1's display half: renders an ISO `yyyy-MM-dd` date in whichever calendar the user has
@@ -55,7 +65,11 @@ export type NepaliDateMode = 'date' | 'datetime' | 'datetime-seconds';
 export class NepaliDatePipe implements PipeTransform {
   private readonly preference = inject(DatePreferenceService);
 
-  transform(value: string | null | undefined, mode: NepaliDateMode = 'date'): string {
+  transform(
+    value: string | null | undefined,
+    mode: NepaliDateMode = 'date',
+    calendar: NepaliDateCalendar = 'preference',
+  ): string {
     if (!value) {
       return '';
     }
@@ -63,7 +77,7 @@ export class NepaliDatePipe implements PipeTransform {
     // A calendar date carries no time zone and is rendered as it stands; an instant is an event,
     // and the day it happened on is its day in Kathmandu.
     if (!isInstant(value)) {
-      return this.render(value);
+      return mode === 'time' ? '' : this.render(value, calendar);
     }
 
     const nepal = instantToNepal(value);
@@ -71,7 +85,12 @@ export class NepaliDatePipe implements PipeTransform {
       return value; // Unparseable: show it rather than render NaN.
     }
 
-    const date = this.render(nepal.date);
+    // The time alone has no calendar, so it never reads the toggle (phase 71: a bill's Time row beside its dates).
+    if (mode === 'time') {
+      return nepal.time;
+    }
+
+    const date = this.render(nepal.date, calendar);
     switch (mode) {
       case 'datetime':
         return `${date} ${nepal.time}`;
@@ -82,10 +101,30 @@ export class NepaliDatePipe implements PipeTransform {
     }
   }
 
-  private render(iso: string): string {
+  private render(iso: string, calendar: NepaliDateCalendar): string {
+    if (calendar === 'bill') {
+      return toBillDisplay(iso);
+    }
     return this.preference.isBs() ? toBsDisplay(iso) : toAdDisplay(iso);
   }
 }
+
+/**
+ * Phase 71 — `2026-08-01` -> `16-04-2083 BS (01-08-2026 AD)`, or `01-01-2040 AD` outside the BS table: still labelled,
+ * never a guessed BS date. The halves are the two caches' own renderings, so a bill and a grid can never disagree about
+ * a day.
+ *
+ * <p><b>The halves are separated by a line break</b>, and each date is joined to its label by a no-break space. The
+ * first browser pass printed `(09-10-` on one line and `2026 AD)` on the next: a 72 mm receipt wraps after a hyphen,
+ * which no no-break space prevents. So the receipt's value cells are `white-space: pre-line` and a bill date is always
+ * two lines there, BS over AD. Anywhere white space collapses (the "Printed …" footer) the break reads as a space.</p>
+ */
+export function toBillDisplay(iso: string): string {
+  const ad = `${toAdDisplay(iso)}${NBSP}AD`;
+  return adToBs(iso) === null ? ad : `${toBsDisplay(iso)}${NBSP}BS\n(${ad})`;
+}
+
+const NBSP = '\u00a0';
 
 const bsCache = new Map<string, string>();
 const adCache = new Map<string, string>();

@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–70)
+## Completed phases (0–71)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -56,6 +56,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 68 | Mark as Take Away and item transfer: a parcel is a split line moved by a take-away ticket, its service charge decided once at the mark by the location's setting; a transfer is a ticket on each order at the same rates; plus the buyer's PAN on the ERP PDF |
 | 69 | A credit note names its invoice (VAT Rule 20(1)(e)): a picked one is a price adjustment capped by value and VAT, a typed one predates the system; conversion templates carry currency; line caps re-checked on edit |
 | 70 | The packaging fee: per item on every parcel (percent of the line or flat per unit), inside the VAT base, its own account, frozen on the line; a product may opt out (on by default) |
+| 71 | Every bill's date in BS: invoices, credit and debit notes (PDF and email) and till receipts print BS with AD beside it whatever the toggle, with both statutory dates (transaction and issue); the statutory register exports carry a BS column |
 
 ---
 
@@ -113,7 +114,7 @@ The two rules apply to every tax invoice; phase 67 brought the ERP's own PDF and
 column (now for credit notes too). The ERP credit note against a till sale is settled by phase 63:
 the ERP may no longer convert one, and the till's refund returns the service charge.
 
-**The POS sequence (60–66) is complete, and so are phases 67, 68, 69 and 70.** Phase 67 put the ERP invoice and
+**The POS sequence (60–66) is complete, and so are phases 67 to 71.** Phase 67 put the ERP invoice and
 credit-note PDF under the till's two statutory rules (`phase-67-status.md`). Phase 68 shipped *Mark as Take Away*
 and item transfer on the restaurant till (`phase-68-status.md`): a parcel is a split line moved by a take-away
 kitchen ticket, its service charge decided once, at the mark, by the location's *Service charge on take-away*;
@@ -125,22 +126,24 @@ VAT-registered seller cannot approve a note naming none; it also put the source'
 templates and re-checked the line caps on an edit of a converted note. Phase 70 shipped the packaging fee
 (`phase-70-status.md`): per item on every parcel (Take Away, Delivery, and dine-in food marked take-away), a percent
 of the line or a flat amount per unit, inside the VAT base at the line's own rate, its own account, frozen on the
-line, with a per-product opt-out on by default. **Next: not yet scheduled**; the candidates are every bill's date
-in BS (raised 2026-10-08, below), discount and credit on a restaurant bill, per-part customers, and real printing
-templates.
+line, with a per-product opt-out on by default. Phase 71 made every bill's date BS with AD beside it, whatever the
+toggle (`phase-71-status.md`): invoices, credit and debit notes on paper and by email, and the till's receipts, with
+both statutory dates (transaction and issue); the statutory register exports gained a BS column. **Next: not yet
+scheduled**; the candidates are discount and credit on a restaurant bill, per-part customers, and real printing
+templates (which must not bring back a date-system switch on a tax document).
 
 Open question for the tax advisor, not to be guessed (carried from the PAN fix): whether IRD expects a buyer PAN
 on a high-value sale to an unregistered buyer. If it does, it would be a warning on approve, never a block.
 
-**Raised 2026-10-08 by the user, not yet scheduled: every bill shows its date in BS.** The user stated that every
-bill a Nepali business issues must carry its date in Bikram Sambat, by rule. Today none of ours does unless the
-viewer has set the calendar toggle to BS: the ERP invoice and credit-note PDF follow `RequestCalendar` (AD
-unless the `X-Calendar` header says BS), the **emailed** PDF is always AD because the job sends no header, and
-the till and refund receipts follow `DatePreferenceService` (default AD). The vendor's printed ERP invoice shows
-BS dates (scan, phase 28 read). The fix makes a bill's date a statutory field rather than a display preference:
-BS whatever the toggle says, on paper and by email. Cite the rule's source in the phase's status doc before
-building. This also constrains the printing-templates item below, where no per-type "date system" toggle may
-switch BS off on a tax document.
+**Raised 2026-10-08 by the user, done in phase 71: every bill shows its date in BS.** The statutory forms require
+a transaction date and an issue date and name no calendar; the BS rule is practice and Rule 26's BS tax period, so
+it was recorded as a product decision (`phase-71-status.md` § 0). The vendor's bill follows a per-template AD/BS
+switch defaulting to AD (read live on 2026-10-09); ours has no switch on a tax document. This constrains the
+printing-templates item below: no per-type "date system" toggle may switch BS off on a tax document.
+
+**Carried from phase 71** (§ 5 there): the money receipt (a Payment's PDF), Annex 5/13, the VAT Summary export and
+the on-screen register grids follow the toggle; the email body's `$[DATE]$` stays AD; a tax advisor's word on the
+calendar is still open.
 
 **Also raised 2026-10-03, not yet scheduled: real printing templates.** Phase 20d kept `PrintingTemplate` as a
 name and a default flag, by the user's decision; every type prints one shared layout, where the vendor offers

@@ -56,6 +56,15 @@ public static class CountedPrints
         documentType is DocumentType.Invoice or DocumentType.CreditNote;
 }
 
+/// <summary>Phase 71 -- the tax documents (VAT Rules 17, 18 and 20): the bills whose every date prints through
+/// <c>BillDate</c>, in BS with AD beside it, whatever the request's calendar, and which print both statutory dates
+/// (the transaction date and the issue date). Every other printable type keeps following the toggle.</summary>
+public static class TaxDocuments
+{
+    public static bool Applies(DocumentType documentType) =>
+        documentType is DocumentType.Invoice or DocumentType.CreditNote or DocumentType.DebitNote;
+}
+
 /// <summary>Each document type's own View key -- printing never widens what a role may see. The
 /// switch still throws for a non-transactional <see cref="DocumentType"/> (numbering-pool stubs,
 /// audit markers): those have no record to print, and a silent 403 would be a worse answer than a
@@ -150,7 +159,14 @@ public sealed record PrintableDocumentDto(
     /// <summary>The buyer's PAN, printed "PAN: …" under the party address. Set only on an invoice or credit
     /// note whose contact has one (VAT Rules Schedule 5 asks a tax invoice for a registered buyer's PAN);
     /// null everywhere else, which prints the party block exactly as before.</summary>
-    string? PartyPan = null);
+    string? PartyPan = null,
+    /// <summary>Phase 71 -- the label <see cref="DateText"/> prints under. "Date" for every type but a tax
+    /// document, which says "Transaction Date": the first of the two dates its statutory form asks for.</summary>
+    string DateLabel = "Date",
+    /// <summary>Phase 71 -- a tax document's second statutory date (विजक जारी भएको मिति, Schedule 5): the Nepal day it
+    /// was approved, which is when it got its number. Null on a draft, which has not been issued, and on every
+    /// other type.</summary>
+    string? IssueDateText = null);
 
 /// <summary>Phase 67 -- what the paper says about this copy. <paramref name="PrintedAtText"/> is the Nepal
 /// wall-clock date (in the request's calendar) and time.</summary>

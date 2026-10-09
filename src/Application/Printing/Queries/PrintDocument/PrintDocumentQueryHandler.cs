@@ -26,6 +26,10 @@ namespace ErpApp.Application.Printing.Queries.PrintDocument;
 /// <para><b>Every business date goes through <see cref="RequestCalendar"/></b> (Phase 27b), so a
 /// client that asked for Bikram Sambat gets BS in the PDF, not just on screen. Nothing here reads
 /// the header itself -- the middleware parked it before this handler ran.</para>
+///
+/// <para><b>Except on a tax document</b> (Phase 71, <see cref="TaxDocuments"/>): every date on an invoice, credit
+/// note or debit note goes through <see cref="BillDate"/>, BS with AD beside it, whatever the request asked.
+/// <see cref="FormatDate"/> is the one place that choice is made, so no builder can format a date the other way.</para>
 /// </summary>
 public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage storage)
     : IRequestHandler<PrintDocumentQuery, PrintableDocumentDto>
@@ -89,7 +93,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         var header = new List<PrintableFieldDto>();
         if (document.ExpiryDate is { } expiry)
         {
-            header.Add(new PrintableFieldDto("Expiry Date", RequestCalendar.Format(expiry)));
+            header.Add(new PrintableFieldDto("Expiry Date", FormatDate(request, expiry)));
         }
 
         return await BuildProductDocumentAsync(
@@ -148,7 +152,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             document.ContactId, "Bill To", header, lines, document.DiscountPct, document.Terms, ct,
             currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate, roundOff: document.RoundOff);
 
-        return dto with
+        return WithStatutoryDates(dto, document.ApprovedAt, document.IsAbbreviatedTaxInvoice) with
         {
             TitleNepali = InvoiceHeadings.Nepali(heading),
             PrintedCopy = await PrintedCopyAsync(request, ct),
@@ -177,6 +181,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         // invoice it relates to. Phase 69 -- however the note names it: the invoice it returns, the one a
         // price adjustment names, or one issued before the system and typed. A note naming none (only an
         // older draft or a non-VAT tenant's) prints its Reference as before rather than an invented link.
+        // Phase 71 -- the number and the date as two fields: a bill's date is "BS (AD)" and, after a real
+        // invoice number, one field wrapped inside the parenthesis in the half-width header column.
         var header = new List<PrintableFieldDto>();
         if (document.RelatedInvoiceId is { } invoiceId)
         {
@@ -186,12 +192,14 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
                 .SingleOrDefaultAsync(ct);
             if (invoice is not null)
             {
-                header.Add(new PrintableFieldDto("Against Invoice", $"{invoice.Code} dated {RequestCalendar.Format(invoice.Date)}"));
+                header.Add(new PrintableFieldDto("Against Invoice", invoice.Code));
+                header.Add(new PrintableFieldDto("Invoice Date", FormatDate(request, invoice.Date)));
             }
         }
         else if (document.AgainstInvoiceNumber is { } typedNumber && document.AgainstInvoiceDate is { } typedDate)
         {
-            header.Add(new PrintableFieldDto("Against Invoice", $"{typedNumber} dated {RequestCalendar.Format(typedDate)}"));
+            header.Add(new PrintableFieldDto("Against Invoice", typedNumber));
+            header.Add(new PrintableFieldDto("Invoice Date", FormatDate(request, typedDate)));
         }
 
         // Phase 69 (Decision D) -- Rule 20(1)(f)'s "details of ... the credit": the reason, when there is
@@ -206,7 +214,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             document.ContactId, "Credit To", header, lines, document.DiscountPct, document.Terms, ct,
             currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate, roundOff: document.RoundOff);
 
-        return dto with
+        return WithStatutoryDates(dto, document.ApprovedAt) with
         {
             TitleNepali = InvoiceHeadings.CreditNoteNepali,
             PrintedCopy = await PrintedCopyAsync(request, ct),
@@ -238,9 +246,27 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             .Select(x => x.FullName)
             .SingleOrDefaultAsync(ct) ?? "";
 
-        var at = $"{RequestCalendar.Format(NepalTime.LocalDate(issue.PrintedAt))} {NepalTime.LocalTimeOfDay(issue.PrintedAt).ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture)}";
+        var at = $"{FormatDate(request, NepalTime.LocalDate(issue.PrintedAt))} {NepalTime.LocalTimeOfDay(issue.PrintedAt).ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture)}";
         return new PrintedCopyDto(issue.PrintNumber, printedBy, at);
     }
+
+    /// <summary>Phase 71 -- every date this handler prints: a tax document's in BS with AD beside it, any other
+    /// type's in the request's calendar.</summary>
+    private static string FormatDate(PrintDocumentQuery request, DateOnly date) =>
+        TaxDocuments.Applies(request.DocumentType) ? BillDate.Format(date) : RequestCalendar.Format(date);
+
+    /// <summary>Phase 71 -- the frame's date relabelled as the first statutory date, and the second beside it. The
+    /// issue date is the Nepal day of approval, when the bill got its number; a draft has none and prints none. An
+    /// abbreviated tax invoice keeps its form's one "Date" (Schedule 6), as its till receipt does.</summary>
+    private static PrintableDocumentDto WithStatutoryDates(
+        PrintableDocumentDto dto, DateTimeOffset? approvedAt, bool isAbbreviatedTaxInvoice = false) =>
+        isAbbreviatedTaxInvoice
+            ? dto
+            : dto with
+            {
+                DateLabel = "Transaction Date",
+                IssueDateText = approvedAt is { } at ? BillDate.Format(NepalTime.LocalDate(at)) : null,
+            };
 
     /// <summary>Two sections, matching the reference product's Customer Receipt layout read live:
     /// "Payment Details" (the account the money moved through) and "Payment For" (what it was
@@ -270,7 +296,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             var (code, date) = await ResolveAllocationTargetAsync(allocation.TargetDocumentType, allocation.TargetDocumentId, ct);
             allocationRows.Add(new PrintableRowDto([
                 $"{DocumentLabel(allocation.TargetDocumentType)} {code}",
-                date is null ? "-" : RequestCalendar.Format(date.Value),
+                date is null ? "-" : FormatDate(request, date.Value),
                 Money(allocation.Amount),
             ]));
         }
@@ -404,7 +430,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         var header = new List<PrintableFieldDto>();
         if (document.DueDate is { } dueDate)
         {
-            header.Add(new PrintableFieldDto("Due Date", RequestCalendar.Format(dueDate)));
+            header.Add(new PrintableFieldDto("Due Date", FormatDate(request, dueDate)));
         }
 
         if (!string.IsNullOrWhiteSpace(document.SupplierInvoiceReference))
@@ -430,10 +456,12 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount))
             .ToList();
 
-        return await BuildProductDocumentAsync(
+        var dto = await BuildProductDocumentAsync(
             request, organization, templateName, "Debit Note", document.Code, document.Date, document.Reference,
             document.ContactId, "Debit To", [], lines, document.DiscountPct, terms: null, tdsAmount: document.TdsAmount, ct: ct,
             currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
+
+        return WithStatutoryDates(dto, document.ApprovedAt);
     }
 
     // ---- Accounting --------------------------------------------------------------------------
@@ -536,7 +564,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
 
         var header = new List<PrintableFieldDto>
         {
-            new("Expected Delivery", RequestCalendar.Format(document.ExpectedDeliveryDate)),
+            new("Expected Delivery", FormatDate(request, document.ExpectedDeliveryDate)),
             new("Warehouse", warehouseName ?? "-"),
         };
         if (!string.IsNullOrWhiteSpace(document.TrackingNo))
@@ -970,7 +998,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             request.DocumentType,
             title,
             code,
-            RequestCalendar.Format(date),
+            FormatDate(request, date),
             reference,
             organization.Name,
             organization.Address,
@@ -988,7 +1016,9 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             summary,
             notes,
             terms,
-            RequestCalendar.DisclosureLine,
+            // A tax document labels each of its dates "BS" and "AD" inline, so the footer's disclosure would only
+            // repeat it, and in AD it says nothing anyway.
+            TaxDocuments.Applies(request.DocumentType) ? null : RequestCalendar.DisclosureLine,
             code_);
     }
 

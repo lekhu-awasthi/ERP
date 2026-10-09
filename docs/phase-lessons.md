@@ -1993,3 +1993,24 @@ planner's hand-written sums, so the fourth part reached them by being added once
 **A flag defaulting to on gets its own mutator and `ValueGeneratedNever`.** As an optional `Update` parameter it would
 re-enable an exemption from every caller that never heard of it; and a store default of true without
 `ValueGeneratedNever` turns every unticked `false` back on. Prove it on SQL Server: InMemory cannot see it.
+
+## Phase 71 — Every bill's date in BS: a tax document's date is a statutory field, not a display preference
+
+**Read `phase-71-status.md` before rendering a date on anything the law calls a bill (an invoice, a credit or debit
+note, a till receipt), before a statutory register's export, or before building printing templates.**
+
+**Find the rule's text, and say so when it is a convention.** The VAT Rules' invoice forms (Schedules 5 and 6) and the
+IRD's e-billing Annex 6 require the dates and name no calendar; only Rule 26's BS tax period mentions Bikram Sambat.
+The BS rule is practice, recorded as a product decision. Reading the forms also found what nobody had asked: a tax
+invoice carries **two** dates, the transaction date and the issue date (`ApprovedAt`'s Nepal day here).
+
+**A bill has no calendar switch; the toggle is for screens.** `BillDate` (server) and `nepaliDate: … : 'bill'` (client)
+print BS with AD beside it whatever the viewer chose, and the emailed PDF follows because it renders through the same
+handler. The vendor's per-template AD/BS switch, defaulting to AD, is the divergence; printing templates must not
+bring it back on a tax document.
+
+**One choke point per medium, guarded by name.** The print handler's `FormatDate` is the only caller of
+`RequestCalendar.Format`, and the receipts' every `nepaliDate` names `'bill'`; a guard in each language counts them.
+
+**Look at the paper.** A correct string can wrap wrongly: a half-width PDF header column broke inside `(… AD)`, and a
+72 mm receipt broke after a hyphen, which a no-break space does not prevent. Put the halves on their own lines.

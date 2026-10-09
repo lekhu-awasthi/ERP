@@ -16,6 +16,9 @@ import { POS_RECEIPT_STYLES } from './pos-receipt';
  * <p>Like the sale's receipt, a reprint says "Copy of Original" with the server's print count, top
  * and bottom (the 2072 procedure, §6, read to cover credit notes), and service charge and round-off
  * are lines of their own.</p>
+ *
+ * <p><b>Every date is a bill's date</b> (phase 71): BS with AD beside it, whatever the toggle says, and the note's
+ * issue date (the Nepal day it was refunded, since a refund is created approved) beside its own date.</p>
  */
 @Component({
   selector: 'app-pos-refund-receipt',
@@ -41,13 +44,16 @@ import { POS_RECEIPT_STYLES } from './pos-receipt';
       <p class="r-center">{{ r.locationName }}</p>
       <div class="r-rule"></div>
       <div class="r-row"><span>Credit Note No</span><span>{{ r.code }}</span></div>
-      <div class="r-row"><span>Date</span><span>{{ r.date | nepaliDate }}</span></div>
-      <div class="r-row"><span>Time</span><span>{{ r.refundedAt | nepaliDate: 'datetime' }}</span></div>
+      <div class="r-row"><span>Date</span><span>{{ r.date | nepaliDate: 'date' : 'bill' }}</span></div>
+      @if (r.refundedAt) {
+        <div class="r-row"><span>Issue Date</span><span>{{ r.refundedAt | nepaliDate: 'date' : 'bill' }}</span></div>
+      }
+      <div class="r-row"><span>Time</span><span>{{ r.refundedAt | nepaliDate: 'time' }}</span></div>
       @if (r.invoiceCode) {
         <div class="r-row"><span>Against Bill No</span><span>{{ r.invoiceCode }}</span></div>
       }
       @if (r.invoiceDate) {
-        <div class="r-row"><span>Bill Date</span><span>{{ r.invoiceDate | nepaliDate }}</span></div>
+        <div class="r-row"><span>Bill Date</span><span>{{ r.invoiceDate | nepaliDate: 'date' : 'bill' }}</span></div>
       }
       <div class="r-row"><span>Customer</span><span>{{ r.customerName }}</span></div>
       @if (r.customerAddress) {
@@ -101,7 +107,7 @@ import { POS_RECEIPT_STYLES } from './pos-receipt';
       }
       <div class="r-rule"></div>
       <p>Session {{ r.sessionCode }} &middot; Cashier {{ r.cashierName }}</p>
-      <p>Printed {{ r.printedAt | nepaliDate: 'datetime' }} by {{ r.printedByName }}</p>
+      <p>Printed {{ r.printedAt | nepaliDate: 'datetime' : 'bill' }} by {{ r.printedByName }}</p>
       @if (isCopy()) {
         <p class="r-copy">COPY OF ORIGINAL &middot; printed {{ r.printNumber }} times</p>
       }

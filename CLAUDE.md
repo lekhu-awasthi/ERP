@@ -102,6 +102,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 68: Mark as Take Away and item transfer (a parcel is a split line moved by a take-away ticket, its service charge decided once at the mark by the location's setting; a transfer is a ticket on each order at the same rates; an emptied tab closes) + the buyer's PAN on the ERP PDF. Before moving a quantity between lines or orders, or a setting that changes a line's charge — `docs/phase-68-status.md`
 - Phase 69: a credit note names its invoice (Rule 20(1)(e)): a picked one makes it a price adjustment capped by value and VAT, a typed one must predate the first invoice, and Approve refuses none on a VAT tenant; conversion templates carry currency. Before linking one document to another, or editing a converted draft — `docs/phase-69-status.md`
 - Phase 70: the packaging fee (per item on every parcel: a percent of the line or flat per unit, inside the VAT base at the line's rate, its own account, frozen on the line; a product opt-out, on by default). Before adding a part to a line's money, or a flag that defaults to on — `docs/phase-70-status.md`
+- Phase 71: every bill's date in BS with AD beside it, whatever the toggle (invoice, credit/debit note on paper and by email, till receipts), both statutory dates (transaction + issue = approval's Nepal day), a BS column on the register exports. The statute names no calendar. Before rendering a date on a bill, or building printing templates — `docs/phase-71-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -275,6 +276,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Every copy of an invoice or credit note that leaves counts (till, PDF, email) in one table; the counted print is a POST and the GET refuses those types, never a GET that writes (phase-67).
 - A move is a kitchen ticket with a stored **kind**: a take-away mark has both signs and a transfer's half is negative without being a discard, so signs alone miscount both (phase-68).
 - A rate a setting decides is decided **once, at the action**, and frozen on the line it creates; changing the setting later reprices nothing (phase-68's take-away service charge).
+- A tax document's every date goes through `BillDate` / `nepaliDate: … : 'bill'` (BS with AD beside it), never the toggle; the print handler's one `FormatDate` decides, and guards count it (phase-71).
 
 - Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
 - A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
@@ -405,6 +407,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A component with a `@defer` block has async metadata: its TestBed spec must `await compileComponents()`, or every test fails "unresolved metadata" (phase-66).
 - A `responseType: 'blob'` request's error body is a Blob, so `extractErrorMessage` reads nothing and every refusal shows the fallback; parse it back to JSON (`PrintingService`, phase-67).
 - A load helper that sets focus steals it after every action that reloads through it; take a `focusSearch` flag and pass `false` after an action (phase-68).
+- A no-break space does not stop a browser breaking after a hyphen: a 72 mm receipt printed `(09-10-` / `2026 AD)`. Break between the halves yourself (`pre-line`) and look at the paper (phase-71).
+- `ng serve` serves `public/` as it was at start-up: a file written later is a 404 whose HTML body a script reads as content. Restart, then check status and body (phase-71).
 
 **Multi-way switches on a document-attached mechanism**
 - A shared UI panel is not evidence of a shared model: email templates are their own resource, so `EmailTemplate` is its own aggregate and `CustomTemplateType.Email` was deleted (phase-30).
@@ -472,6 +476,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `nvm use` from a shell that cannot create the symlink deletes `C:\nvm4w\nodejs` and reports success; recreate it with `cmd /c 'mklink /J "C:\nvm4w\nodejs" "%LOCALAPPDATA%\nvm\v24.11.0"'`.
 - A `cat > file <<'EOF'` heredoc in the Bash tool is silently truncated or mis-parsed well below the ~8 KB figure (any heredoc, `python -` included); use the Write tool, or write a small patch script and run it (phase-26a, phase-57). It also **eats backslash escapes** even when the delimiter is quoted, so a `\n` or `\t` inside an embedded script arrives as a literal newline or tab — a syntax error if you are lucky and a corrupted path if you are not (phase-39).
 - …and `\\b` arrives as `\b`, which Python reads as a **backspace** inside a regex string, invisible in the file. A script carrying backslashes goes through the Write tool, always (phase-62).
+- The Edit tool writes an escape (backslash-u-00a0) as the raw invisible character and trims a trailing space from a replace; put escapes and trailing spaces through a `Write`-made patch script (phase-71).
 - `docker info` exits 0 with the engine down; Docker is up only when `{{.ServerVersion}}` is non-empty (phase-62).
 - Two `dotnet test` runs at once collide on the shared `ErpApp.Application.dll` (`CS2012`, file locked) and print nothing under a `Passed!` filter; run the .NET suites one at a time (phase-63).
 - A script inserting an import after "the last `\nimport ` line" lands *inside* a multi-line `import { … }` block; anchor on the statement's closing line (phase-35a).
@@ -505,26 +510,26 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-70 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-71 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 70 added the packaging fee.** A location may charge it on every parcel: Take Away and Delivery sales at
-either till, and dine-in food marked as take-away. It has:
+**Phase 71 made a bill's date a statutory field.** Whatever the viewer's calendar toggle says:
 
-- two bases: a percent of the line (after its discounts) or a flat amount per unit;
-- VAT charged on it at the line's own rate (an exempt item's fee is exempt), and its own account (location, then
-  tenant default, then a 409);
-- terms frozen on the line when it is rung up, sent or marked, so splits, refunds and transfers needed no new rule;
-- a per-product opt-out, on by default, written only by the product form;
-- the fee beside service charge on every receipt, bill, report, export and detail page, with a source guard in
-  each language over every hand-written sum of a line's money.
+- invoices, credit notes and debit notes (PDF, and the emailed PDF through the same handler) print every date as
+  `2083-04-16 BS (2026-08-01 AD)` via `BillDate`, and the till's sale and refund receipts via `nepaliDate: … : 'bill'`;
+- a bill prints both statutory dates, the transaction date and the issue date (the Nepal day of `ApprovedAt`); an
+  abbreviated tax invoice keeps its one;
+- the six statutory register exports carry `Date (BS)` beside `Date (AD)`.
 
-**Next:** not yet scheduled. Candidates: every bill's date in BS (raised by the user on 2026-10-08), discount and
-credit on a restaurant bill, per-part customers (phase 68 § 5), real printing templates, and phase 70 § 5.
+The statute requires the dates and names no calendar (`phase-71-status.md` § 0), and the vendor makes it a
+per-template switch defaulting to AD; we have no switch on a tax document.
 
-Tests: Domain **946**, Application.UnitTests **1638**, Infrastructure.UnitTests 13,
-Api.IntegrationTests **43**, Angular **785**. Everything was green at phase 70's close with Docker up.
+**Next:** not yet scheduled. Candidates: discount and credit on a restaurant bill, per-part customers (phase 68 § 5),
+real printing templates (no date-system switch on a tax document), and phase 71 § 5.
+
+Tests: Domain **946**, Application.UnitTests **1652**, Infrastructure.UnitTests 13,
+Api.IntegrationTests **46**, Angular **793**. Everything was green at phase 71's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

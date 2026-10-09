@@ -4282,3 +4282,29 @@ as "not set" and let the column default win. A bool defaulting to `true` is the 
 product a user *exempts* (`false`) would be saved as `true`. `Product.PackagingFeeApplicable` is mapped
 `.HasDefaultValue(true).ValueGeneratedNever()`; the default exists for the existing rows in the migration, and EF
 always sends the value. InMemory cannot show the failure, so the E2E reads `catalog.Products` in SQL.
+
+## The Edit tool rewrites escape sequences and trims trailing spaces (phase 71)
+
+Two silent rewrites by the agent's `Edit` tool in one phase. An escape written for a TypeScript string (the no-break
+space, backslash-u-00a0) landed in the file as the raw character itself: invisible in any editor, and the spec
+asserting on it unreadable. And a `replace_all` of `RequestCalendar.Format(` with `FormatDate(request, ` dropped the
+trailing space, so eight call sites read `FormatDate(request,x)`; it compiled, and only the new guard that counts
+`FormatDate(request, ` noticed. `Write` keeps text as typed, so a change carrying escapes or significant trailing white
+space goes through a small patch script written with `Write` (assert the anchor count, keep the file's newline), and
+the result is checked by grepping for the escape.
+
+## A no-break space does not stop a break after a hyphen (phase 71)
+
+The till receipt printed a bill date as `23-06-2083 BS (09-10-2026 AD)` in a 72 mm value cell. Joining each date to
+its label with no-break spaces left the one intended break point, but the browser still broke after a hyphen:
+`(09-10-` on one line, `2026 AD)` on the next. Line breaking after a hyphen is ordinary in a browser, and no space
+character controls it. The fix is structural: the pipe emits a line break between the BS and AD halves, the value cell is
+`white-space: pre-line`, and the label cell `nowrap`. A component spec cannot see any of this, because `textContent`
+has no width; only the picture shows it.
+
+## The dev server serves `public/` only as it was at start-up (phase 71)
+
+A file written into `web/public` while `ng serve` is running is a 404 until the server restarts, and the 404's HTML
+body is what a script reading it receives. The phase's cookie transplant read that body into `document.cookie` before
+the length check was added. Restart the preview after writing a served file, check the status *and* the content, and
+delete the file straight after.

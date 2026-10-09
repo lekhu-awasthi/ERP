@@ -311,9 +311,12 @@ public class CreditNoteInvoiceReferenceTests
         var adjustmentPdf = await PrintAsync(db, seed, adjustment);
         var typedPdf = await PrintAsync(db, seed, typed);
 
-        Assert.Contains(adjustmentPdf.HeaderFields, f => f.Label == "Against Invoice" && f.Value == $"{invoiceCode} dated 2026-09-01");
+        // Phase 71: a credit note is a bill, so the invoice's date prints in BS with AD beside it, in its own field.
+        Assert.Contains(adjustmentPdf.HeaderFields, f => f.Label == "Against Invoice" && f.Value == invoiceCode);
+        Assert.Contains(adjustmentPdf.HeaderFields, f => f.Label == "Invoice Date" && f.Value == "2083-05-16 BS (2026-09-01 AD)");
         Assert.Contains(adjustmentPdf.HeaderFields, f => f.Label == "Reason" && f.Value == "Price cut");
-        Assert.Contains(typedPdf.HeaderFields, f => f.Label == "Against Invoice" && f.Value == "OLD-0042 dated 2026-07-01");
+        Assert.Contains(typedPdf.HeaderFields, f => f.Label == "Against Invoice" && f.Value == "OLD-0042");
+        Assert.Contains(typedPdf.HeaderFields, f => f.Label == "Invoice Date" && f.Value == "2083-03-17 BS (2026-07-01 AD)");
         Assert.DoesNotContain(typedPdf.HeaderFields, f => f.Label == "Reason");
     }
 

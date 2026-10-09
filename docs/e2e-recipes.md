@@ -259,3 +259,16 @@ beside a 200 from the same user, and create a fresh Organization per phase.
 - The settings 403-not-404 pair: `PUT /pos/locations/{nonexistent}/settings` with a **valid** body is **404** "Billing location
   not found." as Admin and **403 naming `Pos.Settings.Manage`** from a role holding only `Tenancy.BillingLocation.View`,
   beside its 200 on `GET /billing-locations` (phase-70).
+- A bill's dates (phase 71): the invoice, credit-note and debit-note PDFs print `Transaction Date: 2083-04-16 BS
+  (2026-08-01 AD)` and `Issue Date: …` (the Nepal day of `ApprovedAt`; none on a draft or an abbreviated invoice)
+  **without** an `X-Calendar` header. A credit note's invoice is two fields, `Against Invoice: <code>` and
+  `Invoice Date: …`. PyMuPDF's `page.get_text()` reads our PDFs' text directly (install it with `pip --target` into the
+  scratchpad). The statutory register exports' first two columns are `Date (BS)` and `Date (AD)`, as text.
+- `PUT /pos/locations/{id}/settings` needs a non-empty **`denominations`** even with cash verification off (a 400
+  naming `Denominations`). The `POST /print/Invoice/{nonexistent}` pair: **404** as Admin, **403 naming
+  `Sales.Invoice.View`** from a role holding only `Sales.CreditNote.View`, beside its 200 on `POST /print/CreditNote/{id}`
+  (phase-71).
+- A browser pass without the token in the transcript: a script signs in and writes the `erp_auth` value into
+  `web/public/<name>.txt`, the preview is **restarted** (a file added after start-up is a 404), the page `fetch`es it
+  and sets `document.cookie` (`path=/; Secure; SameSite=None`) only when the status is 200 and the body is not HTML, and
+  the file is deleted at once (phase-71).

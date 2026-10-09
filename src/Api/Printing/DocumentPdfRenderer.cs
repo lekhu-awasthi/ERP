@@ -146,7 +146,14 @@ public static class DocumentPdfRenderer
                 }
 
                 column.Item().AlignCenter().Text(dto.Code).FontSize(11);
-                column.Item().AlignCenter().Text($"Date: {dto.DateText}").FontSize(9);
+                column.Item().AlignCenter().Text($"{dto.DateLabel}: {dto.DateText}").FontSize(9);
+
+                // Phase 71 -- a tax document's second statutory date, under the first (Schedule 5 sets them
+                // side by side; a centred header has the room for one per line).
+                if (dto.IssueDateText is { } issued)
+                {
+                    column.Item().AlignCenter().Text($"Issue Date: {issued}").FontSize(9);
+                }
 
                 if (!string.IsNullOrWhiteSpace(dto.Reference))
                 {

@@ -39,7 +39,8 @@ public static partial class ReportSpreadsheetExporter
             "Sales Return Register",
             FileName("SalesReturnRegister", report.FromDate, report.ToDate),
             [
-                ("Date", (SalesReturnRegisterRowDto r) => (object?)r.Date),
+                (RegisterBsDateHeader, (SalesReturnRegisterRowDto r) => RegisterBsDate(r.Date)),
+                (RegisterAdDateHeader, r => RegisterAdDate(r.Date)),
                 ("Credit Note No", r => r.DocumentCode),
                 ("Buyer Name", r => r.ContactName),
                 ("Buyer PAN", r => r.ContactPan),
@@ -49,14 +50,15 @@ public static partial class ReportSpreadsheetExporter
                 ("Tax", r => r.VatAmount),
             ],
             report.Items,
-            sheet => WriteTotalRow(sheet, report.Items.Count, "Total Return", 5, report.TotalReturnValue));
+            sheet => WriteTotalRow(sheet, report.Items.Count, "Total Return", 6, report.TotalReturnValue));
 
     public static IResult ExportPurchaseReturnRegister(PurchaseReturnRegisterDto report) =>
         ExportTable(
             "Purchase Return Register",
             FileName("PurchaseReturnRegister", report.FromDate, report.ToDate),
             [
-                ("Date", (PurchaseReturnRegisterRowDto r) => (object?)r.Date),
+                (RegisterBsDateHeader, (PurchaseReturnRegisterRowDto r) => RegisterBsDate(r.Date)),
+                (RegisterAdDateHeader, r => RegisterAdDate(r.Date)),
                 ("Debit Note No", r => r.DocumentCode),
                 ("Import Declaration No", r => r.ImportDeclarationNo),
                 ("Supplier Name", r => r.ContactName),
@@ -71,7 +73,7 @@ public static partial class ReportSpreadsheetExporter
                 ("Capital Taxable Return / Import Tax", r => r.TaxableCapitalVat),
             ],
             report.Items,
-            sheet => WriteTotalRow(sheet, report.Items.Count, "Total Return Value", 6, report.TotalReturnValue));
+            sheet => WriteTotalRow(sheet, report.Items.Count, "Total Return Value", 7, report.TotalReturnValue));
 
     public static IResult ExportInventoryPosition(InventoryPositionReportDto report) =>
         ExportTable(

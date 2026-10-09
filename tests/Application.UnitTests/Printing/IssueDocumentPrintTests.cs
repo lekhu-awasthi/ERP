@@ -277,7 +277,9 @@ public class IssueDocumentPrintTests
         Assert.Equal("Credit Note", dto.Title);
         Assert.Equal("क्रेडिट नोट", dto.TitleNepali);
         var against = Assert.Single(dto.HeaderFields, x => x.Label == "Against Invoice");
-        Assert.Equal("INV0001 dated 2026-08-01", against.Value);
+        Assert.Equal("INV0001", against.Value);
+        // Phase 71: a credit note's dates are a bill's, BS with AD beside it, and the invoice's date is its own field.
+        Assert.Equal("2083-04-16 BS (2026-08-01 AD)", Assert.Single(dto.HeaderFields, x => x.Label == "Invoice Date").Value);
         Assert.Equal(1, dto.PrintedCopy!.PrintNumber);
     }
 

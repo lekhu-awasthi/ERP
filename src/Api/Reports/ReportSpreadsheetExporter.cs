@@ -418,7 +418,8 @@ public static partial class ReportSpreadsheetExporter
             migrated ? "Migrated Sales Register" : "Sales Register",
             FileName(migrated ? "MigratedSalesRegister" : "SalesRegister", report.FromDate, report.ToDate),
             [
-                ("Date", (SalesRegisterRowDto r) => (object?)r.Date),
+                (RegisterBsDateHeader, (SalesRegisterRowDto r) => RegisterBsDate(r.Date)),
+                (RegisterAdDateHeader, r => RegisterAdDate(r.Date)),
                 ("Type", r => r.DocumentType.ToString()),
                 ("Document No", r => r.DocumentCode),
                 ("Contact Name", r => r.ContactName),
@@ -430,10 +431,10 @@ public static partial class ReportSpreadsheetExporter
                 ("Export Value", r => r.ExportValue),
                 ("Export Country", r => r.ExportCountry),
                 ("Export Declaration No", r => r.ExportDeclarationNo),
-                ("Export Declaration Date", r => (object?)r.ExportDeclarationDate),
+                ("Export Declaration Date", r => r.ExportDeclarationDate is { } declared ? BillDate.Format(declared) : null),
             ],
             report.Items,
-            sheet => WriteTotalRow(sheet, report.Items.Count, "Total Value", 6, report.TotalValue));
+            sheet => WriteTotalRow(sheet, report.Items.Count, "Total Value", 7, report.TotalValue));
 
     /// <param name="migrated">See <see cref="ExportSalesRegister"/> -- same reasoning.</param>
     public static IResult ExportPurchaseRegister(PurchaseRegisterDto report, bool migrated = false) =>
@@ -441,7 +442,8 @@ public static partial class ReportSpreadsheetExporter
             migrated ? "Migrated Purchase Register" : "Purchase Register",
             FileName(migrated ? "MigratedPurchaseRegister" : "PurchaseRegister", report.FromDate, report.ToDate),
             [
-                ("Date", (PurchaseRegisterRowDto r) => (object?)r.Date),
+                (RegisterBsDateHeader, (PurchaseRegisterRowDto r) => RegisterBsDate(r.Date)),
+                (RegisterAdDateHeader, r => RegisterAdDate(r.Date)),
                 ("Type", r => r.DocumentType.ToString()),
                 ("Document No", r => r.DocumentCode),
                 ("Import Declaration No", r => r.ImportDeclarationNo),
@@ -1188,6 +1190,18 @@ public static partial class ReportSpreadsheetExporter
             },
             XlsxContentType,
             fileName);
+
+    /// <summary>Phase 71 -- a statutory register's date, in two columns whatever the calendar toggle says: BS (the
+    /// calendar its VAT period is kept in, Rule 26) and AD beside it. Both are text in <c>yyyy-MM-dd</c>, so each
+    /// still sorts; the register is the record a return is filed from, where the on-screen grid is a working view
+    /// and keeps following the toggle. A date outside the BS table leaves its BS cell empty, never a guessed date.</summary>
+    private const string RegisterBsDateHeader = "Date (BS)";
+
+    private const string RegisterAdDateHeader = "Date (AD)";
+
+    private static object? RegisterBsDate(DateOnly date) => BillDate.Bs(date);
+
+    private static object? RegisterAdDate(DateOnly date) => BillDate.Ad(date);
 
     private static void WriteTotalRow(IXLWorksheet sheet, int rowCount, string label, int labelColumn, decimal total)
     {
