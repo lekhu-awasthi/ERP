@@ -34,6 +34,7 @@ public sealed class UpdateAccountingDefaultsCommandHandler(IAppDbContext db)
                 request.DefaultServiceChargeAccountId,
                 request.DefaultRoundingAccountId,
                 request.DefaultCashOverShortAccountId,
+                request.DefaultPackagingFeeAccountId,
             }
             .Where(x => x is not null)
             .Select(x => x!.Value)
@@ -70,7 +71,8 @@ public sealed class UpdateAccountingDefaultsCommandHandler(IAppDbContext db)
         settings.SetPosDefaults(
             request.DefaultServiceChargeAccountId,
             request.DefaultRoundingAccountId,
-            request.DefaultCashOverShortAccountId);
+            request.DefaultCashOverShortAccountId,
+            request.DefaultPackagingFeeAccountId);
         await db.SaveChangesAsync(cancellationToken);
 
         return new UpdateAccountingDefaultsResult(
@@ -90,6 +92,7 @@ public sealed class UpdateAccountingDefaultsCommandHandler(IAppDbContext db)
             settings.DefaultLandedCostClearingAccountId,
             settings.DefaultServiceChargeAccountId,
             settings.DefaultRoundingAccountId,
-            settings.DefaultCashOverShortAccountId);
+            settings.DefaultCashOverShortAccountId,
+            settings.DefaultPackagingFeeAccountId);
     }
 }

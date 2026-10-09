@@ -88,6 +88,8 @@ export interface Product {
   availableForSale: boolean;
   /** Phase 60 -- a till sale of this product carries its location's service charge. */
   serviceChargeApplicable: boolean;
+  /** Phase 70 -- a parcel of this product carries its location's packaging fee; on unless exempted. */
+  packagingFeeApplicable: boolean;
   sellingPrice: number;
   purchasePrice: number;
   vatRate: VatRate;
@@ -151,6 +153,8 @@ export interface CreateProductRequest {
   availableForSale: boolean;
   /** Phase 60 -- a till sale of this product carries its location's service charge. */
   serviceChargeApplicable: boolean;
+  /** Phase 70 -- a parcel of this product carries its location's packaging fee; on unless exempted. */
+  packagingFeeApplicable: boolean;
   sellingPrice: number;
   purchasePrice: number;
   vatRate: VatRate;
@@ -180,6 +184,8 @@ export interface UpdateProductRequest {
   availableForSale: boolean;
   /** Phase 60 -- a till sale of this product carries its location's service charge. */
   serviceChargeApplicable: boolean;
+  /** Phase 70 -- a parcel of this product carries its location's packaging fee; on unless exempted. */
+  packagingFeeApplicable: boolean;
   sellingPrice: number;
   purchasePrice: number;
   vatRate: VatRate;

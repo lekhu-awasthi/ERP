@@ -15,7 +15,8 @@ public sealed class CreditNotePostingRule : IGlPostingRule<CreditNotePostingInpu
 {
     public IReadOnlyList<GlLineInput> BuildLines(CreditNotePostingInput document)
     {
-        var receivable = document.Lines.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount) + document.RoundOff;
+        var receivable = document.Lines.Sum(x => x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount + x.VatAmount)
+            + document.RoundOff;
 
         var lines = new List<GlLineInput>
         {
@@ -26,8 +27,8 @@ public sealed class CreditNotePostingRule : IGlPostingRule<CreditNotePostingInpu
             .GroupBy(x => x.SalesAccountId)
             .Select(g => new GlLineInput(g.Key, g.Sum(x => x.Amount), 0)));
 
-        // Phase 63 -- the reverse of InvoicePostingRule's two till legs. Both are zero on an ERP note,
-        // so its entry is unchanged.
+        // Phase 63 -- the reverse of InvoicePostingRule's till legs (phase 70 added the packaging fee). All
+        // are zero on an ERP note, so its entry is unchanged.
         var totalServiceCharge = document.Lines.Sum(x => x.ServiceChargeAmount);
         if (totalServiceCharge > 0)
         {
@@ -35,6 +36,15 @@ public sealed class CreditNotePostingRule : IGlPostingRule<CreditNotePostingInpu
                 document.ServiceChargeAccountId
                     ?? throw new InvalidOperationException("A service charge needs its account resolved before posting."),
                 totalServiceCharge, 0));
+        }
+
+        var totalPackagingFee = document.Lines.Sum(x => x.PackagingFeeAmount);
+        if (totalPackagingFee > 0)
+        {
+            lines.Add(new GlLineInput(
+                document.PackagingFeeAccountId
+                    ?? throw new InvalidOperationException("A packaging fee needs its account resolved before posting."),
+                totalPackagingFee, 0));
         }
 
         if (document.RoundOff != 0)

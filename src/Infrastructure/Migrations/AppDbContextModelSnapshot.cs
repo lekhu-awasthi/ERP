@@ -579,6 +579,10 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<bool>("PackagingFeeApplicable")
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
                     b.Property<Guid?>("ParentProductId")
                         .HasColumnType("uniqueidentifier");
 
@@ -4106,6 +4110,20 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("PackagingFeeAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PackagingFeeBasis")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("None");
+
+                    b.Property<decimal>("PackagingFeeValue")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)")
+                        .HasDefaultValue(0m);
+
                     b.Property<bool>("PrintCreditNote")
                         .HasColumnType("bit");
 
@@ -4140,6 +4158,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("BillingLocationId");
+
+                    b.HasIndex("PackagingFeeAccountId");
 
                     b.HasIndex("RoundOffAccountId");
 
@@ -4264,6 +4284,17 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<string>("Note")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("PackagingFeeBasis")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("None");
+
+                    b.Property<decimal>("PackagingFeeValue")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)")
+                        .HasDefaultValue(0m);
 
                     b.Property<Guid?>("ParcelledFromLineId")
                         .HasColumnType("uniqueidentifier");
@@ -5579,6 +5610,22 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<decimal>("PackagingFeeAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<string>("PackagingFeeBasis")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("None");
+
+                    b.Property<decimal>("PackagingFeeValue")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)")
+                        .HasDefaultValue(0m);
+
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uniqueidentifier");
 
@@ -6051,6 +6098,22 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.Property<Guid>("InvoiceId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("PackagingFeeAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<string>("PackagingFeeBasis")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("None");
+
+                    b.Property<decimal>("PackagingFeeValue")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)")
+                        .HasDefaultValue(0m);
 
                     b.Property<Guid?>("PosOrderLineId")
                         .HasColumnType("uniqueidentifier");
@@ -10502,6 +10565,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid?>("DefaultLandedCostClearingAccountId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("DefaultPackagingFeeAccountId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("DefaultProductionCostAccountId")
                         .HasColumnType("uniqueidentifier");
 
@@ -11841,6 +11907,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("BillingLocationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Accounting.Account", null)
+                        .WithMany()
+                        .HasForeignKey("PackagingFeeAccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("ErpApp.Domain.Accounting.Account", null)
                         .WithMany()

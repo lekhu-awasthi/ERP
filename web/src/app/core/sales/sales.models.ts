@@ -214,6 +214,8 @@ export interface InvoiceLineDto extends InvoiceLineInput {
    *  vatAmount already includes the VAT on its service charge, which is inside the VAT base. */
   serviceChargeRate: number;
   serviceChargeAmount: number;
+  /** Phase 70 -- a parcel's packaging fee, also inside the VAT base; zero on every ERP line. */
+  packagingFeeAmount: number;
 }
 
 /** Phase 61 -- which front end raised an invoice. */
@@ -233,6 +235,8 @@ export interface InvoicePosSaleDto {
   sessionCode: string | null;
   orderType: PosTab | null;
   serviceChargeTotal: number;
+  /** Phase 70. */
+  packagingFeeTotal: number;
   roundOff: number;
   tenders: InvoiceTenderDto[];
   tenderedAmount: number;
@@ -574,6 +578,8 @@ export interface CreditNoteLineDto extends CreditNoteLineInput {
   conversionFactor: number;
   /** Phase 63 -- the service charge a till refund line gives back; zero on an ERP line. */
   serviceChargeAmount: number;
+  /** Phase 70 -- the packaging fee it gives back. */
+  packagingFeeAmount: number;
 }
 
 /** Phase 63 -- one way a till refund was paid back, as frozen on the credit note. */
@@ -590,6 +596,8 @@ export interface CreditNotePosRefundDto {
   sessionCode: string | null;
   reason: string | null;
   serviceChargeTotal: number;
+  /** Phase 70. */
+  packagingFeeTotal: number;
   roundOff: number;
   grandTotal: number;
   payouts: CreditNotePayoutDto[];
@@ -735,6 +743,8 @@ export interface SalesMasterReportRowDto {
   netSales: number;
   /** Phase 61 -- a till line's service charge (zero elsewhere); totalAmount includes it. */
   serviceCharge: number;
+  /** Phase 70 -- a parcel's packaging fee (zero elsewhere); totalAmount includes it. */
+  packagingFee: number;
   vatType: VatRate;
   vatAmount: number;
   totalAmount: number;

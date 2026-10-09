@@ -247,6 +247,20 @@
         </div>
 
         <div class="mb-4">
+          <label class="form-label small fw-semibold" for="accounting-defaults-page-default-packaging-fee-account">Default Packaging Fee Account</label>
+          <select id="accounting-defaults-page-default-packaging-fee-account"
+            class="form-select"
+            (change)="defaultPackagingFeeAccountId.set($any($event.target).value)"
+          >
+            <option value="" [selected]="!defaultPackagingFeeAccountId()">— Not set —</option>
+            @for (account of sortedAccounts(); track account.id) {
+              <option [value]="account.id" [selected]="account.id === defaultPackagingFeeAccountId()">{{ account.code }} — {{ account.name }}</option>
+            }
+          </select>
+          <p class="form-text">Credited with a parcel&#39;s packaging fee when its location names no account of its own.</p>
+        </div>
+
+        <div class="mb-4">
           <label class="form-label small fw-semibold" for="accounting-defaults-page-default-rounding-account">Default Rounding Account</label>
           <select id="accounting-defaults-page-default-rounding-account"
             class="form-select"

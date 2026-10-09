@@ -139,12 +139,12 @@ public static class CreditNoteInvoiceReferences
         // phase-42 door, and the rows are one invoice's notes.
         var lines = await notes
             .SelectMany(x => x.Lines)
-            .Select(x => new { x.Amount, x.ServiceChargeAmount, x.VatAmount })
+            .Select(x => new { x.Amount, x.ServiceChargeAmount, x.PackagingFeeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
         var roundOffs = await notes.Select(x => x.RoundOff).ToListAsync(cancellationToken);
 
         return (
-            lines.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount) + roundOffs.Sum(),
+            lines.Sum(x => x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount + x.VatAmount) + roundOffs.Sum(),
             lines.Sum(x => x.VatAmount));
     }
 

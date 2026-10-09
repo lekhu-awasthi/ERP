@@ -10,7 +10,7 @@ internal static class CreditNoteAccountResolver
     public static async Task<CreditNotePostingInput> ResolveAsync(
         IAppDbContext db,
         Guid organizationId,
-        IEnumerable<(Guid ProductId, decimal Amount, decimal VatAmount, decimal ServiceChargeAmount)> lines,
+        IEnumerable<(Guid ProductId, decimal Amount, decimal VatAmount, decimal ServiceChargeAmount, decimal PackagingFeeAmount)> lines,
         bool resolveInventoryAccounts,
         CancellationToken cancellationToken)
     {
@@ -21,7 +21,7 @@ internal static class CreditNoteAccountResolver
         // Phase 63 -- a till refund line gives back its service charge, so it is resolved exactly as
         // the sale line was; an ERP line's is zero.
         var invoiceInput = await InvoiceAccountResolver.ResolveAsync(
-            db, organizationId, lines.Select(x => (x.ProductId, x.Amount, x.VatAmount, x.ServiceChargeAmount)),
+            db, organizationId, lines.Select(x => (x.ProductId, x.Amount, x.VatAmount, x.ServiceChargeAmount, x.PackagingFeeAmount)),
             resolveInventoryAccounts, cancellationToken);
 
         return new CreditNotePostingInput(

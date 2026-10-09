@@ -2,7 +2,9 @@ using ErpApp.Application.Accounting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Pos.Queries.GetPosLocationSettings;
+using ErpApp.Application.Pos.Restaurant;
 using ErpApp.Domain.Pos;
+using ErpApp.Domain.Sales;
 using FluentValidation;
 using FluentValidation.Results;
 using MediatR;
@@ -27,6 +29,9 @@ public sealed class UpdatePosLocationSettingsCommandHandler(IAppDbContext db)
             {
                 request.ServiceChargeEnabled ? request.ServiceChargeAccountId : null,
                 request.RoundOffEnabled ? request.RoundOffAccountId : null,
+                request.PackagingFeeBasis is PackagingFeeBasis.Percent or PackagingFeeBasis.PerUnit
+                    ? request.PackagingFeeAccountId
+                    : null,
             }
             .Where(x => x is not null)
             .Select(x => x!.Value);
@@ -53,12 +58,22 @@ public sealed class UpdatePosLocationSettingsCommandHandler(IAppDbContext db)
             db.PosLocationSettings.Add(settings);
         }
 
+        // An absent basis keeps the stored fee and its account (see the command's note).
+        var packagingFee = request.PackagingFeeBasis is { } basis
+            ? PosOrderCommands.Run(() => PackagingFee.Create(basis, request.PackagingFeeValue))
+            : settings.PackagingFee;
+        var packagingFeeAccountId = request.PackagingFeeBasis is null
+            ? settings.PackagingFeeAccountId
+            : request.PackagingFeeAccountId;
+
         settings.Update(
             location.PosMode,
             request.ServiceChargeEnabled,
             request.ServiceChargeRate,
             request.ServiceChargeAccountId,
             request.ServiceChargeOnTakeAway,
+            packagingFee,
+            packagingFeeAccountId,
             request.RoundOffEnabled,
             request.RoundOffAccountId,
             request.CashVerificationRequired,

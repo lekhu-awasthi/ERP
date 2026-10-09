@@ -15,6 +15,8 @@ namespace ErpApp.Application.Catalog.Commands.CreateProduct;
     /// one physical unit per FIFO layer. Same preconditions as <paramref name="BatchTracking"/>.</param>
     /// <param name="ServiceChargeApplicable">Phase 60 -- a till sale of this product carries its
     /// location's service charge. See <see cref="Product.ServiceChargeApplicable"/>.</param>
+    /// <param name="PackagingFeeApplicable">Phase 70 -- a parcel of this product carries its location's
+    /// packaging fee. Null takes the product's default, on. See <see cref="Product.PackagingFeeApplicable"/>.</param>
 public sealed record CreateProductCommand(
     Guid OrganizationId,
     ProductType Type,
@@ -33,7 +35,8 @@ public sealed record CreateProductCommand(
     IReadOnlyList<Guid>? LocationIds = null,
     bool BatchTracking = false,
     bool SerialTracking = false,
-    bool ServiceChargeApplicable = false)
+    bool ServiceChargeApplicable = false,
+    bool? PackagingFeeApplicable = null)
     : IRequest<CreateProductResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData, IMeteredProduct
 {
     public string PermissionKey => PermissionKeys.ProductManage;

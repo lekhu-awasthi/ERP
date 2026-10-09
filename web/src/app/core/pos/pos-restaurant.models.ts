@@ -1,5 +1,5 @@
 import { VatRate } from '../catalog/catalog.models';
-import { PosTab, PosTillCategory, PosWalkInCustomer } from './pos.models';
+import { PackagingFeeBasis, PosTab, PosTillCategory, PosWalkInCustomer } from './pos.models';
 
 // Phase 64 -- the restaurant: floor plan, kitchen stations, orders and kitchen tickets. Mirrors
 // Application.Pos's restaurant DTOs; enums arrive as strings.
@@ -120,6 +120,9 @@ export interface PosRestaurant {
   defaultTab: PosTab | null;
   serviceChargeEnabled: boolean;
   serviceChargeRate: number;
+  /** Phase 70 -- the location's packaging fee on a parcel. */
+  packagingFeeBasis: PackagingFeeBasis;
+  packagingFeeValue: number;
   printKot: boolean;
   canvasWidth: number;
   canvasHeight: number;
@@ -169,6 +172,8 @@ export interface PosOrderLine {
   toBill: number;
   amount: number;
   serviceChargeAmount: number;
+  /** Phase 70 -- frozen when the line was sent (a Take Away or Delivery order) or marked (a parcel). */
+  packagingFeeAmount: number;
   vatAmount: number;
   total: number;
   /** Phase 68 -- parcelled from a dine-in line; its service charge was decided when it was marked. */
@@ -234,6 +239,8 @@ export interface PosOrder {
   voidedByName: string | null;
   amount: number;
   serviceCharge: number;
+  /** Phase 70. */
+  packagingFee: number;
   vat: number;
   /** The estimate before any bill, not yet rounded to the rupee. */
   total: number;
@@ -255,6 +262,8 @@ export interface PosOrderInvoice {
   code: string;
   grandTotal: number;
   serviceCharge: number;
+  /** Phase 70. */
+  packagingFee: number;
   roundOff: number;
   isVoided: boolean;
 }
@@ -323,6 +332,8 @@ export interface PosOrderBillLine {
   serviceChargeRate: number;
   amount: number;
   serviceChargeAmount: number;
+  /** Phase 70 -- frozen when the line was sent (a Take Away or Delivery order) or marked (a parcel). */
+  packagingFeeAmount: number;
   vatAmount: number;
   total: number;
   remainingAfter: number;
@@ -335,6 +346,8 @@ export interface PosOrderBillPreview {
   lines: PosOrderBillLine[];
   amount: number;
   serviceCharge: number;
+  /** Phase 70. */
+  packagingFee: number;
   vat: number;
   unrounded: number;
   roundOff: number;
@@ -363,6 +376,8 @@ export interface CreatePosOrderInvoiceResult {
   code: string;
   grandTotal: number;
   serviceCharge: number;
+  /** Phase 70. */
+  packagingFee: number;
   roundOff: number;
   tendered: number;
   changeAmount: number;

@@ -40,6 +40,7 @@ namespace ErpApp.Application.Trade;
 /// The vendor's Product Sales and Customer Sales both print a Service Charge column (read live
 /// 2026-10-02). So each fact now carries its line's service charge beside the product's revenue, and
 /// <c>TotalAmount</c> is net + service charge + VAT, which is the register's total for the same lines.
+/// Phase 70 adds a till line's packaging fee the same way: its own measure, inside <c>TotalAmount</c>.
 /// The monthly crosstabs measure <c>NetAmount</c> and are unchanged.</para>
 ///
 /// <para><b>Phase 66 -- the channel.</b> The vendor's POS reports are its ERP reports read with
@@ -71,9 +72,11 @@ internal static class TradeLineReader
         // Phase 66 -- a till line's service charge, signed like the rest (zero on every ERP line and
         // every purchase line). See the class comment: it is its own measure, never folded into
         // NetAmount, and it is in TotalAmount so a total here equals the Sales Register's.
-        decimal ServiceCharge = 0m)
+        decimal ServiceCharge = 0m,
+        // Phase 70 -- a parcel's packaging fee, signed and measured exactly as ServiceCharge is.
+        decimal PackagingFee = 0m)
     {
-        public decimal TotalAmount => NetAmount + ServiceCharge + VatAmount;
+        public decimal TotalAmount => NetAmount + ServiceCharge + PackagingFee + VatAmount;
     }
 
     /// <para><b>Phase 35b</b> -- <paramref name="locationId"/> is the report's own Billing Location
@@ -115,7 +118,11 @@ internal static class TradeLineReader
         var invoiceIds = invoices.Select(x => x.Id).ToList();
         var invoiceLines = await db.InvoiceLines
             .Where(x => invoiceIds.Contains(x.InvoiceId))
-            .Select(x => new { x.InvoiceId, x.ProductId, x.Quantity, x.Rate, x.DiscountPct, x.Amount, x.VatAmount, x.VatRate, x.ServiceChargeAmount })
+            .Select(x => new
+            {
+                x.InvoiceId, x.ProductId, x.Quantity, x.Rate, x.DiscountPct, x.Amount, x.VatAmount, x.VatRate,
+                x.ServiceChargeAmount, x.PackagingFeeAmount,
+            })
             .ToListAsync(cancellationToken);
 
         var creditNoteQuery = db.CreditNotes
@@ -133,7 +140,11 @@ internal static class TradeLineReader
         var creditNoteIds = creditNotes.Select(x => x.Id).ToList();
         var creditNoteLines = await db.CreditNoteLines
             .Where(x => creditNoteIds.Contains(x.CreditNoteId))
-            .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, x.Rate, x.DiscountPct, x.Amount, x.VatAmount, x.VatRate, x.ServiceChargeAmount })
+            .Select(x => new
+            {
+                x.CreditNoteId, x.ProductId, x.Quantity, x.Rate, x.DiscountPct, x.Amount, x.VatAmount, x.VatRate,
+                x.ServiceChargeAmount, x.PackagingFeeAmount,
+            })
             .ToListAsync(cancellationToken);
 
         var invoicesById = invoices.ToDictionary(x => x.Id);
@@ -147,7 +158,7 @@ internal static class TradeLineReader
             facts.Add(BuildFact(
                 document.ContactId, line.ProductId, document.Date,
                 line.VatRate, line.Quantity, line.Rate, line.DiscountPct, line.Amount, line.VatAmount, sign: 1,
-                document.LocationId, line.ServiceChargeAmount));
+                document.LocationId, line.ServiceChargeAmount, line.PackagingFeeAmount));
         }
 
         foreach (var line in creditNoteLines)
@@ -156,7 +167,7 @@ internal static class TradeLineReader
             facts.Add(BuildFact(
                 document.ContactId, line.ProductId, document.Date,
                 line.VatRate, line.Quantity, line.Rate, line.DiscountPct, line.Amount, line.VatAmount, sign: -1,
-                document.LocationId, line.ServiceChargeAmount));
+                document.LocationId, line.ServiceChargeAmount, line.PackagingFeeAmount));
         }
 
         return facts;
@@ -219,7 +230,7 @@ internal static class TradeLineReader
     private static Fact BuildFact(
         Guid contactId, Guid productId, DateOnly date, VatRate vatRate,
         decimal quantity, decimal rate, decimal discountPct, decimal netAmount, decimal vatAmount, int sign,
-        Guid? locationId = null, decimal serviceCharge = 0m)
+        Guid? locationId = null, decimal serviceCharge = 0m, decimal packagingFee = 0m)
     {
         var gross = quantity * rate;
         var itemDiscount = gross * discountPct / 100m;
@@ -243,6 +254,7 @@ internal static class TradeLineReader
             sign * netAmount,
             sign * vatAmount,
             locationId,
-            sign * serviceCharge);
+            sign * serviceCharge,
+            sign * packagingFee);
     }
 }

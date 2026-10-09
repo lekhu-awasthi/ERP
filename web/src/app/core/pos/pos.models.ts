@@ -5,6 +5,15 @@ import { PosMode } from '../organizations/organizations.models';
 // Phase 60 -- the ERP side of point-of-sale configuration (docs/phase-60-status.md). Mirrors
 // Application.Pos's DTOs; enums arrive as strings (JsonStringEnumConverter).
 
+/** Phase 70 -- how a location charges for packing a parcel. Mirrors Domain.Sales.PackagingFeeBasis. */
+export type PackagingFeeBasis = 'None' | 'Percent' | 'PerUnit';
+
+export const PACKAGING_FEE_BASIS_LABELS: Readonly<Record<PackagingFeeBasis, string>> = {
+  None: 'No packaging fee',
+  Percent: 'A percent of each parcelled line',
+  PerUnit: 'A flat amount per unit',
+};
+
 /** Which tab a till opens on. Mirrors Domain.Pos.PosTab. */
 export type PosTab = 'Retail' | 'DineIn' | 'TakeAway' | 'Delivery';
 
@@ -58,6 +67,10 @@ export interface PosLocationSettings {
   serviceChargeAccountId: string | null;
   /** Phase 68 -- whether food parcelled from a dine-in line keeps its service charge. */
   serviceChargeOnTakeAway: boolean;
+  /** Phase 70 -- the packaging fee on every parcel; the value is a percent or rupees a unit, per the basis. */
+  packagingFeeBasis: PackagingFeeBasis;
+  packagingFeeValue: number;
+  packagingFeeAccountId: string | null;
   roundOffEnabled: boolean;
   roundOffAccountId: string | null;
   cashVerificationRequired: boolean;
@@ -80,6 +93,10 @@ export interface UpdatePosLocationSettingsRequest {
   serviceChargeAccountId: string | null;
   /** Phase 68 -- whether food parcelled from a dine-in line keeps its service charge. */
   serviceChargeOnTakeAway: boolean;
+  /** Phase 70 -- the packaging fee on every parcel; the value is a percent or rupees a unit, per the basis. */
+  packagingFeeBasis: PackagingFeeBasis;
+  packagingFeeValue: number;
+  packagingFeeAccountId: string | null;
   roundOffEnabled: boolean;
   roundOffAccountId: string | null;
   cashVerificationRequired: boolean;
@@ -135,6 +152,10 @@ export interface PosTill {
   defaultTab: PosTab | null;
   serviceChargeEnabled: boolean;
   serviceChargeRate: number;
+  /** Phase 70 -- the location's packaging fee, which a Take Away or Delivery line carries (times the
+   *  product's flag), priced by pos-bill.ts exactly as the server prices it. */
+  packagingFeeBasis: PackagingFeeBasis;
+  packagingFeeValue: number;
   roundOffEnabled: boolean;
   cashVerificationRequired: boolean;
   denominations: number[];
@@ -172,6 +193,8 @@ export interface PosProduct {
   /** The primary unit's rate, exclusive of VAT, after the tenant's price basis. */
   rate: number;
   serviceChargeApplicable: boolean;
+  /** Phase 70 -- the product's half of the packaging-fee rule. */
+  packagingFeeApplicable: boolean;
   batchTracking: boolean;
   serialTracking: boolean;
   barcode: string | null;
@@ -193,6 +216,8 @@ export interface PosSalesSummary {
   salesCount: number;
   subTotal: number;
   serviceCharge: number;
+  /** Phase 70. */
+  packagingFee: number;
   vat: number;
   roundOff: number;
   grandTotal: number;
@@ -223,6 +248,8 @@ export interface PosRefundsSummary {
   refundsCount: number;
   subTotal: number;
   serviceCharge: number;
+  /** Phase 70. */
+  packagingFee: number;
   vat: number;
   roundOff: number;
   grandTotal: number;
@@ -322,6 +349,8 @@ export interface CreatePosSaleResult {
   code: string;
   grandTotal: number;
   serviceCharge: number;
+  /** Phase 70. */
+  packagingFee: number;
   roundOff: number;
   tendered: number;
   changeAmount: number;
@@ -373,6 +402,8 @@ export interface PosRefundableLine {
   rate: number;
   discountPct: number;
   serviceChargeRate: number;
+  /** Phase 70 -- what the sale line was charged for packing. */
+  packagingFeeAmount: number;
   vatRate: VatRate;
   lineTotal: number;
 }
@@ -421,6 +452,8 @@ export interface PosRefundPreviewLine {
   quantity: number;
   amount: number;
   serviceChargeAmount: number;
+  /** Phase 70. */
+  packagingFeeAmount: number;
   vatAmount: number;
   lineTotal: number;
 }
@@ -430,6 +463,8 @@ export interface PosRefundPreview {
   lines: PosRefundPreviewLine[];
   subTotal: number;
   serviceCharge: number;
+  /** Phase 70. */
+  packagingFee: number;
   vat: number;
   roundOff: number;
   grandTotal: number;
@@ -455,6 +490,8 @@ export interface CreatePosRefundResult {
   code: string;
   grandTotal: number;
   serviceCharge: number;
+  /** Phase 70. */
+  packagingFee: number;
   roundOff: number;
   paidOut: number;
   toAccount: number;
@@ -496,6 +533,8 @@ export interface PosReceiptLine {
   discountPct: number;
   amount: number;
   serviceChargeAmount: number;
+  /** Phase 70. */
+  packagingFeeAmount: number;
   vatRate: VatRate;
   vatAmount: number;
   lineTotal: number;
@@ -533,6 +572,8 @@ export interface PosReceipt {
   discountAmount: number;
   subTotal: number;
   serviceCharge: number;
+  /** Phase 70 -- what the parcels on the bill were charged for packing. */
+  packagingFee: number;
   taxableAmount: number;
   nonTaxableAmount: number;
   vat: number;
@@ -573,6 +614,8 @@ export interface PosRefundReceipt {
   discountAmount: number;
   subTotal: number;
   serviceCharge: number;
+  /** Phase 70 -- what the parcels on the bill were charged for packing. */
+  packagingFee: number;
   taxableAmount: number;
   nonTaxableAmount: number;
   vat: number;

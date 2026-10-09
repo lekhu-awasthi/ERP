@@ -9,6 +9,8 @@ import { ConfigurationService } from '../../../core/configuration/configuration.
 import { PosMode } from '../../../core/organizations/organizations.models';
 import {
   DEFAULT_DENOMINATIONS,
+  PACKAGING_FEE_BASIS_LABELS,
+  PackagingFeeBasis,
   POS_MODE_LABELS,
   POS_TAB_LABELS,
   PosConfiguration,
@@ -42,6 +44,8 @@ export class PosSettingsPage {
 
   protected readonly modeLabels = POS_MODE_LABELS;
   protected readonly tabLabels = POS_TAB_LABELS;
+  protected readonly packagingFeeBasisLabels = PACKAGING_FEE_BASIS_LABELS;
+  protected readonly packagingFeeBases: readonly PackagingFeeBasis[] = ['None', 'Percent', 'PerUnit'];
 
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
@@ -62,6 +66,10 @@ export class PosSettingsPage {
   protected readonly serviceChargeAccountId = signal('');
   /** Phase 68 -- on by default: a parcelled dine-in item keeps the charge it was ordered with. */
   protected readonly serviceChargeOnTakeAway = signal(true);
+  /** Phase 70 -- the packaging fee on every parcel. */
+  protected readonly packagingFeeBasis = signal<PackagingFeeBasis>('None');
+  protected readonly packagingFeeValue = signal(0);
+  protected readonly packagingFeeAccountId = signal('');
   protected readonly roundOffEnabled = signal(false);
   protected readonly roundOffAccountId = signal('');
   protected readonly cashVerificationRequired = signal(false);
@@ -138,6 +146,9 @@ export class PosSettingsPage {
         serviceChargeRate: this.serviceChargeEnabled() ? this.serviceChargeRate() : 0,
         serviceChargeAccountId: this.serviceChargeEnabled() ? this.serviceChargeAccountId() || null : null,
         serviceChargeOnTakeAway: this.serviceChargeOnTakeAway(),
+        packagingFeeBasis: this.packagingFeeBasis(),
+        packagingFeeValue: this.packagingFeeBasis() === 'None' ? 0 : this.packagingFeeValue(),
+        packagingFeeAccountId: this.packagingFeeBasis() === 'None' ? null : this.packagingFeeAccountId() || null,
         roundOffEnabled: this.roundOffEnabled(),
         roundOffAccountId: this.roundOffEnabled() ? this.roundOffAccountId() || null : null,
         cashVerificationRequired: this.cashVerificationRequired(),
@@ -223,6 +234,9 @@ export class PosSettingsPage {
     this.serviceChargeRate.set(settings.serviceChargeRate);
     this.serviceChargeAccountId.set(settings.serviceChargeAccountId ?? '');
     this.serviceChargeOnTakeAway.set(settings.serviceChargeOnTakeAway);
+    this.packagingFeeBasis.set(settings.packagingFeeBasis);
+    this.packagingFeeValue.set(settings.packagingFeeValue);
+    this.packagingFeeAccountId.set(settings.packagingFeeAccountId ?? '');
     this.roundOffEnabled.set(settings.roundOffEnabled);
     this.roundOffAccountId.set(settings.roundOffAccountId ?? '');
     this.cashVerificationRequired.set(settings.cashVerificationRequired);

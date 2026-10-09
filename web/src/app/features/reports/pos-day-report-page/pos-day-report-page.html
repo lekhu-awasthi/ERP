@@ -91,6 +91,7 @@
               <tbody>
                 <tr><th scope="row" class="fw-normal">Sub total (after discount)</th><td class="text-end">{{ r.sales.subTotal | amount }}</td></tr>
                 <tr><th scope="row" class="fw-normal">Service charge</th><td class="text-end">{{ r.sales.serviceCharge | amount }}</td></tr>
+                <tr><th scope="row" class="fw-normal">Packaging</th><td class="text-end">{{ r.sales.packagingFee | amount }}</td></tr>
                 <tr><th scope="row" class="fw-normal">Non-taxable</th><td class="text-end">{{ r.sales.nonTaxable | amount }}</td></tr>
                 <tr><th scope="row" class="fw-normal">Taxable</th><td class="text-end">{{ r.sales.taxable | amount }}</td></tr>
                 <tr><th scope="row" class="fw-normal">VAT</th><td class="text-end">{{ r.sales.vat | amount }}</td></tr>
@@ -111,6 +112,7 @@
               <tbody>
                 <tr><th scope="row" class="fw-normal">Sub total</th><td class="text-end">{{ r.sales.refunds.subTotal | amount }}</td></tr>
                 <tr><th scope="row" class="fw-normal">Service charge returned</th><td class="text-end">{{ r.sales.refunds.serviceCharge | amount }}</td></tr>
+                <tr><th scope="row" class="fw-normal">Packaging returned</th><td class="text-end">{{ r.sales.refunds.packagingFee | amount }}</td></tr>
                 <tr><th scope="row" class="fw-normal">Non-taxable</th><td class="text-end">{{ r.sales.refunds.nonTaxable | amount }}</td></tr>
                 <tr><th scope="row" class="fw-normal">Taxable</th><td class="text-end">{{ r.sales.refunds.taxable | amount }}</td></tr>
                 <tr><th scope="row" class="fw-normal">VAT returned</th><td class="text-end">{{ r.sales.refunds.vat | amount }}</td></tr>

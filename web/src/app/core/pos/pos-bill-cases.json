@@ -471,6 +471,220 @@
         "roundOff": 0.46,
         "grandTotal": 145
       }
+    },
+    {
+      "why": "Phase 70: two take-away momo at Rs 20 a box. The fee is per unit and inside the VAT base; a Take Away line carries no service charge.",
+      "roundOff": true,
+      "discountPct": 0,
+      "lines": [
+        {
+          "quantity": 2,
+          "rate": 200,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0,
+          "packagingFeeBasis": "PerUnit",
+          "packagingFeeValue": 20
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 400,
+            "serviceCharge": 0,
+            "packagingFee": 40,
+            "vat": 57.2,
+            "total": 497.2
+          }
+        ],
+        "subTotal": 400,
+        "serviceCharge": 0,
+        "packagingFee": 40,
+        "vat": 57.2,
+        "roundOff": -0.2,
+        "grandTotal": 497
+      }
+    },
+    {
+      "why": "Phase 70: a 5% packaging fee is taken on the amount after the line's 10% discount, and charged VAT with it.",
+      "roundOff": true,
+      "discountPct": 0,
+      "lines": [
+        {
+          "quantity": 1,
+          "rate": 199.99,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 10,
+          "serviceChargeRate": 0,
+          "packagingFeeBasis": "Percent",
+          "packagingFeeValue": 5
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 179.99,
+            "serviceCharge": 0,
+            "packagingFee": 9,
+            "vat": 24.57,
+            "total": 213.56
+          }
+        ],
+        "subTotal": 179.99,
+        "serviceCharge": 0,
+        "packagingFee": 9,
+        "vat": 24.57,
+        "roundOff": 0.44,
+        "grandTotal": 214
+      }
+    },
+    {
+      "why": "Phase 70: an exempt item's fee is exempt too; VAT follows the line.",
+      "roundOff": false,
+      "discountPct": 0,
+      "lines": [
+        {
+          "quantity": 1,
+          "rate": 100,
+          "vatRate": "NoVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0,
+          "packagingFeeBasis": "PerUnit",
+          "packagingFeeValue": 15
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 100,
+            "serviceCharge": 0,
+            "packagingFee": 15,
+            "vat": 0,
+            "total": 115
+          }
+        ],
+        "subTotal": 100,
+        "serviceCharge": 0,
+        "packagingFee": 15,
+        "vat": 0,
+        "roundOff": 0,
+        "grandTotal": 115
+      }
+    },
+    {
+      "why": "Phase 70: a parcel from a dine-in tab carries both charges, each on the amount, never on each other; VAT on all three.",
+      "roundOff": true,
+      "discountPct": 0,
+      "lines": [
+        {
+          "quantity": 1,
+          "rate": 200,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 10,
+          "packagingFeeBasis": "Percent",
+          "packagingFeeValue": 10
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 200,
+            "serviceCharge": 20,
+            "packagingFee": 20,
+            "vat": 31.2,
+            "total": 271.2
+          }
+        ],
+        "subTotal": 200,
+        "serviceCharge": 20,
+        "packagingFee": 20,
+        "vat": 31.2,
+        "roundOff": -0.2,
+        "grandTotal": 271
+      }
+    },
+    {
+      "why": "Phase 70: a fractional quantity at a per-unit fee: 0.333 x Rs 20 is 6.66, rounded like every line figure.",
+      "roundOff": false,
+      "discountPct": 0,
+      "lines": [
+        {
+          "quantity": 0.333,
+          "rate": 45,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0,
+          "packagingFeeBasis": "PerUnit",
+          "packagingFeeValue": 20
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 14.99,
+            "serviceCharge": 0,
+            "packagingFee": 6.66,
+            "vat": 2.81,
+            "total": 24.46
+          }
+        ],
+        "subTotal": 14.99,
+        "serviceCharge": 0,
+        "packagingFee": 6.66,
+        "vat": 2.81,
+        "roundOff": 0,
+        "grandTotal": 24.46
+      }
+    },
+    {
+      "why": "Phase 70: a bill discount reduces the amount a percent fee is taken on, but never a per-unit one.",
+      "roundOff": true,
+      "discountPct": 5,
+      "lines": [
+        {
+          "quantity": 2,
+          "rate": 200,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0,
+          "packagingFeeBasis": "Percent",
+          "packagingFeeValue": 10
+        },
+        {
+          "quantity": 3,
+          "rate": 60,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0,
+          "packagingFeeBasis": "PerUnit",
+          "packagingFeeValue": 10
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 380,
+            "serviceCharge": 0,
+            "packagingFee": 38,
+            "vat": 54.34,
+            "total": 472.34
+          },
+          {
+            "amount": 171,
+            "serviceCharge": 0,
+            "packagingFee": 30,
+            "vat": 26.13,
+            "total": 227.13
+          }
+        ],
+        "subTotal": 551,
+        "serviceCharge": 0,
+        "packagingFee": 68,
+        "vat": 80.47,
+        "roundOff": -0.47,
+        "grandTotal": 699
+      }
     }
   ]
 }

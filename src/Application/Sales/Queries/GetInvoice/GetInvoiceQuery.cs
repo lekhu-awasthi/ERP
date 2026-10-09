@@ -48,7 +48,9 @@ public sealed record InvoiceLineDto(
     Guid? UnitId, string? UnitName, decimal ConversionFactor,
     // Phase 61 -- a till line's service charge rate and amount (zero on every ERP line). VatAmount
     // already includes the VAT on the service charge, which is inside the VAT base.
-    decimal ServiceChargeRate, decimal ServiceChargeAmount);
+    decimal ServiceChargeRate, decimal ServiceChargeAmount,
+    // Phase 70 -- a parcel's packaging fee, also inside the VAT base; zero on every ERP line.
+    decimal PackagingFeeAmount);
 
 /// <summary>Phase 61 -- one way a till sale was paid, as frozen on the invoice.</summary>
 public sealed record InvoiceTenderDto(Guid PaymentModeId, string PaymentModeName, PaymentModeKind Kind, decimal Amount);
@@ -64,6 +66,7 @@ public sealed record InvoicePosSaleDto(
     string? SessionCode,
     PosTab? OrderType,
     decimal ServiceChargeTotal,
+    decimal PackagingFeeTotal,
     decimal RoundOff,
     IReadOnlyList<InvoiceTenderDto> Tenders,
     decimal TenderedAmount,

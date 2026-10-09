@@ -192,6 +192,9 @@
             @if (bill.serviceCharge !== 0) {
               <dt>Service Charge ({{ till()!.serviceChargeRate }}%)</dt><dd>{{ bill.serviceCharge | amount }}</dd>
             }
+            @if (bill.packagingFee !== 0) {
+              <dt>Packaging</dt><dd>{{ bill.packagingFee | amount }}</dd>
+            }
             <dt>VAT</dt><dd>{{ bill.vat | amount }}</dd>
             @if (bill.roundOff !== 0) {
               <dt>Round Off</dt><dd>{{ bill.roundOff | amount }}</dd>

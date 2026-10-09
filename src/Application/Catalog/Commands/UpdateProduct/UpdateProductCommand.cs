@@ -32,7 +32,10 @@ public sealed record UpdateProductCommand(
     IReadOnlyList<Guid>? LocationIds = null,
     bool BatchTracking = false,
     bool SerialTracking = false,
-    bool ServiceChargeApplicable = false)
+    bool ServiceChargeApplicable = false,
+    // Phase 70 -- null leaves the product's flag as it is, so a caller that does not know the field never
+    // turns an exemption back on (see Product.PackagingFeeApplicable).
+    bool? PackagingFeeApplicable = null)
     : IRequest<UpdateProductResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData
 {
     public string PermissionKey => PermissionKeys.ProductManage;

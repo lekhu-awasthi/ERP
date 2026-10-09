@@ -155,7 +155,7 @@
                     <label class="form-label small fw-semibold" for="product-detail-page-re-order-level">Re-Order Level</label>
                     <input id="product-detail-page-re-order-level" type="number" class="form-control" formControlName="reOrderLevel" min="0" />
                   </div>
-                  <div class="col-12 col-sm-6 d-flex align-items-center gap-4 pt-4">
+                  <div class="col-12 col-sm-6 d-flex flex-wrap align-items-center column-gap-4 row-gap-2 pt-4">
                     <div class="form-check">
                       <input type="checkbox" class="form-check-input" id="availableForSale" formControlName="availableForSale" />
                       <label class="form-check-label small" for="availableForSale">Available For Sale</label>
@@ -165,6 +165,12 @@
                         aria-describedby="serviceChargeApplicable-help" />
                       <label class="form-check-label small" for="serviceChargeApplicable">Service Charge Applicable</label>
                       <span id="serviceChargeApplicable-help" class="visually-hidden">Point of sale: the location's service charge applies to this product</span>
+                    </div>
+                    <div class="form-check">
+                      <input type="checkbox" class="form-check-input" id="packagingFeeApplicable" formControlName="packagingFeeApplicable"
+                        aria-describedby="packagingFeeApplicable-help" />
+                      <label class="form-check-label small" for="packagingFeeApplicable">Packaging Fee Applicable</label>
+                      <span id="packagingFeeApplicable-help" class="visually-hidden">Point of sale: the location's packaging fee applies when this product is sold as a parcel</span>
                     </div>
                     <div class="form-check">
                       <input type="checkbox" class="form-check-input" id="trackInventory" formControlName="trackInventory" />
@@ -278,6 +284,8 @@
                 <dd class="col-8">{{ p.availableForSale ? 'Yes' : 'No' }}</dd>
                 <dt class="col-4 text-muted small">Service Charge Applicable</dt>
                 <dd class="col-8">{{ p.serviceChargeApplicable ? 'Yes' : 'No' }}</dd>
+                <dt class="col-4 text-muted small">Packaging Fee Applicable</dt>
+                <dd class="col-8">{{ p.packagingFeeApplicable ? 'Yes' : 'No' }}</dd>
                 <dt class="col-4 text-muted small">Track Inventory</dt>
                 <dd class="col-8">{{ p.trackInventory ? 'Yes' : 'No' }}</dd>
                 @if (p.batchTracking) {

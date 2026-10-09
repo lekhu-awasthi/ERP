@@ -168,15 +168,15 @@ public static class EmailMergeValueReader
             d.Lines.Select(l => (l.Amount, l.VatAmount)), d.DueDate);
 
         // Phase 61 -- a till sale's service charge sits in the VAT base beside its line (taxable or not,
-        // as the line is), and its round-off is part of what is owed. Both are zero on an ERP invoice,
-        // so this changes nothing there.
-        var serviceCharge = d.Lines.Sum(l => l.ServiceChargeAmount);
-        var taxableServiceCharge = d.Lines.Where(l => l.VatAmount != 0m).Sum(l => l.ServiceChargeAmount);
+        // as the line is), and its round-off is part of what is owed; phase 70's packaging fee sits there
+        // too. All are zero on an ERP invoice, so this changes nothing there.
+        var charges = d.Lines.Sum(l => l.ServiceChargeAmount + l.PackagingFeeAmount);
+        var taxableCharges = d.Lines.Where(l => l.VatAmount != 0m).Sum(l => l.ServiceChargeAmount + l.PackagingFeeAmount);
 
         return facts with
         {
-            TaxableTotal = facts.TaxableTotal + taxableServiceCharge,
-            NonTaxableTotal = facts.NonTaxableTotal + (serviceCharge - taxableServiceCharge),
+            TaxableTotal = facts.TaxableTotal + taxableCharges,
+            NonTaxableTotal = facts.NonTaxableTotal + (charges - taxableCharges),
             GrandTotal = d.GrandTotal,
         };
     }
@@ -217,14 +217,15 @@ public static class EmailMergeValueReader
             d.Lines.Select(l => (l.Amount, l.VatAmount)));
 
         // Phase 63 -- a till refund gives back its service charge (in the VAT base beside its line) and
-        // its round-off, as ReadInvoiceAsync counts the sale's. Both are zero on an ERP note.
-        var serviceCharge = d.Lines.Sum(l => l.ServiceChargeAmount);
-        var taxableServiceCharge = d.Lines.Where(l => l.VatAmount != 0m).Sum(l => l.ServiceChargeAmount);
+        // its round-off, as ReadInvoiceAsync counts the sale's, and phase 70 its packaging fee. All are zero
+        // on an ERP note.
+        var charges = d.Lines.Sum(l => l.ServiceChargeAmount + l.PackagingFeeAmount);
+        var taxableCharges = d.Lines.Where(l => l.VatAmount != 0m).Sum(l => l.ServiceChargeAmount + l.PackagingFeeAmount);
 
         return facts with
         {
-            TaxableTotal = facts.TaxableTotal + taxableServiceCharge,
-            NonTaxableTotal = facts.NonTaxableTotal + (serviceCharge - taxableServiceCharge),
+            TaxableTotal = facts.TaxableTotal + taxableCharges,
+            NonTaxableTotal = facts.NonTaxableTotal + (charges - taxableCharges),
             GrandTotal = d.GrandTotal,
         };
     }

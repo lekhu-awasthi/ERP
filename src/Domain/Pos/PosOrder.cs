@@ -24,6 +24,7 @@ public sealed record PosOrderNewLine(
     decimal Rate,
     VatRate VatRate,
     decimal ServiceChargeRate,
+    PackagingFee PackagingFee,
     string? Note,
     Guid? KitchenStationId);
 
@@ -415,9 +416,13 @@ public sealed class PosOrder
     /// <para><b>Only food not yet served and not yet billed.</b> Packing a plate already eaten from would
     /// take the service charge off food the table was served; and a billed quantity is on a tax invoice at
     /// its rate.</para>
+    ///
+    /// <para><b>Phase 70 -- the packaging fee is decided here too</b>, by the caller from the location's
+    /// setting and the product's flag (<see cref="PosPackagingFee.ForParcel"/>), and frozen on the sibling
+    /// beside its service charge: plated food never carried one, so there is nothing to copy.</para>
     /// </summary>
     public PosOrderMoveResult MarkTakeAway(
-        Guid lineId, decimal quantity, bool serviceChargeOnTakeAway, Guid userId,
+        Guid lineId, decimal quantity, bool serviceChargeOnTakeAway, PackagingFee packagingFee, Guid userId,
         IReadOnlyDictionary<Guid, decimal> invoiced)
     {
         EnsureOpen();
@@ -448,12 +453,14 @@ public sealed class PosOrder
 
         var rate = serviceChargeOnTakeAway ? line.ServiceChargeRate : 0m;
         var created = new List<PosOrderLine>();
-        var parcel = _lines.FirstOrDefault(x => x.ParcelledFromLineId == line.Id && x.ServiceChargeRate == rate);
+        var parcel = _lines.FirstOrDefault(x =>
+            x.ParcelledFromLineId == line.Id && x.ServiceChargeRate == rate && x.PackagingFee == packagingFee);
 
         if (parcel is null)
         {
             EnsureRoomFor(1);
-            parcel = PosOrderLine.CopyOf(Id, NextLineNo(), line, isTakeAway: true, rate, parcelledFromLineId: line.Id);
+            parcel = PosOrderLine.CopyOf(
+                Id, NextLineNo(), line, isTakeAway: true, rate, packagingFee, parcelledFromLineId: line.Id);
             _lines.Add(parcel);
             created.Add(parcel);
         }
@@ -527,7 +534,8 @@ public sealed class PosOrder
             {
                 target.EnsureRoomFor(1);
                 destination = PosOrderLine.CopyOf(
-                    target.Id, target.NextLineNo(), line, line.IsTakeAway, line.ServiceChargeRate, parcelledFromLineId: null);
+                    target.Id, target.NextLineNo(), line, line.IsTakeAway, line.ServiceChargeRate, line.PackagingFee,
+                    parcelledFromLineId: null);
                 target._lines.Add(destination);
                 created.Add(destination);
             }
@@ -792,20 +800,8 @@ public sealed class PosOrder
 
     /// <summary>The order's running figures before any bill: each line's net quantity priced by phase
     /// 63's <see cref="PosLineArithmetic"/>. Unrounded to the rupee -- the bill (phase 65) rounds.</summary>
-    public PosLineArithmetic.Figures Estimate()
-    {
-        decimal amount = 0m, serviceCharge = 0m, vat = 0m;
-
-        foreach (var line in _lines)
-        {
-            var figures = line.Figures(QuantitiesOf(line).Net);
-            amount += figures.Amount;
-            serviceCharge += figures.ServiceChargeAmount;
-            vat += figures.VatAmount;
-        }
-
-        return new PosLineArithmetic.Figures(amount, serviceCharge, vat);
-    }
+    public PosLineArithmetic.Figures Estimate() =>
+        _lines.Aggregate(PosLineArithmetic.Figures.Zero, (sum, line) => sum + line.Figures(QuantitiesOf(line).Net));
 
     public static string Describe(PosTab orderType) => orderType switch
     {
@@ -972,6 +968,15 @@ public sealed class PosOrderLine
     /// or a split (phase 65) moves quantities and never re-decides the rate (the vendor's defect 1).</summary>
     public decimal ServiceChargeRate { get; private set; }
 
+    /// <summary>Phase 70 -- frozen from <see cref="PosPackagingFee"/> when the line was first sent (a Take
+    /// Away or Delivery order) or marked (a parcel), for the reason <see cref="ServiceChargeRate"/> is.</summary>
+    public PackagingFeeBasis PackagingFeeBasis { get; private set; }
+
+    /// <inheritdoc cref="PackagingFeeBasis"/>
+    public decimal PackagingFeeValue { get; private set; }
+
+    public PackagingFee PackagingFee => PackagingFee.Create(PackagingFeeBasis, PackagingFeeValue);
+
     public string? Note { get; private set; }
 
     /// <summary>Where this line's tickets go: the product's station when first sent; null is Default.</summary>
@@ -1022,15 +1027,19 @@ public sealed class PosOrderLine
             Rate = row.Rate,
             VatRate = row.VatRate,
             ServiceChargeRate = row.ServiceChargeRate,
+            PackagingFeeBasis = row.PackagingFee.Basis,
+            PackagingFeeValue = row.PackagingFee.Value,
             Note = note,
             KitchenStationId = row.KitchenStationId,
         };
     }
 
     /// <summary>Phase 68 -- a new line carrying another's frozen terms: a take-away sibling (its own service
-    /// charge rate), or a transfer's destination on another order (the same rate).</summary>
+    /// charge rate and, phase 70, its own packaging fee), or a transfer's destination on another order (the
+    /// same terms).</summary>
     internal static PosOrderLine CopyOf(
-        Guid orderId, int lineNo, PosOrderLine source, bool isTakeAway, decimal serviceChargeRate, Guid? parcelledFromLineId) =>
+        Guid orderId, int lineNo, PosOrderLine source, bool isTakeAway, decimal serviceChargeRate,
+        PackagingFee packagingFee, Guid? parcelledFromLineId) =>
         new()
         {
             Id = Guid.NewGuid(),
@@ -1042,6 +1051,8 @@ public sealed class PosOrderLine
             Rate = source.Rate,
             VatRate = source.VatRate,
             ServiceChargeRate = serviceChargeRate,
+            PackagingFeeBasis = packagingFee.Basis,
+            PackagingFeeValue = packagingFee.Value,
             Note = source.Note,
             KitchenStationId = source.KitchenStationId,
             IsTakeAway = isTakeAway,
@@ -1056,13 +1067,14 @@ public sealed class PosOrderLine
         && Rate == other.Rate
         && VatRate == other.VatRate
         && ServiceChargeRate == other.ServiceChargeRate
+        && PackagingFee == other.PackagingFee
         && Note == other.Note
         && KitchenStationId == other.KitchenStationId
         && IsTakeAway == other.IsTakeAway;
 
     /// <summary>This line's money at <paramref name="quantity"/>, by the till's one arithmetic.</summary>
     public PosLineArithmetic.Figures Figures(decimal quantity) =>
-        PosLineArithmetic.Compute(quantity, Rate, VatRate.ToPercent(), 0m, 0m, ServiceChargeRate);
+        PosLineArithmetic.Compute(quantity, Rate, VatRate.ToPercent(), 0m, 0m, ServiceChargeRate, PackagingFee);
 
     internal void AddServed(decimal quantity) => ServedQuantity += quantity;
 

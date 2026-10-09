@@ -224,7 +224,7 @@ internal static class OutstandingDocumentReader
             group line by line.InvoiceId into g
             // Phase 61 -- a till line's service charge is part of what is owed, and so is the bill's
             // round-off (added below). Both are zero on an ERP invoice.
-            select new { InvoiceId = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount) })
+            select new { InvoiceId = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount + x.VatAmount) })
             .ToDictionaryAsync(x => x.InvoiceId, x => x.Total, cancellationToken);
 
         var candidates = invoices
@@ -488,7 +488,7 @@ internal static class OutstandingDocumentReader
             from line in db.CreditNoteLines
             join note in creditNoteQuery on line.CreditNoteId equals note.Id
             group line by line.CreditNoteId into g
-            select new { CreditNoteId = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount) })
+            select new { CreditNoteId = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount + x.VatAmount) })
             .ToDictionaryAsync(x => x.CreditNoteId, x => x.Total, cancellationToken);
 
         var paidOut = await LoadRefundPayoutsAsync(db, creditNoteQuery, cancellationToken);

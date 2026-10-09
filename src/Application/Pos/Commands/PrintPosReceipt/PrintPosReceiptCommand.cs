@@ -17,6 +17,7 @@ public sealed record PosReceiptLineDto(
     decimal DiscountPct,
     decimal Amount,
     decimal ServiceChargeAmount,
+    decimal PackagingFeeAmount,
     VatRate VatRate,
     decimal VatAmount,
     decimal LineTotal);
@@ -31,8 +32,9 @@ public sealed record PosReceiptTenderDto(string PaymentModeName, PaymentModeKind
 /// this number as "printed N times" (Procedure Related to Computerized Invoicing, 2072, §6).</param>
 /// <param name="GrossAmount">Quantity × rate over the lines, before any discount.</param>
 /// <param name="DiscountAmount">What the line and bill discounts took off the gross.</param>
-/// <param name="SubTotal">The lines' amounts after discount, before service charge and VAT.</param>
-/// <param name="TaxableAmount">The amounts, with their service charge, of the lines charged VAT.</param>
+/// <param name="SubTotal">The lines' amounts after discount, before service charge, packaging fee and VAT.</param>
+/// <param name="PackagingFee">Phase 70 -- what the parcels on this bill were charged for packing.</param>
+/// <param name="TaxableAmount">The amounts, with their service charge and packaging fee, of the lines charged VAT.</param>
 /// <param name="NonTaxableAmount">The same of the lines charged none (exempt or zero-rated).</param>
 public sealed record PosReceiptDto(
     Guid InvoiceId,
@@ -59,6 +61,7 @@ public sealed record PosReceiptDto(
     decimal DiscountAmount,
     decimal SubTotal,
     decimal ServiceCharge,
+    decimal PackagingFee,
     decimal TaxableAmount,
     decimal NonTaxableAmount,
     decimal Vat,

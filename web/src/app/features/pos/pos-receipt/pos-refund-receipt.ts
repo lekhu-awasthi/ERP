@@ -79,6 +79,9 @@ import { POS_RECEIPT_STYLES } from './pos-receipt';
       @if (r.serviceCharge !== 0) {
         <div class="r-row"><span>Service Charge</span><span>{{ r.serviceCharge | amount }}</span></div>
       }
+      @if (r.packagingFee !== 0) {
+        <div class="r-row"><span>Packaging</span><span>{{ r.packagingFee | amount }}</span></div>
+      }
       <div class="r-row"><span>Taxable</span><span>{{ r.taxableAmount | amount }}</span></div>
       @if (r.nonTaxableAmount !== 0) {
         <div class="r-row"><span>Non-taxable</span><span>{{ r.nonTaxableAmount | amount }}</span></div>

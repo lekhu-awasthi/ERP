@@ -238,6 +238,11 @@ public sealed class TenantSettings
     /// <see cref="DefaultServiceChargeAccountId"/>.</summary>
     public Guid? DefaultRoundingAccountId { get; private set; }
 
+    /// <summary>Phase 70 -- where a parcel's packaging fee is credited when the location names no account
+    /// (<c>PosLocationSettings.PackagingFeeAccountId</c>). Same fallback and laziness as
+    /// <see cref="DefaultServiceChargeAccountId"/>: resolved only when a sale actually carries a fee.</summary>
+    public Guid? DefaultPackagingFeeAccountId { get; private set; }
+
     /// <summary>
     /// Phase 60 -- where a closed session's counted-minus-expected cash difference posts (phase 59
     /// Decision H). Tenant-level only: the vendor has no such account anywhere, because its drawer
@@ -356,15 +361,18 @@ public sealed class TenantSettings
         DefaultLandedCostClearingAccountId = defaultLandedCostClearingAccountId;
     }
 
-    /// <summary>Phase 60 -- the three point-of-sale fallback accounts. See each property.</summary>
+    /// <summary>Phase 60 -- the point-of-sale fallback accounts (phase 70 added the fourth, packaging
+    /// fee, as a required parameter so every caller had to name it). See each property.</summary>
     public void SetPosDefaults(
         Guid? defaultServiceChargeAccountId,
         Guid? defaultRoundingAccountId,
-        Guid? defaultCashOverShortAccountId)
+        Guid? defaultCashOverShortAccountId,
+        Guid? defaultPackagingFeeAccountId)
     {
         DefaultServiceChargeAccountId = defaultServiceChargeAccountId;
         DefaultRoundingAccountId = defaultRoundingAccountId;
         DefaultCashOverShortAccountId = defaultCashOverShortAccountId;
+        DefaultPackagingFeeAccountId = defaultPackagingFeeAccountId;
     }
 
     /// <summary>Phase 22 -- turns AI-assisted extraction on or off for this tenant. Its own

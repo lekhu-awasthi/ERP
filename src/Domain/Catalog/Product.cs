@@ -68,6 +68,21 @@ public sealed class Product
     public bool ServiceChargeApplicable { get; private set; }
 
     /// <summary>
+    /// Phase 70 -- a parcel of this product carries its location's packaging fee (a can of Coke needs no
+    /// box). The fee is <b>the location's terms times this flag times "is it a parcel"</b>
+    /// (<c>PosPackagingFee</c>). <b>On by default</b>, the user's choice of 2026-10-08, so switching a
+    /// location's fee on charges every parcel at once and an exemption is the exception -- the opposite
+    /// default to <see cref="ServiceChargeApplicable"/>, and every product that existed before the phase is
+    /// on too.
+    ///
+    /// <para><b>Written by <see cref="SetPackagingFeeApplicable"/> alone</b>, for <see cref="KitchenStationId"/>'s
+    /// reason: <see cref="Create"/> and <see cref="Update"/> have 57 callers, and a trailing optional
+    /// parameter defaulting to true would switch an exemption back on from every caller that does not
+    /// know the field -- an update import, the variant editor. A variant starts with its parent's.</para>
+    /// </summary>
+    public bool PackagingFeeApplicable { get; private set; }
+
+    /// <summary>
     /// Phase 64 -- the kitchen station (the vendor's <i>Print Profile</i>) a restaurant order line of
     /// this product is sent to. Null is the till's Default station. This reopens phase 47's drop of
     /// <c>PrintProfileId</c>, which was right about the ERP -- nothing there acts on it -- and wrong
@@ -212,6 +227,7 @@ public sealed class Product
             HsCode = hsCode,
             AvailableForSale = availableForSale,
             ServiceChargeApplicable = serviceChargeApplicable,
+            PackagingFeeApplicable = true,
             SellingPrice = sellingPrice,
             PurchasePrice = purchasePrice,
             VatRate = vatRate,
@@ -304,6 +320,9 @@ public sealed class Product
     /// or to the Default station when null. A variant parent is refused: it is never on an order line
     /// (phase 24), so a station on it would route nothing.
     /// </summary>
+    /// <summary>Phase 70 -- see <see cref="PackagingFeeApplicable"/>.</summary>
+    public void SetPackagingFeeApplicable(bool applicable) => PackagingFeeApplicable = applicable;
+
     public void AssignKitchenStation(Guid? kitchenStationId)
     {
         if (kitchenStationId is not null && HasVariants)
@@ -452,6 +471,7 @@ public sealed class Product
             HsCode = HsCode,
             AvailableForSale = AvailableForSale,
             ServiceChargeApplicable = ServiceChargeApplicable,
+            PackagingFeeApplicable = PackagingFeeApplicable,
             SellingPrice = sellingPrice,
             PurchasePrice = purchasePrice,
             VatRate = VatRate,

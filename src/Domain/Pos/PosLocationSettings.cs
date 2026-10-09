@@ -1,3 +1,4 @@
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 
 namespace ErpApp.Domain.Pos;
@@ -55,6 +56,23 @@ public sealed class PosLocationSettings
     /// </summary>
     public bool ServiceChargeOnTakeAway { get; private set; }
 
+    /// <summary>
+    /// Phase 70 -- the packaging fee this location charges on every parcel (<see cref="PosPackagingFee"/>):
+    /// none, a percent of each line, or a flat amount per unit, asked for by the user on 2026-10-03 and
+    /// settled on 2026-10-08. The vendor has none. Inside the VAT base like the service charge; VAT itself
+    /// stays in code (the line's own rate), so only the fee is a setting.
+    /// </summary>
+    public PackagingFeeBasis PackagingFeeBasis { get; private set; }
+
+    /// <inheritdoc cref="PackagingFeeBasis"/>
+    public decimal PackagingFeeValue { get; private set; }
+
+    /// <summary>Phase 70 -- where the fee is credited; empty falls back to the tenant's default Packaging
+    /// Income account at posting time, as <see cref="ServiceChargeAccountId"/> does.</summary>
+    public Guid? PackagingFeeAccountId { get; private set; }
+
+    public PackagingFee PackagingFee => PackagingFee.Create(PackagingFeeBasis, PackagingFeeValue);
+
     /// <summary>The vendor's "Round off": the till rounds a bill to the rupee and books the difference
     /// to <see cref="RoundOffAccountId"/> (live: 632.80 billed as 633, the 0.20 credited to the
     /// account the location names). The rounding rule itself is phase 61's.</summary>
@@ -99,7 +117,8 @@ public sealed class PosLocationSettings
     {
     }
 
-    /// <summary>The values a location with no settings row reads as: nothing charged, nothing
+    /// <summary>The values a location with no settings row reads as: nothing charged (no service charge, no
+    /// packaging fee), nothing
     /// rounded, no counting required, the vendor's denominations, and every document printed.</summary>
     public static PosLocationSettings CreateDefault(Guid organizationId, Guid billingLocationId)
     {
@@ -112,6 +131,9 @@ public sealed class PosLocationSettings
             ServiceChargeRate = 0m,
             ServiceChargeAccountId = null,
             ServiceChargeOnTakeAway = true,
+            PackagingFeeBasis = PackagingFeeBasis.None,
+            PackagingFeeValue = 0m,
+            PackagingFeeAccountId = null,
             RoundOffEnabled = false,
             RoundOffAccountId = null,
             CashVerificationRequired = false,
@@ -136,6 +158,8 @@ public sealed class PosLocationSettings
         decimal serviceChargeRate,
         Guid? serviceChargeAccountId,
         bool serviceChargeOnTakeAway,
+        PackagingFee packagingFee,
+        Guid? packagingFeeAccountId,
         bool roundOffEnabled,
         Guid? roundOffAccountId,
         bool cashVerificationRequired,
@@ -162,6 +186,9 @@ public sealed class PosLocationSettings
         ServiceChargeRate = serviceChargeEnabled ? decimal.Round(serviceChargeRate, 2) : 0m;
         ServiceChargeAccountId = serviceChargeEnabled ? serviceChargeAccountId : null;
         ServiceChargeOnTakeAway = serviceChargeOnTakeAway;
+        PackagingFeeBasis = packagingFee.Basis;
+        PackagingFeeValue = packagingFee.Value;
+        PackagingFeeAccountId = packagingFee.IsCharged ? packagingFeeAccountId : null;
         RoundOffEnabled = roundOffEnabled;
         RoundOffAccountId = roundOffEnabled ? roundOffAccountId : null;
         CashVerificationRequired = cashVerificationRequired;

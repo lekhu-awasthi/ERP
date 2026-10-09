@@ -36,6 +36,7 @@
                   <tr><th scope="row">Sales</th><td class="text-end">{{ s.sales.salesCount }}</td></tr>
                   <tr><th scope="row">Sub total</th><td class="text-end">{{ s.sales.subTotal | amount }}</td></tr>
                   <tr><th scope="row">Service charge</th><td class="text-end">{{ s.sales.serviceCharge | amount }}</td></tr>
+                  <tr><th scope="row">Packaging</th><td class="text-end">{{ s.sales.packagingFee | amount }}</td></tr>
                   <tr><th scope="row">VAT</th><td class="text-end">{{ s.sales.vat | amount }}</td></tr>
                   <tr><th scope="row">Round off</th><td class="text-end">{{ s.sales.roundOff | amount }}</td></tr>
                   <tr><th scope="row">Total sales</th><td class="text-end fw-bold">{{ s.sales.grandTotal | amount }}</td></tr>
@@ -48,6 +49,7 @@
                   <tr><th scope="row" class="fw-normal">Refunds</th><td class="text-end">{{ s.sales.refunds.refundsCount }}</td></tr>
                   @if (s.sales.refunds.refundsCount > 0) {
                     <tr><th scope="row" class="fw-normal">Service charge returned</th><td class="text-end">{{ s.sales.refunds.serviceCharge | amount }}</td></tr>
+                    <tr><th scope="row" class="fw-normal">Packaging returned</th><td class="text-end">{{ s.sales.refunds.packagingFee | amount }}</td></tr>
                     <tr><th scope="row" class="fw-normal">VAT returned</th><td class="text-end">{{ s.sales.refunds.vat | amount }}</td></tr>
                     <tr><th scope="row">Total refunded</th><td class="text-end fw-bold">{{ s.sales.refunds.grandTotal | amount }}</td></tr>
                     @for (payout of s.sales.refunds.payouts; track payout.paymentModeId) {

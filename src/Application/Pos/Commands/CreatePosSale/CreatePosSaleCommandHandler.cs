@@ -96,7 +96,7 @@ public sealed class CreatePosSaleCommandHandler(
         await db.SaveChangesAsync(cancellationToken);
 
         return new CreatePosSaleResult(
-            invoice.Id, invoice.Code, invoice.GrandTotal, invoice.ServiceChargeTotal, invoice.RoundOff,
+            invoice.Id, invoice.Code, invoice.GrandTotal, invoice.ServiceChargeTotal, invoice.PackagingFeeTotal, invoice.RoundOff,
             invoice.TenderedAmount, invoice.ChangeAmount, invoice.CreditAmount, invoice.IsAbbreviatedTaxInvoice);
     }
 
@@ -115,7 +115,7 @@ public sealed class CreatePosSaleCommandHandler(
         return orderType;
     }
 
-    private async Task<Dictionary<Guid, (bool ServiceChargeApplicable, Domain.Catalog.VatRate VatRate, bool AvailableForSale, string Name)>>
+    private async Task<Dictionary<Guid, (bool ServiceChargeApplicable, bool PackagingFeeApplicable, Domain.Catalog.VatRate VatRate, bool AvailableForSale, string Name)>>
         LoadProductsAsync(CreatePosSaleCommand request, CancellationToken cancellationToken)
     {
         var productIds = request.Lines.Select(x => x.ProductId).Distinct().ToList();
@@ -125,8 +125,10 @@ public sealed class CreatePosSaleCommandHandler(
 
         var products = await db.Products
             .Where(x => x.OrganizationId == request.OrganizationId && productIds.Contains(x.Id))
-            .Select(x => new { x.Id, x.ServiceChargeApplicable, x.VatRate, x.AvailableForSale, x.Name })
-            .ToDictionaryAsync(x => x.Id, x => (x.ServiceChargeApplicable, x.VatRate, x.AvailableForSale, x.Name), cancellationToken);
+            .Select(x => new { x.Id, x.ServiceChargeApplicable, x.PackagingFeeApplicable, x.VatRate, x.AvailableForSale, x.Name })
+            .ToDictionaryAsync(
+                x => x.Id, x => (x.ServiceChargeApplicable, x.PackagingFeeApplicable, x.VatRate, x.AvailableForSale, x.Name),
+                cancellationToken);
 
         // Phase 60 Decision E -- Available For Sale has existed since phase 3 and been read by
         // nothing. The till is what it is for: a product a tenant has marked unsellable is refused at
@@ -153,7 +155,7 @@ public sealed class CreatePosSaleCommandHandler(
     private async Task AddLinesAsync(
         CreatePosSaleCommand request,
         PosTillContext till,
-        Dictionary<Guid, (bool ServiceChargeApplicable, Domain.Catalog.VatRate VatRate, bool AvailableForSale, string Name)> products,
+        Dictionary<Guid, (bool ServiceChargeApplicable, bool PackagingFeeApplicable, Domain.Catalog.VatRate VatRate, bool AvailableForSale, string Name)> products,
         Invoice invoice,
         CancellationToken cancellationToken)
     {
@@ -181,9 +183,14 @@ public sealed class CreatePosSaleCommandHandler(
             var serviceChargeRate = PosServiceCharge.RateFor(
                 till.Settings, product.ServiceChargeApplicable, ResolveOrderType(request, till));
 
+            // Phase 70 -- the mirror rule: only a parcel (a Delivery or Take Away sale) carries the
+            // location's packaging fee, and only for a product not exempted from it.
+            var packagingFee = PosPackagingFee.For(
+                till.Settings, product.PackagingFeeApplicable, ResolveOrderType(request, till));
+
             invoice.AddPosLine(
                 line.ProductId, line.Quantity, line.Rate, line.VatRate ?? product.VatRate, line.DiscountPct,
-                units[i].UnitId, units[i].ConversionFactor, batches[i], serviceChargeRate);
+                units[i].UnitId, units[i].ConversionFactor, batches[i], serviceChargeRate, packagingFee);
         }
 
         await DocumentLineAllocationWriter.ReplaceSerialsAsync(

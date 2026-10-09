@@ -62,6 +62,7 @@ public sealed class GetCreditNoteQueryHandler(IAppDbContext db) : IRequestHandle
                 x.UnitId, x.UnitId is null ? null : unitNames.GetValueOrDefault(x.UnitId.Value), x.ConversionFactor)
             {
                 ServiceChargeAmount = x.ServiceChargeAmount,
+                PackagingFeeAmount = x.PackagingFeeAmount,
             }).ToList(),
             glLines,
             creditNote.CurrencyCode,
@@ -117,6 +118,7 @@ public sealed class GetCreditNoteQueryHandler(IAppDbContext db) : IRequestHandle
             sessionCode,
             creditNote.Reason,
             creditNote.ServiceChargeTotal,
+            creditNote.PackagingFeeTotal,
             creditNote.RoundOff,
             creditNote.GrandTotal,
             [.. creditNote.Payouts.Select(x => new CreditNotePayoutDto(

@@ -4,6 +4,7 @@ using ErpApp.Application.Pos.Commands.UpdatePosOrderTakeAway;
 using ErpApp.Application.Pos.Queries.GetPosKitchenBoard;
 using ErpApp.Application.Pos.Restaurant;
 using ErpApp.Domain.Pos;
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -41,7 +42,7 @@ public class PosTakeAwayAndTransferHandlerTests
         var settings = await r.Till.Db.PosLocationSettings.SingleAsync();
         settings.Update(
             PosMode.Restaurant, serviceChargeEnabled: true, serviceChargeRate: 10m, serviceChargeAccountId: null,
-            serviceChargeOnTakeAway: on, roundOffEnabled: true, roundOffAccountId: null, cashVerificationRequired: false,
+            serviceChargeOnTakeAway: on, packagingFee: PackagingFee.None, packagingFeeAccountId: null, roundOffEnabled: true, roundOffAccountId: null, cashVerificationRequired: false,
             denominations: PosLocationSettings.DefaultDenominations, defaultTab: null, printEstimateBill: true,
             printInvoice: true, printCreditNote: true, printKot: false, abbreviatedTaxInvoiceEnabled: false);
         await r.Till.Db.SaveChangesAsync();

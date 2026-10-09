@@ -40,9 +40,10 @@ public sealed class PreviewPosRefundQueryHandler(IAppDbContext db, ICurrentUserS
 
         return new PosRefundPreviewDto(
             [.. note.Lines.Select((x, i) => new PosRefundPreviewLineDto(
-                chosenIds[i], x.Quantity, x.Amount, x.ServiceChargeAmount, x.VatAmount, x.LineTotal))],
+                chosenIds[i], x.Quantity, x.Amount, x.ServiceChargeAmount, x.PackagingFeeAmount, x.VatAmount, x.LineTotal))],
             note.Lines.Sum(x => x.Amount),
             note.ServiceChargeTotal,
+            note.PackagingFeeTotal,
             note.Lines.Sum(x => x.VatAmount),
             note.RoundOff,
             note.GrandTotal,

@@ -1,4 +1,5 @@
 using ErpApp.Domain.Configuration;
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Pos;
 using ErpApp.Domain.Tenancy;
@@ -17,7 +18,7 @@ public class PosFoundationTests
     {
         var settings = PosLocationSettings.CreateDefault(Guid.NewGuid(), Guid.NewGuid());
         settings.Update(
-            mode, serviceChargeEnabled, rate, Guid.NewGuid(), serviceChargeOnTakeAway: true, roundOffEnabled: false, Guid.NewGuid(),
+            mode, serviceChargeEnabled, rate, Guid.NewGuid(), serviceChargeOnTakeAway: true, packagingFee: PackagingFee.None, packagingFeeAccountId: null, roundOffEnabled: false, Guid.NewGuid(),
             cashVerificationRequired: true, denominations ?? [1, 500, 100], defaultTab,
             printEstimateBill: true, printInvoice: true, printCreditNote: true, printKot: true,
             abbreviatedTaxInvoiceEnabled: false);

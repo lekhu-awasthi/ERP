@@ -1,4 +1,5 @@
 using ErpApp.Domain.Pos;
+using ErpApp.Domain.Sales;
 using FluentValidation;
 
 namespace ErpApp.Application.Pos.Commands.UpdatePosLocationSettings;
@@ -23,6 +24,22 @@ public sealed class UpdatePosLocationSettingsCommandValidator : AbstractValidato
         RuleFor(x => x.ServiceChargeRate)
             .PrecisionScale(5, 2, ignoreTrailingZeros: true)
             .When(x => x.ServiceChargeEnabled);
+
+        RuleFor(x => x.PackagingFeeBasis).IsInEnum().When(x => x.PackagingFeeBasis is not null);
+
+        RuleFor(x => x.PackagingFeeValue)
+            .Must(x => x > 0m && x <= 100m)
+            .When(x => x.PackagingFeeBasis == PackagingFeeBasis.Percent)
+            .WithMessage("A packaging fee percent must be more than 0% and at most 100%.");
+
+        RuleFor(x => x.PackagingFeeValue)
+            .Must(x => x > 0m && x <= PackagingFee.MaxPerUnit)
+            .When(x => x.PackagingFeeBasis == PackagingFeeBasis.PerUnit)
+            .WithMessage($"A packaging fee per unit must be more than 0 and at most {PackagingFee.MaxPerUnit:0}.");
+
+        RuleFor(x => x.PackagingFeeValue)
+            .PrecisionScale(7, 2, ignoreTrailingZeros: true)
+            .When(x => x.PackagingFeeBasis is PackagingFeeBasis.Percent or PackagingFeeBasis.PerUnit);
 
         RuleFor(x => x.Denominations)
             .NotNull()

@@ -35,4 +35,5 @@ public sealed record GetAccountingDefaultsDto(
     Guid? DefaultLandedCostClearingAccountId,
     Guid? DefaultServiceChargeAccountId,
     Guid? DefaultRoundingAccountId,
-    Guid? DefaultCashOverShortAccountId);
+    Guid? DefaultCashOverShortAccountId,
+    Guid? DefaultPackagingFeeAccountId);

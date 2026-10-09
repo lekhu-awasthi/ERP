@@ -140,6 +140,9 @@ public sealed class CreditNote
 
     public decimal ServiceChargeTotal => _lines.Sum(x => x.ServiceChargeAmount);
 
+    /// <summary>Phase 70 -- the packaging fee the lines give back; zero on every ERP note.</summary>
+    public decimal PackagingFeeTotal => _lines.Sum(x => x.PackagingFeeAmount);
+
     /// <summary>Phase 63 -- what was handed back over the counter.</summary>
     public decimal PaidOutAmount => _payouts.Sum(x => x.Amount);
 
@@ -187,11 +190,11 @@ public sealed class CreditNote
     }
 
     /// <summary>Phase 63 -- one returned line, at the sale line's rate, discount, VAT rate, unit factor
-    /// and service charge rate. The caller copies those from the sale line; the quantity is what came
-    /// back.</summary>
+    /// and service charge rate (and, phase 70, packaging fee terms). The caller copies those from the sale
+    /// line; the quantity is what came back.</summary>
     public void AddPosLine(
         Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct,
-        Guid? unitId, decimal conversionFactor, Guid? batchId, decimal serviceChargeRate)
+        Guid? unitId, decimal conversionFactor, Guid? batchId, decimal serviceChargeRate, PackagingFee packagingFee)
     {
         EnsureDraft();
         EnsurePos();
@@ -206,7 +209,7 @@ public sealed class CreditNote
 
         _lines.Add(CreditNoteLine.CreatePos(
             Id, productId, quantity, rate, vatRate, discountPct, DiscountPct, batchId, unitId, conversionFactor,
-            serviceChargeRate));
+            serviceChargeRate, packagingFee));
 
         RoundOff = 0m;
     }

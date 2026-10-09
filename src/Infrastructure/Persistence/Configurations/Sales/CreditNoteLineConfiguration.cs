@@ -25,6 +25,15 @@ public sealed class CreditNoteLineConfiguration : IEntityTypeConfiguration<Credi
         // every ERP line, which is also every existing row, so the default needs no backfill.
         builder.Property(x => x.ServiceChargeRate).HasPrecision(5, 2).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
         builder.Property(x => x.ServiceChargeAmount).HasPrecision(18, 4).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+
+        // Phase 70 -- the packaging fee terms frozen on the line, and the fee it charged. None and zero on
+        // every ERP line, which is also every existing row, so the defaults need no backfill.
+        builder.Property(x => x.PackagingFeeBasis)
+            .HasConversion<string>().HasMaxLength(20).IsRequired()
+            .HasDefaultValue(PackagingFeeBasis.None).ValueGeneratedNever();
+        builder.Property(x => x.PackagingFeeValue).HasPrecision(9, 2).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+        builder.Property(x => x.PackagingFeeAmount).HasPrecision(18, 4).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+        builder.Ignore(x => x.PackagingFee);
         builder.Ignore(x => x.TaxableAmount);
         builder.Ignore(x => x.LineTotal);
 

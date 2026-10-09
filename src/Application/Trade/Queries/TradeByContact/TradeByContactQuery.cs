@@ -47,8 +47,9 @@ public sealed record TradeByContactRowDto(
     decimal NetAmount,
     decimal VatAmount,
     decimal TotalAmount,
-    // Phase 66 -- see TradeByItemRowDto.ServiceCharge.
-    decimal ServiceCharge = 0m);
+    // Phase 66 -- see TradeByItemRowDto.ServiceCharge; phase 70, TradeByItemRowDto.PackagingFee.
+    decimal ServiceCharge = 0m,
+    decimal PackagingFee = 0m);
 
 /// <summary>Total* fields span every filtered row, not just the current page (phase-16c).</summary>
 public sealed record TradeByContactDto(
@@ -64,4 +65,5 @@ public sealed record TradeByContactDto(
     decimal TotalNetAmount,
     decimal TotalVatAmount,
     decimal TotalTotalAmount,
-    decimal TotalServiceCharge = 0m);
+    decimal TotalServiceCharge = 0m,
+    decimal TotalPackagingFee = 0m);

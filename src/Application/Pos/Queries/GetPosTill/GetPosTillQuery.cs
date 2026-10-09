@@ -2,6 +2,7 @@ using ErpApp.Application.Common.Security;
 using ErpApp.Application.Pos.Queries.GetPosConfiguration;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Pos;
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using MediatR;
 
@@ -23,6 +24,8 @@ public sealed record PosTillCategoryDto(Guid Id, string Name);
 /// invoice at all (phase-62-status.md Decision A).</param>
 /// <param name="PrintCreditNote">Phase 63 -- whether a refund's credit note prints itself, the location's
 /// phase 60 toggle.</param>
+/// <param name="PackagingFeeBasis">Phase 70 -- the location's packaging fee, which the till prices a Take Away
+/// or Delivery line with (times the product's flag), exactly as the server will (<c>pos-bill.ts</c>).</param>
 /// <param name="CanRefund">Phase 63 -- whether the caller holds both <c>Sales.CreditNote.Create</c> and
 /// <c>Sales.CreditNote.Approve</c> here, which every refund needs (phase-63-status.md Decision E). Read so
 /// the till can say so before a cashier starts one.</param>
@@ -35,6 +38,8 @@ public sealed record PosTillDto(
     PosTab? DefaultTab,
     bool ServiceChargeEnabled,
     decimal ServiceChargeRate,
+    PackagingFeeBasis PackagingFeeBasis,
+    decimal PackagingFeeValue,
     bool RoundOffEnabled,
     bool CashVerificationRequired,
     IReadOnlyList<int> Denominations,

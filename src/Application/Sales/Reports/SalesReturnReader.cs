@@ -84,7 +84,7 @@ internal static class SalesReturnReader
             .Where(x => creditNoteIds.Contains(x.CreditNoteId))
             // Phase 63 -- a till refund's service charge is inside the taxable value it returns, and its
             // round-off is not a supply, so it is in no line (phase 61 Decision B, for the sale).
-            .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, Amount = x.Amount + x.ServiceChargeAmount, x.VatAmount })
+            .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, Amount = x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         // Phase 43 (36 carried item #5) -- the fold to base currency, here rather than in the Sales

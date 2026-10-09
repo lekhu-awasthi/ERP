@@ -188,7 +188,7 @@ public sealed class RecentTransactionsQueryHandler(IAppDbContext db, ICurrentUse
             DocumentType.Invoice,
             db.InvoiceLines.Where(l => invoiceIds.Contains(l.InvoiceId)),
             l => l.InvoiceId,
-            l => l.Amount + l.ServiceChargeAmount + l.VatAmount);
+            l => l.Amount + l.ServiceChargeAmount + l.PackagingFeeAmount + l.VatAmount);
 
         // Phase 61 -- a till sale's round-off is part of its total. Zero on every ERP invoice, so only
         // the rows that carry one are read.
@@ -206,7 +206,7 @@ public sealed class RecentTransactionsQueryHandler(IAppDbContext db, ICurrentUse
             DocumentType.CreditNote,
             db.CreditNoteLines.Where(l => creditNoteIds.Contains(l.CreditNoteId)),
             l => l.CreditNoteId,
-            l => l.Amount + l.ServiceChargeAmount + l.VatAmount);
+            l => l.Amount + l.ServiceChargeAmount + l.PackagingFeeAmount + l.VatAmount);
 
         // Phase 63 -- a till refund's round-off is part of its total, as the sale's is.
         var creditNoteRoundOffs = await db.CreditNotes

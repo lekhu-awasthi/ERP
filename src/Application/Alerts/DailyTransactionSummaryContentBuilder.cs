@@ -45,7 +45,7 @@ public sealed class DailyTransactionSummaryContentBuilder(IAppDbContext db) : IA
         // Phase 61 -- a till sale's service charge and round-off are part of its total (zero on ERP).
         var invoiceTotal = (await db.InvoiceLines
             .Where(l => invoiceIds.Contains(l.InvoiceId))
-            .SumAsync(l => (decimal?)(l.Amount + l.ServiceChargeAmount + l.VatAmount), cancellationToken) ?? 0m)
+            .SumAsync(l => (decimal?)(l.Amount + l.ServiceChargeAmount + l.PackagingFeeAmount + l.VatAmount), cancellationToken) ?? 0m)
             + (await db.Invoices
                 .Where(x => invoiceIds.Contains(x.Id))
                 .SumAsync(x => (decimal?)x.RoundOff, cancellationToken) ?? 0m);
@@ -57,7 +57,7 @@ public sealed class DailyTransactionSummaryContentBuilder(IAppDbContext db) : IA
         // Phase 63 -- a till refund's service charge and round-off are part of its total (zero on ERP).
         var creditNoteTotal = (await db.CreditNoteLines
             .Where(l => creditNoteIds.Contains(l.CreditNoteId))
-            .SumAsync(l => (decimal?)(l.Amount + l.ServiceChargeAmount + l.VatAmount), cancellationToken) ?? 0m)
+            .SumAsync(l => (decimal?)(l.Amount + l.ServiceChargeAmount + l.PackagingFeeAmount + l.VatAmount), cancellationToken) ?? 0m)
             + (await db.CreditNotes
                 .Where(x => creditNoteIds.Contains(x.Id))
                 .SumAsync(x => (decimal?)x.RoundOff, cancellationToken) ?? 0m);

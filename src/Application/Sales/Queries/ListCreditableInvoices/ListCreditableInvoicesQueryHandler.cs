@@ -58,11 +58,11 @@ public sealed class ListCreditableInvoicesQueryHandler(IAppDbContext db, ICurren
 
         var invoiceLines = await db.InvoiceLines
             .Where(x => ids.Contains(x.InvoiceId))
-            .Select(x => new { x.InvoiceId, x.Amount, x.ServiceChargeAmount, x.VatAmount })
+            .Select(x => new { x.InvoiceId, x.Amount, x.ServiceChargeAmount, x.PackagingFeeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
         var totals = invoiceLines
             .GroupBy(x => x.InvoiceId)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount));
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount + x.VatAmount));
 
         // What the notes against these invoices already credit, each way a note can name one. ERP invoices
         // carry no round-off and their notes none either (a till refund is against a till sale, which this
@@ -83,12 +83,13 @@ public sealed class ListCreditableInvoicesQueryHandler(IAppDbContext db, ICurren
                 note.AgainstInvoiceId,
                 line.Amount,
                 line.ServiceChargeAmount,
+                line.PackagingFeeAmount,
                 line.VatAmount,
             })
             .ToListAsync(cancellationToken);
         var credited = creditedLines
             .GroupBy(x => x.ReferrerType == DocumentType.Invoice && x.ReferrerId is not null ? x.ReferrerId.Value : x.AgainstInvoiceId!.Value)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount));
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount + x.VatAmount));
 
         var items = page.Items
             .Select(x =>

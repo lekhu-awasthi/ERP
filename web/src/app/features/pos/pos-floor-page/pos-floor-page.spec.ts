@@ -21,7 +21,7 @@ describe('PosFloorPage', () => {
 
   const restaurant: PosRestaurant = {
     locationId, locationCode: '1002', locationName: 'POS Restaurant', availableTabs: ['DineIn', 'TakeAway', 'Delivery'],
-    defaultTab: 'DineIn', serviceChargeEnabled: true, serviceChargeRate: 10, printKot: true, canvasWidth: 1100, canvasHeight: 800,
+    defaultTab: 'DineIn', serviceChargeEnabled: true, serviceChargeRate: 10, packagingFeeBasis: 'None', packagingFeeValue: 0, printKot: true, canvasWidth: 1100, canvasHeight: 800,
     walkInCustomer: null, categories: [],
     areas: [
       { id: 'gf', name: 'Ground Floor', tables: [

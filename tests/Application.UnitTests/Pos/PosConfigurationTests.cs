@@ -63,6 +63,9 @@ public class PosConfigurationTests
         ServiceChargeRate: 10m,
         ServiceChargeAccountId: null,
         ServiceChargeOnTakeAway: true,
+        PackagingFeeBasis: null,
+        PackagingFeeValue: 0m,
+        PackagingFeeAccountId: null,
         RoundOffEnabled: true,
         RoundOffAccountId: null,
         CashVerificationRequired: true,
@@ -370,7 +373,7 @@ public class PosConfigurationTests
     // ---- Tenant-default accounts ----
 
     [Fact]
-    public async Task The_three_POS_default_accounts_round_trip_through_accounting_defaults()
+    public async Task The_four_POS_default_accounts_round_trip_through_accounting_defaults()
     {
         var db = TestAppDbContext.Create();
         var organizationId = Guid.NewGuid();
@@ -378,13 +381,15 @@ public class PosConfigurationTests
         var serviceCharge = await AddAccountAsync(db, organizationId, "4100");
         var rounding = await AddAccountAsync(db, organizationId, "4900");
         var overShort = await AddAccountAsync(db, organizationId, "6900");
+        var packaging = await AddAccountAsync(db, organizationId, "4300");
 
         await new UpdateAccountingDefaultsCommandHandler(db).Handle(
             new UpdateAccountingDefaultsCommand(
                 organizationId, null, null, null, null, null, null, null, null, null, null, null,
                 DefaultServiceChargeAccountId: serviceCharge.Id,
                 DefaultRoundingAccountId: rounding.Id,
-                DefaultCashOverShortAccountId: overShort.Id),
+                DefaultCashOverShortAccountId: overShort.Id,
+                DefaultPackagingFeeAccountId: packaging.Id),
             CancellationToken.None);
 
         var read = await new GetAccountingDefaultsQueryHandler(db).Handle(
@@ -392,5 +397,6 @@ public class PosConfigurationTests
         Assert.Equal(serviceCharge.Id, read.DefaultServiceChargeAccountId);
         Assert.Equal(rounding.Id, read.DefaultRoundingAccountId);
         Assert.Equal(overShort.Id, read.DefaultCashOverShortAccountId);
+        Assert.Equal(packaging.Id, read.DefaultPackagingFeeAccountId);
     }
 }

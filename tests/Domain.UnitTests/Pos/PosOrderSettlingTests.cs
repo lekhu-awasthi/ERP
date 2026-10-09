@@ -33,10 +33,7 @@ public class PosOrderSettlingTests
             foreach (var line in plan.Lines)
             {
                 var before = Lines.GetValueOrDefault(line.Line.Id);
-                var figures = before is null ? line.Figures : new PosLineArithmetic.Figures(
-                    before.Figures.Amount + line.Figures.Amount,
-                    before.Figures.ServiceChargeAmount + line.Figures.ServiceChargeAmount,
-                    before.Figures.VatAmount + line.Figures.VatAmount);
+                var figures = before is null ? line.Figures : before.Figures + line.Figures;
                 Lines[line.Line.Id] = new PosOrderLineBilled((before?.Quantity ?? 0m) + line.Quantity, figures);
             }
 
@@ -53,8 +50,8 @@ public class PosOrderSettlingTests
             Guid.NewGuid(), Guid.NewGuid(), "ORD0001", PosTab.DineIn, Guid.NewGuid(), 2, null, User, DateTimeOffset.UtcNow);
         order.Send(
             [
-                new PosOrderNewLine(Guid.NewGuid(), null, 1m, 2m, 200m, VatRate.ThirteenPercentVat, 10m, null, null),
-                new PosOrderNewLine(Guid.NewGuid(), null, 1m, 2m, 60m, VatRate.ThirteenPercentVat, 0m, null, null),
+                new PosOrderNewLine(Guid.NewGuid(), null, 1m, 2m, 200m, VatRate.ThirteenPercentVat, 10m, PackagingFee.None, null, null),
+                new PosOrderNewLine(Guid.NewGuid(), null, 1m, 2m, 60m, VatRate.ThirteenPercentVat, 0m, PackagingFee.None, null, null),
             ],
             [], User);
         return (order, order.Lines[0], order.Lines[1]);
@@ -134,7 +131,7 @@ public class PosOrderSettlingTests
     {
         var order = PosOrder.Open(
             Guid.NewGuid(), Guid.NewGuid(), "ORD0002", PosTab.DineIn, Guid.NewGuid(), 3, null, User, DateTimeOffset.UtcNow);
-        order.Send([new PosOrderNewLine(Guid.NewGuid(), null, 1m, 1m, 180m, VatRate.ThirteenPercentVat, 10m, null, null)], [], User);
+        order.Send([new PosOrderNewLine(Guid.NewGuid(), null, 1m, 1m, 180m, VatRate.ThirteenPercentVat, 10m, PackagingFee.None, null, null)], [], User);
         var thukpa = order.Lines[0];
         var whole = thukpa.Figures(1m);
         var billing = new Billing();
@@ -162,9 +159,9 @@ public class PosOrderSettlingTests
             Guid.NewGuid(), Guid.NewGuid(), "ORD0003", PosTab.TakeAway, null, 0, null, User, DateTimeOffset.UtcNow);
         order.Send(
             [
-                new PosOrderNewLine(Guid.NewGuid(), null, 1m, 1m, 10.50m, VatRate.NoVat, 0m, null, null),
-                new PosOrderNewLine(Guid.NewGuid(), null, 1m, 1m, 10.50m, VatRate.NoVat, 0m, null, null),
-                new PosOrderNewLine(Guid.NewGuid(), null, 1m, 1m, 0.20m, VatRate.NoVat, 0m, null, null),
+                new PosOrderNewLine(Guid.NewGuid(), null, 1m, 1m, 10.50m, VatRate.NoVat, 0m, PackagingFee.None, null, null),
+                new PosOrderNewLine(Guid.NewGuid(), null, 1m, 1m, 10.50m, VatRate.NoVat, 0m, PackagingFee.None, null, null),
+                new PosOrderNewLine(Guid.NewGuid(), null, 1m, 1m, 0.20m, VatRate.NoVat, 0m, PackagingFee.None, null, null),
             ],
             [], User);
         var billing = new Billing();
@@ -259,7 +256,7 @@ public class PosOrderSettlingTests
     {
         var order = PosOrder.Open(
             Guid.NewGuid(), Guid.NewGuid(), "ORD0004", PosTab.DineIn, Guid.NewGuid(), 2, null, User, DateTimeOffset.UtcNow);
-        order.Send([new PosOrderNewLine(Guid.NewGuid(), null, 1m, 2m, 200m, VatRate.ThirteenPercentVat, 10m, null, null)], [], User);
+        order.Send([new PosOrderNewLine(Guid.NewGuid(), null, 1m, 2m, 200m, VatRate.ThirteenPercentVat, 10m, PackagingFee.None, null, null)], [], User);
         var momo = order.Lines[0];
         order.Send([], [new(momo.Id, 1m)], User);
 
@@ -286,18 +283,18 @@ public class PosOrderSettlingTests
         var invoice = Invoice.CreatePosSale(
             Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), new DateOnly(2026, 10, 2), Guid.NewGuid(), Guid.NewGuid(),
             PosTab.DineIn);
-        var figures = new PosLineArithmetic.Figures(200m, 20m, 28.60m);
+        var figures = new PosLineArithmetic.Figures(200m, 20m, 0m, 28.60m);
 
         Assert.Throws<InvalidOperationException>(() => invoice.AddPosOrderLine(
-            Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, null, 1m, 10m, figures));
+            Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, null, 1m, 10m, PackagingFee.None, figures));
 
         invoice.BillPosOrder(Guid.NewGuid());
         Assert.Throws<InvalidOperationException>(() => invoice.BillPosOrder(Guid.NewGuid()));
         Assert.Throws<InvalidOperationException>(() => invoice.AddPosOrderLine(
             Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, null, 1m, 10m,
-            new PosLineArithmetic.Figures(200.001m, 20m, 28.60m)));
+            PackagingFee.None, new PosLineArithmetic.Figures(200.001m, 20m, 0m, 28.60m)));
 
-        invoice.AddPosOrderLine(Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, null, 1m, 10m, figures);
+        invoice.AddPosOrderLine(Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, null, 1m, 10m, PackagingFee.None, figures);
         Assert.Equal(248.60m, invoice.GrandTotal);
         Assert.Equal(20m, invoice.ServiceChargeTotal);
 

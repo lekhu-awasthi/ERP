@@ -66,8 +66,10 @@ public sealed record TradeByItemRowDto(
     decimal VatAmount,
     decimal TotalAmount,
     // Phase 66 -- a till line's service charge (TradeLineReader's own measure); TotalAmount is
-    // NetAmount + ServiceCharge + VatAmount.
-    decimal ServiceCharge = 0m);
+    // NetAmount + ServiceCharge + PackagingFee + VatAmount.
+    decimal ServiceCharge = 0m,
+    // Phase 70 -- a parcel's packaging fee, TradeLineReader's measure beside the service charge.
+    decimal PackagingFee = 0m);
 
 /// <summary>
 /// <b>There is no total quantity, on purpose.</b> The live footer totals the five money columns and
@@ -91,4 +93,5 @@ public sealed record TradeByItemDto(
     decimal TotalNetAmount,
     decimal TotalVatAmount,
     decimal TotalTotalAmount,
-    decimal TotalServiceCharge = 0m);
+    decimal TotalServiceCharge = 0m,
+    decimal TotalPackagingFee = 0m);

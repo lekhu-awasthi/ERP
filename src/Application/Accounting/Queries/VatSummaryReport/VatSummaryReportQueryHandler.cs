@@ -39,7 +39,7 @@ public sealed class VatSummaryReportQueryHandler(IAppDbContext db)
                 // Phase 61 -- a till line's service charge is inside the VAT base (Decision A of
                 // docs/phase-61-status.md), so it is part of the line's taxable amount here. Zero on
                 // every ERP line. The bill's round-off is not a supply and is in no bucket.
-                .Select(x => new RawVatLine(x.InvoiceId, x.VatRate, x.Amount + x.ServiceChargeAmount, x.VatAmount))
+                .Select(x => new RawVatLine(x.InvoiceId, x.VatRate, x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount, x.VatAmount))
                 .ToListAsync(cancellationToken),
             invoiceRates);
 
@@ -54,7 +54,7 @@ public sealed class VatSummaryReportQueryHandler(IAppDbContext db)
                 .Where(x => creditNoteIds.Contains(x.CreditNoteId))
                 // Phase 63 -- a till refund's service charge is inside the VAT base it gives back,
                 // as it was in the sale's (phase 61 Decision A). Zero on an ERP note.
-                .Select(x => new RawVatLine(x.CreditNoteId, x.VatRate, x.Amount + x.ServiceChargeAmount, x.VatAmount))
+                .Select(x => new RawVatLine(x.CreditNoteId, x.VatRate, x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount, x.VatAmount))
                 .ToListAsync(cancellationToken),
             creditNoteRates);
 

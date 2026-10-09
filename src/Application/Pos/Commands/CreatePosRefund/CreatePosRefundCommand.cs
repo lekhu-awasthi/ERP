@@ -59,6 +59,7 @@ public sealed record CreatePosRefundResult(
     string Code,
     decimal GrandTotal,
     decimal ServiceCharge,
+    decimal PackagingFee,
     decimal RoundOff,
     decimal PaidOut,
     decimal ToAccount);

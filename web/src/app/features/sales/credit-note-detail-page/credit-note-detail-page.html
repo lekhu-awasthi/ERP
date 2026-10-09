@@ -422,6 +422,13 @@
                     <td class="text-end fw-bold">{{ (refund.serviceChargeTotal | amount) }}</td>
                   </tr>
                 }
+                @if (refund.packagingFeeTotal !== 0) {
+                  <tr>
+                    <td colspan="4"></td>
+                    <td class="text-end fw-semibold">Packaging</td>
+                    <td class="text-end fw-bold">{{ (refund.packagingFeeTotal | amount) }}</td>
+                  </tr>
+                }
               }
               <tr>
                 <td colspan="4"></td>

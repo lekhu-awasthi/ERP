@@ -87,9 +87,11 @@ public sealed record SalesSummaryRowDto(
     decimal Total,
     // Phase 66 -- the till's service charge, the live column phase 26b omitted because nothing wrote
     // it then. It is inside the VAT base, so it is in TaxableSales (or NonTaxableSales, on a line
-    // without VAT), as the Sales Register counts it: SubTotal - Discount + ServiceCharge =
+    // without VAT), as the Sales Register counts it: SubTotal - Discount + ServiceCharge + PackagingFee =
     // NonTaxableSales + TaxableSales.
-    decimal ServiceCharge = 0m);
+    decimal ServiceCharge = 0m,
+    // Phase 70 -- a parcel's packaging fee, inside the VAT base like the service charge.
+    decimal PackagingFee = 0m);
 
 public sealed record SalesSummaryReportDto(
     int FiscalYear,

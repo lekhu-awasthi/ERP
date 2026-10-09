@@ -37,7 +37,7 @@ public sealed class AnnexFiveReportQueryHandler(IAppDbContext db, ICurrentUserSe
             .Where(x => invoices.Select(i => i.Id).Contains(x.InvoiceId))
             // Phase 61 -- a till line's service charge is inside the VAT base, so it is taxable with
             // its line. Zero on every ERP line; the round-off is not a supply and is not here.
-            .Select(x => new { x.InvoiceId, x.VatRate, Amount = x.Amount + x.ServiceChargeAmount, x.VatAmount })
+            .Select(x => new { x.InvoiceId, x.VatRate, Amount = x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         var creditNotes = await db.CreditNotes
@@ -50,7 +50,7 @@ public sealed class AnnexFiveReportQueryHandler(IAppDbContext db, ICurrentUserSe
         var creditNoteLines = await db.CreditNoteLines
             .Where(x => creditNotes.Select(c => c.Id).Contains(x.CreditNoteId))
             // Phase 63 -- a till refund's service charge is inside the taxable value it returns.
-            .Select(x => new { x.CreditNoteId, x.VatRate, Amount = x.Amount + x.ServiceChargeAmount, x.VatAmount })
+            .Select(x => new { x.CreditNoteId, x.VatRate, Amount = x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         var contactIds = invoices.Select(x => x.ContactId).Concat(creditNotes.Select(x => x.ContactId)).Distinct().ToList();

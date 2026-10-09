@@ -84,7 +84,7 @@ public sealed class GetInvoiceQueryHandler(IAppDbContext db) : IRequestHandler<G
                 x.BatchId is null ? null : batches.GetValueOrDefault(x.BatchId.Value)?.ExpiryDate,
                 serials.TryGetValue(x.Id, out var lineSerials) ? lineSerials : [],
                 x.UnitId, x.UnitId is null ? null : unitNames.GetValueOrDefault(x.UnitId.Value), x.ConversionFactor,
-                x.ServiceChargeRate, x.ServiceChargeAmount)).ToList(),
+                x.ServiceChargeRate, x.ServiceChargeAmount, x.PackagingFeeAmount)).ToList(),
             glLines,
             invoice.CurrencyCode,
             invoice.ExchangeRate,
@@ -115,6 +115,7 @@ public sealed class GetInvoiceQueryHandler(IAppDbContext db) : IRequestHandler<G
             sessionCode,
             invoice.OrderType,
             invoice.ServiceChargeTotal,
+            invoice.PackagingFeeTotal,
             invoice.RoundOff,
             [.. invoice.Tenders.Select(x => new InvoiceTenderDto(
                 x.PaymentModeId, modeNames.GetValueOrDefault(x.PaymentModeId, ""), x.Kind, x.Amount))],

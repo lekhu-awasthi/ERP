@@ -17,16 +17,29 @@ namespace ErpApp.Domain.UnitTests.Pos;
 ///
 /// <para>The file is an embedded resource, so a moved or deleted table is a build error rather than
 /// a green test over nothing.</para>
+///
+/// <para>Phase 70 -- a line may carry <c>packagingFeeBasis</c> and <c>packagingFeeValue</c>, and its
+/// expectation a <c>packagingFee</c>. Absent means none, which is what every phase 62 case meant, so those
+/// cases are untouched; both readers treat absence identically.</para>
 /// </summary>
 public class PosBillSharedCasesTests
 {
-    private sealed record Line(decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal ServiceChargeRate);
+    private sealed record Line(
+        decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal ServiceChargeRate, PackagingFee PackagingFee);
 
-    private sealed record ExpectedLine(decimal Amount, decimal ServiceCharge, decimal Vat, decimal Total);
+    private sealed record ExpectedLine(decimal Amount, decimal ServiceCharge, decimal PackagingFee, decimal Vat, decimal Total);
 
     private sealed record Case(
         string Why, bool RoundOff, decimal DiscountPct, IReadOnlyList<Line> Lines, IReadOnlyList<ExpectedLine> ExpectedLines,
-        decimal SubTotal, decimal ServiceCharge, decimal Vat, decimal ExpectedRoundOff, decimal GrandTotal);
+        decimal SubTotal, decimal ServiceCharge, decimal PackagingFee, decimal Vat, decimal ExpectedRoundOff, decimal GrandTotal);
+
+    private static decimal OptionalDecimal(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) ? value.GetDecimal() : 0m;
+
+    private static PackagingFee OptionalFee(JsonElement line) =>
+        line.TryGetProperty("packagingFeeBasis", out var basis)
+            ? PackagingFee.Create(Enum.Parse<PackagingFeeBasis>(basis.GetString()!), OptionalDecimal(line, "packagingFeeValue"))
+            : PackagingFee.None;
 
     private static IReadOnlyList<Case> Cases()
     {
@@ -50,17 +63,20 @@ public class PosBillSharedCasesTests
                             l.GetProperty("rate").GetDecimal(),
                             Enum.Parse<VatRate>(l.GetProperty("vatRate").GetString()!),
                             l.GetProperty("discountPct").GetDecimal(),
-                            l.GetProperty("serviceChargeRate").GetDecimal()))
+                            l.GetProperty("serviceChargeRate").GetDecimal(),
+                            OptionalFee(l)))
                         .ToList(),
                     expected.GetProperty("lines").EnumerateArray()
                         .Select(l => new ExpectedLine(
                             l.GetProperty("amount").GetDecimal(),
                             l.GetProperty("serviceCharge").GetDecimal(),
+                            OptionalDecimal(l, "packagingFee"),
                             l.GetProperty("vat").GetDecimal(),
                             l.GetProperty("total").GetDecimal()))
                         .ToList(),
                     expected.GetProperty("subTotal").GetDecimal(),
                     expected.GetProperty("serviceCharge").GetDecimal(),
+                    OptionalDecimal(expected, "packagingFee"),
                     expected.GetProperty("vat").GetDecimal(),
                     expected.GetProperty("roundOff").GetDecimal(),
                     expected.GetProperty("grandTotal").GetDecimal());
@@ -83,8 +99,13 @@ public class PosBillSharedCasesTests
     public void The_table_has_not_lost_its_cases()
     {
         // Phase 34a: a guard asserts its input is non-empty, not merely present.
-        Assert.True(Cases().Count >= 12);
+        Assert.True(Cases().Count >= 20);
         Assert.All(Cases(), x => Assert.False(string.IsNullOrWhiteSpace(x.Why)));
+
+        // Phase 70 -- the fee cases, in both bases, are there to be checked (and not silently read as none).
+        var fees = Cases().SelectMany(x => x.Lines).Select(x => x.PackagingFee.Basis).ToList();
+        Assert.Contains(PackagingFeeBasis.Percent, fees);
+        Assert.Contains(PackagingFeeBasis.PerUnit, fees);
     }
 
     [Theory]
@@ -101,7 +122,7 @@ public class PosBillSharedCasesTests
         {
             sale.AddPosLine(
                 Guid.NewGuid(), line.Quantity, line.Rate, line.VatRate, line.DiscountPct, null, 1m, null,
-                line.ServiceChargeRate);
+                line.ServiceChargeRate, line.PackagingFee);
         }
 
         if (c.RoundOff)
@@ -114,14 +135,15 @@ public class PosBillSharedCasesTests
             var actual = sale.Lines[i];
             var expected = c.ExpectedLines[i];
             Assert.True(
-                (expected.Amount, expected.ServiceCharge, expected.Vat, expected.Total)
-                    == (actual.Amount, actual.ServiceChargeAmount, actual.VatAmount, actual.LineTotal),
+                (expected.Amount, expected.ServiceCharge, expected.PackagingFee, expected.Vat, expected.Total)
+                    == (actual.Amount, actual.ServiceChargeAmount, actual.PackagingFeeAmount, actual.VatAmount, actual.LineTotal),
                 $"{c.Why} -- line {i + 1}: expected {expected}, got ({actual.Amount}, {actual.ServiceChargeAmount}, "
-                + $"{actual.VatAmount}, {actual.LineTotal})");
+                + $"{actual.PackagingFeeAmount}, {actual.VatAmount}, {actual.LineTotal})");
         }
 
         Assert.Equal(c.SubTotal, sale.Lines.Sum(x => x.Amount));
         Assert.Equal(c.ServiceCharge, sale.ServiceChargeTotal);
+        Assert.Equal(c.PackagingFee, sale.PackagingFeeTotal);
         Assert.Equal(c.Vat, sale.Lines.Sum(x => x.VatAmount));
         Assert.Equal(c.ExpectedRoundOff, sale.RoundOff);
         Assert.Equal(c.GrandTotal, sale.GrandTotal);

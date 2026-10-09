@@ -1,4 +1,5 @@
 using ErpApp.Domain.Catalog;
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Pos;
 using ErpApp.Domain.Tenancy;
 
@@ -23,10 +24,10 @@ public class PosRestaurantTests
         DateTimeOffset.UtcNow);
 
     private static PosOrderNewLine Momo(decimal quantity, string? note = null, Guid? station = null) => new(
-        Guid.NewGuid(), Guid.NewGuid(), 1m, quantity, 200m, VatRate.ThirteenPercentVat, 10m, note, station ?? Kitchen);
+        Guid.NewGuid(), Guid.NewGuid(), 1m, quantity, 200m, VatRate.ThirteenPercentVat, 10m, PackagingFee.None, note, station ?? Kitchen);
 
     private static PosOrderNewLine Coke(decimal quantity) => new(
-        Guid.NewGuid(), Guid.NewGuid(), 1m, quantity, 60m, VatRate.ThirteenPercentVat, 0m, null, null);
+        Guid.NewGuid(), Guid.NewGuid(), 1m, quantity, 60m, VatRate.ThirteenPercentVat, 0m, PackagingFee.None, null, null);
 
     private static PosOrderLineQuantity Of(PosOrderLine line, decimal quantity) => new(line.Id, quantity);
 
@@ -232,7 +233,7 @@ public class PosRestaurantTests
         var settings = PosLocationSettings.CreateDefault(Organization, Location);
         settings.Update(
             PosMode.Restaurant, serviceChargeEnabled: true, serviceChargeRate: 10m, serviceChargeAccountId: null,
-            serviceChargeOnTakeAway: true, roundOffEnabled: false, roundOffAccountId: null, cashVerificationRequired: false,
+            serviceChargeOnTakeAway: true, packagingFee: PackagingFee.None, packagingFeeAccountId: null, roundOffEnabled: false, roundOffAccountId: null, cashVerificationRequired: false,
             denominations: PosLocationSettings.DefaultDenominations, defaultTab: null, printEstimateBill: true,
             printInvoice: true, printCreditNote: true, printKot: true, abbreviatedTaxInvoiceEnabled: false);
 

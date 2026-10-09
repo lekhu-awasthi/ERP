@@ -1,4 +1,5 @@
 import { VatRate } from '../catalog/catalog.models';
+import { PackagingFeeBasis } from './pos.models';
 
 /**
  * Phase 62 -- the till's bill arithmetic: the client's copy of `InvoiceLine.CreatePos` and
@@ -16,6 +17,11 @@ import { VatRate } from '../catalog/catalog.models';
  * the server says 1.01. Every input is therefore scaled to an exact integer of millionths (the till
  * never enters more decimals than that) and the arithmetic is done in `bigint`, with one rounding
  * per figure exactly where the server rounds.</p>
+ *
+ * <p><b>Phase 70 -- the packaging fee</b> is taken beside the service charge, on the same rounded amount
+ * (a percent) or per unit (a flat amount), and is inside the VAT base: `PosLineArithmetic.Compute`.
+ * Its two fields are required, not optional -- an optional field is where a sweep silently stops
+ * (phase 52), and a line that forgot them would be billed a different total than the server's.</p>
  */
 
 export interface BillLineInput {
@@ -27,11 +33,16 @@ export interface BillLineInput {
   discountPct: number;
   /** Percent; zero unless the location charges it and the product carries the flag. */
   serviceChargeRate: number;
+  /** Phase 70 -- 'None' unless the line is a parcel of a product not exempted and the location charges a fee. */
+  packagingFeeBasis: PackagingFeeBasis;
+  /** A percent for 'Percent', rupees a unit for 'PerUnit'. */
+  packagingFeeValue: number;
 }
 
 export interface BillLineFigures {
   amount: number;
   serviceCharge: number;
+  packagingFee: number;
   vat: number;
   total: number;
 }
@@ -40,6 +51,7 @@ export interface BillFigures {
   lines: BillLineFigures[];
   subTotal: number;
   serviceCharge: number;
+  packagingFee: number;
   vat: number;
   roundOff: number;
   grandTotal: number;
@@ -70,6 +82,18 @@ function rupees(paisa: bigint): number {
   return Number(paisa) / 100;
 }
 
+/** Phase 70 -- a line's packaging fee in paisa: a percent of its rounded amount, or rupees for each unit. */
+function packagingFeeOf(line: BillLineInput, amountPaisa: bigint): bigint {
+  switch (line.packagingFeeBasis) {
+    case 'Percent':
+      return divideHalfAway(amountPaisa * micro(line.packagingFeeValue), HUNDRED_PERCENT);
+    case 'PerUnit':
+      return divideHalfAway(micro(line.quantity) * micro(line.packagingFeeValue) * 100n, MICRO * MICRO);
+    default:
+      return 0n;
+  }
+}
+
 /** The whole bill, line by line, as the server will bill it. */
 export function computeBill(lines: readonly BillLineInput[], billDiscountPct: number, roundOff: boolean): BillFigures {
   const header = HUNDRED_PERCENT - micro(billDiscountPct);
@@ -81,14 +105,15 @@ export function computeBill(lines: readonly BillLineInput[], billDiscountPct: nu
     const denominator = MICRO * MICRO * HUNDRED_PERCENT * HUNDRED_PERCENT;
     const amount = divideHalfAway(numerator, denominator);
 
-    // Service charge on the rounded amount, and VAT on the amount plus its service charge --
-    // each rounded to the paisa as the server does (phase 61 Decision L).
+    // Service charge on the rounded amount, the packaging fee beside it (phase 70), and VAT on the
+    // amount plus both -- each rounded to the paisa as the server does (phase 61 Decision L).
     const serviceCharge = divideHalfAway(amount * micro(line.serviceChargeRate), HUNDRED_PERCENT);
-    const vat = divideHalfAway((amount + serviceCharge) * vatPercent(line.vatRate), 100n);
-    const lineTotal = amount + serviceCharge + vat;
+    const packagingFee = packagingFeeOf(line, amount);
+    const vat = divideHalfAway((amount + serviceCharge + packagingFee) * vatPercent(line.vatRate), 100n);
+    const lineTotal = amount + serviceCharge + packagingFee + vat;
     total += lineTotal;
 
-    return { amount, serviceCharge, vat, lineTotal };
+    return { amount, serviceCharge, packagingFee, vat, lineTotal };
   });
 
   // To the nearest rupee, half away from zero (phase 61 Decision B).
@@ -98,11 +123,13 @@ export function computeBill(lines: readonly BillLineInput[], billDiscountPct: nu
     lines: figures.map((x) => ({
       amount: rupees(x.amount),
       serviceCharge: rupees(x.serviceCharge),
+      packagingFee: rupees(x.packagingFee),
       vat: rupees(x.vat),
       total: rupees(x.lineTotal),
     })),
     subTotal: rupees(figures.reduce((sum, x) => sum + x.amount, 0n)),
     serviceCharge: rupees(figures.reduce((sum, x) => sum + x.serviceCharge, 0n)),
+    packagingFee: rupees(figures.reduce((sum, x) => sum + x.packagingFee, 0n)),
     vat: rupees(figures.reduce((sum, x) => sum + x.vat, 0n)),
     roundOff: rupees(rounded - total),
     grandTotal: rupees(rounded),

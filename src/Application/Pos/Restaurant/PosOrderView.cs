@@ -33,6 +33,7 @@ public sealed record PosOrderLineDto(
     decimal ToBill,
     decimal Amount,
     decimal ServiceChargeAmount,
+    decimal PackagingFeeAmount,
     decimal VatAmount,
     decimal Total,
     // Phase 68 -- a take-away line, the dine-in line it was parcelled from, and what moves brought onto
@@ -65,7 +66,7 @@ public sealed record KitchenTicketDto(
 
 /// <summary>
 /// An order as the restaurant till and the ERP list show it. <paramref name="Total"/> is the estimate
-/// before any bill: the lines' amount, service charge and VAT, not yet rounded to the rupee (the bill
+/// before any bill: the lines' amount, service charge, packaging fee and VAT, not yet rounded to the rupee (the bill
 /// rounds, phase 65). Phase 65: <paramref name="Billed"/> is what its invoices not voided came to, and
 /// <paramref name="Invoices"/> lists every bill, voided ones included.
 /// </summary>
@@ -92,6 +93,7 @@ public sealed record PosOrderDto(
     string? VoidedByName,
     decimal Amount,
     decimal ServiceCharge,
+    decimal PackagingFee,
     decimal Vat,
     decimal Total,
     decimal Outstanding,
@@ -206,8 +208,8 @@ internal static class PosOrderView
                         line.Note, line.KitchenStationId, StationName(line.KitchenStationId),
                         q.Ordered, q.Discarded, q.Net, q.Served, q.Outstanding,
                         invoiced.GetValueOrDefault(line.Id), order.RemainingToBill(line, invoiced),
-                        figures.Amount, figures.ServiceChargeAmount, figures.VatAmount,
-                        figures.Amount + figures.ServiceChargeAmount + figures.VatAmount,
+                        figures.Amount, figures.ServiceChargeAmount, figures.PackagingFeeAmount, figures.VatAmount,
+                        figures.Total,
                         line.IsTakeAway, line.ParcelledFromLineId, q.MovedIn, q.MovedOut);
                 })
                 .ToList();
@@ -270,8 +272,9 @@ internal static class PosOrderView
                 order.VoidedByUserId is { } voidedBy ? users.GetValueOrDefault(voidedBy) : null,
                 estimate.Amount,
                 estimate.ServiceChargeAmount,
+                estimate.PackagingFeeAmount,
                 estimate.VatAmount,
-                estimate.Amount + estimate.ServiceChargeAmount + estimate.VatAmount,
+                estimate.Total,
                 lines.Sum(x => x.Outstanding),
                 order.SettledAt,
                 billed.Totals.GrandTotal,

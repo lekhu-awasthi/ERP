@@ -106,12 +106,12 @@ internal static class ContactLedgerReader
             .ToListAsync(cancellationToken);
         var invoiceLines = await db.InvoiceLines
             .Where(x => invoices.Select(i => i.Id).Contains(x.InvoiceId))
-            .Select(x => new { x.InvoiceId, x.Amount, x.ServiceChargeAmount, x.VatAmount })
+            .Select(x => new { x.InvoiceId, x.Amount, x.ServiceChargeAmount, x.PackagingFeeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
         // Phase 61 -- a till line's service charge and the bill's round-off are owed too (both zero
         // on an ERP invoice).
         var invoiceTotals = invoiceLines.GroupBy(x => x.InvoiceId)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount));
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount + x.VatAmount));
 
         // Phase 61 -- what each till sale's tenders settled on the spot (handed over less change).
         var invoiceTendered = await db.InvoiceTenders
@@ -128,12 +128,12 @@ internal static class ContactLedgerReader
             .ToListAsync(cancellationToken);
         var creditNoteLines = await db.CreditNoteLines
             .Where(x => creditNotes.Select(c => c.Id).Contains(x.CreditNoteId))
-            .Select(x => new { x.CreditNoteId, x.Amount, x.ServiceChargeAmount, x.VatAmount })
+            .Select(x => new { x.CreditNoteId, x.Amount, x.ServiceChargeAmount, x.PackagingFeeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
         // Phase 63 -- a till refund gives back its service charge and round-off too (both zero on an
         // ERP note).
         var creditNoteTotals = creditNoteLines.GroupBy(x => x.CreditNoteId)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount));
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount + x.VatAmount));
 
         // Phase 63 -- what each till refund handed back over the counter.
         var creditNotePaidOut = await db.CreditNotePayouts

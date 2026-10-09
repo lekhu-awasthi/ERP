@@ -57,10 +57,10 @@ public sealed class GetDefaultPaymentAllocationsQueryHandler(IAppDbContext db)
             .ToListAsync(cancellationToken);
         var lines = await db.CreditNoteLines
             .Where(x => creditNotes.Select(c => c.Id).Contains(x.CreditNoteId))
-            .Select(x => new { x.CreditNoteId, x.Amount, x.ServiceChargeAmount, x.VatAmount })
+            .Select(x => new { x.CreditNoteId, x.Amount, x.ServiceChargeAmount, x.PackagingFeeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
         var gross = lines.GroupBy(x => x.CreditNoteId)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount));
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount + x.VatAmount));
 
         // Phase 63 -- what a till refund handed back never reduced the sale (OutstandingDocumentReader's
         // LoadRefundPayoutsAsync); only the part left on the customer's account did.

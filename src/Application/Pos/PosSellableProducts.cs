@@ -95,7 +95,7 @@ internal static class PosSellableProducts
 
                 return new PosProductDto(
                     p.Id, p.Code, p.Name, p.CategoryId, p.Type, p.VatRate, rate, p.ServiceChargeApplicable,
-                    p.BatchTracking, p.SerialTracking, p.Barcode, units);
+                    p.PackagingFeeApplicable, p.BatchTracking, p.SerialTracking, p.Barcode, units);
             })
             .ToList();
 

@@ -6,6 +6,7 @@ using ErpApp.Domain.Pos;
 using ErpApp.Domain.Tenancy;
 using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Pos.Commands.UpdatePosOrderTakeAway;
 
@@ -13,6 +14,10 @@ namespace ErpApp.Application.Pos.Commands.UpdatePosOrderTakeAway;
 /// Phase 68 -- parcels part of a dine-in line: the vendor's <i>Mark as Take Away</i>. The quantity moves to
 /// the line's take-away sibling, whose service charge is decided now from the location's <i>Service charge
 /// on take-away</i> and frozen (docs/phase-68-status.md Decision B). The kitchen gets a take-away ticket.
+///
+/// <para>Phase 70 -- the parcel's packaging fee is decided here too, from the location's fee and the
+/// product's own flag read now (<see cref="PosPackagingFee.ForParcel"/>), and frozen beside the service
+/// charge: the plated line never carried one, so there was nothing to copy.</para>
 ///
 /// <para><b>Pos.Order.Operate</b> at the order's location, as a send is: it is routine table work, and the
 /// service charge it may take off is the location's setting, not the waiter's choice. Named <c>Update</c> so
@@ -56,8 +61,15 @@ public sealed class UpdatePosOrderTakeAwayCommandHandler(IAppDbContext db, ICurr
         // Billed food is on a tax invoice at its rate, so it cannot be parcelled into another one.
         var invoiced = (await PosOrderBilling.LoadAsync(db, request.OrganizationId, order.Id, cancellationToken)).Invoiced;
 
+        var productId = order.Lines.FirstOrDefault(x => x.Id == request.LineId)?.ProductId;
+        var packagingFeeApplicable = productId is { } id && await db.Products
+            .Where(x => x.OrganizationId == request.OrganizationId && x.Id == id)
+            .Select(x => x.PackagingFeeApplicable)
+            .SingleOrDefaultAsync(cancellationToken);
+
         var result = PosOrderCommands.Run(() => order.MarkTakeAway(
-            request.LineId, request.Quantity, till.Settings.ServiceChargeOnTakeAway, currentUser.UserId, invoiced));
+            request.LineId, request.Quantity, till.Settings.ServiceChargeOnTakeAway,
+            PosPackagingFee.ForParcel(till.Settings, packagingFeeApplicable), currentUser.UserId, invoiced));
 
         // Added through the sets: a child appended to a tracked parent reads as Modified (phase 24).
         db.PosOrderLines.AddRange(result.NewLines);

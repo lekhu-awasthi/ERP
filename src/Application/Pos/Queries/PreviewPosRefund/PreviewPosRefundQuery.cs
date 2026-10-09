@@ -8,7 +8,8 @@ using MediatR;
 namespace ErpApp.Application.Pos.Queries.PreviewPosRefund;
 
 public sealed record PosRefundPreviewLineDto(
-    Guid InvoiceLineId, decimal Quantity, decimal Amount, decimal ServiceChargeAmount, decimal VatAmount, decimal LineTotal);
+    Guid InvoiceLineId, decimal Quantity, decimal Amount, decimal ServiceChargeAmount, decimal PackagingFeeAmount,
+    decimal VatAmount, decimal LineTotal);
 
 /// <summary>
 /// Phase 63 -- what a refund of the chosen lines would be, computed by the same planner the refund
@@ -21,6 +22,7 @@ public sealed record PosRefundPreviewDto(
     IReadOnlyList<PosRefundPreviewLineDto> Lines,
     decimal SubTotal,
     decimal ServiceCharge,
+    decimal PackagingFee,
     decimal Vat,
     decimal RoundOff,
     decimal GrandTotal,

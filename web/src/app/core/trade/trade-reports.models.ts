@@ -110,6 +110,8 @@ export interface TradeByContactRowDto {
   totalAmount: number;
   /** Phase 66 -- a till line's service charge (zero on purchases); totalAmount includes it. */
   serviceCharge: number;
+  /** Phase 70 -- a parcel's packaging fee, measured beside it. */
+  packagingFee: number;
 }
 
 export interface TradeByContactDto {
@@ -126,6 +128,7 @@ export interface TradeByContactDto {
   totalVatAmount: number;
   totalTotalAmount: number;
   totalServiceCharge: number;
+  totalPackagingFee: number;
 }
 
 // ---- Sales/Purchase By Item ------------------------------------------------------------------
@@ -144,6 +147,8 @@ export interface TradeByItemRowDto {
   totalAmount: number;
   /** Phase 66 -- a till line's service charge (zero on purchases); totalAmount includes it. */
   serviceCharge: number;
+  /** Phase 70 -- a parcel's packaging fee, measured beside it. */
+  packagingFee: number;
 }
 
 /** There is no total quantity: the rows are products in different units of measure. */
@@ -162,6 +167,7 @@ export interface TradeByItemDto {
   totalVatAmount: number;
   totalTotalAmount: number;
   totalServiceCharge: number;
+  totalPackagingFee: number;
 }
 
 // ---- The four BS fiscal-year Monthly crosstabs ----------------------------------------------
@@ -254,6 +260,8 @@ export interface SalesSummaryRowDto {
   total: number;
   /** Phase 66 -- the till's service charge, inside the taxable (or non-taxable) bucket of its line. */
   serviceCharge: number;
+  /** Phase 70 -- the packaging fee, in the same bucket. */
+  packagingFee: number;
 }
 
 export interface SalesSummaryReportDto {

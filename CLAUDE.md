@@ -101,6 +101,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 67: the ERP invoice and credit-note PDF (the heading the bill is, English and Nepali; every copy counted across till, PDF and email; a counted print is a POST, the GET refuses). Before a new way a document leaves the system, or Nepali in a PDF — `docs/phase-67-status.md`
 - Phase 68: Mark as Take Away and item transfer (a parcel is a split line moved by a take-away ticket, its service charge decided once at the mark by the location's setting; a transfer is a ticket on each order at the same rates; an emptied tab closes) + the buyer's PAN on the ERP PDF. Before moving a quantity between lines or orders, or a setting that changes a line's charge — `docs/phase-68-status.md`
 - Phase 69: a credit note names its invoice (Rule 20(1)(e)): a picked one makes it a price adjustment capped by value and VAT, a typed one must predate the first invoice, and Approve refuses none on a VAT tenant; conversion templates carry currency. Before linking one document to another, or editing a converted draft — `docs/phase-69-status.md`
+- Phase 70: the packaging fee (per item on every parcel: a percent of the line or flat per unit, inside the VAT base at the line's rate, its own account, frozen on the line; a product opt-out, on by default). Before adding a part to a line's money, or a flag that defaults to on — `docs/phase-70-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -167,6 +168,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Two column renames on one table in one diff are paired by **ordinal position**, not by meaning, so `dotnet ef` silently swaps them; verify with a predicate true only of the right pairing (phase-43 bug #1).
 - Rebuilding only `Infrastructure` between `dotnet ef` calls leaves `Api`'s output stale and re-scaffolds an applied diff; let `dotnet ef` rebuild (omit `--no-build`) or rebuild the solution (phase-16a).
 - An enum property with `.HasDefaultValue(x)` where `x != default(TEnum)` needs `.ValueGeneratedNever()`, or EF substitutes the SQL default whenever the in-memory value equals `default` (phase-2 bug #2).
+- …and a **bool** defaulting to `true` is the same trap, sharper: without `ValueGeneratedNever` every exemption (`false`) saves as `true`. InMemory cannot show it; read the row in SQL (phase-70).
 - `Database.SqlQuery<T>` accepts only composable SQL (a plain `SELECT`); do atomic read-and-increment as `SELECT ... WITH (UPDLOCK, ROWLOCK)` + a separate `UPDATE`, and alias a scalar result `AS Value` (phase-2 bugs #3–4).
 - A handler generic over an interface-constrained type must read properties via `EF.Property<T>(x, nameof(...))`, be registered against the closed 2-arg `IRequestHandler<,>`, and never pass a captured `Func` selector into `Where` (phase-2 bugs #1/#5, phase-9 bug #1).
 - Replacing an entire encapsulated child collection in one save mis-tracks on InMemory; snapshot and `RemoveRange`/`AddRange` through the child `DbSet` (phase-4 bug #1).
@@ -223,6 +225,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - …and a refund's payouts are the credit note paying itself out: reduce the sale by the note **less its payouts**, or a cash refund leaves the walk-in in credit (phase-63).
 - A rule question answered from the statutes can change the product question: Nepal voided mandatory service charge on 2023-01-25. Ask the user; never build or drop it silently (phase-61).
 - Adding the Nth trailing optional parameter finds callers that stopped at N−2: variant edits reset batch/serial tracking and update imports cleared SKU, barcode, locations and tracking (phase-60).
+- A flag defaulting to on gets its own mutator, never a trailing optional `Update` parameter: 57 callers that never heard of it would re-enable every exemption (`Product.PackagingFeeApplicable`, phase-70).
 - A filter over a tree of tenant-defined groups must match on group **id**, never group name — names are not unique across a chart of accounts (phase-26a bug #1).
 - `decimal` has a signed zero: `-0m` keeps its sign bit and surfaces as `-0` / `-0.00` once cast to `double` for a spreadsheet cell. Accumulate a magnitude only when the value is strictly non-zero — no test catches this, because `-0m == 0m` (phase-26c bug #1).
 
@@ -416,6 +419,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A sweep driven by the compiler stops exactly where the compiler stops: changing `ConsumeAsync`'s **return type** enumerated all five consume sites, while adding **optional parameters** to `IncrementAsync` enumerated none — and the one increment site that needed them shipped un-swept past every green test (phase-51).
 - …and **where it stops is a design choice**: making the ledger's quantity a distinct type (`PrimaryQuantity`, no implicit `decimal`) enumerated 17 call sites and caught two Voids restocking the *entered* quantity (phase-52).
 - An **optional** field ends a sweep in any language: `unitId` is optional on the line records, so every save path compiled while 7 of 8 Angular forms silently dropped it (phase-52).
+- A line's money summed by hand hides in four shapes: LINQ formulas, projections lacking the column, records with a field *named* `ServiceCharge`, browser sums. A source guard must name each (phase-70).
 - A scripted template sweep covers exactly the shape its pattern names — matching the editable `<input>` left the `@else` branch bare, so seven approved documents rendered a quantity with no unit (phase-52).
 - A control added to an existing cell has to fit in it: the unit select crushed the Qty input to a few pixels, and the author saw it, mis-read it and moved on — the user reported it (phase-52).
 - A vendor's always-pass dummy credential (Turnstile `1x000…AA`) accepts any input; proving the negative path needs the always-fail one (`2x000…AA`) swapped in (phase-20g).
@@ -501,25 +505,26 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-69 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-70 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 69 made every ERP credit note able to name its tax invoice** (VAT Rules Rule 20(1)(e)), and a
-VAT-registered seller can no longer approve one that names none. It added:
+**Phase 70 added the packaging fee.** A location may charge it on every parcel: Take Away and Delivery sales at
+either till, and dine-in food marked as take-away. It has:
 
-- a picked invoice on a standalone note (a price adjustment: same customer, currency and location, dated on or
-  after it), capped with every other note against it by the invoice's total and VAT;
-- a typed invoice (number and date) for one issued before the system, dated before the first invoice here;
-- the Reason on the ERP note, and "Against Invoice … dated …" plus the reason on every credit-note PDF;
-- the source's currency and rate on four conversion templates, and the line caps re-checked on an edit of a
-  converted credit or debit note (both bugs found in planning).
+- two bases: a percent of the line (after its discounts) or a flat amount per unit;
+- VAT charged on it at the line's own rate (an exempt item's fee is exempt), and its own account (location, then
+  tenant default, then a 409);
+- terms frozen on the line when it is rung up, sent or marked, so splits, refunds and transfers needed no new rule;
+- a per-product opt-out, on by default, written only by the product form;
+- the fee beside service charge on every receipt, bill, report, export and detail page, with a source guard in
+  each language over every hand-written sum of a line's money.
 
-**Next:** not yet scheduled. Carried: the packaging fee, discount and credit on a restaurant bill, per-part
-customers (phase 68 § 5), real printing templates, and the smaller items in phase 69 § 5.
+**Next:** not yet scheduled. Candidates: every bill's date in BS (raised by the user on 2026-10-08), discount and
+credit on a restaurant bill, per-part customers (phase 68 § 5), real printing templates, and phase 70 § 5.
 
-Tests: Domain **907**, Application.UnitTests **1607**, Infrastructure.UnitTests 13,
-Api.IntegrationTests **43**, Angular **769**. Everything was green at phase 69's close with Docker up.
+Tests: Domain **946**, Application.UnitTests **1638**, Infrastructure.UnitTests 13,
+Api.IntegrationTests **43**, Angular **785**. Everything was green at phase 70's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

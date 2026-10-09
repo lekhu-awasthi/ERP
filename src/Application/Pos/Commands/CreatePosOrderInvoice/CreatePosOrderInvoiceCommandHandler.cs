@@ -85,7 +85,7 @@ public sealed class CreatePosOrderInvoiceCommandHandler(
         {
             invoice.AddPosOrderLine(
                 line.Line.Id, line.Line.ProductId, line.Quantity, line.Line.Rate, line.Line.VatRate, line.Line.UnitId,
-                line.Line.ConversionFactor, line.Line.ServiceChargeRate, line.Figures);
+                line.Line.ConversionFactor, line.Line.ServiceChargeRate, line.Line.PackagingFee, line.Figures);
         }
 
         if (plan.RoundOff != 0m)
@@ -114,7 +114,7 @@ public sealed class CreatePosOrderInvoiceCommandHandler(
         await db.SaveChangesAsync(cancellationToken);
 
         return new CreatePosOrderInvoiceResult(
-            invoice.Id, invoice.Code, invoice.GrandTotal, invoice.ServiceChargeTotal, invoice.RoundOff,
+            invoice.Id, invoice.Code, invoice.GrandTotal, invoice.ServiceChargeTotal, invoice.PackagingFeeTotal, invoice.RoundOff,
             invoice.TenderedAmount, invoice.ChangeAmount, invoice.CreditAmount, invoice.IsAbbreviatedTaxInvoice,
             order.Status, plan.LeftAfter);
     }

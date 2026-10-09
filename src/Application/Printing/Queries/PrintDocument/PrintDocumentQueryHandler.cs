@@ -126,6 +126,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount)
             {
                 ServiceChargeAmount = l.ServiceChargeAmount,
+                PackagingFeeAmount = l.PackagingFeeAmount,
             })
             .ToList();
 
@@ -168,6 +169,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount)
             {
                 ServiceChargeAmount = l.ServiceChargeAmount,
+                PackagingFeeAmount = l.PackagingFeeAmount,
             })
             .ToList();
 
@@ -808,15 +810,18 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
 
     // ---- Shared assembly ---------------------------------------------------------------------
 
-    /// <summary>One printed line. <see cref="ServiceChargeAmount"/> is a till line's (phase 61) and zero
-    /// on every other line of every other document, which is why it is an init property rather than
-    /// a positional one every one of the seven builders would have to pass.</summary>
+    /// <summary>One printed line. <see cref="ServiceChargeAmount"/> is a till line's (phase 61), as is
+    /// <see cref="PackagingFeeAmount"/> (phase 70), and both are zero on every other line of every other
+    /// document, which is why they are init properties rather than positional ones every one of the seven
+    /// builders would have to pass.</summary>
     private readonly record struct ProductLine(
         Guid ProductId, decimal Quantity, decimal Rate, decimal DiscountPct, decimal Amount, decimal VatAmount)
     {
         public decimal ServiceChargeAmount { get; init; }
 
-        public decimal LineTotal => Amount + ServiceChargeAmount + VatAmount;
+        public decimal PackagingFeeAmount { get; init; }
+
+        public decimal LineTotal => Amount + ServiceChargeAmount + PackagingFeeAmount + VatAmount;
     }
 
     /// <summary>The seven product-line documents (Quotation, Sales Order, Invoice, Credit Note,
@@ -871,6 +876,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
 
         var subTotal = lines.Sum(l => l.Amount);
         var serviceCharge = lines.Sum(l => l.ServiceChargeAmount);
+        var packagingFee = lines.Sum(l => l.PackagingFeeAmount);
         var vat = lines.Sum(l => l.VatAmount);
 
         var summary = new List<PrintableFieldDto> { new("Sub Total", Money(subTotal)) };
@@ -882,10 +888,16 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         }
 
         // Phase 61 -- a till sale prints its service charge and round-off as lines of their own (the
-        // vendor's receipt folds both away, phase 59 defect 3). Neither appears on any other document.
+        // vendor's receipt folds both away, phase 59 defect 3), and phase 70 its packaging fee. None
+        // appears on any other document.
         if (serviceCharge != 0)
         {
             summary.Add(new PrintableFieldDto("Service Charge", Money(serviceCharge)));
+        }
+
+        if (packagingFee != 0)
+        {
+            summary.Add(new PrintableFieldDto("Packaging", Money(packagingFee)));
         }
 
         summary.Add(new PrintableFieldDto("VAT", Money(vat)));
@@ -900,7 +912,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         }
 
         summary.Add(new PrintableFieldDto(
-            "Grand Total", Money(subTotal + serviceCharge + vat - tdsAmount + roundOff), Emphasise: true));
+            "Grand Total", Money(subTotal + serviceCharge + packagingFee + vat - tdsAmount + roundOff), Emphasise: true));
 
         return await BuildDocumentAsync(
             request, organization, templateName, title, code, date, reference, contactId, partyHeading,

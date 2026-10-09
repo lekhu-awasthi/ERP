@@ -20,7 +20,7 @@ public class PosReceiptRulesTests
         var sale = Invoice.CreatePosSale(
             Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), new DateOnly(2026, 10, 1), Guid.NewGuid(), Guid.NewGuid(),
             PosTab.Retail);
-        sale.AddPosLine(Guid.NewGuid(), quantity, rate, VatRate.NoVat, 0, null, 1, null, 0m);
+        sale.AddPosLine(Guid.NewGuid(), quantity, rate, VatRate.NoVat, 0, null, 1, null, 0m, PackagingFee.None);
         return sale;
     }
 

@@ -100,6 +100,7 @@
                   <th scope="col" class="text-end">Discount</th>
                   <th scope="col" class="text-end">Net Sales</th>
                   <th scope="col" class="text-end">Service Charge</th>
+                  <th scope="col" class="text-end">Packaging</th>
                   <th scope="col" class="text-end">Vat Amount</th>
                   <th scope="col" class="text-end">Total Amount</th>
                 </tr>
@@ -118,6 +119,7 @@
                     <td class="text-end">{{ (row.discount | amount) }}</td>
                     <td class="text-end">{{ (row.netAmount | amount) }}</td>
                     <td class="text-end">{{ (row.serviceCharge | amount) }}</td>
+                    <td class="text-end">{{ (row.packagingFee | amount) }}</td>
                     <td class="text-end">{{ (row.vatAmount | amount) }}</td>
                     <td class="text-end fw-bold">{{ (row.totalAmount | amount) }}</td>
                   </tr>
@@ -134,6 +136,7 @@
                   <td class="text-end">{{ (r.totalDiscount | amount) }}</td>
                   <td class="text-end">{{ (r.totalNetAmount | amount) }}</td>
                   <td class="text-end">{{ (r.totalServiceCharge | amount) }}</td>
+                  <td class="text-end">{{ (r.totalPackagingFee | amount) }}</td>
                   <td class="text-end">{{ (r.totalVatAmount | amount) }}</td>
                   <td class="text-end">{{ (r.totalTotalAmount | amount) }}</td>
                 </tr>

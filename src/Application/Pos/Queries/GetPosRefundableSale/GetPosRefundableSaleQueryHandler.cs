@@ -72,6 +72,7 @@ public sealed class GetPosRefundableSaleQueryHandler(IAppDbContext db, ICurrentU
                 line.Rate,
                 line.DiscountPct,
                 line.ServiceChargeRate,
+                line.PackagingFeeAmount,
                 line.VatRate,
                 line.LineTotal));
         }

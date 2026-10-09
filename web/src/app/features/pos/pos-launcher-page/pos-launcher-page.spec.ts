@@ -22,7 +22,7 @@ describe('PosLauncherPage', () => {
 
   const till = (cashVerificationRequired: boolean, posMode: PosTill['posMode'] = 'Retail'): PosTill => ({
     locationId: 'loc-1', locationCode: 'HO', locationName: 'Thamel', posMode, availableTabs: ['Retail'],
-    defaultTab: 'Retail', serviceChargeEnabled: false, serviceChargeRate: 0, roundOffEnabled: true,
+    defaultTab: 'Retail', serviceChargeEnabled: false, serviceChargeRate: 0, packagingFeeBasis: 'None', packagingFeeValue: 0, roundOffEnabled: true,
     cashVerificationRequired, denominations: [1000, 500, 100], printInvoice: true, abbreviatedTaxInvoiceEnabled: false,
     isVatRegistered: true, warehouseId: null, warehouseName: null, walkInCustomer: null, paymentModes: [],
     categories: [], canSellOnCredit: false, printCreditNote: true, canRefund: false,

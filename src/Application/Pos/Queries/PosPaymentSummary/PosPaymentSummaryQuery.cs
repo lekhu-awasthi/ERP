@@ -164,7 +164,7 @@ public sealed class PosPaymentSummaryQueryHandler(IAppDbContext db, ICurrentUser
                 from line in db.InvoiceLines
                 join invoice in sales on line.InvoiceId equals invoice.Id
                 group line by line.InvoiceId into g
-                select new { Id = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount) })
+                select new { Id = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount + x.VatAmount) })
             .ToDictionaryAsync(x => x.Id, x => x.Total, cancellationToken);
         var tenders = (await (
                 from tender in db.InvoiceTenders
@@ -183,7 +183,7 @@ public sealed class PosPaymentSummaryQueryHandler(IAppDbContext db, ICurrentUser
                 from line in db.CreditNoteLines
                 join note in refunds on line.CreditNoteId equals note.Id
                 group line by line.CreditNoteId into g
-                select new { Id = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount) })
+                select new { Id = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount + x.VatAmount) })
             .ToDictionaryAsync(x => x.Id, x => x.Total, cancellationToken);
         var payouts = (await (
                 from payout in db.CreditNotePayouts

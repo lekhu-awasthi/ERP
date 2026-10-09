@@ -23,6 +23,11 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(x => x.HsCode).HasMaxLength(30);
         builder.Property(x => x.AvailableForSale).IsRequired();
         builder.Property(x => x.ServiceChargeApplicable).IsRequired().HasDefaultValue(false);
+
+        // Phase 70 -- on for every product, existing ones included (the user's default). ValueGeneratedNever is
+        // load-bearing: with a store default of true and no it, EF would read an unticked false as "unset"
+        // and let the column's default turn every exemption back on (phase 2 bug #2).
+        builder.Property(x => x.PackagingFeeApplicable).IsRequired().HasDefaultValue(true).ValueGeneratedNever();
         builder.Property(x => x.SellingPrice).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.PurchasePrice).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.VatRate).HasConversion<string>().HasMaxLength(30).IsRequired();

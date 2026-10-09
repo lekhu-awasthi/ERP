@@ -31,6 +31,7 @@ public sealed class GetAccountingDefaultsQueryHandler(IAppDbContext db)
             settings.DefaultLandedCostClearingAccountId,
             settings.DefaultServiceChargeAccountId,
             settings.DefaultRoundingAccountId,
-            settings.DefaultCashOverShortAccountId);
+            settings.DefaultCashOverShortAccountId,
+            settings.DefaultPackagingFeeAccountId);
     }
 }

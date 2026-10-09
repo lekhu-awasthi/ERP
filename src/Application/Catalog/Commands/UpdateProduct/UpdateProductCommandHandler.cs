@@ -58,6 +58,11 @@ public sealed class UpdateProductCommandHandler(IAppDbContext db)
             request.BatchTracking,
             request.SerialTracking,
             request.ServiceChargeApplicable);
+        if (request.PackagingFeeApplicable is { } packagingFeeApplicable)
+        {
+            product.SetPackagingFeeApplicable(packagingFeeApplicable);
+        }
+
         product.SetAccounts(
             request.SalesAccountId, request.SalesReturnAccountId, request.PurchaseAccountId, request.PurchaseReturnAccountId);
 

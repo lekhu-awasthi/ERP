@@ -25,8 +25,8 @@ describe('PosOrderReportPage', () => {
         covers: 2, contactName: 'Walk-in', createdByName: 'Sita', orderValue: 632.8, billed: 633, billedRoundOff: 0.2,
         toBill: 0, voidReason: null, settledAt: '2026-10-02T07:00:00Z',
         invoices: [
-          { id: 'inv-1', code: 'INV0001', grandTotal: 316, serviceCharge: 20, roundOff: -0.4, isVoided: false },
-          { id: 'inv-2', code: 'INV0002', grandTotal: 317, serviceCharge: 20, roundOff: 0.6, isVoided: false },
+          { id: 'inv-1', code: 'INV0001', grandTotal: 316, serviceCharge: 20, packagingFee: 0, roundOff: -0.4, isVoided: false },
+          { id: 'inv-2', code: 'INV0002', grandTotal: 317, serviceCharge: 20, packagingFee: 0, roundOff: 0.6, isVoided: false },
         ],
       },
       {

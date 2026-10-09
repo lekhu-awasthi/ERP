@@ -81,6 +81,7 @@ public sealed record CreatePosSaleResult(
     string Code,
     decimal GrandTotal,
     decimal ServiceCharge,
+    decimal PackagingFee,
     decimal RoundOff,
     decimal Tendered,
     decimal ChangeAmount,

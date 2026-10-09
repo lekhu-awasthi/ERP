@@ -89,7 +89,8 @@ public sealed class CreatePosRefundCommandHandler(
         await db.SaveChangesAsync(cancellationToken);
 
         return new CreatePosRefundResult(
-            creditNote.Id, creditNote.Code, creditNote.GrandTotal, creditNote.ServiceChargeTotal, creditNote.RoundOff,
+            creditNote.Id, creditNote.Code, creditNote.GrandTotal, creditNote.ServiceChargeTotal, creditNote.PackagingFeeTotal,
+            creditNote.RoundOff,
             creditNote.PaidOutAmount, creditNote.ToAccountAmount);
     }
 

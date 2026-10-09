@@ -1,6 +1,7 @@
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Pos;
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -154,6 +155,13 @@ public sealed class PosOrderLineConfiguration : IEntityTypeConfiguration<PosOrde
         builder.Property(x => x.ConversionFactor).HasPrecision(18, 6).IsRequired();
         builder.Property(x => x.VatRate).HasConversion<string>().HasMaxLength(30).IsRequired();
         builder.Property(x => x.ServiceChargeRate).HasPrecision(5, 2).IsRequired();
+
+        // Phase 70 -- every existing order line was sent with no packaging fee.
+        builder.Property(x => x.PackagingFeeBasis)
+            .HasConversion<string>().HasMaxLength(20).IsRequired()
+            .HasDefaultValue(PackagingFeeBasis.None).ValueGeneratedNever();
+        builder.Property(x => x.PackagingFeeValue).HasPrecision(9, 2).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+        builder.Ignore(x => x.PackagingFee);
         builder.Property(x => x.Note).HasMaxLength(PosOrder.MaxNoteLength);
         builder.Property(x => x.ServedQuantity).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.IsTakeAway).IsRequired();

@@ -52,7 +52,7 @@ function till(locationId = 'loc-1', overrides: Partial<PosTill> = {}): PosTill {
     availableTabs: ['Retail', 'Delivery'],
     defaultTab: 'Retail',
     serviceChargeEnabled: true,
-    serviceChargeRate: 10,
+    serviceChargeRate: 10, packagingFeeBasis: 'None', packagingFeeValue: 0,
     roundOffEnabled: true,
     cashVerificationRequired: false,
     denominations: [1000, 500, 100],
@@ -73,13 +73,13 @@ function till(locationId = 'loc-1', overrides: Partial<PosTill> = {}): PosTill {
 
 const momo: PosProduct = {
   id: 'momo', code: 'P0001', name: 'Chicken Momo', categoryId: 'food', type: 'Service', vatRate: 'ThirteenPercentVat',
-  rate: 200, serviceChargeApplicable: true, batchTracking: false, serialTracking: false, barcode: null,
+  rate: 200, serviceChargeApplicable: true, packagingFeeApplicable: true, batchTracking: false, serialTracking: false, barcode: null,
   units: [{ unitId: 'plate', shortName: 'plt', conversionRate: 1, rate: 200 }],
 };
 
 const coke: PosProduct = {
   id: 'coke', code: 'P0002', name: 'Coke 250ml', categoryId: 'drinks', type: 'Goods', vatRate: 'ThirteenPercentVat',
-  rate: 60, serviceChargeApplicable: false, batchTracking: false, serialTracking: false, barcode: '8901',
+  rate: 60, serviceChargeApplicable: false, packagingFeeApplicable: true, batchTracking: false, serialTracking: false, barcode: '8901',
   units: [
     { unitId: 'pc', shortName: 'pc', conversionRate: 1, rate: 60 },
     { unitId: 'crate', shortName: 'crt', conversionRate: 24, rate: 1200 },
@@ -234,5 +234,58 @@ describe('PosCart', () => {
 
     expect(cart.holds()).toEqual([]);
     expect(storage.length).toBe(0);
+  });
+});
+
+describe('PosCart packaging fee (phase 70)', () => {
+  const feeTill = (overrides: Partial<PosTill> = {}) =>
+    till('loc-1', { packagingFeeBasis: 'PerUnit', packagingFeeValue: 20, ...overrides });
+
+  it('charges a parcel the fee per unit, inside the VAT base, and no service charge', () => {
+    const cart = new PosCart(feeTill(), ORG, 'ses-1', new MemoryStorage());
+    cart.orderType.set('Delivery');
+
+    cart.add(momo);
+    cart.add(momo);
+
+    // 400 + 40 fee + 13% of 440, as PackagingFeeHandlerTests bills the same sale on the server.
+    expect(cart.bill().serviceCharge).toBe(0);
+    expect(cart.bill().packagingFee).toBe(40);
+    expect(cart.bill().vat).toBe(57.2);
+    expect(cart.bill().grandTotal).toBe(497);
+  });
+
+  it('charges no fee on a counter sale, and none on a product exempted from it', () => {
+    const counter = new PosCart(feeTill(), ORG, 'ses-1', new MemoryStorage());
+    counter.add(momo);
+    expect(counter.bill().packagingFee).toBe(0);
+
+    const parcel = new PosCart(feeTill(), ORG, 'ses-2', new MemoryStorage());
+    parcel.orderType.set('Delivery');
+    parcel.add({ ...coke, packagingFeeApplicable: false });
+    parcel.add(momo);
+    expect(parcel.bill().lines.map((x) => x.packagingFee)).toEqual([0, 20]);
+  });
+
+  it('takes a percent fee on the amount after the bill discount', () => {
+    const cart = new PosCart(feeTill({ packagingFeeBasis: 'Percent', packagingFeeValue: 10 }), ORG, 'ses-1', new MemoryStorage());
+    cart.orderType.set('Delivery');
+    cart.discountPct.set(5);
+
+    cart.add(momo);
+
+    // 200 less 5% is 190; 10% of that is 19.
+    expect(cart.bill().packagingFee).toBe(19);
+  });
+
+  it('reads a product stored before the phase, with no flag, as paying the fee', () => {
+    const cart = new PosCart(feeTill(), ORG, 'ses-1', new MemoryStorage());
+    cart.orderType.set('Delivery');
+    const stored: Partial<PosProduct> = { ...momo };
+    delete stored.packagingFeeApplicable;
+
+    cart.add(stored as PosProduct);
+
+    expect(cart.bill().packagingFee).toBe(20);
   });
 });

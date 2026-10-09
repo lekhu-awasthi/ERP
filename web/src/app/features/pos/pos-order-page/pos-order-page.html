@@ -314,6 +314,9 @@
               @if (o.serviceCharge > 0) {
                 <dt>Service charge</dt><dd>{{ o.serviceCharge | amount }}</dd>
               }
+              @if (o.packagingFee > 0) {
+                <dt>Packaging</dt><dd>{{ o.packagingFee | amount }}</dd>
+              }
               <dt>VAT</dt><dd>{{ o.vat | amount }}</dd>
               <dt class="fw-bold">Estimate</dt><dd class="fw-bold">{{ o.total | amount }}</dd>
             </dl>
@@ -327,6 +330,9 @@
                     <strong>{{ invoice.code }}</strong> &middot; {{ invoice.grandTotal | amount }}
                     @if (invoice.serviceCharge > 0) {
                       (service charge {{ invoice.serviceCharge | amount }})
+                    }
+                    @if (invoice.packagingFee > 0) {
+                      (packaging {{ invoice.packagingFee | amount }})
                     }
                     @if (invoice.isVoided) {
                       <span class="badge text-bg-secondary">Voided</span>

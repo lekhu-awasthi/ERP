@@ -123,6 +123,8 @@
                 <th scope="col" class="text-end">Net Sales</th>
                 <!-- Phase 61 -- a till line's service charge; zero on every ERP line. -->
                 <th scope="col" class="text-end">Service Charge</th>
+                <!-- Phase 70 -- a parcel's packaging fee; zero on every ERP line. -->
+                <th scope="col" class="text-end">Packaging</th>
                 <th scope="col">VAT Type</th>
                 <th scope="col" class="text-end">VAT Amount</th>
                 <th scope="col" class="text-end">Total Amount</th>
@@ -158,6 +160,7 @@
                   <td class="text-end">{{ (row.transactionDiscount | amount) }}</td>
                   <td class="text-end">{{ (row.netSales | amount) }}</td>
                   <td class="text-end">{{ (row.serviceCharge | amount) }}</td>
+                  <td class="text-end">{{ (row.packagingFee | amount) }}</td>
                   <td>{{ row.vatType }}</td>
                   <td class="text-end">{{ (row.vatAmount | amount) }}</td>
                   <td class="text-end fw-bold">{{ (row.totalAmount | amount) }}</td>
@@ -172,17 +175,17 @@
                  the Sales Register totals for the same documents. -->
             <tfoot>
               <tr class="fw-bold border-top">
-                <td colspan="18">Sales</td>
+                <td colspan="19">Sales</td>
                 <td class="text-end">{{ (salesTotal() | amount) }}</td>
                 <td colspan="3"></td>
               </tr>
               <tr class="fw-bold">
-                <td colspan="18">Returns</td>
+                <td colspan="19">Returns</td>
                 <td class="text-end">{{ (returnsTotal() | amount) }}</td>
                 <td colspan="3"></td>
               </tr>
               <tr class="fw-bold">
-                <td colspan="18">Net (sales less returns)</td>
+                <td colspan="19">Net (sales less returns)</td>
                 <td class="text-end">{{ (netTotal() | amount) }}</td>
                 <td colspan="3"></td>
               </tr>

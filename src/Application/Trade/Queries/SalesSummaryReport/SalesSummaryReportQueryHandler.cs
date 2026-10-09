@@ -132,7 +132,7 @@ public sealed class SalesSummaryReportQueryHandler(IAppDbContext db, ICurrentUse
     ];
 
     private static bool IsNonZero(SalesSummaryRowDto row) =>
-        row.SubTotal != 0 || row.Discount != 0 || row.ServiceCharge != 0 || row.NonTaxableSales != 0
+        row.SubTotal != 0 || row.Discount != 0 || row.ServiceCharge != 0 || row.PackagingFee != 0 || row.NonTaxableSales != 0
         || row.TaxableSales != 0 || row.Vat != 0 || row.Total != 0;
 
     private static SalesSummaryRowDto Summarise(
@@ -141,13 +141,16 @@ public sealed class SalesSummaryReportQueryHandler(IAppDbContext db, ICurrentUse
         var subTotal = facts.Sum(x => x.Amount);
         var discount = facts.Sum(x => x.Discount);
         // Phase 66 -- a line's service charge is in the VAT base (phase 61 Decision A), so it lands in
-        // the same bucket as the line it was charged on, as the Sales Register counts it.
-        var taxable = facts.Where(x => x.VatRate == VatRate.ThirteenPercentVat).Sum(x => x.NetAmount + x.ServiceCharge);
-        var nonTaxable = facts.Where(x => x.VatRate != VatRate.ThirteenPercentVat).Sum(x => x.NetAmount + x.ServiceCharge);
+        // the same bucket as the line it was charged on, as the Sales Register counts it; so does its
+        // packaging fee (phase 70).
+        var taxable = facts.Where(x => x.VatRate == VatRate.ThirteenPercentVat)
+            .Sum(x => x.NetAmount + x.ServiceCharge + x.PackagingFee);
+        var nonTaxable = facts.Where(x => x.VatRate != VatRate.ThirteenPercentVat)
+            .Sum(x => x.NetAmount + x.ServiceCharge + x.PackagingFee);
         var vat = facts.Sum(x => x.VatAmount);
 
         return new SalesSummaryRowDto(
             date, label, Location: null, subTotal, discount, nonTaxable, taxable, vat,
-            nonTaxable + taxable + vat, facts.Sum(x => x.ServiceCharge));
+            nonTaxable + taxable + vat, facts.Sum(x => x.ServiceCharge), facts.Sum(x => x.PackagingFee));
     }
 }

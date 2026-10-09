@@ -637,14 +637,30 @@ export class PosOrderPage {
     return Math.max(0, Math.min(line.outstanding, line.toBill));
   }
 
-  /** Phase 68 -- what marking this line will do to its service charge, said before it is done. */
+  /** Phase 68 -- what marking this line will do to its service charge, said before it is done; phase 70 adds
+   *  the packaging fee a parcel takes (unless its product is exempt, which this screen cannot see). */
   protected takeAwayChargeNote(line: PosOrderLine): string {
-    if (line.serviceChargeRate === 0) {
-      return 'This item carries no service charge, so the bill is unchanged.';
+    const serviceCharge =
+      line.serviceChargeRate === 0
+        ? 'This item carries no service charge.'
+        : this.restaurant()?.serviceChargeOnTakeAway
+          ? `The parcel keeps its ${line.serviceChargeRate}% service charge (this location's setting).`
+          : 'The parcel carries no service charge (this location\'s setting).';
+    const fee = this.packagingFeeNote();
+    return fee ? `${serviceCharge} ${fee}` : serviceCharge;
+  }
+
+  /** Phase 70 -- the location's packaging fee in words, or null when it charges none. */
+  private packagingFeeNote(): string | null {
+    const restaurant = this.restaurant();
+    switch (restaurant?.packagingFeeBasis) {
+      case 'Percent':
+        return `A ${restaurant.packagingFeeValue}% packaging fee is added unless the item is exempt.`;
+      case 'PerUnit':
+        return `A packaging fee of ${restaurant.packagingFeeValue.toFixed(2)} a unit is added unless the item is exempt.`;
+      default:
+        return null;
     }
-    return this.restaurant()?.serviceChargeOnTakeAway
-      ? `The parcel keeps its ${line.serviceChargeRate}% service charge (this location's setting).`
-      : 'The parcel carries no service charge (this location\'s setting), so the bill comes down.';
   }
 
   private panelNotice(kind: Panel['kind'], saved: PosOrder): string {

@@ -127,6 +127,9 @@
                         @if (line.serviceChargeRate > 0) {
                           <span class="d-block small text-body-secondary">service charge {{ line.serviceChargeRate }}%</span>
                         }
+                        @if (line.packagingFeeAmount > 0) {
+                          <span class="d-block small text-body-secondary">packaging {{ line.packagingFeeAmount | amount }}</span>
+                        }
                       </td>
                       <td class="text-end">{{ line.sold }} {{ line.unitShortName }}</td>
                       <td class="text-end">{{ line.remaining }} {{ line.unitShortName }}</td>
@@ -170,6 +173,9 @@
                     <tr><th scope="row">Sub total</th><td class="text-end">{{ p.subTotal | amount }}</td></tr>
                     @if (p.serviceCharge !== 0) {
                       <tr><th scope="row">Service charge</th><td class="text-end">{{ p.serviceCharge | amount }}</td></tr>
+                    }
+                    @if (p.packagingFee !== 0) {
+                      <tr><th scope="row">Packaging</th><td class="text-end">{{ p.packagingFee | amount }}</td></tr>
                     }
                     <tr><th scope="row">VAT</th><td class="text-end">{{ p.vat | amount }}</td></tr>
                     @if (p.roundOff !== 0) {

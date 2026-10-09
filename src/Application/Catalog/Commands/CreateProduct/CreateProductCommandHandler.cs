@@ -51,6 +51,12 @@ public sealed class CreateProductCommandHandler(IAppDbContext db, IDocumentNumbe
             request.SerialTracking,
             request.ServiceChargeApplicable);
 
+        // Phase 70 -- its own mutator, never a Create parameter (see Product.PackagingFeeApplicable).
+        if (request.PackagingFeeApplicable is { } packagingFeeApplicable)
+        {
+            product.SetPackagingFeeApplicable(packagingFeeApplicable);
+        }
+
         // Phase 36 -- an empty set is the restriction being absent, not a product available
         // nowhere. Added before the parent is saved, so these ride the same insert.
         product.SetLocations(request.LocationIds);

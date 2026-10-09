@@ -1,5 +1,6 @@
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Pos;
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using MediatR;
 
@@ -22,6 +23,7 @@ public sealed record GetPosLocationSettingsQuery(Guid OrganizationId, Guid Locat
 /// <param name="EffectiveDefaultTab">What the till will actually open on today, given the mode.
 /// Differs from <paramref name="DefaultTab"/> only when a mode change left the saved tab behind.</param>
 /// <param name="AvailableTabs">The tabs the location's mode has, for the Default Tab picker.</param>
+/// <param name="PackagingFeeBasis">Phase 70 -- how the location charges for packing a parcel, if at all.</param>
 public sealed record PosLocationSettingsDto(
     Guid LocationId,
     string LocationCode,
@@ -33,6 +35,9 @@ public sealed record PosLocationSettingsDto(
     decimal ServiceChargeRate,
     Guid? ServiceChargeAccountId,
     bool ServiceChargeOnTakeAway,
+    PackagingFeeBasis PackagingFeeBasis,
+    decimal PackagingFeeValue,
+    Guid? PackagingFeeAccountId,
     bool RoundOffEnabled,
     Guid? RoundOffAccountId,
     bool CashVerificationRequired,

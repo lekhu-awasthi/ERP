@@ -21,6 +21,7 @@ public sealed record PosOrderBillLineDto(
     decimal ServiceChargeRate,
     decimal Amount,
     decimal ServiceChargeAmount,
+    decimal PackagingFeeAmount,
     decimal VatAmount,
     decimal Total,
     decimal RemainingAfter);
@@ -37,6 +38,7 @@ public sealed record PosOrderBillPreviewDto(
     IReadOnlyList<PosOrderBillLineDto> Lines,
     decimal Amount,
     decimal ServiceCharge,
+    decimal PackagingFee,
     decimal Vat,
     decimal Unrounded,
     decimal RoundOff,
@@ -84,8 +86,8 @@ internal static class PosOrderBillPlanner
                 var name = names[x.Line.Id];
                 return new PosOrderBillLineDto(
                     x.Line.Id, x.Line.LineNo, name.ProductName, name.UnitName, x.Line.Note, x.Quantity, x.Line.Rate,
-                    x.Line.ServiceChargeRate, x.Figures.Amount, x.Figures.ServiceChargeAmount, x.Figures.VatAmount,
-                    x.Total, x.RemainingAfter);
+                    x.Line.ServiceChargeRate, x.Figures.Amount, x.Figures.ServiceChargeAmount,
+                    x.Figures.PackagingFeeAmount, x.Figures.VatAmount, x.Total, x.RemainingAfter);
             })
             .ToList();
 
@@ -95,6 +97,7 @@ internal static class PosOrderBillPlanner
             lines,
             lines.Sum(x => x.Amount),
             lines.Sum(x => x.ServiceChargeAmount),
+            lines.Sum(x => x.PackagingFeeAmount),
             lines.Sum(x => x.VatAmount),
             plan.Unrounded,
             plan.RoundOff,

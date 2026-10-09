@@ -37,7 +37,7 @@ describe('SalesSummaryReportPage', () => {
       label: 'Jestha',
       subTotal: 1000,
       discount: 0,
-      serviceCharge: 0,
+      serviceCharge: 0, packagingFee: 0,
       nonTaxableSales: 0,
       taxableSales: 1000,
       vat: 130,
@@ -179,7 +179,7 @@ describe('SalesSummaryReportPage', () => {
   // Phase 66 -- the column phase 26b left out because nothing wrote a service charge then, and the
   // Sales Channel filter that reads the till's sales alone.
   it('shows the service charge in its own column and asks for the till channel when it is chosen', () => {
-    const p = page([row({ serviceCharge: 20, taxableSales: 1020, vat: 132.6, total: 1152.6 })]);
+    const p = page([row({ serviceCharge: 20, packagingFee: 0, taxableSales: 1020, vat: 132.6, total: 1152.6 })]);
     const headers = [...p.element.querySelectorAll('thead th')].map((th) => th.textContent?.trim());
     expect(headers).toContain('Service Charge');
     expect(p.element.querySelector('tbody tr')?.textContent).toContain('20.00');

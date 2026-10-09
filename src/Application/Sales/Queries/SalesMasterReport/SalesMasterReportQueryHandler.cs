@@ -61,7 +61,7 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
         }
 
         var invoiceLines = await invoiceLinesQuery
-            .Select(x => new { x.InvoiceId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.ServiceChargeAmount, x.VatAmount })
+            .Select(x => new { x.InvoiceId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.ServiceChargeAmount, x.PackagingFeeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         var creditNoteQuery = db.CreditNotes.Where(x =>
@@ -94,7 +94,7 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
         }
 
         var creditNoteLines = await creditNoteLinesQuery
-            .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.ServiceChargeAmount, x.VatAmount })
+            .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.ServiceChargeAmount, x.PackagingFeeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         // CreditNote carries no WarehouseId of its own -- resolve it from the source Invoice when
@@ -191,8 +191,8 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
                 invoice.Code, invoice.Reference, invoice.Date,
                 product.Id, product.Code, product.Name,
                 line.Quantity, line.Rate, netAfterLineDiscount, itemDiscount, transactionDiscount, line.Amount,
-                line.ServiceChargeAmount, line.VatRate, line.VatAmount,
-                line.Amount + line.ServiceChargeAmount + line.VatAmount,
+                line.ServiceChargeAmount, line.PackagingFeeAmount, line.VatRate, line.VatAmount,
+                line.Amount + line.ServiceChargeAmount + line.PackagingFeeAmount + line.VatAmount,
                 invoice.Channel == SalesChannel.Pos ? invoice.OrderType : null,
                 invoice.PosSessionId is { } saleSession ? tillColumns.Cashiers.GetValueOrDefault(saleSession) : null,
                 tillColumns.SaleModes.GetValueOrDefault(invoice.Id)));
@@ -231,8 +231,8 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
                 product.Id, product.Code, product.Name,
                 line.Quantity, line.Rate, netAfterLineDiscount, itemDiscount, transactionDiscount, line.Amount,
                 // Phase 63 -- a till refund line's service charge, in the column the sale's sits in.
-                line.ServiceChargeAmount, line.VatRate, line.VatAmount,
-                line.Amount + line.ServiceChargeAmount + line.VatAmount,
+                line.ServiceChargeAmount, line.PackagingFeeAmount, line.VatRate, line.VatAmount,
+                line.Amount + line.ServiceChargeAmount + line.PackagingFeeAmount + line.VatAmount,
                 null,
                 creditNote.PosSessionId is { } refundSession ? tillColumns.Cashiers.GetValueOrDefault(refundSession) : null,
                 tillColumns.RefundModes.GetValueOrDefault(creditNote.Id)));
@@ -290,7 +290,7 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
                 from line in db.InvoiceLines
                 join invoice in tillSales on line.InvoiceId equals invoice.Id
                 group line by line.InvoiceId into g
-                select new { InvoiceId = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount) })
+                select new { InvoiceId = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount + x.VatAmount) })
             .ToDictionaryAsync(x => x.InvoiceId, x => x.Total, cancellationToken);
         var saleHeaders = await tillSales
             .Select(x => new { x.Id, x.RoundOff, x.ChangeAmount })

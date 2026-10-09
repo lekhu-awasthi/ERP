@@ -29,11 +29,11 @@ public sealed record PosOrderBilledTotals(decimal Unrounded, decimal GrandTotal)
 /// <param name="RemainingAfter">What of the line is still to be billed once this part is paid.</param>
 public sealed record PosOrderBillLine(PosOrderLine Line, decimal Quantity, PosLineArithmetic.Figures Figures, decimal RemainingAfter)
 {
-    public decimal Total => Figures.Amount + Figures.ServiceChargeAmount + Figures.VatAmount;
+    public decimal Total => Figures.Total;
 }
 
 /// <summary>A part of an order priced, before it is an invoice.</summary>
-/// <param name="Unrounded">The lines' amount, service charge and VAT.</param>
+/// <param name="Unrounded">The lines' amount, service charge, packaging fee and VAT.</param>
 /// <param name="RoundOff">Added to <paramref name="Unrounded"/> to make <paramref name="Total"/>.</param>
 /// <param name="BillsTheRest">Nothing is left to bill once this part is paid.</param>
 /// <param name="OrderTotal">What the whole order comes to as bills: the running total rounded, once the
@@ -49,6 +49,8 @@ public sealed record PosOrderBillPlan(
 {
     public decimal ServiceCharge => Lines.Sum(x => x.Figures.ServiceChargeAmount);
 
+    public decimal PackagingFee => Lines.Sum(x => x.Figures.PackagingFeeAmount);
+
     /// <summary>What is left for later parts after this one: the order's total less everything billed.</summary>
     public decimal LeftAfter => OrderTotal - BilledBefore - Total;
 }
@@ -60,11 +62,11 @@ public sealed record PosOrderBillPlan(
 /// that depends on other documents; phase-65-status.md Decision E).
 ///
 /// <para><b>Rates never move; quantities do.</b> Every line is priced from the order line's frozen rate,
-/// VAT rate and service charge rate (phase 64 Decision C), so a split cannot drop a service charge the way
+/// VAT rate, service charge rate and packaging fee (phase 64 Decision C; phase 70), so a split cannot drop a service charge the way
 /// the vendor's did (phase 59 defect 1: the remainder billed 20 of service charge instead of 40).</para>
 ///
-/// <para><b>The last of a line takes exactly what is left of its money</b> -- its amount, service charge
-/// and VAT, each -- so however a line is split, its parts add up to what the whole line comes to, to the
+/// <para><b>The last of a line takes exactly what is left of its money</b> -- its amount, service charge,
+/// packaging fee and VAT, each -- so however a line is split, its parts add up to what the whole line comes to, to the
 /// paisa. Any other part is priced fresh by <see cref="PosLineArithmetic"/>.</para>
 ///
 /// <para><b>Rounding is cumulative.</b> A part comes to the running total rounded, less what is already
@@ -133,9 +135,10 @@ public static class PosOrderBill
                 return 0m;
             }
 
-            var already = Add(billed.GetValueOrDefault(line.Id)?.Figures, lines.Where(l => l.Line.Id == line.Id).Select(l => l.Figures));
+            var already = lines.Where(l => l.Line.Id == line.Id)
+                .Aggregate(billed.GetValueOrDefault(line.Id)?.Figures ?? PosLineArithmetic.Figures.Zero, (sum, l) => sum + l.Figures);
             var whole = line.Figures(order.QuantitiesOf(line).Net);
-            return Sum(whole) - Sum(already);
+            return (whole - already).Total;
         });
 
         var orderTotal = Round(billedTotals.Unrounded + unrounded + restUnrounded, roundOff);
@@ -227,34 +230,11 @@ public static class PosOrderBill
     }
 
     /// <summary>The whole line at its net quantity, less what earlier bills took of it: each figure on
-    /// its own, so the line's service charge and VAT add up across its parts as exactly as its amount.</summary>
+    /// its own, so the line's service charge, packaging fee and VAT add up across its parts as exactly as
+    /// its amount.</summary>
     private static PosLineArithmetic.Figures WhatIsLeft(PosOrder order, PosOrderLine line, PosOrderLineBilled? billed)
     {
         var whole = line.Figures(order.QuantitiesOf(line).Net);
-
-        if (billed is null)
-        {
-            return whole;
-        }
-
-        return new PosLineArithmetic.Figures(
-            whole.Amount - billed.Figures.Amount,
-            whole.ServiceChargeAmount - billed.Figures.ServiceChargeAmount,
-            whole.VatAmount - billed.Figures.VatAmount);
+        return billed is null ? whole : whole - billed.Figures;
     }
-
-    private static PosLineArithmetic.Figures Add(PosLineArithmetic.Figures? start, IEnumerable<PosLineArithmetic.Figures> more)
-    {
-        var result = start ?? default;
-
-        foreach (var x in more)
-        {
-            result = new PosLineArithmetic.Figures(
-                result.Amount + x.Amount, result.ServiceChargeAmount + x.ServiceChargeAmount, result.VatAmount + x.VatAmount);
-        }
-
-        return result;
-    }
-
-    private static decimal Sum(PosLineArithmetic.Figures x) => x.Amount + x.ServiceChargeAmount + x.VatAmount;
 }

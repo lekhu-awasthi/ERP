@@ -64,6 +64,7 @@ public sealed record CreatePosOrderInvoiceResult(
     string Code,
     decimal GrandTotal,
     decimal ServiceCharge,
+    decimal PackagingFee,
     decimal RoundOff,
     decimal Tendered,
     decimal ChangeAmount,

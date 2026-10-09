@@ -1971,3 +1971,25 @@ or it is counted against itself.
 
 **A comment that says a field already rides a flow is a claim to check.** Four conversion templates carried no
 currency while phase 35a's comments said they did; derive the sweep's N (seven templates, three already right).
+
+## Phase 70 — The packaging fee: a parcel's charge rides its line, like service charge
+
+**Read `phase-70-status.md` before adding a charge, a part or a measure to a line's money, before a setting a client
+may omit, or before a product flag that defaults to on.**
+
+**Ride the mechanism that already answered the hard questions.** A fee charged per item, on the line, inside the VAT
+base, frozen when the line is written, inherited every rule service charge had earned: the split's last part, the
+refund's proportion, the transfer's terms, the void's reversal, the abbreviated-invoice limit, every reader of what
+is owed. A per-bill fee would have needed a new answer to each.
+
+**A line's money summed by hand hides in four shapes, and the compiler sees one.** Thirty-three LINQ formulas,
+eight anonymous projections that never selected the new column (the compiler's catch), two records with a field
+*named* `ServiceCharge`, and two sums in the browser. Guard each language by scanning its source, and widen the
+guard when the work finds a shape it missed.
+
+**Give a figure its own arithmetic, then retire the copies.** `Figures.Total`, `+` and `-` replaced the split
+planner's hand-written sums, so the fourth part reached them by being added once.
+
+**A flag defaulting to on gets its own mutator and `ValueGeneratedNever`.** As an optional `Update` parameter it would
+re-enable an exemption from every caller that never heard of it; and a store default of true without
+`ValueGeneratedNever` turns every unticked `false` back on. Prove it on SQL Server: InMemory cannot see it.

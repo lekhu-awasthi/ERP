@@ -155,6 +155,9 @@
                 @if (p.serviceCharge > 0) {
                   <dt>Service charge</dt><dd>{{ p.serviceCharge | amount }}</dd>
                 }
+                @if (p.packagingFee > 0) {
+                  <dt>Packaging</dt><dd>{{ p.packagingFee | amount }}</dd>
+                }
                 <dt>VAT</dt><dd>{{ p.vat | amount }}</dd>
                 @if (p.roundOff !== 0) {
                   <dt>Round off</dt><dd>{{ p.roundOff | amount }}</dd>

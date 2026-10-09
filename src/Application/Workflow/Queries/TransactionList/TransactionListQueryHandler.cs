@@ -372,7 +372,7 @@ public sealed class TransactionListQueryHandler(IAppDbContext db, ICurrentUserSe
         {
             await SumAsync(
                 db.InvoiceLines.Where(l => invoiceIds.Contains(l.InvoiceId)), l => l.InvoiceId,
-                l => l.Amount + l.ServiceChargeAmount + l.VatAmount);
+                l => l.Amount + l.ServiceChargeAmount + l.PackagingFeeAmount + l.VatAmount);
 
             // Phase 61 -- a till sale's round-off is part of its total; zero on every ERP invoice.
             var roundOffs = await db.Invoices
@@ -390,7 +390,7 @@ public sealed class TransactionListQueryHandler(IAppDbContext db, ICurrentUserSe
         {
             await SumAsync(
                 db.CreditNoteLines.Where(l => creditNoteIds.Contains(l.CreditNoteId)), l => l.CreditNoteId,
-                l => l.Amount + l.ServiceChargeAmount + l.VatAmount);
+                l => l.Amount + l.ServiceChargeAmount + l.PackagingFeeAmount + l.VatAmount);
 
             // Phase 63 -- a till refund's round-off is part of its total; zero on every ERP note.
             var creditNoteRoundOffs = await db.CreditNotes

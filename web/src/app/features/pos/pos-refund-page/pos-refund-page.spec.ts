@@ -29,7 +29,7 @@ describe('PosRefundPage', () => {
 
   const till = (overrides: Partial<PosTill> = {}): PosTill => ({
     locationId, locationCode: 'HO', locationName: 'Thamel', posMode: 'Retail', availableTabs: ['Retail'],
-    defaultTab: 'Retail', serviceChargeEnabled: true, serviceChargeRate: 10, roundOffEnabled: true,
+    defaultTab: 'Retail', serviceChargeEnabled: true, serviceChargeRate: 10, packagingFeeBasis: 'None', packagingFeeValue: 0, roundOffEnabled: true,
     cashVerificationRequired: false, denominations: [], printInvoice: true, abbreviatedTaxInvoiceEnabled: false,
     isVatRegistered: true, warehouseId: 'wh', warehouseName: 'Main', walkInCustomer: null,
     paymentModes: [
@@ -53,17 +53,17 @@ describe('PosRefundPage', () => {
     settled: 633, owed: 0,
     lines: [
       { invoiceLineId: 'l-momo', productId: 'momo', productName: 'Chicken Momo', unitShortName: 'pc', sold: 2, remaining: 2,
-        rate: 200, discountPct: 0, serviceChargeRate: 10, vatRate: 'ThirteenPercentVat', lineTotal: 497.2 },
+        rate: 200, discountPct: 0, serviceChargeRate: 10, packagingFeeAmount: 0, vatRate: 'ThirteenPercentVat', lineTotal: 497.2 },
       { invoiceLineId: 'l-coke', productId: 'coke', productName: 'Coke 250ml', unitShortName: 'pc', sold: 2, remaining: 2,
-        rate: 60, discountPct: 0, serviceChargeRate: 0, vatRate: 'ThirteenPercentVat', lineTotal: 135.6 },
+        rate: 60, discountPct: 0, serviceChargeRate: 0, packagingFeeAmount: 0, vatRate: 'ThirteenPercentVat', lineTotal: 135.6 },
     ],
     priorRefunds: [], canRefund: true,
     ...overrides,
   });
 
   const cokePreview: PosRefundPreview = {
-    lines: [{ invoiceLineId: 'l-coke', quantity: 1, amount: 60, serviceChargeAmount: 0, vatAmount: 7.8, lineTotal: 67.8 }],
-    subTotal: 60, serviceCharge: 0, vat: 7.8, roundOff: 0.2, grandTotal: 68, owedBefore: 0, requiredPayout: 68, toAccount: 0,
+    lines: [{ invoiceLineId: 'l-coke', quantity: 1, amount: 60, serviceChargeAmount: 0, packagingFeeAmount: 0, vatAmount: 7.8, lineTotal: 67.8 }],
+    subTotal: 60, serviceCharge: 0, packagingFee: 0, vat: 7.8, roundOff: 0.2, grandTotal: 68, owedBefore: 0, requiredPayout: 68, toAccount: 0,
   };
 
   function page(options: { till?: PosTill; session?: PosSession | null; sale?: PosRefundableSale; preview?: PosRefundPreview; invoiceId?: string } = {}) {
@@ -86,7 +86,7 @@ describe('PosRefundPage', () => {
       createRefund: (_o: string, request: CreatePosRefundRequest): Observable<CreatePosRefundResult> => {
         created.push(request);
         const p = options.preview ?? cokePreview;
-        return of({ id: 'cn-1', code: 'CN0001', grandTotal: p.grandTotal, serviceCharge: p.serviceCharge,
+        return of({ id: 'cn-1', code: 'CN0001', grandTotal: p.grandTotal, serviceCharge: p.serviceCharge, packagingFee: 0,
           roundOff: p.roundOff, paidOut: p.requiredPayout, toAccount: p.toAccount });
       },
       printRefundReceipt: (_o: string, id: string): Observable<PosRefundReceipt> => {

@@ -1,7 +1,7 @@
 import { computed, signal } from '@angular/core';
 
 import { BillFigures, BillLineInput, computeBill } from './pos-bill';
-import { PosProduct, PosProductUnit, PosTab, PosTill } from './pos.models';
+import { PackagingFeeBasis, PosProduct, PosProductUnit, PosTab, PosTill } from './pos.models';
 
 /** The part of a product a cart line keeps: enough to show it, re-price it and send it. */
 export interface CartProduct {
@@ -10,8 +10,18 @@ export interface CartProduct {
   name: string;
   vatRate: PosProduct['vatRate'];
   serviceChargeApplicable: boolean;
+  /** Phase 70. A cart stored before the phase lacks it; absent reads as the product default, on. */
+  packagingFeeApplicable: boolean;
   units: PosProductUnit[];
 }
+
+/** Phase 70 -- the packaging fee terms a line is priced with. */
+export interface CartPackagingFee {
+  basis: PackagingFeeBasis;
+  value: number;
+}
+
+const NO_PACKAGING_FEE: CartPackagingFee = { basis: 'None', value: 0 };
 
 export interface CartLine {
   key: number;
@@ -120,6 +130,20 @@ export class PosCart {
       return 0;
     }
     return this.till.serviceChargeEnabled && product.serviceChargeApplicable ? this.till.serviceChargeRate : 0;
+  }
+
+  /**
+   * Phase 70 -- the packaging fee a line carries: the location's, when the bill is a parcel (Take Away or
+   * Delivery) and the product is not exempt -- the server's `PosPackagingFee.For`, which this mirrors, so the
+   * bill on screen stays the server's. The mirror of {@link serviceChargeRateOf}, which charges only what is
+   * not a parcel.
+   */
+  packagingFeeOf(product: CartProduct): CartPackagingFee {
+    const orderType = this.orderType();
+    const parcel = orderType === 'TakeAway' || orderType === 'Delivery';
+    return parcel && product.packagingFeeApplicable !== false && this.till.packagingFeeBasis !== 'None'
+      ? { basis: this.till.packagingFeeBasis, value: this.till.packagingFeeValue }
+      : NO_PACKAGING_FEE;
   }
 
   /** Adds one of a product in its primary unit, or one more onto a line already holding exactly that. */
@@ -289,6 +313,8 @@ export class PosCart {
       vatRate: line.product.vatRate,
       discountPct: line.discountPct,
       serviceChargeRate: this.serviceChargeRateOf(line.product),
+      packagingFeeBasis: this.packagingFeeOf(line.product).basis,
+      packagingFeeValue: this.packagingFeeOf(line.product).value,
     };
   }
 
@@ -402,6 +428,7 @@ function toCartProduct(product: PosProduct | CartProduct): CartProduct {
     name: product.name,
     vatRate: product.vatRate,
     serviceChargeApplicable: product.serviceChargeApplicable,
+    packagingFeeApplicable: product.packagingFeeApplicable !== false,
     units: product.units,
   };
 }

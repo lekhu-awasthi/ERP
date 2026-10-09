@@ -178,7 +178,7 @@ export class CreditNoteDetailPage {
     this.posRefund()
       ? this.round(this.storedLines()
           .filter((l) => this.vatPercent(l.vatRate) === 0)
-          .reduce((sum, l) => sum + l.amount + l.serviceChargeAmount, 0))
+          .reduce((sum, l) => sum + l.amount + l.serviceChargeAmount + l.packagingFeeAmount, 0))
       : this.round(
           this.lines()
             .filter((l) => this.vatPercent(l.vatRate) === 0)
@@ -189,7 +189,7 @@ export class CreditNoteDetailPage {
     this.posRefund()
       ? this.round(this.storedLines()
           .filter((l) => this.vatPercent(l.vatRate) > 0)
-          .reduce((sum, l) => sum + l.amount + l.serviceChargeAmount, 0))
+          .reduce((sum, l) => sum + l.amount + l.serviceChargeAmount + l.packagingFeeAmount, 0))
       : this.round(
           this.lines()
             .filter((l) => this.vatPercent(l.vatRate) > 0)

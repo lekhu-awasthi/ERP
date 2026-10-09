@@ -191,12 +191,15 @@ public sealed class Invoice
     /// afterwards by a Payment allocated against it.</summary>
     public IReadOnlyList<InvoiceTender> Tenders => _tenders;
 
-    /// <summary>What the customer owes for this invoice: every line's amount, service charge and VAT,
-    /// plus the round-off. For an ERP invoice the last two terms are zero, so this is the figure it
+    /// <summary>What the customer owes for this invoice: every line's amount, service charge, packaging fee
+    /// and VAT, plus the round-off. For an ERP invoice the last two terms are zero, so this is the figure it
     /// always was.</summary>
     public decimal GrandTotal => _lines.Sum(x => x.LineTotal) + RoundOff;
 
     public decimal ServiceChargeTotal => _lines.Sum(x => x.ServiceChargeAmount);
+
+    /// <summary>Phase 70 -- the packaging fee the lines charge; zero on every ERP invoice.</summary>
+    public decimal PackagingFeeTotal => _lines.Sum(x => x.PackagingFeeAmount);
 
     /// <summary>Everything handed over, before change.</summary>
     public decimal TenderedAmount => _tenders.Sum(x => x.Amount);
@@ -358,11 +361,11 @@ public sealed class Invoice
         return invoice;
     }
 
-    /// <summary>Phase 61 -- adds a till line carrying its own service charge rate. See
-    /// <see cref="InvoiceLine.CreatePos"/>.</summary>
+    /// <summary>Phase 61 -- adds a till line carrying its own service charge rate (and, phase 70, its own
+    /// packaging fee terms). See <see cref="InvoiceLine.CreatePos"/>.</summary>
     public void AddPosLine(
         Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct,
-        Guid? unitId, decimal conversionFactor, Guid? batchId, decimal serviceChargeRate)
+        Guid? unitId, decimal conversionFactor, Guid? batchId, decimal serviceChargeRate, PackagingFee packagingFee)
     {
         EnsureDraft();
         EnsurePos();
@@ -377,7 +380,7 @@ public sealed class Invoice
 
         _lines.Add(InvoiceLine.CreatePos(
             Id, productId, quantity, rate, vatRate, discountPct, DiscountPct, batchId, unitId,
-            conversionFactor, serviceChargeRate));
+            conversionFactor, serviceChargeRate, packagingFee));
 
         // A line added after a rounding would leave the bill rounded to the wrong rupee.
         RoundOff = 0m;
@@ -404,7 +407,7 @@ public sealed class Invoice
     /// See <see cref="InvoiceLine.CreatePosOrderPart"/>.</summary>
     public void AddPosOrderLine(
         Guid posOrderLineId, Guid productId, decimal quantity, decimal rate, VatRate vatRate, Guid? unitId,
-        decimal conversionFactor, decimal serviceChargeRate, PosLineArithmetic.Figures figures)
+        decimal conversionFactor, decimal serviceChargeRate, PackagingFee packagingFee, PosLineArithmetic.Figures figures)
     {
         EnsureDraft();
         EnsurePos();
@@ -427,7 +430,7 @@ public sealed class Invoice
 
         _lines.Add(InvoiceLine.CreatePosOrderPart(
             Id, posOrderLineId, productId, quantity, rate, vatRate, unitId, conversionFactor, serviceChargeRate,
-            figures));
+            packagingFee, figures));
 
         RoundOff = 0m;
     }

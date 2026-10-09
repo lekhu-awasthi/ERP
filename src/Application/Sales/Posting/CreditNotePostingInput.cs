@@ -23,6 +23,9 @@ public sealed record CreditNotePostingInput(
     /// sale credited it to). Null when the note gives back no service charge.</summary>
     public Guid? ServiceChargeAccountId { get; init; }
 
+    /// <summary>Phase 70 -- where a refund line's packaging fee is debited; resolved only when there is one.</summary>
+    public Guid? PackagingFeeAccountId { get; init; }
+
     public Guid? RoundingAccountId { get; init; }
 
     /// <summary>Signed like <c>InvoicePostingInput.RoundOff</c>: positive gives back more than the lines

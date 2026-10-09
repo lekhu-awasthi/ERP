@@ -33,6 +33,26 @@ internal static class PosAccountResolver
                 + "Accounting Defaults.");
     }
 
+    /// <summary>Phase 70 -- location, then tenant default, then a 409 naming both places to set it, as for
+    /// the service charge.</summary>
+    public static async Task<Guid> PackagingFeeAccountAsync(
+        IAppDbContext db, Guid organizationId, Guid? locationId, CancellationToken cancellationToken)
+    {
+        var atLocation = locationId is { } id
+            ? await db.PosLocationSettings
+                .Where(x => x.OrganizationId == organizationId && x.BillingLocationId == id)
+                .Select(x => x.PackagingFeeAccountId)
+                .SingleOrDefaultAsync(cancellationToken)
+            : null;
+
+        return atLocation
+            ?? await TenantDefaultAsync(db, organizationId, x => x.DefaultPackagingFeeAccountId, cancellationToken)
+            ?? throw new ConflictException(
+                "This sale carries a packaging fee and no account is set for it. Choose a Packaging Fee account "
+                + "in the location's Point of Sale settings, or a Default Packaging Fee account under Accounting "
+                + "Defaults.");
+    }
+
     public static async Task<Guid> RoundingAccountAsync(
         IAppDbContext db, Guid organizationId, Guid? locationId, CancellationToken cancellationToken)
     {

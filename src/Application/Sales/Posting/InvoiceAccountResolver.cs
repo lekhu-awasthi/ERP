@@ -27,7 +27,7 @@ internal static class InvoiceAccountResolver
     public static async Task<InvoicePostingInput> ResolveAsync(
         IAppDbContext db,
         Guid organizationId,
-        IEnumerable<(Guid ProductId, decimal Amount, decimal VatAmount, decimal ServiceChargeAmount)> lines,
+        IEnumerable<(Guid ProductId, decimal Amount, decimal VatAmount, decimal ServiceChargeAmount, decimal PackagingFeeAmount)> lines,
         bool resolveInventoryAccounts,
         CancellationToken cancellationToken)
     {
@@ -55,6 +55,7 @@ internal static class InvoiceAccountResolver
             postingLines.Add(new InvoicePostingLineInput(salesAccountId, line.Amount, line.VatAmount)
             {
                 ServiceChargeAmount = line.ServiceChargeAmount,
+                PackagingFeeAmount = line.PackagingFeeAmount,
             });
         }
 

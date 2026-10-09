@@ -245,3 +245,17 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   `Reason`; a conversion keeps `ReferrerType = 'Invoice'` and a null `AgainstInvoiceId` (phase-69).
 - A fresh organization's invoice codes have no prefix (`0001`), so match codes from the approve response, never a
   literal `INV…` (phase-69).
+- The packaging fee (phase 70): `PUT /pos/locations/{id}/settings` takes **`packagingFeeBasis`** (`None`/`Percent`/`PerUnit`),
+  `packagingFeeValue` and `packagingFeeAccountId`; an **absent basis keeps the stored fee and its account**, a 0% is a 400
+  naming `PackagingFeeValue`. `POST|PUT /products` take `packagingFeeApplicable` (absent: on for a create, unchanged for an
+  update); `PUT /accounting-defaults` takes `defaultPackagingFeeAccountId`. Only a Take Away/Delivery line, or a parcel
+  marked from a table, carries it. In SQL: `PackagingFeeBasis`/`PackagingFeeValue` on `pos.PosLocationSettings`,
+  `pos.PosOrderLines`, `sales.InvoiceLines`, `sales.CreditNoteLines`, plus `PackagingFeeAmount` on the two document lines;
+  `catalog.Products.PackagingFeeApplicable`. An invoice's total is now `SUM(Amount + ServiceChargeAmount +
+  PackagingFeeAmount + VatAmount) + RoundOff`.
+- Statuses a seed script must not guess (phase 70): `PUT /billing-locations/{id}` is **204**; `POST /pos/sessions`,
+  `POST /pos/sales`, `POST /pos/orders` and `POST /pos/orders/{id}/invoices` are **200**; `POST /pos/locations/{id}/areas`
+  returns the **whole floor plan** (`['areas'][0]['id']`), not the area. `GET /{org}/members` lists `membershipId`/`email`.
+- The settings 403-not-404 pair: `PUT /pos/locations/{nonexistent}/settings` with a **valid** body is **404** "Billing location
+  not found." as Admin and **403 naming `Pos.Settings.Manage`** from a role holding only `Tenancy.BillingLocation.View`,
+  beside its 200 on `GET /billing-locations` (phase-70).

@@ -13,8 +13,9 @@ public sealed record PosTenderTotalDto(Guid PaymentModeId, string PaymentModeNam
 /// <summary>
 /// The sales figures of a set of till sales -- one session's, one day's, or (phase 66) one period's.
 /// </summary>
-/// <param name="SubTotal">The lines' amounts after discount, before service charge and VAT.</param>
-/// <param name="GrandTotal">What customers owed: sub-total, service charge, VAT and round-off.</param>
+/// <param name="SubTotal">The lines' amounts after discount, before service charge, packaging fee and VAT.</param>
+/// <param name="PackagingFee">Phase 70 -- what parcels were charged for packing.</param>
+/// <param name="GrandTotal">What customers owed: sub-total, service charge, packaging fee, VAT and round-off.</param>
 /// <param name="Tendered">Everything handed over, in every mode, before change.</param>
 /// <param name="Settled">What the tenders settled: tendered less change.</param>
 /// <param name="Credit">What was left on customers' accounts: grand total less settled.</param>
@@ -22,7 +23,7 @@ public sealed record PosTenderTotalDto(Guid PaymentModeId, string PaymentModeNam
 /// <param name="Refunds">Phase 63 -- the refunds paid out in the same set (session or day).</param>
 /// <param name="NetSales">Phase 63 -- what customers owed less what was refunded: the grand total less
 /// the refunds' grand total.</param>
-/// <param name="Taxable">Phase 66 -- sub-total and service charge on the lines that carry VAT: the Sales
+/// <param name="Taxable">Phase 66 -- sub-total and service charge (and, phase 70, packaging fee) on the lines that carry VAT: the Sales
 /// Register's taxable bucket, split by the register's own rule (a line with VAT is taxable), so the two
 /// agree line for line.</param>
 /// <param name="NonTaxable">Phase 66 -- the same on the lines that carry none.</param>
@@ -30,6 +31,7 @@ public sealed record PosSalesSummaryDto(
     int SalesCount,
     decimal SubTotal,
     decimal ServiceCharge,
+    decimal PackagingFee,
     decimal Vat,
     decimal RoundOff,
     decimal GrandTotal,
@@ -79,7 +81,8 @@ public sealed record PosPaymentBreakdownDto(
 /// <summary>
 /// Phase 63 -- the refunds a till paid out, one session's or one day's.
 /// </summary>
-/// <param name="GrandTotal">What the refunds gave back in all: sub-total, service charge, VAT and round-off.</param>
+/// <param name="GrandTotal">What the refunds gave back in all: sub-total, service charge, packaging fee, VAT and
+/// round-off.</param>
 /// <param name="Payouts">What was handed back, per mode.</param>
 /// <param name="PaidOut">Everything handed back, in every mode.</param>
 /// <param name="ToAccount">What came off customers' accounts instead: grand total less paid out.</param>
@@ -88,6 +91,7 @@ public sealed record PosRefundsSummaryDto(
     int RefundsCount,
     decimal SubTotal,
     decimal ServiceCharge,
+    decimal PackagingFee,
     decimal Vat,
     decimal RoundOff,
     decimal GrandTotal,
@@ -98,7 +102,7 @@ public sealed record PosRefundsSummaryDto(
     decimal Taxable,
     decimal NonTaxable)
 {
-    public static readonly PosRefundsSummaryDto None = new(0, 0m, 0m, 0m, 0m, 0m, [], 0m, 0m, 0m, 0m, 0m);
+    public static readonly PosRefundsSummaryDto None = new(0, 0m, 0m, 0m, 0m, 0m, 0m, [], 0m, 0m, 0m, 0m, 0m);
 }
 
 /// <summary>Phase 66 -- how a series of till takings is cut: by the hour of one day, or by day.</summary>
@@ -231,10 +235,11 @@ internal static class PosSalesReader
         decimal Change,
         decimal Amount,
         decimal ServiceCharge,
+        decimal PackagingFee,
         decimal Vat,
         decimal Taxable)
     {
-        public decimal GrandTotal => Amount + ServiceCharge + Vat + RoundOff;
+        public decimal GrandTotal => Amount + ServiceCharge + PackagingFee + Vat + RoundOff;
     }
 
     private sealed record Facts(
@@ -260,8 +265,9 @@ internal static class PosSalesReader
                         g.Key,
                         g.Sum(x => x.Amount),
                         g.Sum(x => x.ServiceChargeAmount),
+                        g.Sum(x => x.PackagingFeeAmount),
                         g.Sum(x => x.VatAmount),
-                        g.Sum(x => x.VatAmount != 0m ? x.Amount + x.ServiceChargeAmount : 0m)))
+                        g.Sum(x => x.VatAmount != 0m ? x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount : 0m)))
                 .ToListAsync(cancellationToken);
 
         List<ModeTotal> tenderTotals = saleHeaders.Count == 0
@@ -287,8 +293,9 @@ internal static class PosSalesReader
                         g.Key,
                         g.Sum(x => x.Amount),
                         g.Sum(x => x.ServiceChargeAmount),
+                        g.Sum(x => x.PackagingFeeAmount),
                         g.Sum(x => x.VatAmount),
-                        g.Sum(x => x.VatAmount != 0m ? x.Amount + x.ServiceChargeAmount : 0m)))
+                        g.Sum(x => x.VatAmount != 0m ? x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount : 0m)))
                 .ToListAsync(cancellationToken);
 
         List<ModeTotal> payoutTotals = refundHeaders.Count == 0
@@ -317,7 +324,8 @@ internal static class PosSalesReader
             Modes(payoutTotals, modeNames));
     }
 
-    private sealed record LineTotals(Guid DocumentId, decimal Amount, decimal ServiceCharge, decimal Vat, decimal Taxable);
+    private sealed record LineTotals(
+        Guid DocumentId, decimal Amount, decimal ServiceCharge, decimal PackagingFee, decimal Vat, decimal Taxable);
 
     private sealed record ModeTotal(Guid PaymentModeId, PaymentModeKind Kind, decimal Amount);
 
@@ -327,7 +335,8 @@ internal static class PosSalesReader
         var totals = lines.GetValueOrDefault(id);
         return new DocumentFigures(
             id, date, at, roundOff, change,
-            totals?.Amount ?? 0m, totals?.ServiceCharge ?? 0m, totals?.Vat ?? 0m, totals?.Taxable ?? 0m);
+            totals?.Amount ?? 0m, totals?.ServiceCharge ?? 0m, totals?.PackagingFee ?? 0m, totals?.Vat ?? 0m,
+            totals?.Taxable ?? 0m);
     }
 
     private static List<PosTenderTotalDto> Modes(List<ModeTotal> totals, Dictionary<Guid, string> modeNames) =>
@@ -345,10 +354,11 @@ internal static class PosSalesReader
 
         var subTotal = sales.Sum(x => x.Amount);
         var serviceCharge = sales.Sum(x => x.ServiceCharge);
+        var packagingFee = sales.Sum(x => x.PackagingFee);
         var vat = sales.Sum(x => x.Vat);
         var roundOff = sales.Sum(x => x.RoundOff);
         var taxable = sales.Sum(x => x.Taxable);
-        var grandTotal = subTotal + serviceCharge + vat + roundOff;
+        var grandTotal = subTotal + serviceCharge + packagingFee + vat + roundOff;
         var tendered = facts.Tenders.Sum(x => x.Amount);
         var change = sales.Sum(x => x.Change);
         var settled = tendered - change;
@@ -358,6 +368,7 @@ internal static class PosSalesReader
             sales.Count,
             subTotal,
             serviceCharge,
+            packagingFee,
             vat,
             roundOff,
             grandTotal,
@@ -370,7 +381,7 @@ internal static class PosSalesReader
             refunds,
             grandTotal - refunds.GrandTotal,
             taxable,
-            subTotal + serviceCharge - taxable);
+            subTotal + serviceCharge + packagingFee - taxable);
     }
 
     /// <summary>Phase 63 -- the refunds' half, the same shape as the sales' above.</summary>
@@ -384,16 +395,18 @@ internal static class PosSalesReader
 
         var subTotal = notes.Sum(x => x.Amount);
         var serviceCharge = notes.Sum(x => x.ServiceCharge);
+        var packagingFee = notes.Sum(x => x.PackagingFee);
         var vat = notes.Sum(x => x.Vat);
         var roundOff = notes.Sum(x => x.RoundOff);
         var taxable = notes.Sum(x => x.Taxable);
-        var grandTotal = subTotal + serviceCharge + vat + roundOff;
+        var grandTotal = subTotal + serviceCharge + packagingFee + vat + roundOff;
         var paidOut = facts.Payouts.Sum(x => x.Amount);
 
         return new PosRefundsSummaryDto(
             notes.Count,
             subTotal,
             serviceCharge,
+            packagingFee,
             vat,
             roundOff,
             grandTotal,
@@ -402,7 +415,7 @@ internal static class PosSalesReader
             grandTotal - paidOut,
             facts.Payouts.Where(x => x.Kind == PaymentModeKind.Cash).Sum(x => x.Amount),
             taxable,
-            subTotal + serviceCharge - taxable);
+            subTotal + serviceCharge + packagingFee - taxable);
     }
 
     /// <summary>

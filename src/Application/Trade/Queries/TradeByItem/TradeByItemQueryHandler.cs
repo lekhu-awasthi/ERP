@@ -70,7 +70,7 @@ public sealed class TradeByItemQueryHandler(IAppDbContext db, ICurrentUserServic
 
         rows = [.. rows
             .Where(x => x.Quantity != 0 || x.Amount != 0 || x.Discount != 0
-                || x.NetAmount != 0 || x.ServiceCharge != 0 || x.VatAmount != 0 || x.TotalAmount != 0)
+                || x.NetAmount != 0 || x.ServiceCharge != 0 || x.PackagingFee != 0 || x.VatAmount != 0 || x.TotalAmount != 0)
             .OrderBy(x => x.Name, StringComparer.Ordinal)];
 
         var paged = request.ExportAll ? rows.ToUnpagedResult() : rows.ToPagedResult(request.Page, request.PageSize);
@@ -89,7 +89,8 @@ public sealed class TradeByItemQueryHandler(IAppDbContext db, ICurrentUserServic
             rows.Sum(x => x.NetAmount),
             rows.Sum(x => x.VatAmount),
             rows.Sum(x => x.TotalAmount),
-            rows.Sum(x => x.ServiceCharge));
+            rows.Sum(x => x.ServiceCharge),
+            rows.Sum(x => x.PackagingFee));
     }
 
     private static TradeByItemRowDto BuildRow(
@@ -107,6 +108,7 @@ public sealed class TradeByItemQueryHandler(IAppDbContext db, ICurrentUserServic
             list.Sum(x => x.NetAmount),
             list.Sum(x => x.VatAmount),
             list.Sum(x => x.TotalAmount),
-            list.Sum(x => x.ServiceCharge));
+            list.Sum(x => x.ServiceCharge),
+            list.Sum(x => x.PackagingFee));
     }
 }

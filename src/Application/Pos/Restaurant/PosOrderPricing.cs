@@ -19,7 +19,8 @@ public sealed record PosOrderLineQuantityInput(Guid LineId, decimal Quantity);
 /// Phase 64 -- turns what a waiter added into priced, routed order lines, from the catalogue and never
 /// from the request (docs/phase-64-status.md Decision C): the rate is the product's VAT-exclusive price
 /// in the chosen unit after the tenant's price basis (the grid's own figure), the service charge is
-/// <see cref="PosServiceCharge"/>'s, and the kitchen is the product's station.
+/// <see cref="PosServiceCharge"/>'s, the packaging fee <see cref="PosPackagingFee"/>'s (phase 70: a Take
+/// Away or Delivery order's lines are parcels), and the kitchen is the product's station.
 ///
 /// <para>A product the till would not sell here -- not available for sale, inactive, a variant parent,
 /// or restricted to other locations -- is a 409 naming it, as the sale's is (phase 61 Decision M).</para>
@@ -100,6 +101,7 @@ internal static class PosOrderPricing
                 ProductPrices.ToExclusiveRate(sellingPrice, product.VatRate, basis),
                 product.VatRate,
                 PosServiceCharge.RateFor(till.Settings, product.ServiceChargeApplicable, orderType),
+                PosPackagingFee.For(till.Settings, product.PackagingFeeApplicable, orderType),
                 item.Note,
                 product.KitchenStationId));
         }

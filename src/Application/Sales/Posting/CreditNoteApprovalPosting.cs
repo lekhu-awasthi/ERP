@@ -62,7 +62,8 @@ internal static class CreditNoteApprovalPosting
                 x.ProductId,
                 ExchangeRates.ToBase(x.Amount, creditNote.ExchangeRate),
                 ExchangeRates.ToBase(x.VatAmount, creditNote.ExchangeRate),
-                ExchangeRates.ToBase(x.ServiceChargeAmount, creditNote.ExchangeRate))),
+                ExchangeRates.ToBase(x.ServiceChargeAmount, creditNote.ExchangeRate),
+                ExchangeRates.ToBase(x.PackagingFeeAmount, creditNote.ExchangeRate))),
             resolveInventoryAccounts: sourceInvoice is not null, cancellationToken);
 
         // Resolved before the number is drawn, so a missing account is a 409 that has consumed nothing.
@@ -71,6 +72,15 @@ internal static class CreditNoteApprovalPosting
             postingInput = postingInput with
             {
                 ServiceChargeAccountId = await PosAccountResolver.ServiceChargeAccountAsync(
+                    db, organizationId, creditNote.LocationId, cancellationToken),
+            };
+        }
+
+        if (creditNote.PackagingFeeTotal > 0)
+        {
+            postingInput = postingInput with
+            {
+                PackagingFeeAccountId = await PosAccountResolver.PackagingFeeAccountAsync(
                     db, organizationId, creditNote.LocationId, cancellationToken),
             };
         }

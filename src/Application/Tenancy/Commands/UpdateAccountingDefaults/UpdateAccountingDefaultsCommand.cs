@@ -27,7 +27,8 @@ public sealed record UpdateAccountingDefaultsCommand(
     Guid? DefaultLandedCostClearingAccountId = null,
     Guid? DefaultServiceChargeAccountId = null,
     Guid? DefaultRoundingAccountId = null,
-    Guid? DefaultCashOverShortAccountId = null)
+    Guid? DefaultCashOverShortAccountId = null,
+    Guid? DefaultPackagingFeeAccountId = null)
     : IRequest<UpdateAccountingDefaultsResult>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.AccountingDefaultsManage;
@@ -50,4 +51,5 @@ public sealed record UpdateAccountingDefaultsResult(
     Guid? DefaultLandedCostClearingAccountId,
     Guid? DefaultServiceChargeAccountId,
     Guid? DefaultRoundingAccountId,
-    Guid? DefaultCashOverShortAccountId);
+    Guid? DefaultCashOverShortAccountId,
+    Guid? DefaultPackagingFeeAccountId);

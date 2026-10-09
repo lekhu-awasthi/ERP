@@ -4257,3 +4257,28 @@ says it is there.
 a CRLF file and `open(p, 'w', newline='\n')` writes it back LF. Fourteen files flipped before git's "LF will be
 replaced by CRLF" warnings showed it; `core.autocrlf` kept the commits clean, so it cost a restore and nothing more.
 Read the bytes (`open(p, 'rb')`) to learn the file's newline, and write with `newline=''` after normalising to it.
+
+## A sum over a figure named service charge is not a sum over its column (phase 70)
+
+Phase 70's first guard looked for `x.Amount + x.ServiceChargeAmount` and found 33. It did not see
+`PosSalesReader.DocumentFigures.GrandTotal => Amount + ServiceCharge + Vat + RoundOff` or
+`TradeLineReader.Fact.TotalAmount => NetAmount + ServiceCharge + VatAmount`: both add a field already summed and
+*named* `ServiceCharge`. Session totals, net sales, the Day Report and Sales by Item would each have been short by
+every parcel's fee while the guard was green. A source guard over a sweep must name every shape the figure takes,
+and the third check (a line adding a `ServiceCharge` identifier with no `packaging` on it) is what closes this one.
+
+## A swept formula over a projection that never selected the column (phase 70)
+
+The reader sweep rewrote `g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount)` correctly in eight places where
+`x` was an anonymous type projected a few lines up, which listed `ServiceChargeAmount` and nothing new. The compiler
+refused all eight (`'<anonymous type>' does not contain a definition for 'PackagingFeeAmount'`), which is the only
+reason it was not a silent miss: had the projection been a named record with a defaulted member, it would have
+compiled and summed zero. Sweep the projection with the sum.
+
+## A bool defaulting to true needs `ValueGeneratedNever` too (phase 70)
+
+Phase 2's gotcha was stated for an enum: `.HasDefaultValue(x)` where `x != default(T)` makes EF treat the CLR default
+as "not set" and let the column default win. A bool defaulting to `true` is the same trap with a sharper edge: every
+product a user *exempts* (`false`) would be saved as `true`. `Product.PackagingFeeApplicable` is mapped
+`.HasDefaultValue(true).ValueGeneratedNever()`; the default exists for the existing rows in the migration, and EF
+always sends the value. InMemory cannot show the failure, so the E2E reads `catalog.Products` in SQL.

@@ -115,6 +115,7 @@ public sealed class PrintPosReceiptCommandHandler(IAppDbContext db, ICurrentUser
                     x.DiscountPct,
                     x.Amount,
                     x.ServiceChargeAmount,
+                    x.PackagingFeeAmount,
                     x.VatRate,
                     x.VatAmount,
                     x.LineTotal);
@@ -155,6 +156,7 @@ public sealed class PrintPosReceiptCommandHandler(IAppDbContext db, ICurrentUser
             gross - subTotal,
             subTotal,
             invoice.ServiceChargeTotal,
+            invoice.PackagingFeeTotal,
             taxable,
             nonTaxable,
             invoice.Lines.Sum(x => x.VatAmount),

@@ -22,12 +22,16 @@ namespace ErpApp.Application.Sales.Posting;
 /// credited when it adds to the bill, debited when it takes off. Both are zero on an ERP invoice, so
 /// that entry is unchanged. How the sale was <i>paid</i> is not here: tenders post as a second entry
 /// against the same invoice (<see cref="InvoiceTenderPostingRule"/>, phase 59 Decision D).</para>
+///
+/// <para><b>Phase 70 -- the packaging fee</b> is a third till leg, credited to its own account (summed) and
+/// inside the receivable, exactly as the service charge is. Zero on an ERP invoice.</para>
 /// </summary>
 public sealed class InvoicePostingRule : IGlPostingRule<InvoicePostingInput>
 {
     public IReadOnlyList<GlLineInput> BuildLines(InvoicePostingInput document)
     {
-        var receivable = document.Lines.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount) + document.RoundOff;
+        var receivable = document.Lines.Sum(x => x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount + x.VatAmount)
+            + document.RoundOff;
 
         var lines = new List<GlLineInput>
         {
@@ -45,6 +49,15 @@ public sealed class InvoicePostingRule : IGlPostingRule<InvoicePostingInput>
                 document.ServiceChargeAccountId
                     ?? throw new InvalidOperationException("A service charge needs its account resolved before posting."),
                 0, totalServiceCharge));
+        }
+
+        var totalPackagingFee = document.Lines.Sum(x => x.PackagingFeeAmount);
+        if (totalPackagingFee > 0)
+        {
+            lines.Add(new GlLineInput(
+                document.PackagingFeeAccountId
+                    ?? throw new InvalidOperationException("A packaging fee needs its account resolved before posting."),
+                0, totalPackagingFee));
         }
 
         var totalVat = document.Lines.Sum(x => x.VatAmount);

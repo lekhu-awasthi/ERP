@@ -150,6 +150,56 @@
             }
           </fieldset>
 
+          <!-- Phase 70 -- the packaging fee, the mirror of service charge: charged on parcels only. -->
+          <fieldset class="mb-4">
+            <legend class="h6 fw-bold">Packaging Fee</legend>
+            <p id="pos-settings-packaging-help" class="form-text mb-2">
+              Charged on every parcel: Take Away and Delivery sales, and dine-in food marked as take away. Never on
+              food served at the table or on a counter sale. It is part of the VAT base, so an item's VAT is charged
+              on its fee too, and an item exempt from VAT is exempt on its fee. A product can be exempted on its own
+              form. The fee is decided when an item is rung up, sent or marked, so changing it here reprices nothing
+              already on a bill or an order.
+            </p>
+            <p id="pos-settings-packaging-basis-label" class="form-label small fw-semibold mb-1">How it is charged</p>
+            <div class="mb-2" role="radiogroup" aria-labelledby="pos-settings-packaging-basis-label"
+              aria-describedby="pos-settings-packaging-help">
+              @for (basis of packagingFeeBases; track basis) {
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="pos-settings-packaging-basis"
+                    [id]="'pos-settings-packaging-basis-' + basis" [value]="basis"
+                    [checked]="packagingFeeBasis() === basis" (change)="packagingFeeBasis.set(basis)" />
+                  <label class="form-check-label" [for]="'pos-settings-packaging-basis-' + basis">{{ packagingFeeBasisLabels[basis] }}</label>
+                </div>
+              }
+            </div>
+            @if (packagingFeeBasis() !== 'None') {
+              <div class="row g-3">
+                <div class="col-12 col-sm-4">
+                  <label class="form-label small fw-semibold" for="pos-settings-packaging-value">
+                    {{ packagingFeeBasis() === 'Percent' ? 'Percent of the line (%)' : 'Amount per unit (Rs)' }}
+                  </label>
+                  <input id="pos-settings-packaging-value" type="number" class="form-control" min="0" step="0.01"
+                    [attr.max]="packagingFeeBasis() === 'Percent' ? 100 : 10000"
+                    [value]="packagingFeeValue()" (input)="packagingFeeValue.set(numberOf($event))" />
+                </div>
+                <div class="col-12 col-sm-8">
+                  <label class="form-label small fw-semibold" for="pos-settings-packaging-account">Account</label>
+                  <select id="pos-settings-packaging-account" class="form-select"
+                    aria-describedby="pos-settings-packaging-account-help"
+                    (change)="packagingFeeAccountId.set(valueOf($event))">
+                    <option value="" [selected]="!packagingFeeAccountId()">— Tenant default —</option>
+                    @for (account of sortedAccounts(); track account.id) {
+                      <option [value]="account.id" [selected]="account.id === packagingFeeAccountId()">{{ account.code }} — {{ account.name }}</option>
+                    }
+                  </select>
+                  <p id="pos-settings-packaging-account-help" class="form-text mb-0">
+                    Left empty, the Default Packaging Fee Account on Accounting Defaults is used.
+                  </p>
+                </div>
+              </div>
+            }
+          </fieldset>
+
           <fieldset class="mb-4">
             <legend class="h6 fw-bold">Round Off</legend>
             <div class="form-check mb-2">

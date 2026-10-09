@@ -7,7 +7,7 @@ namespace ErpApp.Application.Pos.Restaurant;
 
 /// <summary>One bill an order has had, for the till and the ERP list.</summary>
 public sealed record PosOrderInvoiceDto(
-    Guid Id, string Code, decimal GrandTotal, decimal ServiceCharge, decimal RoundOff, bool IsVoided);
+    Guid Id, string Code, decimal GrandTotal, decimal ServiceCharge, decimal PackagingFee, decimal RoundOff, bool IsVoided);
 
 /// <summary>What an order's invoices billed: per order line, as one total, and as the list.</summary>
 internal sealed record PosOrderBilledState(
@@ -69,8 +69,7 @@ internal static class PosOrderBilling
                 g => g.Key,
                 g => new PosOrderLineBilled(
                     g.Sum(x => x.Quantity),
-                    new PosLineArithmetic.Figures(
-                        g.Sum(x => x.Amount), g.Sum(x => x.ServiceChargeAmount), g.Sum(x => x.VatAmount))));
+                    g.Aggregate(PosLineArithmetic.Figures.Zero, (sum, x) => sum + x.Figures)));
 
         var totals = new PosOrderBilledTotals(
             live.Sum(x => x.Lines.Sum(l => l.LineTotal)),
@@ -78,7 +77,7 @@ internal static class PosOrderBilling
 
         var list = invoices
             .Select(x => new PosOrderInvoiceDto(
-                x.Id, x.Code, x.GrandTotal, x.ServiceChargeTotal, x.RoundOff, x.Status == InvoiceStatus.Void))
+                x.Id, x.Code, x.GrandTotal, x.ServiceChargeTotal, x.PackagingFeeTotal, x.RoundOff, x.Status == InvoiceStatus.Void))
             .ToList();
 
         return new PosOrderBilledState(lines, totals, list);

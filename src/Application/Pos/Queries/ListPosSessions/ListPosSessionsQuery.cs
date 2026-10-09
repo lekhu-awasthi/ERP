@@ -143,7 +143,7 @@ public sealed class ListPosSessionsQueryHandler(IAppDbContext db)
                 from line in db.InvoiceLines
                 join invoice in sales on line.InvoiceId equals invoice.Id
                 group line by invoice.PosSessionId!.Value into g
-                select new { Id = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount) })
+                select new { Id = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount + x.VatAmount) })
             .ToDictionaryAsync(x => x.Id, x => x.Total, cancellationToken);
 
         var refunds = PosSalesReader.TillRefunds(db, request.OrganizationId)
@@ -156,7 +156,7 @@ public sealed class ListPosSessionsQueryHandler(IAppDbContext db)
                 from line in db.CreditNoteLines
                 join note in refunds on line.CreditNoteId equals note.Id
                 group line by note.PosSessionId!.Value into g
-                select new { Id = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount) })
+                select new { Id = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount + x.VatAmount) })
             .ToDictionaryAsync(x => x.Id, x => x.Total, cancellationToken);
 
         var userIds = sessions.Select(x => x.UserId).Distinct().ToList();

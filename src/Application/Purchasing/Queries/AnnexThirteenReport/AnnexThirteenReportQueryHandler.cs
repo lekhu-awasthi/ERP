@@ -23,7 +23,7 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
             .Where(x => invoices.Select(i => i.Id).Contains(x.InvoiceId))
             // Phase 61 -- a till line's service charge is part of what was charged for the supply
             // (inside the VAT base), so it counts toward the party's gross. Zero on every ERP line.
-            .Select(x => new { x.InvoiceId, x.ProductId, Amount = x.Amount + x.ServiceChargeAmount, x.VatAmount })
+            .Select(x => new { x.InvoiceId, x.ProductId, Amount = x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         var creditNotes = await db.CreditNotes
@@ -34,7 +34,7 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
         var creditNoteLines = await db.CreditNoteLines
             .Where(x => creditNotes.Select(c => c.Id).Contains(x.CreditNoteId))
             // Phase 63 -- the mirror of the invoice line above: a till refund gives back its service charge.
-            .Select(x => new { x.CreditNoteId, x.ProductId, Amount = x.Amount + x.ServiceChargeAmount, x.VatAmount })
+            .Select(x => new { x.CreditNoteId, x.ProductId, Amount = x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         var purchaseBills = await db.PurchaseBills

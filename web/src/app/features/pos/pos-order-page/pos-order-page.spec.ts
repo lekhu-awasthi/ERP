@@ -31,14 +31,14 @@ describe('PosOrderPage', () => {
 
   const momo: PosProduct = {
     id: 'momo', code: 'P0002', name: 'Chicken Momo', categoryId: 'food', type: 'Service', vatRate: 'ThirteenPercentVat',
-    rate: 200, serviceChargeApplicable: true, batchTracking: false, serialTracking: false, barcode: null,
+    rate: 200, serviceChargeApplicable: true, packagingFeeApplicable: true, batchTracking: false, serialTracking: false, barcode: null,
     units: [{ unitId: 'plate', shortName: 'plt', conversionRate: 1, rate: 200 }],
   };
-  const coke: PosProduct = { ...momo, id: 'coke', code: 'P0003', name: 'Coke 250ml', rate: 60, serviceChargeApplicable: false };
+  const coke: PosProduct = { ...momo, id: 'coke', code: 'P0003', name: 'Coke 250ml', rate: 60, serviceChargeApplicable: false , packagingFeeApplicable: true};
 
   const restaurant = (overrides: Partial<PosRestaurant> = {}): PosRestaurant => ({
     locationId, locationCode: '1002', locationName: 'POS Restaurant', availableTabs: ['DineIn', 'TakeAway', 'Delivery'],
-    defaultTab: 'DineIn', serviceChargeEnabled: true, serviceChargeRate: 10, printKot: false, canvasWidth: 1100,
+    defaultTab: 'DineIn', serviceChargeEnabled: true, serviceChargeRate: 10, packagingFeeBasis: 'None', packagingFeeValue: 0, printKot: false, canvasWidth: 1100,
     canvasHeight: 800, walkInCustomer: { id: 'walk-in', code: 'WALKIN', name: 'Cash Customer' }, categories: [],
     areas: [{ id: 'gf', name: 'Ground Floor', tables: [
       { id: 't1', name: 'T1', capacity: 4, shape: 'Rectangle', x: 100, y: 100, width: 250, height: 100, order: null },
@@ -62,17 +62,17 @@ describe('PosOrderPage', () => {
     id: 'ord-1', code: 'ORD0001', locationId, locationCode: '1002', locationName: 'POS Restaurant', orderType: 'DineIn',
     status: 'Open', tableId: 't1', tableName: 'T1', areaId: 'gf', areaName: 'Ground Floor', covers: 2, contactId: null,
     contactName: 'Cash Customer', date: '2026-10-02', createdAt: '2026-10-02T04:00:00Z', createdByName: 'Sita',
-    voidReason: null, voidedAt: null, voidedByName: null, amount: 460, serviceCharge: 40, vat: 65, total: 565, outstanding: 3,
+    voidReason: null, voidedAt: null, voidedByName: null, amount: 460, serviceCharge: 40, packagingFee: 0, vat: 65, total: 565, outstanding: 3,
     settledAt: null, billed: 0, toBill: 3, invoices: [],
     lines: [
       { id: 'l-Chicken Momo', lineNo: 1, productId: 'momo', productCode: 'P0002', productName: 'Chicken Momo', unitId: 'plate',
         unitName: 'plt', rate: 200, vatRate: 'ThirteenPercentVat', serviceChargeRate: 10, note: null, kitchenStationId: 'kitchen',
         kitchenStationName: 'Kitchen', ordered: 2, discarded: 0, quantity: 2, served: 0, outstanding: 2, invoiced: 0, toBill: 2, amount: 400,
-        serviceChargeAmount: 40, vatAmount: 57.2, total: 497.2, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0 },
+        serviceChargeAmount: 40, packagingFeeAmount: 0, vatAmount: 57.2, total: 497.2, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0 },
       { id: 'l-Coke 250ml', lineNo: 2, productId: 'coke', productCode: 'P0003', productName: 'Coke 250ml', unitId: 'plate',
         unitName: 'plt', rate: 60, vatRate: 'ThirteenPercentVat', serviceChargeRate: 0, note: null, kitchenStationId: null,
         kitchenStationName: 'Default', ordered: 1, discarded: 0, quantity: 1, served: 0, outstanding: 1, invoiced: 0, toBill: 1, amount: 60,
-        serviceChargeAmount: 0, vatAmount: 7.8, total: 67.8, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0 },
+        serviceChargeAmount: 0, packagingFeeAmount: 0, vatAmount: 7.8, total: 67.8, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0 },
     ],
     tickets: [ticket(1, 'Kitchen', [['Chicken Momo', 2]]), ticket(1, 'Default', [['Coke 250ml', 1]])],
     ...overrides,
@@ -127,10 +127,10 @@ describe('PosOrderPage', () => {
       previewBill: (_o: string, _id: string, request: PosOrderBillRequest): Observable<PosOrderBillPreview> => {
         previews.push(request);
         return of({
-          orderId: 'ord-1', orderCode: 'ORD0001', amount: 460, serviceCharge: 40, vat: 65, unrounded: 565, roundOff: 0,
+          orderId: 'ord-1', orderCode: 'ORD0001', amount: 460, serviceCharge: 40, packagingFee: 0, vat: 65, unrounded: 565, roundOff: 0,
           total: 565, billsTheRest: true, orderTotal: 565, billedBefore: 0, leftAfter: 0,
           lines: [{ orderLineId: 'l-Chicken Momo', lineNo: 1, productName: 'Chicken Momo', unitName: 'plt', note: null,
-            quantity: 2, rate: 200, serviceChargeRate: 10, amount: 400, serviceChargeAmount: 40, vatAmount: 57.2,
+            quantity: 2, rate: 200, serviceChargeRate: 10, amount: 400, serviceChargeAmount: 40, packagingFeeAmount: 0, vatAmount: 57.2,
             total: 497.2, remainingAfter: 0 }],
         });
       },

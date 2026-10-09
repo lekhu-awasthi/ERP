@@ -32,6 +32,9 @@ public sealed record CreditNoteLineDto(
 {
     /// <summary>Phase 63 -- the service charge a till refund line gives back; zero on an ERP line.</summary>
     public decimal ServiceChargeAmount { get; init; }
+
+    /// <summary>Phase 70 -- the packaging fee a till refund line gives back; zero on an ERP line.</summary>
+    public decimal PackagingFeeAmount { get; init; }
 }
 
 /// <summary>Phase 63 -- one way a till refund was paid back.</summary>
@@ -48,6 +51,7 @@ public sealed record CreditNotePosRefundDto(
     string? SessionCode,
     string? Reason,
     decimal ServiceChargeTotal,
+    decimal PackagingFeeTotal,
     decimal RoundOff,
     decimal GrandTotal,
     IReadOnlyList<CreditNotePayoutDto> Payouts,

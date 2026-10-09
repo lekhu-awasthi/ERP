@@ -18,6 +18,7 @@ public sealed record PosRefundableLineDto(
     decimal Rate,
     decimal DiscountPct,
     decimal ServiceChargeRate,
+    decimal PackagingFeeAmount,
     VatRate VatRate,
     decimal LineTotal);
 

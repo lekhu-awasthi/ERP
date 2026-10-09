@@ -51,6 +51,7 @@ public sealed class CreditNoteConfiguration : IEntityTypeConfiguration<CreditNot
 
         builder.Ignore(x => x.GrandTotal);
         builder.Ignore(x => x.ServiceChargeTotal);
+        builder.Ignore(x => x.PackagingFeeTotal);
         builder.Ignore(x => x.PaidOutAmount);
         builder.Ignore(x => x.ToAccountAmount);
 

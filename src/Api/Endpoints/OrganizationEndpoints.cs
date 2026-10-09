@@ -331,7 +331,8 @@ public static class OrganizationEndpoints
                     request.DefaultLandedCostClearingAccountId,
                     request.DefaultServiceChargeAccountId,
                     request.DefaultRoundingAccountId,
-                    request.DefaultCashOverShortAccountId),
+                    request.DefaultCashOverShortAccountId,
+                    request.DefaultPackagingFeeAccountId),
                 ct);
             return Results.Ok(result);
         });
@@ -564,7 +565,9 @@ public static class OrganizationEndpoints
         // they bind to null in silence (phase-27b).
         Guid? DefaultServiceChargeAccountId = null,
         Guid? DefaultRoundingAccountId = null,
-        Guid? DefaultCashOverShortAccountId = null);
+        Guid? DefaultCashOverShortAccountId = null,
+        // Phase 70 -- carried here as well as on the command, or it binds to null in silence (phase 27b).
+        Guid? DefaultPackagingFeeAccountId = null);
 
     /// <summary>
     /// Phase 43 -- every field <c>Organization.UpdateDetails</c> takes and nothing else. Notably no

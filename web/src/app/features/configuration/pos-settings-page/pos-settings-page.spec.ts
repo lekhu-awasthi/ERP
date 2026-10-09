@@ -33,6 +33,9 @@ describe('PosSettingsPage', () => {
     serviceChargeRate: 0,
     serviceChargeAccountId: null,
     serviceChargeOnTakeAway: true,
+    packagingFeeBasis: 'None',
+    packagingFeeValue: 0,
+    packagingFeeAccountId: null,
     roundOffEnabled: false,
     roundOffAccountId: null,
     cashVerificationRequired: false,
@@ -175,6 +178,9 @@ describe('PosSettingsPage', () => {
       serviceChargeRate: 10,
       serviceChargeAccountId: null,
       serviceChargeOnTakeAway: true,
+      packagingFeeBasis: 'None',
+      packagingFeeValue: 0,
+      packagingFeeAccountId: null,
       roundOffEnabled: true,
       roundOffAccountId: null,
       cashVerificationRequired: true,
@@ -202,6 +208,33 @@ describe('PosSettingsPage', () => {
     const retail = page('Retail');
     retail.tick('pos-settings-service-charge');
     expect(retail.element.querySelector('#pos-settings-service-charge-take-away')).toBeNull();
+  });
+
+  it('sends a packaging fee with its value and account only while one is chosen, at a Retail till too', () => {
+    const p = page('Retail');
+    expect(p.input('pos-settings-packaging-basis-None').checked).toBe(true);
+    expect(p.element.querySelector('#pos-settings-packaging-value')).toBeNull();
+
+    p.tick('pos-settings-packaging-basis-PerUnit');
+    const value = p.input('pos-settings-packaging-value');
+    value.value = '20';
+    value.dispatchEvent(new Event('input'));
+    const account = p.element.querySelector<HTMLSelectElement>('#pos-settings-packaging-account')!;
+    account.value = 'a1';
+    account.dispatchEvent(new Event('change'));
+    p.press('Save Settings');
+
+    expect(p.service.saved).toEqual(
+      expect.objectContaining({ packagingFeeBasis: 'PerUnit', packagingFeeValue: 20, packagingFeeAccountId: 'a1' }),
+    );
+
+    // Switching it off sends none of its value or account, and the fields go with it.
+    p.tick('pos-settings-packaging-basis-None');
+    expect(p.element.querySelector('#pos-settings-packaging-value')).toBeNull();
+    p.press('Save Settings');
+    expect(p.service.saved).toEqual(
+      expect.objectContaining({ packagingFeeBasis: 'None', packagingFeeValue: 0, packagingFeeAccountId: null }),
+    );
   });
 
   it('keeps denominations largest first and refuses a duplicate', () => {

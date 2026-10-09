@@ -49,6 +49,9 @@ export class AccountingDefaultsPage {
   protected readonly defaultServiceChargeAccountId = signal<string>('');
   protected readonly defaultRoundingAccountId = signal<string>('');
   protected readonly defaultCashOverShortAccountId = signal<string>('');
+  /** Phase 70 -- sent on every save: the command replaces every default at once, so leaving it out would
+   *  clear it (phase 29's "grep web/ for a new tenant-default account" gotcha). */
+  protected readonly defaultPackagingFeeAccountId = signal<string>('');
 
   protected readonly sortedAccounts = computed(() => [...this.accounts()].sort((a, b) => a.code.localeCompare(b.code)));
 
@@ -80,6 +83,7 @@ export class AccountingDefaultsPage {
         defaultServiceChargeAccountId: this.defaultServiceChargeAccountId() || null,
         defaultRoundingAccountId: this.defaultRoundingAccountId() || null,
         defaultCashOverShortAccountId: this.defaultCashOverShortAccountId() || null,
+        defaultPackagingFeeAccountId: this.defaultPackagingFeeAccountId() || null,
       })
       .subscribe({
         next: () => {
@@ -117,6 +121,7 @@ export class AccountingDefaultsPage {
         this.defaultServiceChargeAccountId.set(defaults.defaultServiceChargeAccountId ?? '');
         this.defaultRoundingAccountId.set(defaults.defaultRoundingAccountId ?? '');
         this.defaultCashOverShortAccountId.set(defaults.defaultCashOverShortAccountId ?? '');
+        this.defaultPackagingFeeAccountId.set(defaults.defaultPackagingFeeAccountId ?? '');
         this.loading.set(false);
       },
       error: (err: unknown) => {

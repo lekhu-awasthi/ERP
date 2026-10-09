@@ -53,6 +53,9 @@ import { POS_RECEIPT_STYLES } from '../pos-receipt/pos-receipt';
       @if (p.serviceCharge > 0) {
         <p class="r-row"><span>Service Charge</span><span>{{ p.serviceCharge | amount }}</span></p>
       }
+      @if (p.packagingFee > 0) {
+        <p class="r-row"><span>Packaging</span><span>{{ p.packagingFee | amount }}</span></p>
+      }
       <p class="r-row"><span>VAT</span><span>{{ p.vat | amount }}</span></p>
       @if (p.roundOff !== 0) {
         <p class="r-row"><span>Round Off</span><span>{{ p.roundOff | amount }}</span></p>

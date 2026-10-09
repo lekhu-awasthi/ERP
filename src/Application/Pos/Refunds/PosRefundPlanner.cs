@@ -31,7 +31,8 @@ internal sealed record PosRefundPlan(Invoice Invoice, CreditNote CreditNote, dec
 /// <list type="bullet">
 /// <item><b>Which sale</b> (C): an approved till sale of this location.</item>
 /// <item><b>How much</b> (phase 6's cap): each line at most what was sold less what earlier credit notes
-/// returned, at the sale line's own rate, discount, VAT rate, unit, batch and service charge rate.</item>
+/// returned, at the sale line's own rate, discount, VAT rate, unit, batch, service charge rate and (phase 70)
+/// packaging fee terms.</item>
 /// <item><b>Rounding</b> (F): to the nearest rupee when the location rounds or the sale was rounded,
 /// never so that the sale's refunds together exceed the sale; and a refund returning the last of a sale
 /// gives back exactly what is left of its total, so a bill refunded in parts ties out to the paisa.</item>
@@ -78,7 +79,7 @@ internal static class PosRefundPlanner
         {
             creditNote.AddPosLine(
                 line.ProductId, quantity, line.Rate, line.VatRate, line.DiscountPct, line.UnitId,
-                line.ConversionFactor, line.BatchId, line.ServiceChargeRate);
+                line.ConversionFactor, line.BatchId, line.ServiceChargeRate, line.PackagingFee);
         }
 
         await ApplyRoundOffAsync(db, organizationId, invoice, till, chosen, creditNote, cancellationToken);
@@ -157,7 +158,7 @@ internal static class PosRefundPlanner
         var priorLines = await (
                 from line in db.CreditNoteLines
                 join note in priorNotes on line.CreditNoteId equals note.Id
-                select line.Amount + line.ServiceChargeAmount + line.VatAmount)
+                select line.Amount + line.ServiceChargeAmount + line.PackagingFeeAmount + line.VatAmount)
             .SumAsync(cancellationToken);
         var priorTotal = priorLines + await priorNotes.SumAsync(x => x.RoundOff, cancellationToken);
 

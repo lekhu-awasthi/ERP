@@ -32,13 +32,13 @@ public class PosRefundTests
         var sale = Invoice.CreatePosSale(
             Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), new DateOnly(2026, 10, 1), Guid.NewGuid(), Guid.NewGuid(),
             Domain.Pos.PosTab.Retail, billDiscount);
-        sale.AddPosLine(Momo, quantity, 199.99m, VatRate.ThirteenPercentVat, lineDiscount, null, 1, null, 10m);
+        sale.AddPosLine(Momo, quantity, 199.99m, VatRate.ThirteenPercentVat, lineDiscount, null, 1, null, 10m, PackagingFee.None);
         var sold = sale.Lines[0];
 
         var refund = CreditNote.CreatePosRefund(
             Guid.NewGuid(), Guid.NewGuid(), new DateOnly(2026, 10, 1), Guid.NewGuid(), Guid.NewGuid(), sale.Id,
             "0001", billDiscount, "Returned");
-        refund.AddPosLine(Momo, quantity, 199.99m, VatRate.ThirteenPercentVat, lineDiscount, null, 1, null, 10m);
+        refund.AddPosLine(Momo, quantity, 199.99m, VatRate.ThirteenPercentVat, lineDiscount, null, 1, null, 10m, PackagingFee.None);
         var returned = refund.Lines[0];
 
         Assert.Equal(sold.Amount, returned.Amount);
@@ -70,7 +70,7 @@ public class PosRefundTests
     public void The_payouts_must_come_to_exactly_what_is_owed_back()
     {
         var refund = Refund();
-        refund.AddPosLine(Momo, 1, 200m, VatRate.ThirteenPercentVat, 0, null, 1, null, 10m);
+        refund.AddPosLine(Momo, 1, 200m, VatRate.ThirteenPercentVat, 0, null, 1, null, 10m, PackagingFee.None);
         refund.SetRoundOff(0.40m);
         Assert.Equal(249m, refund.GrandTotal);
 
@@ -90,7 +90,7 @@ public class PosRefundTests
     public void A_refund_of_nothing_paid_records_no_payout()
     {
         var refund = Refund();
-        refund.AddPosLine(Momo, 1, 200m, VatRate.ThirteenPercentVat, 0, null, 1, null, 10m);
+        refund.AddPosLine(Momo, 1, 200m, VatRate.ThirteenPercentVat, 0, null, 1, null, 10m, PackagingFee.None);
 
         refund.PayOut([], 0m);
 
@@ -103,7 +103,7 @@ public class PosRefundTests
     {
         var erp = CreditNote.Create(Guid.NewGuid(), Guid.NewGuid(), new DateOnly(2026, 10, 1), null, null, null);
         Assert.Throws<InvalidOperationException>(() =>
-            erp.AddPosLine(Momo, 1, 200m, VatRate.ThirteenPercentVat, 0, null, 1, null, 10m));
+            erp.AddPosLine(Momo, 1, 200m, VatRate.ThirteenPercentVat, 0, null, 1, null, 10m, PackagingFee.None));
         Assert.Throws<InvalidOperationException>(() => erp.SetRoundOff(0.40m));
 
         var refund = Refund();
@@ -115,7 +115,7 @@ public class PosRefundTests
     public void A_round_off_is_whole_paisa_and_never_takes_a_refund_below_zero()
     {
         var refund = Refund();
-        refund.AddPosLine(Momo, 1, 0.30m, VatRate.NoVat, 0, null, 1, null, 0m);
+        refund.AddPosLine(Momo, 1, 0.30m, VatRate.NoVat, 0, null, 1, null, 0m, PackagingFee.None);
 
         Assert.Throws<InvalidOperationException>(() => refund.SetRoundOff(0.005m));
         Assert.Throws<InvalidOperationException>(() => refund.SetRoundOff(-0.31m));
@@ -127,7 +127,7 @@ public class PosRefundTests
     public void A_refund_print_is_counted_and_an_erp_or_voided_note_has_no_receipt()
     {
         var refund = Refund();
-        refund.AddPosLine(Momo, 1, 200m, VatRate.ThirteenPercentVat, 0, null, 1, null, 10m);
+        refund.AddPosLine(Momo, 1, 200m, VatRate.ThirteenPercentVat, 0, null, 1, null, 10m, PackagingFee.None);
         refund.PayOut([Cash(248.60m)], 248.60m);
         refund.Approve(Guid.NewGuid(), "CN0001");
 

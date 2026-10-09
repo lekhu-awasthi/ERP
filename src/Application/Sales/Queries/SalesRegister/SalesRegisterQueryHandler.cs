@@ -82,7 +82,7 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db, ICurrentUserServ
                     // Phase 61 -- a till line's service charge is inside the VAT base, so the register
                     // counts it with the line it was charged on (zero on every ERP line). The round-off
                     // is not a supply, so no register row carries it: Total stays Exempt + Taxable + VAT.
-                    line.InvoiceId, line.ProductId, line.Quantity, Amount = line.Amount + line.ServiceChargeAmount,
+                    line.InvoiceId, line.ProductId, line.Quantity, Amount = line.Amount + line.ServiceChargeAmount + line.PackagingFeeAmount,
                     line.VatAmount, invoice.ExchangeRate,
                 })
                 .ToListAsync(cancellationToken);

@@ -42,7 +42,7 @@ public sealed class FindPosSalesQueryHandler(IAppDbContext db, ICurrentUserServi
         var totals = await db.InvoiceLines
             .Where(x => ids.Contains(x.InvoiceId))
             .GroupBy(x => x.InvoiceId)
-            .Select(g => new { InvoiceId = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.VatAmount) })
+            .Select(g => new { InvoiceId = g.Key, Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount + x.VatAmount) })
             .ToDictionaryAsync(x => x.InvoiceId, x => x.Total, cancellationToken);
 
         var sessionIds = rows.Select(x => x.PosSessionId).OfType<Guid>().Distinct().ToList();

@@ -60,16 +60,26 @@ internal static class InvoiceApprovalPosting
                 x.ProductId,
                 ExchangeRates.ToBase(x.Amount, invoice.ExchangeRate),
                 ExchangeRates.ToBase(x.VatAmount, invoice.ExchangeRate),
-                ExchangeRates.ToBase(x.ServiceChargeAmount, invoice.ExchangeRate))),
+                ExchangeRates.ToBase(x.ServiceChargeAmount, invoice.ExchangeRate),
+                ExchangeRates.ToBase(x.PackagingFeeAmount, invoice.ExchangeRate))),
             resolveInventoryAccounts: goodsLines.Count > 0, cancellationToken);
 
-        // Phase 61 -- the till's two legs, resolved only when present and before the number is drawn,
+        // Phase 61 -- the till's legs (phase 70 added the packaging fee), resolved only when present and before the number is drawn,
         // so a missing account is a 409 that has consumed nothing.
         if (invoice.ServiceChargeTotal > 0)
         {
             postingInput = postingInput with
             {
                 ServiceChargeAccountId = await PosAccountResolver.ServiceChargeAccountAsync(
+                    db, invoice.OrganizationId, invoice.LocationId, cancellationToken),
+            };
+        }
+
+        if (invoice.PackagingFeeTotal > 0)
+        {
+            postingInput = postingInput with
+            {
+                PackagingFeeAccountId = await PosAccountResolver.PackagingFeeAccountAsync(
                     db, invoice.OrganizationId, invoice.LocationId, cancellationToken),
             };
         }

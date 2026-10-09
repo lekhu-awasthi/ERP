@@ -28,11 +28,24 @@ public sealed class CreditNoteLine
     /// line (<see cref="InvoiceLine.ServiceChargeAmount"/>).</summary>
     public decimal ServiceChargeAmount { get; private set; }
 
-    /// <summary>What the VAT given back was charged on: the amount plus its service charge.</summary>
-    public decimal TaxableAmount => Amount + ServiceChargeAmount;
+    /// <summary>Phase 70 -- the packaging fee terms the returned sale line was charged at, copied from it
+    /// like <see cref="ServiceChargeRate"/>; none on every ERP line.</summary>
+    public PackagingFeeBasis PackagingFeeBasis { get; private set; }
+
+    /// <inheritdoc cref="PackagingFeeBasis"/>
+    public decimal PackagingFeeValue { get; private set; }
+
+    /// <summary>Phase 70 -- the packaging fee this line gives back, inside the VAT base as on the sale line
+    /// (<see cref="InvoiceLine.PackagingFeeAmount"/>).</summary>
+    public decimal PackagingFeeAmount { get; private set; }
+
+    public PackagingFee PackagingFee => PackagingFee.Create(PackagingFeeBasis, PackagingFeeValue);
+
+    /// <summary>What the VAT given back was charged on: the amount plus its service charge and packaging fee.</summary>
+    public decimal TaxableAmount => Amount + ServiceChargeAmount + PackagingFeeAmount;
 
     /// <summary>What this line takes off what the customer owes.</summary>
-    public decimal LineTotal => Amount + ServiceChargeAmount + VatAmount;
+    public decimal LineTotal => Amount + ServiceChargeAmount + PackagingFeeAmount + VatAmount;
 
     /// <summary>
     /// Phase 51 -- the <b>batch</b> this line receives into or issues from, or null when the
@@ -104,10 +117,10 @@ public sealed class CreditNoteLine
     internal static CreditNoteLine CreatePos(
         Guid creditNoteId, Guid productId, decimal quantity, decimal rate, VatRate vatRate,
         decimal discountPct, decimal headerDiscountPct, Guid? batchId, Guid? unitId,
-        decimal conversionFactor, decimal serviceChargeRate)
+        decimal conversionFactor, decimal serviceChargeRate, PackagingFee packagingFee)
     {
         var figures = PosLineArithmetic.Compute(
-            quantity, rate, vatRate.ToPercent(), discountPct, headerDiscountPct, serviceChargeRate);
+            quantity, rate, vatRate.ToPercent(), discountPct, headerDiscountPct, serviceChargeRate, packagingFee);
 
         return new CreditNoteLine
         {
@@ -123,6 +136,9 @@ public sealed class CreditNoteLine
             Amount = figures.Amount,
             ServiceChargeRate = serviceChargeRate,
             ServiceChargeAmount = figures.ServiceChargeAmount,
+            PackagingFeeBasis = packagingFee.Basis,
+            PackagingFeeValue = packagingFee.Value,
+            PackagingFeeAmount = figures.PackagingFeeAmount,
             VatAmount = figures.VatAmount,
             BatchId = batchId,
         };

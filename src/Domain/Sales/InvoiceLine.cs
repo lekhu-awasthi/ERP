@@ -41,11 +41,31 @@ public sealed class InvoiceLine
     /// </summary>
     public decimal ServiceChargeAmount { get; private set; }
 
-    /// <summary>What VAT is charged on: the goods or service itself plus its service charge.</summary>
-    public decimal TaxableAmount => Amount + ServiceChargeAmount;
+    /// <summary>
+    /// Phase 70 -- the packaging fee terms that applied when this line was rung up (<see cref="PackagingFee"/>):
+    /// a parcel's terms from the location's setting when the product is <c>PackagingFeeApplicable</c>, and
+    /// none on plated food, a Retail-tab sale and every ERP line. Frozen like <see cref="ServiceChargeRate"/>,
+    /// and for the same reason: a refund prices what it gives back from these, never from today's setting.
+    /// </summary>
+    public PackagingFeeBasis PackagingFeeBasis { get; private set; }
+
+    /// <inheritdoc cref="PackagingFeeBasis"/>
+    public decimal PackagingFeeValue { get; private set; }
+
+    /// <summary>Phase 70 -- the fee this line charges, rounded to the paisa, <b>inside the VAT base</b> like
+    /// the service charge (VAT Act 2052 §13; docs/phase-70-status.md Decision C).</summary>
+    public decimal PackagingFeeAmount { get; private set; }
+
+    public PackagingFee PackagingFee => PackagingFee.Create(PackagingFeeBasis, PackagingFeeValue);
+
+    /// <summary>What VAT is charged on: the goods or service itself plus its service charge and packaging fee.</summary>
+    public decimal TaxableAmount => Amount + ServiceChargeAmount + PackagingFeeAmount;
 
     /// <summary>What this line adds to what the customer owes.</summary>
-    public decimal LineTotal => Amount + ServiceChargeAmount + VatAmount;
+    public decimal LineTotal => Amount + ServiceChargeAmount + PackagingFeeAmount + VatAmount;
+
+    /// <summary>This line's money as the till's arithmetic names it, for a caller that adds lines up.</summary>
+    public PosLineArithmetic.Figures Figures => new(Amount, ServiceChargeAmount, PackagingFeeAmount, VatAmount);
 
     /// <summary>Null until Invoice.Approve() actually consumes FIFO stock for this line (a
     /// Service line, or a Draft line, never gets one). Set once, from
@@ -167,11 +187,11 @@ public sealed class InvoiceLine
     internal static InvoiceLine CreatePos(
         Guid invoiceId, Guid productId, decimal quantity, decimal rate, VatRate vatRate,
         decimal discountPct, decimal headerDiscountPct, Guid? batchId, Guid? unitId,
-        decimal conversionFactor, decimal serviceChargeRate)
+        decimal conversionFactor, decimal serviceChargeRate, PackagingFee packagingFee)
     {
         // Phase 63 -- the arithmetic lives in PosLineArithmetic, which the refund line also calls.
         var figures = PosLineArithmetic.Compute(
-            quantity, rate, vatRate.ToPercent(), discountPct, headerDiscountPct, serviceChargeRate);
+            quantity, rate, vatRate.ToPercent(), discountPct, headerDiscountPct, serviceChargeRate, packagingFee);
 
         return new InvoiceLine
         {
@@ -187,6 +207,9 @@ public sealed class InvoiceLine
             Amount = figures.Amount,
             ServiceChargeRate = serviceChargeRate,
             ServiceChargeAmount = figures.ServiceChargeAmount,
+            PackagingFeeBasis = packagingFee.Basis,
+            PackagingFeeValue = packagingFee.Value,
+            PackagingFeeAmount = figures.PackagingFeeAmount,
             VatAmount = figures.VatAmount,
             BatchId = batchId,
         };
@@ -202,9 +225,10 @@ public sealed class InvoiceLine
     /// </summary>
     internal static InvoiceLine CreatePosOrderPart(
         Guid invoiceId, Guid posOrderLineId, Guid productId, decimal quantity, decimal rate, VatRate vatRate,
-        Guid? unitId, decimal conversionFactor, decimal serviceChargeRate, PosLineArithmetic.Figures figures)
+        Guid? unitId, decimal conversionFactor, decimal serviceChargeRate, PackagingFee packagingFee,
+        PosLineArithmetic.Figures figures)
     {
-        foreach (var value in new[] { figures.Amount, figures.ServiceChargeAmount, figures.VatAmount })
+        foreach (var value in figures.Parts)
         {
             if (value < 0m || decimal.Round(value, Invoice.PosMoneyScale) != value)
             {
@@ -226,6 +250,9 @@ public sealed class InvoiceLine
             Amount = figures.Amount,
             ServiceChargeRate = serviceChargeRate,
             ServiceChargeAmount = figures.ServiceChargeAmount,
+            PackagingFeeBasis = packagingFee.Basis,
+            PackagingFeeValue = packagingFee.Value,
+            PackagingFeeAmount = figures.PackagingFeeAmount,
             VatAmount = figures.VatAmount,
             PosOrderLineId = posOrderLineId,
         };

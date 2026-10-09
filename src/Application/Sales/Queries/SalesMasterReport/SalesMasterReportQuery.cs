@@ -90,8 +90,11 @@ public sealed record SalesMasterReportRowDto(
     // A column of its own rather than folded into NetSales: NetSales is what the discount columns to
     // its left reconcile to, and the service charge is income of its own account, not the product's.
     // It is inside the VAT base, so VatAmount already includes the VAT on it, and TotalAmount is
-    // NetSales + ServiceCharge + VatAmount.
+    // NetSales + ServiceCharge + PackagingFee + VatAmount.
     decimal ServiceCharge,
+    // Phase 70 -- a parcel's packaging fee: a column of its own for the service charge's reasons (its own
+    // account, inside the VAT base), zero on every ERP row.
+    decimal PackagingFee,
     VatRate VatType,
     decimal VatAmount,
     decimal TotalAmount,

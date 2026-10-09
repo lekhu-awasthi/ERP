@@ -273,6 +273,8 @@ export interface AccountingDefaults {
   defaultServiceChargeAccountId: string | null;
   defaultRoundingAccountId: string | null;
   defaultCashOverShortAccountId: string | null;
+  /** Phase 70 -- where a parcel's packaging fee is credited when the location names no account. */
+  defaultPackagingFeeAccountId: string | null;
 }
 
 // Phase 16a (lock-date enforcement) -- lockDate is an ISO date string (yyyy-MM-dd) or null (unset).

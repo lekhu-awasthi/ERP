@@ -21,6 +21,7 @@ using ErpApp.Application.Pos.Queries.ListPosSessionSales;
 using ErpApp.Application.Pos.Queries.PreviewPosRefund;
 using ErpApp.Application.Pos.Queries.ListPosTills;
 using ErpApp.Domain.Pos;
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using MediatR;
 
@@ -59,6 +60,10 @@ public static class PosEndpoints
                     request.ServiceChargeAccountId,
                     // Phase 68 -- absent reads as the default (On), never as a silent Off.
                     request.ServiceChargeOnTakeAway ?? true,
+                    // Phase 70 -- an absent basis keeps the stored packaging fee (the command's note).
+                    request.PackagingFeeBasis,
+                    request.PackagingFeeValue ?? 0m,
+                    request.PackagingFeeAccountId,
                     request.RoundOffEnabled,
                     request.RoundOffAccountId,
                     request.CashVerificationRequired,
@@ -226,7 +231,10 @@ public static class PosEndpoints
         bool PrintInvoice,
         bool PrintCreditNote,
         bool PrintKot,
-        bool AbbreviatedTaxInvoiceEnabled);
+        bool AbbreviatedTaxInvoiceEnabled,
+        PackagingFeeBasis? PackagingFeeBasis = null,
+        decimal? PackagingFeeValue = null,
+        Guid? PackagingFeeAccountId = null);
 
     private sealed record SetLocationPosModeRequest(PosMode PosMode);
 

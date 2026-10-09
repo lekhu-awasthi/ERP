@@ -1,4 +1,5 @@
 using ErpApp.Domain.Catalog;
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Pos;
 using ErpApp.Domain.Tenancy;
 
@@ -29,18 +30,14 @@ public class PosTakeAwayAndTransferTests
             type == PosTab.DineIn ? 2 : 0, null, User, DateTimeOffset.UtcNow);
         order.Send(
             [
-                new PosOrderNewLine(MomoProduct, null, 1m, 2m, 200m, VatRate.ThirteenPercentVat, 10m, null, Kitchen),
-                new PosOrderNewLine(CokeProduct, null, 1m, 2m, 60m, VatRate.ThirteenPercentVat, 0m, null, null),
+                new PosOrderNewLine(MomoProduct, null, 1m, 2m, 200m, VatRate.ThirteenPercentVat, 10m, PackagingFee.None, null, Kitchen),
+                new PosOrderNewLine(CokeProduct, null, 1m, 2m, 60m, VatRate.ThirteenPercentVat, 0m, PackagingFee.None, null, null),
             ],
             [], User);
         return order;
     }
 
-    private static decimal Total(PosOrder order)
-    {
-        var e = order.Estimate();
-        return e.Amount + e.ServiceChargeAmount + e.VatAmount;
-    }
+    private static decimal Total(PosOrder order) => order.Estimate().Total;
 
     private static PosOrderLine TakeAwayOf(PosOrder order, PosOrderLine line) =>
         order.Lines.Single(x => x.ParcelledFromLineId == line.Id);
@@ -53,7 +50,7 @@ public class PosTakeAwayAndTransferTests
         var order = Table();
         var momo = order.Lines[0];
 
-        var result = order.MarkTakeAway(momo.Id, 1m, serviceChargeOnTakeAway: true, User, NothingBilled);
+        var result = order.MarkTakeAway(momo.Id, 1m, serviceChargeOnTakeAway: true, PackagingFee.None, User, NothingBilled);
 
         var parcel = Assert.Single(result.NewLines);
         Assert.True(parcel.IsTakeAway);
@@ -82,7 +79,7 @@ public class PosTakeAwayAndTransferTests
     {
         var order = Table();
 
-        order.MarkTakeAway(order.Lines[0].Id, 1m, serviceChargeOnTakeAway: false, User, NothingBilled);
+        order.MarkTakeAway(order.Lines[0].Id, 1m, serviceChargeOnTakeAway: false, PackagingFee.None, User, NothingBilled);
 
         Assert.Equal(0m, TakeAwayOf(order, order.Lines[0]).ServiceChargeRate);
         Assert.Equal(632.80m - 248.60m + 226.00m, Total(order));
@@ -94,7 +91,7 @@ public class PosTakeAwayAndTransferTests
         var order = Table();
         var coke = order.Lines[1];
 
-        order.MarkTakeAway(coke.Id, 1m, serviceChargeOnTakeAway: true, User, NothingBilled);
+        order.MarkTakeAway(coke.Id, 1m, serviceChargeOnTakeAway: true, PackagingFee.None, User, NothingBilled);
 
         Assert.Equal(0m, TakeAwayOf(order, coke).ServiceChargeRate);
         Assert.Equal(632.80m, Total(order));
@@ -106,15 +103,15 @@ public class PosTakeAwayAndTransferTests
         var order = Table();
         var momo = order.Lines[0];
 
-        order.MarkTakeAway(momo.Id, 0.5m, true, User, NothingBilled);
-        var again = order.MarkTakeAway(momo.Id, 0.5m, true, User, NothingBilled);
+        order.MarkTakeAway(momo.Id, 0.5m, true, PackagingFee.None, User, NothingBilled);
+        var again = order.MarkTakeAway(momo.Id, 0.5m, true, PackagingFee.None, User, NothingBilled);
         Assert.Empty(again.NewLines);
         Assert.Equal(1m, order.QuantitiesOf(TakeAwayOf(order, momo)).Net);
 
         // Frozen when marked: the setting switched off now reprices nothing already parcelled.
         var other = Table("ORD0002");
-        other.MarkTakeAway(other.Lines[0].Id, 1m, true, User, NothingBilled);
-        var later = other.MarkTakeAway(other.Lines[0].Id, 1m, false, User, NothingBilled);
+        other.MarkTakeAway(other.Lines[0].Id, 1m, true, PackagingFee.None, User, NothingBilled);
+        var later = other.MarkTakeAway(other.Lines[0].Id, 1m, false, PackagingFee.None, User, NothingBilled);
         Assert.Equal(0m, Assert.Single(later.NewLines).ServiceChargeRate);
         Assert.Equal([0m, 10m], other.Lines.Where(x => x.IsTakeAway).Select(x => x.ServiceChargeRate).Order());
     }
@@ -126,25 +123,25 @@ public class PosTakeAwayAndTransferTests
         var momo = order.Lines[0];
         order.Serve([Q(momo, 1m)]);
 
-        var served = Assert.Throws<InvalidOperationException>(() => order.MarkTakeAway(momo.Id, 2m, true, User, NothingBilled));
+        var served = Assert.Throws<InvalidOperationException>(() => order.MarkTakeAway(momo.Id, 2m, true, PackagingFee.None, User, NothingBilled));
         Assert.Contains("1 not yet served or billed", served.Message, StringComparison.Ordinal);
 
         var billed = new Dictionary<Guid, decimal> { [momo.Id] = 2m };
-        Assert.Throws<InvalidOperationException>(() => order.MarkTakeAway(momo.Id, 1m, true, User, billed));
+        Assert.Throws<InvalidOperationException>(() => order.MarkTakeAway(momo.Id, 1m, true, PackagingFee.None, User, billed));
 
-        order.MarkTakeAway(momo.Id, 1m, true, User, NothingBilled);
+        order.MarkTakeAway(momo.Id, 1m, true, PackagingFee.None, User, NothingBilled);
     }
 
     [Fact]
     public void Only_a_dine_in_line_is_marked_and_a_take_away_line_cannot_be_marked_again()
     {
         var parcel = Table(type: PosTab.TakeAway);
-        Assert.Throws<InvalidOperationException>(() => parcel.MarkTakeAway(parcel.Lines[0].Id, 1m, true, User, NothingBilled));
+        Assert.Throws<InvalidOperationException>(() => parcel.MarkTakeAway(parcel.Lines[0].Id, 1m, true, PackagingFee.None, User, NothingBilled));
 
         var order = Table();
-        order.MarkTakeAway(order.Lines[0].Id, 1m, true, User, NothingBilled);
+        order.MarkTakeAway(order.Lines[0].Id, 1m, true, PackagingFee.None, User, NothingBilled);
         var line = TakeAwayOf(order, order.Lines[0]);
-        Assert.Throws<InvalidOperationException>(() => order.MarkTakeAway(line.Id, 1m, true, User, NothingBilled));
+        Assert.Throws<InvalidOperationException>(() => order.MarkTakeAway(line.Id, 1m, true, PackagingFee.None, User, NothingBilled));
     }
 
     [Fact]
@@ -152,7 +149,7 @@ public class PosTakeAwayAndTransferTests
     {
         var order = Table();
         var momo = order.Lines[0];
-        var mark = order.MarkTakeAway(momo.Id, 1m, true, User, NothingBilled);
+        var mark = order.MarkTakeAway(momo.Id, 1m, true, PackagingFee.None, User, NothingBilled);
         var parcel = Assert.Single(mark.NewLines);
 
         var send = order.TicketProgress().Single(x => x.TicketId == order.Tickets.First(t => t.KitchenStationId == Kitchen).Id);
@@ -171,7 +168,7 @@ public class PosTakeAwayAndTransferTests
     {
         var order = Table();
         var momo = order.Lines[0];
-        order.MarkTakeAway(momo.Id, 1m, serviceChargeOnTakeAway: false, User, NothingBilled);
+        order.MarkTakeAway(momo.Id, 1m, serviceChargeOnTakeAway: false, PackagingFee.None, User, NothingBilled);
         var parcel = TakeAwayOf(order, momo);
 
         // The parcel alone, then the rest: 226 + 384.20 is the order's 610.20, rounded on the running total.
@@ -218,7 +215,7 @@ public class PosTakeAwayAndTransferTests
     public void A_transfer_to_a_table_without_the_dish_copies_the_lines_frozen_terms_including_a_take_away()
     {
         var source = Table("ORD0001");
-        source.MarkTakeAway(source.Lines[0].Id, 1m, serviceChargeOnTakeAway: false, User, NothingBilled);
+        source.MarkTakeAway(source.Lines[0].Id, 1m, serviceChargeOnTakeAway: false, PackagingFee.None, User, NothingBilled);
         var parcel = TakeAwayOf(source, source.Lines[0]);
 
         var target = PosOrder.Open(Organization, Location, "ORD0002", PosTab.DineIn, Guid.NewGuid(), 1, null, User, DateTimeOffset.UtcNow);

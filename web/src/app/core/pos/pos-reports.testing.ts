@@ -10,7 +10,7 @@ import { PosPaymentBreakdown, PosSalesPoint } from './pos-reports.models';
  */
 export function refundsSummary(overrides: Partial<PosRefundsSummary> = {}): PosRefundsSummary {
   return {
-    refundsCount: 1, subTotal: 200, serviceCharge: 20, vat: 28.6, roundOff: 0.4, grandTotal: 249,
+    refundsCount: 1, subTotal: 200, serviceCharge: 20, packagingFee: 0, vat: 28.6, roundOff: 0.4, grandTotal: 249,
     payouts: [{ paymentModeId: 'm-cash', paymentModeName: 'Cash', kind: 'Cash', amount: 249 }],
     paidOut: 249, toAccount: 0, cashRefunds: 249, taxable: 220, nonTaxable: 0,
     ...overrides,
@@ -19,7 +19,7 @@ export function refundsSummary(overrides: Partial<PosRefundsSummary> = {}): PosR
 
 export function salesSummary(overrides: Partial<PosSalesSummary> = {}): PosSalesSummary {
   return {
-    salesCount: 3, subTotal: 980, serviceCharge: 80, vat: 137.8, roundOff: 0.2, grandTotal: 1198,
+    salesCount: 3, subTotal: 980, serviceCharge: 80, packagingFee: 0, vat: 137.8, roundOff: 0.2, grandTotal: 1198,
     tenders: [
       { paymentModeId: 'm-cash', paymentModeName: 'Cash', kind: 'Cash', amount: 1300 },
       { paymentModeId: 'm-card', paymentModeName: 'Card', kind: 'Card', amount: 116 },

@@ -27,7 +27,7 @@ describe('PosBillPage', () => {
 
   const restaurant = (overrides: Partial<PosRestaurant> = {}): PosRestaurant => ({
     locationId, locationCode: '1002', locationName: 'POS Restaurant', availableTabs: ['DineIn', 'TakeAway', 'Delivery'],
-    defaultTab: 'DineIn', serviceChargeEnabled: true, serviceChargeRate: 10, printKot: false, canvasWidth: 1100,
+    defaultTab: 'DineIn', serviceChargeEnabled: true, serviceChargeRate: 10, packagingFeeBasis: 'None', packagingFeeValue: 0, printKot: false, canvasWidth: 1100,
     canvasHeight: 800, walkInCustomer: null, categories: [], areas: [], orders: [], canVoid: true,
     roundOffEnabled: true, printEstimateBill: true, printInvoice: false, mySessionId: 'ses-1', mySessionCode: 'SES0001',
     canKitchen: true, serviceChargeOnTakeAway: true,
@@ -36,7 +36,7 @@ describe('PosBillPage', () => {
 
   const till: PosTill = {
     locationId, locationCode: '1002', locationName: 'POS Restaurant', posMode: 'Restaurant', availableTabs: ['DineIn'],
-    defaultTab: 'DineIn', serviceChargeEnabled: true, serviceChargeRate: 10, roundOffEnabled: true,
+    defaultTab: 'DineIn', serviceChargeEnabled: true, serviceChargeRate: 10, packagingFeeBasis: 'None', packagingFeeValue: 0, roundOffEnabled: true,
     cashVerificationRequired: false, denominations: [], printInvoice: false, abbreviatedTaxInvoiceEnabled: false,
     isVatRegistered: true, warehouseId: 'wh', warehouseName: 'Main', walkInCustomer: null,
     paymentModes: [{ id: 'cash', name: 'Cash', kind: 'Cash' }, { id: 'card', name: 'Card', kind: 'Card' }],
@@ -47,14 +47,14 @@ describe('PosBillPage', () => {
     id, lineNo: 1, productId: id, productCode: 'P', productName: name, unitId: null, unitName: null, rate: 200,
     vatRate: 'ThirteenPercentVat' as const, serviceChargeRate: 10, note: null, kitchenStationId: null,
     kitchenStationName: 'Default', ordered: quantity, discarded: 0, quantity, served: 0, outstanding: quantity,
-    invoiced: 0, toBill: quantity, amount: 0, serviceChargeAmount: 0, vatAmount: 0, total: 0, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0,
+    invoiced: 0, toBill: quantity, amount: 0, serviceChargeAmount: 0, packagingFeeAmount: 0, vatAmount: 0, total: 0, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0,
   });
 
   const order = (overrides: Partial<PosOrder> = {}): PosOrder => ({
     id: 'ord-1', code: 'ORD0001', locationId, locationCode: '1002', locationName: 'POS Restaurant', orderType: 'DineIn',
     status: 'Open', tableId: 't1', tableName: 'T1', areaId: 'gf', areaName: 'Ground Floor', covers: 2, contactId: null,
     contactName: 'Cash Customer', date: '2026-10-02', createdAt: '2026-10-02T04:00:00Z', createdByName: 'Sita',
-    voidReason: null, voidedAt: null, voidedByName: null, amount: 520, serviceCharge: 40, vat: 72.8, total: 632.8,
+    voidReason: null, voidedAt: null, voidedByName: null, amount: 520, serviceCharge: 40, packagingFee: 0, vat: 72.8, total: 632.8,
     outstanding: 4, settledAt: null, billed: 0, toBill: 4, invoices: [], tickets: [],
     lines: [line('momo', 'Chicken Momo', 2), line('coke', 'Coke 250ml', 2)],
     ...overrides,
@@ -66,7 +66,7 @@ describe('PosBillPage', () => {
     const total = part === 'whole' ? 633 : part === 'first' ? 316 : 317;
     return {
       orderId: 'ord-1', orderCode: 'ORD0001', lines: [], amount: unrounded === 632.8 ? 520 : 260,
-      serviceCharge: part === 'whole' ? 40 : 20, vat: part === 'whole' ? 72.8 : 36.4, unrounded,
+      serviceCharge: part === 'whole' ? 40 : 20, packagingFee: 0, vat: part === 'whole' ? 72.8 : 36.4, unrounded,
       roundOff: Math.round((total - unrounded) * 100) / 100, total, billsTheRest: part !== 'first', orderTotal: 633,
       billedBefore: part === 'rest' ? 316 : 0, leftAfter: part === 'first' ? 317 : 0,
     };
@@ -89,7 +89,7 @@ describe('PosBillPage', () => {
         bills.push(request);
         paid = true;
         return of({
-          id: 'inv-1', code: 'INV0001', grandTotal: 316, serviceCharge: 20, roundOff: -0.4, tendered: 500, changeAmount: 184,
+          id: 'inv-1', code: 'INV0001', grandTotal: 316, serviceCharge: 20, packagingFee: 0, roundOff: -0.4, tendered: 500, changeAmount: 184,
           creditAmount: 0, isAbbreviatedTaxInvoice: false, orderStatus: 'Open', orderToBill: 317,
         });
       },

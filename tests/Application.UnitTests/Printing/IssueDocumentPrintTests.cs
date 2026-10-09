@@ -125,6 +125,32 @@ public class IssueDocumentPrintTests
     }
 
     [Fact]
+    public async Task A_parcels_packaging_fee_prints_as_a_line_of_its_own_and_is_in_the_grand_total()
+    {
+        // Phase 70 -- the PDF's summary carries the fee beside the service charge, and its grand total is
+        // computed from the lines (not read from the invoice), so it must add the fee to agree.
+        var till = await PosTestTill.CreateAsync();
+        var settings = await till.Db.PosLocationSettings.SingleAsync();
+        settings.Update(
+            till.Location.PosMode, true, 10m, null, true, PackagingFee.Create(PackagingFeeBasis.PerUnit, 20m), null, true,
+            null, false, settings.Denominations, null, true, true, true, false, false);
+        await till.Db.SaveChangesAsync();
+        var session = await till.OpenAsync();
+        var sale = await till.SaleHandler().Handle(
+            new global::ErpApp.Application.Pos.Commands.CreatePosSale.CreatePosSaleCommand(
+                till.OrganizationId, session.Id, till.Location.Id, [till.Momo(1)], [till.Cash(249m)], 0m, null,
+                till.Seed.WarehouseId, global::ErpApp.Domain.Pos.PosTab.Delivery),
+            CancellationToken.None);
+
+        var printed = await IssueAsync(till.Db, till.OrganizationId, DocumentType.Invoice, sale.Id, userId: till.UserId);
+
+        // 200 + 20 a box + 13% of 220 = 248.60, rounded to 249; no service charge on a parcel.
+        Assert.Contains(printed.Summary, x => x.Label == "Packaging" && x.Value == "20.00");
+        Assert.DoesNotContain(printed.Summary, x => x.Label == "Service Charge");
+        Assert.Equal("249.00", printed.Summary.Single(x => x.Label == "Grand Total").Value);
+    }
+
+    [Fact]
     public async Task A_till_refund_has_one_count_too()
     {
         var till = await PosTestTill.CreateAsync();

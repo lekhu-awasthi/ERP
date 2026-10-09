@@ -463,6 +463,13 @@
                     <td class="text-end fw-bold">{{ (pos.serviceChargeTotal | amount) }}</td>
                   </tr>
                 }
+                @if (pos.packagingFeeTotal !== 0) {
+                  <tr>
+                    <td colspan="4"></td>
+                    <td class="text-end fw-semibold">Packaging</td>
+                    <td class="text-end fw-bold">{{ (pos.packagingFeeTotal | amount) }}</td>
+                  </tr>
+                }
               }
               <tr>
                 <td colspan="4"></td>

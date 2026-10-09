@@ -82,6 +82,8 @@ public sealed class GetPosTillQueryHandler(IAppDbContext db, ICurrentUserService
             settings.EffectiveDefaultTab(location.PosMode),
             settings.ServiceChargeEnabled,
             settings.ServiceChargeRate,
+            settings.PackagingFeeBasis,
+            settings.PackagingFeeValue,
             settings.RoundOffEnabled,
             settings.CashVerificationRequired,
             settings.Denominations,

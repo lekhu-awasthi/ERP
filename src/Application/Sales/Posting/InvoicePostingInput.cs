@@ -40,6 +40,9 @@ public sealed record InvoicePostingInput(
 {
     public Guid? ServiceChargeAccountId { get; init; }
 
+    /// <summary>Phase 70 -- where a till line's packaging fee is credited; resolved only when there is one.</summary>
+    public Guid? PackagingFeeAccountId { get; init; }
+
     public Guid? RoundingAccountId { get; init; }
 
     /// <summary>Signed: positive is added to the bill (credited), negative is taken off (debited).</summary>
@@ -52,4 +55,7 @@ public sealed record InvoicePostingInput(
 public sealed record InvoicePostingLineInput(Guid SalesAccountId, decimal Amount, decimal VatAmount)
 {
     public decimal ServiceChargeAmount { get; init; }
+
+    /// <summary>Phase 70 -- the line's packaging fee; zero on every ERP line.</summary>
+    public decimal PackagingFeeAmount { get; init; }
 }

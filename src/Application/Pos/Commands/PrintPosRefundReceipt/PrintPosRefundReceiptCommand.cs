@@ -53,6 +53,7 @@ public sealed record PosRefundReceiptDto(
     decimal DiscountAmount,
     decimal SubTotal,
     decimal ServiceCharge,
+    decimal PackagingFee,
     decimal TaxableAmount,
     decimal NonTaxableAmount,
     decimal Vat,

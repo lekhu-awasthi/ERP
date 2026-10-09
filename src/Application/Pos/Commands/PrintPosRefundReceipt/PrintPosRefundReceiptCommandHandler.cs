@@ -120,6 +120,7 @@ public sealed class PrintPosRefundReceiptCommandHandler(IAppDbContext db, ICurre
                     x.DiscountPct,
                     x.Amount,
                     x.ServiceChargeAmount,
+                    x.PackagingFeeAmount,
                     x.VatRate,
                     x.VatAmount,
                     x.LineTotal);
@@ -159,6 +160,7 @@ public sealed class PrintPosRefundReceiptCommandHandler(IAppDbContext db, ICurre
             gross - subTotal,
             subTotal,
             note.ServiceChargeTotal,
+            note.PackagingFeeTotal,
             taxable,
             nonTaxable,
             note.Lines.Sum(x => x.VatAmount),

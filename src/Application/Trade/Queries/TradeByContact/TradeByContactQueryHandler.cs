@@ -70,9 +70,10 @@ public sealed class TradeByContactQueryHandler(IAppDbContext db, ICurrentUserSer
                     g.Sum(x => x.NetAmount),
                     g.Sum(x => x.VatAmount),
                     g.Sum(x => x.TotalAmount),
-                    g.Sum(x => x.ServiceCharge));
+                    g.Sum(x => x.ServiceCharge),
+                    g.Sum(x => x.PackagingFee));
             })
-            .Where(x => x.Amount != 0 || x.Discount != 0 || x.NetAmount != 0 || x.ServiceCharge != 0
+            .Where(x => x.Amount != 0 || x.Discount != 0 || x.NetAmount != 0 || x.ServiceCharge != 0 || x.PackagingFee != 0
                 || x.VatAmount != 0 || x.TotalAmount != 0)
             .OrderBy(x => x.ContactCode, StringComparer.Ordinal)
             .ToList();
@@ -92,6 +93,7 @@ public sealed class TradeByContactQueryHandler(IAppDbContext db, ICurrentUserSer
             rows.Sum(x => x.NetAmount),
             rows.Sum(x => x.VatAmount),
             rows.Sum(x => x.TotalAmount),
-            rows.Sum(x => x.ServiceCharge));
+            rows.Sum(x => x.ServiceCharge),
+            rows.Sum(x => x.PackagingFee));
     }
 }

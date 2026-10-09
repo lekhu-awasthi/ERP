@@ -33,11 +33,11 @@ describe('PosSessionPage', () => {
     status: 'Open', openedAt: '2026-10-01T03:00:00Z', closedAt: null, cashAccountId: 'cash', openingFloat: 1000,
     openingCount: null,
     sales: {
-      salesCount: 3, subTotal: 980, serviceCharge: 80, vat: 137.8, roundOff: 0.2, grandTotal: 1198, tenders: [
+      salesCount: 3, subTotal: 980, serviceCharge: 80, packagingFee: 0, vat: 137.8, roundOff: 0.2, grandTotal: 1198, tenders: [
         { paymentModeId: 'm-cash', paymentModeName: 'Cash', kind: 'Cash', amount: 1300 },
         { paymentModeId: 'm-card', paymentModeName: 'Card', kind: 'Card', amount: 116 },
       ], tendered: 1416, change: 367, settled: 1049, credit: 149, cashSales: 933,
-      refunds: { refundsCount: 0, subTotal: 0, serviceCharge: 0, vat: 0, roundOff: 0, grandTotal: 0, payouts: [], paidOut: 0, toAccount: 0, cashRefunds: 0, taxable: 0, nonTaxable: 0 }, netSales: 1198,
+      refunds: { refundsCount: 0, subTotal: 0, serviceCharge: 0, packagingFee: 0, vat: 0, roundOff: 0, grandTotal: 0, payouts: [], paidOut: 0, toAccount: 0, cashRefunds: 0, taxable: 0, nonTaxable: 0 }, netSales: 1198,
       taxable: 1060, nonTaxable: 0, netRoundOff: 0.2, netCash: 933, netCredit: 149,
     },
     cashMovements: [], cashIn: 0, cashOut: 0, expectedCash: 1933, countedCash: null, closingCount: null,
@@ -53,7 +53,7 @@ describe('PosSessionPage', () => {
 
   const till: PosTill = {
     locationId: 'loc-1', locationCode: 'HO', locationName: 'Thamel', posMode: 'Retail', availableTabs: ['Retail'],
-    defaultTab: 'Retail', serviceChargeEnabled: true, serviceChargeRate: 10, roundOffEnabled: true,
+    defaultTab: 'Retail', serviceChargeEnabled: true, serviceChargeRate: 10, packagingFeeBasis: 'None', packagingFeeValue: 0, roundOffEnabled: true,
     cashVerificationRequired: false, denominations: [1000, 500, 100], printInvoice: true,
     abbreviatedTaxInvoiceEnabled: false, isVatRegistered: true, warehouseId: null, warehouseName: null,
     walkInCustomer: null, paymentModes: [], categories: [], canSellOnCredit: true, printCreditNote: true,
@@ -216,7 +216,7 @@ describe('PosSessionPage', () => {
       sales: {
         ...s.sales,
         refunds: {
-          refundsCount: 1, subTotal: 60, serviceCharge: 0, vat: 7.8, roundOff: 0.2, grandTotal: 68,
+          refundsCount: 1, subTotal: 60, serviceCharge: 0, packagingFee: 0, vat: 7.8, roundOff: 0.2, grandTotal: 68,
           payouts: [{ paymentModeId: 'm-cash', paymentModeName: 'Cash', kind: 'Cash', amount: 68 }],
           paidOut: 68, toAccount: 0, cashRefunds: 68, taxable: 60, nonTaxable: 0,
         },

@@ -1,5 +1,6 @@
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Pos;
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -17,6 +18,13 @@ public sealed class PosLocationSettingsConfiguration : IEntityTypeConfiguration<
 
         builder.Property(x => x.OrganizationId).IsRequired();
         builder.Property(x => x.ServiceChargeRate).HasPrecision(5, 2).IsRequired();
+
+        // Phase 70 -- None and zero on every existing row: no location charged a packaging fee before.
+        builder.Property(x => x.PackagingFeeBasis)
+            .HasConversion<string>().HasMaxLength(20).IsRequired()
+            .HasDefaultValue(PackagingFeeBasis.None).ValueGeneratedNever();
+        builder.Property(x => x.PackagingFeeValue).HasPrecision(9, 2).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+        builder.Ignore(x => x.PackagingFee);
         builder.Property(x => x.DefaultTab).HasConversion<string>().HasMaxLength(20);
         builder.Property(x => x.CreatedAt).IsRequired();
 
@@ -53,6 +61,11 @@ public sealed class PosLocationSettingsConfiguration : IEntityTypeConfiguration<
         builder.HasOne<Account>()
             .WithMany()
             .HasForeignKey(x => x.RoundOffAccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Account>()
+            .WithMany()
+            .HasForeignKey(x => x.PackagingFeeAccountId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

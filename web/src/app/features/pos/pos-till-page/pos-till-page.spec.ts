@@ -29,19 +29,19 @@ describe('PosTillPage', () => {
 
   const momo: PosProduct = {
     id: 'momo', code: 'P0001', name: 'Chicken Momo', categoryId: 'food', type: 'Service', vatRate: 'ThirteenPercentVat',
-    rate: 200, serviceChargeApplicable: true, batchTracking: false, serialTracking: false, barcode: null,
+    rate: 200, serviceChargeApplicable: true, packagingFeeApplicable: true, batchTracking: false, serialTracking: false, barcode: null,
     units: [{ unitId: 'plate', shortName: 'plt', conversionRate: 1, rate: 200 }],
   };
 
   const coke: PosProduct = {
     id: 'coke', code: 'P0002', name: 'Coke 250ml', categoryId: 'drinks', type: 'Goods', vatRate: 'ThirteenPercentVat',
-    rate: 60, serviceChargeApplicable: false, batchTracking: false, serialTracking: false, barcode: '8901',
+    rate: 60, serviceChargeApplicable: false, packagingFeeApplicable: true, batchTracking: false, serialTracking: false, barcode: '8901',
     units: [{ unitId: 'pc', shortName: 'pc', conversionRate: 1, rate: 60 }],
   };
 
   const till = (overrides: Partial<PosTill> = {}): PosTill => ({
     locationId, locationCode: 'HO', locationName: 'Thamel', posMode: 'Retail', availableTabs: ['Retail', 'Delivery'],
-    defaultTab: 'Retail', serviceChargeEnabled: true, serviceChargeRate: 10, roundOffEnabled: true,
+    defaultTab: 'Retail', serviceChargeEnabled: true, serviceChargeRate: 10, packagingFeeBasis: 'None', packagingFeeValue: 0, roundOffEnabled: true,
     cashVerificationRequired: false, denominations: [1000, 500, 100], printInvoice: false,
     abbreviatedTaxInvoiceEnabled: false, isVatRegistered: true, warehouseId: 'wh', warehouseName: 'Main',
     walkInCustomer: { id: 'walk-in', code: 'WALKIN', name: 'Cash Customer' },
@@ -60,9 +60,9 @@ describe('PosTillPage', () => {
     id: 'ses-1', code: 'SES0001', locationId, locationName: 'Thamel', userId: 'u1', userName: 'Sita', status: 'Open',
     openedAt: '2026-10-01T03:00:00Z', closedAt: null, cashAccountId: 'cash-acct', openingFloat: 1000, openingCount: null,
     sales: {
-      salesCount: 0, subTotal: 0, serviceCharge: 0, vat: 0, roundOff: 0, grandTotal: 0, tenders: [], tendered: 0,
+      salesCount: 0, subTotal: 0, serviceCharge: 0, packagingFee: 0, vat: 0, roundOff: 0, grandTotal: 0, tenders: [], tendered: 0,
       change: 0, settled: 0, credit: 0, cashSales: 0,
-      refunds: { refundsCount: 0, subTotal: 0, serviceCharge: 0, vat: 0, roundOff: 0, grandTotal: 0, payouts: [], paidOut: 0, toAccount: 0, cashRefunds: 0, taxable: 0, nonTaxable: 0 }, netSales: 0,
+      refunds: { refundsCount: 0, subTotal: 0, serviceCharge: 0, packagingFee: 0, vat: 0, roundOff: 0, grandTotal: 0, payouts: [], paidOut: 0, toAccount: 0, cashRefunds: 0, taxable: 0, nonTaxable: 0 }, netSales: 0,
       taxable: 0, nonTaxable: 0, netRoundOff: 0, netCash: 0, netCredit: 0,
     },
     cashMovements: [], cashIn: 0, cashOut: 0, expectedCash: 1000, countedCash: null, closingCount: null,
@@ -102,7 +102,7 @@ describe('PosTillPage', () => {
       }
       const total = 633;
       return of({
-        id: 'inv-1', code: 'INV0001', grandTotal: total, serviceCharge: 40, roundOff: 0.2,
+        id: 'inv-1', code: 'INV0001', grandTotal: total, serviceCharge: 40, packagingFee: 0, roundOff: 0.2,
         tendered: request.tenders.reduce((s, t) => s + t.amount, 0), changeAmount: request.changeAmount,
         creditAmount: 0, isAbbreviatedTaxInvoice: false,
       });
@@ -119,7 +119,7 @@ describe('PosTillPage', () => {
     printedByName: 'Sita', sellerName: 'Momo Ghar', sellerAddress: 'Thamel', sellerPan: '601234567',
     locationName: 'Thamel', date: '2026-10-01', soldAt: '2026-10-01T05:00:00Z', sessionCode: 'SES0001',
     cashierName: 'Sita', orderType: 'Retail', customerName: 'Cash Customer', customerAddress: null, customerPan: null,
-    isWalkIn: true, lines: [], grossAmount: 520, discountAmount: 0, subTotal: 520, serviceCharge: 40,
+    isWalkIn: true, lines: [], grossAmount: 520, discountAmount: 0, subTotal: 520, serviceCharge: 40, packagingFee: 0,
     taxableAmount: 560, nonTaxableAmount: 0, vat: 72.8, roundOff: 0.2, grandTotal: 633,
     amountInWords: 'Rupees Six Hundred Thirty Three Only', tenders: [], tendered: 1000, changeAmount: 367,
     creditAmount: 0,

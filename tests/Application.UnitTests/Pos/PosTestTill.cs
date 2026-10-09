@@ -18,6 +18,7 @@ using ErpApp.Application.Sales.Posting;
 using ErpApp.Application.Sales.Stock;
 using ErpApp.Application.UnitTests.TestSupport;
 using ErpApp.Domain.Accounting;
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
@@ -44,6 +45,7 @@ internal sealed class PosTestTill
     public required Guid CashAccountId { get; init; }
     public required Guid BankAccountId { get; init; }
     public required Guid ServiceChargeAccountId { get; init; }
+    public required Guid PackagingFeeAccountId { get; init; }
     public required Guid RoundingAccountId { get; init; }
     public required Guid OverShortAccountId { get; init; }
     public required Guid VegetablesAccountId { get; init; }
@@ -102,12 +104,13 @@ internal sealed class PosTestTill
         var cash = Add("1010", "Cash In Hand", AccountRootType.Asset, AccountKind.Cash);
         var bank = Add("1020", "Nabil Bank", AccountRootType.Asset, AccountKind.Bank);
         var serviceCharge = Add("4100", "Service Charge Income", AccountRootType.Income);
+        var packaging = Add("4300", "Packaging Income", AccountRootType.Income);
         var rounding = Add("4200", "Rounding", AccountRootType.Income);
         var overShort = Add("5900", "Cash Over/Short", AccountRootType.Expense);
         var vegetables = Add("5100", "Vegetables", AccountRootType.Expense);
 
         var settings = await db.TenantSettings.SingleAsync(x => x.OrganizationId == organizationId);
-        settings.SetPosDefaults(serviceCharge.Id, rounding.Id, overShort.Id);
+        settings.SetPosDefaults(serviceCharge.Id, rounding.Id, overShort.Id, packaging.Id);
 
         var location = BillingLocation.CreateHeadOffice(organizationId);
         // Phase 64 -- the same till as a Restaurant location, for the order tests.
@@ -125,7 +128,7 @@ internal sealed class PosTestTill
         var posSettings = PosLocationSettings.CreateDefault(organizationId, location.Id);
         posSettings.Update(
             mode, serviceChargeEnabled: true, serviceChargeRate: 10m, serviceChargeAccountId: null,
-            serviceChargeOnTakeAway: true, roundOffEnabled: true, roundOffAccountId: null, cashVerificationRequired: false,
+            serviceChargeOnTakeAway: true, packagingFee: PackagingFee.None, packagingFeeAccountId: null, roundOffEnabled: true, roundOffAccountId: null, cashVerificationRequired: false,
             denominations: PosLocationSettings.DefaultDenominations, defaultTab: null,
             printEstimateBill: true, printInvoice: true, printCreditNote: true, printKot: false,
             abbreviatedTaxInvoiceEnabled: false);
@@ -157,6 +160,7 @@ internal sealed class PosTestTill
             CashAccountId = cash.Id,
             BankAccountId = bank.Id,
             ServiceChargeAccountId = serviceCharge.Id,
+            PackagingFeeAccountId = packaging.Id,
             RoundingAccountId = rounding.Id,
             OverShortAccountId = overShort.Id,
             VegetablesAccountId = vegetables.Id,

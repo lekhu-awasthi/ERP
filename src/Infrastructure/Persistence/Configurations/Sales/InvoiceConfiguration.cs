@@ -63,6 +63,7 @@ public sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
 
         builder.Ignore(x => x.GrandTotal);
         builder.Ignore(x => x.ServiceChargeTotal);
+        builder.Ignore(x => x.PackagingFeeTotal);
         builder.Ignore(x => x.TenderedAmount);
         builder.Ignore(x => x.SettledAmount);
         builder.Ignore(x => x.CreditAmount);

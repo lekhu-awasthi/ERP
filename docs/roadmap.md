@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–67)
+## Completed phases (0–70)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -54,6 +54,8 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 66 | POS reports and dashboard: Day Report, Payment Summary, Order Report, POS Sessions, the overview; the ERP sales reports and System Audit read with a Channel filter; every figure from one reader, the round-off the one line to the Sales Register |
 | 67 | The ERP invoice and credit-note PDF: the heading the bill is (English and Nepali), every copy counted across till, PDF and email, copies marked; a counted print is a POST |
 | 68 | Mark as Take Away and item transfer: a parcel is a split line moved by a take-away ticket, its service charge decided once at the mark by the location's setting; a transfer is a ticket on each order at the same rates; plus the buyer's PAN on the ERP PDF |
+| 69 | A credit note names its invoice (VAT Rule 20(1)(e)): a picked one is a price adjustment capped by value and VAT, a typed one predates the system; conversion templates carry currency; line caps re-checked on edit |
+| 70 | The packaging fee: per item on every parcel (percent of the line or flat per unit), inside the VAT base, its own account, frozen on the line; a product may opt out (on by default) |
 
 ---
 
@@ -111,7 +113,7 @@ The two rules apply to every tax invoice; phase 67 brought the ERP's own PDF and
 column (now for credit notes too). The ERP credit note against a till sale is settled by phase 63:
 the ERP may no longer convert one, and the till's refund returns the service charge.
 
-**The POS sequence (60–66) is complete, and so are phases 67, 68 and 69.** Phase 67 put the ERP invoice and
+**The POS sequence (60–66) is complete, and so are phases 67, 68, 69 and 70.** Phase 67 put the ERP invoice and
 credit-note PDF under the till's two statutory rules (`phase-67-status.md`). Phase 68 shipped *Mark as Take Away*
 and item transfer on the restaurant till (`phase-68-status.md`): a parcel is a split line moved by a take-away
 kitchen ticket, its service charge decided once, at the mark, by the location's *Service charge on take-away*;
@@ -120,12 +122,25 @@ ERP PDF now prints the buyer's "PAN: …" when the contact has one (VAT Rules Sc
 credit note able to name its tax invoice (`phase-69-status.md`): a picked one makes a standalone note a price
 adjustment capped by the invoice's value and VAT, a typed one must predate the first invoice here, and a
 VAT-registered seller cannot approve a note naming none; it also put the source's currency on four conversion
-templates and re-checked the line caps on an edit of a converted note. **Next: not yet scheduled**; the candidates
-are the carried items below (the packaging fee, discount and credit on a restaurant bill, per-part customers) and
-real printing templates.
+templates and re-checked the line caps on an edit of a converted note. Phase 70 shipped the packaging fee
+(`phase-70-status.md`): per item on every parcel (Take Away, Delivery, and dine-in food marked take-away), a percent
+of the line or a flat amount per unit, inside the VAT base at the line's own rate, its own account, frozen on the
+line, with a per-product opt-out on by default. **Next: not yet scheduled**; the candidates are every bill's date
+in BS (raised 2026-10-08, below), discount and credit on a restaurant bill, per-part customers, and real printing
+templates.
 
 Open question for the tax advisor, not to be guessed (carried from the PAN fix): whether IRD expects a buyer PAN
 on a high-value sale to an unregistered buyer. If it does, it would be a warning on approve, never a block.
+
+**Raised 2026-10-08 by the user, not yet scheduled: every bill shows its date in BS.** The user stated that every
+bill a Nepali business issues must carry its date in Bikram Sambat, by rule. Today none of ours does unless the
+viewer has set the calendar toggle to BS: the ERP invoice and credit-note PDF follow `RequestCalendar` (AD
+unless the `X-Calendar` header says BS), the **emailed** PDF is always AD because the job sends no header, and
+the till and refund receipts follow `DatePreferenceService` (default AD). The vendor's printed ERP invoice shows
+BS dates (scan, phase 28 read). The fix makes a bill's date a statutory field rather than a display preference:
+BS whatever the toggle says, on paper and by email. Cite the rule's source in the phase's status doc before
+building. This also constrains the printing-templates item below, where no per-type "date system" toggle may
+switch BS off on a tax document.
 
 **Also raised 2026-10-03, not yet scheduled: real printing templates.** Phase 20d kept `PrintingTemplate` as a
 name and a default flag, by the user's decision; every type prints one shared layout, where the vendor offers
@@ -145,10 +160,12 @@ a reader change, not a screen change); the vendor's Delivery Partner Statement (
 the sequence).
 
 **Carried from phases 64, 65 and 68** (§ 5 in each): *Mark as Take Away* and item transfer shipped in phase 68
-with the user's 2026-10-03 answer. Still carried: **a packaging fee** (flat line / percentage / none, per
-location, inside the VAT base, its own account; asked for and carried separately by the user; the vendor has
-none); **a discount and credit on a restaurant bill**; **per-part customers**. VAT stays in code; only fees are
-settings.
+with the user's 2026-10-03 answer, and the packaging fee in phase 70. Still carried: **a discount and credit on a
+restaurant bill**; **per-part customers**. VAT stays in code; only fees are settings.
+
+**Carried from phase 70** (§ 5 there): the VAT Act §13 wording for packaging is unverified (phase 61's reading
+applied to a second charge); the full-tenant export now lacks the packaging fee as well as service charge and
+round-off; a receipt prints the fee's total, not which items carried it.
 
 **Carried from phase 63** (§ 5 there): cross-branch returns; split payouts on the refund screen (the
 API takes several); a fully refunded bill still listed in the refund search.

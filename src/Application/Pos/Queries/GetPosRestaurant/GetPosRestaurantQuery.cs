@@ -4,6 +4,7 @@ using ErpApp.Application.Pos.Queries.GetPosConfiguration;
 using ErpApp.Application.Pos.Queries.GetPosTill;
 using ErpApp.Application.Pos.Restaurant;
 using ErpApp.Domain.Pos;
+using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using FluentValidation;
 using MediatR;
@@ -49,6 +50,8 @@ public sealed record PosRestaurantDto(
     PosTab? DefaultTab,
     bool ServiceChargeEnabled,
     decimal ServiceChargeRate,
+    PackagingFeeBasis PackagingFeeBasis,
+    decimal PackagingFeeValue,
     bool PrintKot,
     int CanvasWidth,
     int CanvasHeight,
@@ -162,6 +165,8 @@ public sealed class GetPosRestaurantQueryHandler(IAppDbContext db, ICurrentUserS
             till.Settings.EffectiveDefaultTab(location.PosMode),
             till.Settings.ServiceChargeEnabled,
             till.Settings.ServiceChargeRate,
+            till.Settings.PackagingFeeBasis,
+            till.Settings.PackagingFeeValue,
             till.Settings.PrintKot,
             PosArea.CanvasWidth,
             PosArea.CanvasHeight,

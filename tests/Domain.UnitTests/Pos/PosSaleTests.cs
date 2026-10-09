@@ -26,8 +26,8 @@ public class PosSaleTests
     private static Invoice VendorTable()
     {
         var sale = Sale();
-        sale.AddPosLine(Momo, 2, 200m, VatRate.ThirteenPercentVat, 0, null, 1, null, 10m);
-        sale.AddPosLine(Coke, 2, 60m, VatRate.ThirteenPercentVat, 0, null, 1, null, 0m);
+        sale.AddPosLine(Momo, 2, 200m, VatRate.ThirteenPercentVat, 0, null, 1, null, 10m, PackagingFee.None);
+        sale.AddPosLine(Coke, 2, 60m, VatRate.ThirteenPercentVat, 0, null, 1, null, 0m, PackagingFee.None);
         return sale;
     }
 
@@ -60,8 +60,8 @@ public class PosSaleTests
     public void Round_off_brings_the_bill_to_the_nearest_rupee(int momo, int coke, decimal roundOff, decimal total)
     {
         var sale = Sale();
-        sale.AddPosLine(Momo, momo, 200m, VatRate.ThirteenPercentVat, 0, null, 1, null, 10m);
-        sale.AddPosLine(Coke, coke, 60m, VatRate.ThirteenPercentVat, 0, null, 1, null, 0m);
+        sale.AddPosLine(Momo, momo, 200m, VatRate.ThirteenPercentVat, 0, null, 1, null, 10m, PackagingFee.None);
+        sale.AddPosLine(Coke, coke, 60m, VatRate.ThirteenPercentVat, 0, null, 1, null, 0m, PackagingFee.None);
 
         sale.ApplyRoundOff();
 
@@ -74,7 +74,7 @@ public class PosSaleTests
     {
         var sale = Sale();
         // 50 at 13% is 56.50.
-        sale.AddPosLine(Coke, 1, 50m, VatRate.ThirteenPercentVat, 0, null, 1, null, 0m);
+        sale.AddPosLine(Coke, 1, 50m, VatRate.ThirteenPercentVat, 0, null, 1, null, 0m, PackagingFee.None);
 
         sale.ApplyRoundOff();
 
@@ -87,7 +87,7 @@ public class PosSaleTests
         var sale = VendorTable();
         sale.ApplyRoundOff();
 
-        sale.AddPosLine(Coke, 1, 60m, VatRate.ThirteenPercentVat, 0, null, 1, null, 0m);
+        sale.AddPosLine(Coke, 1, 60m, VatRate.ThirteenPercentVat, 0, null, 1, null, 0m, PackagingFee.None);
 
         Assert.Equal(0m, sale.RoundOff);
     }
@@ -163,7 +163,7 @@ public class PosSaleTests
 
         Assert.Throws<InvalidOperationException>(() => sale.Settle([Card(100m)], 0m));
         Assert.Throws<InvalidOperationException>(() =>
-            sale.AddPosLine(Coke, 1, 60m, VatRate.ThirteenPercentVat, 0, null, 1, null, 0m));
+            sale.AddPosLine(Coke, 1, 60m, VatRate.ThirteenPercentVat, 0, null, 1, null, 0m, PackagingFee.None));
     }
 
     [Fact]
@@ -187,7 +187,7 @@ public class PosSaleTests
         Assert.Equal(invoice.Lines.Sum(x => x.Amount + x.VatAmount), invoice.GrandTotal);
         Assert.Equal(invoice.GrandTotal, invoice.CreditAmount);
         Assert.Throws<InvalidOperationException>(() =>
-            invoice.AddPosLine(Coke, 1, 60m, VatRate.ThirteenPercentVat, 0, null, 1, null, 0m));
+            invoice.AddPosLine(Coke, 1, 60m, VatRate.ThirteenPercentVat, 0, null, 1, null, 0m, PackagingFee.None));
         Assert.Throws<InvalidOperationException>(() => invoice.Settle([Cash(10m)], 0m));
     }
 
@@ -195,7 +195,7 @@ public class PosSaleTests
     public void A_till_line_is_rounded_to_the_paisa_as_it_is_made()
     {
         var sale = Sale();
-        sale.AddPosLine(Coke, 3, 33.3333m, VatRate.ThirteenPercentVat, 0, null, 1, null, 10m);
+        sale.AddPosLine(Coke, 3, 33.3333m, VatRate.ThirteenPercentVat, 0, null, 1, null, 10m, PackagingFee.None);
 
         var line = sale.Lines[0];
         Assert.Equal(100.00m, line.Amount);

@@ -156,7 +156,7 @@ public sealed class PosOrderReportQueryHandler(IAppDbContext db, ICurrentUserSer
         var billedLines = await (
                 from line in db.InvoiceLines
                 join invoice in billedInvoices on line.InvoiceId equals invoice.Id
-                select line.Amount + line.ServiceChargeAmount + line.VatAmount)
+                select line.Amount + line.ServiceChargeAmount + line.PackagingFeeAmount + line.VatAmount)
             .SumAsync(cancellationToken);
         var billedRoundOff = await billedInvoices.SumAsync(x => x.RoundOff, cancellationToken);
 
