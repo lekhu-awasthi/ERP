@@ -338,4 +338,12 @@ public class BsCalendarTests
         Assert.Null(BsCalendar.MonthName(13));
         Assert.NotNull(BsCalendar.MonthName(12));
     }
+    /// <summary>FormatLong's fallback: with no month name to use it drops to the numeric form
+    /// rather than rendering a sentence with a hole in it.</summary>
+    [Fact]
+    public void FormatLong_falls_back_to_the_numeric_form_without_a_month_name()
+    {
+        Assert.Equal("2083-13-16", BsCalendar.FormatLong(new BsDate(2083, 13, 16)));
+        Assert.Equal("2083-00-16", BsCalendar.FormatLong(new BsDate(2083, 0, 16)));
+    }
 }
